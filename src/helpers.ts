@@ -1,18 +1,10 @@
 // deno-lint-ignore-file no-explicit-any no-control-regex
+import path from 'node:path'
 import process from 'node:process'
+import os from 'node:os'
 
 // GENERAL HELPERS
 export const range = (i: int) => Array.from({ length: i }, (_, i) => i)
-export const sorted = <T>(x: T[], key?: (x: T) => keyof T): T[] => {
-    if (key) {
-        return [...x].sort((a, b) => {
-            const ka: any = key(a)
-            const kb: any = key(b)
-            return ka < kb ? -1 : ka > kb ? 1 : 0
-        })
-    }
-    return [...x].sort()
-}
 export const d = <T extends any[]>(...t: T) => t
 
 // TINYGRAD CODE
@@ -71,45 +63,24 @@ export const ceildiv = (num: number, amt: number): number => {
     return Number.isInteger(ret) ? ret : Math.floor(ret)
 }
 export const roundUp = (num: int, amt: int): int => Math.ceil(num / amt) * amt
-export const data64 = (data: int): [int, int] => [
-    Math.floor(data / Math.pow(2, 32)), // correctly get upper 32 bits
-    data >>> 0, // get lower 32 bits with unsigned right shift
-]
-export const data64_le = (data: int): [int, int] => [
-    data >>> 0, // get lower 32 bits with unsigned right shift
-    Math.floor(data / Math.pow(2, 32)), // correctly get upper 32 bits
-]
+export const data64 = (data: int): [int, int] => [Math.floor(data / Math.pow(2, 32)), data >>> 0]
+export const data64_le = (data: int): [int, int] => [data >>> 0, Math.floor(data / Math.pow(2, 32))]
 export const mergeDicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
     const kvs = new Set(ds.flatMap((d) => Object.entries(d))) as Set<[T, U]>
     const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
     if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
     return Object.fromEntries(Array.from(kvs)) as Record<T, U>
 }
-export const partition = <T>(itr: Iterable<T>, fxn: (x: T) => boolean): [T[], T[]] => {
-    const a: T[] = []
-    const b: T[] = []
-    for (const s of itr) (fxn(s) ? a : b).push(s)
-    return [a, b]
-}
-// def unwrap(x:Optional[T]) -> T:
-//   assert x is not None
-//   return x
-// def get_child(obj, key):
-//   for k in key.split('.'):
-//     if k.isnumeric(): obj = obj[int(k)]
-//     elif isinstance(obj, dict): obj = obj[k]
-//     else: obj = getattr(obj, k)
-//   return obj
-// def word_wrap(x, wrap=80): return x if len(x) <= wrap else (x[0:wrap] + "\n" + word_wrap(x[wrap:], wrap))
 
-// # for length N coefficients `p`, returns p[0] * x**(N-1) + p[1] * x**(N-2) + ... + p[-2] * x + p[-1]
-// def polyN(x:T, p:List[float]) -> T: return functools.reduce(lambda acc,c: acc*x+c, p, 0.0)  # type: ignore
+export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])
+export const unwrap = <T>(x: T | undefined): T => x!
+export const get_child = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
-// @functools.lru_cache(maxsize=None)
-// def to_function_name(s:str): return ''.join([c if c in (str.ascii_letters+str.digits+'_') else f'{ord(c):02X}' for c in ansistrip(s)])
-// @functools.lru_cache(maxsize=None)
-// def getenv(key:str, default=0): return type(default)(os.getenv(key, default))
-// def temp(x:str) -> str: return (pathlib.Path(tempfile.gettempdir()) / x).as_posix()
+export const word_wrap = (x: string, wrap: number = 80): string => x.length <= wrap ? x : x.slice(0, wrap) + '\n' + word_wrap(x.slice(wrap), wrap)
+export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
+export const to_function_name = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
+export const getenv = (key: string, defaultVal: number = 0): number => Number(process.env[key] || defaultVal)
+export const temp = (x: string): string => path.join(os.tmpdir(), x)
 
 // class Context(contextlib.ContextDecorator):
 //   stack: ClassVar[List[dict[str, int]]] = [{}]

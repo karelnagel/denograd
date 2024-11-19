@@ -45,3 +45,17 @@ tinyTest('mergeDicts', [[[{ a: 1 }, { b: 2 }], [{ x: 1, y: 2 }, { z: 3 }]]] as a
 tinyTest('partition', [[[1, 2, 3, 4, 5], (x: number) => x % 2 === 0]], helpers.partition, (arr) => `out(tiny.helpers.partition(${JSON.stringify(arr)}, lambda x: x % 2 == 0))`)
 tinyTest('partition', [[[2, 4, 6, 8, 10], (x: number) => x > 5]], helpers.partition, (arr) => `out(tiny.helpers.partition(${JSON.stringify(arr)}, lambda x: x > 5))`)
 tinyTest('partition', [[['a', 'b', 'c', 'd'], (x: string) => x > 'b']], helpers.partition, (arr) => `out(tiny.helpers.partition(${JSON.stringify(arr)}, lambda x: x > "b"))`)
+
+tinyTest('unwrap', [[1], [2], ['sdf']], helpers.unwrap, (x) => `out(tiny.helpers.unwrap(${JSON.stringify(x)}))`)
+
+tinyTest('get_child', [[{ a: 1, b: { c: 2 } }, 'b.c'], [{ a: { x: [33, 54] }, b: { c: 2 } }, 'a.x.0'], [[3, { a: { v: 'true' } }], '1.a.v']], helpers.get_child, (x, y) => `out(tiny.helpers.get_child(${JSON.stringify(x)}, ${JSON.stringify(y)}))`)
+
+tinyTest('word_wrap', [['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.word_wrap, (x) => `out(tiny.helpers.word_wrap(${JSON.stringify(x)}))`)
+
+tinyTest('polyN', [[2, [1, 2, 3]], [2, [1, 2, 3]]], helpers.polyN, (x, p) => `out(tiny.helpers.polyN(${x}, ${JSON.stringify(p)}))`)
+
+tinyTest('to_function_name', [['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.to_function_name, (s) => `out(tiny.helpers.to_function_name(${JSON.stringify(s)}))`)
+
+tinyTest('getenv', [['key', 0]], helpers.getenv, (key, defaultVal) => `out(tiny.helpers.getenv(${JSON.stringify(key)}, ${defaultVal}))`)
+
+tinyTest('temp', [['file.txt']], helpers.temp, (x) => `out(tiny.helpers.temp(${JSON.stringify(x)}))`)
