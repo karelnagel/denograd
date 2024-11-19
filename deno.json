@@ -1,0 +1,4 @@
+{
+    "name": "@karelnagel/denograd",
+    "exports": "./src/mod.ts"
+}
