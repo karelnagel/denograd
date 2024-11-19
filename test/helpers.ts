@@ -1,6 +1,8 @@
+import { assertEquals } from 'jsr:@std/assert@^1.0.8'
 import { exec } from 'node:child_process'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
+export const python = async (code: string) => JSON.parse((await execAsync(`cd /Users/karel/Documents/denograd/tinygrad && python3 -c '${code}'`)).trim())
 export const tiny = async (strings: TemplateStringsArray, ...values: any[]): Promise<any> => {
     const code = `
 import tinygrad as tiny
@@ -10,9 +12,13 @@ def out(o):
 
 ${String.raw({ raw: strings }, ...values)}
 `
-    const res = await execAsync(`cd /Users/karel/Documents/denograd/tinygrad && python3 -c '${code}'`)
-    return JSON.parse(res.trim())
+    return await python(code)
 }
 
-const res = await tiny`out("hello")`
-console.log(res)
+export const tinyTest = <T extends any[]>(name: string, inputs: T[], fn: (...args: T) => any, python: (...args: T) => string) => {
+    Deno.test(name, async () => {
+        for (const input of inputs) {
+            assertEquals(fn(...input), await tiny`${python(...input)}`)
+        }
+    })
+}

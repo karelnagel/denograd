@@ -2,7 +2,7 @@
     "name": "@karelnagel/denograd",
     "exports": "./src/mod.ts",
     "tasks": {
-        "test":"deno test -A"
+        "test": "deno test -A --parallel"
     },
     "fmt": {
         "lineWidth": 250,
