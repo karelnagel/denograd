@@ -1,4 +1,28 @@
 {
     "name": "@karelnagel/denograd",
-    "exports": "./src/mod.ts"
+    "exports": "./src/mod.ts",
+    "tasks": {
+        "test":"deno test -A"
+    },
+    "fmt": {
+        "lineWidth": 250,
+        "indentWidth": 1,
+        "semiColons": false,
+        "singleQuote": true
+    },
+    "lint": {
+        "rules": {
+            "exclude": [
+                "no-explicit-any"
+            ]
+        }
+    },
+    "imports": {
+        "expect": "jsr:@std/expect"
+    },
+    "compilerOptions": {
+        "types": [
+            "./types.d.ts"
+        ]
+    }
 }
