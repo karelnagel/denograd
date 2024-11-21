@@ -6,7 +6,9 @@ import os from 'node:os'
 // GENERAL HELPERS
 export const range = (i: number) => Array.from({ length: i }, (_, i) => i)
 export const d = <T extends any[]>(...t: T) => t
-
+export const assert = (condition: boolean, message: string) => {
+  if (!condition) throw new Error(message)
+}
 // TINYGRAD CODE
 // NOTE: it returns int 1 if x is empty regardless of the type of x
 export const prod = (x: number[]) => x.reduce((acc, curr) => acc * curr, 1)
