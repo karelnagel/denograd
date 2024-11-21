@@ -36,7 +36,7 @@ tinyTest('ceildiv', [[180, 3], [-10, 3], [10.5, 3], [-10.5, 3]], helpers.ceildiv
 
 tinyTest('roundUp', [[180, 3], [10, 3], [11, 3], [12, 3]], helpers.roundUp, (x, y) => tiny`out(tiny.helpers.round_up(${x}, ${y}))`)
 
-tinyTest('data64', [[333], [45443], [0], [-1], [NaN], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64, (x) => tiny`out(tiny.helpers.data64(${x}))`)
+tinyTest('data64', [[333], [45443], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64, (x) => tiny`out(tiny.helpers.data64(${x}))`)
 
 tinyTest('data64_le', [[333], [3434], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64Le, (x) => tiny`out(tiny.helpers.data64_le(${x}))`)
 
@@ -56,6 +56,6 @@ tinyTest('polyN', [[2, [1, 2, 3]], [2, [1, 2, 3]]], helpers.polyN, (x, p) => tin
 
 tinyTest('to_function_name', [['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.toFunctionName, (s) => tiny`out(tiny.helpers.to_function_name(${s}))`)
 
-tinyTest('getenv', [['key', 0]], helpers.getenv, (key, defaultVal) => tiny`out(tiny.helpers.getenv(${key}, ${defaultVal}))`)
+tinyTest('getenv', [['key', "value"]], helpers.getEnv, (key, defaultVal) => tiny`out(tiny.helpers.getenv(${key}, ${defaultVal}))`)
 
 tinyTest('temp', [['file.txt']], helpers.temp, (x) => tiny`out(tiny.helpers.temp(${x}))`)

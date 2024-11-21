@@ -79,38 +79,16 @@ export const getChild = (obj: any, key: string): any => key.split('.').reduce((c
 export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
 export const toFunctionName = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
-export const getenv = (key: string, defaultVal = 0): number => Number(process.env[key] || defaultVal)
+export const getEnv = (key: string, defaultVal = '') => process.env[key] || defaultVal
+export const getNumberEnv = (key: string, defaultVal: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)
 
-// class Context(contextlib.ContextDecorator):
-//   stack: ClassVar[List[dict[str, int]]] = [{}]
-//   def __init__(self, **kwargs): self.kwargs = kwargs
-//   def __enter__(self):
-//     Context.stack[-1] = {k:o.value for k,o in ContextVar._cache.items()} # Store current state.
-//     for k,v in self.kwargs.items(): ContextVar._cache[k].value = v # Update to new temporary state.
-//     Context.stack.append(self.kwargs) # Store the temporary state so we know what to undo later.
-//   def __exit__(self, *args):
-//     for k in Context.stack.pop(): ContextVar._cache[k].value = Context.stack[-1].get(k, ContextVar._cache[k].value)
-
-// class ContextVar:
-//   _cache: ClassVar[Dict[str, ContextVar]] = {}
-//   value: int
-//   key: str
-//   def __init__(self, key, default_value):
-//     assert key not in ContextVar._cache, f"attempt to recreate ContextVar {key}"
-//     ContextVar._cache[key] = self
-//     self.value, self.key = getenv(key, default_value), key
-//   def __bool__(self): return bool(self.value)
-//   def __ge__(self, x): return self.value >= x
-//   def __gt__(self, x): return self.value > x
-//   def __lt__(self, x): return self.value < x
-
-// DEBUG, IMAGE, BEAM, NOOPT, JIT = ContextVar("DEBUG", 0), ContextVar("IMAGE", 0), ContextVar("BEAM", 0), ContextVar("NOOPT", 0), ContextVar("JIT", 1)
-// WINO, CAPTURING, TRACEMETA = ContextVar("WINO", 0), ContextVar("CAPTURING", 1), ContextVar("TRACEMETA", 1)
-// PROFILE, PROFILEPATH = ContextVar("PROFILE", 0), ContextVar("PROFILEPATH", temp("tinygrad_profile.json"))
-// USE_TC, TC_OPT, AMX, TRANSCENDENTAL = ContextVar("TC", 1), ContextVar("TC_OPT", 0), ContextVar("AMX", 0), ContextVar("TRANSCENDENTAL", 1)
-// FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE = ContextVar("FUSE_ARANGE", 0), ContextVar("FUSE_CONV_BW", 0), ContextVar("LAZYCACHE", 1)
-// SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING = ContextVar("SPLIT_REDUCEOP", 1), ContextVar("NO_MEMORY_PLANNER", 0), ContextVar("RING", 1)
+export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [getNumberEnv('DEBUG', 0), getNumberEnv('IMAGE', 0), getNumberEnv('BEAM', 0), getNumberEnv('NOOPT', 0), getNumberEnv('JIT', 1)]
+export const [WINO, CAPTURING, TRACEMETA] = [getNumberEnv('WINO', 0), getNumberEnv('CAPTURING', 1), getNumberEnv('TRACEMETA', 1)]
+export const [PROFILE, PROFILEPATH] = [getNumberEnv('PROFILE', 0), getEnv('PROFILEPATH', temp('tinygrad_profile.json'))]
+export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [getNumberEnv('TC', 1), getNumberEnv('TC_OPT', 0), getNumberEnv('AMX', 0), getNumberEnv('TRANSCENDENTAL', 1)]
+export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [getNumberEnv('FUSE_ARANGE', 0), getNumberEnv('FUSE_CONV_BW', 0), getNumberEnv('LAZYCACHE', 1)]
+export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [getNumberEnv('SPLIT_REDUCEOP', 1), getNumberEnv('NO_MEMORY_PLANNER', 0), getNumberEnv('RING', 1)]
 
 // @dataclass(frozen=True)
 // class Metadata:
@@ -125,16 +103,13 @@ export const temp = (x: string): string => path.join(os.tmpdir(), x)
 // # **************** global state Counters ****************
 
 export class GlobalCounters {
-  static reset() {}
+  static globalOps = 0
+  static globalMem = 0
+  static timeSumS = 0
+  static kernelCount = 0
+  static memUsed = 0 // NOTE: this is not reset
+  static reset = () => [GlobalCounters.globalOps, GlobalCounters.globalMem, GlobalCounters.timeSumS, GlobalCounters.kernelCount] = [0, 0, 0, 0]
 }
-// class GlobalCounters:
-//   global_ops: ClassVar[int] = 0
-//   global_mem: ClassVar[int] = 0
-//   time_sum_s: ClassVar[float] = 0.0
-//   kernel_count: ClassVar[int] = 0
-//   mem_used: ClassVar[int] = 0   # NOTE: this is not reset
-//   @staticmethod
-//   def reset(): GlobalCounters.global_ops, GlobalCounters.global_mem, GlobalCounters.time_sum_s, GlobalCounters.kernel_count = 0,0,0.0,0
 
 // # **************** timer and profiler ****************
 
@@ -168,9 +143,9 @@ export class GlobalCounters {
 
 // # *** universal database cache ***
 
-// _cache_dir: str = getenv("XDG_CACHE_HOME", os.path.expanduser("~/Library/Caches" if OSX else "~/.cache"))
-// CACHEDB: str = getenv("CACHEDB", os.path.abspath(os.path.join(_cache_dir, "tinygrad", "cache.db")))
-// CACHELEVEL = getenv("CACHELEVEL", 2)
+const cacheDir = getEnv('XDG_CACHE_HOME', path.resolve(OSX ? path.join(os.homedir(), 'Library', 'Caches') : path.join(os.homedir(), '.cache')))
+export const CACHEDB = getEnv('CACHEDB', path.resolve(path.join(cacheDir, 'tinygrad', 'cache.db')))
+export const CACHELEVEL = getNumberEnv('CACHELEVEL', 2)
 
 // VERSION = 16
 // _db_connection = None
