@@ -38,7 +38,7 @@ tinyTest('roundUp', [[180, 3], [10, 3], [11, 3], [12, 3]], helpers.roundUp, (x, 
 
 tinyTest('data64', [[333], [45443], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64, (x) => `out(tiny.helpers.data64(${x}))`)
 
-tinyTest('data64_le', [[333], [3434], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64_le, (x) => `out(tiny.helpers.data64_le(${x}))`)
+tinyTest('data64_le', [[333], [3434], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64Le, (x) => `out(tiny.helpers.data64_le(${x}))`)
 
 tinyTest('mergeDicts', [[[{ a: 1 }, { b: 2 }], [{ x: 1, y: 2 }, { z: 3 }]]] as any, helpers.mergeDicts, (x) => `out(tiny.helpers.merge_dicts(${JSON.stringify(x)}))`)
 
@@ -48,13 +48,13 @@ tinyTest('partition', [[['a', 'b', 'c', 'd'], (x: string) => x > 'b']], helpers.
 
 tinyTest('unwrap', [[1], [2], ['sdf']], helpers.unwrap, (x) => `out(tiny.helpers.unwrap(${JSON.stringify(x)}))`)
 
-tinyTest('get_child', [[{ a: 1, b: { c: 2 } }, 'b.c'], [{ a: { x: [33, 54] }, b: { c: 2 } }, 'a.x.0'], [[3, { a: { v: 'true' } }], '1.a.v']], helpers.get_child, (x, y) => `out(tiny.helpers.get_child(${JSON.stringify(x)}, ${JSON.stringify(y)}))`)
+tinyTest('get_child', [[{ a: 1, b: { c: 2 } }, 'b.c'], [{ a: { x: [33, 54] }, b: { c: 2 } }, 'a.x.0'], [[3, { a: { v: 'true' } }], '1.a.v']], helpers.getChild, (x, y) => `out(tiny.helpers.get_child(${JSON.stringify(x)}, ${JSON.stringify(y)}))`)
 
-tinyTest('word_wrap', [['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.word_wrap, (x) => `out(tiny.helpers.word_wrap(${JSON.stringify(x)}))`)
+tinyTest('word_wrap', [['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.wordWrap, (x) => `out(tiny.helpers.word_wrap(${JSON.stringify(x)}))`)
 
 tinyTest('polyN', [[2, [1, 2, 3]], [2, [1, 2, 3]]], helpers.polyN, (x, p) => `out(tiny.helpers.polyN(${x}, ${JSON.stringify(p)}))`)
 
-tinyTest('to_function_name', [['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.to_function_name, (s) => `out(tiny.helpers.to_function_name(${JSON.stringify(s)}))`)
+tinyTest('to_function_name', [['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.toFunctionName, (s) => `out(tiny.helpers.to_function_name(${JSON.stringify(s)}))`)
 
 tinyTest('getenv', [['key', 0]], helpers.getenv, (key, defaultVal) => `out(tiny.helpers.getenv(${JSON.stringify(key)}, ${defaultVal}))`)
 

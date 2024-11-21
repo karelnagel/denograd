@@ -4,7 +4,7 @@ import process from 'node:process'
 import os from 'node:os'
 
 // GENERAL HELPERS
-export const range = (i: int) => Array.from({ length: i }, (_, i) => i)
+export const range = (i: number) => Array.from({ length: i }, (_, i) => i)
 export const d = <T extends any[]>(...t: T) => t
 
 // TINYGRAD CODE
@@ -18,68 +18,68 @@ if (process.platform === 'win32') process.stdout.write('')
 
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
 export const argfix = (...x: any[]) => {
-    if (x.length && (Array.isArray(x[0]))) {
-        if (x.length !== 1) throw new Error(`bad arg ${x}`)
-        return [...x[0]]
-    }
-    return x
+  if (x.length && (Array.isArray(x[0]))) {
+    if (x.length !== 1) throw new Error(`bad arg ${x}`)
+    return [...x[0]]
+  }
+  return x
 }
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
 export const allSame = <T>(items: T[]) => items.every((x) => x === items[0])
-export const allInt = (t: any[]): t is int[] => t.every((s) => Number.isInteger(s))
-export const colored = (st: str, color?: str, background = false) => {
-    if (!color) return st
-    const colors = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
-    const code = 10 * (background ? 1 : 0) + 60 * (color === color.toUpperCase() ? 1 : 0) + 30 + colors.indexOf(color.toLowerCase())
-    return `\u001b[${code}m${st}\u001b[0m`
+export const allInt = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
+export const colored = (st: string, color?: string, background = false) => {
+  if (!color) return st
+  const colors = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+  const code = 10 * (background ? 1 : 0) + 60 * (color === color.toUpperCase() ? 1 : 0) + 30 + colors.indexOf(color.toLowerCase())
+  return `\u001b[${code}m${st}\u001b[0m`
 }
 export const colorizeFloat = (x: number) => colored(x.toFixed(2).padStart(7) + 'x', x < 0.75 ? 'green' : x > 1.15 ? 'red' : 'yellow')
-export const memsizeToStr = (_b: int) => [d(1e9, 'GB'), d(1e6, 'MB'), d(1e3, 'KB'), d(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
-export const ansistrip = (s: str) => s.replace(/\x1b\[(K|.*?m)/g, '')
-export const ansilen = (s: str) => ansistrip(s).length
-export const makeTuple = (x: int | int[], cnt: int): int[] => Array.isArray(x) ? [...x] : Array(cnt).fill(x)
+export const memsizeToStr = (_b: number) => [d(1e9, 'GB'), d(1e6, 'MB'), d(1e3, 'KB'), d(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
+export const ansistrip = (s: string) => s.replace(/\x1b\[(K|.*?m)/g, '')
+export const ansilen = (s: string) => ansistrip(s).length
+export const makeTuple = (x: number | number[], cnt: number): number[] => Array.isArray(x) ? [...x] : Array(cnt).fill(x)
 export const flatten = <T>(l: T[][]): T[] => l.flat()
 export const fullyFlatten = <T>(l: any): T[] => {
-    if (Array.isArray(l) || (l && typeof l === 'object' && 'length' in l && !('length' in String.prototype))) {
-        const flattened: T[] = []
-        if ('shape' in l && l.shape?.length === 0) {
-            flattened.push(l[0])
-        } else {
-            for (let i = 0; i < l.length; i++) {
-                flattened.push(...fullyFlatten(l[i]) as any)
-            }
-        }
-        return flattened
+  if (Array.isArray(l) || (l && typeof l === 'object' && 'length' in l && !('length' in String.prototype))) {
+    const flattened: T[] = []
+    if ('shape' in l && l.shape?.length === 0) {
+      flattened.push(l[0])
+    } else {
+      for (let i = 0; i < l.length; i++) {
+        flattened.push(...fullyFlatten(l[i]) as any)
+      }
     }
-    return [l]
+    return flattened
+  }
+  return [l]
 }
 
 // TODO
 // def fromimport(mod, frm): return getattr(__import__(mod, fromlist=[frm]), frm)
-export const stripParens = (s: str) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
+export const stripParens = (s: string) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
 export const ceildiv = (num: number, amt: number): number => {
-    const ret = -(Math.floor(-num / amt))
-    return Number.isInteger(ret) ? ret : Math.floor(ret)
+  const ret = -(Math.floor(-num / amt))
+  return Number.isInteger(ret) ? ret : Math.floor(ret)
 }
-export const roundUp = (num: int, amt: int): int => Math.ceil(num / amt) * amt
-export const data64 = (data: int): [int, int] => [Math.floor(data / Math.pow(2, 32)), data >>> 0]
-export const data64_le = (data: int): [int, int] => [data >>> 0, Math.floor(data / Math.pow(2, 32))]
+export const roundUp = (num: number, amt: number) => Math.ceil(num / amt) * amt
+export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0]
+export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))]
 export const mergeDicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
-    const kvs = new Set(ds.flatMap((d) => Object.entries(d))) as Set<[T, U]>
-    const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
-    if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
-    return Object.fromEntries(Array.from(kvs)) as Record<T, U>
+  const kvs = new Set(ds.flatMap((d) => Object.entries(d))) as Set<[T, U]>
+  const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
+  if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
+  return Object.fromEntries(Array.from(kvs)) as Record<T, U>
 }
 
 export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])
 export const unwrap = <T>(x: T | undefined): T => x!
-export const get_child = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
+export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
-export const word_wrap = (x: string, wrap: number = 80): string => x.length <= wrap ? x : x.slice(0, wrap) + '\n' + word_wrap(x.slice(wrap), wrap)
+export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
-export const to_function_name = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
-export const getenv = (key: string, defaultVal: number = 0): number => Number(process.env[key] || defaultVal)
+export const toFunctionName = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
+export const getenv = (key: string, defaultVal = 0): number => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)
 
 // class Context(contextlib.ContextDecorator):
@@ -124,6 +124,9 @@ export const temp = (x: string): string => path.join(os.tmpdir(), x)
 
 // # **************** global state Counters ****************
 
+export class GlobalCounters {
+  static reset() {}
+}
 // class GlobalCounters:
 //   global_ops: ClassVar[int] = 0
 //   global_mem: ClassVar[int] = 0
