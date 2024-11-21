@@ -103,7 +103,7 @@ class dtypes {
             return val.map((x) => dtypes.asConst(x, dtype) as ConstType)
         }
 
-        // TODO: should truncate here
+        // TODO: should truncate here (tinygrad)
         if (dtypes.isInt(dtype)) return Number(val)
         else if (dtypes.isFloat(dtype)) return Number(val)
         else return Boolean(val)
@@ -262,7 +262,7 @@ export const truncateFp16 = (x: any) => {
 
 export const truncate = {
     bool: (x: any) => Boolean(x),
-    // TODO: bfloat16
+    // TODO: bfloat16 (tinygrad)
     float16: (x: any) => truncateFp16(x),
     float32: (x: number) => new Float32Array([x])[0],
     float64: (x: number) => new Float64Array([x])[0],
