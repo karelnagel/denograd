@@ -1,4 +1,4 @@
-import { assert } from '../helpers.ts'
+import { assert } from './helpers.ts'
 
 export type ConstType = number | boolean
 
@@ -6,29 +6,36 @@ type DTypeArgs = { priority: number; itemsize: number; name: string; fmt: string
 
 // TODO: all DTypes should only be created once, DTypeMetaClass
 class DType {
+    // deno-fmt-ignore
     constructor(args: DTypeArgs) {
-        this.args = args
+        this.priority = args.priority; this.itemsize = args.itemsize;this.name = args.name; this.fmt = args.fmt; this.count = args.count; this._scalar = args.scalar
     }
-    args: DTypeArgs
+    priority: number
+    itemsize: number
+    name: string
+    fmt: string | null
+    count: number
+    _scalar: DType | null
+
     static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | null]) => new DType({ priority, itemsize, name, fmt, count: 1, scalar: null })
     reduce = (): [typeof DType, any[]] => [this.constructor as typeof DType, Object.values(DType)]
-    toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().args.name as 'bool']}${this.args.count > 1 ? `.vec(${this.args.count})` : ''}`
-    lt = (o: DType) => [this.args.priority, this.args.itemsize, this.args.name, this.args.fmt, this.args.count] < [o.args.priority, o.args.itemsize, o.args.name, o.args.fmt, o.args.count]
+    toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name as 'bool']}${this.count > 1 ? `.vec(${this.count})` : ''}`
+    lt = (o: DType) => [this.priority, this.itemsize, this.name, this.fmt, this.count] < [o.priority, o.itemsize, o.name, o.fmt, o.count]
     get base(): DType {
         return this
     }
     get vcount() {
-        return this.args.count
+        return this.count
     }
     // @functools.lru_cache(None)
     vec(sz: number) {
-        assert(this.args.count === 1, `can't vectorize ${this} with size ${sz}`)
+        assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
 
         if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
-        return new DType({ priority: this.args.priority, itemsize: this.args.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.args.name as 'bool']}${sz}`, fmt: null, count: sz, scalar: this })
+        return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name as 'bool']}${sz}`, fmt: null, count: sz, scalar: this })
     }
-    ptr = (local = false) => new PtrDType({ ...this.args, scalar: null, base: this, local, v: 1 })
-    scalar = () => this.args.scalar || this
+    ptr = (local = false) => new PtrDType({ ...this, scalar: null, base: this, local, v: 1 })
+    scalar = () => this._scalar || this
 }
 type PtrDTypeArgs = DTypeArgs & { base: DType; local: boolean; v: number }
 
@@ -50,7 +57,7 @@ class PtrDType extends DType {
     override vec(sz: number): DType {
         assert(this.v === 1, `can't vectorize ptr ${self} with size ${sz}`)
         if (sz === 1) return this
-        return new PtrDType({ ...this.args, v: sz, scalar: this, base: this.base, local: this.local })
+        return new PtrDType({ ...this, v: sz, scalar: this, base: this.base, local: this.local })
     }
     override ptr = (local = false): PtrDType => {
         throw new Error("can't make a pointer from a pointer")
@@ -72,7 +79,7 @@ class ImageDType extends PtrDType {
         assert(!local, "images can't be local")
         return this
     }
-    override toString = () => `dtypes.${this.args.name}(${this.shape})${this.v !== 1 ? `.vec(${this.v})` : ''}`
+    override toString = () => `dtypes.${this.name}(${this.shape})${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
 
 class dtypes {
@@ -92,7 +99,7 @@ class dtypes {
     }
     static asConst(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
         if (Array.isArray(val)) {
-            if (val.length !== dtype.args.count) throw new Error(`mismatch ${val} ${JSON.stringify(dtype)}`)
+            if (val.length !== dtype.count) throw new Error(`mismatch ${val} ${JSON.stringify(dtype)}`)
             return val.map((x) => dtypes.asConst(x, dtype) as ConstType)
         }
 
@@ -103,12 +110,12 @@ class dtypes {
     }
     //   @functools.lru_cache(None)
     static min(x: DType) {
-        if (dtypes.isInt(x)) return dtypes.isUnsigned(x) ? 0 : (-2) ** (x.args.itemsize * 8 - 1)
+        if (dtypes.isInt(x)) return dtypes.isUnsigned(x) ? 0 : (-2) ** (x.itemsize * 8 - 1)
         return dtypes.isFloat(x) ? -Infinity : false
     }
     //   @functools.lru_cache(None)
     static max(x: DType) {
-        if (dtypes.isInt(x)) return (2 ** (x.args.itemsize * 8 - (dtypes.isUnsigned(x) ? 0 : 1))) - 1
+        if (dtypes.isInt(x)) return (2 ** (x.itemsize * 8 - (dtypes.isUnsigned(x) ? 0 : 1))) - 1
         return dtypes.isFloat(x) ? Infinity : true
     }
     /**
@@ -183,7 +190,7 @@ export const promoLattice = { bool: [dtypes.int8, dtypes.uint8], int8: [dtypes.i
 // @functools.lru_cache(None)
 export const _getRecursiveParents = (x: DType): Set<DType> => {
     if (x === dtypes.float64) return new Set([dtypes.float64])
-    return new Set([...(promoLattice[INVERSE_DTYPES_DICT[x.args.name as 'bool'] as 'bool'] || []).map((x) => [..._getRecursiveParents(x)]).flat(), x])
+    return new Set([...(promoLattice[INVERSE_DTYPES_DICT[x.name as 'bool'] as 'bool'] || []).map((x) => [..._getRecursiveParents(x)]).flat(), x])
 }
 // @functools.lru_cache(None)
 export const leastUpperDType = (...ds: DType[]): DType => {

@@ -8,7 +8,7 @@
 // from tinygrad.dtype import ConstType, ImageDType, PtrDType, dtypes, DType, truncate
 // from tinygrad.helpers import ContextVar, prod, getenv, all_same, Context, partition, temp, unwrap, T
 
-import type { ConstType } from './nn/dtype.ts'
+import type { ConstType } from './dtype.ts'
 
 // # wrapper around IntEnum that preserves Enum.__str__ and makes auto() unique across all FastEnum subclasses
 // class FastEnum(IntEnum):
@@ -30,7 +30,7 @@ class SimpleMathTrait {
     logicalNot = () => this.ne(true)
     neg = () => {
         if (!("dtype" in this)) throw new Error("MathTraits __neg__ requires a dtype")
-            
+
     }
     //   def neg(self):
     //     dtype: Optional[DType] = getattr(self, 'dtype', None)
