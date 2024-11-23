@@ -2,10 +2,20 @@ import { assert } from './helpers.ts'
 
 export type ConstType = number | boolean
 
-type DTypeArgs = { priority: number; itemsize: number; name: string; fmt: string | null; count: number; scalar: DType | null }
-
 // TODO: all DTypes should only be created once, DTypeMetaClass
-class DType {
+const cache = new Map<string, any>()
+const cachedOrNew = <T extends typeof DType>(Class: any, args: ConstructorParameters<T>[0]): T => {
+    const key = JSON.stringify(args)
+    const cached = cache.get(key)
+    if (cached) return cached
+
+    const dtype = new Class(args)
+    cache.set(key, dtype)
+    return dtype as any
+}
+export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt: string | null; count: number; scalar: DType | null }
+
+export class DType {
     // deno-fmt-ignore
     constructor(args: DTypeArgs) {
         this.priority = args.priority; this.itemsize = args.itemsize;this.name = args.name; this.fmt = args.fmt; this.count = args.count; this._scalar = args.scalar
@@ -18,7 +28,7 @@ class DType {
     _scalar: DType | null
 
     static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | null]) => new DType({ priority, itemsize, name, fmt, count: 1, scalar: null })
-    reduce = (): [typeof DType, any[]] => [this.constructor as typeof DType, Object.values(DType)]
+    reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
     toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name as 'bool']}${this.count > 1 ? `.vec(${this.count})` : ''}`
     lt = (o: DType) => [this.priority, this.itemsize, this.name, this.fmt, this.count] < [o.priority, o.itemsize, o.name, o.fmt, o.count]
     get base(): DType {
@@ -30,17 +40,15 @@ class DType {
     // @functools.lru_cache(None)
     vec(sz: number) {
         assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
-
         if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
         return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name as 'bool']}${sz}`, fmt: null, count: sz, scalar: this })
     }
     ptr = (local = false) => new PtrDType({ ...this, scalar: null, base: this, local, v: 1 })
     scalar = () => this._scalar || this
 }
-type PtrDTypeArgs = DTypeArgs & { base: DType; local: boolean; v: number }
+export type PtrDTypeArgs = DTypeArgs & { base: DType; local: boolean; v: number }
 
-// @dataclass(frozen=True, eq=False)
-class PtrDType extends DType {
+export class PtrDType extends DType {
     _base: DType
     local: boolean
     v: number

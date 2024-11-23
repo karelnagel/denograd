@@ -38,6 +38,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@std/assert@*",
       "jsr:@std/expect@*"
     ]
   }
