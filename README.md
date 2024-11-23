@@ -22,3 +22,5 @@
 idk, I think that JS frameworks, runtimes and VCs should be interested in having competitive JS ML framework. Also when tinygrad has CLOUD=1 ready and is making chips then they should also be interested in getting JS developers to use their products.
 
 -- these are just some notes for myself so I won't forget why I started doing this
+
+`git rm $(git diff --name-only --diff-filter=U)`
