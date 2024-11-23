@@ -1,18 +1,8 @@
-import { assert } from './helpers.ts'
+import { assert, getEnv } from './helpers.ts'
 
 export type ConstType = number | boolean
 
 // TODO: all DTypes should only be created once, DTypeMetaClass
-const cache = new Map<string, any>()
-const cachedOrNew = <T extends typeof DType>(Class: any, args: ConstructorParameters<T>[0]): T => {
-    const key = JSON.stringify(args)
-    const cached = cache.get(key)
-    if (cached) return cached
-
-    const dtype = new Class(args)
-    cache.set(key, dtype)
-    return dtype as any
-}
 export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt: string | null; count: number; scalar: DType | null }
 
 export class DType {
@@ -93,10 +83,10 @@ export class dtypes {
     static isInt = (x: DType) => dtypes.ints.includes(x.scalar())
     static isUnsigned = (x: DType) => dtypes.uints.includes(x.scalar())
     static fromJS = (x: any): DType => {
-        if (typeof x === 'number') return Number.isInteger(x) ? dtypes.default_int : dtypes.default_float
+        if (typeof x === 'number') return Number.isInteger(x) ? dtypes.defaultInt : dtypes.defaultFloat
         if (typeof x === 'boolean') return dtypes.bool
         //  put this in the last is faster because there are more items than lists/tuples to check
-        if (Array.isArray(x)) return x ? x.map((x) => dtypes.fromJS(x)).sort()[0] : dtypes.default_float
+        if (Array.isArray(x)) return x ? x.map((x) => dtypes.fromJS(x)).sort()[0] : dtypes.defaultFloat
         throw new Error(`Could not infer dtype of ${x} with type ${typeof x}`)
     }
     static asConst(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
@@ -159,28 +149,29 @@ export class dtypes {
     static int = dtypes.int32
     static long = dtypes.int64
 
-    //   # NOTE: these are image dtypes
+    // NOTE: these are image dtypes
     static imageh = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, scalar: null, base: dtypes.float32, local: false, v: 1, shape: shp })
     static imagef = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, scalar: null, base: dtypes.float32, local: false, v: 1, shape: shp })
 
-    static default_float = dtypes.float32
-    static default_int = dtypes.int32
+    static defaultFloat = dtypes.float32
+    static defaultInt = dtypes.int32
 
     static floats = [dtypes.float16, dtypes.bfloat16, dtypes.float32, dtypes.float64]
     static uints = [dtypes.uint8, dtypes.uint16, dtypes.uint32, dtypes.uint64]
     static sints = [dtypes.int8, dtypes.int16, dtypes.int32, dtypes.int64]
     static ints = [...dtypes.uints, ...dtypes.sints]
 }
-// TODO
-// if (env_default_float := getenv("DEFAULT_FLOAT", "")):
-//   dtypes.default_float = getattr(dtypes, env_default_float.lower())
-//   assert dtypes.is_float(dtypes.default_float), f"{env_default_float} is not a float dtype"
+const envDefaultFloat = getEnv('DEFAULT_FLOAT', '')
+if (envDefaultFloat) {
+    dtypes.defaultFloat = dtypes[envDefaultFloat as keyof dtypes]
+    assert(dtypes.isFloat(dtypes.defaultFloat), `${envDefaultFloat} is not a float dtype`)
+}
 
 type DTypeLike = string | DType
 export const toDType = (x: DTypeLike): DType => (x instanceof DType) ? x : dtypes[x as 'float16']
 
-// # https://jax.readthedocs.io/en/latest/jep/9407-type-promotion.html
-// # we don't support weak type and complex type
+// https://jax.readthedocs.io/en/latest/jep/9407-type-promotion.html
+// we don't support weak type and complex type
 // deno-fmt-ignore
 const promoLattice = (dtype: DType) => {
     switch (dtype) {
@@ -201,8 +192,7 @@ const promoLattice = (dtype: DType) => {
 }
 export const _getRecursiveParents = (dtype: DType): DType[] => {
     if (dtype === dtypes.float64) return [dtypes.float64]
-    const parents = new Set(promoLattice(dtype).flatMap(_getRecursiveParents).filter((x, i, arr) => arr.indexOf(x) === i))
-    return [...new Set([dtype, ...parents])]
+    return [...new Set([dtype, ...new Set(promoLattice(dtype).flatMap(_getRecursiveParents).filter((x, i, arr) => arr.indexOf(x) === i))])]
 }
 
 export const leastUpperDType = (...ds: DType[]): DType => {
@@ -220,15 +210,6 @@ export const sumAccDType = (dt: DType) => {
     if (dtypes.isUnsigned(dt)) return leastUpperDType(dt, dtypes.uint)
     if (dtypes.isInt(dt) || dt === dtypes.bool) return leastUpperDType(dt, dtypes.int)
     return leastUpperDType(dt, dtypes.float)
-}
-export const truncateFp16 = (x: any) => {
-    try {
-        // TODO
-        throw new Error('Not implemented')
-        // return struct.unpack("@e", struct.pack("@e", float(x)))[0]
-    } catch {
-        return Math.abs(Infinity) * Math.sign(x)
-    }
 }
 
 // deno-fmt-ignore
