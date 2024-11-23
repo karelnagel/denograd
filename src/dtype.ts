@@ -214,22 +214,6 @@ export const leastUpperFloat = (dt: DType) => dtypes.isFloat(dt) ? dt : leastUpp
 
 export const DTYPES_DICT: Record<string, DType> = Object.fromEntries(Object.entries(dtypes).filter(([k, v]) => v instanceof DType && !k.startsWith('default') && k !== 'void'))
 export const INVERSE_DTYPES_DICT: Record<string, string> = { ...Object.fromEntries(Object.entries(DTYPES_DICT).map(([k, v]) => [v.name, k])), 'void': 'void' }
-const INVERSE_DTYPES_DICT_OLD = {
-    'bool': 'bool',
-    'signed char': 'char',
-    'unsigned char': 'uchar',
-    'short': 'short',
-    'unsigned short': 'ushort',
-    'int': 'int',
-    'unsigned int': 'uint',
-    'long': 'long',
-    'unsigned long': 'ulong',
-    'half': 'half',
-    '__bf16': 'bfloat16',
-    'float': 'float',
-    'double': 'double',
-    'void': 'void',
-}
 
 export const sumAccDType = (dt: DType) => {
     // default acc dtype for sum
@@ -247,18 +231,22 @@ export const truncateFp16 = (x: any) => {
     }
 }
 
-export const truncate = {
-    bool: (x: any) => Boolean(x),
+// deno-fmt-ignore
+export const truncate=(dtype:DType) => {
+    switch (dtype){
+    case dtypes.bool: return (x: any) => Boolean(x)
     // TODO: bfloat16 (tinygrad)
-    float16: (x: any) => new Float16Array([x])[0],
-    float32: (x: number) => new Float32Array([x])[0],
-    float64: (x: number) => new Float64Array([x])[0],
-    uint8: (x: number) => new Uint8Array([x])[0],
-    uint16: (x: number) => new Uint16Array([x])[0],
-    uint32: (x: number) => new Uint32Array([x])[0],
-    uint64: (x: bigint) => BigInt.asUintN(64, x),
-    int8: (x: number) => new Int8Array([x])[0],
-    int16: (x: number) => new Int16Array([x])[0],
-    int32: (x: number) => new Int32Array([x])[0],
-    int64: (x: bigint) => BigInt.asIntN(64, x),
+    case dtypes.float16: return (x: number) => new Float16Array([x])[0]
+    case dtypes.float32: return (x: number) => new Float32Array([x])[0]
+    case dtypes.float64: return (x: number) => new Float64Array([x])[0]
+    case dtypes.uint8: return (x: number) => new Uint8Array([x])[0]
+    case dtypes.uint16: return (x: number) => new Uint16Array([x])[0]
+    case dtypes.uint32: return (x: number) => new Uint32Array([x])[0]
+    case dtypes.uint64: return (x: bigint) => BigInt.asUintN(64, x)
+    case dtypes.int8: return (x: number) => new Int8Array([x])[0]
+    case dtypes.int16: return (x: number) => new Int16Array([x])[0]
+    case dtypes.int32: return (x: number) => new Int32Array([x])[0]
+    case dtypes.int64: return (x: bigint) => BigInt.asIntN(64, x)
+    default: throw new Error(`Invalid dtype ${dtype}`)
+    }
 }

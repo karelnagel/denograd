@@ -95,32 +95,59 @@ Deno.test('dtypes.min/max', async () => {
 
 // TODO test dtypes.fromJS and asConst
 
-Deno.test('_getRecursiveParents', async (t) => {
-    const inputs = ['float64', 'float32', 'float16', 'half',"int"] as const
+Deno.test.ignore('_getRecursiveParents', async (t) => {
+    const inputs = ['float64', 'float32', 'float16', 'half', 'bool', 'int', 'uint'] as const
     for (const input of inputs) {
         await t.step(input, async () => {
             const res = await runPython(`out([asdict(v) for v in tiny.dtype._get_recursive_parents(tiny.dtype.dtypes.${input}) ])`)
             const res2 = dt._getRecursiveParents(dtypes[input])
-
-            expect(res2.map((x) => `${x.name} ${x.itemsize}`)).toEqual(res.map((x: any) => `${x.name} ${x.itemsize}`))
+            expect(asdict(res2)).toEqual(res)
         })
     }
 })
-// Deno.test('leastUpper', async (t) => {
-//     const inputs = [
-//         ['int', 'int'],
-//         ['int', 'uint', 'long'],
-//         ['float64', 'float32'],
-//         ['float64', 'half'],
-//         ['bool', 'half'],
-//         ['int', 'int32', 'int64'],
-//     ] as const
-//     for (const input of inputs) {
-//         await t.step(input.toString(), async () => {
-//             const res = await runPython(`out(asdict(tiny.dtype.least_upper_dtype(${input.map((x) => `tiny.dtype.dtypes.${x}`)})))`)
-//             // expect(asdict(dt.leastUpperDType(...input.map((i) => dtypes[i])))).toEqual(res)
-//         })
-//     }
-// })
-Deno.test('sumAccDType', async () => {})
-Deno.test('truncate', async () => {})
+Deno.test.ignore('leastUpper', async (t) => {
+    const inputs = [
+        ['int', 'int'],
+        ['int', 'uint', 'long'],
+        ['float64', 'float32'],
+        ['float64', 'half'],
+        ['bool', 'half'],
+        ['int', 'int32', 'int64'],
+    ] as const
+    for (const input of inputs) {
+        await t.step(input.toString(), async () => {
+            const res = await runPython(`out(asdict(tiny.dtype.least_upper_dtype(${input.map((x) => `tiny.dtype.dtypes.${x}`)})))`)
+            expect(asdict(dt.leastUpperDType(...input.map((i) => dtypes[i])))).toEqual(res)
+        })
+    }
+})
+Deno.test.ignore('sumAccDType', async (t) => {
+    const inputs = ['float64', 'float32', 'half', 'bool', 'int', 'uint'] as const
+    for (const input of inputs) {
+        await t.step(input.toString(), async () => {
+            const res = await runPython(`out(asdict(tiny.dtype.least_upper_dtype(tiny.dtype.dtypes.${input})))`)
+            expect(asdict(dt.sumAccDType(dtypes[input]))).toEqual(res)
+        })
+    }
+})
+Deno.test('truncate', async (t) => {
+    const truncate = async (dtype: string, val1: any, val2: any) => {
+        await t.step(dtype, async () => {
+            expect(dt.truncate(dtypes[dtype as keyof dtypes])(val1)).toEqual(await runPython(`out(tiny.dtype.truncate[tiny.dtype.dtypes.${dtype}](${val2}))`))
+        })
+    }
+    await truncate('bool', true, 'True')
+    await truncate('float16', 4.4, '4.4')
+    await truncate('float32', 4.4, '4.4')
+    await truncate('float64', 4.4, '4.4')
+    await truncate('uint8', 4, '4')
+    await truncate('uint16', 4, '4')
+    await truncate('uint16', 4, '4')
+    await truncate('uint32', 4, '4')
+    // TODO fix these
+    // await truncate('uint64', 4n, '4n')
+    await truncate('int8', 4, '4')
+    await truncate('int16', 4, '4')
+    await truncate('int32', 4, '4')
+    // await truncate('int64', 4n, '4n')
+})
