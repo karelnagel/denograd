@@ -3,7 +3,6 @@ import { exec } from 'node:child_process'
 import process from 'node:process'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
-export const python = async (code: string) => JSON.parse((await execAsync(`cd ${process.cwd()}/tinygrad && python3 -c '${code}'`)).trim())
 
 /**
  * ```ts
@@ -21,8 +20,12 @@ export const toPython = (val: any): string => {
   if (typeof val === 'object') return `{${Object.entries(val).map((entry) => `"${entry[0]}":${toPython(entry[1])}`).join(',')}}`
   throw new Error('invalid value')
 }
-export const asdict = (o: any): any => !o ?o:Object.fromEntries(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(([k, v]) => typeof v === 'object' ? [k, asdict(v)] : [k, v]))
-
+export const asdict = (o: any): object => {
+  if (!o) return o
+  if (Array.isArray(o)) return o.map(asdict)
+  if (typeof o === 'object') return Object.fromEntries(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(([k, v]) => [k, asdict(v)]))
+  return o
+}
 export const trycatch = <T>(fn: () => T): T | string => {
   try {
     return fn()
@@ -31,20 +34,34 @@ export const trycatch = <T>(fn: () => T): T | string => {
     else return 'error'
   }
 }
-export const tiny = async (strings: TemplateStringsArray, ...values: any[]): Promise<any> => {
-  const code = `
+
+export const runPython = async (code: string) => {
+  code = `
 import tinygrad as tiny
 import math
 import json
+from dataclasses import asdict
+
 def trycatch(fn):
   try: return fn()
   except Exception as e: return str(e)
+
 def out(o):
     print(json.dumps(o))
 
-${String.raw({ raw: strings }, ...values.map((x) => toPython(x)))}
+${code}
 `
-  return await python(code)
+  const res = await execAsync(`cd ${process.cwd()}/tinygrad && python3 -c '${code}'`)
+  try {
+    return JSON.parse(res.trim())
+  } catch (e) {
+    if (e instanceof SyntaxError) throw new Error(`Parsing "${res.trim()}" failed.`)
+    throw e
+  }
+}
+export const tiny = async (strings: TemplateStringsArray, ...values: any[]): Promise<any> => {
+  const code = String.raw({ raw: strings }, ...values.map((x) => toPython(x)))
+  return await runPython(code)
 }
 
 export const tinyTest = <T extends any[]>(name: string, inputs: T[], fn: (...args: T) => any, python: (...args: T) => Promise<string>) => {

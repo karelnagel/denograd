@@ -29,7 +29,7 @@ export class DType {
 
     static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | null]) => new DType({ priority, itemsize, name, fmt, count: 1, scalar: null })
     reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
-    toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name as 'bool']}${this.count > 1 ? `.vec(${this.count})` : ''}`
+    toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
     lt = (o: DType) => [this.priority, this.itemsize, this.name, this.fmt, this.count] < [o.priority, o.itemsize, o.name, o.fmt, o.count]
     get base(): DType {
         return this
@@ -41,7 +41,7 @@ export class DType {
     vec(sz: number) {
         assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
         if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
-        return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name as 'bool']}${sz}`, fmt: null, count: sz, scalar: this })
+        return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name]}${sz}`, fmt: null, count: sz, scalar: this })
     }
     ptr = (local = false) => new PtrDType({ ...this, scalar: null, base: this, local, v: 1 })
     scalar = () => this._scalar || this
@@ -61,7 +61,6 @@ export class PtrDType extends DType {
     override get base() {
         return this._base
     }
-    // @functools.lru_cache(None)
     override vec(sz: number): DType {
         assert(this.v === 1, `can't vectorize ptr ${self} with size ${sz}`)
         if (sz === 1) return this
@@ -76,7 +75,6 @@ export class PtrDType extends DType {
     override toString = () => `${this.base.toString()}.ptr(${this.local ? 'local=True' : ''})${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
 
-// @dataclass(frozen=True, eq=False)
 class ImageDType extends PtrDType {
     shape: number[]
     constructor({ shape, ...args }: PtrDTypeArgs & { shape: number[] }) {
@@ -87,17 +85,13 @@ class ImageDType extends PtrDType {
         assert(!local, "images can't be local")
         return this
     }
-    override toString = () => `dtypes.${this.name}(${this.shape})${this.v !== 1 ? `.vec(${this.v})` : ''}`
+    override toString = () => `dtypes.${this.name}((${this.shape.join(', ')}))${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
 
-class dtypes {
-    //   @functools.lru_cache(None)
+export class dtypes {
     static isFloat = (x: DType) => dtypes.floats.includes(x.scalar()) || x instanceof ImageDType
-    //   @functools.lru_cache(None)
     static isInt = (x: DType) => dtypes.ints.includes(x.scalar())
-    //   @functools.lru_cache(None)
     static isUnsigned = (x: DType) => dtypes.uints.includes(x.scalar())
-    //   @staticmethod
     static fromJS = (x: any): DType => {
         if (typeof x === 'number') return Number.isInteger(x) ? dtypes.default_int : dtypes.default_float
         if (typeof x === 'boolean') return dtypes.bool
@@ -116,12 +110,10 @@ class dtypes {
         else if (dtypes.isFloat(dtype)) return Number(val)
         else return Boolean(val)
     }
-    //   @functools.lru_cache(None)
     static min(x: DType) {
         if (dtypes.isInt(x)) return dtypes.isUnsigned(x) ? 0 : (-2) ** (x.itemsize * 8 - 1)
         return dtypes.isFloat(x) ? -Infinity : false
     }
-    //   @functools.lru_cache(None)
     static max(x: DType) {
         if (dtypes.isInt(x)) return (2 ** (x.itemsize * 8 - (dtypes.isUnsigned(x) ? 0 : 1))) - 1
         return dtypes.isFloat(x) ? Infinity : true
@@ -168,8 +160,8 @@ class dtypes {
     static long = dtypes.int64
 
     //   # NOTE: these are image dtypes
-    static imageh = (shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, scalar: null, base: dtypes.float32, local: false, v: 1, shape: shp })
-    static imagef = (shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, scalar: null, base: dtypes.float32, local: false, v: 1, shape: shp })
+    static imageh = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, scalar: null, base: dtypes.float32, local: false, v: 1, shape: shp })
+    static imagef = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, scalar: null, base: dtypes.float32, local: false, v: 1, shape: shp })
 
     static default_float = dtypes.float32
     static default_int = dtypes.int32
@@ -190,52 +182,39 @@ export const toDType = (x: DTypeLike): DType => (x instanceof DType) ? x : dtype
 // # https://jax.readthedocs.io/en/latest/jep/9407-type-promotion.html
 // # we don't support weak type and complex type
 // deno-fmt-ignore
-export const promoLattice = { bool: [dtypes.int8, dtypes.uint8], int8: [dtypes.int16], int16: [dtypes.int32], int32: [dtypes.int64],
-  int64: [dtypes.float16, dtypes.bfloat16], uint8: [dtypes.int16, dtypes.uint16], uint16: [dtypes.int32, dtypes.uint32],
-  uint32: [dtypes.int64, dtypes.uint64], uint64: [dtypes.float16, dtypes.bfloat16],
-  float16: [dtypes.float32], bfloat16: [dtypes.float32], float32: [dtypes.float64], }
-
-// @functools.lru_cache(None)
-export const _getRecursiveParents = (x: DType): Set<DType> => {
-    if (x === dtypes.float64) return new Set([dtypes.float64])
-    return new Set([...(promoLattice[INVERSE_DTYPES_DICT[x.name as 'bool'] as 'bool'] || []).map((x) => [..._getRecursiveParents(x)]).flat(), x])
+const promoLattice = (dtype: DType) => {
+    switch (dtype) {
+        case dtypes.bool: return [dtypes.int8, dtypes.uint8]
+        case dtypes.int8: return [dtypes.int16]
+        case dtypes.int16: return [dtypes.int32]
+        case dtypes.int32: return [dtypes.int64]
+        case dtypes.int64: return [dtypes.float16, dtypes.bfloat16]
+        case dtypes.uint8: return [dtypes.int16, dtypes.uint16]
+        case dtypes.uint16: return [dtypes.int32, dtypes.uint32]
+        case dtypes.uint32: return [dtypes.int64, dtypes.uint64]
+        case dtypes.uint64: return [dtypes.float16, dtypes.bfloat16]
+        case dtypes.float16: return [dtypes.float32]
+        case dtypes.bfloat16: return [dtypes.float32]
+        case dtypes.float32: return [dtypes.float64]
+        default: throw new Error(`No dtype ${dtype}`)
+    }
 }
-// @functools.lru_cache(None)
+export const _getRecursiveParents = (dtype: DType): DType[] => {
+    if (dtype === dtypes.float64) return [dtypes.float64]
+    const parents = new Set(promoLattice(dtype).flatMap(_getRecursiveParents).filter((x, i, arr) => arr.indexOf(x) === i))
+    return [...new Set([dtype, ...parents])]
+}
+
 export const leastUpperDType = (...ds: DType[]): DType => {
     const images = ds.filter((d) => (d instanceof ImageDType))
     if (images.length) return images[0]
-    return [...ds.map((d) => _getRecursiveParents(d)).reduce((acc, set) => new Set([...acc].filter((x) => set.has(x))))].sort()[0]
+    return ds.flatMap((d) => _getRecursiveParents(d)).sort()[0]
 }
 export const leastUpperFloat = (dt: DType) => dtypes.isFloat(dt) ? dt : leastUpperDType(dt, dtypes.float32)
 
-// TODO get these types programmatically
-const DTYPES_DICT = {
-    'bool': dtypes.bool,
-    'int8': dtypes.char,
-    'uint8': dtypes.uchar,
-    'int16': dtypes.short,
-    'uint16': dtypes.ushort,
-    'int32': dtypes.int,
-    'uint32': dtypes.uint,
-    'int64': dtypes.long,
-    'uint64': dtypes.ulong,
-    'float16': dtypes.half,
-    'bfloat16': dtypes.bfloat16,
-    'float32': dtypes.float,
-    'float64': dtypes.double,
-    'half': dtypes.half,
-    'float': dtypes.float,
-    'double': dtypes.double,
-    'uchar': dtypes.uchar,
-    'ushort': dtypes.ushort,
-    'uint': dtypes.uint,
-    'ulong': dtypes.ulong,
-    'char': dtypes.char,
-    'short': dtypes.short,
-    'int': dtypes.int,
-    'long': dtypes.long,
-}
-const INVERSE_DTYPES_DICT = {
+export const DTYPES_DICT: Record<string, DType> = Object.fromEntries(Object.entries(dtypes).filter(([k, v]) => v instanceof DType && !k.startsWith('default') && k !== 'void'))
+export const INVERSE_DTYPES_DICT: Record<string, string> = { ...Object.fromEntries(Object.entries(DTYPES_DICT).map(([k, v]) => [v.name, k])), 'void': 'void' }
+const INVERSE_DTYPES_DICT_OLD = {
     'bool': 'bool',
     'signed char': 'char',
     'unsigned char': 'uchar',
@@ -271,7 +250,7 @@ export const truncateFp16 = (x: any) => {
 export const truncate = {
     bool: (x: any) => Boolean(x),
     // TODO: bfloat16 (tinygrad)
-    float16: (x: any) => truncateFp16(x),
+    float16: (x: any) => new Float16Array([x])[0],
     float32: (x: number) => new Float32Array([x])[0],
     float64: (x: number) => new Float64Array([x])[0],
     uint8: (x: number) => new Uint8Array([x])[0],
