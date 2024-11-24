@@ -1,83 +1,55 @@
 import { createHash } from 'node:crypto'
-import { DType, dtypes } from './dtype.ts'
-import { partition, raise } from './helpers.ts'
+import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
+import { allSame, assert, partition, permutations, prod, raise } from './helpers.ts'
 import { Buffer } from 'node:buffer'
+
+type ConstType<This = never> = number | boolean | This
+export type sint = number | UOp
+export type Variable = UOp
+export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
 
 class SimpleMathTrait {
     //   # required to implement
-    alu = (arg: Ops, ...src: (typeof this)[]): typeof this => raise('Not implemented')
-    constLike = (b: typeof this): typeof this => raise('Not implemented')
+    alu = (arg: Ops, ...src: typeof this[]): typeof this => raise('Not implemented')
+    constLike = (b: ConstLike<typeof this>): typeof this => raise('Not implemented')
 
     //   # great functions you get!
-    ufix = (x: typeof this): typeof this => x instanceof MathTrait ? x : this.constLike(x)
-    _binop = (op: Ops, x: typeof this, reverse: boolean) => reverse ? this.ufix(x).alu(op, this) : this.alu(op, this.ufix(x))
+    ufix = (x: ConstType<typeof this>): typeof this => x instanceof MathTrait ? x : this.constLike(x)
+    _binop = (op: Ops, x: ConstType<typeof this>, reverse: boolean) => reverse ? this.ufix(x).alu(op, this) : this.alu(op, this.ufix(x))
     logicalNot = () => this.ne(true)
     neg = () => {
         const dtype = 'dtype' in this && this.dtype instanceof DType ? this.dtype : null
         if (dtype === null) throw new Error('MathTraits __neg__ requires a dtype')
         return dtype.scalar() === dtypes.bool ? this.logicalNot() : this.mul(-1)
     }
-    add = (x: typeof this, reverse = false) => this._binop(Ops.ADD, x, reverse)
-    mul = (x: typeof this, reverse = false) => this._binop(Ops.MUL, x, reverse)
-    bitwiseAnd = (x: typeof this, reverse = false) => this._binop(Ops.AND, x, reverse)
-    bitwiseOr = (x: typeof this, reverse = false) => this._binop(Ops.OR, x, reverse)
-    xor = (x: typeof this, reverse = false) => this._binop(Ops.XOR, x, reverse)
-    idiv = (x: typeof this, reverse = false) => this._binop(Ops.IDIV, x, reverse)
-    sub = (x: typeof this, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, this.ufix(x.neg()))
-    div = (x: typeof this, reverse = false) => reverse ? this.ufix(x).mul(this.alu(Ops.RECIP)) : this.mul(this.ufix(x).alu(Ops.RECIP))
+    add = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.ADD, x, reverse)
+    mul = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.MUL, x, reverse)
+    bitwiseAnd = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.AND, x, reverse)
+    bitwiseOr = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.OR, x, reverse)
+    xor = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.XOR, x, reverse)
+    idiv = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.IDIV, x, reverse)
+    sub = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, this.ufix(x).neg())
+    div = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).mul(this.alu(Ops.RECIP)) : this.mul(this.ufix(x).alu(Ops.RECIP))
 
-    __neg__ = () => this.neg()
-
-    __add__ = (x: typeof this) => this.add(x)
-    __sub__ = (x: typeof this) => this.sub(x)
-    __mul__ = (x: typeof this) => this.mul(x)
-    __truediv__ = (x: typeof this) => this.div(x)
-    __floordiv__ = (x: typeof this) => this.idiv(x)
-    __and__ = (x: typeof this) => this.bitwiseAnd(x)
-    __or__ = (x: typeof this) => this.bitwiseOr(x)
-    __xor__ = (x: typeof this) => this.xor(x)
-
-    __radd__ = (x: typeof this) => this.add(x, true)
-    __rsub__ = (x: typeof this) => this.sub(x, true)
-    __rmul__ = (x: typeof this) => this.mul(x, true)
-    __rtruediv__ = (x: typeof this) => this.div(x, true)
-    __rfloordiv__ = (x: typeof this) => this.idiv(x, true)
-    __rand__ = (x: typeof this) => this.bitwiseAnd(x, true)
-    __ror__ = (x: typeof this) => this.bitwiseOr(x, true)
-    __rxor__ = (x: typeof this) => this.xor(x, true)
-
-    lt = (x: typeof this) => this.alu(Ops.CMPLT, this.ufix(x))
-    gt = (x: typeof this) => this.ufix(x).alu(Ops.CMPLT, this)
-    ne = (x: typeof this) => this.alu(Ops.CMPNE, this.ufix(x))
-    ge = (x: typeof this) => this.lt(x).logicalNot()
-    le = (x: typeof this) => this.gt(x).logicalNot()
-    eq = (x: typeof this) => this.ne(x).logicalNot()
-
-    __lt__ = (x: typeof this) => this.lt(x)
-    __gt__ = (x: typeof this) => this.gt(x)
-    __ne__ = (x: typeof this) => this.ne(x)
-    __ge__ = (x: typeof this) => this.ge(x)
-    __le__ = (x: typeof this) => this.le(x)
-    // NOTE: __eq__ isn't overridden, and means the same thing as is by default
+    lt = (x: ConstType<typeof this>) => this.alu(Ops.CMPLT, this.ufix(x))
+    gt = (x: ConstType<typeof this>) => this.ufix(x).alu(Ops.CMPLT, this)
+    ne = (x: ConstType<typeof this>) => this.alu(Ops.CMPNE, this.ufix(x))
+    ge = (x: ConstType<typeof this>) => this.lt(x).logicalNot()
+    le = (x: ConstType<typeof this>) => this.gt(x).logicalNot()
+    eq = (x: ConstType<typeof this>) => this.ne(x).logicalNot()
 }
 
 class MathTrait extends SimpleMathTrait {
     // TODO: move to Tensor when new backward is done (tinygrad)
-    lshift = (x: typeof this, reverse = false) => this._binop(Ops.SHL, x, reverse)
-    rshift = (x: typeof this, reverse = false) => this._binop(Ops.SHR, x, reverse)
-    __lshift__ = (x: typeof this) => this.lshift(x)
-    __rshift__ = (x: typeof this) => this.rshift(x)
-    __rlshift__ = (x: typeof this) => this.lshift(x, true)
-    __rrshift__ = (x: typeof this) => this.rshift(x, true)
+    lshift = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.SHL, x, reverse)
+    rshift = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.SHR, x, reverse)
 
     //   # not in Tensor
-    __mod__ = (x: typeof this) => this.alu(Ops.MOD, this.ufix(x))
-    __rmod__ = (x: typeof this) => this.ufix(x).alu(Ops.MOD, this)
-
-    maximum = (x: typeof this) => this.alu(Ops.MAX, this.ufix(x))
-    minimum = (x: typeof this) => (this.neg()).maximum(x.neg())
-    where = (x: typeof this, y: typeof this) => this.alu(Ops.WHERE, x, x.ufix(y))
-    threefry = (seed: typeof this) => this.alu(Ops.THREEFRY, seed)
+    mod = (x: ConstType<typeof this>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
+    maximum = (x: ConstType<typeof this>) => this.alu(Ops.MAX, this.ufix(x))
+    minimum = (x: ConstType<typeof this>) => this.neg().maximum(this.ufix(x).neg()).neg()
+    where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(y))
+    threefry = (seed: ConstType<typeof this>) => this.alu(Ops.THREEFRY, this.ufix(seed))
     reciprocal = () => this.alu(Ops.RECIP)
     sqrt = () => this.alu(Ops.SQRT)
     sin = () => this.alu(Ops.SIN)
@@ -222,7 +194,7 @@ const prettyPrint = (x: any, rep: (x: any) => string, srcfn: (x: any) => any[] =
 //     if (ret:=UOpMetaClass.ucache.get(key:=(op, dtype, src, arg), None)) is not None: return ret
 //     UOpMetaClass.ucache[key] = ret = super().__call__(op, dtype, src, arg)
 //     return ret
-type UOpInput = { op: Ops; dtype?: DType; src: UOp[]; arg?: any }
+type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [Ops, any, DType, UOpTuple[]]
 class UOp extends MathTrait {
     dtype: DType
@@ -336,11 +308,11 @@ class UOp extends MathTrait {
     //     if arg in {Ops.CMPLT, Ops.CMPNE} and out_dtype is not None:
     //       out_dtype = dtypes.bool.vec(out_dtype.count) if out_dtype.count > 1 else dtypes.bool
     //     return UOp(arg, out_dtype, (self,)+src)
-    //   @staticmethod
-    //   def const(dtype:DType, b:ConstLike):
-    //     if isinstance(b, UOp): return b.unbind()[0] if b.op is Ops.BIND else b
-    //     if isinstance(b, tuple) and all_same(b): b = b[0]  # doesn't have to be a VCONST if they are all the same
-    //     return UOp(Ops.VCONST if isinstance(b, tuple) else Ops.CONST, dtype, arg=dtypes.as_const(b, dtype) if dtype is not None else b)
+    static const = (dtype: DType, b: ConstLike) => {
+        if (b instanceof UOp) return b.unbind()[0]
+        if (Array.isArray(b) && allSame(b)) b = b[0]
+        return new UOp({ op: Array.isArray(b) ? Ops.VCONST : Ops.CONST, dtype, arg: dtype ? dtypes.asConst(b, dtype) : b })
+    }
     //   @staticmethod
     //   def range(dtype:DType, start:ConstType|UOp, end:ConstType|UOp, idx:int):
     //     return UOp(Ops.RANGE, dtype=dtype, src=(UOp.const(dtype, start) if not isinstance(start, UOp) else start,
@@ -399,6 +371,10 @@ class UOp extends MathTrait {
     //     assert self.op is Ops.DEFINE_VAR, f"op is {self.op}, need DEFINE_VAR"
     //     assert self.arg[1] <= val and val <= self.arg[2], f"bind {val} not in range [{self.arg[1]}, {self.arg[2]}]"
     //     return UOp(Ops.BIND, self.dtype, (self, self.const_like(val)))
+    unbind = (): [Variable, number] => {
+        if (!(this.op === Ops.BIND && this.src[0].op === Ops.DEFINE_VAR && this.src[1].op === Ops.CONST)) throw new Error(`can't unbind ${this}`)
+        return [this.src[0], this.src[1].arg]
+    }
     //   def unbind(self) -> Tuple[Variable, int]:
     //     assert self.op is Ops.BIND and self.src[0].op is Ops.DEFINE_VAR and self.src[1].op is Ops.CONST, f"can't unbind {self}"
     //     return self.src[0], self.src[1].arg
@@ -589,105 +565,117 @@ export const pythonAlu: { [key in Ops]?: (...x: number[]) => number } = {
 // def lines(fn) -> List[str]:
 //   with open(fn) as f: return f.readlines()
 
+type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[]; arg?: any; name?: string; allowAnyLen?: boolean; location?: any; customEarlyReject?: Ops[] }
 class UPat extends MathTrait {
     //   __slots__ = ["op", "dtype", "arg", "name", "src"]
-    //   def __init__(self, op:Optional[Union[Ops, Tuple[Ops, ...], Set[Ops]]]=None, dtype:Optional[Union[DType, Tuple[DType, ...]]]=None,
-    //                src:Optional[Union[Tuple[UPat, ...], List[UPat], UPat]]=None, arg:Any=None,
-    //                name:Optional[str]=None, allow_any_len:bool=False, location=None, custom_early_reject:Optional[Set[Ops]]=None):
-    //     assert op is None or isinstance(op, Ops) or isinstance(op, tuple) or isinstance(op, set), "op must be Ops or tuple of Ops"
-    //     self.op: Optional[Tuple[Ops, ...]] = (op,) if isinstance(op, Ops) else (tuple(op) if isinstance(op, set) else op)
-    //     self.dtype: Optional[Tuple[DType, ...]] = (dtype,) if isinstance(dtype, DType) else dtype
-    //     self.arg, self.name, self._in_src, self.custom_early_reject = arg, name, src, custom_early_reject
-    //     self.src: Any = None
-    //     assert self.name != "ctx", "UPat can't be named ctx"
+    op?: Ops[]
+    dtype: DType[]
+    arg: any
+    name: string
+    _inSrc: UPat | UPat[]
+    customEarlyReject?: Ops[]
+    src?: UPat[][]
+    allowedLen: number
+    location: [string, number]
+    earlyReject: Ops[]
 
-    //     # try all permutations if it's a list
-    //     if isinstance(src, list): self.src = list(itertools.permutations(src)) if not all_same(src) else [src]
-    //     # only one if it's a tuple
-    //     elif isinstance(src, tuple): self.src = [src]
-    //     # repeat if it's a UPat
-    //     elif isinstance(src, UPat): self.src = [itertools.repeat(src)]
+    constructor({ op, dtype = [], arg, location, name = '', src = [], allowAnyLen = false, customEarlyReject }: UPatInput) {
+        super()
+        assert(!op || !(!Array.isArray(op) && Object.values(Ops).includes(op)) || !(Array.isArray(op) && Object.values(Ops).includes(op[0])), 'op must be Ops or tuple of Ops')
+        this.op = !op ? undefined : Array.isArray(op) ? op : [op]
+        this.dtype = Array.isArray(dtype) ? dtype : [dtype]
+        this.arg = arg
+        this.name = name
+        this._inSrc = src
+        this.customEarlyReject = customEarlyReject
+        assert(self.name != 'ctx', "UPat can't be named ctx")
 
-    //     self.allowed_len: int = -1 if allow_any_len or isinstance(src, UPat) or src is None else len(src)
-    //     self.location = location or get_location()
+        // try all permutations if it's a list
+        if (Array.isArray(src)) this.src = allSame(src) ? permutations(src) : [src]
+        //     # repeat if it's a UPat
+        else if (src instanceof UPat) this.src = [[src]]
 
-    //     if custom_early_reject is not None: self.early_reject = custom_early_reject
-    //     else:
-    //       upat_match = [src] if isinstance(src, UPat) else ([] if src is None else self.src[0])
-    //       self.early_reject = {pp.op[0] for pp in upat_match if pp.op is not None and len(pp.op) == 1}
+        this.allowedLen = allowAnyLen || src instanceof UPat || !src ? -1 : src.length
+        this.location = location || getLocation()
 
-    //   def named(self, name:str): return UPat(self.op, self.dtype, self._in_src, self.arg, name, self.allowed_len == -1, self.custom_early_reject)
+        if (customEarlyReject) this.earlyReject = customEarlyReject
+        else {
+            const upatMatch = src instanceof UPat ? [src] : !this.src ? [] : this.src[0]
+            this.earlyReject = upatMatch.filter((pp) => !!pp.op && pp.op.length === 1).map((pp) => pp.op![0])
+        }
+    }
 
-    //   @staticmethod
-    //   def any(*src): return UPatAny(src=src)
+    named = (name: string) => new UPat({ op: this.op, dtype: this.dtype, src: this._inSrc, arg: this.arg, name, allowAnyLen: this.allowedLen === -1, customEarlyReject: this.customEarlyReject })
 
-    //   @staticmethod
-    //   @functools.lru_cache(None)
-    //   def var(name:Optional[str]=None, dtype:Optional[Union[DType, Tuple[DType, ...]]]=None): return UPat(dtype=dtype, name=name)
-    //   @staticmethod
-    //   @functools.lru_cache(None)
-    //   def cvar(name:Optional[str]=None, dtype:Optional[DType]=None, vec=True):
-    //     return UPat((Ops.CONST, Ops.VCONST) if vec else Ops.CONST, dtype=dtype, name=name)
-    //   @staticmethod
-    //   def const(dtype:Optional[Union[DType, Tuple[DType, ...]]], b:ConstType): return UPat(Ops.CONST, dtype=dtype, arg=b)
+    static any = (src: UPatInput['src']) => new UPatAny({ src: src })
+
+    static var = (name?: string, dtype?: DType | DType[]) => new UPat({ dtype: dtype, name: name })
+    static cvar = (name?: string, dtype?: DType, vec = true) => new UPat({ op: vec ? [Ops.CONST, Ops.VCONST] : Ops.CONST, dtype, name })
+    static const = (dtype?: DType | DType[], b?: ConstLike) => new UPat({ op: Ops.CONST, dtype: dtype, arg: b })
 
     //   # copied from UOp
-    //   def index(self, idx:UPat, valid:Optional[UPat]=None): return UPat(Ops.INDEX, self.dtype, (self,idx,valid) if valid is not None else (self,idx))
-    //   def view(self, st=None, **kwargs): return UPat(Ops.VIEW, self.dtype, (self,), st, **kwargs)
-    //   def cast(self, dtype=None): return UPat(Ops.CAST, dtype, (self,))
-    //   def bitcast(self, dtype=None): return UPat(Ops.BITCAST, dtype, (self,))
-    //   def gep(self, i:int): return UPat(Ops.GEP, None, (self,), (i,))
-    //   def load(self, *src:UPat, **kwargs): return UPat(Ops.LOAD, src=(self,)+src, **kwargs)
-    //   def store(self, *src:UPat, **kwargs): return UPat(Ops.STORE, dtypes.void, (self,)+src, **kwargs)
-    //   def assign(self, x:UPat): return UPat(Ops.ASSIGN, self.dtype, (self,x))
+    index = (idx: UPat, valid?: UPat) => new UPat({ op: Ops.INDEX, dtype: this.dtype, src: valid ? [this, idx, valid] : [this, idx] })
+    view = (st?: any, kwargs?: any) => new UPat({ op: Ops.VIEW, dtype: this.dtype, src: [this], arg: st, ...kwargs })
+    cast = (dtype?: DType) => new UPat({ op: Ops.CAST, dtype, src: [this] })
+    bitcast = (dtype?: DType) => new UPat({ op: Ops.BITCAST, dtype, src: [this] })
+    gep = (i: number) => new UPat({ op: Ops.GEP, src: [this], arg: [i] })
+    load = (src: UPat[], kwargs?: any) => new UPat({ op: Ops.LOAD, src: [this, ...src], ...kwargs })
+    store = (src: UPat[], kwargs?: any) => new UPat({ op: Ops.STORE, dtype: dtypes.void, src: [this, ...src], ...kwargs })
+    assign = (x: UPat) => new UPat({ op: Ops.ASSIGN, dtype: this.dtype, src: [this, x] })
 
-    //   def const_like(self, b:ConstLike): return UPat.const(self.dtype, cast(ConstType, b))
-    //   def alu(self, op:Ops, *src:UPat):
-    //     asrc = (self,)+src
-    //     return UPat(op, None if op in {Ops.CMPLT, Ops.CMPNE} else asrc[-1].dtype, list(asrc) if op in GroupOp.Commutative else asrc)
+    const_like = (b: ConstLike) => UPat.const(this.dtype, b)
+    override alu = (op: Ops, ...src: this[]) => {
+        const asrc = [this, ...src]
+        return new UPat({ op, dtype: [Ops.CMPLT, Ops.CMPNE].includes(op) ? undefined : asrc.pop()?.dtype, src: GroupOp.Commutative.includes(op) ? asrc : asrc })
+    }
 
-    //   def printable(self:UPat) -> str:
-    //     try: return lines(self.location[0])[self.location[1]-1].strip()
-    //     except FileNotFoundError: return "<missing>"
-
-    //   def __repr__(self):
-    //     def rep(x):
-    //       form = "UPat(%s, %s, name=%s, dtype=%s, allow_any_len=%s, src=%s)"
-    //       return form % (None if x.op is None else ('(%s)'%', '.join(map(str, x.op))), x.arg, repr(x.name),
-    //         set(x.dtype) if x.dtype else None, x.allowed_len == 0, "[%s]" if x.src and len(x.src)>1 else "(%s)")
-    //     return pretty_print(self, rep, srcfn=lambda x:None if x.src is None else [next(x.src[0])] if isinstance(x.src[0], itertools.repeat) else x.src[0])
-
-    //   def match(self:UPat, uop:UOp, store:Dict[str, UOp]) -> List[Dict[str, UOp]]:
-    //     if (self.op is not None and uop.op not in self.op) or \
-    //        (self.name is not None and store.setdefault(self.name, uop) is not uop) or \
-    //        (self.dtype is not None and uop.dtype not in self.dtype and uop.dtype.scalar() not in self.dtype) or \
-    //        (self.arg is not None and self.arg != uop.arg) or \
-    //        (self.allowed_len != -1 and len(uop.src) != self.allowed_len): return []
-    //     if self.src is None: return [store]
-    //     res: List[Dict[str, UOp]] = []
-    //     for vp in self.src:
-    //       stores, new_stores = [store.copy()], []
-    //       for uu, vv in zip(uop.src, vp):
-    //         for s in stores: new_stores.extend(vv.match(uu, s))
-    //         stores, new_stores = new_stores, []
-    //       res.extend(stores)
-    //     return res
+    // deno-fmt-ignore
+    printable = ():string => {
+        try{ return lines(this.location[0])[this.location[1]-1].strip() }
+        catch { return "<missing>"}
+    }
+    __repr = () => {
+        const rep = (x: UPat) => {
+            const form = `UPat(${!x.op ? null : x.op.map((x) => x.toString()).join(', ')}, ${x.arg}, name=${repr(x.name)}, dtype=${x.dtype ? new Set(x.dtype) : null}, allow_any_len=${
+                x.allowedLen === 0
+            }, src=(???"[%s]" if x.src and len(x.src)>1 else "(%s)"???))`
+            return form
+        }
+        // TODO: not quite right, check it
+        return prettyPrint(this, rep, (x) => !x.src ? null : x.src[0])
+    }
+    match = (uop: UOp, store: Record<string, UOp>): Record<string, UOp>[] => {
+        if (
+            (!!this.op && !this.op.includes(uop.op)) ||
+            (!!this.name && store.setdefault(self.name, uop) !== uop) ||
+            (!!this.dtype && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
+            (!!this.arg && this.arg !== uop.arg) ||
+            (this.allowedLen !== -1 && uop.src.length !== this.allowedLen)
+        ) return []
+        if (!this.src) return [store]
+        let res: Record<string, UOp>[] = []
+        for (const vp of this.src) {
+            let [stores, newStores] = [[{ ...store }], [] as Record<string, UOp>[]]
+            for (const [uu, vv] of uop.src.map((uu, i) => [uu, vp[i]] as const)) {
+                for (const s of stores) newStores = [...newStores, ...vv.match(uu, s)]
+                stores = newStores
+                newStores = []
+            }
+            res = [...res, ...stores]
+        }
+        return res
+    }
 }
 
 class UPatAny extends UPat {
-    match = (uop: UOp, store: Record<string, UOp>) => {
-        const ret: Record<string, UOp>[] = []
-        for (const x of this.src[0]) {
-            const match = x.match(uop, store.copy())
-            if (match) ret.extend(match)
+    override match = (uop: UOp, store: Record<string, UOp>) => {
+        let ret: Record<string, UOp>[] = []
+        for (const x of this.src?.[0] || []) {
+            const match = x.match(uop, { ...store })
+            if (match) ret = [...ret, ...match]
         }
         return ret
     }
-    //   def match(self:UPat, uop:UOp, store:Dict[str, UOp]) -> List[Dict[str, UOp]]:
-    //     ret = []
-    //     for x in self.src[0]:
-    //       if (match:=x.match(uop, store.copy())): ret.extend(match)
-    //     return ret
 }
 
 // def deconstruct_function(fxn:Callable) -> Tuple:
@@ -699,22 +687,27 @@ class UPatAny extends UPat {
 //   ret = fxn.__code__, new_globals, fxn.__name__, fxn.__defaults__
 //   return pickle.loads(pickle.dumps(ret)) if getenv("TEST_PICKLE") else ret
 
+type Pattern = [UPat, (...args: any[]) => any]
 class PatternMatcher {
-    //   def __init__(self, patterns:List[Tuple[UPat, Callable]]):
-    //     self.patterns = patterns
-    //     # NOTE: use of DefaultDict here is very dangerous! all keys will live for the lifetime of the PatternMatcher!
-    //     self.pdict: Dict[Ops, List[Tuple[UPat, Callable, Set, bool]]] = {}
-    //     # uop is required, arg is optional
-    //     for p,fxn in self.patterns:
-    //       assert p.op is not None
-    //       tuple_fxn = fxn if isinstance(fxn, tuple) else deconstruct_function(fxn)
-    //       real_fxn = types.FunctionType(*tuple_fxn)
-    //       for uop in p.op: self.pdict.setdefault(uop, []).append((p, real_fxn, p.early_reject, 'ctx' in inspect.signature(real_fxn).parameters))
+    patterns: Pattern[]
+    pdict = new Map<Ops, ([UPat, () => void, Set<any>, boolean][])>()
+    constructor(patterns: Pattern[]) {
+        this.patterns = patterns
+        // NOTE: use of DefaultDict here is very dangerous! all keys will live for the lifetime of the PatternMatcher!
+
+        //     self.pdict: Dict[Ops, List[Tuple[UPat, Callable, Set, bool]]] = {}
+        //     # uop is required, arg is optional
+        //     for p,fxn in self.patterns:
+        //       assert p.op is not None
+        //       tuple_fxn = fxn if isinstance(fxn, tuple) else deconstruct_function(fxn)
+        //       real_fxn = types.FunctionType(*tuple_fxn)
+        //       for uop in p.op: self.pdict.setdefault(uop, []).append((p, real_fxn, p.early_reject, 'ctx' in inspect.signature(real_fxn).parameters))
+    }
 
     //   def __reduce__(self): return PatternMatcher, ([(x,deconstruct_function(fxn) if fxn.__name__ == "<lambda>" else fxn) for x,fxn in self.patterns],)
 
     //   @functools.lru_cache(None)  # pylint: disable=method-cache-max-size-none
-    //   def __add__(self, more:PatternMatcher): return PatternMatcher(self.patterns+more.patterns)
+    __add__ = (more: PatternMatcher) => new PatternMatcher([...this.patterns, ...more.patterns])
 
     //   def rewrite(self, uop:UOp, ctx=None) -> Optional[UOp]:
     //     ler = {u.op for u in uop.src}
@@ -819,81 +812,74 @@ class RewriteContext {
 
 // # this is the matcher for the final rendered UOps
 // # matcher functions returns True or False (or None to not match)
-// spec = PatternMatcher([
-//   (UPat(Ops.DEFINE_GLOBAL, name="x"), lambda x: isinstance(x.dtype, (PtrDType, ImageDType)) and not x.dtype.local),
-//   (UPat(Ops.DEFINE_LOCAL, name="x"), lambda x: isinstance(x.dtype, PtrDType) and x.dtype.local),
-//   (UPat(Ops.DEFINE_ACC, src=(UPat.var("c"),), name="x", allow_any_len=True),
-//    lambda x,c: all(y.op is Ops.RANGE for y in x.src[1:]) and c.dtype == x.dtype),
-//   (UPat(Ops.DEFINE_VAR, src=(), name="x"), lambda x: isinstance(x.arg[1], int) and isinstance(x.arg[2], int)),
+export const spec = new PatternMatcher([
+    [new UPat({ op: Ops.DEFINE_GLOBAL, name: 'x' }), (x) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
+    [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), (x) => x.dtype instanceof PtrDType && x.dtype.local],
+    [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('c')], name: 'x', allowAnyLen: true }), (x, c) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && c.dtype == x.dtype],
+    [new UPat({ op: Ops.DEFINE_VAR, src: [], name: 'x' }), (x) => typeof x.arg[1] === 'number' && typeof x.arg[2] === 'number'],
+    [new UPat({ op: Ops.RANGE, src: [new UPat({ name: 'x' }), new UPat({ name: 'y' })], name: 'rng' }), (rng, x, y) => rng.dtype == x.dtype && x.dtype == y.dtype],
+    [new UPat({ op: Ops.SPECIAL, src: [] }), () => true],
 
-//   (UPat(Ops.RANGE, src=(UPat(name="x"), UPat(name="y")), name="rng"), lambda rng,x,y: rng.dtype == x.dtype == y.dtype),
-//   (UPat(Ops.SPECIAL, src=()), lambda: True),
+    //   # TODO: confirm the args of both of these are shapetrackers
+    [new UPat({ op: Ops.VIEW, dtype: dtypes.void, src: [] }), () => true],
+    [new UPat({ op: Ops.VIEW, src: [UPat.var('src')], name: 'x' }), (x, src) => src.op !== Ops.STORE && x.dtype == src.dtype],
+    [new UPat({ op: Ops.VALID, dtype: dtypes.bool, src: [new UPat({ op: Ops.VIEW })] }), () => true],
+    [new UPat({ op: Ops.CONST, name: 'x' }), (x) => x.dtype == x.dtype.scalar() && typeof x.arg === typeof dtypes.asConst(x.arg, x.dtype)],
 
-//   # TODO: confirm the args of both of these are shapetrackers
-//   (UPat(Ops.VIEW, dtypes.void, src=()), lambda: True),
-//   (UPat(Ops.VIEW, src=(UPat.var("src"),), name="x"), lambda x,src: src.op is not Ops.STORE and x.dtype == src.dtype),
+    //   # early LOAD has a <buf, shapetracker, store?>
+    [new UPat({ op: Ops.LOAD, src: [new UPat({ op: [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL] }), new UPat({ op: Ops.VIEW })] }), () => true],
+    [new UPat({ op: Ops.LOAD, src: [new UPat({ op: [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL] }), new UPat({ op: Ops.VIEW }), new UPat({ op: Ops.STORE })] }), () => true],
+    //   # early STORE has a <buf, shapetracker, val>
+    [new UPat({ op: Ops.STORE, src: [new UPat({ op: [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL] }), new UPat({ op: Ops.VIEW }), new UPat({})] }), () => true],
+    //   # **** new style load/store ****
 
-//   (UPat(Ops.VALID, dtypes.bool, (UPat(Ops.VIEW),)), lambda: True),
-//   (UPat(Ops.CONST, name="x"), lambda x: x.dtype == x.dtype.scalar() and (type(x.arg) is type(dtypes.as_const(x.arg, x.dtype)))),
+    //   # INDEX is used in new style load/store
+    [new UPat({ op: Ops.INDEX, src: [new UPat({ op: [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL] }), new UPat({})] }), () => true],
+    //   # LOAD takes a <bufidx, alt?, gate?, barrier?>
+    [new UPat({ op: Ops.LOAD, src: [new UPat({ op: [Ops.INDEX, Ops.CAST] })] }), () => true],
+    [new UPat({ op: Ops.LOAD, src: [new UPat({ op: [Ops.INDEX, Ops.CAST] }), new UPat({ op: [Ops.IF, Ops.BARRIER] })] }), () => true],
+    [new UPat({ op: Ops.LOAD, src: [new UPat({ op: [Ops.INDEX, Ops.CAST] }), new UPat({ name: 'alt' }), new UPat({ dtype: dtypes.bool })], name: 'ld' }), (ld, alt) => ld.dtype == alt.dtype],
 
-//   # early LOAD has a <buf, shapetracker, store?>
-//   (UPat(Ops.LOAD, src=(UPat((Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL)), UPat(Ops.VIEW))), lambda: True),
-//   (UPat(Ops.LOAD, src=(UPat((Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL)), UPat(Ops.VIEW), UPat(Ops.STORE))), lambda: True),
+    //   # STORE takes a <bufidx, val, gate?>
+    [new UPat({ op: Ops.STORE, dtype: dtypes.void, src: [new UPat({ op: [Ops.INDEX, Ops.CAST] }), new UPat({})] }), () => true],
+    [new UPat({ op: Ops.STORE, dtype: dtypes.void, src: [new UPat({ op: [Ops.INDEX, Ops.CAST] }), new UPat({}), new UPat({ dtype: dtypes.bool })] }), () => true],
+    [new UPat({ op: Ops.STORE, dtype: dtypes.void, src: [new UPat({ op: [Ops.INDEX, Ops.CAST] }), new UPat({}), new UPat({ op: Ops.IF })] }), () => true],
 
-//   # early STORE has a <buf, shapetracker, val>
-//   (UPat(Ops.STORE, src=(UPat((Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL)), UPat(Ops.VIEW), UPat())), lambda: True),
+    //   # most ALUs have all matching dtypes, except CMPLT, CMPNE, and WHERE
+    [new UPat({ op: Ops.WHERE, name: 'w', src: [new UPat({ dtype: dtypes.bool }), new UPat({ name: 'x' }), new UPat({ name: 'y' })] }), (w, x, y) => w.dtype === x.dtype && x.dtype === y.dtype],
+    [new UPat({ op: [Ops.CMPLT, Ops.CMPNE], dtype: dtypes.bool, src: [new UPat({ name: 'x' }), new UPat({ name: 'y' })] }), (x, y) => x.dtype === y.dtype],
 
-//   # **** new style load/store ****
+    //   # and SHL/SHR, the shift distance can be an int
+    [new UPat({ op: [Ops.SHL, Ops.SHR], src: [new UPat({ name: 'x' }), new UPat({ name: 'y' })], name: 'a' }), (a, x, y) => a.dtype === x.dtype && [x.dtype, dtypes.uint].includes(y.dtype)],
+    [new UPat({ op: Ops.IDIV, name: 'x' }), (x) => dtypes.isInt(x.dtype) ? null : false],
+    [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.src!.every((y) => x.dtype === y.dtype)],
+    [new UPat({ op: Ops.ASSIGN, src: [new UPat({ op: [Ops.DEFINE_ACC, Ops.DEFINE_GLOBAL] }), new UPat({})] }), () => true],
+    [new UPat({ op: Ops.ENDRANGE, dtype: dtypes.void, src: [new UPat({ op: Ops.RANGE })] }), () => true],
 
-//   # INDEX is used in new style load/store
-//   (UPat(Ops.INDEX, src=(UPat((Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL)), UPat())), lambda: True),
+    //   # all WMMA has 3 args, <x, w, acc>
+    [new UPat({ op: Ops.WMMA, src: [new UPat({}), new UPat({}), new UPat({})] }), () => true],
+    [new UPat({ op: Ops.CONTRACT, name: 'x' }), (x) => x.dtype.count === prod(x.arg.map((y) => y[1]))],
+    [new UPat({ op: Ops.EXPAND, name: 'x' }), (x) => x.src![0].dtype.count === prod(x.arg.map((y) => y[1]))],
 
-//   # LOAD takes a <bufidx, alt?, gate?, barrier?>
-//   (UPat(Ops.LOAD, src=(UPat((Ops.INDEX, Ops.CAST)),)), lambda: True),
-//   (UPat(Ops.LOAD, src=(UPat((Ops.INDEX, Ops.CAST)), UPat((Ops.IF, Ops.BARRIER)))), lambda: True),
-//   (UPat(Ops.LOAD, src=(UPat((Ops.INDEX, Ops.CAST)), UPat(name="alt"), UPat(dtype=dtypes.bool)), name="ld"), lambda ld,alt: ld.dtype == alt.dtype),
+    //   # if has a <gate, barrier?>
 
-//   # STORE takes a <bufidx, val, gate?>
-//   (UPat(Ops.STORE, dtype=dtypes.void, src=(UPat((Ops.INDEX, Ops.CAST)), UPat())), lambda: True),
-//   (UPat(Ops.STORE, dtype=dtypes.void, src=(UPat((Ops.INDEX, Ops.CAST)), UPat(), UPat(dtype=dtypes.bool))), lambda: True),
-//   (UPat(Ops.STORE, dtype=dtypes.void, src=(UPat((Ops.INDEX, Ops.CAST)), UPat(), UPat(Ops.IF))), lambda: True),
+    [new UPat({ op: Ops.IF, dtype: dtypes.void, src: [new UPat({})] }), () => true],
+    [new UPat({ op: Ops.IF, dtype: dtypes.void, src: [new UPat({}), new UPat({ op: Ops.BARRIER })] }), () => true],
+    [new UPat({ op: Ops.ENDIF, dtype: dtypes.void, src: [new UPat({ op: Ops.IF })] }), () => true],
+    [new UPat({ op: Ops.REDUCE_AXIS, name: 'x' }), (x) => Array.isArray(x.arg) && x.arg.length == 2 && [Ops.ADD, Ops.MUL, Ops.MAX].includes(x.arg[0])],
+    [new UPat({ op: Ops.GEP, src: [new UPat({ name: 'src' })], name: 'gep' }), (gep, src) => gep.dtype == src.dtype.scalar()],
+    [new UPat({ op: Ops.VECTORIZE, name: 'x' }), (x) => x.src!.length > 1 && x.src!.length === x.dtype.count && x.src!.every((y) => x.dtype === y.dtype.vec(x.src?.length))],
+    [new UPat({ op: (Ops.BITCAST, Ops.CAST), src: [new UPat({})], name: 'x' }), (x) => !x.arg],
+    [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, allowAnyLen: true }) }), () => true], // NOTE: all pointers must be local
+    //   # NOTE: for testing, we let sinks be anything
+    // [new UPat({ op: UOps.SINK, src: new UPat({ op: UOps.STORE }) }), () => true],
+    [new UPat({ op: Ops.SINK, dtype: dtypes.void }), () => true],
+    [new UPat({ op: Ops.NOOP }), () => true],
 
-//   # most ALUs have all matching dtypes, except CMPLT, CMPNE, and WHERE
-//   (UPat(Ops.WHERE, name="w", src=(UPat(dtype=dtypes.bool), UPat(name="x"), UPat(name="y"))), lambda w,x,y: w.dtype == x.dtype == y.dtype),
-//   (UPat((Ops.CMPLT, Ops.CMPNE), dtype=dtypes.bool, src=(UPat(name="x"), UPat(name="y"))), lambda x,y: x.dtype == y.dtype),
-//   # and SHL/SHR, the shift distance can be an int
-//   (UPat((Ops.SHL, Ops.SHR), src=(UPat(name="x"), UPat(name="y")), name="a"), lambda a,x,y: a.dtype == x.dtype and y.dtype in (x.dtype, dtypes.uint)),
-//   (UPat(Ops.IDIV, name="x"), lambda x: None if dtypes.is_int(x.dtype) else False),
-//   (UPat(GroupOp.ALU, name="x"), lambda x: all(x.dtype == y.dtype for y in x.src)),
-
-//   (UPat(Ops.ASSIGN, src=(UPat((Ops.DEFINE_ACC, Ops.DEFINE_GLOBAL)), UPat())), lambda: True),
-//   (UPat(Ops.ENDRANGE, dtype=dtypes.void, src=(UPat(Ops.RANGE),)), lambda: True),
-
-//   # all WMMA has 3 args, <x, w, acc>
-//   (UPat(Ops.WMMA, src=(UPat(), UPat(), UPat())), lambda: True),
-//   (UPat(Ops.CONTRACT, name="x"), lambda x: x.dtype.count == prod(y[1] for y in x.arg)),
-//   (UPat(Ops.EXPAND, name="x"), lambda x: x.src[0].dtype.count == prod(y[1] for y in x.arg)),
-
-//   # if has a <gate, barrier?>
-//   (UPat(Ops.IF, dtype=dtypes.void, src=(UPat(),)), lambda: True),
-//   (UPat(Ops.IF, dtype=dtypes.void, src=(UPat(), UPat(Ops.BARRIER))), lambda: True),
-//   (UPat(Ops.ENDIF, dtype=dtypes.void, src=(UPat(Ops.IF),)), lambda: True),
-
-//   (UPat(Ops.REDUCE_AXIS, name="x"), lambda x: isinstance(x.arg, tuple) and len(x.arg) == 2 and x.arg[0] in {Ops.ADD, Ops.MUL, Ops.MAX}),
-//   (UPat(Ops.GEP, src=(UPat(name="src"),), name="gep"), lambda gep,src: gep.dtype == src.dtype.scalar()),
-//   (UPat(Ops.VECTORIZE, name="x"), lambda x: len(x.src)>1 and len(x.src) == x.dtype.count and all(x.dtype == y.dtype.vec(len(x.src)) for y in x.src)),
-//   (UPat((Ops.BITCAST, Ops.CAST), src=(UPat(),), name="x"), lambda x: x.arg is None),
-//   (UPat(Ops.BARRIER, dtypes.void, src=UPat(Ops.STORE, allow_any_len=True)), lambda: True), # NOTE: all pointers must be local
-
-//   # NOTE: for testing, we let sinks be anything
-//   #(UPat(UOps.SINK, src=UPat(UOps.STORE)), lambda: True),
-//   (UPat(Ops.SINK, dtypes.void), lambda: True),
-//   (UPat(Ops.NOOP), lambda: True),
-
-//   # PTX LOAD/STORE
-//   (UPat((Ops.LOAD, Ops.STORE), src=(UPat(dtype=dtypes.int64),), allow_any_len=True), lambda: True),
-//   (UPat(Ops.BARRIER, dtypes.void, src=UPat(Ops.STORE, src=(UPat(dtype=dtypes.int64),), allow_any_len=True)), lambda: True),
-// ])
+    //   # PTX LOAD/STORE
+    [new UPat({ op: (Ops.LOAD, Ops.STORE), src: [new UPat({ dtype: dtypes.int64 })], allowAnyLen: true }), () => true],
+    [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, src: [new UPat({ dtype: dtypes.int64 })], allowAnyLen: true }) }), () => true],
+])
 
 // def type_verify(uops:List[UOp]):
 //   for i,u in enumerate(uops):
@@ -1088,131 +1074,134 @@ class RewriteContext {
 
 // def sint_to_uop(x:sint) -> UOp: return UOp.const(dtypes.int, x) if isinstance(x, int) else x
 
-// symbolic_simple = PatternMatcher([
-//   # ** self folding **
-//   (UPat.var("x") + 0, lambda x: x),    # x+0 -> x
-//   (UPat.var("x") * 1, lambda x: x),    # x*1 -> x
-//   (UPat.var("x") // UPat.var("x"), lambda x: x.const_like(1)), # x//x -> 1
-//   (UPat.var("x") // 1, lambda x: x),   # x//1 -> x
-//   (UPat.var("x") // -1, lambda x: -x), # x//-1 -> -x
-//   (UPat.var("x") / UPat.var("x"), lambda x: x.const_like(1)), # x/x -> 1
-//   ((UPat.var("x") * UPat.var("x2")) / UPat.var("x2"), lambda x,x2: x), # (x*x2)/x2 -> x
-//   ((UPat.var() % UPat.var("y")).named("base") % UPat.var("y"), lambda base,y: base),  # (x%y)%y = -> x%y (rewritten with base for speed)
-//   (UPat.var("x")%UPat.cvar("c")+(UPat.var("x")//UPat.cvar("c"))*UPat.cvar("c"), lambda x,c: x), # (x%c)+(x//c)*c = x
-//   (UPat.var("x", dtype=dtypes.bool) & UPat.cvar("c", vec=False), lambda x,c: x if c.arg else c),
-//   (UPat.var("x", dtype=dtypes.bool) | UPat.cvar("c", vec=False), lambda x,c: c if c.arg else x),
-//   (UPat.var("x").maximum(UPat.var("x")), lambda x: x),
-//   ((UPat.var("x") & UPat.var("x")), lambda x: x),
-//   ((UPat.var("x") | UPat.var("x")), lambda x: x),
-//   (UPat.var("x", dtype=dtypes.bool).logical_not().logical_not(), lambda x: x),
-//   (UPat.var("x", dtype=dtypes.bool).where(UPat.const(dtypes.bool, True), UPat.const(dtypes.bool, False)), lambda x: x),
-//   # ** zero folding **
-//   (UPat.var("x") < UPat.var("x"), lambda x: UOp.const(dtypes.bool.vec(x.dtype.count), False)), # x < x -> False
-//   (UPat.var("x", dtype=dtypes.ints) != UPat.var("x", dtype=dtypes.ints),
-//    lambda x: UOp.const(dtypes.bool.vec(x.dtype.count), False)), # x != x -> False (only ints)
-//   # x*0 -> 0 or 0*x -> 0
-//   # if x is nan or inf it should render the nan value.
-//   # NOTE: this can be wrong for loaded NaN
-//   (UPat.var("x") * 0, lambda x: x.const_like(float("nan") if isinstance(x.arg, float) and (math.isnan(x.arg) or math.isinf(x.arg)) else 0)),
-//   # ** constant folding **
-//   (UPat(GroupOp.ALU, name="a", src=UPat((Ops.VCONST, Ops.CONST))), lambda a: a.const_like(exec_alu(a.op, a.dtype, [x.arg for x in a.src], False))),
-//   # bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly
-//   (UPat.var('x', dtype=dtypes.bool) * UPat.var('y', dtype=dtypes.bool), lambda x,y: x&y),
-//   (UPat.var('x', dtype=dtypes.bool) + UPat.var('y', dtype=dtypes.bool), lambda x,y: x|y),
-//   (UPat.var('x', dtype=dtypes.bool).maximum(UPat.var('y', dtype=dtypes.bool)), lambda x,y: x|y),
-//   # *** cast ***
-//   (UPat(Ops.CAST, name="root", src=UPat.cvar("c")), lambda root, c: root.const_like(c.arg)),
-//   (UPat(Ops.CAST, name="root"), lambda root: root.src[0] if root.dtype == root.src[0].dtype else None),
-// ])
+export const symbolicSimple = new PatternMatcher([
+    //   // ** self folding **
+    [UPat.var('x').add(0), (x) => x], // x+0 -> x
+    [UPat.var('x').mul(1), (x) => x], // x*1 -> x
+    [UPat.var('x').idiv(UPat.var('x')), (x) => x.const_like(1)], // x//x -> 1
+    [UPat.var('x').idiv(1), (x) => x], // x//1 -> x
+    [UPat.var('x').idiv(-1), (x) => -x], // x//-1 -> -x
+    [UPat.var('x').div(UPat.var('x')), (x) => x.const_like(1)], // x/x -> 1
+    [(UPat.var('x').mul(UPat.var('x2'))).div(UPat.var('x2')), (x, x2) => x], // (x*x2)/x2 -> x
+    [(UPat.var().mod(UPat.var('y'))).named('base').mod(UPat.var('y')), (base, y) => base], // (x%y)%y = -> x%y (rewritten with base for speed)
+    [UPat.var('x').mod(UPat.cvar('c')).add(UPat.var('x').idiv(UPat.cvar('c'))).mul(UPat.cvar('c')), (x, c) => x], // (x%c)+(x//c)*c = x
+    [UPat.var('x', dtypes.bool).bitwiseAnd(UPat.cvar('c', undefined, false)), (x, c) => c.arg ? x : c],
+    [UPat.var('x', dtypes.bool).bitwiseOr(UPat.cvar('c', undefined, false)), (x, c) => c.arg ? c : x],
+    [UPat.var('x').maximum(UPat.var('x')), (x) => x],
+    [UPat.var('x').bitwiseAnd(UPat.var('x')), (x) => x],
+    [UPat.var('x').bitwiseOr(UPat.var('x')), (x) => x],
+    [UPat.var('x', dtypes.bool).logicalNot().logicalNot(), (x) => x],
+    [UPat.var('x', dtypes.bool).where(UPat.const(dtypes.bool, true), UPat.const(dtypes.bool, false)), (x) => x],
+    //   // ** zero folding **
+    [UPat.var('x').lt(UPat.var('x')), (x) => UOp.const(dtypes.bool.vec(x.dtype.count), false)], // x < x -> False
+    [UPat.var('x', dtypes.ints).ne(UPat.var('x', dtypes.ints)), (x) => UOp.const(dtypes.bool.vec(x.dtype.count), false)], // x != x -> False (only ints)
+    //   // x*0 -> 0 or 0*x -> 0
+    //   // if x is nan or inf it should render the nan value.
+    //   // NOTE: this can be wrong for loaded NaN
+    [UPat.var('x').mul(0), (x) => x.const_like(typeof x.arg === 'number' && (isNaN(x.arg) || !isFinite(x.arg)) ? NaN : 0)],
+    //   // ** constant folding **
+    [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), (a) => a.const_like(exec_alu(a.op, a.dtype, a.src!.map((x) => x.arg), false))],
+    //   // bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly
+    [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseAnd(y)],
+    [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseOr(y)],
+    [UPat.var('x', dtypes.bool).maximum(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseOr(y)],
+    //   // *** cast ***
+    [new UPat({ op: Ops.CAST, name: 'root', src: UPat.cvar('c') }), (root, c) => root.const_like(c.arg)],
+    [new UPat({ op: Ops.CAST, name: 'root' }), (root) => root.dtype === root.src![0].dtype ? root.src![0] : null],
+])
 
-// symbolic = symbolic_simple+PatternMatcher([
-//   # ** COMMUTATIVE flipping **
-//   (UPat(GroupOp.Commutative, name='x'), lambda x: x.replace(src=x.src[::-1]) if x.src[1].tuplize < x.src[0].tuplize else None),
-//   # group like
-//   ((UPat.var("x") + UPat.var("y")) + UPat.var("x") * UPat.cvar("c"), lambda x,y,c: (x+x*c)+y),
-//   # ** boolean algebra **
-//   (UPat.var("x") | (UPat.var("x") & UPat.var()), lambda x: x), # x|(x&y) -> x
-//   # ** combine terms **
-//   (UPat.var("x") * UPat.cvar("c0") + UPat.var("x") * UPat.cvar("c1"), lambda x,c0,c1: x*(c0+c1)), # (x*c0)+(x*c1) -> x*(c0+c1)
-//   (UPat.var("x") + UPat.var("x") * UPat.cvar("c"), lambda x,c: x*(c+1)), # (x+x*c)-> x*(c+1)
-//   (UPat.var("x") + UPat.var("x"), lambda x: x*2), # (x+x)-> x*2
-//   ((UPat.var("x") / UPat.var("x2")) / UPat.var("x3"), lambda x,x2,x3: x/(x2*x3)), # (x/x2)/x3 -> x/(x2*x3)
-//   (-1 * (UPat.var("x") + UPat.cvar("c")), lambda x,c: (-x)+(-c)),  # -(x+c) -> -x + -c
-//   # a conditional with the same results either way is a noop, also fold const conditionals
-//   (UPat.var().where(UPat.var("val"), UPat.var("val")), lambda val: val),
-//   (UPat.cvar("gate", vec=False).where(UPat.var("c0"), UPat.var("c1")), lambda gate, c0, c1: c0 if gate.arg else c1),
-//   # ALU min==max -> CONST (slow!)
-//   (UPat(GroupOp.ALU, name="x"), lambda x: x.const_like(x.vmin) if x.vmin == x.vmax else None),
-//   # max folding
-//   (UPat.maximum(UPat.var("x"), UPat.var("y")), lambda x,y: x if x.vmin >= y.vmax else y if x.vmax <= y.vmin else None),
-//   # TODO: why does this rule break beautiful_mnist?
-//   #((UPat.var("x")+UPat.var("z")).maximum(UPat.var("y")+UPat.var("z")), lambda x,y,z: x.maximum(y) + z),
-//   ((UPat.var("x")*UPat.cvar("c1")).maximum(UPat.var("x")*UPat.cvar("c2")), max_var_const),
-//   # ** two stage ALU folding **
-//   ((UPat.var("x") + UPat.cvar("c1")) + UPat.cvar("c2"), lambda x,c1,c2: x+(c1+c2)),
-//   ((UPat.var("x") * UPat.cvar("c1")) * UPat.cvar("c2"), lambda x,c1,c2: x*(c1*c2)),
-//   ((UPat.var("x") & UPat.cvar("c1")) & UPat.cvar("c2"), lambda x,c1,c2: x&(c1&c2)),
-//   ((UPat.var("x") | UPat.cvar("c1")) | UPat.cvar("c2"), lambda x,c1,c2: x|(c1|c2)),
-//   ((UPat.cvar("c0") + UPat.var("x")) < UPat.cvar("c1"), lambda x,c0,c1: x<(c1-c0)),  # c0 + x < c1 -> x < c1 - c0
-//   ((UPat.var("x") // UPat.cvar("c1")) // UPat.cvar("c2"), lambda x,c1,c2: x//(c1*c2)), # (x//c1)//c2 -> x//(c1*c2)
-//   # ** lt **
-//   # c0*x<c1 for positive int c0,c1
-//   ((UPat.cvar("c0", vec=False)*UPat.var("x", dtype=dtypes.ints)).lt(UPat.cvar("c1", vec=False)),
-//    lambda x,c0,c1: x.lt(math.ceil(c1.arg/c0.arg)) if c0.arg > 0 and c1.arg > 0 else None),
-//   # c0*x<c1 for negative int c0 and non-positive c1
-//   ((UPat.cvar("c0", vec=False)*UPat.var("x", dtype=dtypes.ints)).lt(UPat.cvar("c1", vec=False)),
-//    lambda x,c0,c1: (-x).lt(-(math.floor(-c1.arg/-c0.arg))) if c0.arg < 0 and c0.arg != -1 and c1.arg <= 0 else None),
-//   # x//c0<c1 for positive int c0
-//   ((UPat.var("x", dtype=dtypes.ints)//UPat.cvar("c0", vec=False)).lt(UPat.cvar("c1", vec=False)),
-//    lambda x,c0,c1: x.lt(c1.arg*c0.arg) if c0.arg > 0 else None),
-//   # mul add lt
-//   (((UPat.cvar("c0", vec=False)*UPat.var("x"))+UPat.var("x2")).lt(UPat.cvar("c1", vec=False)),
-//    lambda x,x2,c0,c1: x.lt(c1//c0) if c1.arg % c0.arg == 0 and c0.arg > x2.vmax and x2.vmin >= 0 else None),
-//   # ** move add/mul consts to end (NOTE: this is still happening before constant folding) **
-//   (UPat(Ops.ADD, src=(UPat.var("x"), UPat.cvar("c1"))) + UPat.var("y"), lambda x,c1,y: (x+y)+c1),
-//   (UPat(Ops.MUL, src=(UPat.var("x"), UPat.cvar("c1"))) * UPat.var("y"), lambda x,c1,y: (x*y)*c1),
-//   # *** rules from symbolic ***
-//   # unrolled arange div folding
-//   (UPat(Ops.ADD, name="divs", src=[UPat(), UPat(Ops.IDIV)]), fold_unrolled_divs),
-//   # generic lt folding
-//   (UPat.var("x", dtypes.sints).lt(UPat.cvar("c", vec=False)), lambda x,c: lt_folding(x, c.arg) if 0 < c.arg else None),
-//   # canonicalize a simplex with positive coefficients > 0
-//   # not x < 1 -> X > 0
-//   (UPat.var("x", dtypes.ints).lt(1).ne(True), lambda x: newx.lt(1).ne(True) if (newx:=canonicalize_simplex(x)) is not None else None),
-//   # ** div **
-//   # # div folding
-//   (UPat.var("x", dtypes.sints) // UPat.cvar("c", vec=False), lambda x,c: newx if 0 < c.arg and (newx:=div_folding(x,c.arg)) is not None else None),
-//   # ** mod **
-//   # mod folding
-//   (UPat.var("x") % UPat.cvar("c", vec=False), lambda x,c: newx if 0 < c.arg and (newx:=mod_folding(x,c.arg)) is not None else None),
-// ])
+export const symbolic = symbolicSimple.__add__(
+    new PatternMatcher([
+        //   // ** COMMUTATIVE flipping **
+        [new UPat({ op: GroupOp.Commutative, name: 'x' }), (x) => x.src[1].tuplize < x.src[0].tuplize ? x.replace([...x.src].reverse()) : null],
+        //   // group like
+        [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), (x, y, c) => (x.add(x.mul(c))).add(y)],
+        //   // ** boolean algebra **
+        [UPat.var('x').bitwiseOr(UPat.var('x').bitwiseAnd(UPat.var())), (x) => x], // x|(x&y) -> x
+        //   // ** combine terms **
+        [UPat.var('x').mul(UPat.cvar('c0')).add(UPat.var('x').mul(UPat.cvar('c1'))), (x, c0, c1) => x.mul(c0.plus(c1))], // (x*c0)+(x*c1) -> x*(c0+c1)
+        [UPat.var('x').add(UPat.var('x').mul(UPat.cvar('c'))), (x, c) => x.mul(c.add(1))], // (x+x*c)-> x*(c+1)
+        [UPat.var('x').add(UPat.var('x')), (x) => x.mul(2)], // (x+x)-> x*2
+        [(UPat.var('x').div(UPat.var('x2'))).div(UPat.var('x3')), (x, x2, x3) => x.div(x2.mul(x3))], // (x/x2)/x3 -> x/(x2*x3)
+        [UPat.var('x').mul(-1, true).add(UPat.cvar('c')), (x, c) => x.neg().add(c.neg())], // -(x+c) -> -x + -c
+        //   // a conditional with the same results either way is a noop, also fold const conditionals
+        [UPat.var().where(UPat.var('val'), UPat.var('val')), (val) => val],
+        [UPat.cvar('gate', undefined, false).where(UPat.var('c0'), UPat.var('c1')), (gate, c0, c1) => gate.arg ? c0 : c1],
+        //   // ALU min==max -> CONST (slow!)
+        [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.vmin == x.vmax ? x.const_like(x.vmin) : null],
+        //   // max folding
+        [UPat.var('x').maximum(UPat.var('y')), (x, y) => x.vmax <= y.vmin ? x.vmin >= y.vmax ? x : y : null],
+        //   // TODO: why does this rule break beautiful_mnist?
+        //   //((UPat.var("x")+UPat.var("z")).maximum(UPat.var("y")+UPat.var("z")), lambda x,y,z: x.maximum(y) + z),
+        [UPat.var('x').mul(UPat.cvar('c1')).maximum(UPat.var('x').mul(UPat.cvar('c2'))), max_var_const],
+        //   // ** two stage ALU folding **
+        [(UPat.var('x').add(UPat.cvar('c1'))).add(UPat.cvar('c2')), (x, c1, c2) => x.add(c1.add(c2))],
+        [(UPat.var('x').mul(UPat.cvar('c1'))).mul(UPat.cvar('c2')), (x, c1, c2) => x.mul(c1.mul(c2))],
+        [(UPat.var('x').bitwiseAnd(UPat.cvar('c1'))).bitwiseAnd(UPat.cvar('c2')), (x, c1, c2) => x.bitwiseAnd(c1.bitwiseAnd(c2))],
+        [(UPat.var('x').bitwiseOr(UPat.cvar('c1'))).bitwiseOr(UPat.cvar('c2')), (x, c1, c2) => x.bitwiseOr(c1.bitwiseOr(c2))],
+        [(UPat.cvar('c0').add(UPat.var('x'))).lt(UPat.cvar('c1')), (x, c0, c1) => x.lt(c1.sub(c0))], // c0 + x < c1 -> x < c1 - c0
+        [(UPat.var('x').idiv(UPat.cvar('c1'))).idiv(UPat.cvar('c2')), (x, c1, c2) => x.idiv(c1.add(c2))], // (x//c1)//c2 -> x//(c1*c2)
+        //   // ** lt **
+        //   // c0*x<c1 for positive int c0,c1
+        [(UPat.cvar('c0', undefined, false).mul(UPat.var('x', dtypes.ints))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg > 0 && c1.arg > 0 ? x.lt(Math.ceil(c1.arg / c0.arg)) : null],
+        //   // c0*x<c1 for negative int c0 and non-positive c1
+        [(UPat.cvar('c0', undefined, false).mul(UPat.var('x', dtypes.ints))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg < 0 && c0.arg != -1 && c1.arg <= 0 ? x.neg().lt(-Math.floor(-c1.arg / -c0.arg)) : null],
+        //   // x//c0<c1 for positive int c0
+        [(UPat.var('x', dtypes.ints).idiv(UPat.cvar('c0', undefined, false))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg > 0 ? x.lt(c1.arg * c0.arg) : null],
+        //   // mul add lt
+        [((UPat.cvar('c0', undefined, false).mul(UPat.var('x'))).add(UPat.var('x2'))).lt(UPat.cvar('c1', undefined, false)), (x, x2, c0, c1) => c1.arg % c0.arg == 0 && c0.arg > x2.vmax && x2.vmin >= 0 ? x.lt(c1.idiv(c0)) : null],
+        //   // ** move add/mul consts to end (NOTE: this is still happening before constant folding) **
+        [new UPat({ op: Ops.ADD, src: [UPat.var('x'), UPat.cvar('c1')] }).add(UPat.var('y')), (x, c1, y) => (x.add(y)).add(c1)],
+        [new UPat({ op: Ops.MUL, src: [UPat.var('x'), UPat.cvar('c1')] }).mul(UPat.var('y')), (x, c1, y) => (x.mul(y)).mul(c1)],
+        //   // *** rules from symbolic ***
+        //   // unrolled arange div folding
+        [new UPat({ op: Ops.ADD, name: 'divs', src: [new UPat({}), new UPat({ op: Ops.IDIV })] }), fold_unrolled_divs],
+        //   // generic lt folding
+        [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), (x, c) => 0 < c.arg ? lt_folding(x, c.arg) : null],
+        //   // canonicalize a simplex with positive coefficients > 0
+        //   // not x < 1 -> X > 0
+        [UPat.var('x', dtypes.ints).lt(1).ne(true), (x) => {
+            const newx = canonicalize_simplex(x)
+            return newx !== null ? newx.lt(1).ne(true) : null
+        }],
+        //   // ** div **
+        //   // // div folding
+        [UPat.var('x', dtypes.sints).idiv(UPat.cvar('c', undefined, false)), (x, c) => {
+            const newx = div_folding(x, c.arg)
+            return 0 < c.arg && newx !== null ? newx : null
+        }],
+        //   // ** mod **
+        //   // mod folding
+        [UPat.var('x').mod(UPat.cvar('c', undefined, false)), (x, c) => {
+            const newx = mod_folding(x, c.arg)
+            return 0 < c.arg && newx !== null ? newx : null
+        }],
+    ]),
+)
 
-// symbolic_flat = symbolic+PatternMatcher([
-//   # ** combine terms (opinionated) **
-//   (-1 * (UPat.var("x") + UPat.var("y")), lambda x,y: (-x)+(-y)),  # -(x+y) -> -x + -y
-//   # (x+y)*c -> x*c+y*c. only for int, float has inf*0=nan issue
-//   ((UPat.var("x", dtypes.ints) + UPat.var("y")) * UPat.cvar("c"), lambda x,y,c: x*c+y*c),
-// ])
+export const symbolicFlat = symbolic.__add__(
+    new PatternMatcher([
+        // ** combine terms (opinionated) **
+        [UPat.var('x').mul(-1, true).add(UPat.var('y')), (x, y) => x.neg().add(y.neg())], // -(x+y) -> -x + -y
+        //   # (x+y)*c -> x*c+y*c. only for int, float has inf*0=nan issue
+        [UPat.var('x', dtypes.ints).add(UPat.var('y')).mul(UPat.cvar('c')), (x, y, c) => x.mul(c).add(y.mul(c))],
+    ]),
+)
 
-// _substitute = PatternMatcher([(UPat(tuple(Ops), name="x"), lambda ctx,x: ctx.get(x,None))])
+export const _substitute = new PatternMatcher([[new UPat({ op: Object.values(Ops) as Ops[], name: 'x' }), (ctx, x) => ctx.get(x, null)]])
 
 // # for debug
-// syms = { Ops.ADD: "+", Ops.SUB: "-", Ops.IDIV: "//", Ops.MOD: "%", Ops.SHL: "<<", Ops.SHR: ">>",
-//          Ops.MUL: "*", Ops.CMPLT: "<", Ops.CMPNE: "!=", Ops.AND: "&", Ops.OR: "|", Ops.XOR: "^"}
-// renderer = PatternMatcher([
-//   (UPat((Ops.DEFINE_VAR, Ops.SPECIAL), name="x"), lambda x: UOp(Ops.NOOP, arg=x.arg[0])),
-//   (UPat(Ops.RANGE, name="x"), lambda x: UOp(Ops.NOOP, arg=f"ridx{x.arg[0]}")),
-//   (UPat(Ops.CONST, name="x"), lambda x: UOp(Ops.NOOP, arg=str(x.arg))),
-//   (UPat(Ops.BIND, src=UPat(Ops.NOOP), name="x"), lambda x: x.src[0]),
-//   (UPat(Ops.NEG, src=UPat(Ops.NOOP), name="x"), lambda x: UOp(Ops.NOOP, arg=f"(-{x.src[0].arg})")),
-//   (UPat(Ops.MAX, src=UPat(Ops.NOOP), name="x"), lambda x: UOp(Ops.NOOP, arg=f"max({x.src[0].arg}, {x.src[1].arg})")),
-//   (UPat(Ops.MULACC, src=UPat(Ops.NOOP), name="x"), lambda x: UOp(Ops.NOOP, arg=f"({x.src[0].arg}*{x.src[1].arg}+{x.src[2].arg})")),
-//   (UPat(Ops.WHERE, src=UPat(Ops.NOOP), name="x"), lambda x: UOp(Ops.NOOP, arg=f"({x.src[1].arg} if {x.src[0].arg} else {x.src[2].arg})")),
-//   (UPat(GroupOp.ALU, src=UPat(Ops.NOOP), name="x"), lambda x: UOp(Ops.NOOP, arg=f"({x.src[0].arg}{syms[x.op]}{x.src[1].arg})")),
-// ])
+const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
+export const renderer = new PatternMatcher([
+    [new UPat({ op: [Ops.DEFINE_VAR, Ops.SPECIAL], name: 'x' }), (x) => new UOp({ op: Ops.NOOP, arg: x.arg[0] })],
+    [new UPat({ op: Ops.RANGE, name: 'x' }), (x) => new UOp({ op: Ops.NOOP, arg: `ridx${x.arg[0]}` })],
+    [new UPat({ op: Ops.CONST, name: 'x' }), (x) => new UOp({ op: Ops.NOOP, arg: x.arg.toString() })],
+    [new UPat({ op: Ops.BIND, src: new UPat({ op: Ops.NOOP }), name: 'x' }), (x) => x.src[0]],
+    [new UPat({ op: Ops.NEG, src: new UPat({ op: Ops.NOOP }), name: 'x' }), (x) => new UOp({ op: Ops.NOOP, arg: `(-${x.src[0].arg})` })],
+    [new UPat({ op: Ops.MAX, src: new UPat({ op: Ops.NOOP }), name: 'x' }), (x) => new UOp({ op: Ops.NOOP, arg: `max(${x.src[0].arg}, ${x.src[1].arg})` })],
+    [new UPat({ op: Ops.MULACC, src: new UPat({ op: Ops.NOOP }), name: 'x' }), (x) => new UOp({ op: Ops.NOOP, arg: `(${x.src[0].arg}*${x.src[1].arg}+${x.src[2].arg})` })],
+    [new UPat({ op: Ops.WHERE, src: new UPat({ op: Ops.NOOP }), name: 'x' }), (x) => new UOp({ op: Ops.NOOP, arg: `(${x.src[1].arg} if ${x.src[0].arg} else ${x.src[2].arg})` })],
+    [new UPat({ op: GroupOp.ALU, src: new UPat({ op: Ops.NOOP }), name: 'x' }), (x) => new UOp({ op: Ops.NOOP, arg: `(${x.src[0].arg}${syms.get(x.op)}${x.src[1].arg})` })],
+])
 
 // # *** what was symbolic.py ***
-
-export type sint = number | UOp
-// export type ConstLike = ConstType | Variable | ConstType[]
-export const ConstLike = UOp

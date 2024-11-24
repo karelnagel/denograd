@@ -101,7 +101,7 @@ export class PtrDType extends DType {
     override toString = () => `${this.base.toString()}.ptr(${this.local ? 'local=True' : ''})${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
 
-class ImageDType extends PtrDType {
+export class ImageDType extends PtrDType {
     shape: number[]
     constructor({ shape, ...args }: PtrDTypeArgs & { shape: number[] }) {
         super(args)

@@ -13,6 +13,17 @@ export const assert = <T>(condition: boolean, message: string): condition is tru
 export const raise = (msg?: string) => {
   throw new Error(msg)
 }
+export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
+  if (length === 1) return arr.map((item) => [item])
+
+  const result: T[][] = []
+  arr.forEach((item, i) => {
+    const remaining = arr.slice(0, i).concat(arr.slice(i + 1))
+    permutations(remaining, length - 1).forEach((perm) => result.push([item, ...perm]))
+  })
+
+  return result
+}
 // TINYGRAD CODE
 // NOTE: it returns int 1 if x is empty regardless of the type of x
 export const prod = (x: number[]) => x.reduce((acc, curr) => acc * curr, 1)
