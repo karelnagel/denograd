@@ -46,7 +46,7 @@ class MathTrait extends SimpleMathTrait {
 
     //   # not in Tensor
     mod = (x: ConstType<typeof this>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
-    maximum = (x: ConstType<typeof this>) => this.alu(Ops.MAX, this.ufix(x))
+    maximum = (...x: ConstType<typeof this>[]) => this.alu(Ops.MAX, this.ufix(x))
     minimum = (x: ConstType<typeof this>) => this.neg().maximum(this.ufix(x).neg()).neg()
     where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(y))
     threefry = (seed: ConstType<typeof this>) => this.alu(Ops.THREEFRY, this.ufix(seed))
@@ -142,7 +142,8 @@ const resolve = (x: UOp, def = false) => {
     if (x.dtype.name !== 'bool') throw new Error('UOp in resolve must be bool')
     // NOTE: generating the text for the exception is expensive, so we do this
     const sx = x.simplify()
-    return sx.vmin === sx.smax ? Boolean(sx.vmin) : def
+    // TODO this Boolean() is probably broken
+    return sx.vmin() === sx.vmax() ? Boolean(sx.vmin()) : def
 }
 
 // # smax/smin are replacements for max/min that preserve symbolic
@@ -285,7 +286,7 @@ class UOp extends MathTrait {
     //     return ret
     //   def sink(self, *srcs:UOp): return UOp(Ops.SINK, dtypes.void, (self,)+srcs)
     //   def index(self, idx:UOp, valid:Optional[UOp]=None): return UOp(Ops.INDEX, self.dtype, (self,idx,valid) if valid is not None else (self,idx))
-    //   def const_like(self, b:ConstLike): return UOp.const(self.dtype, b)
+    override constLike = (b: ConstLike<typeof this>): typeof this => UOp.const(this.dtype, b) as typeof this
     //   def broadcast(self, count:int):
     //     assert self.dtype.count == 1
     //     if count == 1: return self
@@ -407,40 +408,46 @@ class UOp extends MathTrait {
     //       if (d0:=self.src[0].divides(v)) is not None: return d0 * self.src[1]
     //       if (d1:=self.src[1].divides(v)) is not None: return self.src[0] * d1
     //     return None # generic None if we aren't sure
-    //   @property
-    //   def vmin(self) -> ConstType: return self._min_max[0]
-    //   @property
-    //   def vmax(self) -> ConstType: return self._min_max[1]
-    //   @functools.cached_property
-    //   def _min_max(self) -> Tuple[ConstType, ConstType]:
-    //     if self.op in GroupOp.Binary and not dtypes.is_float(self.dtype):
-    //       (s0_vmin, s0_vmax), (s1_vmin, s1_vmax) = self.src[0]._min_max, self.src[1]._min_max
-    //       if self.op is Ops.ADD: return s0_vmin+s1_vmin, s0_vmax+s1_vmax
-    //       if self.op is Ops.MUL: return min(vals:=(s0_vmin*s1_vmin, s0_vmin*s1_vmax, s0_vmax*s1_vmin, s0_vmax*s1_vmax)), max(vals)
-    //       if self.op is Ops.MOD and s1_vmin > 0: return 0, s1_vmax-1
-    //       if self.op is Ops.IDIV and s1_vmin == s1_vmax:  # min/max are equal in a CONST
-    //         if s1_vmin > 0: return s0_vmin//s1_vmin, s0_vmax//s1_vmin
-    //         if s1_vmin < 0 and s0_vmin >= 0: return -(s0_vmax//-s1_vmin), -(s0_vmin//-s1_vmin)
-    //       if self.op is Ops.MAX: return max(s0_vmin, s1_vmin), max(s0_vmax, s1_vmax)
-    //       if self.op is Ops.CMPLT: return (s0_vmax<s1_vmin, s0_vmin<s1_vmax)
-    //       if self.op is Ops.CMPNE: return ((s0_vmax < s1_vmin) or (s1_vmax < s0_vmin), not (s0_vmin == s0_vmax == s1_vmin == s1_vmax))
-    //       if self.dtype == dtypes.bool:
-    //         if self.op is Ops.OR: return s0_vmin or s1_vmin, s0_vmax or s1_vmax
-    //         if self.op is Ops.AND: return s0_vmin and s1_vmin, s0_vmax and s1_vmax
-    //     # float has NAN issue and we use explicit NAN in transcendental
-    //     if self.op is Ops.WHERE and dtypes.is_int(self.dtype): return min(self.src[1].vmin, self.src[2].vmin), max(self.src[1].vmax, self.src[2].vmax)
-    //     # NOTE: returned UOp is assumed to be CONST
-    //     if self.op is Ops.DEFINE_VAR and self.arg: return self.arg[1], self.arg[2]
-    //     if self.op is Ops.RANGE: return self.src[0].vmin, (self.src[1]-1).vmax
-    //     if self.op is Ops.BIND: return self.src[0]._min_max # ignore the bound value
-    //     if self.op in {Ops.EXPAND, Ops.VECTORIZE}: return min(x.vmin for x in self.src), max(x.vmax for x in self.src)
-    //     # TODO: UOps.SPECIAL is UOps.DEFINE_VAR
-    //     if self.op is Ops.SPECIAL: return 0, self.arg[1]-1 if isinstance(self.arg[1], int) else dtypes.max(self.dtype)
-    //     if self.op is Ops.CONST: return self.arg, self.arg
-    //     if self.op is Ops.VCONST: return (min(self.arg), max(self.arg))
-    //     return dtypes.min(self.dtype), dtypes.max(self.dtype)
 
-    //   @functools.cached_property
+    static min = (...args: UOp[]) => args.reduce((min, current) => min.lt(current) ? min : current)
+    static max = (...args: UOp[]) => args.reduce((max, current) => max.gt(current) ? max : current)
+
+    vmin = () => this._minMax()[0]
+    vmax = () => this._minMax()[1]
+    _minMax = (): [UOp, UOp] => {
+        if (GroupOp.Binary.includes(this.op) && !dtypes.isFloat(this.dtype)) {
+            const [[s0_vmin, s0_vmax], [s1_vmin, s1_vmax]] = [this.src[0]._minMax(), this.src[1]._minMax()]
+            if (this.op === Ops.ADD) return [s0_vmin.add(s1_vmin), s0_vmax.add(s1_vmax)]
+            if (this.op === Ops.MUL) {
+                const vals = [s0_vmin.mul(s1_vmin), s0_vmin.mul(s1_vmax), s0_vmax.mul(s1_vmin), s0_vmax.mul(s1_vmax)]
+                return [UOp.min(...vals), UOp.max(...vals)]
+            }
+            if (this.op === Ops.MOD && s1_vmin.gt(0)) return [this.constLike(0), s1_vmax.sub(1)]
+            if (this.op === Ops.IDIV && s1_vmin === s1_vmax) { // min/max are equal in a CONST
+                if (s1_vmin.gt(0)) return [s0_vmin.idiv(s1_vmin), s0_vmax.idiv(s1_vmin)]
+                if (s1_vmin.lt(0) && s0_vmin.ge(0)) return [(s0_vmax.idiv(s1_vmin.neg())).neg(), (s0_vmin.idiv(s1_vmin.neg())).neg()]
+            }
+            if (this.op === Ops.MAX) return [UOp.max(s0_vmin, s1_vmin), UOp.max(s0_vmax, s1_vmax)]
+            if (this.op === Ops.CMPLT) return [s0_vmax.lt(s1_vmin), s0_vmin.lt(s1_vmax)]
+            if (this.op === Ops.CMPNE) return [(s0_vmax.lt(s1_vmin)).bitwiseOr(s1_vmax.lt(s0_vmin)), (s0_vmin.eq(s0_vmax).bitwiseAnd(s0_vmax.eq(s1_vmin)).bitwiseAnd(s1_vmin.eq(s1_vmax))).neg()]
+            if (this.dtype == dtypes.bool) {
+                if (this.op === Ops.OR) return [s0_vmin.bitwiseOr(s1_vmin), s0_vmax.bitwiseOr(s1_vmax)]
+                if (this.op === Ops.AND) return [s0_vmin.bitwiseAnd(s1_vmin), s0_vmax.bitwiseAnd(s1_vmax)]
+            }
+        }
+        // float has NAN issue and we use explicit NAN in transcendental
+        if (this.op === Ops.WHERE && dtypes.isInt(this.dtype)) return [UOp.min(this.src[1].vmin(), this.src[2].vmin()), UOp.max(this.src[1].vmax(), this.src[2].vmax())]
+        // NOTE: returned UOp is assumed to be CONST
+        if (this.op === Ops.DEFINE_VAR && this.arg) return [this.arg[1], this.arg[2]]
+        if (this.op === Ops.RANGE) return [this.src[0].vmin(), (this.src[1].sub(1)).vmax()]
+        if (this.op === Ops.BIND) return this.src[0]._minMax() // ignore the bound value
+        if ([Ops.EXPAND, Ops.VECTORIZE].includes(this.op)) return [UOp.min(...this.src.map((x) => x.vmin())), UOp.max(...this.src.map((x) => x.vmax()))]
+        // TODO: UOps.SPECIAL is UOps.DEFINE_VAR
+        if (this.op === Ops.SPECIAL) return [this.constLike(0), typeof this.arg[1] === 'number' ? this.constLike(this.arg[1] - 1) : this.constLike(dtypes.max(this.dtype))]
+        if (this.op === Ops.CONST) return [this.arg, this.arg]
+        if (this.op === Ops.VCONST) return [UOp.min(this.constLike(this.arg)), UOp.max(this.arg)]
+        return [this.constLike(dtypes.min(this.dtype)), this.constLike(dtypes.max(this.dtype))]
+    }
 
     _sym_fxn = (): [(m: Map<UOp, number>) => number, any[]] => {
         const sself = this.simplify()
