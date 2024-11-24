@@ -6,8 +6,12 @@ import os from 'node:os'
 // GENERAL HELPERS
 export const range = (i: number) => Array.from({ length: i }, (_, i) => i)
 export const d = <T extends any[]>(...t: T) => t
-export const assert = (condition: boolean, message: string) => {
+export const assert = <T>(condition: boolean, message: string): condition is true => {
   if (!condition) throw new Error(message)
+  return condition
+}
+export const raise = (msg?: string) => {
+  throw new Error(msg)
 }
 // TINYGRAD CODE
 // NOTE: it returns int 1 if x is empty regardless of the type of x

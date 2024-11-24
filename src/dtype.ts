@@ -1,5 +1,41 @@
-import { assert, getEnv } from './helpers.ts'
+import { assert, getEnv, raise } from './helpers.ts'
 
+// export abstract class ConstType {
+//     abstract add: (x: ConstType, reverse: boolean) => ConstType
+//     abstract mul: (x: ConstType, reverse: boolean) => ConstType
+//     abstract neg: (x: ConstType, reverse: boolean) => ConstType
+// }
+// export class Int extends ConstType {
+//     val: number
+//     constructor(val: number) {
+//         super()
+//         this.val = val
+//     }
+//     override add = (x: ConstType, reverse = false) => raise()
+//     override neg = (x: ConstType, reverse = false) => raise()
+//     override mul = (x: ConstType, reverse = false) => raise()
+// }
+// export class Float extends ConstType {
+//     val: number
+//     constructor(val: number) {
+//         super()
+//         this.val = val
+//     }
+//     override add = (x: ConstType, reverse = false) => raise()
+//     override neg = (x: ConstType, reverse = false) => raise()
+//     override mul = (x: ConstType, reverse = false) => raise()
+// }
+// export class Bool extends ConstType {
+//     val: boolean
+//     constructor(val: boolean) {
+//         super()
+//         this.val = val
+//     }
+
+//     override add = (x: ConstType, reverse = false) => raise()
+//     override neg = (x: ConstType, reverse = false) => raise()
+//     override mul = (x: ConstType, reverse = false) => raise()
+// }
 export type ConstType = number | boolean
 
 // TODO: all DTypes should only be created once, DTypeMetaClass
