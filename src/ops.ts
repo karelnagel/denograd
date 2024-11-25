@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
-import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { allSame, assert, partition, permutations, prod, raise } from './helpers.ts'
+import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
+import { allSame, assert, isSubset, mathGcd, partition, permutations, prod, raise, range } from './helpers.ts'
 import { Buffer } from 'node:buffer'
+import { readFileSync } from 'node:fs'
 
 type ConstType<This = never> = number | boolean | This
 export type sint = number | UOp
@@ -231,8 +232,8 @@ class UOp extends MathTrait {
     tuplize = (): UOpTuple => [this.op, this.arg, this.dtype, this.src.map((src) => src.tuplize())]
 
     //   # *** uop shape stuff ***
-
-    has_st = () => ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)
+    // TODO: ignored the shape stuff for now
+    // has_st = () => ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)
     //   @functools.cached_property
     //   def st(self) -> Optional[ShapeTracker]:
     //     if not self.has_st: return None
@@ -252,77 +253,83 @@ class UOp extends MathTrait {
         // TODO: with Context(TRACK_MATCH_STATS=0):
         return graphRewrite(this, symbolic)
     }
-    ssimplify = () => {
+    ssimplify = (): UOp => {
         const ret = this.simplify()
         return ret.op === Ops.CONST ? ret.arg : ret
     }
-    //   def ssimplify(self) -> Union[UOp, ConstType]: return ret.arg if (ret:=self.simplify()).op is Ops.CONST else ret
-    //   def _eval(self, dtype, expected_type:Type[T]) -> T:
-    //     assert self.dtype in dtype, f"eval with wrong dtype {self}"
-    //     vmin, vmax = (simple_self:=self.simplify())._min_max
-    //     if vmin != vmax: raise ValueError(f"eval failed to be a single number, range is {vmin} to {vmax} in {simple_self.render()}")
-    //     assert isinstance(vmin, expected_type), f"vmin is wrong dtype {type(vmin)} != {expected_type}"
-    //     return vmin
-    //   def __bool__(self): return self._eval((dtypes.bool,), bool)
-    //   def __int__(self): return self._eval(dtypes.ints, int)
-    //   def __float__(self): return self._eval(dtypes.floats, float)
-    //   def substitute(self, dvars:Dict[UOp, UOp]):
-    //     with Context(TRACK_MATCH_STATS=0):
-    //       return graph_rewrite(self, _substitute, dvars)
+    _eval = <T extends new (...args: any[]) => void>(dtypes: DType[], expectedType: T): InstanceType<T> => {
+        if (!dtypes.includes(this.dtype)) throw new Error(`eval with wrong dtype ${this}`)
+        const simpleSelf = this.simplify()
+        const [vmin, vmax] = simpleSelf._minMax()
+        if (vmin !== vmax) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleSelf.render()}`)
+        if ((vmin instanceof expectedType)) throw new Error(`vmin is wrong dtype ${typeof vmin} != ${expectedType}`)
+        return vmin as InstanceType<T>
+    }
+    __bool__ = () => this._eval([dtypes.bool], Boolean)
+    __int__ = () => this._eval(dtypes.ints, Number)
+    __float__ = () => this._eval(dtypes.floats, Number)
+    substitute = (dvars: Map<UOp, UOp>) => {
+        // TODO:  with Context(TRACK_MATCH_STATS=0):
+        return graphRewrite(this, _substitute, dvars)
+    }
 
     //   # *** uop syntactic sugar ***
-
-    //   @property
-    //   def st_arg(self) -> ShapeTracker:
-    //     assert self.op in GroupOp.Buffer, f"st_arg called on {self.op}"
-    //     ret = self.src[0 if self.op is Ops.VALID else 1]
-    //     assert ret.op is Ops.VIEW, f"st_arg trying to return {ret}"
-    //     return ret.arg
-    //   @property
-    //   def axis_arg(self) -> Tuple[int, ...]:
-    //     assert self.op in {Ops.REDUCE_AXIS, Ops.WMMA}, f"axis_arg called on {self.op}"
-    //     ret = self.arg[1] if self.op is Ops.REDUCE_AXIS else self.arg[7]
-    //     assert isinstance(ret, tuple) and all(isinstance(x, int) for x in ret), f"axis_arg trying to return {ret}"
-    //     return ret
-    //   def sink(self, *srcs:UOp): return UOp(Ops.SINK, dtypes.void, (self,)+srcs)
-    //   def index(self, idx:UOp, valid:Optional[UOp]=None): return UOp(Ops.INDEX, self.dtype, (self,idx,valid) if valid is not None else (self,idx))
+    // TODO: returns ShapeTracker
+    stArg = () => {
+        if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on ${this.op}`)
+        const ret = this.src[this.op === Ops.VALID ? 0 : 1]
+        if (ret.op !== Ops.VIEW) throw new Error(`st_arg trying to return ${ret}`)
+        return ret.arg
+    }
+    axisArg = (): number[] => {
+        if (![Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op)) throw new Error(`axis_arg called on ${this.op}`)
+        const ret = this.op === Ops.REDUCE_AXIS ? this.arg[1] : this.arg[7]
+        if (!(Array.isArray(ret) && ret.every((x) => typeof x === 'number'))) throw new Error(`axis_arg trying to return ${ret}`)
+        return ret
+    }
+    sink = (...srcs: UOp[]) => new UOp({ op: Ops.SINK, dtype: dtypes.void, src: [this, ...srcs] })
+    index = (idx: UOp, valid?: UOp) => new UOp({ op: Ops.INDEX, dtype: this.dtype, src: valid ? [this, idx, valid] : [this, idx] })
     override constLike = (b: ConstLike<typeof this>): typeof this => UOp.const(this.dtype, b) as typeof this
-    //   def broadcast(self, count:int):
-    //     assert self.dtype.count == 1
-    //     if count == 1: return self
-    //     return UOp(Ops.VECTORIZE, self.dtype.vec(count), (self,)*count)
+    broadcast = (count: number) => {
+        if (this.dtype.count !== 1) throw new Error(`dtype.count !==1`)
+        if (count === 1) return this
+        return new UOp({ op: Ops.VECTORIZE, dtype: this.dtype.vec(count), src: range(count).map(() => this) })
+    }
     cast = (dtype: DType) => new UOp({ op: Ops.CAST, dtype, src: [this] })
     bitcast = (dtype: DType) => new UOp({ op: Ops.BITCAST, dtype, src: [this] })
-    //   def gep(self, i:Union[Tuple[int, ...], int]):
-    //     if isinstance(i, int):
-    //       # NOTE: these are just shortcuts to not have to create and fold later
-    //       if self.op is Ops.VECTORIZE: return self.src[i]
-    //       if self.op is Ops.VCONST: return UOp.const(self.dtype.scalar(), self.arg[i])
-    //       if self.op is Ops.CONST: return UOp.const(self.dtype.scalar(), self.arg)
-    //       i = (i,)
-    //     if (self.dtype.vcount == len(i) and i == tuple(range(len(i)))) or self.dtype == dtypes.void: return self
-    //     return UOp(Ops.GEP, self.dtype.scalar().vec(len(i)) if len(i) > 1 else self.dtype.scalar(), (self,), i)
+    gep = (i: number[] | number) => {
+        if (!Array.isArray(i)) {
+            // NOTE: these are just shortcuts to not have to create and fold later
+            if (this.op === Ops.VECTORIZE) return this.src[i]
+            if (this.op === Ops.VCONST) return UOp.const(this.dtype.scalar(), this.arg[i])
+            if (this.op === Ops.CONST) return UOp.const(this.dtype.scalar(), this.arg)
+            i = [i]
+        }
+        if (this.dtype.vcount === i.length && i === range(i.length) || this.dtype === dtypes.void) return this
+        return new UOp({ op: Ops.GEP, dtype: i.length > 1 ? this.dtype.scalar().vec(i.length) : this.dtype.scalar(), src: [this], arg: i })
+    }
     load = (src: UOp[], kwargs?: Record<string, any>) => new UOp({ op: Ops.LOAD, src: [this, ...src], ...kwargs })
     store = (src: UOp[], kwargs?: Record<string, any>) => new UOp({ op: Ops.STORE, dtype: dtypes.void, src: [this, ...src], ...kwargs })
-    //   def alu(self, arg, *src:UOp):
-    //     out_dtype = (self, *src)[-1].dtype
-    //     if arg in {Ops.CMPLT, Ops.CMPNE} and out_dtype is not None:
-    //       out_dtype = dtypes.bool.vec(out_dtype.count) if out_dtype.count > 1 else dtypes.bool
-    //     return UOp(arg, out_dtype, (self,)+src)
+    override alu = (arg: Ops, ...src: typeof this[]): typeof this => {
+        let outDType = [this, ...src].at(-1)?.dtype
+        if ([Ops.CMPLT, Ops.CMPNE].includes(arg) && outDType) {
+            outDType = outDType.count > 1 ? dtypes.bool.vec(outDType.count) : dtypes.bool
+        }
+        return new UOp({ op: arg, dtype: outDType, src: [this, ...src] }) as typeof this
+    }
     static const = (dtype: DType, b: ConstLike) => {
         if (b instanceof UOp) return b.unbind()[0]
         if (Array.isArray(b) && allSame(b)) b = b[0]
         return new UOp({ op: Array.isArray(b) ? Ops.VCONST : Ops.CONST, dtype, arg: dtype ? dtypes.asConst(b, dtype) : b })
     }
     //   @staticmethod
-    //   def range(dtype:DType, start:ConstType|UOp, end:ConstType|UOp, idx:int):
-    //     return UOp(Ops.RANGE, dtype=dtype, src=(UOp.const(dtype, start) if not isinstance(start, UOp) else start,
-    //                                              UOp.const(dtype, end) if not isinstance(end, UOp) else end), arg=(idx, False))
-    //   def r(self, op:Ops, axis:Tuple[int, ...]): return UOp(Ops.REDUCE_AXIS, self.dtype, (self,), (op, axis))
-    //   def assign(self, x:UOp): return UOp(Ops.ASSIGN, self.dtype, (self,x))
-    //   def contiguous(self): return UOp(Ops.CONTIGUOUS, self.dtype, (self,))
-    //   @property
-    //   def is_contiguous_base(self): return self.op is Ops.CONTIGUOUS and not (self.src[0].base.op is Ops.VIEW and len(self.src[0].base.src) == 2)
+    static range = (dtype: DType, start: ConstType<UOp>, end: ConstType<UOp>, idx: number) => {
+        return new UOp({ op: Ops.RANGE, dtype: dtype, src: [!(start instanceof UOp) ? UOp.const(dtype, start) : start, !(end instanceof UOp) ? UOp.const(dtype, end) : end], arg: [idx, false] })
+    }
+    r = (op: Ops, axis: number[]) => new UOp({ op: Ops.REDUCE_AXIS, dtype: this.dtype, src: [this], arg: [op, axis] })
+    assign = (x: UOp) => new UOp({ op: Ops.ASSIGN, dtype: this.dtype, src: [this, x] })
+    contiguous = () => new UOp({ op: Ops.CONTIGUOUS, dtype: this.dtype, src: [this] })
+    isContiguousBase = () => this.op === Ops.CONTIGUOUS && !(this.src[0].base().op === Ops.VIEW && this.src[0].base().src.length == 2)
 
     //   # *** from LazyBuffer ***
 
@@ -333,8 +340,7 @@ class UOp extends MathTrait {
 
     //   # *** uop movement ops ***
 
-    //   @property
-    //   def base(self) -> UOp: return self.src[0] if self.op is Ops.VIEW and len(self.src) == 1 else self
+    base = () => this.op === Ops.VIEW && this.src.length == 1 ? this.src[0] : this
     //   def view(self, st:ShapeTracker) -> UOp:
     //     assert self.op is not Ops.STORE, "VIEW of STORE is invalid, STORE is always base"
     //     return self if self.st is None or self.st == st else UOp(Ops.VIEW, self.dtype, (self,), st)
@@ -342,72 +348,78 @@ class UOp extends MathTrait {
 
     //   # *** uop Buffer stuff ***
 
-    //   @staticmethod
-    //   def new_buffer(device:str, size:int, dtype:DType, num=-1): return  UOp(Ops.BUFFER, dtype.ptr(), (), (num, (device, size, dtype)))
-    //   @functools.cached_property
-    //   def device(self) -> str:
-    //     match self.op:
-    //       case Ops.COPY: return self.arg
-    //       case Ops.BUFFER: return self.arg[1][0]
-    //       case _: return self.src[0].device
-    //   @property
-    //   def size(self) -> int: return self.buf_uop.arg[1][1]
-    //   @property
-    //   def buf_uop(self) -> UOp:
-    //     if self.op is Ops.BUFFER: return self
-    //     assert self.op in {*GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW} and self.src[0].op is Ops.BUFFER, f"buf_uop called on {self.op}"
-    //     return self.src[0]
-
+    static newBuffer = (device: string, size: number, dtype: DType, num = -1) => new UOp({ op: Ops.BUFFER, dtype: dtype.ptr(), src: [], arg: [num, [device, size, dtype]] })
+    // deno-fmt-ignore
+    device = ():string => {
+        switch (this.op){
+            case Ops.COPY: return this.arg
+            case Ops.BUFFER: return this .arg[1][0]
+            default: return this.src[0].device()
+        }
+    }
+    size = (): number => this.bufUOp().arg[1][1]
+    bufUOp = () => {
+        if (this.op === Ops.BUFFER) return this
+        if (!([...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.op) && this.src[0].op === Ops.BUFFER)) throw new Error(`buf_uop called on ${this.op}`)
+        return this.src[0]
+    }
     //   # *** uop Variable stuff ***
 
-    //   @staticmethod
-    //   def variable(name:str, min_val:ConstType, max_val:ConstType, dtype:DType=dtypes.int):
-    //     assert not isinstance(min_val, UOp) and not isinstance(max_val, UOp), f"can't create Variable {name} with {min_val}/{max_val}"
-    //     return UOp(Ops.DEFINE_VAR, dtype, arg=(name, min_val, max_val))
-    //   @property
-    //   def expr(self):
-    //     assert self.op is Ops.DEFINE_VAR, f"op is {self.op}, need DEFINE_VAR"
-    //     return self.arg[0]
-    //   def bind(self, val:int):
-    //     assert self.op is Ops.DEFINE_VAR, f"op is {self.op}, need DEFINE_VAR"
-    //     assert self.arg[1] <= val and val <= self.arg[2], f"bind {val} not in range [{self.arg[1]}, {self.arg[2]}]"
-    //     return UOp(Ops.BIND, self.dtype, (self, self.const_like(val)))
+    static variable = (name: string, minVal: ConstType<UOp>, maxVal: ConstType<UOp>, dtype = dtypes.int) => {
+        if (!(!(minVal instanceof UOp) && !(maxVal instanceof UOp))) throw new Error(`can't create Variable ${name} with ${minVal}/${maxVal}`)
+        return new UOp({ op: Ops.DEFINE_VAR, dtype, arg: [name, minVal, maxVal] })
+    }
+    expr = () => {
+        if (!(this.op === Ops.DEFINE_VAR)) throw new Error(`op is ${this.op}, need DEFINE_VAR`)
+        return this.arg[0]
+    }
+    bind = (val: number) => {
+        if (this.op !== Ops.DEFINE_VAR) throw new Error(`op is ${this.op}, need DEFINE_VAR`)
+        if (!(this.arg[1] <= val && val <= this.arg[2])) throw new Error(`bind ${val} not in range [${this.arg[1]}, ${this.arg[2]}]`)
+        return new UOp({ op: Ops.BIND, dtype: this.dtype, src: [this, this.constLike(val)] })
+    }
     unbind = (): [Variable, number] => {
         if (!(this.op === Ops.BIND && this.src[0].op === Ops.DEFINE_VAR && this.src[1].op === Ops.CONST)) throw new Error(`can't unbind ${this}`)
         return [this.src[0], this.src[1].arg]
     }
-    //   def unbind(self) -> Tuple[Variable, int]:
-    //     assert self.op is Ops.BIND and self.src[0].op is Ops.DEFINE_VAR and self.src[1].op is Ops.CONST, f"can't unbind {self}"
-    //     return self.src[0], self.src[1].arg
-    //   @property
-    //   def val(self) -> int: return self.unbind()[1]
-    //   def vars(self) -> Set[UOp]:
-    //     bound_vars = set([x for x in self.sparents if x.op is Ops.BIND and x.src[0].op is Ops.DEFINE_VAR])
-    //     bound_var_base = set(x.src[0] for x in bound_vars)
-    //     all_vars = set([x for x in self.sparents if x.op is Ops.DEFINE_VAR])
-    //     return bound_vars.union(set([x for x in all_vars if x not in bound_var_base]))
-    //   def variables(self) -> List[Variable]:
-    //     st_vars: List[Set[Variable]] = [x.st_arg.vars() for x in self.sparents if x.op in GroupOp.Buffer]
-    //     return sorted(set.union(*st_vars, [x.unbind()[0] if x.op is not Ops.DEFINE_VAR else x for x in self.vars()]), key=lambda v: v.arg)
+    val = () => this.unbind()[1]
+    vars = (): Set<UOp> => {
+        const sparents = [...this.sparents().keys()]
+        const boundVars = new Set(sparents.filter((x) => x.op === Ops.BIND && x.src[0].op === Ops.DEFINE_VAR))
+        const boundVarBase = new Set([...boundVars].map((x) => x.src[0]))
+        const allVars = new Set(sparents.filter((x) => x.op === Ops.DEFINE_VAR))
+        return boundVars.union(new Set([...allVars].filter((x) => !boundVarBase.has(x))))
+    }
+    variables = (): Variable[] => {
+        const stVars: Set<Variable>[] = [...this.sparents().keys()].filter((x) => GroupOp.Buffer.includes(x.op)).map((x) => x.stArg().vars())
+        const idk = new Set([...this.vars()].map((x) => x.op !== Ops.DEFINE_VAR ? x.unbind()[0] : x))
+        return [...new Set([...stVars.flatMap((x) => [...x]), ...idk])].sort((a, b) => b.arg - a.arg)
+    }
 
     //   # *** uop symbolic stuff ***
 
-    //   def const_factor(self) -> int:
-    //     """largest known int that divides self"""
-    //     if self.op is Ops.CONST: return self.arg
-    //     if self.op is Ops.VCONST: return math.gcd(*self.arg)
-    //     if self.op is Ops.ADD: return math.gcd(self.src[0].const_factor(), self.src[1].const_factor())
-    //     if self.op is Ops.MUL: return self.src[0].arg if self.src[0].op is Ops.CONST else self.src[1].arg if self.src[1].op is Ops.CONST else 1
-    //     return 1
-    //   def divides(self, v) -> Optional[UOp]:
-    //     if v==1: return self
-    //     if self.op is Ops.CONST: return self.const_like(self.arg//v) if self.arg%v == 0 else None
-    //     if self.op is Ops.VCONST: return self.const_like(tuple(x//v for x in self.arg)) if all(x%v == 0 for x in self.arg) else None
-    //     if self.op is Ops.ADD: return d0+d1 if (d0:=self.src[0].divides(v)) is not None and (d1:=self.src[1].divides(v)) is not None else None
-    //     if self.op is Ops.MUL:
-    //       if (d0:=self.src[0].divides(v)) is not None: return d0 * self.src[1]
-    //       if (d1:=self.src[1].divides(v)) is not None: return self.src[0] * d1
-    //     return None # generic None if we aren't sure
+    /**largest known int that divides self */
+    constFactor = (): number => {
+        if (this.op === Ops.CONST) return this.arg
+        if (this.op === Ops.VCONST) return mathGcd(...this.arg)
+        if (this.op === Ops.ADD) return mathGcd(this.src[0].constFactor(), this.src[1].constFactor())
+        if (this.op === Ops.MUL) return this.src[1].op === Ops.CONST ? this.src[0].op === Ops.CONST ? this.src[0].arg : this.src[1].arg : 1
+        return 1
+    }
+    divides = (v: number): UOp | null => {
+        if (v === 1) return this
+        if (this.op === Ops.CONST) return this.arg % v === 0 ? this.constLike(Math.floor(this.arg / v)) : null
+        if (this.op === Ops.VCONST) return this.arg.every((x: number) => x % v === 0) ? this.constLike(this.arg.map((x: number) => Math.floor(x / v))) : null
+
+        const d0 = this.src[0].divides(v)
+        const d1 = this.src[1].divides(v)
+        if (this.op === Ops.ADD) return d0 !== null && d1 !== null ? d0.add(d1) : null
+        if (this.op === Ops.MUL) {
+            if (d0 !== null) return d0.mul(this.src[1])
+            if (d1 !== null) return this.src[0].mul(d1)
+        }
+        return null // generic None if we aren't sure
+    }
 
     static min = (...args: UOp[]) => args.reduce((min, current) => min.lt(current) ? min : current)
     static max = (...args: UOp[]) => args.reduce((max, current) => max.gt(current) ? max : current)
@@ -416,23 +428,23 @@ class UOp extends MathTrait {
     vmax = () => this._minMax()[1]
     _minMax = (): [UOp, UOp] => {
         if (GroupOp.Binary.includes(this.op) && !dtypes.isFloat(this.dtype)) {
-            const [[s0_vmin, s0_vmax], [s1_vmin, s1_vmax]] = [this.src[0]._minMax(), this.src[1]._minMax()]
-            if (this.op === Ops.ADD) return [s0_vmin.add(s1_vmin), s0_vmax.add(s1_vmax)]
+            const [[s0Vmin, s0Vmax], [s1Vmin, s1Vmax]] = [this.src[0]._minMax(), this.src[1]._minMax()]
+            if (this.op === Ops.ADD) return [s0Vmin.add(s1Vmin), s0Vmax.add(s1Vmax)]
             if (this.op === Ops.MUL) {
-                const vals = [s0_vmin.mul(s1_vmin), s0_vmin.mul(s1_vmax), s0_vmax.mul(s1_vmin), s0_vmax.mul(s1_vmax)]
+                const vals = [s0Vmin.mul(s1Vmin), s0Vmin.mul(s1Vmax), s0Vmax.mul(s1Vmin), s0Vmax.mul(s1Vmax)]
                 return [UOp.min(...vals), UOp.max(...vals)]
             }
-            if (this.op === Ops.MOD && s1_vmin.gt(0)) return [this.constLike(0), s1_vmax.sub(1)]
-            if (this.op === Ops.IDIV && s1_vmin === s1_vmax) { // min/max are equal in a CONST
-                if (s1_vmin.gt(0)) return [s0_vmin.idiv(s1_vmin), s0_vmax.idiv(s1_vmin)]
-                if (s1_vmin.lt(0) && s0_vmin.ge(0)) return [(s0_vmax.idiv(s1_vmin.neg())).neg(), (s0_vmin.idiv(s1_vmin.neg())).neg()]
+            if (this.op === Ops.MOD && s1Vmin.gt(0)) return [this.constLike(0), s1Vmax.sub(1)]
+            if (this.op === Ops.IDIV && s1Vmin === s1Vmax) { // min/max are equal in a CONST
+                if (s1Vmin.gt(0)) return [s0Vmin.idiv(s1Vmin), s0Vmax.idiv(s1Vmin)]
+                if (s1Vmin.lt(0) && s0Vmin.ge(0)) return [(s0Vmax.idiv(s1Vmin.neg())).neg(), (s0Vmin.idiv(s1Vmin.neg())).neg()]
             }
-            if (this.op === Ops.MAX) return [UOp.max(s0_vmin, s1_vmin), UOp.max(s0_vmax, s1_vmax)]
-            if (this.op === Ops.CMPLT) return [s0_vmax.lt(s1_vmin), s0_vmin.lt(s1_vmax)]
-            if (this.op === Ops.CMPNE) return [(s0_vmax.lt(s1_vmin)).bitwiseOr(s1_vmax.lt(s0_vmin)), (s0_vmin.eq(s0_vmax).bitwiseAnd(s0_vmax.eq(s1_vmin)).bitwiseAnd(s1_vmin.eq(s1_vmax))).neg()]
+            if (this.op === Ops.MAX) return [UOp.max(s0Vmin, s1Vmin), UOp.max(s0Vmax, s1Vmax)]
+            if (this.op === Ops.CMPLT) return [s0Vmax.lt(s1Vmin), s0Vmin.lt(s1Vmax)]
+            if (this.op === Ops.CMPNE) return [(s0Vmax.lt(s1Vmin)).bitwiseOr(s1Vmax.lt(s0Vmin)), (s0Vmin.eq(s0Vmax).bitwiseAnd(s0Vmax.eq(s1Vmin)).bitwiseAnd(s1Vmin.eq(s1Vmax))).neg()]
             if (this.dtype == dtypes.bool) {
-                if (this.op === Ops.OR) return [s0_vmin.bitwiseOr(s1_vmin), s0_vmax.bitwiseOr(s1_vmax)]
-                if (this.op === Ops.AND) return [s0_vmin.bitwiseAnd(s1_vmin), s0_vmax.bitwiseAnd(s1_vmax)]
+                if (this.op === Ops.OR) return [s0Vmin.bitwiseOr(s1Vmin), s0Vmax.bitwiseOr(s1Vmax)]
+                if (this.op === Ops.AND) return [s0Vmin.bitwiseAnd(s1Vmin), s0Vmax.bitwiseAnd(s1Vmax)]
             }
         }
         // float has NAN issue and we use explicit NAN in transcendental
@@ -456,40 +468,28 @@ class UOp extends MathTrait {
         // TODO:
         //     return eval("lambda "+','.join(varnames)+": "+sself.render()), varnames  # pylint: disable=eval-used
     }
-    //   def _sym_fxn(self):
-    //     sself = self.simplify()
-    //     varnames = tuple(x.arg[0] for x in sself.sparents if x.op is Ops.DEFINE_VAR)
-    //     # TODO: sanitize varnames, or don't use naked eval while staying fast
-    //     return eval("lambda "+','.join(varnames)+": "+sself.render()), varnames  # pylint: disable=eval-used
-
     symInfer = (varVals: Map<UOp, number>) => {
         const [fxn, varnames] = this._sym_fxn()
         const map = new Map<UOp, number>()
         for (const [k, v] of varVals.entries()) if (varnames.includes(k.arg[0])) map.set(k.arg[0], v)
         return fxn(map)
     }
-    //   def sym_infer(self, var_vals:Dict[UOp, int]):
-    //     fxn, varnames = self._sym_fxn
-    //     return fxn(**{k.arg[0]:v for k,v in var_vals.items() if k.arg[0] in varnames})
 
-    //   def render(self, simplify=True) -> str:
-    //     ret = graph_rewrite(self.simplify() if simplify else self, renderer)
-    //     return ret.arg if ret.op is Ops.NOOP else str(ret)
+    render = (simplify = true) => {
+        const ret = graphRewrite(simplify ? this.simplify() : this, renderer)
+        return ret.op === Ops.NOOP ? ret.arg : ret.toString()
+    }
 }
 
-// @dataclass(frozen=True)
-class KernelInfo {
-    //   local_dims: int = 0           # number of local dimensions  (this is remapping RANGE to SPECIAL)
-    //   upcasted: int = 0             # count that are upcasted     (this is remapping RANGE to EXPAND)
-    //   dont_use_locals: bool = False # don't use local indexing
+export class KernelInfo {
+    local_dims = 0 // number of local dimensions  (this is remapping RANGE to SPECIAL)
+    upcasted = 0 // count that are upcasted     (this is remapping RANGE to EXPAND)
+    dont_use_locals = false // don't use local indexing
 }
 
 // # ***** ops in python *****
-
-const hookOverflow = <T extends any[]>(dv: number, fxn: (...args: T) => number) => {
-    // deno-fmt-ignore
-    return (...args: T) => { try { return fxn(...args) } catch { return dv } }
-}
+// deno-fmt-ignore
+const hookOverflow = <T extends any[]>(dv: number, fxn: (...args: T) => number) =>  (...args: T) => { try { return fxn(...args) } catch { return dv } }
 
 export const pythonAlu: { [key in Ops]?: (...x: number[]) => number } = {
     [Ops.LOG2]: (x) => x === 0 ? x > 0 ? Math.log2(2) : -Infinity : NaN,
@@ -515,62 +515,61 @@ export const pythonAlu: { [key in Ops]?: (...x: number[]) => number } = {
     [Ops.WHERE]: (x, y, z) => x ? y : z,
 }
 
-// def exec_alu(op:Ops, dtype:DType, operands, truncate_output=True):
-//   if dtype.count > 1:
-//     return tuple([exec_alu(op, dtype.scalar(), [x[i] if isinstance(x, tuple) else x for x in operands]) for i in range(dtype.count)])
-//   alu = python_alu[op](*operands)
-//   return truncate.get(dtype, lambda x: x)(alu) if truncate_output else alu
-
+const execAlu = (op: Ops, dtype: DType, operands: number[], truncateOutput = true): any => {
+    if (dtype.count > 1) return range(dtype.count).map((i) => execAlu(op, dtype.scalar(), operands.map((x) => Array.isArray(x) ? x[i] : x)))
+    const alu = pythonAlu[op]!(...operands)
+    return truncateOutput ? truncate(dtype)(alu) : alu
+}
 // # ***** uop helpers *****
 
-// def print_uops(uops:List[UOp]):
-//   for i,u in enumerate(uops):
-//     formatted_parents = [(uops.index(x) if x.op is not Ops.CONST else f"{x.arg}") if x in uops else "--" for x in u.src]
-//     print(f"{i:4d} {str(u.op):20s}: {str(u.dtype):30s} " f"{str(formatted_parents):32s} {u.arg}")
+export const printUOps = (uops: UOp[]) => {
+    for (const [i, u] of uops.entries()) {
+        const formattedParents = u.src.map((x) => uops.includes(x) ? x.op !== Ops.CONST ? uops.indexOf(x) : `${x.arg}` : '--')
+        console.log(`${i.toString().padStart(4)} ${u.op.toString().padEnd(20)} ${u.dtype.toString().padEnd(30)} ${formattedParents.toString().padEnd(32)} ${u.arg}`)
+    }
+}
 
-// def flops_mem(uops:List[UOp], ignore_indexing=False) -> Tuple[sint, sint]:
-//   flops: sint = 0
-//   mem: sint = 0
-//   mults: sint = 1
-//   mult_stack: List[sint] = []
-//   dont_count: Set[UOp] = set()
-//   if ignore_indexing:
-//     for u in uops:
-//       if u.op in {Ops.LOAD, Ops.STORE}:
-//         dont_count = dont_count.union(u.src[0].sparents)
-//         if len(u.src) > 2: dont_count = dont_count.union(u.src[2].sparents)
-//       elif u.op is Ops.IF:
-//         dont_count = dont_count.union(u.src[0].sparents)
-//   for u in uops:
-//     if u.op is Ops.RANGE:
-//       mult_stack.append(mults)
-//       mults *= (u.src[1] - u.src[0]).ssimplify()
-//     elif u.op is Ops.ENDRANGE:
-//       mults = mult_stack.pop(-1)
-//     elif u.op is Ops.SPECIAL:
-//       mults *= u.arg[1] # NOTE: we don't push to the mult_stack here, you can't end these
-//     elif u.op is Ops.LOAD:
-//       mem += u.dtype.itemsize * mults
-//     elif u.op is Ops.STORE:
-//       mem += u.src[1].dtype.itemsize * mults
-//     elif u.op in GroupOp.ALU and u not in dont_count:
-//       flops += (mults * (2 if u.op is Ops.MULACC else 1)) * u.dtype.count
-//     elif u.op is Ops.WMMA and u not in dont_count:
-//       flops += 2 * prod(u.arg[1]) // u.arg[5] * mults
-//   return flops, mem
-
+export const flopsMem = (uops: UOp[], ignoreIndexing = false): [UOp, UOp] => {
+    let flops = uops[0].constLike(0)
+    let mem = uops[0].constLike(0)
+    let mults = uops[0].constLike(1)
+    const multStack: UOp[] = []
+    let dontCount = new Set<UOp>()
+    if (ignoreIndexing) {
+        for (const u of uops) {
+            if ([Ops.LOAD, Ops.STORE].includes(u.op)) {
+                dontCount = dontCount.union(u.src[0].sparents())
+                if (u.src.length > 2) dontCount = dontCount.union(u.src[2].sparents())
+            } else if (u.op === Ops.IF) dontCount = dontCount.union(u.src[0].sparents())
+        }
+    }
+    for (const u of uops) {
+        if (u.op === Ops.RANGE) {
+            multStack.push(mults)
+            mults = (u.src[1].sub(u.src[0])).ssimplify().mul(mults)
+        } else if (u.op === Ops.ENDRANGE) mults = multStack.pop()!
+        else if (u.op === Ops.SPECIAL) mults = u.arg[1].mul(mults) // NOTE: we don't push to the mult_stack here, you can't end these
+        else if (u.op === Ops.LOAD) mem = (mults.mul(u.dtype.itemsize)).add(mem)
+        else if (u.op === Ops.STORE) mem = (mults.mul(u.src[1].dtype.itemsize)).add(mem)
+        else if (GroupOp.ALU.includes(u.op) && !dontCount.has(u)) flops = flops.add((mults.mul(u.op === Ops.MULACC ? 2 : 1)).mul(u.dtype.count))
+        else if (u.op === Ops.WMMA && !dontCount.has(u)) flops = mults.mul(Math.floor(prod(u.arg[1]) / u.arg[5])).mul(2).add(flops)
+    }
+    return [flops, mem]
+}
 // # ***** pattern matcher *****
 
-// def get_location() -> Tuple[str, int]:
-//   frm = sys._getframe(1)
-//   # find the real frame in the file that has the UPat, TODO: is there a better way to do this?
-//   while frm.f_back is not None and pathlib.Path(frm.f_back.f_code.co_filename).name in {"ops.py", "uopgraph.py", "schedule.py",
-//                                                                                         "lowerer.py", "cstyle.py"}:
-//     frm = frm.f_back
-//   return frm.f_code.co_filename, frm.f_lineno
-// @functools.lru_cache(None)
-// def lines(fn) -> List[str]:
-//   with open(fn) as f: return f.readlines()
+const getLocation = (): [string, number] => {
+    // const frm = sys._getframe(1)
+    // // find the real frame in the file that has the UPat, TODO: is there a better way to do this?
+    // while (frm.f_back !== null && ['ops.py', 'uopgraph.py', 'schedule.py', 'lowerer.py', 'cstyle.py'].includes(pathlib.Path(frm.f_back.f_code.co_filename).name)) {
+    //     frm = frm.f_back
+    // }
+    // return frm.f_code.co_filename, frm.f_lineno
+    return ['', 0]
+}
+const lines = (fn: string): string[] => {
+    return readFileSync(fn).toString().split('\n')
+}
 
 type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[]; arg?: any; name?: string; allowAnyLen?: boolean; location?: any; customEarlyReject?: Ops[] }
 class UPat extends MathTrait {
@@ -633,15 +632,15 @@ class UPat extends MathTrait {
     const_like = (b: ConstLike) => UPat.const(this.dtype, b)
     override alu = (op: Ops, ...src: this[]) => {
         const asrc = [this, ...src]
-        return new UPat({ op, dtype: [Ops.CMPLT, Ops.CMPNE].includes(op) ? undefined : asrc.pop()?.dtype, src: GroupOp.Commutative.includes(op) ? asrc : asrc })
+        return new UPat({ op, dtype: [Ops.CMPLT, Ops.CMPNE].includes(op) ? undefined : asrc.pop()?.dtype, src: GroupOp.Commutative.includes(op) ? asrc : asrc }) as typeof this
     }
 
     // deno-fmt-ignore
     printable = ():string => {
-        try{ return lines(this.location[0])[this.location[1]-1].strip() }
+        try{ return lines(this.location[0])[this.location[1]-1].trim() }
         catch { return "<missing>"}
     }
-    __repr = () => {
+    __repr__ = () => {
         const rep = (x: UPat) => {
             const form = `UPat(${!x.op ? null : x.op.map((x) => x.toString()).join(', ')}, ${x.arg}, name=${repr(x.name)}, dtype=${x.dtype ? new Set(x.dtype) : null}, allow_any_len=${
                 x.allowedLen === 0
@@ -654,7 +653,7 @@ class UPat extends MathTrait {
     match = (uop: UOp, store: Record<string, UOp>): Record<string, UOp>[] => {
         if (
             (!!this.op && !this.op.includes(uop.op)) ||
-            (!!this.name && store.setdefault(self.name, uop) !== uop) ||
+            (!!this.name && (store[self.name] || uop) !== uop) ||
             (!!this.dtype && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
             (!!this.arg && this.arg !== uop.arg) ||
             (this.allowedLen !== -1 && uop.src.length !== this.allowedLen)
@@ -685,136 +684,153 @@ class UPatAny extends UPat {
     }
 }
 
-// def deconstruct_function(fxn:Callable) -> Tuple:
-//   new_globals = {k:v for k,v in fxn.__globals__.items() if k in fxn.__code__.co_names}
-//   for co in fxn.__code__.co_consts:
-//     if isinstance(co, types.CodeType): new_globals.update({k:v for k,v in fxn.__globals__.items() if k in co.co_names})
-//   # NOTE: optional round trip through pickle!
-//   assert fxn.__closure__ is None, "closures are not supported in pattern matchers"
-//   ret = fxn.__code__, new_globals, fxn.__name__, fxn.__defaults__
-//   return pickle.loads(pickle.dumps(ret)) if getenv("TEST_PICKLE") else ret
-
+const deconstructFunction = (fxn: () => void): string[] => {
+    //   const newGlobals = {k:v for k,v in fxn.__globals__.items() if k in fxn.__code__.co_names}
+    //   for co in fxn.__code__.co_consts:
+    //     if isinstance(co, types.CodeType): new_globals.update({k:v for k,v in fxn.__globals__.items() if k in co.co_names})
+    //   # NOTE: optional round trip through pickle!
+    //   assert fxn.__closure__ is None, "closures are not supported in pattern matchers"
+    //   ret = fxn.__code__, new_globals, fxn.__name__, fxn.__defaults__
+    //   return ret
+    return []
+}
 type Pattern = [UPat, (...args: any[]) => any]
 class PatternMatcher {
     patterns: Pattern[]
-    pdict = new Map<Ops, ([UPat, () => void, Set<any>, boolean][])>()
+    pdict = new Map<Ops, ([UPat, (...args: any[]) => void, Set<any>, boolean][])>()
     constructor(patterns: Pattern[]) {
         this.patterns = patterns
         // NOTE: use of DefaultDict here is very dangerous! all keys will live for the lifetime of the PatternMatcher!
-
-        //     self.pdict: Dict[Ops, List[Tuple[UPat, Callable, Set, bool]]] = {}
-        //     # uop is required, arg is optional
-        //     for p,fxn in self.patterns:
-        //       assert p.op is not None
-        //       tuple_fxn = fxn if isinstance(fxn, tuple) else deconstruct_function(fxn)
-        //       real_fxn = types.FunctionType(*tuple_fxn)
-        //       for uop in p.op: self.pdict.setdefault(uop, []).append((p, real_fxn, p.early_reject, 'ctx' in inspect.signature(real_fxn).parameters))
+        // for (const [p,fxn] of self.patterns){
+        //   if (!p.op) throw new Error("assert")
+        //   const tuple_fxn = Array.isArray(fxn) ? fxn : deconstructFunction(fxn)
+        //   const real_fxn = types.FunctionType(...tuple_fxn)
+        //   for (const uop in p.op) self.pdict.setdefault(uop, []).append((p, real_fxn, p.early_reject, 'ctx' in inspect.signature(real_fxn).parameters))
+        // }
     }
 
-    //   def __reduce__(self): return PatternMatcher, ([(x,deconstruct_function(fxn) if fxn.__name__ == "<lambda>" else fxn) for x,fxn in self.patterns],)
+    // __reduce__ = () => this.patterns.map(([x, fxn]) => [x, fxn.__name__ == '<lambda>' ? deconstructFunction(fxn) : fxn])
 
-    //   @functools.lru_cache(None)  # pylint: disable=method-cache-max-size-none
     __add__ = (more: PatternMatcher) => new PatternMatcher([...this.patterns, ...more.patterns])
 
-    //   def rewrite(self, uop:UOp, ctx=None) -> Optional[UOp]:
-    //     ler = {u.op for u in uop.src}
-    //     for p,fxn,early_reject,has_ctx in self.pdict.get(uop.op, []):
-    //       if not early_reject.issubset(ler): continue
-    //       for match in p.match(uop, {}):
-    //         if (ret:=(fxn(ctx=ctx, **match) if has_ctx else fxn(**match))) is not None: return ret
-    //     return None
+    rewrite = (uop: UOp, ctx?: any): UOp | null => {
+        //     const ler = uop.src.map((u) => u.op)
+        //     for (const [p, fxn, early_reject, has_ctx] of this.pdict.get(uop.op, [])!) {
+        //         if (!early_reject.issubset(ler)) continue
+        //         for (const match of p.match(uop, {})) {
+        //             const ret = has_ctx ? fxn(ctx, ...match) : fxn(...match)
+        //             if (ret !== null) return ret
+        //         }
+        //     }
+        return null
+    }
 }
 // # *** tracking pattern matcher ***
 
-// TRACK_MATCH_STATS = ContextVar("TRACK_MATCH_STATS", 2 if getenv("VIZ") else 0)
-// match_stats:Dict[UPat, List[Union[int, float]]] = dict()
+// const TRACK_MATCH_STATS = ContextVar("TRACK_MATCH_STATS", 2 if getenv("VIZ") else 0)
+const TRACK_MATCH_STATS = 2
+const matchStats = new Map<UPat, number[]>()
+const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
+    const newVal = fn(map.get(key)!)
+    map.set(key, newVal)
+    return newVal
+}
+
 // @dataclass(frozen=True)
 class TrackedRewriteContext {
-    //   loc: Tuple[str, int]                                                                              # location that called graph_rewrite
-    //   sink: UOp                                                                                         # the sink passed into the rewrite
-    //   matches: List[Tuple[UOp, Optional[UOp], Optional[UPat], float]] = field(default_factory=list)     # all matches of sparents
+    loc: [string, number] // location that called graph_rewrite
+    sink: UOp // the sink passed into the rewrite
+    matches: [UOp, UOp | null, UPat | null, number][] = [] // all matches of sparents
+    constructor(loc: [string, number], sink: UOp, matches?: [UOp, UOp | null, UPat | null, number][]) {
+        this.loc = loc
+        this.sink = sink
+        if (matches) this.matches = matches
+    }
 }
-// rewrite_stack: List[Tuple[Any, List[TrackedRewriteContext]]] = []
-// contexts: List[Tuple[Any, List[TrackedRewriteContext]]] = []
-// _rewrite_cnt: Dict[str, int] = {}
-// def track_rewrites(named=False):
-//   def _decorator(func):
-//     def __wrapper(self, *args, **kwargs):
-//       if TRACK_MATCH_STATS >= 2:
-//         if named: _rewrite_cnt[func.__name__] = _rewrite_cnt.setdefault(func.__name__, 0)+1
-//         rewrite_stack.append((f"{(n:=func.__name__)}_{_rewrite_cnt[n]}" if named else self, []))
-//       try: ret = func(self, *args, **kwargs)
-//       finally: # NOTE: save everything in the stack
-//         if TRACK_MATCH_STATS >= 2: contexts.append(rewrite_stack.pop())
-//       return ret
-//     return __wrapper
-//   return _decorator
-
-class TrackedPatternMatcher extends PatternMatcher {
-    //   def __init__(self, patterns:List[Tuple[UPat, Callable]]):
-    //     super().__init__(patterns)
-    //     for p,_ in self.patterns:
-    //       if p not in match_stats: match_stats[p] = [0,0,0.0,0.0]
-
-    //   def rewrite(self, uop:UOp, ctx=None) -> Optional[UOp]:
-    //     ret = None
-    //     ler = {u.op for u in uop.src}
-    //     for p,fxn,early_reject,has_ctx in self.pdict.get(uop.op, []):
-    //       st = time.perf_counter()
-    //       if not early_reject.issubset(ler):
-    //         match_stats[p][2] += time.perf_counter()-st
-    //         continue
-    //       match_stats[p][1] += 1
-    //       for match in p.match(uop, {}):
-    //         if (ret:=(fxn(ctx=ctx, **match) if has_ctx else fxn(**match))) is not None:
-    //           match_stats[p][0] += 1
-    //           match_stats[p][3] += (et:=time.perf_counter()-st)
-    //           if TRACK_MATCH_STATS >= 3: print(f"{et*1e6:7.2f} us -- ", p.printable())
-    //           if TRACK_MATCH_STATS >= 2 and len(rewrite_stack) != 0 and isinstance(ret, UOp): rewrite_stack[-1][1][-1].matches.append((uop, ret, p, et))
-    //           return ret # NOTE: if it returns None, we keep trying to match
-    //       match_stats[p][2] += time.perf_counter()-st
-    //     if TRACK_MATCH_STATS >= 2 and len(rewrite_stack) != 0: rewrite_stack[-1][1][-1].matches.append((uop, ret, None, 0))
-    //     return None
+const rewriteStack: [any, TrackedRewriteContext[]][] = []
+const contexts: [any, TrackedRewriteContext[]][] = []
+const _rewriteCnt: Record<string, number> = {}
+const trackRewrites = (named = false) => {
+    const _decorator = (func: (...args: any[]) => void) => {
+        const __wrapper = (...args: any[]) => {
+            if (TRACK_MATCH_STATS >= 2) {
+                if (named) _rewriteCnt[func.name] = (_rewriteCnt[func.name] || 0) + 1
+                rewriteStack.push([named ? `{(n:=func.__name__)}_{_rewrite_cnt[n]}` : this, []])
+            }
+            let ret
+            try {
+                ret = func(...args)
+            } finally { // NOTE: save everything in the stack
+                if (TRACK_MATCH_STATS >= 2) contexts.push(rewriteStack.pop()!)
+            }
+            return ret
+        }
+        return __wrapper
+    }
+    return _decorator
 }
-// if TRACK_MATCH_STATS:
-//   PatternMatcher = TrackedPatternMatcher  # type: ignore
-//   import atexit
-//   @atexit.register
-//   def print_match_stats():
-//     if TRACK_MATCH_STATS >= 2:
-//       with open(fn:=temp("rewrites.pkl"), "wb") as f:
-//         print(f"rewrote {len(contexts)} graphs and matched {sum(len(r.matches) for _,x in contexts for r in x)} times, saved to {fn}")
-//         pickle.dump(contexts, f)
-//     if getenv("VIZ"):
-//       os.environ["VIZ"] = "0"
-//       os.execv(sys.executable, [sys.executable] + [os.path.join(os.path.dirname(__file__), ".", "viz", "serve.py"), temp("rewrites.pkl")])
-//     if getenv("PRINT_MATCH_STATS", 1):
-//       ret = [0,0,0.0,0.0]
-//       for k,v in sorted(list(match_stats.items()), key=lambda x: x[1][2]+x[1][3]):
-//         loc_str = f"{k.location[0].split('/')[-1]}:{k.location[1]}"
-//         if v[1] != 0: print(f"{v[0]:6d} / {v[1]:7d} -- {v[3]*1000.:9.2f} / {(v[2]+v[3])*1000.:9.2f} ms -- {loc_str:15s}", k.printable())
-//         ret = [x+y for x,y in zip(ret, v)]
-//       print(f"{ret[0]:6d} / {ret[1]:7d} -- {ret[3]*1000.:9.2f} / {(ret[2]+ret[3])*1000.:9.2f} ms -- TOTAL")
 
+export class TrackedPatternMatcher extends PatternMatcher {
+    constructor(patterns: Pattern[]) {
+        super(patterns)
+        for (const [p] of this.patterns) {
+            if (!matchStats.has(p)) matchStats.set(p, [0, 0, 0.0, 0.0])
+        }
+    }
+    override rewrite = (uop: UOp, ctx?: any): UOp | null => {
+        const ret = null
+        const ler = uop.src.map((u) => u.op)
+        for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op)!) {
+            const st = performance.now()
+            if (!isSubset(earlyReject, new Set(ler))) {
+                setMap(matchStats, p, (o) => [o[0], o[1], o[2] + (performance.now() - st), o[3]])
+                continue
+            }
+            const old = matchStats.get(p)!
+            matchStats.set(p, [old[0], old[1] + 1, old[3], old[4]])
+            for (const match of p.match(uop, {})) {
+                const ret: any = hasCtx ? fxn({ ctx, ...match }) : fxn(match)
+                if (ret) {
+                    const et = performance.now() - st
+                    setMap(matchStats, p, (o) => [o[0] + 1, o[1], o[2], o[3] + et])
+                    if (TRACK_MATCH_STATS >= 3) console.log(`${(et * 1e6).toFixed(2)} us -- `, p.printable())
+                    if (TRACK_MATCH_STATS >= 2 && rewriteStack.length != 0 && ret instanceof UOp) rewriteStack.at(-1)?.at(1).at(-1).matches.append([uop, ret, p, et])
+                    return ret // NOTE: if it returns None, we keep trying to match
+                }
+            }
+            setMap(matchStats, p, (o) => [o[0], o[1], o[2] + performance.now() - st, o[3]])
+        }
+        if (TRACK_MATCH_STATS >= 2 && rewriteStack.length != 0) rewriteStack.at(-1)!.at(1).at(-1).matches.append([uop, ret, null, 0])
+        return null
+    }
+}
 // # *** simple graph rewrite engine ***
 
 class RewriteContext {
-    //   def __init__(self, pm, ctx):
-    //     self.pm: PatternMatcher = pm
-    //     self.ctx = ctx
-    //     self.replace: Dict[UOp, UOp] = {}
-    //   def rewrite(self, n:UOp) -> UOp:
-    //     if (rn := self.replace.get(n)) is not None: return rn
-    //     new_src = tuple(map(self.rewrite, n.src))
-    //     new_n = self.pm.rewrite(n, self.ctx) if new_src == n.src else UOp(n.op, n.dtype, new_src, n.arg)
-    //     self.replace[n] = ret = n if new_n is None else self.rewrite(new_n)
-    //     return ret
+    pm: PatternMatcher
+    ctx: any
+    replace = new Map<UOp, UOp>()
+    constructor(pm: PatternMatcher, ctx: any) {
+        this.pm = pm
+        this.ctx = ctx
+    }
+    rewrite = (n: UOp): UOp => {
+        const rn = this.replace.get(n)
+        if (rn !== undefined) return rn
+        const newSrc = n.src.map((x) => this.rewrite(x))
+        const newN = newSrc === n.src ? this.pm.rewrite(n, this.ctx) : new UOp({ op: n.op, dtype: n.dtype, src: newSrc, arg: n.arg })
+        const ret = !newN ? n : this.rewrite(newN)
+        this.replace.set(n, ret)
+        return ret
+    }
 }
-// def graph_rewrite(sink:UOp, pm:PatternMatcher, ctx=None) -> UOp:
-//   if TRACK_MATCH_STATS >= 2 and len(rewrite_stack) != 0:
-//     rewrite_stack[-1][1].append(TrackedRewriteContext(((frm:=sys._getframe(1)).f_code.co_filename, frm.f_lineno), sink))
-//   return RewriteContext(pm, ctx).rewrite(sink)
-
+const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>): UOp => {
+    if (TRACK_MATCH_STATS >= 2 && rewriteStack.length !== 0) {
+        const frm = sys._getframe(1)
+        rewriteStack.at(-1)?.at(1).append(new TrackedRewriteContext([frm.f_code.co_filename, frm.f_lineno], sink))
+    }
+    return new RewriteContext(pm, ctx).rewrite(sink)
+}
 // # ***** uop type spec *****
 
 // # this is the matcher for the final rendered UOps
@@ -888,12 +904,14 @@ export const spec = new PatternMatcher([
     [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, src: [new UPat({ dtype: dtypes.int64 })], allowAnyLen: true }) }), () => true],
 ])
 
-// def type_verify(uops:List[UOp]):
-//   for i,u in enumerate(uops):
-//     if not spec.rewrite(u):
-//       print_uops(uops)
-//       raise RuntimeError(f"UOp verification failed at {i} on {u.op} {u.dtype} {len(u.src)} {[x.op for x in u.src]} {u.arg}")
-
+export const typeVerify = (uops: UOp[]) => {
+    for (const [i, u] of uops.entries()) {
+        if (!spec.rewrite(u)) {
+            printUOps(uops)
+            throw new Error(`UOp verification failed at ${i} on ${u.op} ${u.dtype} ${u.src.length} ${u.src.map((x) => x.op)} ${u.arg}`)
+        }
+    }
+}
 // # *** uop helpers ***
 
 // def cast_float_to_bf16(x: UOp) -> UOp:
@@ -904,182 +922,217 @@ export const spec = new PatternMatcher([
 
 // # *** most of symbolic lives here now ***
 
-// def split_uop(x:UOp, sep:Ops):
-//   if x.op is sep:
-//     for s in x.src: yield from split_uop(s, sep)
-//   else: yield x
+export function* splitUOp(x: UOp, sep: Ops): Generator<UOp> {
+    if (x.op === sep) { for (const s of x.src) yield* splitUOp(s, sep) }
+    else yield x
+}
 
-// def mod_folding(x:UOp, c:int) -> Optional[UOp]:
-//   # simplify x % c, None means no change
+export const modFolding = (x: UOp, c: number): UOp | null => {
+    // simplify x % c, None means no change
 
-//   # simple cancel mod case
-//   if 0 < c and 0 <= x.vmin and (quotient:=x.vmin//c) == x.vmax//c: return x-quotient*c
+    // simple cancel mod case
+    const quotient = x.vmin().idiv(c)
+    if (0 < c && x.vmin().ge(0) && quotient == x.vmax().idiv(c)) return x.sub(quotient).mul(c)
 
-//   remainder, something_changed = [], False
-//   for u in split_uop(x, Ops.ADD):
-//     if (factor:=u.const_factor())%c != factor:
-//       divides = u.divides(factor)*(factor%c)
-//       assert divides is not None
-//       remainder.append(divides)
-//       something_changed = True
-//     elif u.op is Ops.MOD and (s1:=u.src[1]).op is Ops.CONST and s1.arg%c == 0:
-//       remainder.append(u.src[0])
-//       something_changed = True
-//     else: remainder.append(u)
-//   if not something_changed: return None
-//   return functools.reduce(operator.add, remainder)%c if remainder else x.const_like(0)
+    let [remainder, somethingChanged] = [[], false] as [UOp[], boolean]
+    for (const u of splitUOp(x, Ops.ADD)) {
+        const factor = u.constFactor()
+        if (factor % c !== factor) {
+            const divides = u.divides(factor)?.mul(factor % c)
+            if (!divides) throw new Error('assert')
+            remainder.push(divides)
+            somethingChanged = true
+        } else if (u.op === Ops.MOD && u.src[1].op === Ops.CONST && u.src[1].arg % c === 0) {
+            remainder.push(u.src[0])
+            somethingChanged = true
+        } else remainder.push(u)
+    }
+    if (!somethingChanged) return null
+    return remainder ? remainder.reduce((prev, curr) => prev.add(curr)).mod(c) : x.constLike(0)
+}
 
-// def div_folding(x:UOp, c:int) -> Optional[UOp]:
-//   # simplify x // c, None means no change
+export const divFolding = (x: UOp, c: number): UOp | null => {
+    // simplify x // c, None means no change
 
-//   # simple cancel div case
-//   if 0 <= x.vmin and x.vmax < c: return x.const_like(0)
+    // simple cancel div case
+    if (x.vmin().ge(0) && x.vmax().lt(c)) return x.constLike(0)
 
-//   quotient, remainder, rem_const, something_changed, gcd, divisor = [], [], 0, False, c, 1
-//   for u in split_uop(x, Ops.ADD):
-//     if u.op is Ops.CONST:
-//       # add all const together first
-//       if rem_const != 0: something_changed = True
-//       rem_const += u.arg
-//     elif (factor:=u.const_factor())%c == 0:
-//       if factor:
-//         divides = u.divides(c)
-//         assert divides is not None
-//         quotient.append(divides)
-//       something_changed = True
-//     else:
-//       # divisor is the smallest common divisor of all MULs
-//       if u.op is Ops.MUL and factor > 1 and c % factor == 0 and (divisor == 1 or divisor > factor): divisor = factor
-//       remainder.append(u)
-//       gcd = math.gcd(gcd, factor)
+    let [quotient, remainder, remConst, somethingChanged, gcd, divisor] = [[] as UOp[], [] as UOp[], 0, false, c, 1]
+    for (const u of splitUOp(x, Ops.ADD)) {
+        if (u.op === Ops.CONST) {
+            // add all const together first
+            if (remConst !== 0) somethingChanged = true
+            remConst += u.arg
+        } else {
+            const factor = u.constFactor()
+            if (factor % c === 0) {
+                if (factor) {
+                    const divides = u.divides(c)
+                    if (!divides) throw new Error('assert')
+                    quotient.push(divides)
+                }
+                somethingChanged = true
+            } else {
+                // divisor is the smallest common divisor of all MULs
+                if (u.op === Ops.MUL && factor > 1 && c % factor == 0 && (divisor == 1 || divisor > factor)) divisor = factor
+                remainder.push(u)
+                gcd = mathGcd(gcd, factor)
+            }
+        }
+    }
+    // handle the const
+    if (remConst % c !== remConst) {
+        somethingChanged = true
+        quotient.push(x.constLike(remConst).idiv(c))
+        remConst = remConst % c
+    }
+    if (remConst !== 0) remainder.push(x.constLike(remConst))
 
-//   # handle the const
-//   if rem_const%c != rem_const:
-//     something_changed = True
-//     quotient.append(x.const_like(rem_const//c))
-//     rem_const = rem_const%c
-//   if rem_const != 0: remainder.append(x.const_like(rem_const))
+    // x // c -> quotient + (remainder // div) // (c // div)
+    const div = gcd > 1 ? gcd : divisor
 
-//   # x // c -> quotient + (remainder // div) // (c // div)
-//   div = gcd if gcd > 1 else divisor
+    if (!somethingChanged) {
+        const newx = divFolding(x, div)
+        return 1 < div && div < c && newx ? newx.idiv(x.constLike(c).idiv(div)) : null
+    }
+    const rem = remainder ? remainder.reduce((prev, curr) => prev.add(curr)) : null
+    const quo = quotient ? quotient.reduce((prev, curr) => prev.add(curr)) : null
+    if (!quo) return !rem ? x.constLike(0) : divFolding(rem, div)?.idiv(x.constLike(c).idiv(div)) || null
+    return !rem ? quo : divFolding(rem, div)?.idiv(x.constLike(c).idiv(div)).add(quo) || null
+}
 
-//   if not something_changed: return newx//(c//div) if 1 < div < c and (newx:=div_folding(x, div)) is not None else None
-//   rem:Optional[UOp] = functools.reduce(operator.add, remainder) if remainder else None
-//   quo:Optional[UOp] = functools.reduce(operator.add, quotient) if quotient else None
-//   if quo is None: return x.const_like(0) if rem is None else cast(UOp, div_folding(rem, div))//(c//div)
-//   return quo if rem is None else cast(UOp, div_folding(rem, div))//(c//div)+quo
+const ltFolding = (x: UOp, c: number): UOp | null => {
+    const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() == 1)
+    const d = mathGcd(...np.map((u) => u.constFactor()), c)
+    if (np && d > 1 && p.map((u) => u.vmin()).reduce((p, c) => c.add(p)).ge(0) && p.map((u) => u.vmax()).reduce((p, c) => p.add(c)).lt(d)) {
+        return np.reduce((p, c) => p.add(c)).divides(d)?.lt(Math.floor(c / d)) || null
+    }
+    return null
+}
+const foldUnrolledDivs = (divs: UOp) => {
+    // div pattern in unrolled arange
+    // example: (x//4+(x+1)//4+(x+2)//4+(x+3)//4 -> x
+    let [addChain, denominator, seenConst, ans] = [splitUOp(divs, Ops.ADD), null as number | null, [] as number[], null as null | UOp]
+    for (const u of addChain) {
+        if (!(u.op === Ops.IDIV && u.src[1].op === Ops.CONST)) return null
+        if (!denominator) denominator = u.src[1].arg
+        if (denominator !== u.src[1].arg) return null
+        // assumed CONST is the last of an ADD
+        let s0 = u.src[0]
+        if (s0.op === Ops.ADD && s0.src[1].op === Ops.CONST && s0.src[1].op === Ops.CONST) {
+            seenConst.push(s0.src[1].arg)
+            s0 = s0.src[0]
+        } else seenConst.push(0)
+        if (!ans) ans = s0
+        if (ans !== s0) return null
+    }
+    if (!denominator) return null
+    // the first (denominator-len(seen_const)) terms may have been folded to 0 already
+    for (const i of range(denominator - seenConst.length)) {
+        if (ans && ans.vmin().ge(0) && ans.vmax().add(i).lt(denominator)) seenConst.push(i)
+    }
+    return ans && seenConst.sort((a, b) => b - a) == range(denominator) ? ans : null
+}
+const canonicalizeSimplex = (X: UOp): UOp | null => {
+    // (X := a0*x0 + a1*x1 + ...) > 0 is equivalent to x0 + x1 + ... > 0 if xi >= 0 and ai > 0 for ints.
+    // returns x0 + x1 + ... in such case, or None if not
+    let [changed, ret] = [false, [] as UOp[]]
+    for (let u of splitUOp(X, Ops.ADD)) {
+        // assumed the const is the last src of MUL
+        if (u.op === Ops.MUL && u.src[1].op === Ops.CONST && u.src[1].arg > 0) {
+            changed = true
+            u = u.src[0]
+        }
+        if (!(GroupOp.Irreducible.includes(u.op) && u.vmin().ge(0))) return null
+        ret.push(u)
+    }
+    return changed ? ret.reduce((p, c) => p.add(c)) : null
+}
 
-// def lt_folding(x:UOp, c:int) -> Optional[UOp]:
-//   p, np = partition(split_uop(x, Ops.ADD), lambda u: u.const_factor() == 1)
-//   if np and (d:=math.gcd(*[u.const_factor() for u in np], c)) > 1 and 0 <= sum(u.vmin for u in p) and sum(u.vmax for u in p) < d:
-//     return cast(UOp, functools.reduce(operator.add, np).divides(d)).lt(c//d)
-//   return None
+const isIncreasing = (f: UOp): boolean => {
+    // is f a monotonically increasing function regards its input
+    if (GroupOp.Irreducible.includes(f.op)) return true
+    if (f.op === Ops.ADD) return isIncreasing(f.src[0]) && isIncreasing(f.src[1])
+    if ([Ops.MUL, Ops.IDIV].includes(f.op) && f.src[1].op === Ops.CONST && f.src[1].arg >= 0) return isIncreasing(f.src[0])
+    return false // False if not sure
+}
 
-// def fold_unrolled_divs(divs:UOp):
-//   # div pattern in unrolled arange
-//   # example: (x//4+(x+1)//4+(x+2)//4+(x+3)//4 -> x
-//   add_chain, denominator, seen_const, ans = list(split_uop(divs, Ops.ADD)), None, [], None
-//   for u in add_chain:
-//     if not (u.op is Ops.IDIV and u.src[1].op is Ops.CONST): return None
-//     if denominator is None: denominator = u.src[1].arg
-//     if denominator != u.src[1].arg: return None
-//     # assumed CONST is the last of an ADD
-//     if (s0:=u.src[0]).op is Ops.ADD and s0.src[1].op is Ops.CONST and s0.src[1].op is Ops.CONST:
-//       seen_const.append(s0.src[1].arg)
-//       s0 = s0.src[0]
-//     else: seen_const.append(0)
-//     if ans is None: ans = s0
-//     if ans is not s0: return None
-//   if denominator is None: return None
-//   # the first (denominator-len(seen_const)) terms may have been folded to 0 already
-//   for i in range(denominator-len(seen_const)):
-//     if ans is not None and 0 <= ans.vmin and ans.vmax + i < denominator: seen_const.append(i)
-//   return ans if ans is not None and sorted(seen_const)==list(range(denominator)) else None
+const parseValid = (valid: UOp): [UOp, boolean, number] => {
+    // if it's X <= c, returns X, True, c
+    // if it's X >= c, returns X, False, c
 
-// def canonicalize_simplex(X:UOp) -> Optional[UOp]:
-//   # (X := a0*x0 + a1*x1 + ...) > 0 is equivalent to x0 + x1 + ... > 0 if xi >= 0 and ai > 0 for ints.
-//   # returns x0 + x1 + ... in such case, or None if not
-//   changed, ret = False, []
-//   for u in split_uop(X, Ops.ADD):
-//     # assumed the const is the last src of MUL
-//     if u.op is Ops.MUL and u.src[1].op is Ops.CONST and u.src[1].arg > 0:
-//       changed = True
-//       u = u.src[0]
-//     if not (u.op in GroupOp.Irreducible and u.vmin >= 0): return None
-//     ret.append(u)
-//   return functools.reduce(operator.add, ret) if changed else None
+    // (X < c).ne(True) -> X >= c
+    const s0 = valid.src[0]
+    if (valid.op === Ops.CMPNE && valid.src[1].op === Ops.CONST && valid.src[1].arg == 1 && s0.op === Ops.CMPLT && s0.src[1].op === Ops.CONST) return [s0.src[0], false, s0.src[1].arg]
+    // X < c -> X <= c-1
+    if (valid.op === Ops.CMPLT && valid.src[1].op === Ops.CONST) return [valid.src[0], true, valid.src[1].arg - 1]
+    throw new Error(`not able to parse ${valid}`)
+}
 
-// def is_increasing(f:UOp) -> bool:
-//   # is f a monotonically increasing function regards its input
-//   if f.op in GroupOp.Irreducible: return True
-//   if f.op is Ops.ADD: return is_increasing(f.src[0]) and is_increasing(f.src[1])
-//   if f.op in (Ops.MUL, Ops.IDIV) and f.src[1].op is Ops.CONST and f.src[1].arg >= 0: return is_increasing(f.src[0])
-//   return False  # False if not sure
+const uopGivenValid = (valid: UOp, uop: UOp): UOp | null => {
+    // return None if valid is always False, otherwise the simplified uop (might be the same as input)
 
-// def parse_valid(valid:UOp) -> Tuple[UOp, bool, int]:
-//   # if it's X <= c, returns X, True, c
-//   # if it's X >= c, returns X, False, c
+    // first, parse valid into {expr: (lower_bound, upper_bound)}
+    const bounds = new Map<UOp, ConstType[]>()
+    for (const stmt of splitUOp(valid, Ops.AND)) {
+        try {
+            const [expr, isUpper, c] = parseValid(stmt)
+            setMap(bounds, expr, (o) => o.map((o, i) => i === Number(isUpper) ? c : o))
+        } catch {
+            return uop
+        } // give up if we cannot parse the valid
+    }
+    // simplify uop given that valid is True
+    for (const [expr, v] of bounds.entries()) {
+        // some expr has lower bound > upper bound -> valid is an empty set and we return None
+        if (v[0] && v[1] && v[0] > v[1]) return null
 
-//   # (X < c).ne(True) -> X >= c
-//   if valid.op is Ops.CMPNE and valid.src[1].op is Ops.CONST and valid.src[1].arg == 1 and \
-//     (s0:=valid.src[0]).op is Ops.CMPLT and s0.src[1].op is Ops.CONST: return s0.src[0], False, s0.src[1].arg
-//   # X < c -> X <= c-1
-//   if valid.op is Ops.CMPLT and valid.src[1].op is Ops.CONST: return valid.src[0], True, valid.src[1].arg-1
-//   raise ValueError(f"not able to parse {valid=}")
+        // every candidate is a set of contrained UOp based on valid, and if every item in a set simplifies the uop into a same output, we rewrite uop
+        const candidates: [UOp, UOp][][] = []
+        if (expr.op === Ops.ADD && v[0] == 1 && splitUOp(expr, Ops.ADD).every((u) => GroupOp.Irreducible.includes(u.op))) {
+            // if the constraint is a simplex: X0 + X1 + ... > 0, we can check if all Xi > 0 simplify into the same output
+            candidates.push(splitUOp(expr, Ops.ADD).toArray().map((Xi) => [Xi, UOp.variable('fake', 1, Xi.vmax(), Xi.dtype)]))
+        }
+        // try checking the whole clause
+        if ([...uop.sparents().keys()].includes(expr)) {
+            candidates.push([[expr, UOp.variable('fake', !v[0] ? expr.vmin() : v[0], !v[1] ? expr.vmax() : v[1], expr.dtype)]])
+        }
+        for (const candidate of candidates) {
+            // if every branch in candidate gives the same simplified uop, we can rewrite the uop
+            const newuops = candidate.map(([X, newX]) => uop.substitute(new Map([[X, newX]])).simplify().substitute(new Map([[X, newX]])).simplify())
+            if (uop.op === Ops.VECTORIZE && uop.src.length === 2) {
+                if (allSame(newuops.map((uops) => uops.src[0]))) uop = uop.replace({ src: [newuops[0].src[0], uop.src[1]] })
+                if (allSame(newuops.map((uops) => uops.src[1]))) uop = uop.replace({ src: [uop.src[0], newuops[0].src[1]] })
+            } else if (allSame(newuops)) uop = newuops[0]
+        }
+    }
+    return uop
+}
 
-// def uop_given_valid(valid:UOp, uop:UOp) -> Optional[UOp]:
-//   # return None if valid is always False, otherwise the simplified uop (might be the same as input)
-
-//   # first, parse valid into {expr: (lower_bound, upper_bound)}
-//   bounds:DefaultDict[UOp, List[Optional[ConstType]]] = defaultdict(lambda: [None, None])
-//   for stmt in split_uop(valid, Ops.AND):
-//     try: expr, is_upper, c = parse_valid(stmt)
-//     except ValueError: return uop  # give up if we cannot parse the valid
-//     bounds[expr][int(is_upper)] = c
-
-//   # simplify uop given that valid is True
-//   for expr,v in bounds.items():
-//     # some expr has lower bound > upper bound -> valid is an empty set and we return None
-//     if v[0] is not None and v[1] is not None and v[0] > v[1]: return None
-
-//     # every candidate is a set of contrained UOp based on valid, and if every item in a set simplifies the uop into a same output, we rewrite uop
-//     candidates = []
-//     if expr.op is Ops.ADD and v[0] == 1 and all(u.op in GroupOp.Irreducible for u in split_uop(expr, Ops.ADD)):
-//       # if the constraint is a simplex: X0 + X1 + ... > 0, we can check if all Xi > 0 simplify into the same output
-//       candidates.append([(Xi, UOp.variable("fake", 1, Xi.vmax, Xi.dtype)) for Xi in split_uop(expr, Ops.ADD)])
-//     # try checking the whole clause
-//     if expr in uop.sparents:
-//       candidates.append([(expr, UOp.variable("fake", expr.vmin if v[0] is None else v[0], expr.vmax if v[1] is None else v[1], expr.dtype))])
-
-//     for candidate in candidates:
-//       # if every branch in candidate gives the same simplified uop, we can rewrite the uop
-//       newuops = [uop.substitute({X:newX}).simplify().substitute({newX:X}).simplify() for X,newX in candidate]
-//       if uop.op is Ops.VECTORIZE and len(uop.src) == 2:
-//         if all_same([uops.src[0] for uops in newuops]): uop = uop.replace(src=(newuops[0].src[0], uop.src[1]))
-//         if all_same([uops.src[1] for uops in newuops]): uop = uop.replace(src=(uop.src[0], newuops[0].src[1]))
-//       elif all_same(newuops): uop = newuops[0]
-
-//   return uop
-
-// def _valid_priority(v: UOp, valids:List[UOp]):
-//   # we want valid that's in other valids' parents to be first, so it's more likely the other valids get simplified
-//   try: return sum(-1 if parse_valid(v)[0] in other.parents else 0 for other in valids)
-//   except ValueError: return 0
-
-// def simplify_valid(valid:UOp) -> Optional[UOp]:
-//   ret:List[UOp] = []
-//   something_changed = False
-//   valids = list(split_uop(valid, Ops.AND))
-//   for stmt in sorted(valids, key=lambda v: _valid_priority(v, valids)):
-//     ret.append(newstmt if ret and (newstmt:=uop_given_valid(functools.reduce(operator.and_, ret), stmt)) is not None else stmt)
-//     if ret[-1] is not stmt: something_changed = True
-//   return functools.reduce(operator.and_, ret) if something_changed else None
-
-// def max_var_const(x:UOp, c1:UOp, c2:UOp):
-//   if x.vmin >= 0: return x*c1 if c1.arg >= c2.arg else x*c2
-//   if x.vmax <= 0: return x*c2 if c1.arg >= c2.arg else x*c1
-
-// def sint_to_uop(x:sint) -> UOp: return UOp.const(dtypes.int, x) if isinstance(x, int) else x
+const _validPriority = (v: UOp, valids: UOp[]): number => {
+    // we want valid that's in other valids' parents to be first, so it's more likely the other valids get simplified
+    try {
+        return valids.map((other) => other.parents().has(parseValid(v)[0]) ? -1 : 0 as number).reduce((p, c) => p + c)
+    } catch {
+        return 0
+    }
+}
+export const simplifyValid = (valid: UOp): UOp | null => {
+    const ret: UOp[] = []
+    let somethingChanged = false
+    const valids = splitUOp(valid, Ops.AND).toArray()
+    for (const stmt of valids.sort((a, b) => _validPriority(b, valids) - _validPriority(a, valids))) {
+        const newstmt = uopGivenValid(ret.reduce((p, c) => p.bitwiseAnd(c)), stmt)
+        ret.push(ret && !!newstmt ? newstmt : stmt)
+        if (ret[-1] !== stmt) somethingChanged = true
+    }
+    return somethingChanged ? ret.reduce((p, c) => p.bitwiseAnd(c)) : null
+}
+const maxVarConst = (x: UOp, c1: UOp, c2: UOp) => {
+    if (x.vmin().ge(0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
+    if (x.vmax().le(0)) return c1.arg >= c2.arg ? x.mul(c2) : x.mul(c1)
+}
+const sintToUPp = (x: sint) => typeof x === 'number' ? UOp.const(dtypes.int, x) : x
 
 export const symbolicSimple = new PatternMatcher([
     //   // ** self folding **
@@ -1107,7 +1160,7 @@ export const symbolicSimple = new PatternMatcher([
     //   // NOTE: this can be wrong for loaded NaN
     [UPat.var('x').mul(0), (x) => x.const_like(typeof x.arg === 'number' && (isNaN(x.arg) || !isFinite(x.arg)) ? NaN : 0)],
     //   // ** constant folding **
-    [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), (a) => a.const_like(exec_alu(a.op, a.dtype, a.src!.map((x) => x.arg), false))],
+    [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), (a) => a.const_like(execAlu(a.op, a.dtype, a.src!.map((x) => x.arg), false))],
     //   // bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly
     [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseAnd(y)],
     [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseOr(y)],
@@ -1140,7 +1193,7 @@ export const symbolic = symbolicSimple.__add__(
         [UPat.var('x').maximum(UPat.var('y')), (x, y) => x.vmax <= y.vmin ? x.vmin >= y.vmax ? x : y : null],
         //   // TODO: why does this rule break beautiful_mnist?
         //   //((UPat.var("x")+UPat.var("z")).maximum(UPat.var("y")+UPat.var("z")), lambda x,y,z: x.maximum(y) + z),
-        [UPat.var('x').mul(UPat.cvar('c1')).maximum(UPat.var('x').mul(UPat.cvar('c2'))), max_var_const],
+        [UPat.var('x').mul(UPat.cvar('c1')).maximum(UPat.var('x').mul(UPat.cvar('c2'))), maxVarConst],
         //   // ** two stage ALU folding **
         [(UPat.var('x').add(UPat.cvar('c1'))).add(UPat.cvar('c2')), (x, c1, c2) => x.add(c1.add(c2))],
         [(UPat.var('x').mul(UPat.cvar('c1'))).mul(UPat.cvar('c2')), (x, c1, c2) => x.mul(c1.mul(c2))],
@@ -1162,25 +1215,25 @@ export const symbolic = symbolicSimple.__add__(
         [new UPat({ op: Ops.MUL, src: [UPat.var('x'), UPat.cvar('c1')] }).mul(UPat.var('y')), (x, c1, y) => (x.mul(y)).mul(c1)],
         //   // *** rules from symbolic ***
         //   // unrolled arange div folding
-        [new UPat({ op: Ops.ADD, name: 'divs', src: [new UPat({}), new UPat({ op: Ops.IDIV })] }), fold_unrolled_divs],
+        [new UPat({ op: Ops.ADD, name: 'divs', src: [new UPat({}), new UPat({ op: Ops.IDIV })] }), foldUnrolledDivs],
         //   // generic lt folding
-        [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), (x, c) => 0 < c.arg ? lt_folding(x, c.arg) : null],
+        [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), (x, c) => 0 < c.arg ? ltFolding(x, c.arg) : null],
         //   // canonicalize a simplex with positive coefficients > 0
         //   // not x < 1 -> X > 0
         [UPat.var('x', dtypes.ints).lt(1).ne(true), (x) => {
-            const newx = canonicalize_simplex(x)
+            const newx = canonicalizeSimplex(x)
             return newx !== null ? newx.lt(1).ne(true) : null
         }],
         //   // ** div **
         //   // // div folding
         [UPat.var('x', dtypes.sints).idiv(UPat.cvar('c', undefined, false)), (x, c) => {
-            const newx = div_folding(x, c.arg)
+            const newx = divFolding(x, c.arg)
             return 0 < c.arg && newx !== null ? newx : null
         }],
         //   // ** mod **
         //   // mod folding
         [UPat.var('x').mod(UPat.cvar('c', undefined, false)), (x, c) => {
-            const newx = mod_folding(x, c.arg)
+            const newx = modFolding(x, c.arg)
             return 0 < c.arg && newx !== null ? newx : null
         }],
     ]),

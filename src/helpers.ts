@@ -24,6 +24,24 @@ export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
 
   return result
 }
+
+export function isSubset<T>(main: Set<T>, subset: Set<T>): boolean {
+  for (const elem of subset) if (!main.has(elem)) return false
+  return true
+}
+
+export function mathGcd(...numbers: number[]): number {
+  function gcdTwo(a: number, b: number): number {
+    while (b !== 0) {
+      const temp = b
+      b = a % b
+      a = temp
+    }
+    return Math.abs(a)
+  }
+  if (numbers.length === 0) throw new Error('At least one number must be provided')
+  return numbers.reduce((acc, num) => gcdTwo(acc, num))
+}
 // TINYGRAD CODE
 // NOTE: it returns int 1 if x is empty regardless of the type of x
 export const prod = (x: number[]) => x.reduce((acc, curr) => acc * curr, 1)
