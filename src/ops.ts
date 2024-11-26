@@ -3,7 +3,7 @@ import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from '.
 import { allSame, assert, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
-import { asdict } from '../test/helpers.ts'
+import { toPython } from '../test/helpers.ts'
 
 export type sint = number | UOp
 export type Variable = UOp
@@ -309,12 +309,12 @@ class UOp extends MathTrait {
     }
     load = (src: UOp[], kwargs?: Record<string, any>) => new UOp({ op: Ops.LOAD, src: [this, ...src], ...kwargs })
     store = (src: UOp[], kwargs?: Record<string, any>) => new UOp({ op: Ops.STORE, dtype: dtypes.void, src: [this, ...src], ...kwargs })
-    override alu = (arg: Ops, ...src: typeof this[]): typeof this => {
+    override alu = (op: Ops, ...src: typeof this[]): typeof this => {
         let outDType = [this, ...src].at(-1)?.dtype
-        if ([Ops.CMPLT, Ops.CMPNE].includes(arg) && isNotNone(outDType)) {
+        if ([Ops.CMPLT, Ops.CMPNE].includes(op) && isNotNone(outDType)) {
             outDType = outDType.count > 1 ? dtypes.bool.vec(outDType.count) : dtypes.bool
         }
-        return new UOp({ op: arg, dtype: outDType, src: [this, ...src] }) as typeof this
+        return new UOp({ op, dtype: outDType, src: [this, ...src] }) as typeof this
     }
     static const = (dtype: DType, b: ConstLike) => {
         if (b instanceof UOp) return b.unbind()[0]
@@ -633,7 +633,7 @@ class UPat extends MathTrait {
     override constLike = (b: ConstLike): typeof this => UPat.const(this.dtype, b) as typeof this
     override alu = (op: Ops, ...src: this[]) => {
         const asrc = [this, ...src]
-        return new UPat({ op, dtype: [Ops.CMPLT, Ops.CMPNE].includes(op) ? undefined : asrc.pop()?.dtype, src: GroupOp.Commutative.includes(op) ? asrc : asrc }) as typeof this
+        return new UPat({ op, dtype: [Ops.CMPLT, Ops.CMPNE].includes(op) ? undefined : asrc.at(-1)?.dtype, src: GroupOp.Commutative.includes(op) ? asrc : asrc }) as typeof this
     }
 
     // deno-fmt-ignore
@@ -644,12 +644,13 @@ class UPat extends MathTrait {
     __repr__ = (level = 1): string => {
         const rep = (x: UPat) => {
             const op = isNone(x.op) ? 'None' : `(${x.op.map((x) => `Ops.${getEnumString(x)}`).join(', ')})`
-            const dtype = x.dtype ? `{${[...new Set(x.dtype)]}}` : 'None'
+            const dtype = x.dtype ? `{${[...new Set(x.dtype)].sort((a, b) => -b.priority + a.priority).join(', ')}}` : 'None'
             const len = x.allowedLen === 0 ? 'True' : 'False'
             const space = range(level * 2).map((x) => ' ').join('')
-            const src = x.src ? x.src.flat().length ? `\n${space}${[...new Set(x.src.flat())].map((u) => u.__repr__(level + 1)).join(',\n' + space)},` : '' : 'None'
+            const src = x.src ? x.src.flat().length ? `(\n${space}${[...new Set(x.src.flat())].map((u) => u.__repr__(level + 1)).join(',\n' + space)},)` : '()' : '(None)'
             const name = x.name ? `'${x.name}'` : 'None'
-            const form = `UPat(${op}, ${isNotNone(x.arg) ? x.arg : 'None'}, name=${name}, dtype=${dtype}, allow_any_len=${len}, src=(${src}))`
+            const arg = toPython(x.arg)
+            const form = `UPat(${op}, ${arg}, name=${name}, dtype=${dtype}, allow_any_len=${len}, src=${src})`
             return form
         }
         // TODO: not quite right, check it
@@ -1164,7 +1165,7 @@ export const sintToUPp = (x: sint) => typeof x === 'number' ? UOp.const(dtypes.i
 
 export const symbolicSimple = new PatternMatcher([
     //   // ** self folding **
-    [UPat.const(undefined, 0).add(UPat.var('x')), (x) => x], // x+0 -> x
+    [UPat.var('x').add(0), (x) => x], // x+0 -> x
     [UPat.var('x').mul(1), (x) => x], // x*1 -> x
     [UPat.var('x').idiv(UPat.var('x')), (x) => x.constLike(1)], // x//x -> 1
     [UPat.var('x').idiv(1), (x) => x], // x//1 -> x
@@ -1172,7 +1173,7 @@ export const symbolicSimple = new PatternMatcher([
     [UPat.var('x').div(UPat.var('x')), (x) => x.constLike(1)], // x/x -> 1
     [(UPat.var('x').mul(UPat.var('x2'))).div(UPat.var('x2')), (x, x2) => x], // (x*x2)/x2 -> x
     [(UPat.var().mod(UPat.var('y'))).named('base').mod(UPat.var('y')), (base, y) => base], // (x%y)%y = -> x%y (rewritten with base for speed)
-    [UPat.var('x').mod(UPat.cvar('c')).add(UPat.var('x').idiv(UPat.cvar('c'))).mul(UPat.cvar('c')), (x, c) => x], // (x%c)+(x//c)*c = x
+    [UPat.var('x').mod(UPat.cvar('c')).add(UPat.var('x').idiv(UPat.cvar('c')).mul(UPat.cvar('c'))), (x, c) => x], // (x%c)+(x//c)*c = x
     [UPat.var('x', dtypes.bool).bitwiseAnd(UPat.cvar('c', undefined, false)), (x, c) => c.arg ? x : c],
     [UPat.var('x', dtypes.bool).bitwiseOr(UPat.cvar('c', undefined, false)), (x, c) => c.arg ? c : x],
     [UPat.var('x').maximum(UPat.var('x')), (x) => x],
@@ -1211,7 +1212,7 @@ export const symbolic = symbolicSimple.__add__(
         [UPat.var('x').add(UPat.var('x').mul(UPat.cvar('c'))), (x, c) => x.mul(c.add(1))], // (x+x*c)-> x*(c+1)
         [UPat.var('x').add(UPat.var('x')), (x) => x.mul(2)], // (x+x)-> x*2
         [(UPat.var('x').div(UPat.var('x2'))).div(UPat.var('x3')), (x, x2, x3) => x.div(x2.mul(x3))], // (x/x2)/x3 -> x/(x2*x3)
-        [UPat.var('x').mul(-1, true).add(UPat.cvar('c')), (x, c) => x.neg().add(c.neg())], // -(x+c) -> -x + -c
+        [UPat.var('x').add(UPat.cvar('c')).mul(-1, true), (x, c) => x.neg().add(c.neg())], // -(x+c) -> -x + -c
         //   // a conditional with the same results either way is a noop, also fold const conditionals
         [UPat.var().where(UPat.var('val'), UPat.var('val')), (val) => val],
         [UPat.cvar('gate', undefined, false).where(UPat.var('c0'), UPat.var('c1')), (gate, c0, c1) => gate.arg ? c0 : c1],
@@ -1270,13 +1271,13 @@ export const symbolic = symbolicSimple.__add__(
 export const symbolicFlat = symbolic.__add__(
     new PatternMatcher([
         // ** combine terms (opinionated) **
-        [UPat.var('x').mul(-1, true).add(UPat.var('y')), (x, y) => x.neg().add(y.neg())], // -(x+y) -> -x + -y
+        [UPat.var('x').add(UPat.var('y')).mul(-1, true), (x, y) => x.neg().add(y.neg())], // -(x+y) -> -x + -y
         //   # (x+y)*c -> x*c+y*c. only for int, float has inf*0=nan issue
         [UPat.var('x', dtypes.ints).add(UPat.var('y')).mul(UPat.cvar('c')), (x, y, c) => x.mul(c).add(y.mul(c))],
     ]),
 )
-
-export const _substitute = new PatternMatcher([[new UPat({ op: Object.values(Ops) as Ops[], name: 'x' }), (ctx, x) => ctx.get(x, null)]])
+// TODO: lol there probably is some better way to get these
+export const _substitute = new PatternMatcher([[new UPat({ op: range(Object.values(Ops).length/2), name: 'x' }), (ctx, x) => ctx.get(x, null)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
