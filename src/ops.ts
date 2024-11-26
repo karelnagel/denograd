@@ -60,7 +60,7 @@ class MathTrait extends SimpleMathTrait {
 
 // # the order of these Ops controls the order of the toposort
 // deno-fmt-ignore
-enum Ops{
+export enum Ops{
     // uops that aren't rendered
     SINK, CONTIGUOUS, PRELOAD,
 
@@ -198,7 +198,7 @@ export const prettyPrint = (x: any, rep: (x: any) => string, srcfn: (x: any) => 
 //     return ret
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [Ops, any, DType, UOpTuple[]]
-class UOp extends MathTrait {
+export class UOp extends MathTrait {
     dtype: DType
     op: Ops
     src: UOp[]

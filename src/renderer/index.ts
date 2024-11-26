@@ -1,89 +1,98 @@
-// from typing import Optional, List, Tuple, Dict, Callable, Any
-// import functools
-// from dataclasses import dataclass, field
-// from tinygrad.helpers import to_function_name, dedup, prod
-// from tinygrad.ops import Ops, UOp, flops_mem, sym_infer, sint, Variable
-// from tinygrad.dtype import DType
+import type { DType } from '../dtype.ts'
+import { raise, toFunctionName } from '../helpers.ts'
+import { isNone } from '../helpers.ts'
+import { assert, isNotNone, prod, range } from '../helpers.ts'
+import { flopsMem, Ops, type sint, symInfer, type UOp, type Variable } from '../ops.ts'
 
-// @dataclass(frozen=True)
-// class TensorCore: # D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
-//   dims: Tuple[int,int,int] # N, M, K
-//   dtype_in: DType # dtype for A and B
-//   dtype_out: DType # dtype for C and D
-//   threads: List[Tuple[int,int]] # list of (TC dim,amt) that construct the warp thread structure
-//   reduce_axes: List[Tuple[int,int]] # list of (TC dim,amt) that constructs the shape of the reduce dim
-//   @property
-//   def early_upcast_axes(self) -> List[Tuple[int,int]]: # list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
-//     return [(d,self.dims[d]//sz) for d,sz in [(dim,prod(sz for d,sz in self.threads if d==dim)) for dim in range(2)] if self.dims[d]>sz]
-//   upcast_axes: Tuple[List[Tuple[int,int]], List[Tuple[int,int]], List[Tuple[int,int]]] # list of (TC dim,amt) that upcast A, B and C
-//   st1_pattern: Optional[Tuple[Tuple[Tuple[int,int], ...], Tuple[Tuple[int,int], ...]]] = None # pattern to fix shapetracker for A
-//   st2_pattern: Optional[Tuple[Tuple[Tuple[int,int], ...], Tuple[Tuple[int,int], ...]]] = None # pattern to fix shapetracker for B
-//   expanded_shape: Optional[Tuple[int, ...]] = None
-//   opts_seq: Tuple[str,str] = ("UP","LC") # upcast input, local the thread pattern
-//   def __str__(self): return "_".join(["WMMA"] + list(map(str, self.dims)) + [self.dtype_in.name, self.dtype_out.name])
+export type TC = [number, number]
+export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
+  dims: [number, number, number] // N, M, K
+  dtypeIn: DType // dtype for A and B
+  dtypeOut: DType // dtype for C and D
+  threads: TC[] // list of (TC dim,amt) that construct the warp thread structure
+  reduceAxes: TC[] // list of (TC dim,amt) that constructs the shape of the reduce dim
 
-// @dataclass
-// class ProgramSpec:
-//   name:str
-//   src:str
-//   device:str
-//   uops:Optional[List[UOp]]=None
-//   mem_estimate:sint=0  # TODO: get this from the load/store uops once min/max are good
+  // deno-fmt-ignore
+  constructor(dims: [number, number, number], dtypeIn: DType, dtypeOut: DType, threads: TC[], reduceAxes: TC[], upcastAxes:[TC[],TC[],TC[]]) {
+    this.dims=dims; this.dtypeIn=dtypeIn; this.dtypeOut=dtypeOut; this.threads=threads; this.reduceAxes=reduceAxes; this.upcastAxes = upcastAxes
+  }
+  earlyUpcastAxes = (): TC[] => { // list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
+    return range(2).map((dim) => [dim, prod(this.threads.filter(([d]) => d === dim).map(([d, sz]) => sz))]).filter(([d, sz]) => this.dims[d] > sz).map(([d, sz]) => [d, Math.floor(this.dims[d] / sz)])
+  }
+  upcastAxes: [TC[], TC[], TC[]] // list of (TC dim,amt) that upcast A, B and C
+  st1Pattern?: TC[][] | TC[] // pattern to fix shapetracker for A
+  st2Pattern?: TC[][] | TC[] // pattern to fix shapetracker for B
+  expanded_shape?: number[]
+  optsSeq: [string, string] = ['UP', 'LC'] // upcast input, local the thread pattern
+  toString = () => ['WMMA', ...this.dims.map((d) => d.toString()), this.dtypeIn.name, this.dtypeOut.name].join('_')
+}
 
-//   # filled in from uops (if we have uops)
-//   global_size:Optional[List[int]]=None
-//   local_size:Optional[List[int]]=None
-//   vars:List[Variable]=field(default_factory=list)
-//   globals:List[int]=field(default_factory=list)
-//   outs:List[int]=field(default_factory=list)
-//   _ran_post_init:bool=False  # NOTE: this is needed if you call replace on the Program
+export class ProgramSpec {
+  name: string
+  src: string
+  device: string
+  uops?: UOp[]
+  memEstimate: sint = 0 // TODO: get this from the load/store uops once min/max are good
+  // deno-fmt-ignore
+  constructor(name: string, src: string, device: string, uops?: UOp[], memEstimate: sint = 0) {
+    this.name = name; this.src = src; this.device = device; this.uops = uops; this.memEstimate = memEstimate
+  }
 
-//   def __post_init__(self):
-//     if not self._ran_post_init and self.uops is not None:
-//       # single pass through the uops
-//       for u in self.uops:
-//         if u.op is Ops.DEFINE_VAR: self.vars.append(u)
-//         if u.op is Ops.DEFINE_GLOBAL: self.globals.append(u.arg)
-//         if u.op is Ops.STORE: self.outs.extend([x.arg for x in u.src[0].sparents if x.op is Ops.DEFINE_GLOBAL])
-//         if u.op is Ops.SPECIAL:
-//           # NOTE: you have to set local_size and global_size to the base [1,1,1] outside this
-//           if u.arg[0][0] == 'i': self.local_size = None
-//           special_size = self.local_size if u.arg[0][0] == 'l' else self.global_size
-//           assert special_size is not None
-//           special_size[int(u.arg[0][-1])] = u.arg[1]
-//       self.vars = sorted(self.vars, key=lambda v: v.arg)
-//       self.outs = sorted(dedup(self.outs))
-//       self._ran_post_init = True
+  // filled in from uops (if we have uops)
+  globalSize?: number[]
+  localSize?: number[]
+  vars?: Variable[] = []
+  globals: number[] = []
+  outs: number[] = []
+  _ranPostInit = false // NOTE: this is needed if you call replace on the Program
 
-//   @property
-//   def op_estimate(self) -> sint: return self._ops_lds[0]
-//   @property
-//   def lds_estimate(self) -> sint: return self._ops_lds[1]
-//   @functools.cached_property
-//   def _ops_lds(self) -> Tuple[sint, sint]: return (0,0) if self.uops is None else flops_mem(self.uops, ignore_indexing=True)
+  __post_init__ = () => {
+    if (!this._ranPostInit && isNotNone(this.uops)) {
+      // single pass through the uops
+      for (const u of this.uops) {
+        if (u.op === Ops.DEFINE_VAR) this.vars?.push(u)
+        if (u.op === Ops.DEFINE_GLOBAL) this.globals.push(u.arg)
+        if (u.op === Ops.STORE) this.outs = [...this.outs, ...[...u.src[0].sparents().keys()].filter((x) => x.op === Ops.DEFINE_GLOBAL).map((x) => x.arg)]
+        if (u.op === Ops.SPECIAL) {
+          // NOTE: you have to set local_size and global_size to the base [1,1,1] outside this
+          if (u.arg[0][0] == 'i') this.localSize = undefined
+          const specialSize = (u.arg[0][0] == 'l' ? this.localSize : this.globalSize) || []
+          assert(isNotNone(specialSize))
+          specialSize[Number(u.arg[0][-1])] = u.arg[1]
+        }
+      }
+      this.vars = this.vars?.toSorted((a, b) => b.arg - a.arg)
+      this.outs = [...new Set(this.outs)].toSorted()
+      this._ranPostInit = true
+    }
+  }
+  opEstimate = () => this._opsLds()[0]
+  ldsEstimate = () => this._opsLds()[1]
+  _opsLds = (): [sint, sint] => isNone(this.uops) ? [0, 0] : flopsMem(this.uops, true)
 
-//   @functools.cached_property
-//   def function_name(self) -> str: return to_function_name(self.name)
+  functionName = () => toFunctionName(this.name)
 
-//   def launch_dims(self, var_vals:Dict[Variable, int]):
-//     global_size = [sym_infer(sz, var_vals) for sz in self.global_size] if self.global_size is not None else None
-//     local_size = [sym_infer(sz, var_vals) for sz in self.local_size] if self.local_size is not None else None
-//     return global_size, local_size
+  launchDims = (varVals: Map<Variable, number>) => {
+    const globalSize = this.globalSize?.map((sz) => symInfer(sz, varVals))
+    const localSize = this.localSize?.map((sz) => symInfer(sz, varVals))
+    return [globalSize, localSize]
+  }
+}
 
-// class Renderer:
-//   device: str = ""
-//   suffix: str = ""
-//   # TODO: make this generic with a list of supported types
-//   supports_float4: bool = True
-//   has_local: bool = True
-//   has_shared: bool = True
-//   # NOTE: these two should be in (x,y,z) order to match the max_sizes argument in get_grouped_dims
-//   global_max: Optional[Tuple[int, ...]] = (0x8FFFFFFF,) * (3) # TODO: UOps.SPECIAL int32 indexes right now
-//   local_max: Optional[Tuple[int, ...]] = (0x8FFFFFFF,) * (3) # TODO: UOps.SPECIAL int32 indexes right now
-//   shared_max: int = 32768
-//   tensor_cores: List[TensorCore] = []
-//   extra_matcher: Any = None
-//   code_for_op: Dict[Ops, Callable] = {}
+export class Renderer {
+  device = ''
+  suffix = ''
+  // TODO: make this generic with a list of supported types
+  supportsFloat4 = true
+  hasLocal = true
+  hasShared = true
+  // NOTE: these two should be in (x,y,z) order to match the max_sizes argument in get_grouped_dims
+  globalMax = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
+  localMax = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
+  sharedMax = 32768
+  tensorMores: TensorCore[] = []
+  extraMatcher?: any
+  codeForOp: Map<Ops, (...args: any[]) => void> = new Map()
 
-//   def __reduce__(self): return self.__class__, ()
-//   def render(self, name:str, uops:List[UOp]) -> str: raise NotImplementedError("needs a renderer")
+  render = (name: string, uops: UOp[]): string => raise('needs a renderer')
+}

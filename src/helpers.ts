@@ -9,7 +9,7 @@ export const isNotNone = <T>(x: T | null | undefined): x is T => x !== undefined
 
 export const range = (i: number) => Array.from({ length: i }, (_, i) => i)
 export const d = <T extends any[]>(...t: T) => t
-export const assert = <T>(condition: boolean, message: string): condition is true => {
+export const assert = <T>(condition: boolean, message?: string): condition is true => {
   if (!condition) throw new Error(message)
   return condition
 }
