@@ -47,13 +47,14 @@ def trycatch(fn):
   except Exception as e: return str(e)
 
 def out(o):
-    print(json.dumps(o))
+    print("<<<<<"+json.dumps(o)+">>>>>")
 
 ${code}
 `
   const res = await execAsync(`cd ${process.cwd()}/tinygrad && python3 -c '${code}'`)
   try {
-    return JSON.parse(res.trim())
+    const json = res.split('<<<<<')[1].split('>>>>>')[0].trim()
+    return JSON.parse(json)
   } catch (e) {
     if (e instanceof SyntaxError) throw new Error(`Parsing "${res.trim()}" failed.`)
     throw e
