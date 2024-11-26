@@ -9,7 +9,7 @@ export type sint = number | UOp
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
 
-class SimpleMathTrait {
+export class SimpleMathTrait {
     //   # required to implement
     alu = (arg: Ops, ...src: typeof this[]): typeof this => raise('Not implemented')
     constLike = (b: ConstLike): typeof this => raise('Not implemented')
@@ -40,7 +40,7 @@ class SimpleMathTrait {
     eq = (x: ConstType<typeof this>) => this.ne(x).logicalNot()
 }
 
-class MathTrait extends SimpleMathTrait {
+export class MathTrait extends SimpleMathTrait {
     // TODO: move to Tensor when new backward is done (tinygrad)
     lshift = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.SHL, x, reverse)
     rshift = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.SHR, x, reverse)
@@ -678,7 +678,7 @@ export class UPat extends MathTrait {
     }
 }
 
-class UPatAny extends UPat {
+export class UPatAny extends UPat {
     override match = (uop: UOp, store: Record<string, UOp>) => {
         let ret: Record<string, UOp>[] = []
         for (const x of this.src?.[0] || []) {
@@ -742,7 +742,7 @@ const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
 }
 
 // @dataclass(frozen=True)
-class TrackedRewriteContext {
+export class TrackedRewriteContext {
     loc: [string, number] // location that called graph_rewrite
     sink: UOp // the sink passed into the rewrite
     matches: [UOp, UOp | null, UPat | null, number][] = [] // all matches of sparents
@@ -833,7 +833,7 @@ export class TrackedPatternMatcher extends PatternMatcher {
 
 // # *** simple graph rewrite engine ***
 
-class RewriteContext {
+export class RewriteContext {
     pm: PatternMatcher
     ctx: any
     replace = new Map<UOp, UOp>()
