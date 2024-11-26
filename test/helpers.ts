@@ -15,7 +15,7 @@ export const toPython = (val: any): string => {
   if (Array.isArray(val)) return `[${val.map((x) => toPython(x))}]`
   if (val === null || typeof val === 'undefined') return 'None'
   if (typeof val === 'boolean') return val ? 'True' : 'False'
-  if (typeof val === 'number') return val === Infinity ? 'math.inf' : Number.isNaN(val) ? 'math.nan' : val.toString()
+  if (typeof val === 'number') return val === Infinity ? 'inf' : val===-Infinity ? "-inf" : Number.isNaN(val) ? 'math.nan' : val.toString()
   if (typeof val === 'string') return `"${val}"`
   if (typeof val === 'object') return `{${Object.entries(val).map((entry) => `"${entry[0]}":${toPython(entry[1])}`).join(',')}}`
   throw new Error('invalid value')

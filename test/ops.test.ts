@@ -2,6 +2,7 @@ import { expect } from 'expect/expect'
 import { _substitute, spec, symbolicFlat } from '../src/ops.ts'
 import { runPython } from './helpers.ts'
 import { renderer } from '../src/ops.ts'
+import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
 
 Deno.test('spec', async (t) => {
     const patterns = await runPython(`out([str(pattern[0]) for pattern in tiny.ops.spec.patterns])`)
@@ -39,3 +40,23 @@ Deno.test('_substitute', async (t) => {
         await t.step(i.toString(), () => expect(_substitute.patterns[i][0].__repr__()).toEqual(pattern))
     }
 })
+
+Deno.test('baseRewrite', async (t) => {
+    const patterns = await runPython(`from tinygrad.renderer import cstyle\nout([str(pattern[0]) for pattern in cstyle.base_rewrite.patterns])`)
+
+    expect(baseRewrite.patterns.length).toBe(patterns.length)
+    for (const [i, pattern] of patterns.entries()) {
+        await t.step(i.toString(), () => expect(baseRewrite.patterns[i][0].__repr__()).toEqual(pattern))
+    }
+})
+
+
+Deno.test('extraPm', async (t) => {
+    const patterns = await runPython(`from tinygrad.renderer import cstyle\nout([str(pattern[0]) for pattern in cstyle.extra_pm.patterns])`)
+
+    expect(extraPm.patterns.length).toBe(patterns.length)
+    for (const [i, pattern] of patterns.entries()) {
+        await t.step(i.toString(), () => expect(extraPm.patterns[i][0].__repr__()).toEqual(pattern))
+    }
+})
+
