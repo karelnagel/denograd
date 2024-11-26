@@ -107,11 +107,11 @@ export enum Ops{
     // consts last!
     VCONST, CONST,
 }
-const getEnumString = (op: Ops) => {
+export const getEnumString = (op: Ops) => {
     for (const key in Ops) if (Ops[key] === op as unknown as keyof Ops) return key
     return undefined
 }
-class GroupOp {
+export class GroupOp {
     static Unary = [Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.SQRT, Ops.RECIP, Ops.NEG]
     static Binary = [Ops.ADD, Ops.MUL, Ops.IDIV, Ops.MAX, Ops.MOD, Ops.CMPLT, Ops.CMPNE, Ops.XOR, Ops.SHL, Ops.SHR, Ops.OR, Ops.AND, Ops.THREEFRY, Ops.SUB, Ops.FDIV]
     static Ternary = [Ops.WHERE, Ops.MULACC]
@@ -573,7 +573,7 @@ const lines = (fn: string): string[] => {
 }
 
 type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[]; arg?: any; name?: string; allowAnyLen?: boolean; location?: any; customEarlyReject?: Ops[] }
-class UPat extends MathTrait {
+export class UPat extends MathTrait {
     //   __slots__ = ["op", "dtype", "arg", "name", "src"]
     op?: Ops[]
     dtype?: DType[]
@@ -700,7 +700,7 @@ const deconstructFunction = (fxn: () => void): string[] => {
     return []
 }
 type Pattern = [UPat, (...args: any[]) => any]
-class PatternMatcher {
+export class PatternMatcher {
     patterns: Pattern[]
     pdict = new Map<Ops, ([UPat, (...args: any[]) => void, Set<any>, boolean][])>()
     constructor(patterns: Pattern[]) {
@@ -1276,7 +1276,7 @@ export const symbolicFlat = symbolic.__add__(
     ]),
 )
 // TODO: lol there probably is some better way to get these
-export const _substitute = new PatternMatcher([[new UPat({ op: range(Object.values(Ops).length/2), name: 'x' }), (ctx, x) => ctx.get(x, null)]])
+export const _substitute = new PatternMatcher([[new UPat({ op: range(Object.values(Ops).length / 2), name: 'x' }), (ctx, x) => ctx.get(x, null)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])

@@ -13,8 +13,8 @@ export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D 
   reduceAxes: TC[] // list of (TC dim,amt) that constructs the shape of the reduce dim
 
   // deno-fmt-ignore
-  constructor(dims: [number, number, number], dtypeIn: DType, dtypeOut: DType, threads: TC[], reduceAxes: TC[], upcastAxes:[TC[],TC[],TC[]]) {
-    this.dims=dims; this.dtypeIn=dtypeIn; this.dtypeOut=dtypeOut; this.threads=threads; this.reduceAxes=reduceAxes; this.upcastAxes = upcastAxes
+  constructor(p:{dims: [number, number, number], dtypeIn: DType, dtypeOut: DType, threads: TC[], reduceAxes: TC[], upcastAxes:[TC[],TC[],TC[]]}) {
+    this.dims=p.dims; this.dtypeIn=p.dtypeIn; this.dtypeOut=p.dtypeOut; this.threads=p.threads; this.reduceAxes=p.reduceAxes; this.upcastAxes = p.upcastAxes
   }
   earlyUpcastAxes = (): TC[] => { // list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
     return range(2).map((dim) => [dim, prod(this.threads.filter(([d]) => d === dim).map(([d, sz]) => sz))]).filter(([d, sz]) => this.dims[d] > sz).map(([d, sz]) => [d, Math.floor(this.dims[d] / sz)])
@@ -22,7 +22,7 @@ export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D 
   upcastAxes: [TC[], TC[], TC[]] // list of (TC dim,amt) that upcast A, B and C
   st1Pattern?: TC[][] | TC[] // pattern to fix shapetracker for A
   st2Pattern?: TC[][] | TC[] // pattern to fix shapetracker for B
-  expanded_shape?: number[]
+  expandedShape?: number[]
   optsSeq: [string, string] = ['UP', 'LC'] // upcast input, local the thread pattern
   toString = () => ['WMMA', ...this.dims.map((d) => d.toString()), this.dtypeIn.name, this.dtypeOut.name].join('_')
 }
@@ -46,7 +46,7 @@ export class ProgramSpec {
   outs: number[] = []
   _ranPostInit = false // NOTE: this is needed if you call replace on the Program
 
-  __post_init__ = () => {
+  __postInit__ = () => {
     if (!this._ranPostInit && isNotNone(this.uops)) {
       // single pass through the uops
       for (const u of this.uops) {
@@ -87,12 +87,12 @@ export class Renderer {
   hasLocal = true
   hasShared = true
   // NOTE: these two should be in (x,y,z) order to match the max_sizes argument in get_grouped_dims
-  globalMax = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
+  globalMax?:[number,number,number] = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
   localMax = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
   sharedMax = 32768
   tensorMores: TensorCore[] = []
   extraMatcher?: any
-  codeForOp: Map<Ops, (...args: any[]) => void> = new Map()
+  static codeForOp: { [key in Ops]?: (...a: string[]) => string } = {}
 
   render = (name: string, uops: UOp[]): string => raise('needs a renderer')
 }
