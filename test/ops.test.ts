@@ -17,7 +17,6 @@ Deno.test('symbolicFlat', async (t) => {
 
     expect(symbolicFlat.patterns.length).toBe(patterns.length)
     for (const [i, pattern] of patterns.entries()) {
-        if (i>0) return
         await t.step(i.toString(), () => expect(symbolicFlat.patterns[i][0].__repr__()).toEqual(pattern))
     }
 })
