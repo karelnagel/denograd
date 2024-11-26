@@ -653,7 +653,6 @@ class UPat extends MathTrait {
             const form = `UPat(${op}, ${arg}, name=${name}, dtype=${dtype}, allow_any_len=${len}, src=${src})`
             return form
         }
-        // TODO: not quite right, check it
         return prettyPrint(this, rep, (x) => !x.src ? null : x.src[0])
     }
     match = (uop: UOp, store: Record<string, UOp>): Record<string, UOp>[] => {
