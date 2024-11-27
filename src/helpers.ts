@@ -27,6 +27,14 @@ export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
 
   return result
 }
+export const resolvePromise = <T>(promise: Promise<T>): T => {
+  let result
+  promise.then((x) => result = x)
+  while (result === undefined) {
+      // Wait for promise to resolve
+  }
+  return result
+}
 
 export function isSubset<T>(main: Set<T>, subset: Set<T>): boolean {
   for (const elem of subset) if (!main.has(elem)) return false
@@ -118,7 +126,7 @@ export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap ? x :
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
 export const toFunctionName = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
 export const getEnv = (key: string, defaultVal = '') => process.env[key] || defaultVal
-export const getNumberEnv = (key: string, defaultVal: number) => Number(process.env[key] || defaultVal)
+export const getNumberEnv = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)
 
 export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [getNumberEnv('DEBUG', 0), getNumberEnv('IMAGE', 0), getNumberEnv('BEAM', 0), getNumberEnv('NOOPT', 0), getNumberEnv('JIT', 1)]
