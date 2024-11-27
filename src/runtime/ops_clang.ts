@@ -1,38 +1,47 @@
-// from typing import Optional, List
-// import ctypes, subprocess, pathlib, tempfile
-// from tinygrad.device import Compiled, Compiler, MallocAllocator
-// from tinygrad.helpers import cpu_time_execution, cpu_objdump
-// from tinygrad.renderer.cstyle import ClangRenderer
-
-import { Compiled, Compiler } from '../device.ts'
+import { Compiled, Compiler, MallocAllocator } from '../device.ts'
+import { type bytes, cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '../helpers.ts'
+import { execSync } from 'node:child_process'
+import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { ClangRenderer } from '../renderer/cstyle.ts'
+import { ClangGraph } from './graph/clang.ts'
 
 export class ClangCompiler extends Compiler {
-  //   def __init__(self, cachekey="compile_clang", args:Optional[List[str]]=None, objdump_tool='objdump'):
-  //     self.args = ['-march=native'] if args is None else args
-  //     self.objdump_tool = objdump_tool
-  //     super().__init__(cachekey)
+  args
+  objdumpTool
+  constructor(cachekey = 'compile_clang', args?: string[], objdumpTool = 'objdump') {
+    super(cachekey)
+    this.args = isNone(args) ? ['-march=native'] : args
+    this.objdumpTool = objdumpTool
+  }
 
-  //   def compile(self, src:str) -> bytes:
-  //     # TODO: remove file write. sadly clang doesn't like the use of /dev/stdout here
-  //     with tempfile.NamedTemporaryFile(delete=True) as output_file:
-  //       subprocess.check_output(['clang', '-shared', *self.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib',
-  //                                '-', '-o', str(output_file.name)], input=src.encode('utf-8'))
-  //       return pathlib.Path(output_file.name).read_bytes()
-
-  //   def disassemble(self, lib:bytes): return cpu_objdump(lib, self.objdump_tool)
+  override compile = (src: string): bytes => {
+    // TODO: remove file write. sadly clang doesn't like the use of /dev/stdout here
+    const outputFile = temp('temp_output.so')
+    const args = ['clang', '-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', '-', '-o', outputFile]
+    execSync(args.join(' '), { input: src, stdio: 'pipe' })
+    const data = readFileSync(outputFile)
+    unlinkSync(outputFile)
+    return data
+  }
+  override disassemble = (lib: bytes) => cpuObjdump(lib, this.objdumpTool)
 }
 export class ClangProgram {
-  //   def __init__(self, name:str, lib:bytes):
-  //     self.name, self.lib = name, lib
-  //     # write to disk so we can load it
-  //     with tempfile.NamedTemporaryFile(delete=True) as cached_file_path:
-  //       pathlib.Path(cached_file_path.name).write_bytes(lib)
-  //       self.fxn = ctypes.CDLL(str(cached_file_path.name))[name]
-
-  //   def __call__(self, *bufs, vals=(), wait=False): return cpu_time_execution(lambda: self.fxn(*bufs, *vals), enable=wait)
+  name
+  lib
+  fxn
+  constructor(name: string, lib: bytes) {
+    this.name = name
+    this.lib = lib
+    // write to disk so we can load it
+    const cachedFile = temp('cachedFile')
+    writeFileSync(cachedFile, lib)
+    this.fxn = ctypes.CDLL(cachedFile).get(name)
+  }
+  __call__ = (bufs: any[], vals: any[], wait = false) => cpuTimeExecution(() => this.fxn(...bufs, ...vals), wait)
 }
+
 export class ClangDevice extends Compiled {
-  //   def __init__(self, device:str):
-  //     from tinygrad.runtime.graph.clang import ClangGraph
-  //     super().__init__(device, MallocAllocator, ClangRenderer(), ClangCompiler(), ClangProgram, ClangGraph)
+  constructor(device: string) {
+    super(device, MallocAllocator, new ClangRenderer(), new ClangCompiler(), ClangProgram, ClangGraph)
+  }
 }

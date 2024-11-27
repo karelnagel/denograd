@@ -2,6 +2,8 @@
 import path from 'node:path'
 import process from 'node:process'
 import os from 'node:os'
+import { unlinkSync, writeFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
 export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
@@ -283,15 +285,22 @@ export const diskcache = (func: any) => {
 
 // # *** Exec helpers
 
-// def cpu_time_execution(cb, enable):
-//   if enable: st = time.perf_counter()
-//   cb()
-//   if enable: return time.perf_counter()-st
-
-// def cpu_objdump(lib, objdump_tool='objdump'):
-//   with tempfile.NamedTemporaryFile(delete=True) as f:
-//     pathlib.Path(f.name).write_bytes(lib)
-//     print(subprocess.check_output([objdump_tool, '-d', f.name]).decode('utf-8'))
+export const cpuTimeExecution = (cb: () => void, enable: boolean) => {
+  let st = 0
+  if (enable) st = performance.now()
+  cb()
+  if (enable) return performance.now() - st
+}
+export const cpuObjdump = (lib: bytes, objdumpTool = 'objdump') => {
+  const outputFile = temp('temp_output.so')
+  writeFileSync(outputFile, lib)
+  try {
+    const output = execSync(`${objdumpTool} -d ${outputFile}`, { encoding: 'utf-8' })
+    console.log(output)
+  } finally {
+    unlinkSync(outputFile)
+  }
+}
 
 // # *** ctypes helpers
 export type bytes = any
@@ -334,6 +343,9 @@ export class ctypes {
   static create_string_buffer = (init: bytes) => {}
   static c_char = new c_char()
   static c_uint8 = new c_ubyte()
+  static CDLL = (file: string) => {
+    return { get: (name: string) => (...args: any[]) => {} }
+  }
 }
 
 // # TODO: make this work with read only memoryviews (if possible)
