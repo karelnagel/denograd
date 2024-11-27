@@ -21,7 +21,6 @@
       "include": [
         "prefer-const",
         "ban-types",
-        "camelcase",
         "no-inferrable-types"
       ]
     }
