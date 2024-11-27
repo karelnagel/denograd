@@ -3,7 +3,7 @@ import { assert, getEnv } from './helpers.ts'
 export type ConstType<This = never> = number | boolean | This
 
 // TODO: all DTypes should only be created once, DTypeMetaClass
-export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt: string | null; count: number; scalar: DType | null }
+export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: string; count: number; scalar?: DType }
 
 export class DType {
     // deno-fmt-ignore
@@ -13,11 +13,11 @@ export class DType {
     priority: number
     itemsize: number
     name: string
-    fmt: string | null
+    fmt?: string
     count: number
-    _scalar: DType | null
+    _scalar?: DType
 
-    static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | null]) => new DType({ priority, itemsize, name, fmt, count: 1, scalar: null })
+    static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, scalar: undefined })
     reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
     toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
     lt = (o: DType) => [this.priority, this.itemsize, this.name, this.fmt, this.count] < [o.priority, o.itemsize, o.name, o.fmt, o.count]
@@ -31,9 +31,9 @@ export class DType {
     vec(sz: number) {
         assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
         if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
-        return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name]}${sz}`, fmt: null, count: sz, scalar: this })
+        return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name]}${sz}`, fmt: undefined, count: sz, scalar: undefined })
     }
-    ptr = (local = false) => new PtrDType({ ...this, scalar: null, base: this, local, v: 1 })
+    ptr = (local = false) => new PtrDType({ ...this, scalar: undefined, base: this, local, v: 1 })
     scalar = () => this._scalar || this
 }
 export type PtrDTypeArgs = DTypeArgs & { base: DType; local: boolean; v: number }
@@ -120,7 +120,7 @@ export class dtypes {
         throw new Error(`Invalid dtype ${x} for finfo`)
     }
     static fields = () => DTYPES_DICT
-    static void = DType.new(-1, 0, 'void', null)
+    static void = DType.new(-1, 0, 'void', undefined)
     static bool = DType.new(0, 1, 'bool', '?')
     static int8 = DType.new(1, 1, 'signed char', 'b')
     static uint8 = DType.new(2, 1, 'unsigned char', 'B')
@@ -132,7 +132,7 @@ export class dtypes {
     static uint64 = DType.new(8, 8, 'unsigned long', 'Q')
     static float16 = DType.new(9, 2, 'half', 'e')
     // bfloat16 has higher priority than float16, so least_upper_dtype(dtypes.int64, dtypes.uint64) = dtypes.float16
-    static bfloat16 = DType.new(10, 2, '__bf16', null)
+    static bfloat16 = DType.new(10, 2, '__bf16', undefined)
     static float32 = DType.new(11, 4, 'float', 'f')
     static float64 = DType.new(12, 8, 'double', 'd')
 
@@ -150,8 +150,8 @@ export class dtypes {
     static long = dtypes.int64
 
     // NOTE: these are image dtypes
-    static imageh = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, scalar: null, base: dtypes.float32, local: false, v: 1, shape: shp })
-    static imagef = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, scalar: null, base: dtypes.float32, local: false, v: 1, shape: shp })
+    static imageh = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, scalar: undefined, base: dtypes.float32, local: false, v: 1, shape: shp })
+    static imagef = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, scalar: undefined, base: dtypes.float32, local: false, v: 1, shape: shp })
 
     static defaultFloat = dtypes.float32
     static defaultInt = dtypes.int32

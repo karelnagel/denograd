@@ -19,7 +19,7 @@ export class SimpleMathTrait {
     _binop = (op: Ops, x: ConstType<typeof this>, reverse: boolean) => reverse ? this.ufix(x).alu(op, this) : this.alu(op, this.ufix(x))
     logicalNot = () => this.ne(true)
     neg = () => {
-        const dtype = 'dtype' in this && this.dtype instanceof DType ? this.dtype : null
+        const dtype = 'dtype' in this && this.dtype instanceof DType ? this.dtype : undefined
         if (isNone(dtype)) throw new Error('MathTraits __neg__ requires a dtype')
         return dtype.scalar() === dtypes.bool ? this.logicalNot() : this.mul(-1)
     }
@@ -61,6 +61,7 @@ export class MathTrait extends SimpleMathTrait {
 // # the order of these Ops controls the order of the toposort
 // deno-fmt-ignore
 export enum Ops{
+    DUMMY_VALUE_TO_MAKE_IT_COUNT_FROM_1_LIKE_IN_PYTHON,
     // uops that aren't rendered
     SINK, CONTIGUOUS, PRELOAD,
 
@@ -204,9 +205,10 @@ export class UOp extends MathTrait {
     src: UOp[]
     arg: any
     // deno-fmt-ignore
-    constructor({ op, dtype=dtypes.void, src=[], arg=null}:UOpInput) {
+    constructor({ op, dtype=dtypes.void, src=[], arg=undefined}:UOpInput) {
         super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
     }
+    override toString = () => `hello`
     __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
     replace = (args: Partial<UOpInput>) => {
         const oldArgs: UOpInput = { dtype: this.dtype, arg: this.arg, op: this.op, src: this.src }
@@ -222,12 +224,12 @@ export class UOp extends MathTrait {
     __repr__ = () => prettyPrint(this, (x) => `UOp(${x.op}, ${x.dtype}, arg=${x.argstr()}, src=(%s))`)
     argstr = () => this.op === Ops.REDUCE_AXIS ? `(${this.arg.map((x: any) => x.toString()).join(', ')})` : this.arg
     parents = () => {
-        const map = new Map<UOp, null>()
-        for (const x of this.src) map.set(x, null)
-        for (const x of this.src) for (const [k] of x.parents()) map.set(k, null)
+        const map = new Map<UOp, undefined>()
+        for (const x of this.src) map.set(x, undefined)
+        for (const x of this.src) for (const [k] of x.parents()) map.set(k, undefined)
         return map
     }
-    sparents = () => new Map([...this.parents().entries(), [this, null]])
+    sparents = () => new Map([...this.parents().entries(), [this, undefined]])
     tuplize = (): UOpTuple => [this.op, this.arg, this.dtype, this.src.map((src) => src.tuplize())]
 
     //   # *** uop shape stuff ***
@@ -405,19 +407,19 @@ export class UOp extends MathTrait {
         if (this.op === Ops.MUL) return this.src[1].op === Ops.CONST ? this.src[0].op === Ops.CONST ? this.src[0].arg : this.src[1].arg : 1
         return 1
     }
-    divides = (v: number): UOp | null => {
+    divides = (v: number): UOp | undefined => {
         if (v === 1) return this
-        if (this.op === Ops.CONST) return this.arg % v === 0 ? this.constLike(Math.floor(this.arg / v)) : null
-        if (this.op === Ops.VCONST) return this.arg.every((x: number) => x % v === 0) ? this.constLike(this.arg.map((x: number) => Math.floor(x / v))) : null
+        if (this.op === Ops.CONST) return this.arg % v === 0 ? this.constLike(Math.floor(this.arg / v)) : undefined
+        if (this.op === Ops.VCONST) return this.arg.every((x: number) => x % v === 0) ? this.constLike(this.arg.map((x: number) => Math.floor(x / v))) : undefined
 
         const d0 = this.src[0].divides(v)
         const d1 = this.src[1].divides(v)
-        if (this.op === Ops.ADD) return isNotNone(d0) && isNotNone(d1) ? d0.add(d1) : null
+        if (this.op === Ops.ADD) return isNotNone(d0) && isNotNone(d1) ? d0.add(d1) : undefined
         if (this.op === Ops.MUL) {
             if (isNotNone(d0)) return d0.mul(this.src[1])
             if (isNotNone(d1)) return this.src[0].mul(d1)
         }
-        return null // generic None if we aren't sure
+        return undefined // generic None if we aren't sure
     }
 
     static min = (...args: UOp[]) => args.reduce((min, current) => min.lt(current) ? min : current)
@@ -562,7 +564,7 @@ export const flopsMem = (uops: UOp[], ignoreIndexing = false): [UOp, UOp] => {
 const getLocation = (): [string, number] => {
     // const frm = sys._getframe(1)
     // // find the real frame in the file that has the UPat, TODO: is there a better way to do this?
-    // while (frm.f_back !== null && ['ops.py', 'uopgraph.py', 'schedule.py', 'lowerer.py', 'cstyle.py'].includes(pathlib.Path(frm.f_back.f_code.co_filename).name)) {
+    // while (frm.f_back !== undefined && ['ops.py', 'uopgraph.py', 'schedule.py', 'lowerer.py', 'cstyle.py'].includes(pathlib.Path(frm.f_back.f_code.co_filename).name)) {
     //     frm = frm.f_back
     // }
     // return frm.f_code.co_filename, frm.f_lineno
@@ -653,7 +655,7 @@ export class UPat extends MathTrait {
             const form = `UPat(${op}, ${arg}, name=${name}, dtype=${dtype}, allow_any_len=${len}, src=${src})`
             return form
         }
-        return prettyPrint(this, rep, (x) => !x.src ? null : x.src[0])
+        return prettyPrint(this, rep, (x) => !x.src ? undefined : x.src[0])
     }
     match = (uop: UOp, store: Record<string, UOp>): Record<string, UOp>[] => {
         if (
@@ -718,7 +720,7 @@ export class PatternMatcher {
 
     __add__ = (more: PatternMatcher) => new PatternMatcher([...this.patterns, ...more.patterns])
 
-    rewrite = (uop: UOp, ctx?: any): UOp | null => {
+    rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
         //     const ler = uop.src.map((u) => u.op)
         //     for (const [p, fxn, early_reject, has_ctx] of this.pdict.get(uop.op, [])!) {
         //         if (!early_reject.issubset(ler)) continue
@@ -727,7 +729,7 @@ export class PatternMatcher {
         //             if (isNotNone(ret)) return ret
         //         }
         //     }
-        return null
+        return undefined
     }
 }
 // # *** tracking pattern matcher ***
@@ -745,8 +747,8 @@ const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
 export class TrackedRewriteContext {
     loc: [string, number] // location that called graph_rewrite
     sink: UOp // the sink passed into the rewrite
-    matches: [UOp, UOp | null, UPat | null, number][] = [] // all matches of sparents
-    constructor(loc: [string, number], sink: UOp, matches?: [UOp, UOp | null, UPat | null, number][]) {
+    matches: [UOp, UOp | undefined, UPat | undefined, number][] = [] // all matches of sparents
+    constructor(loc: [string, number], sink: UOp, matches?: [UOp, UOp | undefined, UPat | undefined, number][]) {
         this.loc = loc
         this.sink = sink
         if (matches) this.matches = matches
@@ -782,8 +784,8 @@ export class TrackedPatternMatcher extends PatternMatcher {
             if (!matchStats.has(p)) matchStats.set(p, [0, 0, 0.0, 0.0])
         }
     }
-    override rewrite = (uop: UOp, ctx?: any): UOp | null => {
-        const ret = null
+    override rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
+        const ret = undefined
         const ler = uop.src.map((u) => u.op)
         for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op)!) {
             const st = performance.now()
@@ -805,8 +807,8 @@ export class TrackedPatternMatcher extends PatternMatcher {
             }
             setMap(matchStats, p, (o) => [o[0], o[1], o[2] + performance.now() - st, o[3]])
         }
-        if (TRACK_MATCH_STATS >= 2 && rewriteStack.length !== 0) rewriteStack.at(-1)!.at(1).at(-1).matches.append([uop, ret, null, 0])
-        return null
+        if (TRACK_MATCH_STATS >= 2 && rewriteStack.length !== 0) rewriteStack.at(-1)!.at(1).at(-1).matches.append([uop, ret, undefined, 0])
+        return undefined
     }
 }
 
@@ -902,7 +904,7 @@ export const spec = new PatternMatcher([
 
     //   # and SHL/SHR, the shift distance can be an int
     [new UPat({ op: [Ops.SHL, Ops.SHR], src: [new UPat({ name: 'x' }), new UPat({ name: 'y' })], name: 'a' }), (a, x, y) => a.dtype === x.dtype && [x.dtype, dtypes.uint].includes(y.dtype)],
-    [new UPat({ op: Ops.IDIV, name: 'x' }), (x) => dtypes.isInt(x.dtype) ? null : false],
+    [new UPat({ op: Ops.IDIV, name: 'x' }), (x) => dtypes.isInt(x.dtype) ? undefined : false],
     [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.src!.every((y: any) => x.dtype === y.dtype)],
     [new UPat({ op: Ops.ASSIGN, src: [new UPat({ op: [Ops.DEFINE_ACC, Ops.DEFINE_GLOBAL] }), new UPat({})] }), () => true],
     [new UPat({ op: Ops.ENDRANGE, dtype: dtypes.void, src: [new UPat({ op: Ops.RANGE })] }), () => true],
@@ -955,7 +957,7 @@ export function* splitUOp(x: UOp, sep: Ops): Generator<UOp> {
     else yield x
 }
 
-export const modFolding = (x: UOp, c: number): UOp | null => {
+export const modFolding = (x: UOp, c: number): UOp | undefined => {
     // simplify x % c, None means no change
 
     // simple cancel mod case
@@ -975,11 +977,11 @@ export const modFolding = (x: UOp, c: number): UOp | null => {
             somethingChanged = true
         } else remainder.push(u)
     }
-    if (!somethingChanged) return null
+    if (!somethingChanged) return undefined
     return remainder ? remainder.reduce((prev, curr) => prev.add(curr)).mod(c) : x.constLike(0)
 }
 
-export const divFolding = (x: UOp, c: number): UOp | null => {
+export const divFolding = (x: UOp, c: number): UOp | undefined => {
     // simplify x // c, None means no change
 
     // simple cancel div case
@@ -1021,30 +1023,30 @@ export const divFolding = (x: UOp, c: number): UOp | null => {
 
     if (!somethingChanged) {
         const newx = divFolding(x, div)
-        return 1 < div && div < c && isNotNone(newx) ? newx.idiv(x.constLike(c).idiv(div)) : null
+        return 1 < div && div < c && isNotNone(newx) ? newx.idiv(x.constLike(c).idiv(div)) : undefined
     }
-    const rem = remainder ? remainder.reduce((prev, curr) => prev.add(curr)) : null
-    const quo = quotient ? quotient.reduce((prev, curr) => prev.add(curr)) : null
-    if (isNone(quo)) return isNone(rem) ? x.constLike(0) : divFolding(rem, div)?.idiv(x.constLike(c).idiv(div)) || null
-    return isNone(rem) ? quo : divFolding(rem, div)?.idiv(x.constLike(c).idiv(div)).add(quo) || null
+    const rem = remainder ? remainder.reduce((prev, curr) => prev.add(curr)) : undefined
+    const quo = quotient ? quotient.reduce((prev, curr) => prev.add(curr)) : undefined
+    if (isNone(quo)) return isNone(rem) ? x.constLike(0) : divFolding(rem, div)?.idiv(x.constLike(c).idiv(div)) || undefined
+    return isNone(rem) ? quo : divFolding(rem, div)?.idiv(x.constLike(c).idiv(div)).add(quo) || undefined
 }
 
-const ltFolding = (x: UOp, c: number): UOp | null => {
+const ltFolding = (x: UOp, c: number): UOp | undefined => {
     const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
     const d = mathGcd(...np.map((u) => u.constFactor()), c)
     if (np && d > 1 && p.map((u) => u.vmin()).reduce((p, c) => c.add(p)).ge(0) && p.map((u) => u.vmax()).reduce((p, c) => p.add(c)).lt(d)) {
-        return np.reduce((p, c) => p.add(c)).divides(d)?.lt(Math.floor(c / d)) || null
+        return np.reduce((p, c) => p.add(c)).divides(d)?.lt(Math.floor(c / d)) || undefined
     }
-    return null
+    return undefined
 }
 const foldUnrolledDivs = (divs: UOp) => {
     // div pattern in unrolled arange
     // example: (x//4+(x+1)//4+(x+2)//4+(x+3)//4 -> x
-    let [addChain, denominator, seenConst, ans] = [splitUOp(divs, Ops.ADD), null as number | null, [] as number[], null as null | UOp]
+    let [addChain, denominator, seenConst, ans] = [splitUOp(divs, Ops.ADD), undefined as number | undefined, [] as number[], undefined as undefined | UOp]
     for (const u of addChain) {
-        if (!(u.op === Ops.IDIV && u.src[1].op === Ops.CONST)) return null
+        if (!(u.op === Ops.IDIV && u.src[1].op === Ops.CONST)) return undefined
         if (isNone(denominator)) denominator = u.src[1].arg
-        if (denominator !== u.src[1].arg) return null
+        if (denominator !== u.src[1].arg) return undefined
         // assumed CONST is the last of an ADD
         let s0 = u.src[0]
         if (s0.op === Ops.ADD && s0.src[1].op === Ops.CONST && s0.src[1].op === Ops.CONST) {
@@ -1052,16 +1054,16 @@ const foldUnrolledDivs = (divs: UOp) => {
             s0 = s0.src[0]
         } else seenConst.push(0)
         if (isNone(ans)) ans = s0
-        if (ans !== s0) return null
+        if (ans !== s0) return undefined
     }
-    if (isNone(denominator)) return null
+    if (isNone(denominator)) return undefined
     // the first (denominator-len(seen_const)) terms may have been folded to 0 already
     for (const i of range(denominator - seenConst.length)) {
         if (isNotNone(ans) && ans.vmin().ge(0) && ans.vmax().add(i).lt(denominator)) seenConst.push(i)
     }
-    return isNotNone(ans) && seenConst.sort((a, b) => b - a) === range(denominator) ? ans : null
+    return isNotNone(ans) && seenConst.sort((a, b) => b - a) === range(denominator) ? ans : undefined
 }
-const canonicalizeSimplex = (X: UOp): UOp | null => {
+const canonicalizeSimplex = (X: UOp): UOp | undefined => {
     // (X := a0*x0 + a1*x1 + ...) > 0 is equivalent to x0 + x1 + ... > 0 if xi >= 0 and ai > 0 for ints.
     // returns x0 + x1 + ... in such case, or None if not
     let [changed, ret] = [false, [] as UOp[]]
@@ -1071,10 +1073,10 @@ const canonicalizeSimplex = (X: UOp): UOp | null => {
             changed = true
             u = u.src[0]
         }
-        if (!(GroupOp.Irreducible.includes(u.op) && u.vmin().ge(0))) return null
+        if (!(GroupOp.Irreducible.includes(u.op) && u.vmin().ge(0))) return undefined
         ret.push(u)
     }
-    return changed ? ret.reduce((p, c) => p.add(c)) : null
+    return changed ? ret.reduce((p, c) => p.add(c)) : undefined
 }
 
 const isIncreasing = (f: UOp): boolean => {
@@ -1097,7 +1099,7 @@ const parseValid = (valid: UOp): [UOp, boolean, number] => {
     throw new Error(`not able to parse ${valid}`)
 }
 
-const uopGivenValid = (valid: UOp, uop: UOp): UOp | null => {
+const uopGivenValid = (valid: UOp, uop: UOp): UOp | undefined => {
     // return None if valid is always False, otherwise the simplified uop (might be the same as input)
 
     // first, parse valid into {expr: (lower_bound, upper_bound)}
@@ -1113,7 +1115,7 @@ const uopGivenValid = (valid: UOp, uop: UOp): UOp | null => {
     // simplify uop given that valid is True
     for (const [expr, v] of bounds.entries()) {
         // some expr has lower bound > upper bound -> valid is an empty set and we return None
-        if (isNotNone(v[0]) && isNotNone(v[1]) && v[0] > v[1]) return null
+        if (isNotNone(v[0]) && isNotNone(v[1]) && v[0] > v[1]) return undefined
 
         // every candidate is a set of contrained UOp based on valid, and if every item in a set simplifies the uop into a same output, we rewrite uop
         const candidates: [UOp, UOp][][] = []
@@ -1145,7 +1147,7 @@ const _validPriority = (v: UOp, valids: UOp[]): number => {
         return 0
     }
 }
-export const simplifyValid = (valid: UOp): UOp | null => {
+export const simplifyValid = (valid: UOp): UOp | undefined => {
     const ret: UOp[] = []
     let somethingChanged = false
     const valids = splitUOp(valid, Ops.AND).toArray()
@@ -1154,7 +1156,7 @@ export const simplifyValid = (valid: UOp): UOp | null => {
         ret.push(ret && isNotNone(newstmt) ? newstmt : stmt)
         if (ret[-1] !== stmt) somethingChanged = true
     }
-    return somethingChanged ? ret.reduce((p, c) => p.bitwiseAnd(c)) : null
+    return somethingChanged ? ret.reduce((p, c) => p.bitwiseAnd(c)) : undefined
 }
 export const maxVarConst = (x: UOp, c1: UOp, c2: UOp) => {
     if (x.vmin().ge(0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
@@ -1195,13 +1197,13 @@ export const symbolicSimple = new PatternMatcher([
     [UPat.var('x', dtypes.bool).maximum(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseOr(y)],
     //   // *** cast ***
     [new UPat({ op: Ops.CAST, name: 'root', src: UPat.cvar('c') }), (root, c) => root.constLike(c.arg)],
-    [new UPat({ op: Ops.CAST, name: 'root' }), (root) => root.dtype === root.src![0].dtype ? root.src![0] : null],
+    [new UPat({ op: Ops.CAST, name: 'root' }), (root) => root.dtype === root.src![0].dtype ? root.src![0] : undefined],
 ])
 
 export const symbolic = symbolicSimple.__add__(
     new PatternMatcher([
         //   // ** COMMUTATIVE flipping **
-        [new UPat({ op: GroupOp.Commutative, name: 'x' }), (x) => x.src[1].tuplize < x.src[0].tuplize ? x.replace([...x.src].reverse()) : null],
+        [new UPat({ op: GroupOp.Commutative, name: 'x' }), (x) => x.src[1].tuplize < x.src[0].tuplize ? x.replace([...x.src].reverse()) : undefined],
         //   // group like
         [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), (x, y, c) => (x.add(x.mul(c))).add(y)],
         //   // ** boolean algebra **
@@ -1216,9 +1218,9 @@ export const symbolic = symbolicSimple.__add__(
         [UPat.var().where(UPat.var('val'), UPat.var('val')), (val) => val],
         [UPat.cvar('gate', undefined, false).where(UPat.var('c0'), UPat.var('c1')), (gate, c0, c1) => gate.arg ? c0 : c1],
         //   // ALU min==max -> CONST (slow!)
-        [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.vmin === x.vmax ? x.constLike(x.vmin) : null],
+        [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.vmin === x.vmax ? x.constLike(x.vmin) : undefined],
         //   // max folding
-        [UPat.var('x').maximum(UPat.var('y')), (x, y) => x.vmax <= y.vmin ? x.vmin >= y.vmax ? x : y : null],
+        [UPat.var('x').maximum(UPat.var('y')), (x, y) => x.vmax <= y.vmin ? x.vmin >= y.vmax ? x : y : undefined],
         //   // TODO: why does this rule break beautiful_mnist?
         //   //((UPat.var("x")+UPat.var("z")).maximum(UPat.var("y")+UPat.var("z")), lambda x,y,z: x.maximum(y) + z),
         [UPat.var('x').mul(UPat.cvar('c1')).maximum(UPat.var('x').mul(UPat.cvar('c2'))), maxVarConst],
@@ -1231,13 +1233,13 @@ export const symbolic = symbolicSimple.__add__(
         [(UPat.var('x').idiv(UPat.cvar('c1'))).idiv(UPat.cvar('c2')), (x, c1, c2) => x.idiv(c1.add(c2))], // (x//c1)//c2 -> x//(c1*c2)
         //   // ** lt **
         //   // c0*x<c1 for positive int c0,c1
-        [(UPat.cvar('c0', undefined, false).mul(UPat.var('x', dtypes.ints))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg > 0 && c1.arg > 0 ? x.lt(Math.ceil(c1.arg / c0.arg)) : null],
+        [(UPat.cvar('c0', undefined, false).mul(UPat.var('x', dtypes.ints))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg > 0 && c1.arg > 0 ? x.lt(Math.ceil(c1.arg / c0.arg)) : undefined],
         //   // c0*x<c1 for negative int c0 and non-positive c1
-        [(UPat.cvar('c0', undefined, false).mul(UPat.var('x', dtypes.ints))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg < 0 && c0.arg !== -1 && c1.arg <= 0 ? x.neg().lt(-Math.floor(-c1.arg / -c0.arg)) : null],
+        [(UPat.cvar('c0', undefined, false).mul(UPat.var('x', dtypes.ints))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg < 0 && c0.arg !== -1 && c1.arg <= 0 ? x.neg().lt(-Math.floor(-c1.arg / -c0.arg)) : undefined],
         //   // x//c0<c1 for positive int c0
-        [(UPat.var('x', dtypes.ints).idiv(UPat.cvar('c0', undefined, false))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg > 0 ? x.lt(c1.arg * c0.arg) : null],
+        [(UPat.var('x', dtypes.ints).idiv(UPat.cvar('c0', undefined, false))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg > 0 ? x.lt(c1.arg * c0.arg) : undefined],
         //   // mul add lt
-        [((UPat.cvar('c0', undefined, false).mul(UPat.var('x'))).add(UPat.var('x2'))).lt(UPat.cvar('c1', undefined, false)), (x, x2, c0, c1) => c1.arg % c0.arg === 0 && c0.arg > x2.vmax && x2.vmin >= 0 ? x.lt(c1.idiv(c0)) : null],
+        [((UPat.cvar('c0', undefined, false).mul(UPat.var('x'))).add(UPat.var('x2'))).lt(UPat.cvar('c1', undefined, false)), (x, x2, c0, c1) => c1.arg % c0.arg === 0 && c0.arg > x2.vmax && x2.vmin >= 0 ? x.lt(c1.idiv(c0)) : undefined],
         //   // ** move add/mul consts to end (NOTE: this is still happening before constant folding) **
         [new UPat({ op: Ops.ADD, src: [UPat.var('x'), UPat.cvar('c1')] }).add(UPat.var('y')), (x, c1, y) => (x.add(y)).add(c1)],
         [new UPat({ op: Ops.MUL, src: [UPat.var('x'), UPat.cvar('c1')] }).mul(UPat.var('y')), (x, c1, y) => (x.mul(y)).mul(c1)],
@@ -1245,24 +1247,24 @@ export const symbolic = symbolicSimple.__add__(
         //   // unrolled arange div folding
         [new UPat({ op: Ops.ADD, name: 'divs', src: [new UPat({}), new UPat({ op: Ops.IDIV })] }), foldUnrolledDivs],
         //   // generic lt folding
-        [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), (x, c) => 0 < c.arg ? ltFolding(x, c.arg) : null],
+        [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), (x, c) => 0 < c.arg ? ltFolding(x, c.arg) : undefined],
         //   // canonicalize a simplex with positive coefficients > 0
         //   // not x < 1 -> X > 0
         [UPat.var('x', dtypes.ints).lt(1).ne(true), (x) => {
             const newx = canonicalizeSimplex(x)
-            return isNotNone(newx) ? newx.lt(1).ne(true) : null
+            return isNotNone(newx) ? newx.lt(1).ne(true) : undefined
         }],
         //   // ** div **
         //   // // div folding
         [UPat.var('x', dtypes.sints).idiv(UPat.cvar('c', undefined, false)), (x, c) => {
             const newx = divFolding(x, c.arg)
-            return 0 < c.arg && isNotNone(newx) ? newx : null
+            return 0 < c.arg && isNotNone(newx) ? newx : undefined
         }],
         //   // ** mod **
         //   // mod folding
         [UPat.var('x').mod(UPat.cvar('c', undefined, false)), (x, c) => {
             const newx = modFolding(x, c.arg)
-            return 0 < c.arg && isNotNone(newx) ? newx : null
+            return 0 < c.arg && isNotNone(newx) ? newx : undefined
         }],
     ]),
 )
@@ -1276,7 +1278,7 @@ export const symbolicFlat = symbolic.__add__(
     ]),
 )
 // TODO: lol there probably is some better way to get these
-export const _substitute = new PatternMatcher([[new UPat({ op: range(Object.values(Ops).length / 2), name: 'x' }), (ctx, x) => ctx.get(x, null)]])
+export const _substitute = new PatternMatcher([[new UPat({ op: range(Object.values(Ops).length / 2), name: 'x' }), (ctx, x) => ctx.get(x, undefined)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])

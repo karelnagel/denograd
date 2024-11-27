@@ -14,7 +14,7 @@ export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => 
 
 // @functools.lru_cache(maxsize=None)
 // const strides_for_shape=(shape?:sint[]):sint[]=>{
-
+    
 //  if(!shape): return ()
 //   strides = tuple(itertools.accumulate(reversed(shape[1:]), operator.mul, initial=1))[::-1]
 //   return canonicalize_strides(shape, strides)
