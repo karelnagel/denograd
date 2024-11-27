@@ -389,7 +389,7 @@ export class Tensor extends SimpleMathTrait {
   //     """
 
   //     r = Tensor._metaop(Ops.EMPTY, shape, **kwargs)
-  //     r.lazydata.buffer.allocate(external_ptr=ptr)
+  //     r.lazydata.buffer.allocate(externalPtr=ptr)
   //     del r.lazydata.srcs # fake realize
   //     return r
 

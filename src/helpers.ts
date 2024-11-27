@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any no-control-regex
+// deno-lint-ignore-file no-explicit-any no-control-regex camelcase
 import path from 'node:path'
 import process from 'node:process'
 import os from 'node:os'
@@ -31,7 +31,7 @@ export const resolvePromise = <T>(promise: Promise<T>): T => {
   let result
   promise.then((x) => result = x)
   while (result === undefined) {
-      // Wait for promise to resolve
+    // Wait for promise to resolve
   }
   return result
 }
@@ -195,57 +195,57 @@ export const CACHELEVEL = getNumberEnv('CACHELEVEL', 2)
 
 // VERSION = 16
 // _db_connection = None
-// def db_connection():
-//   global _db_connection
-//   if _db_connection is None:
-//     os.makedirs(CACHEDB.rsplit(os.sep, 1)[0], exist_ok=True)
-//     _db_connection = sqlite3.connect(CACHEDB, timeout=60, isolation_level="IMMEDIATE")
-//     # another connection has set it already or is in the process of setting it
-//     # that connection will lock the database
-//     with contextlib.suppress(sqlite3.OperationalError): _db_connection.execute("PRAGMA journal_mode=WAL").fetchone()
-//     if DEBUG >= 7: _db_connection.set_trace_callback(print)
-//   return _db_connection
-
-// def diskcache_clear():
-//   cur = db_connection().cursor()
-//   drop_tables = cur.execute("SELECT 'DROP TABLE IF EXISTS ' || quote(name) || ';' FROM sqlite_master WHERE type = 'table';").fetchall()
-//   cur.executescript("\n".join([s[0] for s in drop_tables] + ["VACUUM;"]))
-
-// def diskcache_get(table:str, key:Union[Dict, str, int]) -> Any:
-//   if CACHELEVEL == 0: return None
-//   if isinstance(key, (str,int)): key = {"key": key}
-//   conn = db_connection()
-//   cur = conn.cursor()
-//   try:
-//     res = cur.execute(f"SELECT val FROM '{table}_{VERSION}' WHERE {' AND '.join([f'{x}=?' for x in key.keys()])}", tuple(key.values()))
-//   except sqlite3.OperationalError:
-//     return None  # table doesn't exist
-//   if (val:=res.fetchone()) is not None: return pickle.loads(val[0])
-//   return None
-
+export const dbConnection = () => {
+  //   global _db_connection
+  //   if _db_connection is None:
+  //     os.makedirs(CACHEDB.rsplit(os.sep, 1)[0], exist_ok=True)
+  //     _db_connection = sqlite3.connect(CACHEDB, timeout=60, isolation_level="IMMEDIATE")
+  //     # another connection has set it already or is in the process of setting it
+  //     # that connection will lock the database
+  //     with contextlib.suppress(sqlite3.OperationalError): _db_connection.execute("PRAGMA journal_mode=WAL").fetchone()
+  //     if DEBUG >= 7: _db_connection.set_trace_callback(print)
+  //   return _db_connection
+}
+export const diskcacheClear = () => {
+  //   cur = db_connection().cursor()
+  //   drop_tables = cur.execute("SELECT 'DROP TABLE IF EXISTS ' || quote(name) || ';' FROM sqlite_master WHERE type = 'table';").fetchall()
+  //   cur.executescript("\n".join([s[0] for s in drop_tables] + ["VACUUM;"]))
+}
+export const diskcacheGet = (table: string, key: string | number): string | null => {
+  //   if CACHELEVEL == 0: return None
+  //   if isinstance(key, (str,int)): key = {"key": key}
+  //   conn = db_connection()
+  //   cur = conn.cursor()
+  //   try:
+  //     res = cur.execute(f"SELECT val FROM '{table}_{VERSION}' WHERE {' AND '.join([f'{x}=?' for x in key.keys()])}", tuple(key.values()))
+  //   except sqlite3.OperationalError:
+  //     return None  # table doesn't exist
+  //   if (val:=res.fetchone()) is not None: return pickle.loads(val[0])
+  return null
+}
 // _db_tables = set()
-// def diskcache_put(table:str, key:Union[Dict, str, int], val:Any):
-//   if CACHELEVEL == 0: return val
-//   if isinstance(key, (str,int)): key = {"key": key}
-//   conn = db_connection()
-//   cur = conn.cursor()
-//   if table not in _db_tables:
-//     TYPES = {str: "text", bool: "integer", int: "integer", float: "numeric", bytes: "blob"}
-//     ltypes = ', '.join(f"{k} {TYPES[type(key[k])]}" for k in key.keys())
-//     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}_{VERSION}' ({ltypes}, val blob, PRIMARY KEY ({', '.join(key.keys())}))")
-//     _db_tables.add(table)
-//   cur.execute(f"REPLACE INTO '{table}_{VERSION}' ({', '.join(key.keys())}, val) VALUES ({', '.join(['?']*len(key.keys()))}, ?)", tuple(key.values()) + (pickle.dumps(val), ))  # noqa: E501
-//   conn.commit()
-//   cur.close()
-//   return val
-
-// def diskcache(func):
-//   def wrapper(*args, **kwargs) -> bytes:
-//     table, key = f"cache_{func.__name__}", hashlib.sha256(pickle.dumps((args, kwargs))).hexdigest()
-//     if (ret:=diskcache_get(table, key)): return ret
-//     return diskcache_put(table, key, func(*args, **kwargs))
-//   return wrapper
-
+export const diskcachePut = (table: string, key: string | number, val: any) => {
+  //   if CACHELEVEL == 0: return val
+  //   if isinstance(key, (str,int)): key = {"key": key}
+  //   conn = db_connection()
+  //   cur = conn.cursor()
+  //   if table not in _db_tables:
+  //     TYPES = {str: "text", bool: "integer", int: "integer", float: "numeric", bytes: "blob"}
+  //     ltypes = ', '.join(f"{k} {TYPES[type(key[k])]}" for k in key.keys())
+  //     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}_{VERSION}' ({ltypes}, val blob, PRIMARY KEY ({', '.join(key.keys())}))")
+  //     _db_tables.add(table)
+  //   cur.execute(f"REPLACE INTO '{table}_{VERSION}' ({', '.join(key.keys())}, val) VALUES ({', '.join(['?']*len(key.keys()))}, ?)", tuple(key.values()) + (pickle.dumps(val), ))  # noqa: E501
+  //   conn.commit()
+  //   cur.close()
+  //   return val
+}
+export const diskcache = (func: any) => {
+  //   def wrapper(*args, **kwargs) -> bytes:
+  //     table, key = f"cache_{func.__name__}", hashlib.sha256(pickle.dumps((args, kwargs))).hexdigest()
+  //     if (ret:=diskcache_get(table, key)): return ret
+  //     return diskcache_put(table, key, func(*args, **kwargs))
+  //   return wrapper
+}
 // # *** http support ***
 
 // def _ensure_downloads_dir() -> pathlib.Path:
@@ -294,20 +294,53 @@ export const CACHELEVEL = getNumberEnv('CACHELEVEL', 2)
 //     print(subprocess.check_output([objdump_tool, '-d', f.name]).decode('utf-8'))
 
 // # *** ctypes helpers
+export type bytes = any
+export class bytearray {
+  constructor(i: number) {}
+}
+export class memoryview {
+  constructor(obj?: c_char | bytearray) {}
+  get length() {
+    return 0
+  }
+  get nbytes() {
+    return 0
+  }
+  cast = (format: string, shape?: number[]) => new memoryview()
+  slice = (from: number, to?: number) => new memoryview()
+}
+
+export class c_char {
+  from_buffer = (mv: memoryview) => {}
+  mul = (other: number) => new c_char()
+  call = () => {}
+}
+export class c_ubyte {
+  mul = (other: number) => new c_ubyte()
+  call = () => {}
+  fromAddress = (ptr: number) => {}
+}
+type CData = any
+
+export class ctypes {
+  static cast = (obj: any, type: any) => {
+    return { contents: [new c_char()] }
+  }
+  static addressof = (obj: CData): number => {
+    return 0
+  }
+  static memmove = (dst: any, src: any, count: number) => {}
+  static POINTER = (type: c_char) => new c_char()
+  static create_string_buffer = (init: bytes) => {}
+  static c_char = new c_char()
+  static c_uint8 = new c_ubyte()
+}
 
 // # TODO: make this work with read only memoryviews (if possible)
-// def from_mv(mv:memoryview, to_type=ctypes.c_char):
-//   return ctypes.cast(ctypes.addressof(to_type.from_buffer(mv)), ctypes.POINTER(to_type * len(mv))).contents
-// def to_mv(ptr, sz) -> memoryview: return memoryview(ctypes.cast(ptr, ctypes.POINTER(ctypes.c_uint8 * sz)).contents).cast("B")
-// def mv_address(mv:memoryview): return ctypes.addressof(ctypes.c_char.from_buffer(mv))
-// def to_char_p_p(options: List[bytes], to_type=ctypes.c_char): return (ctypes.POINTER(to_type) * len(options))(*[ctypes.cast(ctypes.create_str_buffer(o), ctypes.POINTER(to_type)) for o in options])  # noqa: E501
-// @functools.lru_cache(maxsize=None)
-// def init_c_struct_t(fields: Tuple[Tuple[str, ctypes._SimpleCData], ...]):
-//   class CStruct(ctypes.Structure):
-//     _pack_, _fields_ = 1, fields
-//   return CStruct
-// def init_c_var(ctypes_var, creat_cb): return (creat_cb(ctypes_var), ctypes_var)[1]
-// def flat_mv(mv:memoryview): return mv if len(mv) == 0 else mv.cast("B", shape=(mv.nbytes,))
+export const from_mv = (mv: memoryview, to_type = ctypes.c_char): c_char[] => {
+  return ctypes.cast(ctypes.addressof(to_type.from_buffer(mv)), ctypes.POINTER(to_type.mul(mv.length))).contents
+}
+export const flat_mv = (mv: memoryview) => mv.length === 0 ? mv : mv.cast('B', [mv.nbytes])
 
 // # *** universal support for code object pickling
 

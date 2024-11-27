@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, CI, DEBUG, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, OSX, resolvePromise } from './helpers.ts'
+import { assert, bytearray, type bytes, CI, ctypes, DEBUG, diskcacheGet, diskcachePut, flat_mv, from_mv, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, memoryview, OSX, resolvePromise } from './helpers.ts'
 import process from 'node:process'
 import { Renderer } from './renderer/index.ts'
 
@@ -57,17 +57,21 @@ export const Device = new _Device()
 // **************** Buffer + Allocators ****************
 
 export class BufferSpec {
+    image
+    uncached
+    cpuAccess
+    host
+    nolru
+    externalPtr
     //   # TODO: move device, size, dtype here?
-    constructor(p: { image?: ImageDType; externalPtr?: number }) {
+    constructor(p: { image?: ImageDType; uncached?: boolean; cpuAccess?: boolean; host?: boolean; nolru?: boolean; externalPtr?: number }) {
         this.image = p.image
+        this.uncached = p.uncached || false
+        this.cpuAccess = p.cpuAccess || false
+        this.host = p.host || false
+        this.nolru = p.nolru || false
         this.externalPtr = p.externalPtr
     }
-    image?: ImageDType
-    uncached = false
-    cpuAccess = false
-    host = false
-    nolru = false
-    externalPtr?: number
 }
 type BufferInput = { device: string; size: number; dtype: DType; opaque?: any; options?: BufferSpec; initialValue?: ByteLengthQueuingStrategy; lbRefcount?: number; base?: Buffer; offset?: number; preallocate?: boolean }
 export class Buffer {
@@ -92,7 +96,7 @@ export class Buffer {
             if (isNotNone(opaque)) this.allocate(opaque)
             if (isNotNone(initialValue)) {
                 this.allocate()
-                this.copyin(memoryview(initialValue))
+                this.copyin(new memoryview(initialValue))
             }
         } else {
             assert(isNone(base._base), "base can't have a base")
@@ -110,11 +114,11 @@ export class Buffer {
         assert(!this.isAllocated(), "can't allocate already allocated buffer")
         this.allocator = Device.__getitem__(this.device).allocator
         if (isNotNone(externalPtr)) {
-            this.options = this.options ? { ...this.options, externalPtr } : new BufferSpec({ externalPtr })
+            this.options = this.options ? new BufferSpec({ ...this.options, externalPtr }) : new BufferSpec({ externalPtr })
         }
         if (isNotNone(this._base)) {
             this._base.ensureAllocated()
-            if (!this.allocator || !("_offset" in this.allocator)) throw new Error('offset function required for view')
+            if (!this.allocator || !('_offset' in this.allocator)) throw new Error('offset function required for view')
             this._buf = (this.allocator._offset as any)(this.base()._buf, this.nbytes, this.offset)
         } else {
             this._buf = isNotNone(opaque) ? opaque : this.allocator?.alloc(this.nbytes, this.options)
@@ -129,8 +133,8 @@ export class Buffer {
         }
         if (this.device == 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, null, this.lbRefcount()]]
         if (this.isAllocated()) {
-            buf = bytearray(this.nbytes)
-            this.copyout(memoryview(buf))
+            buf = new bytearray(this.nbytes)
+            this.copyout(new memoryview(buf))
         }
         return [Buffer, [this.device, this.size, this.dtype, null, this.options, buf, this.lbRefcount()]]
     }
@@ -150,18 +154,18 @@ export class Buffer {
     }
     asBuffer = (allowZeroCopy = false, forceZeroCopy = false) => {
         // zero copy with as_buffer (disabled by default due to use after free)
-        if ((forceZeroCopy || allowZeroCopy) && this.allocator && "_asBuffer" in this.allocator && (isNone(this.options) || isNone(this.options.image))) return (this.allocator._asBuffer as any)(this._buf)
+        if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (isNone(this.options) || isNone(this.options.image))) return (this.allocator._asBuffer as any)(this._buf)
         assert(!forceZeroCopy, 'force zero copy was passed, but copy is required')
-        return this.copyout(memoryview(bytearray(this.nbytes)))
+        return this.copyout(new memoryview(new bytearray(this.nbytes)))
     }
-    copyin = (mv: memoryview): memoryview => {
+    copyin = (mv: memoryview): Buffer => {
         mv = flat_mv(mv)
         assert(mv.length == this.nbytes, `size mismatch, ${mv.length} != ${this.dtype} ${this.size}`)
         assert(this.isAllocated(), "can't copyin to unallocated buffer")
         this.allocator?._copyin(this._buf, mv)
         return this
     }
-    copyout = (mv: memoryview) => {
+    copyout = (mv: memoryview): memoryview => {
         mv = flat_mv(mv)
         assert(mv.length === this.nbytes, `size mismatch, {len(mv)=} != {this.dtype=} ${this.size}`)
         assert(this.isAllocated(), "can't copyout unallocated buffer")
@@ -228,11 +232,14 @@ export abstract class LRUAllocator extends Allocator {
 }
 
 export class _MallocAllocator extends LRUAllocator {
-    _alloc = (size: number, options: BufferSpec) => options.externalPtr ? (ctypes.c_uint8 * size).from_address(options.external_ptr) : (ctypes.c_uint8 * size)()
-    _asBuffer = (src: any): memoryview => flat_mv(memoryview(src))
+    _alloc = (size: number, options: BufferSpec) => options.externalPtr ? (ctypes.c_uint8.mul(size)).fromAddress(options.externalPtr) : (ctypes.c_uint8.mul(size)).call()
+    _asBuffer = (src: any): memoryview => flat_mv(new memoryview(src))
     _copyin = (dest: any, src: memoryview) => ctypes.memmove(dest, from_mv(src), src.length)
     _copyout = (dest: memoryview, src: any) => ctypes.memmove(from_mv(dest), src, dest.length)
     _offset = (buf: any, size: number, offset: number) => from_mv(this._asBuffer(buf).slice(offset, offset + size))
+    _free = () => {
+        throw new Error('Not implemented')
+    }
 }
 export const MallocAllocator = new _MallocAllocator()
 
@@ -245,10 +252,10 @@ export class Compiler {
     constructor(cachekey?: string) {
         this.cachekey = getEnv('DISABLE_COMPILER_CACHE') ? undefined : cachekey
     }
-    compile = (src: string): bytes => src.encode() // NOTE: empty compiler is the default
+    compile = (src: string): bytes => new TextEncoder().encode(src) // NOTE: empty compiler is the default
     compileCached = (src: string): bytes => {
-        let lib = diskcacheGet(this.cachekey, src)
-        if (isNone(this.cachekey) || isNone(lib)) {
+        let lib = this.cachekey ? diskcacheGet(this.cachekey, src) : null
+        if (isNone(lib)) {
             assert(!getEnv('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
             lib = this.compile(src)
             if (isNotNone(this.cachekey)) diskcachePut(this.cachekey, src, lib)
