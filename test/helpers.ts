@@ -32,6 +32,7 @@ export const trycatch = <T>(fn: () => T): T | string => {
 }
 export const serialize = (data: any): string => {
   const customReplacer = (k: string, v: any) => {
+    if (v === undefined) return null
     if (!v || typeof v !== 'object') return v
     if (v instanceof UPat) return { __type: 'UPat', op: v.op, dtype: v.dtype, src: v._inSrc, arg: v.arg, name: v.name, allow_any_len: v.allowedLen === -1, location: v.location, custom_early_reject: v.customEarlyReject }
     if (v instanceof UOp) return { __type: 'UOp', op: v.op, dtype: v.dtype, src: v.src, arg: v.arg }
@@ -52,7 +53,7 @@ export const deserialize = (data: string): any => {
     const type = i.__type
     if (type === 'UPat') return new UPat({ op: de(i.op), dtype: de(i.dtype), src: de(i.src), arg: de(i.arg), name: de(i.name), allowAnyLen: de(i.allow_any_len), location: de(i.location), customEarlyReject: de(i.custom_early_reject) })
     if (type === 'UOp') return new UOp({ op: de(i.op), dtype: de(i.dtype), src: de(i.src), arg: de(i.arg) })
-    if (type === 'DType') return new DType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), scalar: de(i._scalar) })
+    if (type === 'DType') return new DType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar) })
     return Object.fromEntries(Object.entries(i).map(([k, v]) => [k, de(v)]))
   }
 
@@ -65,6 +66,7 @@ import tinygrad as tiny
 import math
 import json
 from dataclasses import asdict
+import itertools
 
 def trycatch(fn):
   try: return fn()
@@ -73,9 +75,10 @@ def trycatch(fn):
 def serialize(data):
     class CustomEncoder(json.JSONEncoder):
       def default(self, o):
-          if isinstance(o,tiny.ops.UPat): return {"__type":"UPat","op":o.op,"dtype":o.dtype,"src":o.src,"arg":o.arg,"name":o.name,"allow_any_len":o.allowed_len == -1,"location":o.location,"custom_early_reject":o.custom_early_reject}
+          if isinstance(o,tiny.ops.UPat): return {"__type":"UPat","op":o.op,"dtype":o.dtype,"src":o._in_src,"arg":o.arg,"name":o.name,"allow_any_len":o.allowed_len == -1,"location":o.location,"custom_early_reject":o.custom_early_reject}
           if isinstance(o, tiny.ops.UOp): return {"__type": "UOp",'op': o.op, "dtype": o.dtype,"src":o.src,"arg":o.arg} 
           if isinstance(o, tiny.ops.DType): return {"__type": "DType", "priority": o.priority,"itemsize":o.itemsize,"name":o.name,"fmt":o.fmt,"count":o.count,"_scalar":o._scalar}
+          if isinstance(o, itertools.repeat): return CustomEncoder.default(o)
           return super().default(o)
     return json.dumps(data, cls=CustomEncoder)
 
@@ -87,7 +90,8 @@ def deserialize(data):
             type = item.get("__type")
             def get(key,should_tuple=False): 
                 res = de(item.get(key))
-                return tuple(res) if should_tuple and res and isinstance(res,list) else res
+                if res is None: return res
+                return tuple(res) if should_tuple and isinstance(res,list) else res
             if type=="UPat": return tiny.ops.UPat(get("op",True),get("dtype",True),get("src"),get("arg"),get("name"),get("allow_any_len"),get("location"),get("custom_early_reject"))
             if type == "UOp": return tiny.ops.UOp(get('op',True),get('dtype',True),get('src',True),get('arg',True)) 
             elif type == "DType": return tiny.dtype.DType(get('priority'),get("itemsize"),get('name'),get('fmt'),get("count"),get("_scalar"))
@@ -97,7 +101,7 @@ def deserialize(data):
 
     return de(obj)
 
-data = deserialize('${serialize(data)}')
+${data ? `data = deserialize('${serialize(data)}')` : ''}
 def out(o):
     print("<<<<<"+serialize(o)+">>>>>")
 

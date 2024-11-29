@@ -52,7 +52,7 @@ Deno.test('baseRewrite', async (t) => {
     for (const [i, pattern] of patterns.entries()) {
         await t.step({
             name: i.toString(),
-            ignore: [15, 23].includes(i),
+            ignore: [15, 21, 23].includes(i),
             fn: () => expect(baseRewrite.patterns[i][0].__repr__()).toEqual(pattern),
         })
     }

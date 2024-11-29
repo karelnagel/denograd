@@ -1278,7 +1278,8 @@ export const symbolicFlat = symbolic.__add__(
     ]),
 )
 // TODO: lol there probably is some better way to get these
-export const _substitute = new PatternMatcher([[new UPat({ op: range(Object.values(Ops).length / 2), name: 'x' }), (ctx, x) => ctx.get(x, undefined)]])
+const allOps = range(Object.values(Ops).length / 2).filter((x) => x !== 0)
+export const _substitute = new PatternMatcher([[new UPat({ op: allOps, name: 'x' }), (ctx, x) => ctx.get(x, undefined)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
