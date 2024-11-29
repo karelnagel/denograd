@@ -3,7 +3,7 @@ import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from '.
 import { allSame, assert, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
-import { toPython } from '../test/helpers.ts'
+import { toPythonString } from './helpers.ts'
 
 export type sint = number | UOp
 export type Variable = UOp
@@ -651,7 +651,7 @@ export class UPat extends MathTrait {
             const space = range(level * 2).map((x) => ' ').join('')
             const src = x.src ? x.src.flat().length ? `(\n${space}${[...new Set(x.src.flat())].map((u) => u.__repr__(level + 1)).join(',\n' + space)},)` : '()' : '(None)'
             const name = x.name ? `'${x.name}'` : 'None'
-            const arg = toPython(x.arg)
+            const arg = toPythonString(x.arg)
             const form = `UPat(${op}, ${arg}, name=${name}, dtype=${dtype}, allow_any_len=${len}, src=${src})`
             return form
         }

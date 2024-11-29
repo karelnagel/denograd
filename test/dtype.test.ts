@@ -1,6 +1,6 @@
 import * as dt from '../src/dtype.ts'
 import { dtypes } from '../src/dtype.ts'
-import { asdict, runPython, tiny, trycatch } from './helpers.ts'
+import { asdict, runPython, trycatch } from './helpers.ts'
 import { expect } from 'expect'
 // TODO check if only created once
 
@@ -64,36 +64,36 @@ Deno.test('dtypes', async () => {
     ;[dtypes.int, dtypes.defaultInt, dtypes.uint, dtypes.uchar].forEach((int) => expect(dtypes.isInt(int)).toBe(true))
     ;[dtypes.float, dtypes.imagef(4, 4)].forEach((int) => expect(dtypes.isInt(int)).toBe(false))
 
-    expect(asdict(dtypes.fields())).toEqual(await tiny`out({k:asdict(v) for k,v in tiny.dtype.dtypes.fields().items()})`)
-    expect(dt.INVERSE_DTYPES_DICT).toEqual(await tiny`out(tiny.dtype.INVERSE_DTYPES_DICT)`)
+    expect(asdict(dtypes.fields())).toEqual(await runPython(`out({k:asdict(v) for k,v in tiny.dtype.dtypes.fields().items()})`))
+    expect(dt.INVERSE_DTYPES_DICT).toEqual(await runPython(`out(tiny.dtype.INVERSE_DTYPES_DICT)`))
 })
 
 Deno.test('dtypes.finfo', async () => {
-    expect(dtypes.finfo(dtypes.float)).toEqual(await tiny`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float))`)
-    expect(dtypes.finfo(dtypes.float16)).toEqual(await tiny`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float16))`)
-    expect(dtypes.finfo(dtypes.half)).toEqual(await tiny`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.half))`)
-    expect(dtypes.finfo(dtypes.float32)).toEqual(await tiny`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float32))`)
-    expect(dtypes.finfo(dtypes.float64)).toEqual(await tiny`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float64))`)
+    expect(dtypes.finfo(dtypes.float)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float))`))
+    expect(dtypes.finfo(dtypes.float16)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float16))`))
+    expect(dtypes.finfo(dtypes.half)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.half))`))
+    expect(dtypes.finfo(dtypes.float32)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float32))`))
+    expect(dtypes.finfo(dtypes.float64)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float64))`))
 
-    expect(trycatch(() => dtypes.finfo(dtypes.int16))).toEqual(await tiny`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.int16)))`)
-    expect(trycatch(() => dtypes.finfo(dtypes.imagef(2, 2)))).toEqual(`Invalid dtype ${await tiny`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.imagef((2,2)))))`} for finfo`)
+    expect(trycatch(() => dtypes.finfo(dtypes.int16))).toEqual(await runPython(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.int16)))`))
+    expect(trycatch(() => dtypes.finfo(dtypes.imagef(2, 2)))).toEqual(`Invalid dtype ${await runPython(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.imagef((2,2)))))`)} for finfo`)
 })
 Deno.test('dtypes.min/max', async () => {
     // Int
-    expect(dtypes.min(dtypes.int)).toEqual(await tiny`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.int))`)
-    expect(dtypes.max(dtypes.int)).toEqual(await tiny`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.int))`)
+    expect(dtypes.min(dtypes.int)).toEqual(await runPython(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.int))`))
+    expect(dtypes.max(dtypes.int)).toEqual(await runPython(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.int))`))
 
     // Uint
-    expect(dtypes.min(dtypes.uint)).toEqual(await tiny`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.uint))`)
-    expect(dtypes.max(dtypes.uint)).toEqual(await tiny`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.uint))`)
+    expect(dtypes.min(dtypes.uint)).toEqual(await runPython(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.uint))`))
+    expect(dtypes.max(dtypes.uint)).toEqual(await runPython(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.uint))`))
 
     // Float
     expect(dtypes.min(dtypes.float)).toEqual(-Infinity)
     expect(dtypes.max(dtypes.float)).toEqual(Infinity)
 
     // Bool
-    expect(dtypes.min(dtypes.bool)).toEqual(await tiny`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.bool))`)
-    expect(dtypes.max(dtypes.bool)).toEqual(await tiny`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.bool))`)
+    expect(dtypes.min(dtypes.bool)).toEqual(await runPython(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.bool))`))
+    expect(dtypes.max(dtypes.bool)).toEqual(await runPython(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.bool))`))
 })
 
 // TODO test dtypes.fromJS and asConst
