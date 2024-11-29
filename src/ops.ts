@@ -221,8 +221,7 @@ export class UOp extends MathTrait {
         for (const s of this.src) hash.update(s.key())
         return hash.digest()
     }
-    __repr__ = () => prettyPrint(this, (x) => `UOp(${x.op}, ${x.dtype}, arg=${x.argstr()}, src=(%s))`)
-    argstr = () => this.op === Ops.REDUCE_AXIS ? `(${this.arg.map((x: any) => x.toString()).join(', ')})` : this.arg
+    __repr__ = () => `UOp(${toPythonString(isNotNone(this.op) ? `Ops.${getEnumString(this.op)}` : null)}, ${toPythonString(this.dtype ? `${this.dtype}` : null)}, arg=${toPythonString(this.arg)})`
     parents = () => {
         const map = new Map<UOp, undefined>()
         for (const x of this.src) map.set(x, undefined)
@@ -323,6 +322,9 @@ export class UOp extends MathTrait {
         if (Array.isArray(b) && allSame(b)) b = b[0]
         return new UOp({ op: Array.isArray(b) ? Ops.VCONST : Ops.CONST, dtype, arg: isNotNone(dtype) ? dtypes.asConst(b, dtype) : b })
     }
+    static int = (b: number) => UOp.const(dtypes.int, b)
+    static boolean = (b: boolean) => UOp.const(dtypes.bool, b)
+    static float = (b: number) => UOp.const(dtypes.float, b)
     //   @staticmethod
     static range = (dtype: DType, start: ConstType<UOp>, end: ConstType<UOp>, idx: number) => {
         return new UOp({ op: Ops.RANGE, dtype: dtype, src: [!(start instanceof UOp) ? UOp.const(dtype, start) : start, !(end instanceof UOp) ? UOp.const(dtype, end) : end], arg: [idx, false] })

@@ -1,13 +1,12 @@
-import { equal } from 'assert'
 import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
 import { UPat } from '../src/ops.ts'
 import { UOp } from '../src/ops.ts'
 import { DType } from '../src/dtype.ts'
 import { isNotNone } from '../src/helpers.ts'
+import { expect } from 'expect'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
-
 
 export const asdict = (o: any): object => {
   if (!o) return o
@@ -53,7 +52,7 @@ export const deserialize = (data: string): any => {
   return de(obj)
 }
 
-export const runPython = async (code: string, data?: any) => {
+export const python = async (code: string, data?: any) => {
   code = `
 import tinygrad as tiny
 import math
@@ -89,7 +88,7 @@ def deserialize(data):
             if type == "UOp": return tiny.ops.UOp(get('op',True),get('dtype',True),get('src',True),get('arg',True)) 
             elif type == "DType": return tiny.dtype.DType(get('priority'),get("itemsize"),get('name'),get('fmt'),get("count"),get("_scalar"))
             return {key: de(value) for key, value in item.items()}
-        elif isinstance(item, list): return [de(element) for element in item]
+        elif isinstance(item, list): return tuple([de(element) for element in item])
         return item 
 
     return de(obj)
@@ -101,7 +100,7 @@ def out(o):
 ${code}
 `
   const file = `/tmp/tiny_${randomUUID()}.py`
-  console.log(file)
+  // console.log(file)
   await execAsync(`echo ${JSON.stringify(code.trim())} > ${file}`)
   const res = await execAsync(`PYTHONPATH=./tinygrad python ${file}`)
   try {
@@ -113,10 +112,14 @@ ${code}
   }
 }
 
-export const tinyTest = <T extends any[]>(name: string, inputs: T[], fn: (...args: T) => any, python: (...args: T) => Promise<string>) => {
-  Deno.test(name, async () => {
+export const test = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string) => {
+  return async (t: any) => {
     for (const input of inputs) {
-      equal(fn(...input), await python(...input))
+      await t.step(JSON.stringify(input).slice(0, 120), async () => {
+        const ts = fn(...input)
+        const py = await python(code, input)
+        expect(asdict(ts)).toEqual(asdict(py))
+      })
     }
-  })
+  }
 }

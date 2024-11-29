@@ -1,6 +1,6 @@
 import * as dt from '../src/dtype.ts'
 import { dtypes } from '../src/dtype.ts'
-import { asdict, runPython, trycatch } from './helpers.ts'
+import { asdict, python, trycatch } from './helpers.ts'
 import { expect } from 'expect'
 // TODO check if only created once
 
@@ -12,7 +12,7 @@ Deno.test('create DType', async () => {
     ]
     for (const args of inputs) {
         const dtype = new dt.DType(args)
-        const out = await runPython(
+        const out = await python(
             `
 dtype = tiny.dtype.DType(data["priority"],data["itemsize"],data["name"],data["fmt"],data["count"],data["_scalar"])
 out({
@@ -64,36 +64,36 @@ Deno.test('dtypes', async () => {
     ;[dtypes.int, dtypes.defaultInt, dtypes.uint, dtypes.uchar].forEach((int) => expect(dtypes.isInt(int)).toBe(true))
     ;[dtypes.float, dtypes.imagef(4, 4)].forEach((int) => expect(dtypes.isInt(int)).toBe(false))
 
-    expect(asdict(dtypes.fields())).toEqual(await runPython(`out({k:asdict(v) for k,v in tiny.dtype.dtypes.fields().items()})`))
-    expect(dt.INVERSE_DTYPES_DICT).toEqual(await runPython(`out(tiny.dtype.INVERSE_DTYPES_DICT)`))
+    expect(asdict(dtypes.fields())).toEqual(await python(`out({k:asdict(v) for k,v in tiny.dtype.dtypes.fields().items()})`))
+    expect(dt.INVERSE_DTYPES_DICT).toEqual(await python(`out(tiny.dtype.INVERSE_DTYPES_DICT)`))
 })
 
 Deno.test('dtypes.finfo', async () => {
-    expect(dtypes.finfo(dtypes.float)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float))`))
-    expect(dtypes.finfo(dtypes.float16)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float16))`))
-    expect(dtypes.finfo(dtypes.half)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.half))`))
-    expect(dtypes.finfo(dtypes.float32)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float32))`))
-    expect(dtypes.finfo(dtypes.float64)).toEqual(await runPython(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float64))`))
+    expect(dtypes.finfo(dtypes.float)).toEqual(await python(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float))`))
+    expect(dtypes.finfo(dtypes.float16)).toEqual(await python(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float16))`))
+    expect(dtypes.finfo(dtypes.half)).toEqual(await python(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.half))`))
+    expect(dtypes.finfo(dtypes.float32)).toEqual(await python(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float32))`))
+    expect(dtypes.finfo(dtypes.float64)).toEqual(await python(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float64))`))
 
-    expect(trycatch(() => dtypes.finfo(dtypes.int16))).toEqual(await runPython(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.int16)))`))
-    expect(trycatch(() => dtypes.finfo(dtypes.imagef(2, 2)))).toEqual(`Invalid dtype ${await runPython(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.imagef((2,2)))))`)} for finfo`)
+    expect(trycatch(() => dtypes.finfo(dtypes.int16))).toEqual(await python(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.int16)))`))
+    expect(trycatch(() => dtypes.finfo(dtypes.imagef(2, 2)))).toEqual(`Invalid dtype ${await python(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.imagef((2,2)))))`)} for finfo`)
 })
 Deno.test('dtypes.min/max', async () => {
     // Int
-    expect(dtypes.min(dtypes.int)).toEqual(await runPython(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.int))`))
-    expect(dtypes.max(dtypes.int)).toEqual(await runPython(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.int))`))
+    expect(dtypes.min(dtypes.int)).toEqual(await python(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.int))`))
+    expect(dtypes.max(dtypes.int)).toEqual(await python(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.int))`))
 
     // Uint
-    expect(dtypes.min(dtypes.uint)).toEqual(await runPython(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.uint))`))
-    expect(dtypes.max(dtypes.uint)).toEqual(await runPython(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.uint))`))
+    expect(dtypes.min(dtypes.uint)).toEqual(await python(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.uint))`))
+    expect(dtypes.max(dtypes.uint)).toEqual(await python(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.uint))`))
 
     // Float
     expect(dtypes.min(dtypes.float)).toEqual(-Infinity)
     expect(dtypes.max(dtypes.float)).toEqual(Infinity)
 
     // Bool
-    expect(dtypes.min(dtypes.bool)).toEqual(await runPython(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.bool))`))
-    expect(dtypes.max(dtypes.bool)).toEqual(await runPython(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.bool))`))
+    expect(dtypes.min(dtypes.bool)).toEqual(await python(`out(tiny.dtype.dtypes.min(tiny.dtype.dtypes.bool))`))
+    expect(dtypes.max(dtypes.bool)).toEqual(await python(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.bool))`))
 })
 
 // TODO test dtypes.fromJS and asConst
@@ -102,7 +102,7 @@ Deno.test.ignore('_getRecursiveParents', async (t) => {
     const inputs = ['float64', 'float32', 'float16', 'half', 'bool', 'int', 'uint'] as const
     for (const input of inputs) {
         await t.step(input, async () => {
-            const res = await runPython(`out([asdict(v) for v in tiny.dtype._get_recursive_parents(tiny.dtype.dtypes.${input}) ])`)
+            const res = await python(`out([asdict(v) for v in tiny.dtype._get_recursive_parents(tiny.dtype.dtypes.${input}) ])`)
             const res2 = dt._getRecursiveParents(dtypes[input])
             expect(asdict(res2)).toEqual(res)
         })
@@ -119,7 +119,7 @@ Deno.test.ignore('leastUpper', async (t) => {
     ] as const
     for (const input of inputs) {
         await t.step(input.toString(), async () => {
-            const res = await runPython(`out(asdict(tiny.dtype.least_upper_dtype(${input.map((x) => `tiny.dtype.dtypes.${x}`)})))`)
+            const res = await python(`out(asdict(tiny.dtype.least_upper_dtype(${input.map((x) => `tiny.dtype.dtypes.${x}`)})))`)
             expect(asdict(dt.leastUpperDType(...input.map((i) => dtypes[i])))).toEqual(res)
         })
     }
@@ -128,7 +128,7 @@ Deno.test.ignore('sumAccDType', async (t) => {
     const inputs = ['float64', 'float32', 'half', 'bool', 'int', 'uint'] as const
     for (const input of inputs) {
         await t.step(input.toString(), async () => {
-            const res = await runPython(`out(asdict(tiny.dtype.least_upper_dtype(tiny.dtype.dtypes.${input})))`)
+            const res = await python(`out(asdict(tiny.dtype.least_upper_dtype(tiny.dtype.dtypes.${input})))`)
             expect(asdict(dt.sumAccDType(dtypes[input]))).toEqual(res)
         })
     }
@@ -136,7 +136,7 @@ Deno.test.ignore('sumAccDType', async (t) => {
 Deno.test('truncate', async (t) => {
     const truncate = async (dtype: string, val1: any, val2: any) => {
         await t.step(dtype, async () => {
-            expect(dt.truncate(dtypes[dtype as keyof dtypes])(val1)).toEqual(await runPython(`out(tiny.dtype.truncate[tiny.dtype.dtypes.${dtype}](${val2}))`))
+            expect(dt.truncate(dtypes[dtype as keyof dtypes])(val1)).toEqual(await python(`out(tiny.dtype.truncate[tiny.dtype.dtypes.${dtype}](${val2}))`))
         })
     }
     await truncate('bool', true, 'True')

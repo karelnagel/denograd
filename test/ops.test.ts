@@ -1,11 +1,11 @@
 import { expect } from 'expect/expect'
 import { _substitute, spec, symbolicFlat } from '../src/ops.ts'
-import { runPython } from './helpers.ts'
+import { python } from './helpers.ts'
 import { renderer } from '../src/ops.ts'
 import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
 
 Deno.test('spec', async (t) => {
-    const patterns = await runPython(`out([str(pattern[0]) for pattern in tiny.ops.spec.patterns])`)
+    const patterns = await python(`out([str(pattern[0]) for pattern in tiny.ops.spec.patterns])`)
 
     expect(spec.patterns.length).toBe(patterns.length)
     for (const [i, pattern] of patterns.entries()) {
@@ -16,7 +16,7 @@ Deno.test('spec', async (t) => {
 // symbolicSimple+symbolic+symbolicfalt
 // They are mostly correct, but dtypes and op sorting is wrong and python version has x1:= variables in it
 Deno.test('symbolicFlat', async (t) => {
-    const patterns = await runPython(`out([str(pattern[0]) for pattern in tiny.ops.symbolic_flat.patterns])`)
+    const patterns = await python(`out([str(pattern[0]) for pattern in tiny.ops.symbolic_flat.patterns])`)
 
     expect(symbolicFlat.patterns.length).toBe(patterns.length)
     for (const [i, pattern] of patterns.entries()) {
@@ -29,7 +29,7 @@ Deno.test('symbolicFlat', async (t) => {
 })
 
 Deno.test('renderer', async (t) => {
-    const patterns = await runPython(`out([str(pattern[0]) for pattern in tiny.ops.renderer.patterns])`)
+    const patterns = await python(`out([str(pattern[0]) for pattern in tiny.ops.renderer.patterns])`)
 
     expect(renderer.patterns.length).toBe(patterns.length)
     for (const [i, pattern] of patterns.entries()) {
@@ -37,7 +37,7 @@ Deno.test('renderer', async (t) => {
     }
 })
 Deno.test('_substitute', async (t) => {
-    const patterns = await runPython(`out([str(pattern[0]) for pattern in tiny.ops._substitute.patterns])`)
+    const patterns = await python(`out([str(pattern[0]) for pattern in tiny.ops._substitute.patterns])`)
 
     expect(_substitute.patterns.length).toBe(patterns.length)
     for (const [i, pattern] of patterns.entries()) {
@@ -46,7 +46,7 @@ Deno.test('_substitute', async (t) => {
 })
 
 Deno.test('baseRewrite', async (t) => {
-    const patterns = await runPython(`from tinygrad.renderer import cstyle\nout([str(pattern[0]) for pattern in cstyle.base_rewrite.patterns])`)
+    const patterns = await python(`from tinygrad.renderer import cstyle\nout([str(pattern[0]) for pattern in cstyle.base_rewrite.patterns])`)
 
     expect(baseRewrite.patterns.length).toBe(patterns.length)
     for (const [i, pattern] of patterns.entries()) {
@@ -59,7 +59,7 @@ Deno.test('baseRewrite', async (t) => {
 })
 
 Deno.test('extraPm', async (t) => {
-    const patterns = await runPython(`from tinygrad.renderer import cstyle\nout([str(pattern[0]) for pattern in cstyle.extra_pm.patterns])`)
+    const patterns = await python(`from tinygrad.renderer import cstyle\nout([str(pattern[0]) for pattern in cstyle.extra_pm.patterns])`)
 
     expect(extraPm.patterns.length).toBe(patterns.length)
     for (const [i, pattern] of patterns.entries()) {

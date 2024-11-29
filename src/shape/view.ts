@@ -6,78 +6,81 @@
 // from tinygrad.ops import resolve, UOp, Variable, sint, sym_infer, smax, smin, sint_to_uop
 // from tinygrad.helpers import prod, all_int, argsort, flatten, ceildiv
 
-import type { sint } from '../ops.ts'
+import { assert, isNone, isNotNone, range } from '../helpers.ts'
+import { UOp } from '../ops.ts'
 
-export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
-    return shape.map((s, i) => ({ s, st: strides[i] })).map(({ s, st }) => s === 1 ? 0 : st)
+export const canonicalize_strides = (shape: UOp[], strides: UOp[]): UOp[] => {
+    return shape.map((s, i) => ({ s, st: strides[i] })).map(({ s, st }) => s.eq(s.constLike(1)).arg ? s.constLike(0) : st)
+}
+
+export const strides_for_shape = (shape: UOp[]): UOp[] => {
+    if (!shape?.length) return []
+    const strides = shape.slice(1).reverse().reduce((acc, curr) => [...acc, acc.at(-1)!.mul(curr)], [UOp.int(1)])
+    return canonicalize_strides(shape, [...strides].reverse())
 }
 
 // @functools.lru_cache(maxsize=None)
-// const strides_for_shape=(shape?:sint[]):sint[]=>{
-    
-//  if(!shape): return ()
-//   strides = tuple(itertools.accumulate(reversed(shape[1:]), operator.mul, initial=1))[::-1]
-//   return canonicalize_strides(shape, strides)
-// }
+export const _merge_dims = (shape: number[], strides: number[], mask?: [number, number][]): [number, number, number][] => {
+    // merge contiguous sub-parts or zero strided dims. ret = Tuple[(merged_size, stride, merged size w/o zero stride), ...]
+    if (!shape.length) return []
+    assert(shape.length === strides.length && (isNone(mask) || shape.length === mask?.length))
+    const ret: [number, number, number][] = [[shape[0], strides[0], strides[0] !== 0 ? shape[0] : 0]]
+    // merge this dim to next dim if size is 1
+    let merging = isNotNone(mask) ? (mask[0][1] - mask[0][0] === 1) : shape[0] === 1
+    for (let i = 1; i < shape.length; i++) {
+        const s = shape[i], st = strides[i]
+        const [last_s, last_st, last_pre_expand_s] = ret.at(-1)!
+        // always merge 1
+        if (s === 1) continue
+        // merge last dim with this dim if merging or strides matched
+        if (merging || last_st === s * st) ret[ret.length - 1] = [last_s * s, st, st != 0 ? (merging ? s : last_pre_expand_s * s) : 0]
+        else ret.push([s, st, st != 0 ? s : 0])
+        // merge this dim to next dim if size is 1
+        merging = isNotNone(mask) ? (mask[i][1] - mask[i][0] === 1) : s === 1
+    }
+    return ret
+}
+const iterator = <T>(items: T[], def: T) => {
+    const it = items[Symbol.iterator]()
+    return { ...it, next: () => it.next().value || def }
+}
+/**Returns the new mask if reshape is possible, and None if not possible.*/
+export const _reshape_mask = (_mask: undefined | [UOp, UOp][], old_shape: UOp[], new_shape: UOp[]): [UOp, UOp][] | undefined => {
+    if (isNone(_mask)) return new_shape.map((s) => [UOp.int(0), s])
+    //   if any(not isinstance(m[0], int) or not isinstance(m[1], int) for m in _mask): return None
+    if (_mask.some((m) => m[1].sub(m[0]).lt(UOp.int(1)).arg)) return range(new_shape.length).map((x) => [UOp.int(0), UOp.int(0)]) //zero mask
 
-// @functools.lru_cache(maxsize=None)
-// def _merge_dims(shape:Tuple[int, ...], strides:Tuple[int, ...], mask:Optional[Tuple[Tuple[int, int], ...]]=None) -> Tuple[Tuple[int, int, int], ...]:
-//   # merge contiguous sub-parts or zero strided dims. ret = Tuple[(merged_size, stride, merged size w/o zero stride), ...]
-//   if not shape: return ()
-//   assert len(shape) == len(strides) and (mask is None or len(shape) == len(mask))
-//   ret = [(shape[0], strides[0], shape[0] if strides[0] != 0 else 0)]
-//   # merge this dim to next dim if size is 1
-//   merging = (mask[0][1] - mask[0][0] == 1) if mask is not None else shape[0] == 1
-//   for i, (s, st) in enumerate(zip(shape[1:], strides[1:]), start=1):
-//     last_s, last_st, last_pre_expand_s = ret[-1]
-//     # always merge 1
-//     if s == 1: continue
-//     # merge last dim with this dim if merging or strides matched
-//     if merging or last_st == s * st: ret[-1] = (last_s * s, st, (s if merging else last_pre_expand_s * s) if st != 0 else 0)
-//     else: ret.append((s, st, s if st != 0 else 0))
-//     # merge this dim to next dim if size is 1
-//     merging = (mask[i][1] - mask[i][0] == 1) if mask is not None else s == 1
-//   return tuple(ret)
+    const new_mask: [UOp, UOp][] = []
+    // _mask is all int here
+    const [r_masks, r_shape, r_new_shape] = [iterator(_mask.toReversed(), [UOp.int(0), UOp.int(1)]), iterator(old_shape.toReversed(), UOp.int(1)), iterator(new_shape.toReversed(), UOp.int(1))]
+    let [curr_stride, old_dim, new_dim, mask] = [UOp.int(1), r_shape.next(), r_new_shape.next(), r_masks.next()]
 
-// @functools.lru_cache(maxsize=None)
-// def _reshape_mask(_mask:Optional[Tuple[Tuple[sint, sint], ...]], old_shape:Tuple[sint, ...], new_shape:Tuple[sint, ...]) \
-//   -> Optional[Tuple[Tuple[sint, sint], ...]]:
-//   """Returns the new mask if reshape is possible, and None if not possible."""
-//   if _mask is None: return tuple((0, s) for s in new_shape)
-//   if any(not isinstance(m[0], int) or not isinstance(m[1], int) for m in _mask): return None
-//   if any(m[1] - m[0] < 1 for m in _mask): return ((0, 0),) * len(new_shape)  # zero mask
+    while (new_mask.length < new_shape.length) {
+        const [[l, r], next_stride] = [mask, new_dim.mul(curr_stride)]
+        console.log(new_dim.__repr__())
+        if (old_dim.ge(next_stride)) { // need to split mask.
+            if (old_dim === next_stride) { // simply copy the mask and get next batch for merging
+                new_mask.push([l.idiv(curr_stride), (r.sub(1)).idiv(curr_stride).add(1)])
+                ;[curr_stride, old_dim, new_dim, mask] = [UOp.int(1), r_shape.next(), r_new_shape.next(), r_masks.next()]
+            } else { // mask can only be splitted if reshape doesn't cut across the mask.
+                if (((l.mod(next_stride).ne(0) || r.mod(next_stride).ne(0)) && l.idiv(next_stride).ne(r.sub(1)).idiv(next_stride)) || old_dim.mod(next_stride).ne(0)) return undefined
+                new_mask.push([l.mod(next_stride).idiv(curr_stride), (r.sub(1)).mod(next_stride).idiv(curr_stride.add(1))])
+                ;[curr_stride, new_dim] = [next_stride, r_new_shape.next()] // need to get mask for next dimension
+            }
+        } else {
+            const next_mask = r_masks.next()
+            // combine if the mask can unfold continuously
+            if ((mask[0].arg !== 0 || mask[1].arg !== old_dim) && next_mask[1].sub(next_mask[0]).ne(1).arg) return undefined
+            ;[mask, old_dim] = [[next_mask[0].mul(old_dim).add(l), (next_mask[1].sub(1)).mul(old_dim).add(r)], old_dim.mul(r_shape.next())]
+        }
+    }
+    for (const mask of r_masks) { // if the old shape has leading 1s, need to make sure their mask is (0,1)
+        if (mask[0].arg !== 0 || mask[1].arg !== 1) return range(new_shape.length).map((x) => [UOp.int(0), UOp.int(0)]) // invalid mask
+    }
 
-//   new_mask: List[Tuple[int, int]] = []
-//   # _mask is all int here
-//   r_masks, r_shape, r_new_shape = reversed(cast(Tuple[Tuple[int, int], ...], _mask)), reversed(old_shape), reversed(new_shape)
-//   curr_stride, old_dim, new_dim, mask = 1, next(r_shape, 1), next(r_new_shape, 1), next(r_masks, (0,1))
-
-//   while len(new_mask) < len(new_shape):
-//     (l, r), next_stride = mask, new_dim * curr_stride
-
-//     if old_dim >= next_stride: # need to split mask.
-//       if old_dim == next_stride: # simply copy the mask and get next batch for merging
-//         new_mask.append((l // curr_stride, (r - 1) // curr_stride + 1))
-//         curr_stride, old_dim, new_dim, mask = 1, next(r_shape, 1), next(r_new_shape, 1), next(r_masks, (0,1))
-
-//       else: # mask can only be splitted if reshape doesn't cut across the mask.
-//         if (((l % next_stride != 0 or r % next_stride != 0) and l // next_stride != (r - 1) // next_stride)
-//             or old_dim % next_stride != 0): return None
-//         new_mask.append((l % next_stride // curr_stride, (r - 1) % next_stride // curr_stride + 1))
-//         curr_stride, new_dim = next_stride,  next(r_new_shape, 1) # need to get mask for next dimension
-
-//     else:
-//       next_mask = next(r_masks, (0, 1))
-//       # combine if the mask can unfold continuously
-//       if mask != (0, old_dim) and next_mask[1] - next_mask[0] != 1: return None
-//       mask, old_dim = (next_mask[0] * old_dim + l, (next_mask[1] - 1) * old_dim + r), old_dim * next(r_shape, 1)
-
-//   for mask in r_masks: # if the old shape has leading 1s, need to make sure their mask is (0,1)
-//     if mask != (0, 1): return ((0, 0),) * len(new_shape) # invalid mask
-
-//   return tuple(reversed(new_mask))
-
-// def un1d(shape:Tuple[sint, ...], offs:sint) -> List[sint]:
+    return new_mask.toReversed()
+}
+// const un1d=(shape:UOp., offs:sint) -> List[sint]:
 //   result = []
 //   for stride in strides_for_shape(shape):
 //     here = offs // stride if stride != 0 else 0
