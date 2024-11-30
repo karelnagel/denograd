@@ -585,8 +585,11 @@ export class UPat extends MathTrait {
         this.customEarlyReject = customEarlyReject
         assert(this.name !== 'ctx', "UPat can't be named ctx")
 
+        // TODO check if this is ok
         // try all permutations if it's a list
-        if (Array.isArray(src)) this.src = !allSame(src) ? permutations(src) : [src]
+        // if isinstance(src, list): self.src = list(itertools.permutations(src)) if not all_same(src) else [src]
+
+        if (Array.isArray(src)) this.src = [src]
         // repeat if it's a UPat
         else if (src instanceof UPat) this.src = [[src]]
 
@@ -619,7 +622,7 @@ export class UPat extends MathTrait {
     assign = (x: UPat) => new UPat({ op: Ops.ASSIGN, dtype: this.dtype, src: [this, x] })
 
     override constLike = (b: ConstLike): typeof this => UPat.const(this.dtype, b) as typeof this
-    override alu = (op: Ops, ...src: this[]) => {
+    override alu = (op: Ops, ...src: UPat[]) => {
         const asrc = [this, ...src]
         return new UPat({ op, dtype: [Ops.CMPLT, Ops.CMPNE].includes(op) ? undefined : asrc.at(-1)?.dtype, src: GroupOp.Commutative.includes(op) ? asrc : asrc }) as typeof this
     }
@@ -652,10 +655,9 @@ export class UPat extends MathTrait {
             (this.allowedLen !== -1 && uop.src.length !== this.allowedLen)
         ) return []
         if (isNone(this.src)) return [store]
-        console.log('sdfsdfsdfsdfsdfHEHEHEHEHEH')
         let res: Map<string, UOp>[] = []
         for (const vp of this.src) {
-            let stores= [new Map(store)]
+            let stores = [new Map(store)]
             for (const [uu, vv] of zip(uop.src, vp)) {
                 stores = stores.reduce((newStores, s) => [...newStores, ...vv.match(uu, s)], [] as Map<string, UOp>[])
             }
@@ -669,7 +671,7 @@ export class UPatAny extends UPat {
     override match = (uop: UOp, store: Map<string, UOp>) => {
         let ret: Map<string, UOp>[] = []
         for (const x of this.src?.[0] || []) {
-            const match = x.match(uop, { ...store })
+            const match = x.match(uop, new Map(store))
             if (match) ret = [...ret, ...match]
         }
         return ret

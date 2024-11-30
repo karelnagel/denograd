@@ -44,7 +44,6 @@ export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
     const remaining = arr.slice(0, i).concat(arr.slice(i + 1))
     permutations(remaining, length - 1).forEach((perm) => result.push([item, ...perm]))
   })
-
   return result
 }
 export const resolvePromise = <T>(promise: Promise<T>): T => {

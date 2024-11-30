@@ -11,6 +11,7 @@ Deno.test(
             [Ops.ASSIGN],
             [new UOp({ op: Ops.BARRIER, dtype: dtypes.float, arg: 5445 })],
             [new UPat({ op: Ops.ASSIGN, dtype: dtypes.floats, arg: 555, name: 'sdf' })],
+            [new UPat({ op: Ops.IF, name: 'conditional_op', dtype: dtypes.bool, src: [new UPat({ op: Ops.CMPLT, name: 'cmp_op', dtype: dtypes.bool }), new UPat({ name: 'true_case' }), new UPat({ name: 'false_case' })] })],
             [new UPat({ op: Ops.ASSIGN })],
             [dtypes.floats],
             [dtypes.defaultFloat],
