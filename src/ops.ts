@@ -247,7 +247,6 @@ export class UOp extends MathTrait {
     //   # *** uop evaluation ***
 
     simplify = (): UOp => {
-        // TODO: with Context(TRACK_MATCH_STATS=0):
         return graphRewrite(this, symbolic)
     }
     ssimplify = (): UOp => {
@@ -266,7 +265,6 @@ export class UOp extends MathTrait {
     __int__ = () => this._eval(dtypes.ints, Number)
     __float__ = () => this._eval(dtypes.floats, Number)
     substitute = (dvars: Map<UOp, UOp>) => {
-        // TODO:  with Context(TRACK_MATCH_STATS=0):
         return graphRewrite(this, _substitute, dvars)
     }
 
@@ -726,8 +724,6 @@ export class PatternMatcher<T = any> {
 }
 // # *** tracking pattern matcher ***
 
-// const TRACK_MATCH_STATS = ContextVar("TRACK_MATCH_STATS", 2 if getenv("VIZ") else 0)
-const TRACK_MATCH_STATS = 2
 const matchStats = new Map<UPat, number[]>()
 const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
     const newVal = fn(map.get(key)!)
@@ -752,15 +748,10 @@ const _rewriteCnt: Record<string, number> = {}
 const trackRewrites = (named = false) => {
     const _decorator = (func: (...args: any[]) => void) => {
         const __wrapper = (...args: any[]) => {
-            if (TRACK_MATCH_STATS >= 2) {
-                if (named) _rewriteCnt[func.name] = (_rewriteCnt[func.name] || 0) + 1
-                rewriteStack.push([named ? `{(n:=func.__name__)}_{_rewrite_cnt[n]}` : this, []])
-            }
             let ret
             try {
                 ret = func(...args)
             } finally { // NOTE: save everything in the stack
-                if (TRACK_MATCH_STATS >= 2) contexts.push(rewriteStack.pop()!)
             }
             return ret
         }
@@ -768,62 +759,6 @@ const trackRewrites = (named = false) => {
     }
     return _decorator
 }
-
-export class TrackedPatternMatcher<T> extends PatternMatcher<T> {
-    constructor(patterns: Pattern<T>[]) {
-        super(patterns)
-        for (const [p] of this.patterns) {
-            if (!matchStats.has(p)) matchStats.set(p, [0, 0, 0.0, 0.0])
-        }
-    }
-    override rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
-        const ret = undefined
-        const ler = uop.src.map((u) => u.op)
-        for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op)!) {
-            const st = performance.now()
-            if (!isSubset(earlyReject, new Set(ler))) {
-                setMap(matchStats, p, (o) => [o[0], o[1], o[2] + (performance.now() - st), o[3]])
-                continue
-            }
-            const old = matchStats.get(p)!
-            matchStats.set(p, [old[0], old[1] + 1, old[3], old[4]])
-            for (const match of p.match(uop, {})) {
-                const ret: any = hasCtx ? fxn({ ctx, ...match }) : fxn(match)
-                if (isNotNone(ret)) {
-                    const et = performance.now() - st
-                    setMap(matchStats, p, (o) => [o[0] + 1, o[1], o[2], o[3] + et])
-                    if (TRACK_MATCH_STATS >= 3) console.log(`${(et * 1e6).toFixed(2)} us -- `, p.printable())
-                    if (TRACK_MATCH_STATS >= 2 && rewriteStack.length !== 0 && ret instanceof UOp) rewriteStack.at(-1)?.at(1).at(-1).matches.append([uop, ret, p, et])
-                    return ret // NOTE: if it returns None, we keep trying to match
-                }
-            }
-            setMap(matchStats, p, (o) => [o[0], o[1], o[2] + performance.now() - st, o[3]])
-        }
-        if (TRACK_MATCH_STATS >= 2 && rewriteStack.length !== 0) rewriteStack.at(-1)!.at(1).at(-1).matches.append([uop, ret, undefined, 0])
-        return undefined
-    }
-}
-
-// TODO: later
-// if TRACK_MATCH_STATS:
-//   PatternMatcher = TrackedPatternMatcher  # type: ignore
-//   import atexit
-//   @atexit.register
-//   def print_match_stats():
-//     if TRACK_MATCH_STATS >= 2:
-//       with open(fn:=temp("rewrites.pkl"), "wb") as f:
-//         print(f"rewrote {len(contexts)} graphs and matched {sum(len(r.matches) for _,x in contexts for r in x)} times, saved to {fn}")
-//         pickle.dump(contexts, f)
-//     if getenv("VIZ"):
-//       os.environ["VIZ"] = "0"
-//       os.execv(sys.executable, [sys.executable] + [os.path.join(os.path.dirname(__file__), ".", "viz", "serve.py"), temp("rewrites.pkl")])
-//     if getenv("PRINT_MATCH_STATS", 1):
-//       ret = [0,0,0.0,0.0]
-//       for k,v in sorted(list(match_stats.items()), key=lambda x: x[1][2]+x[1][3]):
-//         loc_str = f"{k.location[0].split('/')[-1]}:{k.location[1]}"
-//         if v[1] !== 0: print(f"{v[0]:6d} / {v[1]:7d} -- {v[3]*1000.:9.2f} / {(v[2]+v[3])*1000.:9.2f} ms -- {loc_str:15s}", k.printable())
-//         ret = [x+y for x,y in zip(ret, v)]
-//       print(f"{ret[0]:6d} / {ret[1]:7d} -- {ret[3]*1000.:9.2f} / {(ret[2]+ret[3])*1000.:9.2f} ms -- TOTAL")
 
 // # *** simple graph rewrite engine ***
 
@@ -846,11 +781,6 @@ export class RewriteContext {
     }
 }
 const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>): UOp => {
-    if (TRACK_MATCH_STATS >= 2 && rewriteStack.length !== 0) {
-        // TODO fix this
-        const frm = { fCode: { coFilename: 'idk.ts' }, fLineno: 2 }
-        rewriteStack.at(-1)?.at(1).push(new TrackedRewriteContext([frm.fCode.coFilename, frm.fLineno], sink))
-    }
     return new RewriteContext(pm, ctx).rewrite(sink)
 }
 // # ***** uop type spec *****
