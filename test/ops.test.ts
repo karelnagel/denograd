@@ -1,6 +1,6 @@
 import { expect } from 'expect/expect'
-import { _substitute, canPad, Ops, resolve, spec, symbolicFlat, UOp } from '../src/ops.ts'
-import { python, test, tryCatch } from './helpers.ts'
+import { _substitute, canPad, Ops, resolve, spec, symbolicFlat, UOp, type UPat } from '../src/ops.ts'
+import { asdict, python, removeKeys, test, tryCatch } from './helpers.ts'
 import { renderer } from '../src/ops.ts'
 import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
 import { range } from '../src/helpers.ts'
@@ -65,6 +65,30 @@ Deno.test(
         'out(data[0].simplify())',
     ),
 )
+
+Deno.test('pdict.symbolic_flat', async () => {
+    const res = await python<Record<number, [UPat, undefined, Ops[], boolean][]>>(`out(tiny.ops.symbolic_flat.pdict)`)
+    for (const key in res) {
+        for (const [i, py] of res[key].entries()) {
+            const ts = symbolicFlat.pdict.get(Number(key))![i]
+            expect(asdict(removeKeys(ts[0], ['location', 'op']))).toEqual(asdict(removeKeys(py[0], ['location', 'op'])))
+            expect([...ts[2]].toSorted()).toEqual(py[2].toSorted())
+            expect(ts[3]).toEqual(py[3])
+        }
+    }
+})
+Deno.test('pdict.baseRewrite', async () => {
+    const res = await python<Record<number, [UPat, undefined, Ops[], boolean][]>>(`from tinygrad.renderer import cstyle\nout(cstyle.base_rewrite.pdict)`)
+    for (const key in res) {
+        for (const [i, py] of res[key].entries()) {
+            const ts = baseRewrite.pdict.get(Number(key))![i]
+            expect(asdict(removeKeys(ts[0], ['location', 'op']))).toEqual(asdict(removeKeys(py[0], ['location', 'op'])))
+            expect([...ts[2]].toSorted()).toEqual(py[2].toSorted())
+            expect(ts[3]).toEqual(py[3])
+        }
+    }
+})
+
 Deno.test(
     'spec',
     test(

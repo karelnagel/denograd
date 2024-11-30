@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range, setMap } from './helpers.ts'
+import { allSame, assert, isNone, isNotNone, mathGcd, partition, permutations, prod, raise, range, setMap } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from '../test/helpers.ts'
@@ -246,9 +246,7 @@ export class UOp extends MathTrait {
 
     //   # *** uop evaluation ***
 
-    simplify = (): UOp => {
-        return graphRewrite(this, symbolic)
-    }
+    simplify = (): UOp => graphRewrite(this, symbolic)
     ssimplify = (): UOp => {
         const ret = this.simplify()
         return ret.op === Ops.CONST ? ret.arg : ret
@@ -681,32 +679,20 @@ export class UPatAny extends UPat {
     }
 }
 
-const deconstructFunction = (fxn: () => void): string[] => {
-    //   const newGlobals = {k:v for k,v in fxn.__globals__.items() if k in fxn.__code__.co_names}
-    //   for co in fxn.__code__.co_consts:
-    //     if isinstance(co, types.CodeType): new_globals.update({k:v for k,v in fxn.__globals__.items() if k in co.co_names})
-    //   # NOTE: optional round trip through pickle!
-    //   assert fxn.__closure__ is None, "closures are not supported in pattern matchers"
-    //   ret = fxn.__code__, new_globals, fxn.__name__, fxn.__defaults__
-    //   return ret
-    return []
-}
 type Pattern<Args extends any[]> = [UPat, (...args: Args) => any]
 export class PatternMatcher<Args extends any[] = UOp[]> {
     patterns: Pattern<Args>[]
-    pdict = new Map<Ops, ([UPat, (...args: Args) => any, Set<any>, boolean][])>()
+    pdict = new Map<Ops, ([UPat, (...args: Args) => any, Set<Ops>, boolean][])>()
     constructor(patterns: Pattern<Args>[]) {
         this.patterns = patterns
-        // NOTE: use of DefaultDict here is very dangerous! all keys will live for the lifetime of the PatternMatcher!
-        // for (const [p,fxn] of self.patterns){
-        //   if (isNotNone(p.op)) throw new Error("assert")
-        //   const tuple_fxn = Array.isArray(fxn) ? fxn : deconstructFunction(fxn)
-        //   const real_fxn = types.FunctionType(...tuple_fxn)
-        //   for (const uop in p.op) self.pdict.setdefault(uop, []).append((p, real_fxn, p.early_reject, 'ctx' in inspect.signature(real_fxn).parameters))
-        // }
+        for (const [p, fxn] of this.patterns) {
+            assert(isNotNone(p.op))
+            for (const uop of p.op || []) {
+                const old = this.pdict.get(uop) || []
+                this.pdict.set(uop, [...old, [p, fxn, new Set(p.earlyReject), fxn.toString().includes('ctx')]])
+            }
+        }
     }
-
-    // __reduce__ = () => this.patterns.map(([x, fxn]) => [x, fxn.__name__ === '<lambda>' ? deconstructFunction(fxn) : fxn])
 
     __add__ = (more: PatternMatcher<Args>) => new PatternMatcher<Args>([...this.patterns, ...more.patterns])
 

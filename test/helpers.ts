@@ -47,10 +47,13 @@ export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return)
 }
 
 export const deserialize = (data: string): any => {
+  data = data.replaceAll('Infinity', '696969696')
   const obj = JSON.parse(data)
 
   const de = (i: any): any => {
     if (i === null) return undefined
+    if (i === 696969696) return Infinity
+    if (i === -696969696) return -Infinity
     if (!i || typeof i !== 'object') return i
     if (Array.isArray(i)) return i.map(de)
 
@@ -64,7 +67,7 @@ export const deserialize = (data: string): any => {
   return de(obj)
 }
 
-export const python = async (code: string, data?: any) => {
+export const python = async <T = any>(code: string, data?: any): Promise<T> => {
   code = `
 import tinygrad as tiny
 import math
@@ -83,6 +86,8 @@ def serialize(data):
           if isinstance(o, tiny.ops.UOp): return {"__type": "UOp",'op': o.op, "dtype": o.dtype,"src":o.src,"arg":o.arg} 
           if isinstance(o, tiny.ops.DType): return {"__type": "DType", "priority": o.priority,"itemsize":o.itemsize,"name":o.name,"fmt":o.fmt,"count":o.count,"_scalar":o._scalar}
           if isinstance(o, itertools.repeat): return CustomEncoder.default(o)
+          if callable(o): return None
+          if isinstance(o, set): return list(o)
           return super().default(o)
     return json.dumps(data, cls=CustomEncoder)
 
@@ -100,7 +105,7 @@ ${code}
     const json = res.split('<<<<<')[1]?.split('>>>>>')[0].trim()
     return deserialize(json)
   } catch (e) {
-    if (e instanceof SyntaxError) throw new Error(`Parsing "${res.trim()}" failed.`)
+    if (e instanceof SyntaxError) throw new Error(`Parsing "${res.trim()}" failed: ${e}`)
     throw e
   }
 }
@@ -115,4 +120,12 @@ export const test = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code
       })
     }
   }
+}
+
+export const removeKeys = (obj: any, keys: string[]): any => {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map((x) => removeKeys(x, keys))
+  const ret = { ...obj }
+  for (const key of keys) delete ret[key]
+  return Object.fromEntries(Object.entries(ret).map(([k, v]) => [k, removeKeys(v, keys)]))
 }
