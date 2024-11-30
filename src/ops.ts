@@ -4,7 +4,6 @@ import { allSame, assert, isNone, isNotNone, isSubset, mathGcd, partition, permu
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from '../test/helpers.ts'
-import path from 'node:path'
 
 export type sint = number | UOp
 export type Variable = UOp
@@ -135,10 +134,7 @@ export class GroupOp {
 // # https://en.wikipedia.org/wiki/Identity_element
 // const identityElement=(op:Ops, dt:DType) =>  dtypes.asConst({Ops.ADD:0, Ops.MUL:1, Ops.MAX:dtypes.min(dt)}[op], dt)
 
-export const canPad = (u: UOp) => {
-    for (const x of u.sparents().keys()) if (GroupOp.UnsafePad.includes(x.op)) return true
-    return false
-}
+export const canPad = (u: UOp) => ![...u.sparents().keys()].some((x) => GroupOp.UnsafePad.includes(x.op))
 
 export const END_FOR_UOP = new Map([[Ops.IF, [Ops.STORE, Ops.ENDIF]], [Ops.RANGE, [Ops.ASSIGN, Ops.ENDRANGE]]])
 
@@ -853,7 +849,7 @@ const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>): UOp =
     if (TRACK_MATCH_STATS >= 2 && rewriteStack.length !== 0) {
         // TODO fix this
         const frm = { fCode: { coFilename: 'idk.ts' }, fLineno: 2 }
-        rewriteStack.at(-1)?.at(1).append(new TrackedRewriteContext([frm.fCode.coFilename, frm.fLineno], sink))
+        rewriteStack.at(-1)?.at(1).push(new TrackedRewriteContext([frm.fCode.coFilename, frm.fLineno], sink))
     }
     return new RewriteContext(pm, ctx).rewrite(sink)
 }

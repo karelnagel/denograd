@@ -1,6 +1,6 @@
 import * as dt from '../src/dtype.ts'
 import { dtypes } from '../src/dtype.ts'
-import { asdict, python, trycatch } from './helpers.ts'
+import { asdict, python, tryCatch } from './helpers.ts'
 import { expect } from 'expect'
 // TODO check if only created once
 
@@ -39,17 +39,17 @@ out({
         // expect(dtype.reduce()[1]).toEqual(out.reduce)
         expect(dtype.vcount).toEqual(out.vcount)
         expect(asdict(dtype.base)).toEqual(out.base)
-        expect(trycatch(() => asdict(dtype.vec(1)))).toEqual(out.vec1)
-        expect(trycatch(() => asdict(dtype.vec(2)))).toEqual(out.vec2)
-        expect(trycatch(() => asdict(dtype.vec(11)))).toEqual(out.vec11)
+        expect(asdict(tryCatch(dtype.vec)(1))).toEqual(out.vec1)
+        expect(asdict(tryCatch(dtype.vec)(2))).toEqual(out.vec2)
+        expect(asdict(tryCatch(dtype.vec)(11))).toEqual(out.vec11)
         expect(asdict(dtype.scalar())).toEqual(out.scalar)
 
         for (const [i, ptr] of [dtype.ptr(false), dtype.ptr(true)].entries()) {
             expect(asdict(ptr)).toEqual(out.ptr[i].asdict)
             expect(ptr.vcount).toEqual(out.ptr[i].vcount)
             expect(ptr.toString()).toEqual(out.ptr[i].repr)
-            expect(trycatch(() => asdict(ptr.vec(1)))).toEqual(out.ptr[i].vec1)
-            expect(trycatch(() => asdict(ptr.vec(2)))).toEqual(out.ptr[i].vec2)
+            expect(asdict(tryCatch(ptr.vec)(1))).toEqual(out.ptr[i].vec1)
+            expect(asdict(tryCatch(ptr.vec)(2))).toEqual(out.ptr[i].vec2)
         }
     }
 })
@@ -75,8 +75,8 @@ Deno.test('dtypes.finfo', async () => {
     expect(dtypes.finfo(dtypes.float32)).toEqual(await python(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float32))`))
     expect(dtypes.finfo(dtypes.float64)).toEqual(await python(`out(tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.float64))`))
 
-    expect(trycatch(() => dtypes.finfo(dtypes.int16))).toEqual(await python(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.int16)))`))
-    expect(trycatch(() => dtypes.finfo(dtypes.imagef(2, 2)))).toEqual(`Invalid dtype ${await python(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.imagef((2,2)))))`)} for finfo`)
+    expect(tryCatch(dtypes.finfo)(dtypes.int16)).toEqual(await python(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.int16)))`))
+    expect(tryCatch(dtypes.finfo)(dtypes.imagef(2, 2))).toEqual(`Invalid dtype ${await python(`out(trycatch(lambda: tiny.dtype.dtypes.finfo(tiny.dtype.dtypes.imagef((2,2)))))`)} for finfo`)
 })
 Deno.test('dtypes.min/max', async () => {
     // Int

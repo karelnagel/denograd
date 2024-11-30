@@ -8,14 +8,16 @@ import { expect } from 'expect'
 
 const getPyOpsStr = (op: Ops) => `tiny.ops.Ops.${getEnumString(op)}`
 export const pyStr = (v: any): string => {
-  if (Array.isArray(v)) return v.length ? `(${v.map((x) => pyStr(x)).join(", ")},)`:"()"
+  if (Array.isArray(v)) return v.length ? `(${v.map((x) => pyStr(x)).join(', ')},)` : '()'
   if (v === null || typeof v === 'undefined') return 'None'
   if (typeof v === 'boolean') return v ? 'True' : 'False'
   if (typeof v === 'number') return v === Infinity ? 'inf' : v === -Infinity ? '-inf' : Number.isNaN(v) ? 'math.nan' : v.toString()
   if (typeof v === 'string') return `"${v}"`
 
   if (v instanceof UPat) {
-    return `tiny.ops.UPat(op=${v.op ? `(${v.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(v.dtype)}, src=${pyStr(v._inSrc)}, arg=${pyStr(v.arg)}, name=${pyStr(v.name)}, allow_any_len=${pyStr(v.allowedLen === -1)}, location=${pyStr(v.location)}, custom_early_reject=${pyStr(v.customEarlyReject)})`
+    return `tiny.ops.UPat(op=${v.op ? `(${v.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(v.dtype)}, src=${pyStr(v._inSrc)}, arg=${pyStr(v.arg)}, name=${pyStr(v.name)}, allow_any_len=${pyStr(v.allowedLen === -1)}, location=${
+      pyStr(v.location)
+    }, custom_early_reject=${pyStr(v.customEarlyReject)})`
   }
   if (v instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(v.op)}, dtype=${pyStr(v.dtype)}, src=${pyStr(v.src)}, arg=${pyStr(v.arg)})`
   if (v instanceof DType) return `tiny.ops.DType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)})`
@@ -33,12 +35,14 @@ export const asdict = (o: any): object => {
   if (typeof o === 'object') return Object.fromEntries(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(([k, v]) => [k, asdict(v)]))
   return o
 }
-export const trycatch = <T>(fn: () => T): T | string => {
-  try {
-    return fn()
-  } catch (e) {
-    if (e instanceof Error) return e.message
-    else return 'error'
+export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return): (...a: Args) => Return | string => {
+  return (...args) => {
+    try {
+      return fn(...args)
+    } catch (e) {
+      if (e instanceof Error) return e.message
+      else return 'error'
+    }
   }
 }
 

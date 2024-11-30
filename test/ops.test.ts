@@ -1,12 +1,72 @@
 import { expect } from 'expect/expect'
-import { _substitute, Ops, spec, symbolicFlat, UOp } from '../src/ops.ts'
-import { python, test } from './helpers.ts'
+import { _substitute, canPad, Ops, resolve, spec, symbolicFlat, UOp } from '../src/ops.ts'
+import { python, test, tryCatch } from './helpers.ts'
 import { renderer } from '../src/ops.ts'
 import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
 import { range } from '../src/helpers.ts'
+import { dtypes } from '../src/dtype.ts'
 
 Deno.test(
-    'spec2',
+    'canPad',
+    test(
+        [
+            [new UOp({ op: Ops.RECIP })],
+            [new UOp({ op: Ops.ADD })],
+
+            [new UOp({ op: Ops.RECIP, src: [new UOp({ op: Ops.IDIV })] })],
+            [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.IDIV })] })],
+        ],
+        canPad,
+        'out(tiny.ops.can_pad(*data))',
+    ),
+)
+Deno.test(
+    'resolve',
+    test(
+        [
+            [new UOp({ op: Ops.ADD, dtype: dtypes.float })],
+            [new UOp({ op: Ops.ADD, dtype: dtypes.bool, src: [new UOp({ op: Ops.IDIV })] }), false],
+        ],
+        tryCatch(resolve),
+        'out(trycatch(lambda: tiny.ops.resolve(*data)))',
+    ),
+)
+Deno.test(
+    'uop.parents',
+    test(
+        [
+            [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.BARRIER, src: [new UOp({ op: Ops.CONST, arg: 69 })] })] })],
+            [new UOp({ op: Ops.CONST, arg: 1 })],
+        ],
+        (x: UOp) => [...x.parents().keys()],
+        'out(list(data[0].parents.keys()))',
+    ),
+)
+Deno.test(
+    'uop.sparents',
+    test(
+        [
+            [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.BARRIER, src: [new UOp({ op: Ops.CONST, arg: 69 })] })] })],
+            [new UOp({ op: Ops.CONST, arg: 1 })],
+        ],
+        (x: UOp) => [...x.sparents().keys()],
+        'out(list(data[0].sparents.keys()))',
+    ),
+)
+Deno.test(
+    'uop.simplify',
+    test(
+        [
+            [new UOp({ op: Ops.ADD, arg: 1, src: [UOp.int(10), UOp.int(100)] })],
+            [new UOp({ op: Ops.IDIV, arg: 1, src: [UOp.float(10), UOp.int(100)] })],
+            [new UOp({ op: Ops.AND, arg: 1, src: [UOp.boolean(false), UOp.boolean(true)] })],
+        ],
+        (x: UOp) => tryCatch(x.simplify)(),
+        'out(data[0].simplify())',
+    ),
+)
+Deno.test(
+    'spec',
     test(
         range(spec.patterns.length).map((x) => [x, [
             new UOp({ op: Ops.ADD, arg: [1, 2, 4, 5], src: [new UOp({ op: Ops.CONST, arg: 1 })] }),
