@@ -1,10 +1,29 @@
 import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
-import { UPat } from '../src/ops.ts'
+import { getEnumString, type Ops, UPat } from '../src/ops.ts'
 import { UOp } from '../src/ops.ts'
 import { DType } from '../src/dtype.ts'
 import { isNotNone } from '../src/helpers.ts'
 import { expect } from 'expect'
+
+const getPyOpsStr = (op: Ops) => `tiny.ops.Ops.${getEnumString(op)}`
+export const pyStr = (v: any): string => {
+  if (Array.isArray(v)) return v.length ? `(${v.map((x) => pyStr(x)).join(", ")},)`:"()"
+  if (v === null || typeof v === 'undefined') return 'None'
+  if (typeof v === 'boolean') return v ? 'True' : 'False'
+  if (typeof v === 'number') return v === Infinity ? 'inf' : v === -Infinity ? '-inf' : Number.isNaN(v) ? 'math.nan' : v.toString()
+  if (typeof v === 'string') return `"${v}"`
+
+  if (v instanceof UPat) {
+    return `tiny.ops.UPat(op=${v.op ? `(${v.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(v.dtype)}, src=${pyStr(v._inSrc)}, arg=${pyStr(v.arg)}, name=${pyStr(v.name)}, allow_any_len=${pyStr(v.allowedLen === -1)}, location=${pyStr(v.location)}, custom_early_reject=${pyStr(v.customEarlyReject)})`
+  }
+  if (v instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(v.op)}, dtype=${pyStr(v.dtype)}, src=${pyStr(v.src)}, arg=${pyStr(v.arg)})`
+  if (v instanceof DType) return `tiny.ops.DType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)})`
+
+  if (typeof v === 'function') return 'lambda x: x'
+  if (typeof v === 'object') return `{${Object.entries(v).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
+  throw new Error(`Invalid value: ${v}`)
+}
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -21,17 +40,6 @@ export const trycatch = <T>(fn: () => T): T | string => {
     if (e instanceof Error) return e.message
     else return 'error'
   }
-}
-export const serialize = (data: any): string => {
-  const customReplacer = (k: string, v: any) => {
-    if (v === undefined) return null
-    if (!v || typeof v !== 'object') return v
-    if (v instanceof UPat) return { __type: 'UPat', op: v.op, dtype: v.dtype, src: v._inSrc, arg: v.arg, name: v.name, allow_any_len: v.allowedLen === -1, location: v.location, custom_early_reject: v.customEarlyReject }
-    if (v instanceof UOp) return { __type: 'UOp', op: v.op, dtype: v.dtype, src: v.src, arg: v.arg }
-    if (v instanceof DType) return { __type: 'DType', priority: v.priority, itemsize: v.itemsize, name: v.name, fmt: v.fmt, count: v.count, _scalar: v._scalar }
-    return v
-  }
-  return JSON.stringify(data, customReplacer)
 }
 
 export const deserialize = (data: string): any => {
@@ -74,33 +82,14 @@ def serialize(data):
           return super().default(o)
     return json.dumps(data, cls=CustomEncoder)
 
-def deserialize(data):
-    obj = json.loads(data)
-    
-    def de(item):
-        if isinstance(item, dict):
-            type = item.get("__type")
-            def get(key,should_tuple=False): 
-                res = de(item.get(key))
-                if res is None: return res
-                return tuple(res) if should_tuple and isinstance(res,list) else res
-            if type=="UPat": return tiny.ops.UPat(get("op",True),get("dtype",True),get("src"),get("arg"),get("name"),get("allow_any_len"),get("location"),get("custom_early_reject"))
-            if type == "UOp": return tiny.ops.UOp(get('op',True),get('dtype',True),get('src',True),get('arg',True)) 
-            elif type == "DType": return tiny.dtype.DType(get('priority'),get("itemsize"),get('name'),get('fmt'),get("count"),get("_scalar"))
-            return {key: de(value) for key, value in item.items()}
-        elif isinstance(item, list): return tuple([de(element) for element in item])
-        return item 
-
-    return de(obj)
-
-${isNotNone(data) ? `data = deserialize('${serialize(data)}')` : ''}
+${isNotNone(data) ? `data = ${pyStr(data)}` : ''}
 def out(o):
     print("<<<<<"+serialize(o)+">>>>>")
 
 ${code}
 `
   const file = `/tmp/tiny_${randomUUID()}.py`
-  // console.log(file)
+  console.log(file)
   await execAsync(`echo ${JSON.stringify(code.trim())} > ${file}`)
   const res = await execAsync(`PYTHONPATH=./tinygrad python ${file}`)
   try {

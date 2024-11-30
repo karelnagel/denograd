@@ -1,7 +1,7 @@
-import { Ops, UOp, UPat } from '../src/ops.ts'
+import { Ops, spec, symbolicFlat, UOp, UPat } from '../src/ops.ts'
 import { test } from './helpers.ts'
-import { dtypes } from '../src/dtype.ts'
 import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape } from '../src/shape/view.ts'
+import { dtypes } from '../src/dtype.ts'
 
 Deno.test(
     'serialization',
@@ -14,8 +14,8 @@ Deno.test(
             [new UPat({ op: Ops.ASSIGN })],
             [dtypes.floats],
             [dtypes.defaultFloat],
-            // ...spec.patterns.map((p) => [p[0]] as any),
-            // ...symbolicFlat.patterns.map((p) => [p[0]]),
+            ...spec.patterns.map((p) => [p[0]] as any),
+            ...symbolicFlat.patterns.map((p) => [p[0]]),
         ],
         (x) => x,
         'out(*data)',

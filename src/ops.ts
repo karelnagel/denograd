@@ -3,7 +3,8 @@ import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from '.
 import { allSame, assert, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
-import { toPythonString } from './helpers.ts'
+import { pyStr } from '../test/helpers.ts'
+import path from 'node:path'
 
 export type sint = number | UOp
 export type Variable = UOp
@@ -221,7 +222,7 @@ export class UOp extends MathTrait {
         for (const s of this.src) hash.update(s.key())
         return hash.digest()
     }
-    __repr__ = () => `UOp(${toPythonString(isNotNone(this.op) ? `Ops.${getEnumString(this.op)}` : null)}, ${toPythonString(this.dtype ? `${this.dtype}` : null)}, arg=${toPythonString(this.arg)})`
+    __repr__ = () => `UOp(${pyStr(isNotNone(this.op) ? `Ops.${getEnumString(this.op)}` : null)}, ${pyStr(this.dtype ? `${this.dtype}` : null)}, arg=${pyStr(this.arg)})`
     parents = () => {
         const map = new Map<UOp, undefined>()
         for (const x of this.src) map.set(x, undefined)
@@ -562,15 +563,9 @@ export const flopsMem = (uops: UOp[], ignoreIndexing = false): [UOp, UOp] => {
     return [flops, mem]
 }
 // # ***** pattern matcher *****
-
-const getLocation = (): [string, number] => {
-    // const frm = sys._getframe(1)
-    // // find the real frame in the file that has the UPat, TODO: is there a better way to do this?
-    // while (frm.f_back !== undefined && ['ops.py', 'uopgraph.py', 'schedule.py', 'lowerer.py', 'cstyle.py'].includes(pathlib.Path(frm.f_back.f_code.co_filename).name)) {
-    //     frm = frm.f_back
-    // }
-    // return frm.f_code.co_filename, frm.f_lineno
-    return ['', 0]
+function getLocation(): [string, number] {
+    const [file, line] = new Error().stack!.split('\n')[2]?.split('file://')[1]?.split(')')[0]?.split(':')
+    return [file, Number(line)]
 }
 const lines = (fn: string): string[] => {
     return readFileSync(fn).toString().split('\n')
@@ -578,7 +573,6 @@ const lines = (fn: string): string[] => {
 
 type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[]; arg?: any; name?: string; allowAnyLen?: boolean; location?: any; customEarlyReject?: Ops[] }
 export class UPat extends MathTrait {
-    //   __slots__ = ["op", "dtype", "arg", "name", "src"]
     op?: Ops[]
     dtype?: DType[]
     arg?: any
@@ -653,7 +647,7 @@ export class UPat extends MathTrait {
             const space = range(level * 2).map((x) => ' ').join('')
             const src = x.src ? x.src.flat().length ? `(\n${space}${[...new Set(x.src.flat())].map((u) => u.__repr__(level + 1)).join(',\n' + space)},)` : '()' : '(None)'
             const name = x.name ? `'${x.name}'` : 'None'
-            const arg = toPythonString(x.arg)
+            const arg = pyStr(x.arg)
             const form = `UPat(${op}, ${arg}, name=${name}, dtype=${dtype}, allow_any_len=${len}, src=${src})`
             return form
         }

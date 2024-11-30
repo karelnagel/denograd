@@ -9,19 +9,9 @@ import { execSync } from 'node:child_process'
 export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
 export const isNotNone = <T>(x: T | null | undefined): x is T => x !== undefined && x !== null
 
-export const toPythonString = (val: any): string => {
-  if (Array.isArray(val)) return `[${val.map((x) => toPythonString(x))}]`
-  if (val === null || typeof val === 'undefined') return 'None'
-  if (typeof val === 'boolean') return val ? 'True' : 'False'
-  if (typeof val === 'number') return val === Infinity ? 'inf' : val === -Infinity ? '-inf' : Number.isNaN(val) ? 'math.nan' : val.toString()
-  if (typeof val === 'string') return `"${val}"`
-  if (typeof val === 'object') return `{${Object.entries(val).map((entry) => `"${entry[0]}":${toPythonString(entry[1])}`).join(',')}}`
-  throw new Error('invalid value')
-}
-
 export const range = (i: number) => Array.from({ length: i }, (_, i) => i)
 export const d = <T extends any[]>(...t: T) => t
-export const assert = <T>(condition: boolean, message?: string): condition is true => {
+export const assert = (condition: boolean, message?: string): condition is true => {
   if (!condition) throw new Error(message)
   return condition
 }
