@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, isNone, isNotNone, mathGcd, partition, permutations, prod, raise, range, setMap } from './helpers.ts'
+import { allSame, assert, isListEqual, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from '../test/helpers.ts'
@@ -232,17 +232,17 @@ export class UOp extends MathTrait {
     // TODO: ignored the shape stuff for now
     // has_st = () => ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)
     //   @functools.cached_property
-    //   def st(self) -> Optional[ShapeTracker]:
-    //     if not self.has_st: return None
-    //     if self.op in GroupOp.Buffer: return self.st_arg
-    //     if self.op is Ops.VIEW: return self.arg
-    //     src_sts = [x.st for x in self.src if x.st is not None]
-    //     assert all_same([x.shape for x in src_sts]), f"UOp parents must have the same shape {self} {[x.shape for x in src_sts]}"
+    //   def st(this) -> Optional[ShapeTracker]:
+    //     if not this.has_st: return None
+    //     if this.op in GroupOp.Buffer: return this.st_arg
+    //     if this.op is Ops.VIEW: return this.arg
+    //     src_sts = [x.st for x in this.src if x.st is not None]
+    //     assert all_same([x.shape for x in src_sts]), f"UOp parents must have the same shape {this} {[x.shape for x in src_sts]}"
     //     from tinygrad.shape.shapetracker import ShapeTracker
-    //     return ShapeTracker.from_shape(src_sts[0].reduce(self.axis_arg)) if self.op is Ops.REDUCE_AXIS else src_sts[0]
+    //     return ShapeTracker.from_shape(src_sts[0].reduce(this.axis_arg)) if this.op is Ops.REDUCE_AXIS else src_sts[0]
     //   @functools.cached_property
-    //   def full_shape(self) -> Tuple[sint, ...]:
-    //     return self.arg.shape if self.op is Ops.VIEW else tuple(smax(x) for x in zip(*[x.full_shape for x in self.src if x.has_st]))
+    //   def full_shape(this) -> Tuple[sint, ...]:
+    //     return this.arg.shape if this.op is Ops.VIEW else tuple(smax(x) for x in zip(*[x.full_shape for x in this.src if x.has_st]))
 
     //   # *** uop evaluation ***
 
@@ -253,9 +253,9 @@ export class UOp extends MathTrait {
     }
     _eval = <T extends new (...args: any[]) => void>(dtypes: DType[], expectedType: T): InstanceType<T> => {
         if (!dtypes.includes(this.dtype)) throw new Error(`eval with wrong dtype ${this}`)
-        const simpleSelf = this.simplify()
-        const [vmin, vmax] = simpleSelf._minMax()
-        if (vmin !== vmax) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleSelf.render()}`)
+        const simpleThis = this.simplify()
+        const [vmin, vmax] = simpleThis._minMax()
+        if (vmin !== vmax) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleThis.render()}`)
         if ((vmin instanceof expectedType)) throw new Error(`vmin is wrong dtype ${typeof vmin} != ${expectedType}`)
         return vmin as InstanceType<T>
     }
@@ -337,10 +337,10 @@ export class UOp extends MathTrait {
     //   # *** uop movement ops ***
 
     base = () => this.op === Ops.VIEW && this.src.length === 1 ? this.src[0] : this
-    //   def view(self, st:ShapeTracker) -> UOp:
-    //     assert self.op is not Ops.STORE, "VIEW of STORE is invalid, STORE is always base"
-    //     return self if self.st is None or self.st === st else UOp(Ops.VIEW, self.dtype, (self,), st)
-    //   def reshape(self, arg:Tuple[sint, ...]) -> UOp: return self.view(unwrap(self.st).reshape(arg))
+    //   def view(this, st:ShapeTracker) -> UOp:
+    //     assert this.op is not Ops.STORE, "VIEW of STORE is invalid, STORE is always base"
+    //     return this if this.st is None or this.st === st else UOp(Ops.VIEW, this.dtype, (this,), st)
+    //   def reshape(this, arg:Tuple[sint, ...]) -> UOp: return this.view(unwrap(this.st).reshape(arg))
 
     //   # *** uop Buffer stuff ***
 
@@ -394,7 +394,7 @@ export class UOp extends MathTrait {
 
     //   # *** uop symbolic stuff ***
 
-    /**largest known int that divides self */
+    /**largest known int that divides this */
     constFactor = (): number => {
         if (this.op === Ops.CONST) return this.arg
         if (this.op === Ops.VCONST) return mathGcd(...this.arg)
@@ -458,13 +458,11 @@ export class UOp extends MathTrait {
     }
 
     _sym_fxn = (): [(m: Map<UOp, number>) => number, any[]] => {
-        const sself = this.simplify()
+        const sthis = this.simplify()
         const varnames = []
-        for (const x of sself.parents().keys()) if (x.op === Ops.DEFINE_VAR) varnames.push(x.arg[0])
+        for (const x of sthis.parents().keys()) if (x.op === Ops.DEFINE_VAR) varnames.push(x.arg[0])
         // TODO: check this return type ,used eval before
-        return [(m) => {
-            return +sself.render()
-        }, varnames]
+        return [(m) => +sthis.render(), varnames]
     }
     symInfer = (varVals: Map<UOp, number>) => {
         const [fxn, varnames] = this._sym_fxn()
@@ -585,7 +583,7 @@ export class UPat extends MathTrait {
         this.name = name
         this._inSrc = src
         this.customEarlyReject = customEarlyReject
-        assert(self.name !== 'ctx', "UPat can't be named ctx")
+        assert(this.name !== 'ctx', "UPat can't be named ctx")
 
         // try all permutations if it's a list
         if (Array.isArray(src)) this.src = !allSame(src) ? permutations(src) : [src]
@@ -645,22 +643,21 @@ export class UPat extends MathTrait {
         }
         return prettyPrint(this, rep, (x) => !x.src ? undefined : x.src[0])
     }
-    match = (uop: UOp, store: Record<string, UOp>): Record<string, UOp>[] => {
+    match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
         if (
             (isNotNone(this.op) && !this.op.includes(uop.op)) ||
-            (isNotNone(this.name) && (store[self.name] || uop) !== uop) ||
+            (isNotNone(this.name) && setDefault(store, this.name, uop) !== uop) ||
             (isNotNone(this.dtype) && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
             (isNotNone(this.arg) && this.arg !== uop.arg) ||
             (this.allowedLen !== -1 && uop.src.length !== this.allowedLen)
         ) return []
         if (isNone(this.src)) return [store]
-        let res: Record<string, UOp>[] = []
+        console.log('sdfsdfsdfsdfsdfHEHEHEHEHEH')
+        let res: Map<string, UOp>[] = []
         for (const vp of this.src) {
-            let [stores, newStores] = [[{ ...store }], [] as Record<string, UOp>[]]
-            for (const [uu, vv] of uop.src.map((uu, i) => [uu, vp[i]] as const)) {
-                for (const s of stores) newStores = [...newStores, ...vv.match(uu, s)]
-                stores = newStores
-                newStores = []
+            let stores= [new Map(store)]
+            for (const [uu, vv] of zip(uop.src, vp)) {
+                stores = stores.reduce((newStores, s) => [...newStores, ...vv.match(uu, s)], [] as Map<string, UOp>[])
             }
             res = [...res, ...stores]
         }
@@ -669,8 +666,8 @@ export class UPat extends MathTrait {
 }
 
 export class UPatAny extends UPat {
-    override match = (uop: UOp, store: Record<string, UOp>) => {
-        let ret: Record<string, UOp>[] = []
+    override match = (uop: UOp, store: Map<string, UOp>) => {
+        let ret: Map<string, UOp>[] = []
         for (const x of this.src?.[0] || []) {
             const match = x.match(uop, { ...store })
             if (match) ret = [...ret, ...match]
@@ -687,30 +684,26 @@ export class PatternMatcher<Args extends any[] = UOp[]> {
         this.patterns = patterns
         for (const [p, fxn] of this.patterns) {
             assert(isNotNone(p.op))
-            for (const uop of p.op || []) {
-                const old = this.pdict.get(uop) || []
-                this.pdict.set(uop, [...old, [p, fxn, new Set(p.earlyReject), fxn.toString().includes('ctx')]])
-            }
+            for (const uop of p.op || []) setDefault(this.pdict, uop, []).push([p, fxn, new Set(p.earlyReject), fxn.toString().includes('ctx')])
         }
     }
 
     __add__ = (more: PatternMatcher<Args>) => new PatternMatcher<Args>([...this.patterns, ...more.patterns])
 
     rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
-        //     const ler = uop.src.map((u) => u.op)
-        //     for (const [p, fxn, early_reject, has_ctx] of this.pdict.get(uop.op, [])!) {
-        //         if (!early_reject.issubset(ler)) continue
-        //         for (const match of p.match(uop, {})) {
-        //             const ret = has_ctx ? fxn(ctx, ...match) : fxn(...match)
-        //             if (isNotNone(ret)) return ret
-        //         }
-        //     }
+        const ler = new Set(uop.src.map((u) => u.op))
+        for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op) || []) {
+            if (!isSubset(ler, earlyReject)) continue
+            for (const match of p.match(uop, new Map())) {
+                const ret = hasCtx ? fxn(...[ctx, ...Object.values(match)] as any) : fxn(...Object.values(match) as any)
+                if (isNotNone(ret)) return ret
+            }
+        }
         return undefined
     }
 }
 
 // # *** simple graph rewrite engine ***
-
 export class RewriteContext {
     pm: PatternMatcher
     ctx: any
@@ -723,7 +716,7 @@ export class RewriteContext {
         const rn = this.replace.get(n)
         if (isNotNone(rn)) return rn
         const newSrc = n.src.map((x) => this.rewrite(x))
-        const newN = newSrc === n.src ? this.pm.rewrite(n, this.ctx) : new UOp({ op: n.op, dtype: n.dtype, src: newSrc, arg: n.arg })
+        const newN = isListEqual(newSrc, n.src) ? this.pm.rewrite(n, this.ctx) : new UOp({ op: n.op, dtype: n.dtype, src: newSrc, arg: n.arg })
         const ret = isNone(newN) ? n : this.rewrite(newN)
         this.replace.set(n, ret)
         return ret
@@ -739,7 +732,7 @@ const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>): UOp =
 export const spec = new PatternMatcher([
     [new UPat({ op: Ops.DEFINE_GLOBAL, name: 'x' }), (x) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
     [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), (x) => x.dtype instanceof PtrDType && x.dtype.local],
-    [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('c')], name: 'x', allowAnyLen: true }), (x, c) => x.src.slice(1).every((y: any) => y.op === Ops.RANGE) && c.dtype === x.dtype],
+    [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('c')], name: 'x', allowAnyLen: true }), (x, c) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && c.dtype === x.dtype],
     [new UPat({ op: Ops.DEFINE_VAR, src: [], name: 'x' }), (x) => typeof x.arg[1] === 'number' && typeof x.arg[2] === 'number'],
     [new UPat({ op: Ops.RANGE, src: [new UPat({ name: 'x' }), new UPat({ name: 'y' })], name: 'rng' }), (rng, x, y) => rng.dtype === x.dtype && x.dtype === y.dtype],
     [new UPat({ op: Ops.SPECIAL, src: [] }), () => true],
@@ -776,7 +769,7 @@ export const spec = new PatternMatcher([
     //   # and SHL/SHR, the shift distance can be an int
     [new UPat({ op: [Ops.SHL, Ops.SHR], src: [new UPat({ name: 'x' }), new UPat({ name: 'y' })], name: 'a' }), (a, x, y) => a.dtype === x.dtype && [x.dtype, dtypes.uint].includes(y.dtype)],
     [new UPat({ op: Ops.IDIV, name: 'x' }), (x) => dtypes.isInt(x.dtype) ? undefined : false],
-    [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.src!.every((y: any) => x.dtype === y.dtype)],
+    [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.src!.every((y) => x.dtype === y.dtype)],
     [new UPat({ op: Ops.ASSIGN, src: [new UPat({ op: [Ops.DEFINE_ACC, Ops.DEFINE_GLOBAL] }), new UPat({})] }), () => true],
     [new UPat({ op: Ops.ENDRANGE, dtype: dtypes.void, src: [new UPat({ op: Ops.RANGE })] }), () => true],
 
@@ -792,7 +785,7 @@ export const spec = new PatternMatcher([
     [new UPat({ op: Ops.ENDIF, dtype: dtypes.void, src: [new UPat({ op: Ops.IF })] }), () => true],
     [new UPat({ op: Ops.REDUCE_AXIS, name: 'x' }), (x) => Array.isArray(x.arg) && x.arg.length === 2 && [Ops.ADD, Ops.MUL, Ops.MAX].includes(x.arg[0])],
     [new UPat({ op: Ops.GEP, src: [new UPat({ name: 'src' })], name: 'gep' }), (gep, src) => gep.dtype === src.dtype.scalar()],
-    [new UPat({ op: Ops.VECTORIZE, name: 'x' }), (x) => x.src!.length > 1 && x.src!.length === x.dtype.count && x.src!.every((y: any) => x.dtype === y.dtype.vec(x.src?.length))],
+    [new UPat({ op: Ops.VECTORIZE, name: 'x' }), (x) => x.src!.length > 1 && x.src!.length === x.dtype.count && x.src!.every((y) => x.dtype === y.dtype.vec(x.src?.length))],
     [new UPat({ op: [Ops.BITCAST, Ops.CAST], src: [new UPat({})], name: 'x' }), (x) => isNone(x.arg)],
     [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, allowAnyLen: true }) }), () => true], // NOTE: all pointers must be local
     //   # NOTE: for testing, we let sinks be anything
@@ -1036,7 +1029,7 @@ export const maxVarConst = (x: UOp, c1: UOp, c2: UOp) => {
 export const sintToUPp = (x: sint) => typeof x === 'number' ? UOp.const(dtypes.int, x) : x
 
 export const symbolicSimple = new PatternMatcher<UOp[]>([
-    //   // ** self folding **
+    //   // ** this folding **
     [UPat.var('x').add(0), (x) => x], // x+0 -> x
     [UPat.var('x').mul(1), (x) => x], // x*1 -> x
     [UPat.var('x').idiv(UPat.var('x')), (x) => x.constLike(1)], // x//x -> 1
@@ -1061,7 +1054,7 @@ export const symbolicSimple = new PatternMatcher<UOp[]>([
     //   // NOTE: this can be wrong for loaded NaN
     [UPat.var('x').mul(0), (x) => x.constLike(typeof x.arg === 'number' && (isNaN(x.arg) || !isFinite(x.arg)) ? NaN : 0)],
     //   // ** constant folding **
-    [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), (a) => a.constLike(execAlu(a.op, a.dtype, a.src?.map((x: any) => x.arg), false))],
+    [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), (a) => a.constLike(execAlu(a.op, a.dtype, a.src?.map((x) => x.arg), false))],
     //   // bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly
     [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseAnd(y)],
     [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseOr(y)],

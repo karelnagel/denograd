@@ -32,6 +32,7 @@ export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, r
 export const asdict = (o: any): object => {
   if (!o) return o
   if (Array.isArray(o)) return o.map(asdict)
+  if (o instanceof Map) return Object.fromEntries([...o.entries()].map(([k, v]) => [k, asdict(v)]))
   if (typeof o === 'object') return Object.fromEntries(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(([k, v]) => [k, asdict(v)]))
   return o
 }

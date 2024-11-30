@@ -6,6 +6,19 @@ import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
+export const isListEqual = (one: any[], two: any[]) => one.every((o, i) => o === two[i])
+
+export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
+  if (map.has(key)) return map.get(key)!
+  map.set(key, defaultValue)
+  return defaultValue
+}
+export function zip<T1, T2>(arr1: T1[], arr2: T2[]): [T1, T2][] {
+  const length = Math.min(arr1.length, arr2.length)
+  const result: [T1, T2][] = []
+  for (let i = 0; i < length; i++) result.push([arr1[i], arr2[i]])
+  return result
+}
 export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
 export const isNotNone = <T>(x: T | null | undefined): x is T => x !== undefined && x !== null
 
