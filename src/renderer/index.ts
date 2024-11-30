@@ -87,7 +87,7 @@ export class Renderer {
   hasLocal = true
   hasShared = true
   // NOTE: these two should be in (x,y,z) order to match the max_sizes argument in get_grouped_dims
-  globalMax?:[number,number,number] = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
+  globalMax?: [number, number, number] = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
   localMax = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
   sharedMax = 32768
   tensorMores: TensorCore[] = []
