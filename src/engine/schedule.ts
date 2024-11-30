@@ -89,7 +89,7 @@
 // # ** helpers for doing movementops on uops
 
 // def apply_swizzle(u:UOp, arg:ShapeTracker) -> UOp:
-//   with Context(TRACK_MATCH_STATS=0): return graph_rewrite(u.view(arg), view_left)
+//  return graph_rewrite(u.view(arg), view_left)
 
 // def permute_reduce(input_st:ShapeTracker, axis:Tuple[int, ...]) -> Tuple[ShapeTracker, Tuple[sint, ...]]:
 //   permute_axis = tuple(i for i in range(len(input_st.shape)) if i not in axis)+axis

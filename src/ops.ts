@@ -722,43 +722,6 @@ export class PatternMatcher<T = any> {
         return undefined
     }
 }
-// # *** tracking pattern matcher ***
-
-const matchStats = new Map<UPat, number[]>()
-const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
-    const newVal = fn(map.get(key)!)
-    map.set(key, newVal)
-    return newVal
-}
-
-// @dataclass(frozen=True)
-export class TrackedRewriteContext {
-    loc: [string, number] // location that called graph_rewrite
-    sink: UOp // the sink passed into the rewrite
-    matches: [UOp, UOp | undefined, UPat | undefined, number][] = [] // all matches of sparents
-    constructor(loc: [string, number], sink: UOp, matches?: [UOp, UOp | undefined, UPat | undefined, number][]) {
-        this.loc = loc
-        this.sink = sink
-        if (matches) this.matches = matches
-    }
-}
-const rewriteStack: [any, TrackedRewriteContext[]][] = []
-const contexts: [any, TrackedRewriteContext[]][] = []
-const _rewriteCnt: Record<string, number> = {}
-const trackRewrites = (named = false) => {
-    const _decorator = (func: (...args: any[]) => void) => {
-        const __wrapper = (...args: any[]) => {
-            let ret
-            try {
-                ret = func(...args)
-            } finally { // NOTE: save everything in the stack
-            }
-            return ret
-        }
-        return __wrapper
-    }
-    return _decorator
-}
 
 // # *** simple graph rewrite engine ***
 
