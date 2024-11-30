@@ -703,11 +703,11 @@ const deconstructFunction = (fxn: () => void): string[] => {
     //   return ret
     return []
 }
-type Pattern = [UPat, (...args: any[]) => any]
-export class PatternMatcher {
-    patterns: Pattern[]
+type Pattern<T> = [UPat, (...args: T[]) => any]
+export class PatternMatcher<T = any> {
+    patterns: Pattern<T>[]
     pdict = new Map<Ops, ([UPat, (...args: any[]) => void, Set<any>, boolean][])>()
-    constructor(patterns: Pattern[]) {
+    constructor(patterns: Pattern<T>[]) {
         this.patterns = patterns
         // NOTE: use of DefaultDict here is very dangerous! all keys will live for the lifetime of the PatternMatcher!
         // for (const [p,fxn] of self.patterns){
@@ -720,7 +720,7 @@ export class PatternMatcher {
 
     // __reduce__ = () => this.patterns.map(([x, fxn]) => [x, fxn.__name__ === '<lambda>' ? deconstructFunction(fxn) : fxn])
 
-    __add__ = (more: PatternMatcher) => new PatternMatcher([...this.patterns, ...more.patterns])
+    __add__ = (more: PatternMatcher<T>) => new PatternMatcher([...this.patterns, ...more.patterns])
 
     rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
         //     const ler = uop.src.map((u) => u.op)
@@ -779,8 +779,8 @@ const trackRewrites = (named = false) => {
     return _decorator
 }
 
-export class TrackedPatternMatcher extends PatternMatcher {
-    constructor(patterns: Pattern[]) {
+export class TrackedPatternMatcher<T> extends PatternMatcher<T> {
+    constructor(patterns: Pattern<T>[]) {
         super(patterns)
         for (const [p] of this.patterns) {
             if (!matchStats.has(p)) matchStats.set(p, [0, 0, 0.0, 0.0])
@@ -867,7 +867,7 @@ const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>): UOp =
 
 // # this is the matcher for the final rendered UOps
 // # matcher functions returns True or False (or None to not match)
-export const spec = new PatternMatcher([
+export const spec = new PatternMatcher<UOp>([
     [new UPat({ op: Ops.DEFINE_GLOBAL, name: 'x' }), (x) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
     [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), (x) => x.dtype instanceof PtrDType && x.dtype.local],
     [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('c')], name: 'x', allowAnyLen: true }), (x, c) => x.src.slice(1).every((y: any) => y.op === Ops.RANGE) && c.dtype === x.dtype],
@@ -1166,7 +1166,7 @@ export const maxVarConst = (x: UOp, c1: UOp, c2: UOp) => {
 }
 export const sintToUPp = (x: sint) => typeof x === 'number' ? UOp.const(dtypes.int, x) : x
 
-export const symbolicSimple = new PatternMatcher([
+export const symbolicSimple = new PatternMatcher<UOp>([
     //   // ** self folding **
     [UPat.var('x').add(0), (x) => x], // x+0 -> x
     [UPat.var('x').mul(1), (x) => x], // x*1 -> x
@@ -1192,7 +1192,7 @@ export const symbolicSimple = new PatternMatcher([
     //   // NOTE: this can be wrong for loaded NaN
     [UPat.var('x').mul(0), (x) => x.constLike(typeof x.arg === 'number' && (isNaN(x.arg) || !isFinite(x.arg)) ? NaN : 0)],
     //   // ** constant folding **
-    [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), (a) => a.constLike(execAlu(a.op, a.dtype, a.src.map((x: any) => x.arg), false))],
+    [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), (a) => a.constLike(execAlu(a.op, a.dtype, a.src?.map((x: any) => x.arg), false))],
     //   // bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly
     [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseAnd(y)],
     [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), (x, y) => x.bitwiseOr(y)],
@@ -1205,13 +1205,14 @@ export const symbolicSimple = new PatternMatcher([
 export const symbolic = symbolicSimple.__add__(
     new PatternMatcher([
         //   // ** COMMUTATIVE flipping **
-        [new UPat({ op: GroupOp.Commutative, name: 'x' }), (x) => x.src[1].tuplize < x.src[0].tuplize ? x.replace([...x.src].reverse()) : undefined],
+        // TODO: this is wrong
+        [new UPat({ op: GroupOp.Commutative, name: 'x' }), (x) => x.src[1].tuplize() < x.src[0].tuplize() ? x.replace({}) : undefined],
         //   // group like
         [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), (x, y, c) => (x.add(x.mul(c))).add(y)],
         //   // ** boolean algebra **
         [UPat.var('x').bitwiseOr(UPat.var('x').bitwiseAnd(UPat.var())), (x) => x], // x|(x&y) -> x
         //   // ** combine terms **
-        [UPat.var('x').mul(UPat.cvar('c0')).add(UPat.var('x').mul(UPat.cvar('c1'))), (x, c0, c1) => x.mul(c0.plus(c1))], // (x*c0)+(x*c1) -> x*(c0+c1)
+        [UPat.var('x').mul(UPat.cvar('c0')).add(UPat.var('x').mul(UPat.cvar('c1'))), (x, c0, c1) => x.mul(c0.add(c1))], // (x*c0)+(x*c1) -> x*(c0+c1)
         [UPat.var('x').add(UPat.var('x').mul(UPat.cvar('c'))), (x, c) => x.mul(c.add(1))], // (x+x*c)-> x*(c+1)
         [UPat.var('x').add(UPat.var('x')), (x) => x.mul(2)], // (x+x)-> x*2
         [(UPat.var('x').div(UPat.var('x2'))).div(UPat.var('x3')), (x, x2, x3) => x.div(x2.mul(x3))], // (x/x2)/x3 -> x/(x2*x3)
@@ -1220,9 +1221,9 @@ export const symbolic = symbolicSimple.__add__(
         [UPat.var().where(UPat.var('val'), UPat.var('val')), (val) => val],
         [UPat.cvar('gate', undefined, false).where(UPat.var('c0'), UPat.var('c1')), (gate, c0, c1) => gate.arg ? c0 : c1],
         //   // ALU min==max -> CONST (slow!)
-        [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.vmin === x.vmax ? x.constLike(x.vmin) : undefined],
+        [new UPat({ op: GroupOp.ALU, name: 'x' }), (x) => x.vmin() === x.vmax() ? x.constLike(x.vmin()) : undefined],
         //   // max folding
-        [UPat.var('x').maximum(UPat.var('y')), (x, y) => x.vmax <= y.vmin ? x.vmin >= y.vmax ? x : y : undefined],
+        [UPat.var('x').maximum(UPat.var('y')), (x, y) => x.vmax() <= y.vmin() ? x.vmin() >= y.vmax() ? x : y : undefined],
         //   // TODO: why does this rule break beautiful_mnist?
         //   //((UPat.var("x")+UPat.var("z")).maximum(UPat.var("y")+UPat.var("z")), lambda x,y,z: x.maximum(y) + z),
         [UPat.var('x').mul(UPat.cvar('c1')).maximum(UPat.var('x').mul(UPat.cvar('c2'))), maxVarConst],
@@ -1241,7 +1242,7 @@ export const symbolic = symbolicSimple.__add__(
         //   // x//c0<c1 for positive int c0
         [(UPat.var('x', dtypes.ints).idiv(UPat.cvar('c0', undefined, false))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg > 0 ? x.lt(c1.arg * c0.arg) : undefined],
         //   // mul add lt
-        [((UPat.cvar('c0', undefined, false).mul(UPat.var('x'))).add(UPat.var('x2'))).lt(UPat.cvar('c1', undefined, false)), (x, x2, c0, c1) => c1.arg % c0.arg === 0 && c0.arg > x2.vmax && x2.vmin >= 0 ? x.lt(c1.idiv(c0)) : undefined],
+        [((UPat.cvar('c0', undefined, false).mul(UPat.var('x'))).add(UPat.var('x2'))).lt(UPat.cvar('c1', undefined, false)), (x, x2, c0, c1) => c1.arg % c0.arg === 0 && c0.arg > x2.vmax() && x2.vmin().arg >= 0 ? x.lt(c1.idiv(c0)) : undefined],
         //   // ** move add/mul consts to end (NOTE: this is still happening before constant folding) **
         [new UPat({ op: Ops.ADD, src: [UPat.var('x'), UPat.cvar('c1')] }).add(UPat.var('y')), (x, c1, y) => (x.add(y)).add(c1)],
         [new UPat({ op: Ops.MUL, src: [UPat.var('x'), UPat.cvar('c1')] }).mul(UPat.var('y')), (x, c1, y) => (x.mul(y)).mul(c1)],

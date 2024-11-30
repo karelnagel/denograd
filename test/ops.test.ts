@@ -1,17 +1,31 @@
 import { expect } from 'expect/expect'
-import { _substitute, spec, symbolicFlat } from '../src/ops.ts'
-import { python } from './helpers.ts'
+import { _substitute, Ops, spec, symbolicFlat, UOp } from '../src/ops.ts'
+import { python, test } from './helpers.ts'
 import { renderer } from '../src/ops.ts'
 import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
+import { range } from '../src/helpers.ts'
 
-Deno.test('spec', async (t) => {
-    const patterns = await python(`out([str(pattern[0]) for pattern in tiny.ops.spec.patterns])`)
-
-    expect(spec.patterns.length).toBe(patterns.length)
-    for (const [i, pattern] of patterns.entries()) {
-        await t.step(i.toString(), () => expect(spec.patterns[i][0].__repr__()).toEqual(pattern))
-    }
-})
+Deno.test(
+    'spec2',
+    test(
+        range(spec.patterns.length).map((x) => [x, [
+            new UOp({ op: Ops.ADD, arg: [1, 2, 4, 5], src: [new UOp({ op: Ops.CONST, arg: 1 })] }),
+            new UOp({ op: Ops.ADD, arg: [1, 2, 4, 5], src: [new UOp({ op: Ops.CONST, arg: 1 })] }),
+            new UOp({ op: Ops.ADD, arg: [1, 2, 4, 5], src: [new UOp({ op: Ops.CONST, arg: 1 })] }),
+        ]]) as any,
+        (x: number, args: UOp[]) => {
+            const pattern = spec.patterns[x]
+            return { str: pattern[0].__repr__(), value: pattern[1](...args) }
+        },
+        `
+pattern = tiny.ops.spec.patterns[data[0]]
+arg_count = pattern[1].__code__.co_argcount
+out({
+    "str": str(pattern[0]),
+    "value": pattern[1](*data[1][:arg_count]),
+})`,
+    ),
+)
 
 // symbolicSimple+symbolic+symbolicfalt
 // They are mostly correct, but dtypes and op sorting is wrong and python version has x1:= variables in it
