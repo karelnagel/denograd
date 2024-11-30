@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range } from './helpers.ts'
+import { allSame, assert, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range, setMap } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from '../test/helpers.ts'
@@ -691,11 +691,11 @@ const deconstructFunction = (fxn: () => void): string[] => {
     //   return ret
     return []
 }
-type Pattern<T> = [UPat, (...args: T[]) => any]
-export class PatternMatcher<T = any> {
-    patterns: Pattern<T>[]
-    pdict = new Map<Ops, ([UPat, (...args: any[]) => void, Set<any>, boolean][])>()
-    constructor(patterns: Pattern<T>[]) {
+type Pattern<Args extends any[]> = [UPat, (...args: Args) => any]
+export class PatternMatcher<Args extends any[] = UOp[]> {
+    patterns: Pattern<Args>[]
+    pdict = new Map<Ops, ([UPat, (...args: Args) => any, Set<any>, boolean][])>()
+    constructor(patterns: Pattern<Args>[]) {
         this.patterns = patterns
         // NOTE: use of DefaultDict here is very dangerous! all keys will live for the lifetime of the PatternMatcher!
         // for (const [p,fxn] of self.patterns){
@@ -708,7 +708,7 @@ export class PatternMatcher<T = any> {
 
     // __reduce__ = () => this.patterns.map(([x, fxn]) => [x, fxn.__name__ === '<lambda>' ? deconstructFunction(fxn) : fxn])
 
-    __add__ = (more: PatternMatcher<T>) => new PatternMatcher([...this.patterns, ...more.patterns])
+    __add__ = (more: PatternMatcher<Args>) => new PatternMatcher<Args>([...this.patterns, ...more.patterns])
 
     rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
         //     const ler = uop.src.map((u) => u.op)
@@ -750,7 +750,7 @@ const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>): UOp =
 
 // # this is the matcher for the final rendered UOps
 // # matcher functions returns True or False (or None to not match)
-export const spec = new PatternMatcher<UOp>([
+export const spec = new PatternMatcher([
     [new UPat({ op: Ops.DEFINE_GLOBAL, name: 'x' }), (x) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
     [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), (x) => x.dtype instanceof PtrDType && x.dtype.local],
     [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('c')], name: 'x', allowAnyLen: true }), (x, c) => x.src.slice(1).every((y: any) => y.op === Ops.RANGE) && c.dtype === x.dtype],
@@ -1049,7 +1049,7 @@ export const maxVarConst = (x: UOp, c1: UOp, c2: UOp) => {
 }
 export const sintToUPp = (x: sint) => typeof x === 'number' ? UOp.const(dtypes.int, x) : x
 
-export const symbolicSimple = new PatternMatcher<UOp>([
+export const symbolicSimple = new PatternMatcher<UOp[]>([
     //   // ** self folding **
     [UPat.var('x').add(0), (x) => x], // x+0 -> x
     [UPat.var('x').mul(1), (x) => x], // x*1 -> x
@@ -1165,7 +1165,7 @@ export const symbolicFlat = symbolic.__add__(
 )
 // TODO: lol there probably is some better way to get these
 const allOps = range(Object.values(Ops).length / 2).filter((x) => x !== 0)
-export const _substitute = new PatternMatcher([[new UPat({ op: allOps, name: 'x' }), (ctx, x) => ctx.get(x, undefined)]])
+export const _substitute = new PatternMatcher<any>([[new UPat({ op: allOps, name: 'x' }), (ctx, x) => ctx.get(x, undefined)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])

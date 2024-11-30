@@ -75,7 +75,7 @@ Deno.test(
         ]]) as any,
         (x: number, args: UOp[]) => {
             const pattern = spec.patterns[x]
-            return { str: pattern[0].__repr__(), value: pattern[1](...args) }
+            return { str: pattern[0].__repr__(), value: pattern[1](args[0], args[1], args[2]) }
         },
         `
 pattern = tiny.ops.spec.patterns[data[0]]

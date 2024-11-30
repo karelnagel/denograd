@@ -9,6 +9,11 @@ import { execSync } from 'node:child_process'
 export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
 export const isNotNone = <T>(x: T | null | undefined): x is T => x !== undefined && x !== null
 
+export const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
+  const newVal = fn(map.get(key)!)
+  map.set(key, newVal)
+  return newVal
+}
 export const range = (i: number) => Array.from({ length: i }, (_, i) => i)
 export const d = <T extends any[]>(...t: T) => t
 export const assert = (condition: boolean, message?: string): condition is true => {

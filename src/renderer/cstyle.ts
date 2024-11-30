@@ -3,21 +3,24 @@ import { AMX, assert, dedup, getEnv, isNone, isNotNone, prod, stripParens } from
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
-export const baseRewrite = new PatternMatcher([
-  [new UPat({ op: Ops.DEFINE_ACC, name: 'x' }), (ctx, x) => ctx[x.src[0]]],
-  [new UPat({ op: Ops.ASSIGN, name: 'x' }), (ctx, x) => `${ctx[x.src[0]]} = ${ctx[x.src[1]]};`],
-  [new UPat({ op: Ops.IF, name: 'x' }), (ctx, x) => `if (${ctx[x.src[0]]}) {{`],
+export const baseRewrite = new PatternMatcher<[CStyleLanguage, UOp, UOp, UOp]>([
+  [new UPat({ op: Ops.DEFINE_ACC, name: 'x' }), (ctx, x) => ctx.get(x.src[0])],
+  [new UPat({ op: Ops.ASSIGN, name: 'x' }), (ctx, x) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
+  [new UPat({ op: Ops.IF, name: 'x' }), (ctx, x) => `if (${ctx.get(x.src[0])}) {{`],
   [new UPat({ op: [Ops.ENDIF, Ops.ENDRANGE] }), (ctx) => '}'],
-  [new UPat({ op: Ops.WMMA, name: 'x' }), (ctx, x) => `__${x.arg[0]}(${ctx[x.src[0]]}, ${ctx[x.src[1]]}, ${ctx[x.src[2]]})`],
+  [new UPat({ op: Ops.WMMA, name: 'x' }), (ctx, x) => `__${x.arg[0]}(${ctx.get(x.src[0])}, ${ctx.get(x.src[1])}, ${ctx.get(x.src[2])})`],
   // r method accesses
-  [new UPat({ op: Ops.RANGE, name: 'x' }), (ctx, x) => `for (${ctx.renderDType(x.dtype)} ${ctx[x]} = ${ctx[x.src[0]]}; ${ctx[x]} < ${ctx[x.src[1]]}; ${ctx[x]}++) {{`],
-  [new UPat({ op: Ops.VECTORIZE, name: 'x' }), (ctx, x) => `${ctx.float4.replace('float4', ctx.renderDType(x.dtype))}` + (ctx.device === 'CLANG' ? `{${x.src.map((y: any) => ctx[y]).join(',')}}` : `(${x.src.map((y: any) => ctx[y]).join(',')})`)],
-  [new UPat({ op: Ops.CAST, name: 'x' }), (ctx, x) => `(${ctx.renderCast(x.dtype, ctx[x.src[0]])})`],
-  [new UPat({ op: Ops.BITCAST, name: 'x' }), (ctx, x) => `(*((${ctx.bufferPrefix}${ctx.renderDType(x.dtype)}*)&${ctx[x.src[0]]}))`],
-  [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), (ctx, x) => `${ctx.smemAlign}${ctx.smemPrefix}${ctx.renderDType(x.dtype.base)} ${ctx[x]}[${x.arg[1]}];`],
+  [new UPat({ op: Ops.RANGE, name: 'x' }), (ctx, x) => `for (${ctx.renderDType(x.dtype)} ${ctx.get(x)} = ${ctx.get(x.src[0])}; ${ctx.get(x)} < ${ctx.get(x.src[1])}; ${ctx.get(x)}++) {{`],
+  [
+    new UPat({ op: Ops.VECTORIZE, name: 'x' }),
+    (ctx, x) => `${ctx.float4!.replace('float4', ctx.renderDType(x.dtype))}` + (ctx.device === 'CLANG' ? `{${x.src.map((y: any) => ctx.get(y)).join(',')}}` : `(${x.src.map((y: any) => ctx.get(y)).join(',')})`),
+  ],
+  [new UPat({ op: Ops.CAST, name: 'x' }), (ctx, x) => `(${ctx.renderCast(x.dtype, ctx.get(x.src[0])!)})`],
+  [new UPat({ op: Ops.BITCAST, name: 'x' }), (ctx, x) => `(*((${ctx.bufferPrefix}${ctx.renderDType(x.dtype)}*)&${ctx.get(x.src[0])}))`],
+  [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), (ctx, x) => `${ctx.smemAlign}${ctx.smemPrefix}${ctx.renderDType(x.dtype.base)} ${ctx.get(x)}[${x.arg[1]}];`],
   [new UPat({ op: Ops.BARRIER }), (ctx) => ctx.barrier],
-  [new UPat({ op: Ops.NOOP, name: 'x' }), (ctx, x) => ctx[x.src[0]]],
-  [new UPat({ op: Ops.SPECIAL, name: 'x' }), (ctx, x) => `${ctx.codeForWorkitem[x.arg[0][0]](x.arg[0][-1])}; /* ${x.arg[1]} */`],
+  [new UPat({ op: Ops.NOOP, name: 'x' }), (ctx, x) => ctx.get(x.src[0])],
+  [new UPat({ op: Ops.SPECIAL, name: 'x' }), (ctx, x) => `${ctx.codeForWorkitem[x.arg[0][0] as keyof typeof ctx.codeForWorkitem](x.arg[0][-1])}; /* ${x.arg[1]} */`],
   // const
   [new UPat({ op: Ops.CONST, arg: Infinity, name: 'x' }), (ctx, x) => `(${ctx.renderCast(x.dtype, ctx.infinity)})`],
   [new UPat({ op: Ops.CONST, arg: -Infinity, name: 'x' }), (ctx, x) => `(${ctx.renderCast(x.dtype, `-${ctx.infinity}`)})`],
@@ -34,13 +37,13 @@ export const baseRewrite = new PatternMatcher([
   // default const render
   [new UPat({ op: Ops.CONST, name: 'x' }), (ctx, x) => x.arg.toString()],
   // new load/store
-  [new UPat({ op: Ops.INDEX, src: [UPat.var('buf'), UPat.var('idx')] }), (ctx, buf, idx) => `(${ctx[buf]}+${idx.arg === Ops.ADD ? stripParens(ctx[idx]) : ctx[idx]})`],
-  [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')] }), (ctx, bidx, var1, gate) => `(${ctx[gate]}?*${ctx[bidx]}:${ctx[var1]})`],
-  [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx')], allowAnyLen: true }), (ctx, bidx) => `*${ctx[bidx]}`],
-  [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allowAnyLen: true }), (ctx, bidx, var1) => `*${ctx[bidx]} = ${ctx[var1]};`],
+  [new UPat({ op: Ops.INDEX, src: [UPat.var('buf'), UPat.var('idx')] }), (ctx, buf, idx) => `(${ctx.get(buf)}+${idx.arg === Ops.ADD ? stripParens(ctx.get(idx)!) : ctx.get(idx)})`],
+  [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')] }), (ctx, bidx, var1, gate) => `(${ctx.get(gate)}?*${ctx.get(bidx)}:${ctx.get(var1)})`],
+  [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx')], allowAnyLen: true }), (ctx, bidx) => `*${ctx.get(bidx)}`],
+  [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allowAnyLen: true }), (ctx, bidx, var1) => `*${ctx.get(bidx)} = ${ctx.get(var1)};`],
   // alu/gep
-  [new UPat({ op: GroupOp.ALU, name: 'x' }), (ctx, x) => ctx.codeForOp[x.op](...x.src.map((v: any) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx[v]) : ctx[v]), x.dtype)],
-  [new UPat({ op: Ops.GEP, name: 'x' }), (ctx, x) => ctx[x.src[0]] + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device == 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
+  [new UPat({ op: GroupOp.ALU, name: 'x' }), (ctx, x) => ctx.codeForOp[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
+  [new UPat({ op: Ops.GEP, name: 'x' }), (ctx, x) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device == 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
 ])
 
 export const extraPm = new PatternMatcher([
@@ -82,7 +85,7 @@ export class CStyleLanguage extends Renderer {
   infinity = 'INFINITY'
   nan = 'NAN'
   r?: Map<UOp, string>
-  static override codeForOp: { [key in Ops]?: (...a: string[]) => string } = {
+  static override codeForOp: { [key in Ops]?: (...args: (string | DType)[]) => string } = {
     [Ops.SQRT]: (x, dtype) => `sqrt(${x})`,
     [Ops.RECIP]: (x, dtype) => `(1/${x})`,
     [Ops.NEG]: (x, dtype) => `-${x}`,
@@ -103,6 +106,7 @@ export class CStyleLanguage extends Renderer {
     [Ops.CMPLT]: (a, b, dtype) => `(${a}<${b})`,
     [Ops.WHERE]: (a, b, c, dtype) => `(${a}?${b}:${c})`,
   }
+  codeForOp = CStyleLanguage.codeForOp
   stringRewrite = baseRewrite
   override extraMatcher = extraPm
 
@@ -115,7 +119,7 @@ export class CStyleLanguage extends Renderer {
     const scalar = dt.scalar()
     return (this.typeMap.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
   }
-  // __getitem__ = (key: string) => this.r?.get(key) // hacky helper
+  get = (key: UOp) => this.r?.get(key) // hacky helper
   override render = (name: string, uops: UOp[]): string => {
     const r = new Map<UOp, string>()
     this.r = r
@@ -199,6 +203,7 @@ export class ClangRenderer extends CStyleLanguage {
     ...Object.fromEntries(Object.entries(CStyleLanguage.codeForOp).filter(([k]) => ![Ops.EXP2, Ops.SIN, Ops.LOG2].includes(k as unknown as Ops))),
     [Ops.SQRT]: (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`,
   }
+  override codeForOp = CStyleLanguage.codeForOp
   tensorCores = !AMX
     ? null
     : [dtypes.float].map((dt) => [dt, Math.floor(64 / dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: [], reduceAxes: [], upcastAxes: [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]], dtypeIn: dt, dtypeOut: dt }))
