@@ -95,7 +95,7 @@ export class dtypes {
     }
 
     // TODO: should truncate here (tinygrad)
-    if (dtypes.isInt(dtype)) return Number(val)
+    if (dtypes.isInt(dtype)) return Math.floor(Number(val)) //TODO: floor?????
     else if (dtypes.isFloat(dtype)) return Number(val)
     else return Boolean(val)
   }

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, isListEqual, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
+import { allSame, assert, isListEqual, isNone, isNotNone, isSubset, mathGcd, partition, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from '../test/helpers.ts'
@@ -145,7 +145,7 @@ export const resolve = (x: UOp, def = false) => {
   // NOTE: generating the text for the exception is expensive, so we do this
   const sx = x.simplify()
   // TODO this Boolean() is probably broken
-  return sx.vmin() === sx.vmax() ? Boolean(sx.vmin()) : def
+  return sx.vmin().arg === sx.vmax().arg ? Boolean(sx.vmin().arg) : def
 }
 
 // # smax/smin are replacements for max/min that preserve symbolic
@@ -316,7 +316,7 @@ export class UOp extends MathTrait {
     return new UOp({ op: Array.isArray(b) ? Ops.VCONST : Ops.CONST, dtype, arg: isNotNone(dtype) ? dtypes.asConst(b, dtype) : b })
   }
   static int = (b: number) => UOp.const(dtypes.int, b)
-  static boolean = (b: boolean) => UOp.const(dtypes.bool, b)
+  static bool = (b: boolean) => UOp.const(dtypes.bool, b)
   static float = (b: number) => UOp.const(dtypes.float, b)
   //   @staticmethod
   static range = (dtype: DType, start: ConstType<UOp>, end: ConstType<UOp>, idx: number) => {
