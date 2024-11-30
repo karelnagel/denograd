@@ -7,14 +7,14 @@ import { expect } from 'expect'
 Deno.test('create DType', async () => {
     const inputs: dt.DTypeArgs[] = [
         { priority: 1, itemsize: 1, name: 'bool', fmt: 'f', count: 1, _scalar: undefined },
-        { count: 1, fmt: 'e', itemsize: 1, name: 'void', priority: 2, _scalar: undefined },
-        { count: 2, fmt: 'e', itemsize: 1, name: 'unsigned short', priority: 2, _scalar: new dt.DType({ count: 1, itemsize: 4, name: 'void', priority: 4 }) },
+        { priority: 2, itemsize: 1, name: 'void', fmt: 'e', count: 1, _scalar: undefined },
+        { priority: 2, itemsize: 1, name: 'unsigned short', fmt: 'e', count: 2, _scalar: new dt.DType({ count: 1, itemsize: 4, name: 'void', priority: 4 }) },
     ]
     for (const args of inputs) {
-        const dtype = new dt.DType(args)
-        const out = await python(
+        const ts = new dt.DType(args)
+        const py = await python(
             `
-dtype = tiny.dtype.DType(data["priority"],data["itemsize"],data["name"],data["fmt"],data["count"],data["_scalar"])
+dtype = tiny.dtype.DType(*(data[key] for key in data))
 out({
     "dtype": asdict(dtype),
     "repr": dtype.__repr__(),
@@ -35,21 +35,21 @@ out({
 })`,
             args,
         )
-        expect(asdict(dtype)).toEqual(out.dtype)
-        // expect(dtype.reduce()[1]).toEqual(out.reduce)
-        expect(dtype.vcount).toEqual(out.vcount)
-        expect(asdict(dtype.base)).toEqual(out.base)
-        expect(asdict(tryCatch(dtype.vec)(1))).toEqual(out.vec1)
-        expect(asdict(tryCatch(dtype.vec)(2))).toEqual(out.vec2)
-        expect(asdict(tryCatch(dtype.vec)(11))).toEqual(out.vec11)
-        expect(asdict(dtype.scalar())).toEqual(out.scalar)
+        expect(asdict(ts)).toEqual(py.dtype)
+        // expect(ts.reduce()[1]).toEqual(py.reduce)
+        expect(ts.vcount).toEqual(py.vcount)
+        expect(asdict(ts.base)).toEqual(py.base)
+        expect(asdict(tryCatch(() => ts.vec(1))())).toEqual(py.vec1)
+        expect(asdict(tryCatch(() => ts.vec(2))())).toEqual(py.vec2)
+        expect(asdict(tryCatch(() => ts.vec(11))())).toEqual(py.vec11)
+        expect(asdict(ts.scalar())).toEqual(py.scalar)
 
-        for (const [i, ptr] of [dtype.ptr(false), dtype.ptr(true)].entries()) {
-            expect(asdict(ptr)).toEqual(out.ptr[i].asdict)
-            expect(ptr.vcount).toEqual(out.ptr[i].vcount)
-            expect(ptr.toString()).toEqual(out.ptr[i].repr)
-            expect(asdict(tryCatch(ptr.vec)(1))).toEqual(out.ptr[i].vec1)
-            expect(asdict(tryCatch(ptr.vec)(2))).toEqual(out.ptr[i].vec2)
+        for (const [i, ptr] of [ts.ptr(false), ts.ptr(true)].entries()) {
+            expect(asdict(ptr)).toEqual(py.ptr[i].asdict)
+            expect(ptr.vcount).toEqual(py.ptr[i].vcount)
+            expect(ptr.toString()).toEqual(py.ptr[i].repr)
+            expect(asdict(ptr.vec(1))).toEqual(py.ptr[i].vec1)
+            expect(asdict(ptr.vec(2))).toEqual(py.ptr[i].vec2)
         }
     }
 })

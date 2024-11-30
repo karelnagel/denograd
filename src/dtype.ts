@@ -27,7 +27,6 @@ export class DType {
     get vcount() {
         return this.count
     }
-    // @functools.lru_cache(None)
     vec(sz: number) {
         assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
         if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
