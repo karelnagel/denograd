@@ -3,7 +3,7 @@
   "configurations": [
     {
       "request": "launch",
-      "name": "Launch Program",
+      "name": "Deno test",
       "type": "node",
       "program": "${workspaceFolder}/test/ops.test.ts",
       "cwd": "${workspaceFolder}",
@@ -13,11 +13,29 @@
         "--inspect-wait",
         "--allow-all",
         "--no-check",
-        "--filter",
-        "op.sym"
+        "test/patterns.test.ts",
       ],
       "attachSimplePort": 9229,
       "outputCapture": "std"
+    },
+    {
+      "name": "Python",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${input:filePath}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "/Users/karel/Documents/denograd/tinygrad"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "filePath",
+      "type": "promptString",
+      "description": "Enter the path to the Python file to debug",
+      "default": "path/to/your/script.py"
     }
   ]
 }

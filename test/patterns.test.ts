@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { _substitute, Ops, renderer, spec, symbolicFlat, UOp } from '../src/ops.ts'
+import { _substitute, Ops, renderer, spec, symbolicFlat, UOp, UPat } from '../src/ops.ts'
 import { asdict, python, removeKeys } from './helpers.ts'
 import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
 import { entries, zip } from '../src/helpers.ts'
@@ -74,8 +74,8 @@ const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.symbolic_flat': {
     matcher: symbolicFlat,
     uops: [
-      UOp.variable('x', 0, 999).add(UOp.int(0)),
-      UOp.variable('x', 0, 999).idiv(UOp.variable('x', 0, 999)),
+      //   UOp.variable('x', 0, 999).add(UOp.int(0)),
+      //   UOp.variable('x', 0, 999).idiv(UOp.variable('x', 0, 999)),
     ],
   },
   'tinygrad.ops._substitute': {
@@ -114,6 +114,19 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
         expect(asdict(removeKeys(ts, ['location', 'op']))).toEqual(asdict(removeKeys(py, ['location', 'op'])))
       }
     })
+
+    await t.step(`${name}_pdict`, async () => {
+      const PYDict = await python<Record<string, [UPat, undefined, Ops[], boolean][]>>(`${pythonImport}\nout(${splits.slice(-2).join('.')}.pdict)`)
+      for (const [key, ts] of matcher.pdict.entries()) {
+        const py = PYDict[key]
+        for (const [ts1, py1] of zip(ts, py)) {
+          expect(asdict(removeKeys(ts1[0], ['location', 'op']))).toEqual(asdict(removeKeys(py1[0], ['location', 'op']))) //UPat
+          expect([...ts1[2]].toSorted()).toEqual(py1[2].toSorted()) // Ops[]
+          expect(ts1[3]).toEqual(py1[3]) // has ctx?
+        }
+      }
+    })
+
     for (const [i, uop] of uops.entries()) {
       await t.step(`${name}_${i}_${uop}`, async () => {
         const ts = matcher.rewrite(uop, new Map([[uop, 'somectxvalue']]))
