@@ -6,6 +6,7 @@ import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
+export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const isListLessThan = <T extends any[]>(...lists: T[]): boolean => {
   for (const [ai, bi] of zip(lists[0], lists[1])) {
     if (Array.isArray(ai) && Array.isArray(bi)) return isListLessThan(ai, bi)

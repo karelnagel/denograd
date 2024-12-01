@@ -205,7 +205,7 @@ export class UOp extends MathTrait {
   constructor({ op, dtype=dtypes.void, src=[], arg=undefined}:UOpInput) {
         super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
     }
-  override toString = () => `hello`
+  override toString = () => `UOp(op=${this.op},dtype=${this.dtype},arg=${this.arg})`
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => {
     const oldArgs: UOpInput = { dtype: this.dtype, arg: this.arg, op: this.op, src: this.src }
@@ -356,26 +356,26 @@ export class UOp extends MathTrait {
   size = (): number => this.bufUOp().arg[1][1]
   bufUOp = () => {
     if (this.op === Ops.BUFFER) return this
-    if (!([...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.op) && this.src[0].op === Ops.BUFFER)) throw new Error(`buf_uop called on ${this.op}`)
+    assert([...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.op) && this.src[0].op === Ops.BUFFER, `buf_uop called on ${this.op}`)
     return this.src[0]
   }
   //   # *** uop Variable stuff ***
 
   static variable = (name: string, minVal: ConstType<UOp>, maxVal: ConstType<UOp>, dtype = dtypes.int) => {
-    if (!(!(minVal instanceof UOp) && !(maxVal instanceof UOp))) throw new Error(`can't create Variable ${name} with ${minVal}/${maxVal}`)
+    assert(!(minVal instanceof UOp) && !(maxVal instanceof UOp), `can't create Variable ${name} with ${minVal}/${maxVal}`)
     return new UOp({ op: Ops.DEFINE_VAR, dtype, arg: [name, minVal, maxVal] })
   }
   expr = () => {
-    if (!(this.op === Ops.DEFINE_VAR)) throw new Error(`op is ${this.op}, need DEFINE_VAR`)
+    assert(this.op === Ops.DEFINE_VAR, `op is ${this.op}, need DEFINE_VAR`)
     return this.arg[0]
   }
   bind = (val: number) => {
-    if (this.op !== Ops.DEFINE_VAR) throw new Error(`op is ${this.op}, need DEFINE_VAR`)
-    if (!(this.arg[1] <= val && val <= this.arg[2])) throw new Error(`bind ${val} not in range [${this.arg[1]}, ${this.arg[2]}]`)
+    assert(this.op === Ops.DEFINE_VAR, `op is ${this.op}, need DEFINE_VAR`)
+    assert(this.arg[1] <= val && val <= this.arg[2], `bind ${val} not in range [${this.arg[1]}, ${this.arg[2]}]`)
     return new UOp({ op: Ops.BIND, dtype: this.dtype, src: [this, this.constLike(val)] })
   }
   unbind = (): [Variable, number] => {
-    if (!(this.op === Ops.BIND && this.src[0].op === Ops.DEFINE_VAR && this.src[1].op === Ops.CONST)) throw new Error(`can't unbind ${this}`)
+    assert(this.op === Ops.BIND && this.src[0].op === Ops.DEFINE_VAR && this.src[1].op === Ops.CONST, `can't unbind ${this}`)
     return [this.src[0], this.src[1].arg]
   }
   val = () => this.unbind()[1]
