@@ -1,4 +1,4 @@
-import { assert, getEnv, intersection, max, sorted, zip } from './helpers.ts'
+import { assert, getEnv, intersection, isListLessThan, max, sorted } from './helpers.ts'
 
 export type ConstType<This = never> = number | boolean | This
 
@@ -20,11 +20,7 @@ export class DType {
   static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, _scalar: undefined })
   reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
   toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
-  lt = (o: DType) => {
-    const [a, b] = [this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count])
-    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return ai! < bi!
-    return false
-  }
+  lt = (o: DType) => isListLessThan(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]))
   get base(): DType {
     return this
   }
@@ -99,7 +95,7 @@ export class dtypes {
     }
 
     // TODO: should truncate here (tinygrad)
-    if (dtypes.isInt(dtype)) return Math.floor(Number(val)) //TODO: floor?????
+    if (dtypes.isInt(dtype)) return Math.floor(Number(val)) //TODO: floor????? - seems ok
     else if (dtypes.isFloat(dtype)) return Number(val)
     else return Boolean(val)
   }

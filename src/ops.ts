@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, isListEqual, isNone, isNotNone, isSubset, mathGcd, partition, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
+import { allSame, assert, isListEqual, isListLessThan, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from './str.ts'
@@ -155,11 +155,11 @@ const _suop = (lst: (UOp | UOp[])[], uop_fxn: (...x: UOp[]) => UOp, python_fxn: 
   return python_fxn(maxNum)
 }
 // TODO: really unsure about these
-export const smax = (...lst: (UOp | UOp[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] as UOp[] : lst as UOp[], (...x) => x.reduce((prev, curr) => curr.maximum(prev)), (x) => UOp.max(...x.flat()))
-export const smin = (...lst: (UOp | UOp[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] as UOp[] : lst as UOp[], (...x) => x.reduce((prev, curr) => curr.maximum(prev)), (x) => UOp.min(...x.flat()))
+export const smax = (...lst: (UOp | UOp[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst, (...x) => x.reduce((prev, curr) => curr.maximum(prev)), (x) => UOp.max(...x.flat()))
+export const smin = (...lst: (UOp | UOp[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst, (...x) => x.reduce((prev, curr) => curr.minimum(prev)), (x) => UOp.min(...x.flat()))
 
 export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uop
-export const symInfer = (uop: UOp | number, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.symInfer(varVals) : uop
+export const symInfer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.symInfer(varVals) : uop
 
 // AI generated
 // used for UOp and UPat
@@ -462,7 +462,7 @@ export class UOp extends MathTrait {
     const varnames = []
     for (const x of sthis.parents().keys()) if (x.op === Ops.DEFINE_VAR) varnames.push(x.arg[0])
     // TODO: check this return type ,used eval before
-    return [(m) => +sthis.render(), varnames]
+    return [(m) => sthis.render(), varnames]
   }
   symInfer = (varVals: Map<UOp, number>) => {
     const [fxn, varnames] = this._sym_fxn()
@@ -473,7 +473,7 @@ export class UOp extends MathTrait {
 
   render = (simplify = true) => {
     const ret = graphRewrite(simplify ? this.simplify() : this, renderer)
-    return ret.op === Ops.NOOP ? ret.arg : ret.toString()
+    return ret.op === Ops.NOOP ? ret.arg : ret
   }
 }
 
@@ -561,13 +561,13 @@ const lines = (fn: string): string[] => {
   return readFileSync(fn).toString().split('\n')
 }
 
-type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[]; arg?: any; name?: string; allowAnyLen?: boolean; location?: any; customEarlyReject?: Ops[] }
+type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allowAnyLen?: boolean; location?: any; customEarlyReject?: Ops[] }
 export class UPat extends MathTrait {
   op?: Ops[]
   dtype?: DType[]
   arg?: any
   name?: string
-  _inSrc?: UPat | UPat[]
+  _inSrc?: UPat | UPat[] | [UPat[]]
   customEarlyReject?: Ops[]
   src?: UPat[][]
   allowedLen: number
@@ -585,11 +585,11 @@ export class UPat extends MathTrait {
     this.customEarlyReject = customEarlyReject
     assert(this.name !== 'ctx', "UPat can't be named ctx")
 
-    // TODO check if this is ok
-    // try all permutations if it's a list
-    // if isinstance(src, list): self.src = list(itertools.permutations(src)) if not all_same(src) else [src]
-
-    if (Array.isArray(src)) this.src = [src]
+    // TODO: still not sure of this
+    // try all permutations if it's a list (we use src[][])
+    if (Array.isArray(src) && Array.isArray(src[0])) this.src = !allSame(src[0]) ? permutations(src[0]) : [src[0]]
+    // only one if it's a tuple (we use src[])
+    else if (Array.isArray(src)) this.src = [src as UPat[]]
     // repeat if it's a UPat
     else if (src instanceof UPat) this.src = [[src]]
 
@@ -624,7 +624,7 @@ export class UPat extends MathTrait {
   override constLike = (b: ConstLike): typeof this => UPat.const(this.dtype, b) as typeof this
   override alu = (op: Ops, ...src: UPat[]) => {
     const asrc = [this, ...src]
-    return new UPat({ op, dtype: [Ops.CMPLT, Ops.CMPNE].includes(op) ? undefined : asrc.at(-1)?.dtype, src: GroupOp.Commutative.includes(op) ? asrc : asrc }) as typeof this
+    return new UPat({ op, dtype: [Ops.CMPLT, Ops.CMPNE].includes(op) ? undefined : asrc.at(-1)?.dtype, src: GroupOp.Commutative.includes(op) ? [asrc] : asrc }) as typeof this
   }
 
   // deno-fmt-ignore
@@ -1069,8 +1069,7 @@ export const symbolicSimple = new PatternMatcher<UOp[]>([
 export const symbolic = symbolicSimple.__add__(
   new PatternMatcher([
     //   // ** COMMUTATIVE flipping **
-    // TODO: this is wrong
-    [new UPat({ op: GroupOp.Commutative, name: 'x' }), (x) => x.src[1].tuplize() < x.src[0].tuplize() ? x.replace({}) : undefined],
+    [new UPat({ op: GroupOp.Commutative, name: 'x' }), (x) => isListLessThan(x.src[1].tuplize(), x.src[0].tuplize()) ? x.replace({ src: x.src.toReversed() }) : undefined],
     //   // group like
     [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), (x, y, c) => (x.add(x.mul(c))).add(y)],
     //   // ** boolean algebra **
@@ -1112,7 +1111,7 @@ export const symbolic = symbolicSimple.__add__(
     [new UPat({ op: Ops.MUL, src: [UPat.var('x'), UPat.cvar('c1')] }).mul(UPat.var('y')), (x, c1, y) => (x.mul(y)).mul(c1)],
     //   // *** rules from symbolic ***
     //   // unrolled arange div folding
-    [new UPat({ op: Ops.ADD, name: 'divs', src: [new UPat({}), new UPat({ op: Ops.IDIV })] }), foldUnrolledDivs],
+    [new UPat({ op: Ops.ADD, name: 'divs', src: [[new UPat({}), new UPat({ op: Ops.IDIV })]] }), foldUnrolledDivs],
     //   // generic lt folding
     [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), (x, c) => 0 < c.arg ? ltFolding(x, c.arg) : undefined],
     //   // canonicalize a simplex with positive coefficients > 0

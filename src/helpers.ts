@@ -6,6 +6,13 @@ import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
+export const isListLessThan = <T extends any[]>(...lists: T[]): boolean => {
+  for (const [ai, bi] of zip(lists[0], lists[1])) {
+    if (Array.isArray(ai) && Array.isArray(bi)) return isListLessThan(ai, bi)
+    if (ai !== bi) return ai < bi
+  }
+  return false
+}
 export const isListEqual = (one: any[], two: any[]) => one.every((o, i) => o === two[i])
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 

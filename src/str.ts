@@ -2,15 +2,17 @@ import { DType } from './dtype.ts'
 import { getEnumString, type Ops, UOp, UPat } from './ops.ts'
 
 const getPyOpsStr = (op: Ops) => `tiny.ops.Ops.${getEnumString(op)}`
-export const pyStr = (v: any): string => {
-  if (Array.isArray(v)) return v.length ? `(${v.map((x) => pyStr(x)).join(', ')},)` : '()'
+export const pyStr = (v: any, useList = false): string => {
+  if (Array.isArray(v)) return v.length ? (useList ? `[${v.map((x) => pyStr(x)).join(', ')}]` : `(${v.map((x) => pyStr(x)).join(', ')},)`) : '()'
   if (v === null || typeof v === 'undefined') return 'None'
   if (typeof v === 'boolean') return v ? 'True' : 'False'
   if (typeof v === 'number') return v === Infinity ? 'inf' : v === -Infinity ? '-inf' : Number.isNaN(v) ? 'math.nan' : v.toString()
   if (typeof v === 'string') return `"${v}"`
 
   if (v instanceof UPat) {
-    return `tiny.ops.UPat(op=${v.op ? `(${v.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(v.dtype)}, src=${pyStr(v._inSrc)}, arg=${pyStr(v.arg)}, name=${pyStr(v.name)}, allow_any_len=${pyStr(v.allowedLen === -1)}, location=${
+    // if src is UPat[][] we use list, if UPat[] then tuple
+    const src = Array.isArray(v._inSrc) ? (Array.isArray(v._inSrc.at(0)) ? pyStr(v._inSrc.at(0), true) : pyStr(v._inSrc)) : pyStr(v._inSrc)
+    return `tiny.ops.UPat(op=${v.op ? `(${v.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(v.dtype)}, src=${src}, arg=${pyStr(v.arg)}, name=${pyStr(v.name)}, allow_any_len=${pyStr(v.allowedLen === -1)}, location=${
       pyStr(v.location)
     }, custom_early_reject=${pyStr(v.customEarlyReject)})`
   }

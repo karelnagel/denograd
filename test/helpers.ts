@@ -63,7 +63,7 @@ def trycatch(fn):
 def serialize(data):
     class CustomEncoder(json.JSONEncoder):
       def default(self, o):
-          if isinstance(o,tiny.ops.UPat): return {"__type":"UPat","op":o.op,"dtype":o.dtype,"src":o._in_src,"arg":o.arg,"name":o.name,"allow_any_len":o.allowed_len == -1,"location":o.location,"custom_early_reject":o.custom_early_reject}
+          if isinstance(o,tiny.ops.UPat): return {"__type":"UPat","op":o.op,"dtype":o.dtype,"src":[o._in_src] if isinstance(o._in_src,list) else o._in_src,"arg":o.arg,"name":o.name,"allow_any_len":o.allowed_len == -1,"location":o.location,"custom_early_reject":o.custom_early_reject}
           if isinstance(o, tiny.ops.UOp): return {"__type": "UOp",'op': o.op, "dtype": o.dtype,"src":o.src,"arg":o.arg} 
           if isinstance(o, tiny.ops.DType): return {"__type": "DType", "priority": o.priority,"itemsize":o.itemsize,"name":o.name,"fmt":o.fmt,"count":o.count,"_scalar":o._scalar}
           if isinstance(o, itertools.repeat): return CustomEncoder.default(o)
@@ -91,7 +91,7 @@ ${code}
   }
 }
 
-export const test = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string) => {
+export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string) => {
   return async (t: any) => {
     for (const input of inputs) {
       await t.step(JSON.stringify(input).slice(0, 120), async () => {
