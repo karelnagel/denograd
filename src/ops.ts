@@ -446,14 +446,14 @@ export class UOp extends MathTrait {
     // float has NAN issue and we use explicit NAN in transcendental
     if (this.op === Ops.WHERE && dtypes.isInt(this.dtype)) return [UOp.min(this.src[1].vmin(), this.src[2].vmin()), UOp.max(this.src[1].vmax(), this.src[2].vmax())]
     // NOTE: returned UOp is assumed to be CONST
-    if (this.op === Ops.DEFINE_VAR && this.arg) return [this.arg[1], this.arg[2]]
+    if (this.op === Ops.DEFINE_VAR && this.arg) return [this.constLike(this.arg[1]), this.constLike(this.arg[2])]
     if (this.op === Ops.RANGE) return [this.src[0].vmin(), (this.src[1].sub(1)).vmax()]
     if (this.op === Ops.BIND) return this.src[0]._minMax() // ignore the bound value
     if ([Ops.EXPAND, Ops.VECTORIZE].includes(this.op)) return [UOp.min(...this.src.map((x) => x.vmin())), UOp.max(...this.src.map((x) => x.vmax()))]
     // TODO: UOps.SPECIAL is UOps.DEFINE_VAR
     if (this.op === Ops.SPECIAL) return [this.constLike(0), typeof this.arg[1] === 'number' ? this.constLike(this.arg[1] - 1) : this.constLike(dtypes.max(this.dtype))]
-    if (this.op === Ops.CONST) return [this.arg, this.arg]
-    if (this.op === Ops.VCONST) return [UOp.min(this.constLike(this.arg)), UOp.max(this.arg)]
+    if (this.op === Ops.CONST) return [this.constLike(this.arg), this.constLike(this.arg)]
+    if (this.op === Ops.VCONST) return [UOp.min(this.constLike(this.arg)), UOp.max(this.constLike(this.arg))]
     return [this.constLike(dtypes.min(this.dtype)), this.constLike(dtypes.max(this.dtype))]
   }
 
