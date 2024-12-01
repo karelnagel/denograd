@@ -604,7 +604,7 @@ export class UPat extends MathTrait {
 
   static any = (src: UPatInput['src']) => new UPatAny({ src: src })
 
-  static var = (name?: string, dtype?: DType | DType[]) => new UPat({ dtype: dtype, name: name })
+  static var = (name?: string, dtype?: DType | DType[]) => new UPat({ dtype, name })
   static cvar = (name?: string, dtype?: DType, vec = true) => new UPat({ op: vec ? [Ops.CONST, Ops.VCONST] : Ops.CONST, dtype, name })
   static const = (dtype?: DType | DType[], b?: ConstLike) => new UPat({ op: Ops.CONST, dtype: dtype, arg: b })
 
@@ -1094,7 +1094,7 @@ export const symbolic = symbolicSimple.__add__(
     [(UPat.var('x').bitwiseAnd(UPat.cvar('c1'))).bitwiseAnd(UPat.cvar('c2')), (x, c1, c2) => x.bitwiseAnd(c1.bitwiseAnd(c2))],
     [(UPat.var('x').bitwiseOr(UPat.cvar('c1'))).bitwiseOr(UPat.cvar('c2')), (x, c1, c2) => x.bitwiseOr(c1.bitwiseOr(c2))],
     [(UPat.cvar('c0').add(UPat.var('x'))).lt(UPat.cvar('c1')), (x, c0, c1) => x.lt(c1.sub(c0))], // c0 + x < c1 -> x < c1 - c0
-    [(UPat.var('x').idiv(UPat.cvar('c1'))).idiv(UPat.cvar('c2')), (x, c1, c2) => x.idiv(c1.add(c2))], // (x//c1)//c2 -> x//(c1*c2)
+    [(UPat.var('x').idiv(UPat.cvar('c1'))).idiv(UPat.cvar('c2')), (x, c1, c2) => x.idiv(c1.mul(c2))], // (x//c1)//c2 -> x//(c1*c2)
     //   // ** lt **
     //   // c0*x<c1 for positive int c0,c1
     [(UPat.cvar('c0', undefined, false).mul(UPat.var('x', dtypes.ints))).lt(UPat.cvar('c1', undefined, false)), (x, c0, c1) => c0.arg > 0 && c1.arg > 0 ? x.lt(Math.ceil(c1.arg / c0.arg)) : undefined],

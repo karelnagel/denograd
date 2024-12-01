@@ -1,10 +1,13 @@
 import { expect } from 'expect/expect'
 import { _substitute, Ops, renderer, spec, symbolicFlat, UOp, type UPat } from '../src/ops.ts'
-import { asdict, python, removeKeys } from './helpers.ts'
+import { asdict, python, removeKeys, tryCatch } from './helpers.ts'
 import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
 import { entries, zip } from '../src/helpers.ts'
-import { dtypes } from '../src/dtype.ts'
+import { type DType, dtypes } from '../src/dtype.ts'
+import { symbolicSimple } from '../src/ops.ts'
+import { symbolic } from '../src/ops.ts'
 
+const variable = (name: string, dtype: DType = dtypes.int) => UOp.variable(name, 0, 999, dtype)
 const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.spec': {
     matcher: spec,
@@ -71,12 +74,83 @@ const ALL_PATTERN_MATCHERS = {
       new UOp({ op: Ops.BARRIER, dtype: dtypes.void, src: [new UOp({ op: Ops.STORE, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int64 }), new UOp({ op: Ops.CONST })] })] }),
     ],
   },
+
+  'tinygrad.ops.symbolic_simple': {
+    matcher: symbolicSimple,
+    uops: [
+      variable('x').add(0),
+      variable('x').mul(UOp.int(1)),
+      variable('x').idiv(variable('x')),
+      variable('x').idiv(1),
+      variable('x').idiv(-1),
+      variable('x').div(variable('x')),
+      variable('x').mul(variable('x2')).div(variable('x2')),
+      variable('base').mod(variable('y')).mod(variable('y')),
+      variable('x').mod(UOp.int(1)).add(variable('x').idiv(UOp.int(1)).mul(UOp.int(1))),
+      variable('x', dtypes.bool).bitwiseAnd(UOp.bool(false)),
+      variable('x', dtypes.bool).bitwiseOr(UOp.bool(false)),
+
+      variable('x').maximum(variable('x')),
+      variable('x').bitwiseAnd(variable('x')),
+      variable('x').bitwiseOr(variable('x')),
+      variable('x', dtypes.bool).logicalNot().logicalNot(),
+      variable('x', dtypes.bool).where(UOp.bool(true), UOp.bool(false)),
+
+      variable('x').lt(variable('x')),
+      variable('x', dtypes.int32).ne(variable('x', dtypes.int32)),
+      variable('x', dtypes.int16).ne(variable('x', dtypes.int16)),
+      variable('x', dtypes.int8).ne(variable('x', dtypes.int8)),
+      variable('x', dtypes.int64).ne(variable('x', dtypes.int64)),
+
+      variable('x').mul(0),
+      variable('x').mul(UOp.int(0)),
+      new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
+      variable('x', dtypes.bool).mul(variable('y', dtypes.bool)),
+      variable('x', dtypes.bool).add(variable('y', dtypes.bool)),
+      variable('x', dtypes.bool).maximum(variable('y', dtypes.bool)),
+      new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.CONST })], dtype: dtypes.float32 }),
+      new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.CONST, dtype: dtypes.float32 })], dtype: dtypes.float32 }),
+    ],
+  },
+  'tinygrad.ops.symbolic': {
+    matcher: symbolic,
+    uops: [
+      variable('x').add(variable('y')).add(variable('x').mul(UOp.int(5))), // group like
+      variable('x').bitwiseOr(variable('x').bitwiseAnd(variable('y'))), // boolean algebra
+      variable('x').mul(UOp.int(2)).add(variable('x').mul(UOp.int(3))), // combine terms
+      variable('x').add(variable('x').mul(UOp.int(3))), // x + x*c -> x*(c+1)
+      variable('x').add(variable('x')), // x + x -> x*2
+      variable('x').div(variable('x2')).div(variable('x3')), // (x/x2)/x3 -> x/(x2*x3)
+      variable('x').add(UOp.int(5)).mul(-1), // -(x+c) -> -x + -c
+
+      variable('val').where(variable('val'), variable('val')), // same results either way is noop
+      UOp.bool(false).where(variable('c0'), variable('c1')), // const gate folding
+      UOp.bool(true).where(variable('c0'), variable('c1')), // const gate folding
+      new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.CONST, arg: 5 })] }), // ALU min==max -> CONST
+      variable('x').maximum(variable('y')), // max folding when x.vmax <= y.vmin
+      variable('x').mul(UOp.int(2)).maximum(variable('x').mul(UOp.int(3))), // maxVarConst
+
+      variable('x').add(UOp.int(2)).add(UOp.int(3)), // (x+c1)+c2 -> x+(c1+c2)
+      variable('x').mul(UOp.int(2)).mul(UOp.int(3)), // (x*c1)*c2 -> x*(c1*c2)
+      variable('x').bitwiseAnd(UOp.int(2)).bitwiseAnd(UOp.int(3)), // (x&c1)&c2 -> x&(c1&c2)
+      variable('x').bitwiseOr(UOp.int(2)).bitwiseOr(UOp.int(3)), // (x|c1)|c2 -> x|(c1|c2)
+      UOp.int(2).add(variable('x')).lt(UOp.int(5)), // c0+x<c1 -> x<c1-c0
+      variable('x').idiv(UOp.int(2)).idiv(UOp.int(3)), // (x//c1)//c2 -> x//(c1*c2)
+      UOp.int(2).mul(variable('x', dtypes.int)).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)
+      UOp.int(-2).mul(variable('x', dtypes.int)).lt(UOp.int(-5)), // -2x < -5 -> -x < -floor(-(-5)/-(-2))
+      variable('x', dtypes.int).idiv(UOp.int(2)).lt(UOp.int(3)), // x//2 < 3 -> x < 3*2
+      UOp.int(4).mul(variable('x')).add(variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax() and x2.vmin()>=0
+      variable('x', dtypes.int).lt(UOp.int(5)), // x < 5 when 0 < 5
+      variable('x', dtypes.int).lt(1).ne(true), // not x < 1 -> X > 0
+      variable('x', dtypes.int).idiv(UOp.int(3)), // x//3 when 0 < 3
+      variable('x').mod(UOp.int(4)), // x%4 when 0 < 4
+    ],
+  },
   'tinygrad.ops.symbolic_flat': {
     matcher: symbolicFlat,
     uops: [
-      UOp.variable('x', 0, 999).add(0),
-      UOp.variable('x', 0, 999).mul(UOp.int(1)),
-      UOp.variable('x', 0, 999).idiv(UOp.variable('x', 0, 999)),
+      variable('x').add(variable('y')).mul(-1),
+      variable('x', dtypes.int).add(variable('y')).mul(UOp.int(3)),
     ],
   },
   'tinygrad.ops._substitute': {
@@ -153,7 +227,7 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
 
     for (const [i, uop] of uops.entries()) {
       await t.step(`${name}_${i}_${uop}`, async () => {
-        const ts = matcher.rewrite(uop, new Map([[uop, 'somectxvalue']]))
+        const ts = tryCatch(() => matcher.rewrite(uop, new Map([[uop, 'somectxvalue']])))()
         const py = await python(`${pythonImport}\nout(${splits.slice(-2).join('.')}.rewrite(data,{data:"somectxvalue"}))`, uop)
         expect(asdict(ts), "Shouldn't be the same as initial").not.toEqual(asdict(uop))
         expect(asdict(ts)).toEqual(asdict(py))
