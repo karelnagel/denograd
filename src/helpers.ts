@@ -10,11 +10,15 @@ export const entries = <K extends string, V extends any>(object: Record<K, V>) =
 export const isListLessThan = <T extends any[]>(...lists: T[]): boolean => {
   for (const [ai, bi] of zip(lists[0], lists[1])) {
     if (Array.isArray(ai) && Array.isArray(bi)) return isListLessThan(ai, bi)
-    if (ai !== bi) return ai < bi
+    if (!isEq(ai, bi)) return ai < bi
   }
   return false
 }
-export const isListEqual = (one: any[], two: any[]) => one.every((o, i) => o === two[i])
+export const isEq = (one: any, two: any): boolean => {
+  if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => isEq(o, two[i]))
+  if (typeof one === 'object' && typeof two === 'object') return JSON.stringify(one) === JSON.stringify(two)
+  return one === two
+}
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
 type Sortable = { lt: (x: any) => boolean }
@@ -105,7 +109,7 @@ export const argfix = (...x: any[]) => {
 }
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
-export const allSame = <T>(items: T[]) => items.every((x) => x === items[0])
+export const allSame = <T>(items: T[]) => items.every((x) => isEq(x, items[0]))
 export const allInt = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
 export const colored = (st: string, color?: string, background = false) => {
   if (!color) return st

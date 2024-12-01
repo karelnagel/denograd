@@ -74,7 +74,7 @@ const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.symbolic_flat': {
     matcher: symbolicFlat,
     uops: [
-      //   UOp.variable('x', 0, 999).add(UOp.int(0)),
+        UOp.variable('x', 0, 999).add(UOp.int(0)),
       //   UOp.variable('x', 0, 999).idiv(UOp.variable('x', 0, 999)),
     ],
   },

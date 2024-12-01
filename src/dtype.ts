@@ -1,4 +1,4 @@
-import { assert, getEnv, intersection, isListLessThan, max, sorted } from './helpers.ts'
+import { assert, getEnv, intersection, isEq, isListLessThan, max, sorted } from './helpers.ts'
 
 export type ConstType<This = never> = number | boolean | This
 
@@ -29,7 +29,7 @@ export class DType {
   }
   vec(sz: number) {
     assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
-    if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
+    if (sz === 1 || isEq(this, dtypes.void)) return this // void doesn't vectorize, and sz=1 is scalar
     return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name]}${sz}`, fmt: undefined, count: sz, _scalar: this })
   }
   ptr = (local = false) => new PtrDType({ ...this, _scalar: undefined, base: this, local, v: 1 })
@@ -112,10 +112,10 @@ export class dtypes {
    */
   static finfo(x: DType): [number, number] {
     assert(dtypes.isFloat(x), `${x} is not a floating point type`)
-    if (x === dtypes.float16) return [5, 10]
-    if (x === dtypes.bfloat16) return [8, 7]
-    if (x === dtypes.float32) return [8, 23]
-    if (x === dtypes.float64) return [11, 52]
+    if (isEq(x, dtypes.float16)) return [5, 10]
+    if (isEq(x, dtypes.bfloat16)) return [8, 7]
+    if (isEq(x, dtypes.float32)) return [8, 23]
+    if (isEq(x, dtypes.float64)) return [11, 52]
     throw new Error(`Invalid dtype ${x} for finfo`)
   }
   static fields = () => DTYPES_DICT
@@ -187,7 +187,7 @@ export const promoLattice = new Map<DType, DType[]>([
   [dtypes.float32, [dtypes.float64]]
 ])
 export const _getRecursiveParents = (dtype: DType): DType[] => {
-  if (dtype === dtypes.float64) return [dtypes.float64]
+  if (isEq(dtype, dtypes.float64)) return [dtypes.float64]
   return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_getRecursiveParents)])]
 }
 
@@ -205,7 +205,7 @@ export const INVERSE_DTYPES_DICT: Record<string, string> = { ...Object.fromEntri
 export const sumAccDType = (dt: DType) => {
   // default acc dtype for sum
   if (dtypes.isUnsigned(dt)) return leastUpperDType(dt, dtypes.uint)
-  if (dtypes.isInt(dt) || dt === dtypes.bool) return leastUpperDType(dt, dtypes.int)
+  if (dtypes.isInt(dt) || isEq(dt, dtypes.bool)) return leastUpperDType(dt, dtypes.int)
   return leastUpperDType(dt, dtypes.float)
 }
 
