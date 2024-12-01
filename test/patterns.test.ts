@@ -89,13 +89,36 @@ const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.renderer': {
     matcher: renderer,
     uops: [
-      UOp.int(4),
+      UOp.variable('x', 0, 9999),
+      new UOp({ op: Ops.DEFINE_VAR, arg: ['x'] }),
+      new UOp({ op: Ops.RANGE, arg: [1] }),
+      new UOp({ op: Ops.CONST, arg: 42 }),
+      new UOp({ op: Ops.BIND, src: [new UOp({ op: Ops.NOOP, arg: 'x' })] }),
+      new UOp({ op: Ops.NEG, src: [new UOp({ op: Ops.NOOP, arg: '5' })] }),
+      new UOp({ op: Ops.MAX, src: [new UOp({ op: Ops.NOOP, arg: 'a' }), new UOp({ op: Ops.NOOP, arg: 'b' })] }),
+      new UOp({ op: Ops.MULACC, src: [new UOp({ op: Ops.NOOP, arg: 'x' }), new UOp({ op: Ops.NOOP, arg: 'y' }), new UOp({ op: Ops.NOOP, arg: 'z' })] }),
+      new UOp({ op: Ops.WHERE, src: [new UOp({ op: Ops.NOOP, arg: 'cond' }), new UOp({ op: Ops.NOOP, arg: 'true_val' }), new UOp({ op: Ops.NOOP, arg: 'false_val' })] }),
+      new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.NOOP, arg: 'a' }), new UOp({ op: Ops.NOOP, arg: 'b' })] }),
     ],
   },
   'tinygrad.renderer.cstyle.base_rewrite': {
     matcher: baseRewrite,
     uops: [
-      UOp.int(4),
+      // These should be tested with CStyleLanguage.render() instead, cause it needs self.h
+      //   new UOp({ op: Ops.DEFINE_ACC, src: [new UOp({ op: Ops.CONST })] }),
+      //   new UOp({ op: Ops.ASSIGN, src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
+      //   new UOp({ op: Ops.IF, src: [new UOp({ op: Ops.CONST })] }),
+      //   new UOp({ op: Ops.ENDIF }),
+      //   new UOp({ op: Ops.WMMA, arg: ['wmma.load_matrix_sync'], src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
+
+      //   new UOp({ op: Ops.RANGE, dtype: dtypes.int32, src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
+      //   new UOp({ op: Ops.VECTORIZE, dtype: dtypes.float32.vec(4), src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
+      //   new UOp({ op: Ops.CAST, dtype: dtypes.float32, src: [new UOp({ op: Ops.CONST })] }),
+      //   new UOp({ op: Ops.BITCAST, dtype: dtypes.float32, src: [new UOp({ op: Ops.CONST })] }),
+      //   new UOp({ op: Ops.DEFINE_LOCAL, dtype: dtypes.float32, arg: [0, 128], src: [] }),
+      //   new UOp({ op: Ops.BARRIER }),
+      //   new UOp({ op: Ops.NOOP, src: [new UOp({ op: Ops.CONST })] }),
+      //   new UOp({ op: Ops.SPECIAL, arg: [['workitem', 0], 'comment'], src: [] })
     ],
   },
   'tinygrad.renderer.cstyle.extra_pm': {

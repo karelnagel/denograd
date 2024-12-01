@@ -6,7 +6,7 @@ import { Renderer, TensorCore } from './index.ts'
 export const baseRewrite = new PatternMatcher<[CStyleLanguage, UOp, UOp, UOp]>([
   [new UPat({ op: Ops.DEFINE_ACC, name: 'x' }), (ctx, x) => ctx.get(x.src[0])],
   [new UPat({ op: Ops.ASSIGN, name: 'x' }), (ctx, x) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
-  [new UPat({ op: Ops.IF, name: 'x' }), (ctx, x) => `if (${ctx.get(x.src[0])}) {{`],
+  [new UPat({ op: Ops.IF, name: 'x' }), (ctx, x) => `if (${ctx.get(x.src[0])}) {`],
   [new UPat({ op: [Ops.ENDIF, Ops.ENDRANGE] }), (ctx) => '}'],
   [new UPat({ op: Ops.WMMA, name: 'x' }), (ctx, x) => `__${x.arg[0]}(${ctx.get(x.src[0])}, ${ctx.get(x.src[1])}, ${ctx.get(x.src[2])})`],
   // r method accesses
