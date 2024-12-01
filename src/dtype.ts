@@ -4,7 +4,7 @@ export type ConstType<This = never> = number | boolean | This
 
 export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: string; count: number; _scalar?: DType }
 export class DType {
-  static dcache = new Map<DTypeArgs, DType>()
+  static dcache = new Map<string, DType>()
   priority!: number
   itemsize!: number
   name!: string
@@ -13,7 +13,7 @@ export class DType {
   _scalar?: DType
   // deno-fmt-ignore
   constructor({priority,count,itemsize,name,fmt,_scalar}: DTypeArgs) {
-    const key:DTypeArgs = {priority,count,itemsize,name,_scalar,fmt}
+    const key = JSON.stringify({priority,count,itemsize,name,_scalar,fmt})
     if (DType.dcache.has(key)) return DType.dcache.get(key)!
     this.priority=priority; this.itemsize=itemsize; this.name=name; this.fmt=fmt; this.count=count; this._scalar=_scalar
     DType.dcache.set(key,this)

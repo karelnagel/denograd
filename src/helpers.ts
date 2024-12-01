@@ -16,7 +16,7 @@ export const isListLessThan = <T extends any[]>(...lists: T[]): boolean => {
 }
 export const isEq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => isEq(o, two[i]))
-  if (typeof one === 'object' && typeof two === 'object') return JSON.stringify(one) === JSON.stringify(two)
+  // if (typeof one === 'object' && typeof two === 'object') return JSON.stringify(one) === JSON.stringify(two)//should not be needed after having cahces for classes
   return one === two
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))

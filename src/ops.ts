@@ -190,14 +190,14 @@ export const prettyPrint = (x: any, rep: (x: any) => string, srcfn: (x: any) => 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [Ops, any, DType, UOpTuple[]]
 export class UOp extends MathTrait {
-  static ucache = new Map<UOpInput, UOp>()
+  static ucache = new Map<string, UOp>()
   dtype!: DType
   op!: Ops
   src!: UOp[]
   arg: any
   // deno-fmt-ignore
   constructor({ op, dtype=dtypes.void, src=[], arg=undefined}:UOpInput) {
-    const key = {op,dtype,src,arg}
+    const key = JSON.stringify({op,dtype,src,arg})
       if (UOp.ucache.has(key)) return UOp.ucache.get(key)!
       super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
       UOp.ucache.set(key,this)
