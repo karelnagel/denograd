@@ -3,7 +3,7 @@ import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from '.
 import { allSame, assert, isListEqual, isNone, isNotNone, isSubset, mathGcd, partition, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
-import { pyStr } from '../test/helpers.ts'
+import { pyStr } from './str.ts'
 
 export type sint = number | UOp
 export type Variable = UOp

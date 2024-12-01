@@ -1,5 +1,6 @@
 import * as dt from '../src/dtype.ts'
 import { dtypes, promoLattice } from '../src/dtype.ts'
+import { sorted } from '../src/helpers.ts'
 import { asdict, python, test, tryCatch } from './helpers.ts'
 import { expect } from 'expect'
 // TODO check if only created once
@@ -96,14 +97,38 @@ Deno.test('dtypes.min/max', async () => {
   expect(dtypes.max(dtypes.bool)).toEqual(await python(`out(tiny.dtype.dtypes.max(tiny.dtype.dtypes.bool))`))
 })
 
-// TODO test dtypes.fromJS and asConst
+Deno.test(
+  'fromJS',
+  test(
+    [[4], [true], [4.4], [[4, 4, 2, 5, 3]], [[true, false, true, 4, 5.5]], [[4, 5.4]], [[false, 4]], [[3.3, 5]]],
+    dt.dtypes.fromJS,
+    'out(tiny.dtype.dtypes.from_py(*data))',
+  ),
+)
+
+Deno.test(
+  'asConst',
+  test(
+    [
+      [4, dtypes.int],
+      [4.1, dtypes.int],
+      [4.9, dtypes.int],
+      [4, dtypes.float],
+      [4, dtypes.bool],
+      [[true, 4, 4.4], dtypes.float.vec(3)],
+      [[true], dtypes.float.vec(3)],
+    ],
+    tryCatch(dt.dtypes.asConst),
+    'out(trycatch(lambda:tiny.dtype.dtypes.as_const(*data)))',
+  ),
+)
 Deno.test('promoLattice', test([[]], () => [...promoLattice.entries()], 'out([[key,tiny.dtype.promo_lattice[key]] for key in tiny.dtype.promo_lattice])'))
 
 Deno.test(
   '_getRecursiveParents',
   test(
     [['float64'], ['float32'], ['float16'], ['half'], ['bool'], ['int'], ['uint']] as const,
-    (type) => dt._getRecursiveParents(dtypes[type]).toSorted((a, b) => a.lt(b) ? -1 : 1),
+    (type) => sorted(dt._getRecursiveParents(dtypes[type])),
     'out(sorted(tiny.dtype._get_recursive_parents(tiny.dtype.DTYPES_DICT[data[0]])))',
   ),
 )

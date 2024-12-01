@@ -1,4 +1,4 @@
-import { assert, getEnv, intersection, zip } from './helpers.ts'
+import { assert, getEnv, intersection, max, sorted, zip } from './helpers.ts'
 
 export type ConstType<This = never> = number | boolean | This
 
@@ -21,8 +21,7 @@ export class DType {
   reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
   toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
   lt = (o: DType) => {
-    const a = [this.priority, this.itemsize, this.name, this.fmt, this.count]
-    const b = [o.priority, o.itemsize, o.name, o.fmt, o.count]
+    const [a, b] = [this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count])
     for (const [ai, bi] of zip(a, b)) if (ai !== bi) return ai! < bi!
     return false
   }
@@ -86,16 +85,16 @@ export class dtypes {
   static isFloat = (x: DType) => dtypes.floats.includes(x.scalar()) || x instanceof ImageDType
   static isInt = (x: DType) => dtypes.ints.includes(x.scalar())
   static isUnsigned = (x: DType) => dtypes.uints.includes(x.scalar())
-  static fromJS = (x: any): DType => {
+  static fromJS = (x: number | boolean | (number | boolean)[]): DType => {
     if (typeof x === 'number') return Number.isInteger(x) ? dtypes.defaultInt : dtypes.defaultFloat
     if (typeof x === 'boolean') return dtypes.bool
     //  put this in the last is faster because there are more items than lists/tuples to check
-    if (Array.isArray(x)) return x ? x.map((x) => dtypes.fromJS(x)).sort()[0] : dtypes.defaultFloat
+    if (Array.isArray(x)) return x ? max(x.map((x) => dtypes.fromJS(x))) : dtypes.defaultFloat
     throw new Error(`Could not infer dtype of ${x} with type ${typeof x}`)
   }
   static asConst(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
     if (Array.isArray(val)) {
-      if (val.length !== dtype.count) throw new Error(`mismatch ${val} ${JSON.stringify(dtype)}`)
+      if (val.length !== dtype.count) throw new Error(`mismatch (${val.map((val) => typeof val === 'boolean' ? (val ? 'True' : 'False') : val)},) ${dtype.toString()}`)
       return val.map((x) => dtypes.asConst(x, dtype) as ConstType)
     }
 
@@ -200,7 +199,7 @@ export const leastUpperDType = (...ds: DType[]): DType => {
   const images = ds.filter((d) => (d instanceof ImageDType))
   if (images.length) return images[0]
   const res = [...intersection(...ds.flatMap((d) => new Set(_getRecursiveParents(d))))]
-  return res.toSorted((a, b) => a.lt(b) ? -1 : 1)[0]
+  return sorted(res)[0]
 }
 export const leastUpperFloat = (dt: DType) => dtypes.isFloat(dt) ? dt : leastUpperDType(dt, dtypes.float32)
 

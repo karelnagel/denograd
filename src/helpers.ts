@@ -8,6 +8,12 @@ import { execSync } from 'node:child_process'
 // GENERAL HELPERS
 export const isListEqual = (one: any[], two: any[]) => one.every((o, i) => o === two[i])
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
+
+type Sortable = { lt: (x: any) => boolean }
+export const sorted = <T extends Sortable>(items: T[], reverse = false) => !reverse ? items.toSorted((a, b) => a.lt(b) ? -1 : 1) : items.toSorted((a, b) => a.lt(b) ? 1 : -1)
+export const max = <T extends Sortable>(items: T[]) => sorted(items, true)[0]
+export const min = <T extends Sortable>(items: T[]) => sorted(items)[0]
+
 export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
   map.set(key, defaultValue)

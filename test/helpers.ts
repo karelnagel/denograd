@@ -1,31 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
-import { getEnumString, type Ops, UPat } from '../src/ops.ts'
+import { UPat } from '../src/ops.ts'
 import { UOp } from '../src/ops.ts'
 import { DType } from '../src/dtype.ts'
 import { isNotNone } from '../src/helpers.ts'
 import { expect } from 'expect'
-
-const getPyOpsStr = (op: Ops) => `tiny.ops.Ops.${getEnumString(op)}`
-export const pyStr = (v: any): string => {
-  if (Array.isArray(v)) return v.length ? `(${v.map((x) => pyStr(x)).join(', ')},)` : '()'
-  if (v === null || typeof v === 'undefined') return 'None'
-  if (typeof v === 'boolean') return v ? 'True' : 'False'
-  if (typeof v === 'number') return v === Infinity ? 'inf' : v === -Infinity ? '-inf' : Number.isNaN(v) ? 'math.nan' : v.toString()
-  if (typeof v === 'string') return `"${v}"`
-
-  if (v instanceof UPat) {
-    return `tiny.ops.UPat(op=${v.op ? `(${v.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(v.dtype)}, src=${pyStr(v._inSrc)}, arg=${pyStr(v.arg)}, name=${pyStr(v.name)}, allow_any_len=${pyStr(v.allowedLen === -1)}, location=${
-      pyStr(v.location)
-    }, custom_early_reject=${pyStr(v.customEarlyReject)})`
-  }
-  if (v instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(v.op)}, dtype=${pyStr(v.dtype)}, src=${pyStr(v.src)}, arg=${pyStr(v.arg)})`
-  if (v instanceof DType) return `tiny.ops.DType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)})`
-
-  if (typeof v === 'function') return 'lambda x: x'
-  if (typeof v === 'object') return `{${Object.entries(v).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
-  throw new Error(`Invalid value: ${v}`)
-}
+import { pyStr } from '../src/str.ts'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
