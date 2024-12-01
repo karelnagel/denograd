@@ -1,6 +1,6 @@
 import * as dt from '../src/dtype.ts'
-import { dtypes } from '../src/dtype.ts'
-import { asdict, python, tryCatch } from './helpers.ts'
+import { dtypes, promoLattice } from '../src/dtype.ts'
+import { asdict, python, test, tryCatch } from './helpers.ts'
 import { expect } from 'expect'
 // TODO check if only created once
 
@@ -97,42 +97,55 @@ Deno.test('dtypes.min/max', async () => {
 })
 
 // TODO test dtypes.fromJS and asConst
+Deno.test('promoLattice', test([[]], () => [...promoLattice.entries()], 'out([[key,tiny.dtype.promo_lattice[key]] for key in tiny.dtype.promo_lattice])'))
 
-Deno.test.ignore('_getRecursiveParents', async (t) => {
-  const inputs = ['float64', 'float32', 'float16', 'half', 'bool', 'int', 'uint'] as const
-  for (const input of inputs) {
-    await t.step(input, async () => {
-      const res = await python(`out([asdict(v) for v in tiny.dtype._get_recursive_parents(tiny.dtype.dtypes.${input}) ])`)
-      const res2 = dt._getRecursiveParents(dtypes[input])
-      expect(asdict(res2)).toEqual(res)
-    })
-  }
-})
-Deno.test.ignore('leastUpper', async (t) => {
-  const inputs = [
-    ['int', 'int'],
-    ['int', 'uint', 'long'],
-    ['float64', 'float32'],
-    ['float64', 'half'],
-    ['bool', 'half'],
-    ['int', 'int32', 'int64'],
-  ] as const
-  for (const input of inputs) {
-    await t.step(input.toString(), async () => {
-      const res = await python(`out(asdict(tiny.dtype.least_upper_dtype(${input.map((x) => `tiny.dtype.dtypes.${x}`)})))`)
-      expect(asdict(dt.leastUpperDType(...input.map((i) => dtypes[i])))).toEqual(res)
-    })
-  }
-})
-Deno.test.ignore('sumAccDType', async (t) => {
-  const inputs = ['float64', 'float32', 'half', 'bool', 'int', 'uint'] as const
-  for (const input of inputs) {
-    await t.step(input.toString(), async () => {
-      const res = await python(`out(asdict(tiny.dtype.least_upper_dtype(tiny.dtype.dtypes.${input})))`)
-      expect(asdict(dt.sumAccDType(dtypes[input]))).toEqual(res)
-    })
-  }
-})
+Deno.test(
+  '_getRecursiveParents',
+  test(
+    [['float64'], ['float32'], ['float16'], ['half'], ['bool'], ['int'], ['uint']] as const,
+    (type) => dt._getRecursiveParents(dtypes[type]).toSorted((a, b) => a.lt(b) ? -1 : 1),
+    'out(sorted(tiny.dtype._get_recursive_parents(tiny.dtype.DTYPES_DICT[data[0]])))',
+  ),
+)
+
+Deno.test(
+  'leastUpperDType',
+  test(
+    [
+      ['int', 'int'],
+      ['int', 'uint', 'long'],
+      ['float64', 'float32'],
+      ['float64', 'half'],
+      ['bool', 'half'],
+      ['int', 'int32', 'int64'],
+      ['bool', 'float64', 'int64'],
+      ['bool'],
+      ['bool', 'uint'],
+      ['bool', 'int'],
+      ['bool', 'float'],
+      ['half', 'uint'],
+      ['half', 'int'],
+      ['half', 'float'],
+    ] as const,
+    (...inputs) => dt.leastUpperDType(...inputs.map((i) => dtypes[i])),
+    'out(tiny.dtype.least_upper_dtype(*[tiny.dtype.DTYPES_DICT[key] for key in data]))',
+  ),
+)
+Deno.test(
+  'sumAccDType',
+  test(
+    [
+      ['float64'],
+      ['float32'],
+      ['half'],
+      ['bool'],
+      ['int'],
+      ['uint'],
+    ] as const,
+    (input) => dt.sumAccDType(dtypes[input]),
+    'out(tiny.dtype.sum_acc_dtype(tiny.dtype.DTYPES_DICT[data[0]]))',
+  ),
+)
 Deno.test('truncate', async (t) => {
   const truncate = async (dtype: string, val1: any, val2: any) => {
     await t.step(dtype, async () => {

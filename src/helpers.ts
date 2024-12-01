@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
 export const isListEqual = (one: any[], two: any[]) => one.every((o, i) => o === two[i])
-
+export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
   map.set(key, defaultValue)

@@ -1,4 +1,4 @@
-import { assert, getEnv } from './helpers.ts'
+import { assert, getEnv, intersection, zip } from './helpers.ts'
 
 export type ConstType<This = never> = number | boolean | This
 
@@ -20,7 +20,12 @@ export class DType {
   static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, _scalar: undefined })
   reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
   toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
-  lt = (o: DType) => [this.priority, this.itemsize, this.name, this.fmt, this.count] < [o.priority, o.itemsize, o.name, o.fmt, o.count]
+  lt = (o: DType) => {
+    const a = [this.priority, this.itemsize, this.name, this.fmt, this.count]
+    const b = [o.priority, o.itemsize, o.name, o.fmt, o.count]
+    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return ai! < bi!
+    return false
+  }
   get base(): DType {
     return this
   }
@@ -172,32 +177,30 @@ export const toDType = (x: DTypeLike): DType => (x instanceof DType) ? x : dtype
 // https://jax.readthedocs.io/en/latest/jep/9407-type-promotion.html
 // we don't support weak type and complex type
 // deno-fmt-ignore
-const promoLattice = (dtype: DType) => {
-    switch (dtype) {
-        case dtypes.bool: return [dtypes.int8, dtypes.uint8]
-        case dtypes.int8: return [dtypes.int16]
-        case dtypes.int16: return [dtypes.int32]
-        case dtypes.int32: return [dtypes.int64]
-        case dtypes.int64: return [dtypes.float16, dtypes.bfloat16]
-        case dtypes.uint8: return [dtypes.int16, dtypes.uint16]
-        case dtypes.uint16: return [dtypes.int32, dtypes.uint32]
-        case dtypes.uint32: return [dtypes.int64, dtypes.uint64]
-        case dtypes.uint64: return [dtypes.float16, dtypes.bfloat16]
-        case dtypes.float16: return [dtypes.float32]
-        case dtypes.bfloat16: return [dtypes.float32]
-        case dtypes.float32: return [dtypes.float64]
-        default: throw new Error(`No dtype ${dtype}`)
-    }
-}
+export const promoLattice = new Map<DType, DType[]>([
+  [dtypes.bool, [dtypes.int8, dtypes.uint8]],
+  [dtypes.int8, [dtypes.int16]],
+  [dtypes.int16, [dtypes.int32]], 
+  [dtypes.int32, [dtypes.int64]],
+  [dtypes.int64, [dtypes.float16, dtypes.bfloat16]],
+  [dtypes.uint8, [dtypes.int16, dtypes.uint16]],
+  [dtypes.uint16, [dtypes.int32, dtypes.uint32]],
+  [dtypes.uint32, [dtypes.int64, dtypes.uint64]],
+  [dtypes.uint64, [dtypes.float16, dtypes.bfloat16]],
+  [dtypes.float16, [dtypes.float32]],
+  [dtypes.bfloat16, [dtypes.float32]], 
+  [dtypes.float32, [dtypes.float64]]
+])
 export const _getRecursiveParents = (dtype: DType): DType[] => {
   if (dtype === dtypes.float64) return [dtypes.float64]
-  return [...new Set([dtype, ...new Set(promoLattice(dtype).flatMap(_getRecursiveParents).filter((x, i, arr) => arr.indexOf(x) === i))])]
+  return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_getRecursiveParents)])]
 }
 
 export const leastUpperDType = (...ds: DType[]): DType => {
   const images = ds.filter((d) => (d instanceof ImageDType))
   if (images.length) return images[0]
-  return ds.flatMap((d) => _getRecursiveParents(d)).sort()[0]
+  const res = [...intersection(...ds.flatMap((d) => new Set(_getRecursiveParents(d))))]
+  return res.toSorted((a, b) => a.lt(b) ? -1 : 1)[0]
 }
 export const leastUpperFloat = (dt: DType) => dtypes.isFloat(dt) ? dt : leastUpperDType(dt, dtypes.float32)
 
