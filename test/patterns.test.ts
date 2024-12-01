@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { _substitute, Ops, renderer, spec, symbolicFlat, UOp, UPat } from '../src/ops.ts'
+import { _substitute, Ops, renderer, spec, symbolicFlat, UOp, type UPat } from '../src/ops.ts'
 import { asdict, python, removeKeys } from './helpers.ts'
 import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
 import { entries, zip } from '../src/helpers.ts'
@@ -74,8 +74,9 @@ const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.symbolic_flat': {
     matcher: symbolicFlat,
     uops: [
-        UOp.variable('x', 0, 999).add(UOp.int(0)),
-      //   UOp.variable('x', 0, 999).idiv(UOp.variable('x', 0, 999)),
+      UOp.variable('x', 0, 999).add(0),
+      UOp.variable('x', 0, 999).mul(UOp.int(1)),
+      UOp.variable('x', 0, 999).idiv(UOp.variable('x', 0, 999)),
     ],
   },
   'tinygrad.ops._substitute': {

@@ -187,23 +187,20 @@ export const prettyPrint = (x: any, rep: (x: any) => string, srcfn: (x: any) => 
   return `${' '.repeat(d)}${cx[1] > 1 ? `x${cx[0]}:=` : ''}${rep(x)}`.replace('%s', srcs)
 }
 
-// TODO:
-// class UOpMetaClass(type):
-//   ucache:WeakValueDictionary[Tuple, UOp] = WeakValueDictionary()
-//   def __call__(cls, op:Ops, dtype:DType=dtypes.void, src:Tuple[UOp,...]=tuple(), arg:Any=None):
-//     if (ret:=UOpMetaClass.ucache.get(key:=(op, dtype, src, arg), None)) is not None: return ret
-//     UOpMetaClass.ucache[key] = ret = super().__call__(op, dtype, src, arg)
-//     return ret
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [Ops, any, DType, UOpTuple[]]
 export class UOp extends MathTrait {
-  dtype: DType
-  op: Ops
-  src: UOp[]
+  static ucache = new Map<UOpInput, UOp>()
+  dtype!: DType
+  op!: Ops
+  src!: UOp[]
   arg: any
   // deno-fmt-ignore
   constructor({ op, dtype=dtypes.void, src=[], arg=undefined}:UOpInput) {
-        super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
+    const key = {op,dtype,src,arg}
+      if (UOp.ucache.has(key)) return UOp.ucache.get(key)!
+      super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
+      UOp.ucache.set(key,this)
     }
   override toString = () => `UOp(op=${this.op},dtype=${this.dtype},arg=${this.arg})`
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
@@ -255,7 +252,7 @@ export class UOp extends MathTrait {
     if (!dtypes.includes(this.dtype)) throw new Error(`eval with wrong dtype ${this}`)
     const simpleThis = this.simplify()
     const [vmin, vmax] = simpleThis._minMax()
-    if (!isEq(vmin , vmax)) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleThis.render()}`)
+    if (!isEq(vmin, vmax)) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleThis.render()}`)
     if ((vmin instanceof expectedType)) throw new Error(`vmin is wrong dtype ${typeof vmin} != ${expectedType}`)
     return vmin as InstanceType<T>
   }

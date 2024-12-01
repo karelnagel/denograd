@@ -2,20 +2,22 @@ import { assert, getEnv, intersection, isEq, isListLessThan, max, sorted } from 
 
 export type ConstType<This = never> = number | boolean | This
 
-// TODO: all DTypes should only be created once, DTypeMetaClass
 export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: string; count: number; _scalar?: DType }
-
 export class DType {
-  // deno-fmt-ignore
-  constructor(args: DTypeArgs) {
-        this.priority = args.priority; this.itemsize = args.itemsize;this.name = args.name; this.fmt = args.fmt; this.count = args.count; this._scalar = args._scalar
-    }
-  priority: number
-  itemsize: number
-  name: string
+  static dcache = new Map<DTypeArgs, DType>()
+  priority!: number
+  itemsize!: number
+  name!: string
   fmt?: string
-  count: number
+  count!: number
   _scalar?: DType
+  // deno-fmt-ignore
+  constructor({priority,count,itemsize,name,fmt,_scalar}: DTypeArgs) {
+    const key:DTypeArgs = {priority,count,itemsize,name,_scalar,fmt}
+    if (DType.dcache.has(key)) return DType.dcache.get(key)!
+    this.priority=priority; this.itemsize=itemsize; this.name=name; this.fmt=fmt; this.count=count; this._scalar=_scalar
+    DType.dcache.set(key,this)
+  }
 
   static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, _scalar: undefined })
   reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
