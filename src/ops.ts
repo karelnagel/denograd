@@ -358,7 +358,7 @@ export class UOp extends MathTrait {
   }
   //   # *** uop Variable stuff ***
 
-  static variable = (name: string, minVal: ConstType<UOp>, maxVal: ConstType<UOp>, dtype = dtypes.int) => {
+  static variable = (name: string, minVal: ConstType<UOp> = dtypes.min(dtypes.int), maxVal: ConstType<UOp> = dtypes.max(dtypes.int), dtype = dtypes.int) => {
     assert(!(minVal instanceof UOp) && !(maxVal instanceof UOp), `can't create Variable ${name} with ${minVal}/${maxVal}`)
     return new UOp({ op: Ops.DEFINE_VAR, dtype, arg: [name, minVal, maxVal] })
   }
