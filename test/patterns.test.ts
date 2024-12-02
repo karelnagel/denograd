@@ -122,23 +122,23 @@ const ALL_PATTERN_MATCHERS = {
       UOp.variable('val').where(UOp.variable('val'), UOp.variable('val')), // same results either way is noop
       UOp.bool(false).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
       UOp.bool(true).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
-      // new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
+      new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
       UOp.variable('x').maximum(UOp.variable('y')), // max folding when x.vmax <= y.vmin
-      // UOp.variable('x').mul(UOp.int(2)).maximum(UOp.variable('x').mul(UOp.int(3))), // maxVarConst
+      UOp.variable('x').mul(UOp.int(2)).maximum(UOp.variable('x').mul(UOp.int(3))), // maxVarConst
 
       UOp.variable('x').add(UOp.int(2)).add(UOp.int(3)), // (x+c1)+c2 -> x+(c1+c2)
-      // UOp.variable('x').mul(UOp.int(2)).mul(UOp.int(3)), // (x*c1)*c2 -> x*(c1*c2)
+      UOp.variable('x').mul(UOp.int(2)).mul(UOp.int(3)), // (x*c1)*c2 -> x*(c1*c2)
       UOp.variable('x').bitwiseAnd(UOp.int(2)).bitwiseAnd(UOp.int(3)), // (x&c1)&c2 -> x&(c1&c2)
       UOp.variable('x').bitwiseOr(UOp.int(2)).bitwiseOr(UOp.int(3)), // (x|c1)|c2 -> x|(c1|c2)
       UOp.int(2).add(UOp.variable('x')).lt(UOp.int(5)), // c0+x<c1 -> x<c1-c0
       UOp.variable('x').idiv(UOp.int(2)).idiv(UOp.int(3)), // (x//c1)//c2 -> x//(c1*c2)
-      // UOp.int(2).mul(UOp.variable('x')).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)
-      // UOp.int(-2).mul(UOp.variable('x')).lt(UOp.int(-5)), // -2x < -5 -> -x < -floor(-(-5)/-(-2))
+      UOp.int(2).mul(UOp.variable('x')).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)
+      UOp.int(-2).mul(UOp.variable('x')).lt(UOp.int(-5)), // -2x < -5 -> -x < -floor(-(-5)/-(-2))
       UOp.variable('x').idiv(UOp.int(2)).lt(UOp.int(3)), // x//2 < 3 -> x < 3*2
-      // UOp.int(4).mul(UOp.variable('x')).add(UOp.variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax() and x2.vmin()>=0
-      // UOp.variable('x').lt(UOp.int(5)), // x < 5 when 0 < 5
+      UOp.int(4).mul(UOp.variable('x')).add(UOp.variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax() and x2.vmin()>=0
+      UOp.variable('x').lt(UOp.int(5)), // x < 5 when 0 < 5
       UOp.variable('x').lt(1).ne(true), // not x < 1 -> X > 0
-      // UOp.variable('x').idiv(UOp.int(3)), // x//3 when 0 < 3
+      UOp.variable('x').idiv(UOp.int(3)), // x//3 when 0 < 3
       UOp.variable('x').mod(UOp.int(4)), // x%4 when 0 < 4
     ],
   },
@@ -221,7 +221,7 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
   })
 
   for (const [i, uop] of uops.entries()) {
-    Deno.test(`${name}_${i}_${uop}`, async () => {
+    Deno.test(`${name}_${i}`, async () => {
       const ts = tryCatch(() => matcher.rewrite(uop, new Map([[uop, 'somectxvalue']])))()
       const py = await python(`${pythonImport}\nout(${splits.slice(-2).join('.')}.rewrite(data,{data:"somectxvalue"}))`, uop)
       expect(asdict(ts)).toEqual(asdict(py))
