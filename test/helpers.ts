@@ -83,6 +83,7 @@ ${code}
   await execAsync(`echo ${JSON.stringify(code.trim())} > ${file}`)
   const res = await execAsync(`PYTHONPATH=./tinygrad python ${file}`)
   try {
+    console.log(res.split('<<<<<')[0])
     const json = res.split('<<<<<')[1]?.split('>>>>>')[0].trim()
     return deserialize(json)
   } catch (e) {

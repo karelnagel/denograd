@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, isEq, isListLessThan, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
+import { allSame, assert, isEq, isLessThan, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from './str.ts'
@@ -223,7 +223,7 @@ export class UOp extends MathTrait {
     return map
   }
   sparents = () => new Map([...this.parents().entries(), [this, undefined]])
-  tuplize = (): UOpTuple => [this.op, this.arg, this.dtype, this.src.map((src) => src.tuplize())]
+  tuplize = (): UOpTuple => [this.op, this.arg, this.dtype, this.src.map((x) => x.tuplize())]
 
   //   # *** uop shape stuff ***
   // TODO: ignored the shape stuff for now
@@ -589,8 +589,7 @@ export class UPat extends MathTrait {
     else if (Array.isArray(src)) this.src = [src as UPat[]]
     // repeat if it's a UPat
     else if (src instanceof UPat) this.src = [[src]]
-
-    this.allowedLen = allowAnyLen || src instanceof UPat || isNone(src) ? -1 : src.length
+    this.allowedLen = (allowAnyLen || src instanceof UPat || isNone(src)) ? -1 : src.length // potentially wrong cause it can be UPat [][]
     this.location = location || getLocation()
 
     if (isNotNone(customEarlyReject)) this.earlyReject = customEarlyReject
@@ -644,6 +643,15 @@ export class UPat extends MathTrait {
     return prettyPrint(this, rep, (x) => !x.src ? undefined : x.src[0])
   }
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
+    console.log(
+      isNotNone(this.op) && !this.op.includes(uop.op),
+      isNotNone(this.name) && !isEq(setDefault(store, this.name, uop), uop),
+      isNotNone(this.dtype) && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar()),
+      isNotNone(this.arg) && !isEq(this.arg, uop.arg),
+      this.allowedLen !== -1 && uop.src.length !== this.allowedLen,
+      this.allowedLen,
+      uop.src.length,
+    )
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
       (isNotNone(this.name) && !isEq(setDefault(store, this.name, uop), uop)) ||
@@ -692,9 +700,11 @@ export class PatternMatcher<Args extends object = Record<string, any>, Res exten
     const ler = new Set(uop.src.map((u) => u.op))
     for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op) || []) {
       if (!isSubset(ler, earlyReject)) continue
+      const index = this.patterns.findIndex((pattern) => pattern[0] === p)
+      console.log(index)
       for (const match of p.match(uop, new Map())) {
-        console.log(`Matched ${[...match.keys()]} ${p.__repr__()}`)
         const ret = hasCtx ? fxn({ ctx, ...Object.fromEntries(match) } as any) : fxn(Object.fromEntries(match) as any)
+        console.log(`Matched with ${index}, returned ${ret}`)
         if (isNotNone(ret)) return ret
       }
     }
@@ -1066,7 +1076,7 @@ export const symbolicSimple = new PatternMatcher<Record<string, UOp>, UOp | unde
 export const symbolic = symbolicSimple.__add__(
   new PatternMatcher([
     //   // ** COMMUTATIVE flipping **
-    [new UPat({ op: GroupOp.Commutative, name: 'x' }), ({ x }) => isListLessThan(x.src[1].tuplize(), x.src[0].tuplize()) ? x.replace({ src: x.src.toReversed() }) : undefined],
+    [new UPat({ op: GroupOp.Commutative, name: 'x' }), ({ x }) => isLessThan(x.src[1].tuplize(), x.src[0].tuplize()) ? x.replace({ src: x.src.toReversed() }) : undefined],
     //   // group like
     [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, y, c }) => (x.add(x.mul(c))).add(y)],
     //   // ** boolean algebra **

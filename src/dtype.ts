@@ -1,4 +1,4 @@
-import { assert, getEnv, intersection, isEq, isListLessThan, max, sorted } from './helpers.ts'
+import { assert, getEnv, intersection, isEq, isLessThan, max, sorted } from './helpers.ts'
 
 export type ConstType<This = never> = number | boolean | This
 
@@ -22,7 +22,7 @@ export class DType {
   static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, _scalar: undefined })
   reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
   toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
-  lt = (o: DType) => isListLessThan(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]))
+  lt = (o: DType) => isLessThan(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]) as [number[], number[]])
   get base(): DType {
     return this
   }

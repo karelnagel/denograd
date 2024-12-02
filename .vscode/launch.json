@@ -5,7 +5,7 @@
       "request": "launch",
       "name": "Deno test",
       "type": "node",
-      "program": "${workspaceFolder}/test/ops.test.ts",
+      "program": "${workspaceFolder}/test/patterns.test.ts",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "deno",
       "runtimeArgs": [
@@ -13,7 +13,8 @@
         "--inspect-wait",
         "--allow-all",
         "--no-check",
-        "test/patterns.test.ts",
+        "--filter",
+        "symbolic",
       ],
       "attachSimplePort": 9229,
       "outputCapture": "std"

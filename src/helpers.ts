@@ -7,12 +7,15 @@ import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
-export const isListLessThan = <T extends any[]>(...lists: T[]): boolean => {
-  for (const [ai, bi] of zip(lists[0], lists[1])) {
-    if (Array.isArray(ai) && Array.isArray(bi)) return isListLessThan(ai, bi)
-    if (!isEq(ai, bi)) return ai < bi
+export const isLessThan = (a: any, b: any): boolean => {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return a.length < b.length
+    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return isLessThan(ai, bi)
   }
-  return false
+  if (typeof a === 'object' && typeof b === 'object' && 'lt' in a && 'lt' in b) {
+    return a.lt(b)
+  }
+  return a < b
 }
 export const isEq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => isEq(o, two[i]))
