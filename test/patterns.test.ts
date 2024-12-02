@@ -77,76 +77,76 @@ const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.symbolic_simple': {
     matcher: symbolicSimple,
     uops: [
-    //   // UOp.variable('x').add(0),
-    //   // UOp.variable('x').mul(UOp.int(1)),
-    //   UOp.variable('x').idiv(UOp.variable('x')),
-    //   UOp.variable('x').idiv(1),
-    //   UOp.variable('x').idiv(-1),
-    //   // UOp.variable('x').div(UOp.variable('x')),
-    //   // UOp.variable('x').mul(UOp.variable('x2')).div(UOp.variable('x2')),
-    //   UOp.variable('base').mod(UOp.variable('y')).mod(UOp.variable('y')),
-    //   // UOp.variable('x').mod(UOp.int(1)).add(UOp.variable('x').idiv(UOp.int(1)).mul(UOp.int(1))),
-    //   // UOp.variable('x', false, true, dtypes.bool).bitwiseAnd(UOp.bool(false)),
-    //   // UOp.variable('x', false, true, dtypes.bool).bitwiseOr(UOp.bool(false)),
+      UOp.variable('x').add(0),
+      UOp.variable('x').mul(UOp.int(1)),
+      UOp.variable('x').idiv(UOp.variable('x')),
+      UOp.variable('x').idiv(1),
+      UOp.variable('x').idiv(-1),
+      UOp.variable('x').div(UOp.variable('x')),
+      UOp.variable('x').mul(UOp.variable('x2')).div(UOp.variable('x2')),
+      UOp.variable('base').mod(UOp.variable('y')).mod(UOp.variable('y')),
+      UOp.variable('x').mod(UOp.int(1)).add(UOp.variable('x').idiv(UOp.int(1)).mul(UOp.int(1))),
+      UOp.variable('x', false, true, dtypes.bool).bitwiseAnd(UOp.bool(false)),
+      UOp.variable('x', false, true, dtypes.bool).bitwiseOr(UOp.bool(false)),
 
-    //   // UOp.variable('x').maximum(UOp.variable('x')),
-    //   // UOp.variable('x').bitwiseAnd(UOp.variable('x')),
-    //   // UOp.variable('x').bitwiseOr(UOp.variable('x')),
-    //   // UOp.variable('x', false, true, dtypes.bool).logicalNot().logicalNot(),
-    //   UOp.variable('x', false, true, dtypes.bool).where(UOp.bool(true), UOp.bool(false)),
+      UOp.variable('x').maximum(UOp.variable('x')),
+      UOp.variable('x').bitwiseAnd(UOp.variable('x')),
+      UOp.variable('x').bitwiseOr(UOp.variable('x')),
+      UOp.variable('x', false, true, dtypes.bool).logicalNot().logicalNot(),
+      UOp.variable('x', false, true, dtypes.bool).where(UOp.bool(true), UOp.bool(false)),
 
-    //   UOp.variable('x').lt(UOp.variable('x')),
-    //   // UOp.variable('x').ne(UOp.variable('x')),
+      UOp.variable('x').lt(UOp.variable('x')),
+      UOp.variable('x').ne(UOp.variable('x')),
 
-    //   // UOp.variable('x').mul(0),
-    //   // UOp.variable('x').mul(UOp.int(0)),
-    //   new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.CONST, arg: 4 }), new UOp({ op: Ops.CONST, arg: 66 })] }),
-    //   // UOp.variable('x', false, true, dtypes.bool).mul(UOp.variable('y', false, true, dtypes.bool)),
-    //   //   UOp.variable('x', false, true, dtypes.bool).add(UOp.variable('y', false, true, dtypes.bool)),
-    //   // UOp.variable('x', false, true, dtypes.bool).maximum(UOp.variable('y', false, true, dtypes.bool)),
-    //   new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.CAST, dtype: dtypes.float, arg: 44.55 })], dtype: dtypes.int }),
-    //   new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.MUL, dtype: dtypes.float })], dtype: dtypes.float }),
+      UOp.variable('x').mul(0),
+      UOp.variable('x').mul(UOp.int(0)),
+      new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.CONST, arg: 4 }), new UOp({ op: Ops.CONST, arg: 66 })] }),
+      UOp.variable('x', false, true, dtypes.bool).mul(UOp.variable('y', false, true, dtypes.bool)),
+      UOp.variable('x', false, true, dtypes.bool).add(UOp.variable('y', false, true, dtypes.bool)),
+      UOp.variable('x', false, true, dtypes.bool).maximum(UOp.variable('y', false, true, dtypes.bool)),
+      new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.CAST, dtype: dtypes.float, arg: 44.55 })], dtype: dtypes.int }),
+      new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.MUL, dtype: dtypes.float })], dtype: dtypes.float }),
     ],
   },
   'tinygrad.ops.symbolic': {
     matcher: symbolic,
     uops: [
-        UOp.variable('x').add(UOp.variable('y')).add(UOp.variable('x').mul(UOp.int(5))), // group like
-      //   UOp.variable('x').bitwiseOr(UOp.variable('x').bitwiseAnd(UOp.variable('y'))), // boolean algebra
-      //   UOp.variable('x').mul(UOp.int(2)).add(UOp.variable('x').mul(UOp.int(3))), // combine terms
-      //   UOp.variable('x').add(UOp.variable('x').mul(UOp.int(3))), // x + x*c -> x*(c+1)
-      //   UOp.variable('x').add(UOp.variable('x')), // x + x -> x*2
-      //   UOp.variable('x').div(UOp.variable('x2')).div(UOp.variable('x3')), // (x/x2)/x3 -> x/(x2*x3)
-      //   UOp.variable('x').add(UOp.int(5)).mul(-1), // -(x+c) -> -x + -c
+      UOp.variable('x').add(UOp.variable('y')).add(UOp.variable('x').mul(UOp.int(5))), // group like
+      UOp.variable('x').bitwiseOr(UOp.variable('x').bitwiseAnd(UOp.variable('y'))), // boolean algebra
+      UOp.variable('x').mul(UOp.int(2)).add(UOp.variable('x').mul(UOp.int(3))), // combine terms
+      UOp.variable('x').add(UOp.variable('x').mul(UOp.int(3))), // x + x*c -> x*(c+1)
+      UOp.variable('x').add(UOp.variable('x')), // x + x -> x*2
+      UOp.variable('x').div(UOp.variable('x2')).div(UOp.variable('x3')), // (x/x2)/x3 -> x/(x2*x3)
+      UOp.variable('x').add(UOp.int(5)).mul(-1), // -(x+c) -> -x + -c
 
-      //   UOp.variable('val').where(UOp.variable('val'), UOp.variable('val')), // same results either way is noop
-      //   UOp.bool(false).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
-      //   UOp.bool(true).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
-      //   new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
-      //   UOp.variable('x').maximum(UOp.variable('y')), // max folding when x.vmax <= y.vmin
-      //   UOp.variable('x').mul(UOp.int(2)).maximum(UOp.variable('x').mul(UOp.int(3))), // maxVarConst
+      UOp.variable('val').where(UOp.variable('val'), UOp.variable('val')), // same results either way is noop
+      // UOp.bool(false).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
+      // UOp.bool(true).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
+      // new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
+      UOp.variable('x').maximum(UOp.variable('y')), // max folding when x.vmax <= y.vmin
+      // UOp.variable('x').mul(UOp.int(2)).maximum(UOp.variable('x').mul(UOp.int(3))), // maxVarConst
 
-      //   UOp.variable('x').add(UOp.int(2)).add(UOp.int(3)), // (x+c1)+c2 -> x+(c1+c2)
-      //   UOp.variable('x').mul(UOp.int(2)).mul(UOp.int(3)), // (x*c1)*c2 -> x*(c1*c2)
-      //   UOp.variable('x').bitwiseAnd(UOp.int(2)).bitwiseAnd(UOp.int(3)), // (x&c1)&c2 -> x&(c1&c2)
-      //   UOp.variable('x').bitwiseOr(UOp.int(2)).bitwiseOr(UOp.int(3)), // (x|c1)|c2 -> x|(c1|c2)
-      //   UOp.int(2).add(UOp.variable('x')).lt(UOp.int(5)), // c0+x<c1 -> x<c1-c0
-      //   UOp.variable('x').idiv(UOp.int(2)).idiv(UOp.int(3)), // (x//c1)//c2 -> x//(c1*c2)
-      //   UOp.int(2).mul(UOp.variable('x')).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)
-      //   UOp.int(-2).mul(UOp.variable('x')).lt(UOp.int(-5)), // -2x < -5 -> -x < -floor(-(-5)/-(-2))
-      //   UOp.variable('x').idiv(UOp.int(2)).lt(UOp.int(3)), // x//2 < 3 -> x < 3*2
-      //   UOp.int(4).mul(UOp.variable('x')).add(UOp.variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax() and x2.vmin()>=0
-      //   UOp.variable('x').lt(UOp.int(5)), // x < 5 when 0 < 5
-      //   UOp.variable('x').lt(1).ne(true), // not x < 1 -> X > 0
-      //   UOp.variable('x').idiv(UOp.int(3)), // x//3 when 0 < 3
-      //   UOp.variable('x').mod(UOp.int(4)), // x%4 when 0 < 4
+      UOp.variable('x').add(UOp.int(2)).add(UOp.int(3)), // (x+c1)+c2 -> x+(c1+c2)
+      // UOp.variable('x').mul(UOp.int(2)).mul(UOp.int(3)), // (x*c1)*c2 -> x*(c1*c2)
+      UOp.variable('x').bitwiseAnd(UOp.int(2)).bitwiseAnd(UOp.int(3)), // (x&c1)&c2 -> x&(c1&c2)
+      UOp.variable('x').bitwiseOr(UOp.int(2)).bitwiseOr(UOp.int(3)), // (x|c1)|c2 -> x|(c1|c2)
+      UOp.int(2).add(UOp.variable('x')).lt(UOp.int(5)), // c0+x<c1 -> x<c1-c0
+      UOp.variable('x').idiv(UOp.int(2)).idiv(UOp.int(3)), // (x//c1)//c2 -> x//(c1*c2)
+      // UOp.int(2).mul(UOp.variable('x')).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)
+      // UOp.int(-2).mul(UOp.variable('x')).lt(UOp.int(-5)), // -2x < -5 -> -x < -floor(-(-5)/-(-2))
+      UOp.variable('x').idiv(UOp.int(2)).lt(UOp.int(3)), // x//2 < 3 -> x < 3*2
+      // UOp.int(4).mul(UOp.variable('x')).add(UOp.variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax() and x2.vmin()>=0
+      // UOp.variable('x').lt(UOp.int(5)), // x < 5 when 0 < 5
+      UOp.variable('x').lt(1).ne(true), // not x < 1 -> X > 0
+      // UOp.variable('x').idiv(UOp.int(3)), // x//3 when 0 < 3
+      UOp.variable('x').mod(UOp.int(4)), // x%4 when 0 < 4
     ],
   },
   'tinygrad.ops.symbolic_flat': {
     matcher: symbolicFlat,
     uops: [
-      //   UOp.variable('x').add(UOp.variable('y')).mul(-1),
-      //   UOp.variable('x').add(UOp.variable('y')).mul(UOp.int(3)),
+      // UOp.variable('x').add(UOp.variable('y')).mul(-1),
+      // UOp.variable('x').add(UOp.variable('y')).mul(UOp.int(3)),
     ],
   },
   'tinygrad.ops._substitute': {

@@ -589,7 +589,11 @@ export class UPat extends MathTrait {
     else if (Array.isArray(src)) this.src = [src as UPat[]]
     // repeat if it's a UPat
     else if (src instanceof UPat) this.src = [[src]]
-    this.allowedLen = (allowAnyLen || src instanceof UPat || isNone(src)) ? -1 : src.length // potentially wrong cause it can be UPat [][]
+
+    // NOTE: This is here because we can't differentaite between list and tuple so we use Upat[][] to achieve the same thing as list. but after this part the difference isn't needed anymore so we convert back to UPat[]
+    if (Array.isArray(src) && src?.length === 1 && Array.isArray(src[0])) src = src[0]
+
+    this.allowedLen = (allowAnyLen || src instanceof UPat || isNone(src)) ? -1 : src.length
     this.location = location || getLocation()
 
     if (isNotNone(customEarlyReject)) this.earlyReject = customEarlyReject
