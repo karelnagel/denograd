@@ -707,6 +707,7 @@ export class PatternMatcher<Args extends object = Record<string, any>, Res exten
       const index = this.patterns.findIndex((pattern) => pattern[0] === p)
       console.log(index)
       for (const match of p.match(uop, new Map())) {
+        console.log(`Matched with ${index}`)
         const ret = hasCtx ? fxn({ ctx, ...Object.fromEntries(match) } as any) : fxn(Object.fromEntries(match) as any)
         console.log(`Matched with ${index}, returned ${ret}`)
         if (isNotNone(ret)) return ret
@@ -912,7 +913,7 @@ const ltFolding = (x: UOp, c: number): UOp | undefined => {
   const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
   const d = mathGcd(...np.map((u) => u.constFactor()), c)
   if (np && d > 1 && p.map((u) => u.vmin()).reduce((p, c) => c.add(p)).ge(0) && p.map((u) => u.vmax()).reduce((p, c) => p.add(c)).lt(d)) {
-    return np.reduce((p, c) => p.add(c)).divides(d)?.lt(Math.floor(c / d)) || undefined
+    return np.reduce((p, c) => p.add(c),UOp.int(0)).divides(d)!.lt(Math.floor(c / d))
   }
   return undefined
 }

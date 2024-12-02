@@ -2,7 +2,7 @@ import { assert, getEnv, intersection, isEq, isLessThan, max, sorted } from './h
 
 export type ConstType<This = never> = number | boolean | This
 
-export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: string; count: number; _scalar?: DType }
+export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: string; count: number; _scalar?: DType; kwargs?: any }
 export class DType {
   static dcache = new Map<string, DType>()
   priority!: number
@@ -12,8 +12,8 @@ export class DType {
   count!: number
   _scalar?: DType
   // deno-fmt-ignore
-  constructor({priority,count,itemsize,name,fmt,_scalar}: DTypeArgs) {
-    const key = JSON.stringify({priority,count,itemsize,name,_scalar,fmt})
+  constructor({priority,count,itemsize,name,fmt,_scalar,kwargs}: DTypeArgs) {
+    const key = JSON.stringify({priority,count,itemsize,name,_scalar,fmt,kwargs})
     if (DType.dcache.has(key)) return DType.dcache.get(key)!
     this.priority=priority; this.itemsize=itemsize; this.name=name; this.fmt=fmt; this.count=count; this._scalar=_scalar
     DType.dcache.set(key,this)
@@ -44,7 +44,7 @@ export class PtrDType extends DType {
   local: boolean
   v: number
   constructor({ base, local, v, ...args }: PtrDTypeArgs) {
-    super(args)
+    super({ ...args, kwargs: { base, local, v } })
     this._base = base
     this.local = local
     this.v = v
@@ -69,7 +69,7 @@ export class PtrDType extends DType {
 export class ImageDType extends PtrDType {
   shape: number[]
   constructor({ shape, ...args }: PtrDTypeArgs & { shape: number[] }) {
-    super(args)
+    super({ ...args, kwargs: { shape } })
     this.shape = shape
   }
   override ptr = (local = false) => {
