@@ -63,7 +63,7 @@ export const uopsToDTypes = (uops: UOp[]): DType[] => dedup(uops.filter((u) => !
 type RenderKernelArgs = { functionName: string; kernel: string[]; bufs: [string, [DType, boolean]][]; uops: UOp[]; prefix?: string[] }
 const renderKernel = (self: CStyleLanguage, { bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
   const tmp = bufs.some(([_, [dtype]]) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
-  const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, dtype == dtypes.int ? (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.renderDType(dtype, mutable) + self.bufferSuffix : self.argIntPrefix : null])
+  const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, dtype == dtypes.int ? (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.renderDType(dtype, mutable) + self.bufferSuffix : self.argIntPrefix : undefined])
 
   const prg = [`${self.kernelPrefix}void ${self.getKernelModifier(uops)}${functionName}(`, ...buftypes.map(([name, t]) => `${t} ${name}`), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
   return isNone(prefix) ? prg : prefix.join('\n') + `\n${prg}`
@@ -205,7 +205,7 @@ export class ClangRenderer extends CStyleLanguage {
   }
   override codeForOp = CStyleLanguage.codeForOp
   tensorCores = !AMX
-    ? null
+    ? undefined
     : [dtypes.float].map((dt) => [dt, Math.floor(64 / dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: [], reduceAxes: [], upcastAxes: [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]], dtypeIn: dt, dtypeOut: dt }))
 
   renderVectorPrefix = (dt: DType): string => `typedef ${this.renderDType(dt.scalar())} ${this.renderDType(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`

@@ -111,7 +111,7 @@ const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.symbolic': {
     matcher: symbolic,
     uops: [
-      //   UOp.variable('x').add(UOp.variable('y')).add(UOp.variable('x').mul(UOp.int(5))), // group like
+        UOp.variable('x').add(UOp.variable('y')).add(UOp.variable('x').mul(UOp.int(5))), // group like
       //   UOp.variable('x').bitwiseOr(UOp.variable('x').bitwiseAnd(UOp.variable('y'))), // boolean algebra
       //   UOp.variable('x').mul(UOp.int(2)).add(UOp.variable('x').mul(UOp.int(3))), // combine terms
       //   UOp.variable('x').add(UOp.variable('x').mul(UOp.int(3))), // x + x*c -> x*(c+1)
@@ -122,7 +122,7 @@ const ALL_PATTERN_MATCHERS = {
       //   UOp.variable('val').where(UOp.variable('val'), UOp.variable('val')), // same results either way is noop
       //   UOp.bool(false).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
       //   UOp.bool(true).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
-    //   new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
+      //   new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
       //   UOp.variable('x').maximum(UOp.variable('y')), // max folding when x.vmax <= y.vmin
       //   UOp.variable('x').mul(UOp.int(2)).maximum(UOp.variable('x').mul(UOp.int(3))), // maxVarConst
 

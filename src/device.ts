@@ -129,14 +129,14 @@ export class Buffer {
   __reduce__ = () => {
     let buf
     if (isNotNone(this._base)) {
-      return [Buffer, [this.device, this.size, this.dtype, null, null, null, 0, this.base(), this.offset, this.isAllocated()]]
+      return [Buffer, [this.device, this.size, this.dtype, undefined, undefined, undefined, 0, this.base(), this.offset, this.isAllocated()]]
     }
-    if (this.device == 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, null, this.lbRefcount()]]
+    if (this.device == 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lbRefcount()]]
     if (this.isAllocated()) {
       buf = new bytearray(this.nbytes)
       this.copyout(new memoryview(buf))
     }
-    return [Buffer, [this.device, this.size, this.dtype, null, this.options, buf, this.lbRefcount()]]
+    return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lbRefcount()]]
   }
   // deno-fmt-ignore
   get nbytes() {
@@ -254,7 +254,7 @@ export class Compiler {
   }
   compile = (src: string): bytes => new TextEncoder().encode(src) // NOTE: empty compiler is the default
   compileCached = (src: string): bytes => {
-    let lib = this.cachekey ? diskcacheGet(this.cachekey, src) : null
+    let lib = this.cachekey ? diskcacheGet(this.cachekey, src) : undefined
     if (isNone(lib)) {
       assert(!getEnv('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
       lib = this.compile(src)

@@ -20,7 +20,7 @@
 //   call = (x: Tensor) => x.sequential(this.layers)
 // }
 
-// const [XTrain, YTrain, XTest, YTest] = nn.datasets.mnist(null, !!process.env.FASHION)
+// const [XTrain, YTrain, XTest, YTest] = nn.datasets.mnist(undefined, !!process.env.FASHION)
 
 // const model = new Model()
 // const opt = new nn.optim.Adam(nn.state.getParameters(model))

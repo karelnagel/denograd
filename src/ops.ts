@@ -215,7 +215,7 @@ export class UOp extends MathTrait {
     for (const s of this.src) hash.update(s.key())
     return hash.digest()
   }
-  __repr__ = () => `UOp(${pyStr(isNotNone(this.op) ? `Ops.${getEnumString(this.op)}` : null)}, ${pyStr(this.dtype ? `${this.dtype}` : null)}, arg=${pyStr(this.arg)})`
+  __repr__ = () => `UOp(${pyStr(isNotNone(this.op) ? `Ops.${getEnumString(this.op)}` : undefined)}, ${pyStr(this.dtype ? `${this.dtype}` : undefined)}, arg=${pyStr(this.arg)})`
   parents = () => {
     const map = new Map<UOp, undefined>()
     for (const x of this.src) map.set(x, undefined)
