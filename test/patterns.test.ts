@@ -217,7 +217,7 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
       const PYDict = await python<Record<string, [UPat, undefined, Ops[], boolean][]>>(`${pythonImport}\nout(${splits.slice(-2).join('.')}.pdict)`)
       for (const [key, ts] of matcher.pdict.entries()) {
         const py = PYDict[key]
-        for (const [ts1, py1] of zip(ts, py)) {
+        for (const [ts1, py1] of zip(ts as any[], py)) {
           expect(asdict(removeKeys(ts1[0], ['location', 'op']))).toEqual(asdict(removeKeys(py1[0], ['location', 'op']))) //UPat
           expect([...ts1[2]].toSorted()).toEqual(py1[2].toSorted()) // Ops[]
           expect(ts1[3]).toEqual(py1[3]) // has ctx?
