@@ -92,7 +92,7 @@ export class dtypes {
   }
   static asConst(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
     if (Array.isArray(val)) {
-      if (val.length !== dtype.count) throw new Error(`mismatch (${val.map((val) => typeof val === 'boolean' ? (val ? 'True' : 'False') : val)},) ${dtype.toString()}`)
+      assert(val.length === dtype.count, `mismatch (${val.map((val) => typeof val === 'boolean' ? (val ? 'True' : 'False') : val)},) ${dtype.toString()}`)
       return val.map((x) => dtypes.asConst(x, dtype) as ConstType)
     }
 

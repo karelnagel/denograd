@@ -588,7 +588,7 @@ export class UPat extends MathTrait {
     // only one if it's a tuple (we use src[])
     else if (Array.isArray(src)) this.src = [src as UPat[]]
     // repeat if it's a UPat
-    else if (src instanceof UPat) this.src = [[src]]
+    else if (src instanceof UPat) this.src = [range(100).map(() => src!) as UPat[]] // TODO: this is a hack
 
     // NOTE: This is here because we can't differentaite between list and tuple so we use Upat[][] to achieve the same thing as list. but after this part the difference isn't needed anymore so we convert back to UPat[]
     if (Array.isArray(src) && src?.length === 1 && Array.isArray(src[0])) src = src[0]
@@ -666,9 +666,12 @@ export class UPat extends MathTrait {
     if (isNone(this.src)) return [store]
     let res: Map<string, UOp>[] = []
     for (const vp of this.src) {
-      let stores = [new Map(store)]
+      let stores = [store]
+      let new_stores: typeof stores = []
       for (const [uu, vv] of zip(uop.src, vp)) {
-        stores = stores.reduce((newStores, s) => [...newStores, ...vv.match(uu, s)], [] as Map<string, UOp>[])
+        for (const s of stores) new_stores = [...new_stores, ...vv.match(uu, s)]
+        stores = new_stores
+        new_stores = []
       }
       res = [...res, ...stores]
     }
@@ -703,9 +706,12 @@ export class PatternMatcher<Args extends object = Record<string, any>, Res exten
   rewrite = (uop: UOp, ctx?: any): Res | undefined => {
     const ler = new Set(uop.src.map((u) => u.op))
     for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op) || []) {
-      if (!isSubset(ler, earlyReject)) continue
       const index = this.patterns.findIndex((pattern) => pattern[0] === p)
       console.log(index)
+      if (!isSubset(ler, earlyReject)) {
+        console.log(`${index} early rejected`)
+        continue
+      }
       for (const match of p.match(uop, new Map())) {
         console.log(`Matched with ${index}`)
         const ret = hasCtx ? fxn({ ctx, ...Object.fromEntries(match) } as any) : fxn(Object.fromEntries(match) as any)
@@ -913,7 +919,7 @@ const ltFolding = (x: UOp, c: number): UOp | undefined => {
   const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
   const d = mathGcd(...np.map((u) => u.constFactor()), c)
   if (np && d > 1 && p.map((u) => u.vmin()).reduce((p, c) => c.add(p)).ge(0) && p.map((u) => u.vmax()).reduce((p, c) => p.add(c)).lt(d)) {
-    return np.reduce((p, c) => p.add(c),UOp.int(0)).divides(d)!.lt(Math.floor(c / d))
+    return np.reduce((p, c) => p.add(c), UOp.int(0)).divides(d)!.lt(Math.floor(c / d))
   }
   return undefined
 }

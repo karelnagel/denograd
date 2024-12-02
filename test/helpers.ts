@@ -6,6 +6,7 @@ import { DType } from '../src/dtype.ts'
 import { isNotNone } from '../src/helpers.ts'
 import { expect } from 'expect'
 import { pyStr } from '../src/str.ts'
+import process from "node:process";
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -21,6 +22,7 @@ export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return)
     try {
       return fn(...args)
     } catch (e) {
+      if (process.env.FAIL) throw e
       if (e instanceof Error) return e.message
       else return 'error'
     }
@@ -81,7 +83,7 @@ ${code}
   const file = `/tmp/tiny_${randomUUID()}.py`
   console.log(file)
   await execAsync(`echo ${JSON.stringify(code.trim())} > ${file}`)
-  const res = await execAsync(`PYTHONPATH=./tinygrad python ${file}`)
+  const res = await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)
   try {
     console.log(res.split('<<<<<')[0])
     const json = res.split('<<<<<')[1]?.split('>>>>>')[0].trim()

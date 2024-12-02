@@ -120,8 +120,8 @@ const ALL_PATTERN_MATCHERS = {
       // UOp.variable('x').add(UOp.int(5)).mul(-1), // -(x+c) -> -x + -c
 
       // UOp.variable('val').where(UOp.variable('val'), UOp.variable('val')), // same results either way is noop
-      UOp.bool(false).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
-      // // UOp.bool(true).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
+      // UOp.bool(false).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
+      // UOp.bool(true).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
       // // new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
       // UOp.variable('x').maximum(UOp.variable('y')), // max folding when x.vmax <= y.vmin
       // // UOp.variable('x').mul(UOp.int(2)).maximum(UOp.variable('x').mul(UOp.int(3))), // maxVarConst
