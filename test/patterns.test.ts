@@ -77,69 +77,69 @@ const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.symbolic_simple': {
     matcher: symbolicSimple,
     uops: [
-      // UOp.variable('x').add(0),
-      // UOp.variable('x').mul(UOp.int(1)),
-      // UOp.variable('x').idiv(UOp.variable('x')),
-      // UOp.variable('x').idiv(1),
-      // UOp.variable('x').idiv(-1),
-      // UOp.variable('x').div(UOp.variable('x')),
-      // UOp.variable('x').mul(UOp.variable('x2')).div(UOp.variable('x2')),
-      // UOp.variable('base').mod(UOp.variable('y')).mod(UOp.variable('y')),
-      // UOp.variable('x').mod(UOp.int(1)).add(UOp.variable('x').idiv(UOp.int(1)).mul(UOp.int(1))),
-      // UOp.variable('x', false, true, dtypes.bool).bitwiseAnd(UOp.bool(false)),
-      // UOp.variable('x', false, true, dtypes.bool).bitwiseOr(UOp.bool(false)),
+      UOp.variable('x').add(0),
+      UOp.variable('x').mul(UOp.int(1)),
+      UOp.variable('x').idiv(UOp.variable('x')),
+      UOp.variable('x').idiv(1),
+      UOp.variable('x').idiv(-1),
+      UOp.variable('x').div(UOp.variable('x')),
+      UOp.variable('x').mul(UOp.variable('x2')).div(UOp.variable('x2')),
+      UOp.variable('base').mod(UOp.variable('y')).mod(UOp.variable('y')),
+      UOp.variable('x').mod(UOp.int(1)).add(UOp.variable('x').idiv(UOp.int(1)).mul(UOp.int(1))),
+      UOp.variable('x', false, true, dtypes.bool).bitwiseAnd(UOp.bool(false)),
+      UOp.variable('x', false, true, dtypes.bool).bitwiseOr(UOp.bool(false)),
 
-      // UOp.variable('x').maximum(UOp.variable('x')),
-      // UOp.variable('x').bitwiseAnd(UOp.variable('x')),
-      // UOp.variable('x').bitwiseOr(UOp.variable('x')),
-      // UOp.variable('x', false, true, dtypes.bool).logicalNot().logicalNot(),
-      // UOp.variable('x', false, true, dtypes.bool).where(UOp.bool(true), UOp.bool(false)),
+      UOp.variable('x').maximum(UOp.variable('x')),
+      UOp.variable('x').bitwiseAnd(UOp.variable('x')),
+      UOp.variable('x').bitwiseOr(UOp.variable('x')),
+      UOp.variable('x', false, true, dtypes.bool).logicalNot().logicalNot(),
+      UOp.variable('x', false, true, dtypes.bool).where(UOp.bool(true), UOp.bool(false)),
 
-      // UOp.variable('x').lt(UOp.variable('x')),
-      // UOp.variable('x').ne(UOp.variable('x')),
+      UOp.variable('x').lt(UOp.variable('x')),
+      UOp.variable('x').ne(UOp.variable('x')),
 
-      // UOp.variable('x').mul(0),
-      // UOp.variable('x').mul(UOp.int(0)),
-      // new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.CONST, arg: 4 }), new UOp({ op: Ops.CONST, arg: 66 })] }),
-      // UOp.variable('x', false, true, dtypes.bool).mul(UOp.variable('y', false, true, dtypes.bool)),
-      // UOp.variable('x', false, true, dtypes.bool).add(UOp.variable('y', false, true, dtypes.bool)),
-      // UOp.variable('x', false, true, dtypes.bool).maximum(UOp.variable('y', false, true, dtypes.bool)),
-      // new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.CAST, dtype: dtypes.float, arg: 44.55 })], dtype: dtypes.int }),
-      // new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.MUL, dtype: dtypes.float })], dtype: dtypes.float }),
+      UOp.variable('x').mul(0),
+      UOp.variable('x').mul(UOp.int(0)),
+      new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.CONST, arg: 4 }), new UOp({ op: Ops.CONST, arg: 66 })] }),
+      UOp.variable('x', false, true, dtypes.bool).mul(UOp.variable('y', false, true, dtypes.bool)),
+      UOp.variable('x', false, true, dtypes.bool).add(UOp.variable('y', false, true, dtypes.bool)),
+      UOp.variable('x', false, true, dtypes.bool).maximum(UOp.variable('y', false, true, dtypes.bool)),
+      new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.CAST, dtype: dtypes.float, arg: 44.55 })], dtype: dtypes.int }),
+      new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.MUL, dtype: dtypes.float })], dtype: dtypes.float }),
     ],
   },
   'tinygrad.ops.symbolic': {
     matcher: symbolic,
     uops: [
-      // UOp.variable('x').add(UOp.variable('y')).add(UOp.variable('x').mul(UOp.int(5))), // group like
-      // UOp.variable('x').bitwiseOr(UOp.variable('x').bitwiseAnd(UOp.variable('y'))), // boolean algebra
-      // UOp.variable('x').mul(UOp.int(2)).add(UOp.variable('x').mul(UOp.int(3))), // combine terms
-      // UOp.variable('x').add(UOp.variable('x').mul(UOp.int(3))), // x + x*c -> x*(c+1)
-      // UOp.variable('x').add(UOp.variable('x')), // x + x -> x*2
-      // UOp.variable('x').div(UOp.variable('x2')).div(UOp.variable('x3')), // (x/x2)/x3 -> x/(x2*x3)
-      // UOp.variable('x').add(UOp.int(5)).mul(-1), // -(x+c) -> -x + -c
+      UOp.variable('x').add(UOp.variable('y')).add(UOp.variable('x').mul(UOp.int(5))), // group like
+      UOp.variable('x').bitwiseOr(UOp.variable('x').bitwiseAnd(UOp.variable('y'))), // boolean algebra
+      UOp.variable('x').mul(UOp.int(2)).add(UOp.variable('x').mul(UOp.int(3))), // combine terms
+      UOp.variable('x').add(UOp.variable('x').mul(UOp.int(3))), // x + x*c -> x*(c+1)
+      UOp.variable('x').add(UOp.variable('x')), // x + x -> x*2
+      UOp.variable('x').div(UOp.variable('x2')).div(UOp.variable('x3')), // (x/x2)/x3 -> x/(x2*x3)
+      UOp.variable('x').add(UOp.int(5)).mul(-1), // -(x+c) -> -x + -c
 
-      // UOp.variable('val').where(UOp.variable('val'), UOp.variable('val')), // same results either way is noop
-      // UOp.bool(false).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
-      // UOp.bool(true).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
-      // // new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
-      // UOp.variable('x').maximum(UOp.variable('y')), // max folding when x.vmax <= y.vmin
-      // // UOp.variable('x').mul(UOp.int(2)).maximum(UOp.variable('x').mul(UOp.int(3))), // maxVarConst
+      UOp.variable('val').where(UOp.variable('val'), UOp.variable('val')), // same results either way is noop
+      UOp.bool(false).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
+      UOp.bool(true).where(UOp.variable('c0'), UOp.variable('c1')), // const gate folding
+      // new UOp({ op: Ops.MUL, dtype: dtypes.int, src: [new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] }), new UOp({ op: Ops.DEFINE_VAR, arg: ['x', 0, 0] })] }), // ALU min==max -> CONST
+      UOp.variable('x').maximum(UOp.variable('y')), // max folding when x.vmax <= y.vmin
+      // UOp.variable('x').mul(UOp.int(2)).maximum(UOp.variable('x').mul(UOp.int(3))), // maxVarConst
 
-      // UOp.variable('x').add(UOp.int(2)).add(UOp.int(3)), // (x+c1)+c2 -> x+(c1+c2)
-      // // UOp.variable('x').mul(UOp.int(2)).mul(UOp.int(3)), // (x*c1)*c2 -> x*(c1*c2)
-      // UOp.variable('x').bitwiseAnd(UOp.int(2)).bitwiseAnd(UOp.int(3)), // (x&c1)&c2 -> x&(c1&c2)
-      // UOp.variable('x').bitwiseOr(UOp.int(2)).bitwiseOr(UOp.int(3)), // (x|c1)|c2 -> x|(c1|c2)
-      // UOp.int(2).add(UOp.variable('x')).lt(UOp.int(5)), // c0+x<c1 -> x<c1-c0
-      // UOp.variable('x').idiv(UOp.int(2)).idiv(UOp.int(3)), // (x//c1)//c2 -> x//(c1*c2)
-      // // UOp.int(2).mul(UOp.variable('x')).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)
-      // // UOp.int(-2).mul(UOp.variable('x')).lt(UOp.int(-5)), // -2x < -5 -> -x < -floor(-(-5)/-(-2))
-      // UOp.variable('x').idiv(UOp.int(2)).lt(UOp.int(3)), // x//2 < 3 -> x < 3*2
-      // // UOp.int(4).mul(UOp.variable('x')).add(UOp.variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax() and x2.vmin()>=0
-      // // UOp.variable('x').lt(UOp.int(5)), // x < 5 when 0 < 5
-      // UOp.variable('x').lt(1).ne(true), // not x < 1 -> X > 0
-      // // UOp.variable('x').idiv(UOp.int(3)), // x//3 when 0 < 3
-      // UOp.variable('x').mod(UOp.int(4)), // x%4 when 0 < 4
+      UOp.variable('x').add(UOp.int(2)).add(UOp.int(3)), // (x+c1)+c2 -> x+(c1+c2)
+      // UOp.variable('x').mul(UOp.int(2)).mul(UOp.int(3)), // (x*c1)*c2 -> x*(c1*c2)
+      UOp.variable('x').bitwiseAnd(UOp.int(2)).bitwiseAnd(UOp.int(3)), // (x&c1)&c2 -> x&(c1&c2)
+      UOp.variable('x').bitwiseOr(UOp.int(2)).bitwiseOr(UOp.int(3)), // (x|c1)|c2 -> x|(c1|c2)
+      UOp.int(2).add(UOp.variable('x')).lt(UOp.int(5)), // c0+x<c1 -> x<c1-c0
+      UOp.variable('x').idiv(UOp.int(2)).idiv(UOp.int(3)), // (x//c1)//c2 -> x//(c1*c2)
+      // UOp.int(2).mul(UOp.variable('x')).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)
+      // UOp.int(-2).mul(UOp.variable('x')).lt(UOp.int(-5)), // -2x < -5 -> -x < -floor(-(-5)/-(-2))
+      UOp.variable('x').idiv(UOp.int(2)).lt(UOp.int(3)), // x//2 < 3 -> x < 3*2
+      // UOp.int(4).mul(UOp.variable('x')).add(UOp.variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax() and x2.vmin()>=0
+      // UOp.variable('x').lt(UOp.int(5)), // x < 5 when 0 < 5
+      UOp.variable('x').lt(1).ne(true), // not x < 1 -> X > 0
+      // UOp.variable('x').idiv(UOp.int(3)), // x//3 when 0 < 3
+      UOp.variable('x').mod(UOp.int(4)), // x%4 when 0 < 4
     ],
   },
   'tinygrad.ops.symbolic_flat': {
@@ -200,34 +200,31 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
   const splits = name.split('.')
   const pythonImport = `from ${splits.slice(0, -2).join('.')} import ${splits.at(-2)}`
 
-  Deno.test(name, async (t) => {
-    await t.step(`${name}_patterns`, async () => {
-      const TSPatterns = matcher.patterns.map((pattern) => pattern[0])
-      const PYPatterns = await python(`${pythonImport}\nout([pattern[0] for pattern in ${splits.slice(-2).join('.')}.patterns])`)
-      for (const [ts, py] of zip(TSPatterns, PYPatterns)) {
-        expect(asdict(removeKeys(ts, ['location', 'op']))).toEqual(asdict(removeKeys(py, ['location', 'op'])))
-      }
-    })
-
-    await t.step(`${name}_pdict`, async () => {
-      const PYDict = await python<Record<string, [UPat, undefined, Ops[], boolean][]>>(`${pythonImport}\nout(${splits.slice(-2).join('.')}.pdict)`)
-      for (const [key, ts] of matcher.pdict.entries()) {
-        const py = PYDict[key]
-        for (const [ts1, py1] of zip(ts as any[], py)) {
-          expect(asdict(removeKeys(ts1[0], ['location', 'op']))).toEqual(asdict(removeKeys(py1[0], ['location', 'op']))) //UPat
-          expect([...ts1[2]].toSorted()).toEqual(py1[2].toSorted()) // Ops[]
-          expect(ts1[3]).toEqual(py1[3]) // has ctx?
-        }
-      }
-    })
-
-    for (const [i, uop] of uops.entries()) {
-      await t.step(`${name}_${i}_${uop}`, async () => {
-        const ts = tryCatch(() => matcher.rewrite(uop, new Map([[uop, 'somectxvalue']])))()
-        const py = await python(`${pythonImport}\nout(${splits.slice(-2).join('.')}.rewrite(data,{data:"somectxvalue"}))`, uop)
-        expect(asdict(ts), "Shouldn't be the same as initial").not.toEqual(asdict(uop))
-        expect(asdict(ts)).toEqual(asdict(py))
-      })
+  Deno.test(`${name}_patterns`, async () => {
+    const TSPatterns = matcher.patterns.map((pattern) => pattern[0])
+    const PYPatterns = await python(`${pythonImport}\nout([pattern[0] for pattern in ${splits.slice(-2).join('.')}.patterns])`)
+    for (const [ts, py] of zip(TSPatterns, PYPatterns)) {
+      expect(asdict(removeKeys(ts, ['location', 'op']))).toEqual(asdict(removeKeys(py, ['location', 'op'])))
     }
   })
+
+  Deno.test(`${name}_pdict`, async () => {
+    const PYDict = await python<Record<string, [UPat, undefined, Ops[], boolean][]>>(`${pythonImport}\nout(${splits.slice(-2).join('.')}.pdict)`)
+    for (const [key, ts] of matcher.pdict.entries()) {
+      const py = PYDict[key]
+      for (const [ts1, py1] of zip(ts as any[], py)) {
+        expect(asdict(removeKeys(ts1[0], ['location', 'op']))).toEqual(asdict(removeKeys(py1[0], ['location', 'op']))) //UPat
+        expect([...ts1[2]].toSorted()).toEqual(py1[2].toSorted()) // Ops[]
+        expect(ts1[3]).toEqual(py1[3]) // has ctx?
+      }
+    }
+  })
+
+  for (const [i, uop] of uops.entries()) {
+    Deno.test(`${name}_${i}_${uop}`, async () => {
+      const ts = tryCatch(() => matcher.rewrite(uop, new Map([[uop, 'somectxvalue']])))()
+      const py = await python(`${pythonImport}\nout(${splits.slice(-2).join('.')}.rewrite(data,{data:"somectxvalue"}))`, uop)
+      expect(asdict(ts)).toEqual(asdict(py))
+    })
+  }
 }

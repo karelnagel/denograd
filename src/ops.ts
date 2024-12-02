@@ -655,6 +655,7 @@ export class UPat extends MathTrait {
       this.allowedLen !== -1 && uop.src.length !== this.allowedLen,
       this.allowedLen,
       uop.src.length,
+      isNone(this.src),
     )
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
@@ -1081,7 +1082,7 @@ export const symbolicSimple = new PatternMatcher<Record<string, UOp>, UOp | unde
   [UPat.var('x', dtypes.bool).maximum(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwiseOr(y)],
   //   // *** cast ***
   [new UPat({ op: Ops.CAST, name: 'root', src: UPat.cvar('c') }), ({ root, c }) => root.constLike(c.arg)],
-  [new UPat({ op: Ops.CAST, name: 'root' }), ({ root }) => isEq(root.dtype, root.src![0].dtype) ? root.src![0] : undefined],
+  [new UPat({ op: Ops.CAST, name: 'root' }), ({ root }) => isEq(root.dtype, root.src![0].dtype) ? root.src![0] : undefined],//24
 ])
 
 export const symbolic = symbolicSimple.__add__(
@@ -1102,7 +1103,7 @@ export const symbolic = symbolicSimple.__add__(
     [UPat.var().where(UPat.var('val'), UPat.var('val')), ({ val }) => val],
     [UPat.cvar('gate', undefined, false).where(UPat.var('c0'), UPat.var('c1')), ({ gate, c0, c1 }) => gate.arg ? c0 : c1],
     //   // ALU min==max -> CONST (slow!)
-    [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ x }) => isEq(x.vmin(), x.vmax()) ? x.constLike(x.vmin()) : undefined],
+    [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ x }) => isEq(x.vmin(), x.vmax()) ? x.constLike(x.vmin()) : undefined],//35
     //   // max folding
     [UPat.var('x').maximum(UPat.var('y')), ({ x, y }) => x.vmax() <= y.vmin() ? x.vmin() >= y.vmax() ? x : y : undefined],
     //   // TODO: why does this rule break beautiful_mnist?

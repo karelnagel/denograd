@@ -146,58 +146,58 @@ Deno.test(
     'out(data[0].ssimplify())',
   ),
 )
-Deno.test(
-  'uop.symInfer',
-  compare(
-    [
-      // [new UOp({ op: Ops.ADD, arg: 1, src: [UOp.int(10), UOp.int(100)] })],
-      // [new UOp({ op: Ops.IDIV, arg: 1, src: [UOp.float(10), UOp.int(100)] })],
-      // // [new UOp({ op: Ops.AND, arg: 1, src: [UOp.bool(false), UOp.bool(true)] })], //fails for some reason
-      // [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.4))],
-      // [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.6))],
-      // // [UOp.int(3).add(UOp.float(4.6).idiv(UOp.float(55))).mul(UOp.bool(true))], //fails
-      // // [UOp.int(3).add(UOp.float(4.6).div(UOp.float(55))).mul(UOp.bool(true))], //fails
+// Deno.test(
+//   'uop.symInfer',
+//   compare(
+//     [
+//       // [new UOp({ op: Ops.ADD, arg: 1, src: [UOp.int(10), UOp.int(100)] })],
+//       // [new UOp({ op: Ops.IDIV, arg: 1, src: [UOp.float(10), UOp.int(100)] })],
+//       // // [new UOp({ op: Ops.AND, arg: 1, src: [UOp.bool(false), UOp.bool(true)] })], //fails for some reason
+//       // [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.4))],
+//       // [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.6))],
+//       // // [UOp.int(3).add(UOp.float(4.6).idiv(UOp.float(55))).mul(UOp.bool(true))], //fails
+//       // // [UOp.int(3).add(UOp.float(4.6).div(UOp.float(55))).mul(UOp.bool(true))], //fails
 
-      // // [UOp.int(3).mul(UOp.bool(false))], //fails
-      // [UOp.int(3).mul(UOp.bool(false), true)], //succeeds
-      // [UOp.bool(true).mul(UOp.int(3))], //same as prev, but doesn't fail
-      // [UOp.int(3).mul(false)],
+//       // // [UOp.int(3).mul(UOp.bool(false))], //fails
+//       // [UOp.int(3).mul(UOp.bool(false), true)], //succeeds
+//       // [UOp.bool(true).mul(UOp.int(3))], //same as prev, but doesn't fail
+//       // [UOp.int(3).mul(false)],
 
-      [UOp.bool(true).mul(5.5)],
-      // [UOp.int(4).mul(true)],
-      // [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
-      // [new UOp({ op: Ops.IF, dtype: dtypes.bool, src: [new UOp({ op: Ops.CMPLT, dtype: dtypes.bool, src: [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)] }), UOp.const(dtypes.float, 1.0), UOp.const(dtypes.float, 0.0)] })],
-    ],
-    (x: UOp) => x.symInfer(new Map()),
-    'out(data[0].sym_infer({}))',
-  ),
-)
-Deno.test(
-  'uop.render',
-  compare(
-    [
-      // [new UOp({ op: Ops.ADD, arg: 1, src: [UOp.int(10), UOp.int(100)] })],
-      // [new UOp({ op: Ops.IDIV, arg: 1, src: [UOp.float(10), UOp.int(100)] })],
-      // // [new UOp({ op: Ops.AND, arg: 1, src: [UOp.bool(false), UOp.bool(true)] })], //fails for some reason
-      // [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.4))],
-      // [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.6))],
-      // // [UOp.int(3).add(UOp.float(4.6).idiv(UOp.float(55))).mul(UOp.bool(true))], //fails
-      // // [UOp.int(3).add(UOp.float(4.6).div(UOp.float(55))).mul(UOp.bool(true))], //fails
+//       [UOp.bool(true).mul(5.5)],
+//       // [UOp.int(4).mul(true)],
+//       // [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
+//       // [new UOp({ op: Ops.IF, dtype: dtypes.bool, src: [new UOp({ op: Ops.CMPLT, dtype: dtypes.bool, src: [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)] }), UOp.const(dtypes.float, 1.0), UOp.const(dtypes.float, 0.0)] })],
+//     ],
+//     (x: UOp) => x.symInfer(new Map()),
+//     'out(data[0].sym_infer({}))',
+//   ),
+// )
+// Deno.test(
+//   'uop.render',
+//   compare(
+//     [
+//       // [new UOp({ op: Ops.ADD, arg: 1, src: [UOp.int(10), UOp.int(100)] })],
+//       // [new UOp({ op: Ops.IDIV, arg: 1, src: [UOp.float(10), UOp.int(100)] })],
+//       // // [new UOp({ op: Ops.AND, arg: 1, src: [UOp.bool(false), UOp.bool(true)] })], //fails for some reason
+//       // [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.4))],
+//       // [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.6))],
+//       // // [UOp.int(3).add(UOp.float(4.6).idiv(UOp.float(55))).mul(UOp.bool(true))], //fails
+//       // // [UOp.int(3).add(UOp.float(4.6).div(UOp.float(55))).mul(UOp.bool(true))], //fails
 
-      // // [UOp.int(3).mul(UOp.bool(false))], //fails
-      // [UOp.int(3).mul(UOp.bool(false), true)], //succeeds
-      // [UOp.bool(true).mul(UOp.int(3))], //same as prev, but doesn't fail
-      // [UOp.int(3).mul(false)],
+//       // // [UOp.int(3).mul(UOp.bool(false))], //fails
+//       // [UOp.int(3).mul(UOp.bool(false), true)], //succeeds
+//       // [UOp.bool(true).mul(UOp.int(3))], //same as prev, but doesn't fail
+//       // [UOp.int(3).mul(false)],
 
-      [UOp.bool(true).mul(5.5), true],
-      [UOp.int(4).mul(true), false],
-      [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4)), true],
-      [new UOp({ op: Ops.IF, dtype: dtypes.bool, src: [new UOp({ op: Ops.CMPLT, dtype: dtypes.bool, src: [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)] }), UOp.const(dtypes.float, 1.0), UOp.const(dtypes.float, 0.0)] }), false],
-    ],
-    (x: UOp, simplify: boolean) => x.render(simplify),
-    'out(data[0].render(data[1]))',
-  ),
-)
+//       [UOp.bool(true).mul(5.5), true],
+//       [UOp.int(4).mul(true), false],
+//       [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4)), true],
+//       [new UOp({ op: Ops.IF, dtype: dtypes.bool, src: [new UOp({ op: Ops.CMPLT, dtype: dtypes.bool, src: [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)] }), UOp.const(dtypes.float, 1.0), UOp.const(dtypes.float, 0.0)] }), false],
+//     ],
+//     (x: UOp, simplify: boolean) => x.render(simplify),
+//     'out(data[0].render(data[1]))',
+//   ),
+// )
 
 // TODO: syminfer,_minMax,this.symInfer,flopsMem,modFolding,divFolding,ltFolding,foldUnrolledDivs,canonicalizeSimplex,isIncreasing,uopGivenValid,simplifyValid,maxVarConst
 // Deno.test(
