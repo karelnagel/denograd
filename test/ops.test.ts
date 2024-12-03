@@ -22,7 +22,7 @@ Deno.test(
     [
       [new UOp({ op: Ops.ADD, dtype: dtypes.float })],
       [new UOp({ op: Ops.ADD, dtype: dtypes.float, src: [UOp.int(4), UOp.int(55)] })],
-      // [new UOp({ op: Ops.ADD, dtype: dtypes.bool, src: [UOp.int(4), UOp.int(55)] })], //fails
+      [new UOp({ op: Ops.ADD, dtype: dtypes.bool, src: [UOp.int(4), UOp.int(55)] })],
 
       [UOp.int(3).mul(UOp.bool(false))],
       [UOp.float(3).add(UOp.int(4)).idiv(UOp.float(44))],
@@ -100,15 +100,15 @@ Deno.test(
     [
       [new UOp({ op: Ops.ADD, arg: 1, src: [UOp.int(10), UOp.int(100)] })],
       [new UOp({ op: Ops.IDIV, arg: 1, src: [UOp.float(10), UOp.int(100)] })],
-      // [new UOp({ op: Ops.AND, arg: 1, src: [UOp.bool(false), UOp.bool(true)] })], //fails for some reason
+      [new UOp({ op: Ops.AND, arg: 1, src: [UOp.bool(false), UOp.bool(true)] })],
       [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.4))],
       [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.6))],
-      // [UOp.int(3).add(UOp.float(4.6).idiv(UOp.float(55))).mul(UOp.bool(true))], //fails
-      // [UOp.int(3).add(UOp.float(4.6).div(UOp.float(55))).mul(UOp.bool(true))], //fails
+      [UOp.int(3).add(UOp.float(4.6).idiv(UOp.float(55))).mul(UOp.bool(true))],
+      [UOp.int(3).add(UOp.float(4.6).div(UOp.float(55))).mul(UOp.bool(true))],
 
-      // [UOp.int(3).mul(UOp.bool(false))], //fails
-      [UOp.int(3).mul(UOp.bool(false), true)], //succeeds
-      [UOp.bool(true).mul(UOp.int(3))], //same as prev, but doesn't fail
+      [UOp.int(3).mul(UOp.bool(false))],
+      [UOp.int(3).mul(UOp.bool(false), true)],
+      [UOp.bool(true).mul(UOp.int(3))],
       [UOp.int(3).mul(false)],
 
       [UOp.bool(true).mul(5.5)],
@@ -126,15 +126,15 @@ Deno.test(
     [
       [new UOp({ op: Ops.ADD, arg: 1, src: [UOp.int(10), UOp.int(100)] })],
       [new UOp({ op: Ops.IDIV, arg: 1, src: [UOp.float(10), UOp.int(100)] })],
-      // [new UOp({ op: Ops.AND, arg: 1, src: [UOp.bool(false), UOp.bool(true)] })], //fails for some reason
+      [new UOp({ op: Ops.AND, arg: 1, src: [UOp.bool(false), UOp.bool(true)] })],
       [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.4))],
       [UOp.int(3).add(UOp.float(4).idiv(UOp.float(55))).mul(UOp.int(3.6))],
-      // [UOp.int(3).add(UOp.float(4.6).idiv(UOp.float(55))).mul(UOp.bool(true))], //fails
-      // [UOp.int(3).add(UOp.float(4.6).div(UOp.float(55))).mul(UOp.bool(true))], //fails
+      [UOp.int(3).add(UOp.float(4.6).idiv(UOp.float(55))).mul(UOp.bool(true))],
+      [UOp.int(3).add(UOp.float(4.6).div(UOp.float(55))).mul(UOp.bool(true))],
 
-      // [UOp.int(3).mul(UOp.bool(false))], //fails
-      [UOp.int(3).mul(UOp.bool(false), true)], //succeeds
-      [UOp.bool(true).mul(UOp.int(3))], //same as prev, but doesn't fail
+      [UOp.int(3).mul(UOp.bool(false))],
+      [UOp.int(3).mul(UOp.bool(false), true)],
+      [UOp.bool(true).mul(UOp.int(3))],
       [UOp.int(3).mul(false)],
 
       [UOp.bool(true).mul(5.5)],

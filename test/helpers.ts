@@ -6,7 +6,7 @@ import { DType } from '../src/dtype.ts'
 import { isNotNone } from '../src/helpers.ts'
 import { expect } from 'expect'
 import { pyStr } from '../src/str.ts'
-import process from "node:process";
+import process from 'node:process'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -96,8 +96,8 @@ ${code}
 
 export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string) => {
   return async (t: any) => {
-    for (const input of inputs) {
-      await t.step(JSON.stringify(input).slice(0, 120), async () => {
+    for (const [i, input] of inputs.entries()) {
+      await t.step(i.toString(), async () => {
         const ts = fn(...input)
         const py = await python(code, input)
         expect(asdict(ts)).toEqual(asdict(py))

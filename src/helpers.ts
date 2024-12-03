@@ -20,7 +20,7 @@ export const isLessThan = (a: any, b: any): boolean => {
 export const isEq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => isEq(o, two[i]))
   // if (typeof one === 'object' && typeof two === 'object') return JSON.stringify(one) === JSON.stringify(two)//should not be needed after having cahces for classes
-  return one === two
+  return one == two // this uses == instead of ===, cause in python 0==False, but in js 0!==false, but 0==false
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 

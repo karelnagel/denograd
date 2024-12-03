@@ -145,8 +145,8 @@ const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.symbolic_flat': {
     matcher: symbolicFlat,
     uops: [
-      // UOp.variable('x').add(UOp.variable('y')).mul(-1),
-      // UOp.variable('x').add(UOp.variable('y')).mul(UOp.int(3)),
+      UOp.variable('x').add(UOp.variable('y')).mul(-1),
+      UOp.variable('x').add(UOp.variable('y')).mul(UOp.int(3)),
     ],
   },
   'tinygrad.ops._substitute': {
