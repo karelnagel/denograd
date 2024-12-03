@@ -57,7 +57,7 @@ export const _reshape_mask = (_mask: undefined | [UOp, UOp][], old_shape: UOp[],
 
   while (new_mask.length < new_shape.length) {
     const [[l, r], next_stride] = [mask, new_dim.mul(curr_stride)]
-    console.log(new_dim.__repr__())
+    console.log(new_dim.toString())
     if (old_dim.ge(next_stride)) { // need to split mask.
       if (old_dim === next_stride) { // simply copy the mask and get next batch for merging
         new_mask.push([l.idiv(curr_stride), (r.sub(1)).idiv(curr_stride).add(1)])

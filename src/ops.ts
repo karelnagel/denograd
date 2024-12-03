@@ -149,14 +149,14 @@ export const resolve = (x: UOp, def = false) => {
 }
 
 // # smax/smin are replacements for max/min that preserve symbolic
-const _suop = (lst: (UOp | UOp[])[], uop_fxn: (...x: UOp[]) => UOp, python_fxn: (a: UOp[][]) => UOp): UOp[] | UOp => {
-  const [maxUop, maxNum] = partition(lst, (x) => x instanceof UOp) as [UOp[], UOp[][]]
-  if (maxUop.length) return (maxNum.length ? [...maxUop, python_fxn(maxNum)] : maxUop).reduce((prev, curr) => uop_fxn(prev, curr)).ssimplify()
-  return python_fxn(maxNum)
+const _suop = (lst: sint[], uop_fxn: (...x: UOp[]) => UOp, python_fxn: (...a: number[]) => number): sint => {
+  const [maxUop, maxNum] = partition(lst, (x) => x instanceof UOp) as [UOp[], number[]]
+  if (maxUop.length) return ((maxNum.length ? [...maxUop, python_fxn(...maxNum)] : maxUop).reduce((prev, curr) => uop_fxn(prev as UOp, curr as UOp)) as UOp).ssimplify()
+  return python_fxn(...maxNum)
 }
 // TODO: really unsure about these
-export const smax = (...lst: (UOp | UOp[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst, (...x) => x.reduce((prev, curr) => curr.maximum(prev)), (x) => UOp.max(...x.flat()))
-export const smin = (...lst: (UOp | UOp[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst, (...x) => x.reduce((prev, curr) => curr.minimum(prev)), (x) => UOp.min(...x.flat()))
+export const smax = (...lst: (sint | sint[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst as sint[], (...x) => x.reduce((prev, curr) => curr.maximum(prev)), (...x) => Math.max(...x))
+export const smin = (...lst: (sint | sint[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst as sint[], (...x) => x.reduce((prev, curr) => curr.minimum(prev)), (...x) => Math.min(...x))
 
 export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uop
 export const symInfer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.symInfer(varVals) : uop
@@ -202,7 +202,13 @@ export class UOp extends MathTrait {
       super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
       UOp.ucache.set(key,this)
     }
-  override toString = () => `UOp(op=${this.op},dtype=${this.dtype},arg=${this.arg})`
+  override toString = (): string => {
+    const op = isNotNone(this.op) ? `Ops.${getEnumString(this.op)}` : undefined
+    const dtype = this.dtype.toString()
+    const src = `[${this.src.map((x) => x.toString())}]`
+    const arg = this.arg
+    return `new UOp({op:${op}, dtype:${dtype}, src:${src}, arg:${arg}})`
+  }
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => {
     const oldArgs: UOpInput = { dtype: this.dtype, arg: this.arg, op: this.op, src: this.src }
@@ -215,7 +221,6 @@ export class UOp extends MathTrait {
     for (const s of this.src) hash.update(s.key())
     return hash.digest()
   }
-  __repr__ = () => `UOp(${pyStr(isNotNone(this.op) ? `Ops.${getEnumString(this.op)}` : undefined)}, ${pyStr(this.dtype ? `${this.dtype}` : undefined)}, arg=${pyStr(this.arg)})`
   parents = () => {
     const map = new Map<UOp, undefined>()
     for (const x of this.src) map.set(x, undefined)
@@ -413,9 +418,6 @@ export class UOp extends MathTrait {
     }
     return undefined // generic None if we aren't sure
   }
-
-  static min = (...args: UOp[]) => args.reduce((min, current) => min.lt(current) ? min : current)
-  static max = (...args: UOp[]) => args.reduce((max, current) => max.gt(current) ? max : current)
 
   vmin = () => this._minMax()[0]
   vmax = () => this._minMax()[1]
@@ -632,13 +634,13 @@ export class UPat extends MathTrait {
         try{ return lines(this.location[0])[this.location[1]-1].trim() }
         catch { return "<missing>"}
     }
-  __repr__ = (level = 1): string => {
+  override toString = (level = 1): string => {
     const rep = (x: UPat) => {
       const op = isNone(x.op) ? 'None' : `(${x.op.map((x) => `Ops.${getEnumString(x)}`).join(', ')})`
       const dtype = x.dtype ? `{${[...new Set(x.dtype)].sort((a, b) => -b.priority + a.priority).join(', ')}}` : 'None'
       const len = x.allowedLen === 0 ? 'True' : 'False'
       const space = range(level * 2).map((x) => ' ').join('')
-      const src = x.src ? x.src.flat().length ? `(\n${space}${[...new Set(x.src.flat())].map((u) => u.__repr__(level + 1)).join(',\n' + space)},)` : '()' : '(None)'
+      const src = x.src ? x.src.flat().length ? `(\n${space}${[...new Set(x.src.flat())].map((u) => u.toString(level + 1)).join(',\n' + space)},)` : '()' : '(None)'
       const name = x.name ? `'${x.name}'` : 'None'
       const arg = pyStr(x.arg)
       const form = `UPat(${op}, ${arg}, name=${name}, dtype=${dtype}, allow_any_len=${len}, src=${src})`
