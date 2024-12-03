@@ -94,13 +94,17 @@ ${code}
   }
 }
 
-export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string) => {
+export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string, ignore?: number[]) => {
   return async (t: any) => {
     for (const [i, input] of inputs.entries()) {
-      await t.step(i.toString(), async () => {
-        const ts = fn(...input)
-        const py = await python(code, input)
-        expect(asdict(ts)).toEqual(asdict(py))
+      await t.step({
+        name: i.toString(),
+        ignore: ignore?.map((i) => i.toString()),
+        fn: async () => {
+          const ts = fn(...input)
+          const py = await python(code, input)
+          expect(asdict(ts)).toEqual(asdict(py))
+        },
       })
     }
   }

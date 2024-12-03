@@ -455,23 +455,22 @@ export class UOp extends MathTrait {
     return [Number(dtypes.min(this.dtype)), Number(dtypes.max(this.dtype))]
   }
 
-  _sym_fxn = (): [(m: Map<UOp, number>) => number, any[]] => {
+  _sym_fxn = (): [(m: Record<string, number>) => number, string[]] => {
     const sthis = this.simplify()
-    const varnames = []
-    for (const x of sthis.parents().keys()) if (x.op === Ops.DEFINE_VAR) varnames.push(x.arg[0])
-    // TODO: check this return type ,used eval before
-    return [(m) => sthis.render(), varnames]
+    const varnames: string[] = [...sthis.sparents().keys()].filter((x) => x.op === Ops.DEFINE_VAR).map((x) => x.arg[0])
+    // TODO: sanitize varnames, or don't use naked eval while staying fast
+    return [eval(`({${varnames.join(',')}})=>${sthis.render()}`), varnames]
   }
   symInfer = (varVals: Map<UOp, number>) => {
     const [fxn, varnames] = this._sym_fxn()
-    const map = new Map<UOp, number>()
-    for (const [k, v] of varVals.entries()) if (varnames.includes(k.arg[0])) map.set(k.arg[0], v)
-    return fxn(map)
+    console.log(fxn.toString())
+    const args = Object.fromEntries(varVals.entries().filter(([k, v]) => varnames.includes(k.arg[0])).map(([k, v]) => [k.arg[0] as string, v]))
+    return fxn(args)
   }
 
-  render = (simplify = true) => {
+  render = (simplify = true): string => {
     const ret = graphRewrite(simplify ? this.simplify() : this, renderer)
-    return ret.op === Ops.NOOP ? ret.arg : ret
+    return ret.op === Ops.NOOP ? ret.arg : ret.toString()
   }
 }
 
@@ -1169,7 +1168,7 @@ export const _substitute = new PatternMatcher<any>([[new UPat({ op: allOps, name
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
-export const renderer = new PatternMatcher([
+export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
   [new UPat({ op: [Ops.DEFINE_VAR, Ops.SPECIAL], name: 'x' }), ({ x }) => new UOp({ op: Ops.NOOP, arg: x.arg[0] })],
   [new UPat({ op: Ops.RANGE, name: 'x' }), ({ x }) => new UOp({ op: Ops.NOOP, arg: `ridx${x.arg[0]}` })],
   [new UPat({ op: Ops.CONST, name: 'x' }), ({ x }) => new UOp({ op: Ops.NOOP, arg: x.arg.toString() })],
