@@ -135,7 +135,7 @@ const ALL_PATTERN_MATCHERS = {
       UOp.int(2).mul(UOp.variable('x')).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)
       UOp.int(-2).mul(UOp.variable('x')).lt(UOp.int(-5)), // -2x < -5 -> -x < -floor(-(-5)/-(-2))
       UOp.variable('x').idiv(UOp.int(2)).lt(UOp.int(3)), // x//2 < 3 -> x < 3*2
-      UOp.int(4).mul(UOp.variable('x')).add(UOp.variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax() and x2.vmin()>=0
+      UOp.int(4).mul(UOp.variable('x')).add(UOp.variable('x2')).lt(UOp.int(12)), // (4x + x2) < 12 -> x < 12/4 when 12%4=0 and 4>x2.vmax and x2.vmin>=0
       UOp.variable('x').lt(UOp.int(5)), // x < 5 when 0 < 5
       UOp.variable('x').lt(1).ne(true), // not x < 1 -> X > 0
       UOp.variable('x').idiv(UOp.int(3)), // x//3 when 0 < 3

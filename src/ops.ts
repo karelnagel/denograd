@@ -145,7 +145,7 @@ export const resolve = (x: UOp, def = false) => {
   // NOTE: generating the text for the exception is expensive, so we do this
   const sx = x.simplify()
   // TODO this Boolean() is probably broken
-  return isEq(sx.vmin(), sx.vmax()) ? Boolean(sx.vmin()) : def
+  return isEq(sx.vmin, sx.vmax) ? Boolean(sx.vmin) : def
 }
 
 // # smax/smin are replacements for max/min that preserve symbolic
@@ -418,9 +418,10 @@ export class UOp extends MathTrait {
     }
     return undefined // generic None if we aren't sure
   }
-
-  vmin = () => this._minMax()[0]
-  vmax = () => this._minMax()[1]
+  // deno-fmt-ignore
+  get vmin () {return this._minMax()[0]}
+  // deno-fmt-ignore
+  get vmax() {return this._minMax()[1]}
   // Actually can return boolean as well, but types don't like it
   _minMax = (): [number, number] => {
     if (GroupOp.Binary.includes(this.op) && !dtypes.isFloat(this.dtype)) {
@@ -444,12 +445,12 @@ export class UOp extends MathTrait {
       }
     }
     // float has NAN issue and we use explicit NAN in transcendental
-    if (this.op === Ops.WHERE && dtypes.isInt(this.dtype)) return [Math.min(this.src[1].vmin(), this.src[2].vmin()), Math.max(this.src[1].vmax(), this.src[2].vmax())]
+    if (this.op === Ops.WHERE && dtypes.isInt(this.dtype)) return [Math.min(this.src[1].vmin, this.src[2].vmin), Math.max(this.src[1].vmax, this.src[2].vmax)]
     // NOTE: returned UOp is assumed to be CONST
     if (this.op === Ops.DEFINE_VAR && this.arg) return [this.arg[1], this.arg[2]]
-    if (this.op === Ops.RANGE) return [this.src[0].vmin(), (this.src[1].sub(1)).vmax()]
+    if (this.op === Ops.RANGE) return [this.src[0].vmin, (this.src[1].sub(1)).vmax]
     if (this.op === Ops.BIND) return this.src[0]._minMax() // ignore the bound value
-    if ([Ops.EXPAND, Ops.VECTORIZE].includes(this.op)) return [Math.min(...this.src.map((x) => x.vmin())), Math.max(...this.src.map((x) => x.vmax()))]
+    if ([Ops.EXPAND, Ops.VECTORIZE].includes(this.op)) return [Math.min(...this.src.map((x) => x.vmin)), Math.max(...this.src.map((x) => x.vmax))]
     // TODO: UOps.SPECIAL is UOps.DEFINE_VAR
     if (this.op === Ops.SPECIAL) return [0, typeof this.arg[1] === 'number' ? (this.arg[1] - 1) : Number(dtypes.max(this.dtype))]
     if (this.op === Ops.CONST) return [this.arg, this.arg]
@@ -848,8 +849,8 @@ export const modFolding = (x: UOp, c: number): UOp | undefined => {
   // simplify x % c, None means no change
 
   // simple cancel mod case
-  const quotient = Math.floor(x.vmin() / c)
-  if (0 < c && x.vmin() <= (0) && isEq(quotient, Math.floor(x.vmax() / c))) return x.sub(quotient).mul(c)
+  const quotient = Math.floor(x.vmin / c)
+  if (0 < c && x.vmin <= (0) && isEq(quotient, Math.floor(x.vmax / c))) return x.sub(quotient).mul(c)
 
   let [remainder, somethingChanged] = [[], false] as [UOp[], boolean]
   for (const u of splitUOp(x, Ops.ADD)) {
@@ -872,7 +873,7 @@ export const divFolding = (x: UOp, c: number): UOp | undefined => {
   // simplify x // c, None means no change
 
   // simple cancel div case
-  if (0 <= x.vmin() && x.vmax() < c) return x.constLike(0)
+  if (0 <= x.vmin && x.vmax < c) return x.constLike(0)
 
   let [quotient, remainder, remConst, somethingChanged, gcd, divisor] = [[] as UOp[], [] as UOp[], 0, false, c, 1]
   for (const u of splitUOp(x, Ops.ADD)) {
@@ -921,7 +922,7 @@ export const divFolding = (x: UOp, c: number): UOp | undefined => {
 const ltFolding = (x: UOp, c: number): UOp | undefined => {
   const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
   const d = mathGcd(...np.map((u) => u.constFactor()), c)
-  if (np && d > 1 && 0 <= p.map((u) => u.vmin()).reduce((p, c) => c + p) && p.map((u) => u.vmax()).reduce((p, c) => p + c) < d) {
+  if (np && d > 1 && 0 <= p.map((u) => u.vmin).reduce((p, c) => c + p) && p.map((u) => u.vmax).reduce((p, c) => p + c) < d) {
     return np.reduce((p, c) => p.add(c), UOp.int(0)).divides(d)!.lt(Math.floor(c / d))
   }
   return undefined
@@ -946,7 +947,7 @@ const foldUnrolledDivs = ({ divs }: { divs: UOp }) => {
   if (isNone(denominator)) return undefined
   // the first (denominator-len(seen_const)) terms may have been folded to 0 already
   for (const i of range(denominator - seenConst.length)) {
-    if (isNotNone(ans) && 0 <= ans.vmin() && ans.vmax() + i < denominator) seenConst.push(i)
+    if (isNotNone(ans) && 0 <= ans.vmin && ans.vmax + i < denominator) seenConst.push(i)
   }
   return isNotNone(ans) && isEq(seenConst.sort((a, b) => b - a), range(denominator)) ? ans : undefined
 }
@@ -960,7 +961,7 @@ const canonicalizeSimplex = (X: UOp): UOp | undefined => {
       changed = true
       u = u.src[0]
     }
-    if (!(GroupOp.Irreducible.includes(u.op) && u.vmin() >= 0)) return undefined
+    if (!(GroupOp.Irreducible.includes(u.op) && u.vmin >= 0)) return undefined
     ret.push(u)
   }
   return changed ? ret.reduce((p, c) => p.add(c)) : undefined
@@ -1008,11 +1009,11 @@ const uopGivenValid = (valid: UOp, uop: UOp): UOp | undefined => {
     const candidates: [UOp, UOp][][] = []
     if (expr.op === Ops.ADD && v[0] === 1 && splitUOp(expr, Ops.ADD).every((u) => GroupOp.Irreducible.includes(u.op))) {
       // if the constraint is a simplex: X0 + X1 + ... > 0, we can check if all Xi > 0 simplify into the same output
-      candidates.push(splitUOp(expr, Ops.ADD).toArray().map((Xi) => [Xi, UOp.variable('fake', 1, Xi.vmax(), Xi.dtype)]))
+      candidates.push(splitUOp(expr, Ops.ADD).toArray().map((Xi) => [Xi, UOp.variable('fake', 1, Xi.vmax, Xi.dtype)]))
     }
     // try checking the whole clause
     if ([...uop.sparents().keys()].includes(expr)) {
-      candidates.push([[expr, UOp.variable('fake', isNone(v[0]) ? expr.vmin() : v[0], isNone(v[1]) ? expr.vmax() : v[1], expr.dtype)]])
+      candidates.push([[expr, UOp.variable('fake', isNone(v[0]) ? expr.vmin : v[0], isNone(v[1]) ? expr.vmax : v[1], expr.dtype)]])
     }
     for (const candidate of candidates) {
       // if every branch in candidate gives the same simplified uop, we can rewrite the uop
@@ -1046,8 +1047,8 @@ export const simplifyValid = (valid: UOp): UOp | undefined => {
   return somethingChanged ? ret.reduce((p, c) => p.bitwiseAnd(c)) : undefined
 }
 export const maxVarConst = ({ x, c1, c2 }: { x: UOp; c1: UOp; c2: UOp }) => {
-  if (x.vmin() >= (0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
-  if (x.vmax() <= (0)) return c1.arg >= c2.arg ? x.mul(c2) : x.mul(c1)
+  if (x.vmin >= (0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
+  if (x.vmax <= (0)) return c1.arg >= c2.arg ? x.mul(c2) : x.mul(c1)
 }
 export const sintToUPp = (x: sint) => typeof x === 'number' ? UOp.const(dtypes.int, x) : x
 
@@ -1105,9 +1106,9 @@ export const symbolic = symbolicSimple.__add__(
     [UPat.var().where(UPat.var('val'), UPat.var('val')), ({ val }) => val],
     [UPat.cvar('gate', undefined, false).where(UPat.var('c0'), UPat.var('c1')), ({ gate, c0, c1 }) => gate.arg ? c0 : c1],
     //   // ALU min==max -> CONST (slow!)
-    [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ x }) => x.vmin() === x.vmax() ? x.constLike(x.vmin()) : undefined], //35
+    [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ x }) => x.vmin === x.vmax ? x.constLike(x.vmin) : undefined], //35
     //   // max folding
-    [UPat.var('x').maximum(UPat.var('y')), ({ x, y }) => x.vmax() <= y.vmin() ? x.vmin() >= y.vmax() ? x : y : undefined],
+    [UPat.var('x').maximum(UPat.var('y')), ({ x, y }) => x.vmax <= y.vmin ? x.vmin >= y.vmax ? x : y : undefined],
     //   // TODO: why does this rule break beautiful_mnist?
     //   //((UPat.var("x")+UPat.var("z")).maximum(UPat.var("y")+UPat.var("z")), lambda x,y,z: x.maximum(y) + z),
     [UPat.var('x').mul(UPat.cvar('c1')).maximum(UPat.var('x').mul(UPat.cvar('c2'))), ({ x, c1, c2 }) => maxVarConst({ x, c1, c2 })],
@@ -1126,7 +1127,7 @@ export const symbolic = symbolicSimple.__add__(
     //   // x//c0<c1 for positive int c0
     [(UPat.var('x', dtypes.ints).idiv(UPat.cvar('c0', undefined, false))).lt(UPat.cvar('c1', undefined, false)), ({ x, c0, c1 }) => c0.arg > 0 ? x.lt(c1.arg * c0.arg) : undefined],
     //   // mul add lt
-    [((UPat.cvar('c0', undefined, false).mul(UPat.var('x'))).add(UPat.var('x2'))).lt(UPat.cvar('c1', undefined, false)), ({ x, x2, c0, c1 }) => c1.arg % c0.arg === 0 && c0.arg > x2.vmax() && x2.vmin() >= 0 ? x.lt(c1.idiv(c0)) : undefined],
+    [((UPat.cvar('c0', undefined, false).mul(UPat.var('x'))).add(UPat.var('x2'))).lt(UPat.cvar('c1', undefined, false)), ({ x, x2, c0, c1 }) => c1.arg % c0.arg === 0 && c0.arg > x2.vmax && x2.vmin >= 0 ? x.lt(c1.idiv(c0)) : undefined],
     //   // ** move add/mul consts to end (NOTE: this is still happening before constant folding) **
     [new UPat({ op: Ops.ADD, src: [UPat.var('x'), UPat.cvar('c1')] }).add(UPat.var('y')), ({ x, c1, y }) => (x.add(y)).add(c1)],
     [new UPat({ op: Ops.MUL, src: [UPat.var('x'), UPat.cvar('c1')] }).mul(UPat.var('y')), ({ x, c1, y }) => (x.mul(y)).mul(c1)],
