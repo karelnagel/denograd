@@ -6,8 +6,9 @@
 // from tinygrad.ops import resolve, UOp, Variable, sint, sym_infer, smax, smin, sint_to_uop
 // from tinygrad.helpers import prod, all_int, argsort, flatten, ceildiv
 
-import { assert, isNone, isNotNone, range } from '../helpers.ts'
-import { add, ge, idiv, lt, mod, mul, type sint, sub, UOp } from '../ops.ts'
+import { dtypes } from '../dtype.ts'
+import { assert, flatten, isLessThan, isNone, isNotNone, prod, range, zip } from '../helpers.ts'
+import { add, ge, idiv, lt, mod, mul, resolve, type sint, sintToUOp, sub, UOp } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
   return shape.map((s, i) => ({ s, st: strides[i] })).map(({ s, st }) => s == 1 ? 0 : st)
@@ -91,34 +92,34 @@ const un1d = (shape: sint[], offs: sint): sint[] => {
 }
 
 export class View {
-  // shape: sint[]
-  // strides: sint[]
-  // offset: sint
-  // mask?: [sint, sint][]
-  // contiguous: boolean
+  shape!: sint[]
+  strides!: sint[]
+  offset!: sint
+  mask?: [sint, sint][]
+  contiguous!: boolean
 
-  // get t() {
-  // }
-  //   def t(self):
-  //     return tuple(x.tuplize if isinstance(x, UOp) else (x,) for x in self.shape+self.strides+(self.offset,)+(tuple(flatten(self.mask)) if self.mask is not None else tuple()))
-  //   def __lt__(self, o:View): return self.t < o.t
+  get t() {
+    return [...this.shape, ...this.strides, this.offset, ...(isNotNone(this.mask) ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize() : [x])
+  }
+  lt = (o: View) => isLessThan(this.t, o.t)
 
-  //   def to_indexed_uops(self:View, _idxs:Optional[List[UOp]]=None, vexpr:UOp=UOp.const(dtypes.bool, True)) -> Tuple[UOp, UOp]:
-  //     idxs = [UOp.range(dtypes.int, 0, s, i) for i,s in enumerate(self.shape)] if _idxs is None else _idxs
-  //     iexpr = sint_to_uop(self.offset)
-  //     for idx,sh,st,m in zip(idxs, self.shape, self.strides, self.mask if self.mask is not None else [None]*len(self.shape)):
-  //       if resolve(sh != 1) and resolve(st != 0): iexpr = iexpr + idx*st
-  //       if m is not None:
-  //         if resolve(m[0] != 0): vexpr = vexpr * idx.ge(m[0])
-  //         if resolve(m[1] != sh): vexpr = vexpr * idx.lt(m[1])
-  //     return iexpr, vexpr
-
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def size(self) -> int:
-  //     ret = prod([x.vmax if isinstance(x, UOp) else x for x in self.shape])
-  //     assert isinstance(ret, int), f"{ret=} is not int"
-  //     return ret
-
+  to_indexed_uops = (_idxs?: UOp[], vexpr = UOp.const(dtypes.bool, true)): [UOp, UOp] => {
+    const idxs = isNone(_idxs) ? [...this.shape.entries()].map(([i, s]) => UOp.range(dtypes.int, 0, s, i)) : _idxs
+    let iexpr = sintToUOp(this.offset)
+    for (const [idx, sh, st, m] of zip(idxs, this.shape, this.strides, isNotNone(this.mask) ? this.mask : this.shape.map((x) => undefined))) {
+      if (resolve(sh !== 1) && resolve(st !== 0)) iexpr = iexpr.add(idx.mul(st))
+      if (isNotNone(m)) {
+        if (resolve(m[0] !== 0)) vexpr = vexpr.mul(idx.ge(m[0]))
+        if (resolve(m[1] !== sh)) vexpr = vexpr.mul(idx.lt(m[1]))
+      }
+    }
+    return [iexpr, vexpr]
+  }
+  size = (): number => {
+    const ret = prod(this.shape.map((x) => x instanceof UOp ? x.vmax : x))
+    assert(typeof ret === 'number', `${ret} is not int`)
+    return ret
+  }
   //   @staticmethod
   //   @functools.lru_cache(maxsize=None)
   //   def create(shape:Tuple[sint, ...], strides:Optional[Tuple[sint, ...]]=None, offset:sint=0, mask:Optional[Tuple[Tuple[sint, sint], ...]]=None):

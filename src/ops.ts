@@ -138,7 +138,7 @@ export const canPad = (u: UOp) => ![...u.sparents().keys()].some((x) => GroupOp.
 export const END_FOR_UOP = new Map([[Ops.IF, [Ops.STORE, Ops.ENDIF]], [Ops.RANGE, [Ops.ASSIGN, Ops.ENDRANGE]]])
 
 // With True as the default, this matches the old symbolic behavior
-export const resolve = (x: UOp, def = false) => {
+export const resolve = (x: UOp | boolean, def = false) => {
   if (!(x instanceof UOp)) return Boolean(x)
   if (x.dtype.name !== 'bool') throw new Error('UOp in resolve must be bool')
   // NOTE: generating the text for the exception is expensive, so we do this
@@ -1049,7 +1049,7 @@ export const maxVarConst = ({ x, c1, c2 }: { x: UOp; c1: UOp; c2: UOp }) => {
   if (x.vmin >= (0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
   if (x.vmax <= (0)) return c1.arg >= c2.arg ? x.mul(c2) : x.mul(c1)
 }
-export const sintToUPp = (x: sint) => typeof x === 'number' ? UOp.const(dtypes.int, x) : x
+export const sintToUOp = (x: sint) => typeof x === 'number' ? UOp.const(dtypes.int, x) : x
 
 export const symbolicSimple = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
   //   // ** this folding **
