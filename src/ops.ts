@@ -5,7 +5,6 @@ import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from './str.ts'
 
-export type sint = number | UOp
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
 
@@ -1184,3 +1183,17 @@ export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
 ])
 
 // # *** what was symbolic.py ***
+
+export type sint = number | UOp
+export const add = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.add(b) : typeof b !== 'number' ? b.add(a, true) : a + b) as A | B
+export const sub = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.sub(b) : typeof b !== 'number' ? b.sub(a, true) : a - b) as A | B
+export const mul = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mul(b) : typeof b !== 'number' ? b.mul(a, true) : a * b) as A | B
+export const idiv = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.idiv(b) : typeof b !== 'number' ? b.idiv(a, true) : Math.floor(a / b)) as A | B
+
+export const lt = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.lt(b) : typeof b !== 'number' ? b.ge(a) : Number(a < b)) as A | B
+export const gt = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.gt(b) : typeof b !== 'number' ? b.le(a) : Number(a > b)) as A | B
+
+export const le = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.le(b) : typeof b !== 'number' ? b.gt(a) : Number(a <= b)) as A | B
+export const ge = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.ge(b) : typeof b !== 'number' ? b.lt(a) : Number(a >= b)) as A | B
+
+export const mod = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mod(b) : typeof b !== 'number' ? b.mod(a, true) : a % b) as A | B

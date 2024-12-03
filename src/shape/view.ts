@@ -7,15 +7,15 @@
 // from tinygrad.helpers import prod, all_int, argsort, flatten, ceildiv
 
 import { assert, isNone, isNotNone, range } from '../helpers.ts'
-import { UOp } from '../ops.ts'
+import { add, ge, idiv, lt, mod, mul, type sint, sub, UOp } from '../ops.ts'
 
-export const canonicalize_strides = (shape: UOp[], strides: UOp[]): UOp[] => {
-  return shape.map((s, i) => ({ s, st: strides[i] })).map(({ s, st }) => s.eq(s.constLike(1)).arg ? s.constLike(0) : st)
+export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
+  return shape.map((s, i) => ({ s, st: strides[i] })).map(({ s, st }) => s == 1 ? 0 : st)
 }
 
-export const strides_for_shape = (shape: UOp[]): UOp[] => {
+export const strides_for_shape = (shape: sint[]): sint[] => {
   if (!shape?.length) return []
-  const strides = shape.slice(1).reverse().reduce((acc, curr) => [...acc, acc.at(-1)!.mul(curr)], [UOp.int(1)])
+  const strides = shape.slice(1).reverse().reduce((acc, curr) => [...acc, mul(acc.at(-1)!, curr)], [1 as sint])
   return canonicalize_strides(shape, [...strides].reverse())
 }
 
@@ -45,62 +45,62 @@ const iterator = <T>(items: T[], def: T) => {
   return { ...it, next: () => it.next().value || def }
 }
 /**Returns the new mask if reshape is possible, and None if not possible.*/
-export const _reshape_mask = (_mask: undefined | [UOp, UOp][], old_shape: UOp[], new_shape: UOp[]): [UOp, UOp][] | undefined => {
+export const _reshape_mask = (_mask: undefined | [sint, sint][], old_shape: sint[], new_shape: sint[]): [sint, sint][] | undefined => {
   if (isNone(_mask)) return new_shape.map((s) => [UOp.int(0), s])
-  //   if any(not isinstance(m[0], int) or not isinstance(m[1], int) for m in _mask): return None
-  if (_mask.some((m) => m[1].sub(m[0]).lt(UOp.int(1)).arg)) return range(new_shape.length).map((x) => [UOp.int(0), UOp.int(0)]) //zero mask
+  if (_mask.some((m) => typeof m[0] !== 'number' || typeof m[1] !== 'number')) return undefined
+  if (_mask.some((m) => lt(sub(m[1], m[0]), UOp.int(1)))) return range(new_shape.length).map((x) => [0, 0]) //zero mask
 
-  const new_mask: [UOp, UOp][] = []
+  const new_mask: [sint, sint][] = []
   // _mask is all int here
-  const [r_masks, r_shape, r_new_shape] = [iterator(_mask.toReversed(), [UOp.int(0), UOp.int(1)]), iterator(old_shape.toReversed(), UOp.int(1)), iterator(new_shape.toReversed(), UOp.int(1))]
-  let [curr_stride, old_dim, new_dim, mask] = [UOp.int(1), r_shape.next(), r_new_shape.next(), r_masks.next()]
+  const [r_masks, r_shape, r_new_shape] = [iterator(_mask.toReversed() as [sint, sint][], [0, 1]), iterator(old_shape.toReversed(), 1), iterator(new_shape.toReversed(), 1)]
+  let [curr_stride, old_dim, new_dim, mask] = [1 as sint, r_shape.next(), r_new_shape.next(), r_masks.next()]
 
   while (new_mask.length < new_shape.length) {
-    const [[l, r], next_stride] = [mask, new_dim.mul(curr_stride)]
-    console.log(new_dim.toString())
-    if (old_dim.ge(next_stride)) { // need to split mask.
+    const [[l, r], next_stride] = [mask, mul(new_dim, curr_stride)]
+    if (ge(old_dim, next_stride)) { // need to split mask.
       if (old_dim === next_stride) { // simply copy the mask and get next batch for merging
-        new_mask.push([l.idiv(curr_stride), (r.sub(1)).idiv(curr_stride).add(1)])
+        new_mask.push([idiv(l, curr_stride), add(idiv(sub(r, 1), curr_stride), 1)])
         ;[curr_stride, old_dim, new_dim, mask] = [UOp.int(1), r_shape.next(), r_new_shape.next(), r_masks.next()]
       } else { // mask can only be splitted if reshape doesn't cut across the mask.
-        if (((l.mod(next_stride).ne(0) || r.mod(next_stride).ne(0)) && l.idiv(next_stride).ne(r.sub(1)).idiv(next_stride)) || old_dim.mod(next_stride).ne(0)) return undefined
-        new_mask.push([l.mod(next_stride).idiv(curr_stride), (r.sub(1)).mod(next_stride).idiv(curr_stride.add(1))])
+        if (((mod(l, next_stride) !== 0 || mod(r, next_stride) !== 0) && idiv(l, next_stride) !== idiv(sub(r, 1), next_stride)) || mod(old_dim, next_stride) !== 0) return undefined
+        new_mask.push([idiv(mod(l, next_stride), curr_stride), idiv(mod(sub(r, 1), next_stride), add(curr_stride, 1))])
         ;[curr_stride, new_dim] = [next_stride, r_new_shape.next()] // need to get mask for next dimension
       }
     } else {
       const next_mask = r_masks.next()
       // combine if the mask can unfold continuously
-      if ((mask[0].arg !== 0 || mask[1].arg !== old_dim) && next_mask[1].sub(next_mask[0]).ne(1).arg) return undefined
-      ;[mask, old_dim] = [[next_mask[0].mul(old_dim).add(l), (next_mask[1].sub(1)).mul(old_dim).add(r)], old_dim.mul(r_shape.next())]
+      if ((mask[0] !== 0 && mask[1] !== old_dim) && sub(next_mask[1], next_mask[0]) !== 1) return undefined
+      ;[mask, old_dim] = [[add(mul(next_mask[0], old_dim), l), add(mul(sub(next_mask[1], 1), old_dim), r)], mul(old_dim, r_shape.next())]
     }
   }
   for (const mask of r_masks) { // if the old shape has leading 1s, need to make sure their mask is (0,1)
-    if (mask[0].arg !== 0 || mask[1].arg !== 1) return range(new_shape.length).map((x) => [UOp.int(0), UOp.int(0)]) // invalid mask
+    if (mask[0] !== 0 || mask[1] !== 1) return range(new_shape.length).map(() => [0, 0]) // invalid mask
   }
 
   return new_mask.toReversed()
 }
-// const un1d=(shape:UOp., offs:sint) -> List[sint]:
-//   result = []
-//   for stride in strides_for_shape(shape):
-//     here = offs // stride if stride != 0 else 0
-//     result.append(here)
-//     offs -= here * stride
-//   return result
 
-// @dataclass(frozen=True)
+const un1d = (shape: sint[], offs: sint): sint[] => {
+  const result: sint[] = []
+  for (const stride of strides_for_shape(shape)) {
+    const here = stride !== 0 ? idiv(offs, stride) : 0
+    result.push(here)
+    offs = sub(offs, mul(here, stride))
+  }
+  return result
+}
 
 export class View {
-  //   shape:Tuple[sint, ...]
-  //   strides:Tuple[sint, ...]
-  //   offset:sint
-  //   mask:Optional[Tuple[Tuple[sint, sint], ...]]
-  //   contiguous:bool
+  // shape: sint[]
+  // strides: sint[]
+  // offset: sint
+  // mask?: [sint, sint][]
+  // contiguous: boolean
 
-  //   @functools.cached_property
+  // get t() {
+  // }
   //   def t(self):
-  //     return tuple(x.tuplize if isinstance(x, UOp) else (x,) \
-  //                  for x in self.shape+self.strides+(self.offset,)+(tuple(flatten(self.mask)) if self.mask is not None else tuple()))
+  //     return tuple(x.tuplize if isinstance(x, UOp) else (x,) for x in self.shape+self.strides+(self.offset,)+(tuple(flatten(self.mask)) if self.mask is not None else tuple()))
   //   def __lt__(self, o:View): return self.t < o.t
 
   //   def to_indexed_uops(self:View, _idxs:Optional[List[UOp]]=None, vexpr:UOp=UOp.const(dtypes.bool, True)) -> Tuple[UOp, UOp]:

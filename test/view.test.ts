@@ -36,14 +36,13 @@ Deno.test(
   'strides_for_shape',
   compare(
     [
+      [[4, 23, 545, 32443, 44, -1]],
+      [[4, 23, 545, 32443, 44, -1, UOp.int(444), UOp.bool(true), UOp.float(4.44)]],
       [[UOp.int(200), UOp.int(500), UOp.int(500), UOp.int(500)]],
       [[UOp.int(2), UOp.float(4.4), UOp.int(743)]],
     ],
     strides_for_shape,
-    `
-res = tiny.shape.view.strides_for_shape(*data)
-# chaning the last element to UOp
-out([*res[:-1],tiny.ops.UOp.const(tiny.dtype.dtypes.int,res[-1])])`,
+    `out(tiny.shape.view.strides_for_shape(*data))`,
   ),
 )
 
