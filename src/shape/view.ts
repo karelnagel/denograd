@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { allInt, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, prod, range, zip } from '../helpers.ts'
-import { eq, gt, le, ne, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
+import { gt, le, ne, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sintToUOp, sub, UOp } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
@@ -73,7 +73,7 @@ export const _reshape_mask = (_mask: undefined | [sint, sint][], old_shape: sint
   return new_mask.toReversed()
 }
 
-const un1d = (shape: sint[], offs: sint): sint[] => {
+export const un1d = (shape: sint[], offs: sint): sint[] => {
   const result: sint[] = []
   for (const stride of strides_for_shape(shape)) {
     const here = stride !== 0 ? idiv(offs, stride) : 0
@@ -100,7 +100,7 @@ export class View {
   lt = (o: View) => isLessThan(this.t, o.t)
 
   to_indexed_uops = (_idxs?: UOp[], vexpr = UOp.const(dtypes.bool, true)): [UOp, UOp] => {
-    const idxs = isNone(_idxs) ? [...this.shape.entries()].map(([i, s]) => UOp.range(dtypes.int, 0, s, i)) : _idxs
+    const idxs = isNone(_idxs) ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
     let iexpr = sintToUOp(this.offset)
     for (const [idx, sh, st, m] of zip(idxs, this.shape, this.strides, isNotNone(this.mask) ? this.mask : this.shape.map((x) => undefined))) {
       if (resolve(sh !== 1) && resolve(st !== 0)) iexpr = iexpr.add(idx.mul(st))
@@ -130,18 +130,18 @@ export class View {
     const elim = mask?.map(([b, e]) => !resolve(lt(add(b, 1), e)))
     if (mask && elim?.some((x) => x)) {
       if (mask.some(([b, e]) => !resolve(lt(b, e)))) [strides, offset, mask] = [range(shape.length).map((x) => 0), 0, range(shape.length).map((x) => [0, 0])]
-      offset = add(offset, elim.entries().map(([i, e]) => e ? (mul(strides![i], mask![i][0])) : 0).reduce((prev, curr) => add(prev, curr), 0))
+      offset = add(offset, elim.map((e, i) => e ? (mul(strides![i], mask![i][0])) : 0).reduce((prev, curr) => add(prev, curr), 0))
       strides = [...zip(strides, elim).map(([st, e]) => e ? 0 : st)]
     }
     // # simplify as we go
     if (offset instanceof UOp) offset = offset.ssimplify()
-    shape = shape.map((x) => x instanceof UOp ? x.simplify() : x)
+    shape = shape.map((x) => x instanceof UOp ? x.ssimplify() : x)
     // # TODO: enabling stride simplification breaks it
     // """
     // strides = tuple(x.ssimplify() if isinstance(x, UOp) else x for x in strides)
     // if mask: mask = tuple((s.ssimplify() if isinstance(s, UOp) else s, e.ssimplify() if isinstance(e, UOp) else e) for s,e in mask)
     // """
-    const contiguous = offset === 0 && isNone(mask) && strides === strides_for_shape(shape)
+    const contiguous = offset === 0 && isNone(mask) && isEq(strides, strides_for_shape(shape))
     return new View({ shape, strides, offset, mask, contiguous })
   }
 
@@ -189,7 +189,7 @@ export class View {
     //     # Merge dimensions in vm2 if required.
     //     # NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
     if (!allInt(vm1.shape)) return undefined
-    const idxs: UOp[] = [...vm1.shape.entries().map(([i, s]) => UOp.variable(`idx${i}`, 0, s - 1))]
+    const idxs: UOp[] = [...vm1.shape.map((s, i) => UOp.variable(`idx${i}`, 0, s - 1))]
     let [merged_size, merged_term] = [1, UOp.const(dtypes.int, 0)] as [sint, UOp]
     const extents: [sint, UOp][] = []
     for (const [term, s, o] of zip(terms.toReversed(), vm2.shape.toReversed(), origin.toReversed())) {

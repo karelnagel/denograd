@@ -145,7 +145,7 @@ export const resolve = (x: ConstType<UOp>, def = false) => {
   // NOTE: generating the text for the exception is expensive, so we do this
   const sx = x.simplify()
   // TODO this Boolean() is probably broken
-  return isEq(sx.vmin, sx.vmax) ? Boolean(sx.vmin) : def
+  return sx.vmin === sx.vmax ? Boolean(sx.vmin) : def
 }
 
 // # smax/smin are replacements for max/min that preserve symbolic
