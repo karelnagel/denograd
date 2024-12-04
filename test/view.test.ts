@@ -121,10 +121,10 @@ Deno.test(
   ),
 )
 
-const view1 = new View({ shape: [4, 4], strides: [4, 1], mask: undefined, contiguous: true, offset: 0 })
-const view2 = new View({ shape: [UOp.int(4), UOp.int(6)], strides: [UOp.int(6), UOp.int(1)], mask: [[UOp.int(1), UOp.int(3)], [UOp.int(2), UOp.int(5)]], contiguous: false, offset: UOp.int(8) })
-const view3 = new View({ shape: [4, 4], strides: [-4, -1], offset: 0, mask: undefined, contiguous: false })
-const view4 = new View({ shape: [3, 3, 2], strides: [6, -2, 1], offset: 0, mask: [[1, 3], [0, 4]], contiguous: false })
+const view1 = View.create([4, 4], [4, 1], 0, undefined)
+const view2 = View.create([UOp.int(4), UOp.int(6)], [UOp.int(6), UOp.int(1)], UOp.int(8), [[UOp.int(1), UOp.int(3)], [UOp.int(2), UOp.int(5)]])
+const view3 = View.create([4, 4], [-4, -1], 0, undefined)
+const view4 = View.create([0, 3, 2], [6, -2, 1], 0, [[1, 3], [0, 4]])
 
 Deno.test(
   'View.t',
@@ -353,21 +353,14 @@ Deno.test(
   'View.reshape',
   compare(
     [
-      [view1, [[2, 3]]],
-      [view1, [[6]]],
-      [view1, [[1, 2, 3]]],
-      [view2, [[8]]],
-      [view2, [[2, 4]]],
-      [view3, [[27]]],
-      [view3, [[3, 9]]],
-      [view3, [[3, 3, 3]]],
-      [view4, [[8]]],
-      [view4, [[2, 4]]],
-      [view4, [[2, 2, 2]]],
-      [view1, [[UOp.int(2), UOp.int(3)]]],
-      [view2, [[UOp.int(2), UOp.int(4)]]],
-      [view3, [[UOp.int(3), 3, UOp.int(3)]]],
-      [view4, [[2, UOp.int(2), 2, UOp.int(1)]]],
+      [view1, [[1, 16]]],
+      [view1, [[4, 4]]],
+      [view2, [[3, 8]]],
+      [view2, [[24]]],
+      [view2, [[UOp.int(24)]]],
+      [view2, [[12, 1, 1, 2, 1, 1, 1]]],
+      [view2, [[UOp.int(12), 1, 1, 2, 1, 1, 1]]],
+      [view3, [[8, 1, 1, 2, 1, 1, 1]]],
     ],
     testView((v) => v.reshape),
     'out(trycatch(lambda:data[0].reshape(*data[1])))',

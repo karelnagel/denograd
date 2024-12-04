@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { allInt, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, prod, range, zip } from '../helpers.ts'
+import { allInt, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
 import { gt, le, ne, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sintToUOp, sub, UOp } from '../ops.ts'
 
@@ -98,7 +98,7 @@ export class View {
     return [...this.shape, ...this.strides, this.offset, ...(isNotNone(this.mask) ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize() : [x])
   }
   lt = (o: View) => isLessThan(this.t, o.t)
-
+  toString = () => `new View({shape:${listStr(this.shape)},strides:${listStr(this.strides)},offset:${this.offset},mask:${listStr(this.mask)},contiguous:${this.contiguous}})`
   to_indexed_uops = (_idxs?: UOp[], vexpr = UOp.const(dtypes.bool, true)): [UOp, UOp] => {
     const idxs = isNone(_idxs) ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
     let iexpr = sintToUOp(this.offset)
@@ -318,7 +318,8 @@ export class View {
       return View.create(new_shape)
     }
     //     # check for the same size
-    if (allInt(this.shape)) {
+    const self_all_int = allInt(this.shape)
+    if (self_all_int) {
       assert(new_shape.every((s) => s instanceof UOp || typeof s === 'number'), `${this.shape} -> ${new_shape} contains non (int, Variable) dim`)
       if (resolve(ne(sint_prod(this.shape), sint_prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape ${this.shape} -> ${new_shape}`)
     }
@@ -328,7 +329,7 @@ export class View {
     if (this.contiguous) return View.create(new_shape)
 
     //     # if it's not contiguous and new shape is symbolic, check if it's directly replaceable
-    if (allInt(this.shape) && !allInt(new_shape)) {
+    if (self_all_int && !allInt(new_shape)) {
       if (this.shape.length !== new_shape.length) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
       for (let [si, so] of zip(this.shape, new_shape)) {
         if (typeof so !== 'number') so = symInfer(so, new Map([...so.vars()].map((v) => v.unbind())))

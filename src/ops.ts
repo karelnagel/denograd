@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, isEq, isLessThan, isNone, isNotNone, isSubset, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
+import { allSame, assert, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
-import { pyStr } from './str.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -108,8 +107,8 @@ export enum Ops{
     // consts last!
     VCONST, CONST,
 }
-export const getEnumString = (op: Ops) => {
-  for (const key in Ops) if (Ops[key] === op as unknown as keyof Ops) return key
+export const opsString = (op: Ops) => {
+  for (const key in Ops) if (Ops[key] === op as unknown as keyof Ops) return `Ops.${key}`
   return undefined
 }
 export class GroupOp {
@@ -161,32 +160,6 @@ export const smin = (...lst: (sint | sint[])[]) => _suop(Array.isArray(lst[0]) ?
 export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uop
 export const symInfer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.symInfer(varVals) : uop
 
-// AI generated
-// used for UOp and UPat
-export const prettyPrint = (x: any, rep: (x: any) => string, srcfn: (x: any) => any[] = (x) => x.src, cache: Map<any, [number, number, boolean]> = new Map(), d = 0): string => {
-  const dfs = (x: any, cache: Map<any, [number, number, boolean]>) => {
-    for (const s of srcfn(x) || []) {
-      if (!cache.has(s)) cache.set(s, [cache.size, 0, false])
-      const entry = cache.get(s)!
-      entry[1]++
-      if (entry[1] === 1) dfs(s, cache)
-    }
-  }
-
-  if (cache.size === 0) dfs(x, cache)
-
-  if (!cache.has(x)) cache.set(x, [0, 0, false])
-  const cx = cache.get(x)!
-  if (cx[2]) return `${' '.repeat(d)} x${cx[0]}`
-
-  cx[2] = true
-  const srcs = isNone(srcfn(x)) ? 'None' : (srcfn(x) || [])
-    .map((s) => `\n${prettyPrint(s, rep, srcfn, cache, d + 2)},`)
-    .join('')
-
-  return `${' '.repeat(d)}${cx[1] > 1 ? `x${cx[0]}:=` : ''}${rep(x)}`.replace('%s', srcs)
-}
-
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [Ops, any, DType, UOpTuple[]]
 export class UOp extends MathTrait {
@@ -202,13 +175,7 @@ export class UOp extends MathTrait {
       super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
       UOp.ucache.set(key,this)
     }
-  override toString = (): string => {
-    const op = isNotNone(this.op) ? `Ops.${getEnumString(this.op)}` : undefined
-    const dtype = this.dtype.toString()
-    const src = `[${this.src.map((x) => x.toString())}]`
-    const arg = this.arg
-    return `new UOp({op:${op}, dtype:${dtype}, src:${src}, arg:${arg}})`
-  }
+  override toString = () => `new UOp({op:${opsString(this.op)}, dtype:${this.dtype}, src:${listStr(this.src)}, arg:${listStr(this.arg)}})`
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => {
     const oldArgs: UOpInput = { dtype: this.dtype, arg: this.arg, op: this.op, src: this.src }
@@ -630,20 +597,7 @@ export class UPat extends MathTrait {
         try{ return lines(this.location[0])[this.location[1]-1].trim() }
         catch { return "<missing>"}
     }
-  override toString = (level = 1): string => {
-    const rep = (x: UPat) => {
-      const op = isNone(x.op) ? 'None' : `(${x.op.map((x) => `Ops.${getEnumString(x)}`).join(', ')})`
-      const dtype = x.dtype ? `{${[...new Set(x.dtype)].sort((a, b) => -b.priority + a.priority).join(', ')}}` : 'None'
-      const len = x.allowedLen === 0 ? 'True' : 'False'
-      const space = range(level * 2).map((x) => ' ').join('')
-      const src = x.src ? x.src.flat().length ? `(\n${space}${[...new Set(x.src.flat())].map((u) => u.toString(level + 1)).join(',\n' + space)},)` : '()' : '(None)'
-      const name = x.name ? `'${x.name}'` : 'None'
-      const arg = pyStr(x.arg)
-      const form = `UPat(${op}, ${arg}, name=${name}, dtype=${dtype}, allow_any_len=${len}, src=${src})`
-      return form
-    }
-    return prettyPrint(this, rep, (x) => !x.src ? undefined : x.src[0])
-  }
+  override toString = () => `new UPat({op:${listStr(this.op?.map((o) => opsString(o)))}, arg:${listStr(this.arg)}, name:${this.name}, dtype:${listStr(this.dtype)}, allow_any_len:${this.allowedLen === 0}, src=${listStr(this.src)})`
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     console.log(
       isNotNone(this.op) && !this.op.includes(uop.op),

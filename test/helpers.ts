@@ -1,14 +1,37 @@
 import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
-import { UPat } from '../src/ops.ts'
-import { UOp } from '../src/ops.ts'
 import { DType } from '../src/dtype.ts'
 import { isNotNone } from '../src/helpers.ts'
 import { expect } from 'expect'
-import { pyStr } from '../src/str.ts'
 import process from 'node:process'
-import { View } from '../src/shape/view.ts'
+import { type Ops, opsString, UOp, UPat } from '../src/ops.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
+import { View } from '../src/shape/view.ts'
+
+const getPyOpsStr = (op: Ops) => `tiny.ops.${opsString(op)}`
+export const pyStr = (v: any, useList = false): string => {
+  if (Array.isArray(v)) return v.length ? (useList ? `[${v.map((x) => pyStr(x)).join(', ')}]` : `(${v.map((x) => pyStr(x)).join(', ')},)`) : '()'
+  if (v === null || typeof v === 'undefined') return 'None'
+  if (typeof v === 'boolean') return v ? 'True' : 'False'
+  if (typeof v === 'number') return v === Infinity ? 'inf' : v === -Infinity ? '-inf' : Number.isNaN(v) ? 'math.nan' : v.toString()
+  if (typeof v === 'string') return `"${v}"`
+
+  if (v instanceof UPat) {
+    // if src is UPat[][] we use list, if UPat[] then tuple
+    const src = Array.isArray(v._inSrc) ? (Array.isArray(v._inSrc.at(0)) ? pyStr(v._inSrc.at(0), true) : pyStr(v._inSrc)) : pyStr(v._inSrc)
+    return `tiny.ops.UPat(op=${v.op ? `(${v.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(v.dtype)}, src=${src}, arg=${pyStr(v.arg)}, name=${pyStr(v.name)}, allow_any_len=${pyStr(v.allowedLen === -1)}, location=${
+      pyStr(v.location)
+    }, custom_early_reject=${pyStr(v.customEarlyReject)})`
+  }
+  if (v instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(v.op)}, dtype=${pyStr(v.dtype)}, src=${pyStr(v.src)}, arg=${pyStr(v.arg)})`
+  if (v instanceof DType) return `tiny.dtype.DType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)})`
+  if (v instanceof View) return `tiny.shape.view.View(shape=${pyStr(v.shape)}, strides=${pyStr(v.strides)}, offset=${pyStr(v.offset)}, mask=${pyStr(v.mask)}, contiguous=${pyStr(v.contiguous)})`
+  if (v instanceof ShapeTracker) return `tiny.shape.shapetracker.ShapeTracker(views=${pyStr(v.views)})`
+
+  if (typeof v === 'function') return 'lambda x: x'
+  if (typeof v === 'object') return `{${Object.entries(v).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
+  throw new Error(`Invalid value: ${v}`)
+}
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
