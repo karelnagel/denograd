@@ -4,6 +4,7 @@ import { allSame, assert, isEq, isLessThan, isNone, isNotNone, isSubset, mathGcd
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { pyStr } from './str.ts'
+import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
@@ -138,7 +139,7 @@ export const canPad = (u: UOp) => ![...u.sparents().keys()].some((x) => GroupOp.
 export const END_FOR_UOP = new Map([[Ops.IF, [Ops.STORE, Ops.ENDIF]], [Ops.RANGE, [Ops.ASSIGN, Ops.ENDRANGE]]])
 
 // With True as the default, this matches the old symbolic behavior
-export const resolve = (x: UOp | boolean, def = false) => {
+export const resolve = (x: ConstType<UOp>, def = false) => {
   if (!(x instanceof UOp)) return Boolean(x)
   if (x.dtype.name !== 'bool') throw new Error('UOp in resolve must be bool')
   // NOTE: generating the text for the exception is expensive, so we do this
@@ -230,21 +231,20 @@ export class UOp extends MathTrait {
   tuplize = (): UOpTuple => [this.op, this.arg, this.dtype, this.src.map((x) => x.tuplize())]
 
   //   # *** uop shape stuff ***
-  // TODO: ignored the shape stuff for now
-  // has_st = () => ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)
-  //   @functools.cached_property
-  //   def st(this) -> Optional[ShapeTracker]:
-  //     if not this.has_st: return None
-  //     if this.op in GroupOp.Buffer: return this.st_arg
-  //     if this.op is Ops.VIEW: return this.arg
-  //     src_sts = [x.st for x in this.src if x.st is not None]
-  //     assert all_same([x.shape for x in src_sts]), f"UOp parents must have the same shape {this} {[x.shape for x in src_sts]}"
-  //     from tinygrad.shape.shapetracker import ShapeTracker
-  //     return ShapeTracker.from_shape(src_sts[0].reduce(this.axis_arg)) if this.op is Ops.REDUCE_AXIS else src_sts[0]
-  //   @functools.cached_property
-  //   def full_shape(this) -> Tuple[sint, ...]:
-  //     return this.arg.shape if this.op is Ops.VIEW else tuple(smax(x) for x in zip(*[x.full_shape for x in this.src if x.has_st]))
+  // deno-fmt-ignore
+  get has_st() {return ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)}
 
+  get st(): undefined | ShapeTracker {
+    if (!this.has_st) return undefined
+    if (GroupOp.Buffer.includes(this.op)) return this.st_arg
+    if (this.op === Ops.VIEW) return this.arg
+    const src_sts = this.src.filter((x) => isNotNone(x.st)).map((x) => x.st) as ShapeTracker[]
+    assert(allSame(src_sts.map((x) => x.shape)), `UOp parents must have the same shape ${this} ${src_sts.map((x) => x.shape)}`)
+    return this.op === Ops.REDUCE_AXIS ? ShapeTracker.from_shape(src_sts[0].reduce(this.axisArg())) : src_sts[0]
+  }
+  get full_shape(): sint[] {
+    return this.op === Ops.VIEW ? this.arg.shape : this.src.filter((x) => x.has_st).map((x) => smax(x.full_shape))
+  }
   //   # *** uop evaluation ***
 
   simplify = (): UOp => graphRewrite(this, symbolic)
@@ -268,8 +268,7 @@ export class UOp extends MathTrait {
   }
 
   //   # *** uop syntactic sugar ***
-  // TODO: returns ShapeTracker
-  stArg = () => {
+  get st_arg(): ShapeTracker {
     if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on ${this.op}`)
     const ret = this.src[this.op === Ops.VALID ? 0 : 1]
     if (ret.op !== Ops.VIEW) throw new Error(`st_arg trying to return ${ret}`)
@@ -326,36 +325,33 @@ export class UOp extends MathTrait {
   r = (op: Ops, axis: number[]) => new UOp({ op: Ops.REDUCE_AXIS, dtype: this.dtype, src: [this], arg: [op, axis] })
   assign = (x: UOp) => new UOp({ op: Ops.ASSIGN, dtype: this.dtype, src: [this, x] })
   contiguous = () => new UOp({ op: Ops.CONTIGUOUS, dtype: this.dtype, src: [this] })
-  isContiguousBase = () => this.op === Ops.CONTIGUOUS && !(this.src[0].base().op === Ops.VIEW && this.src[0].base().src.length === 2)
+  isContiguousBase = () => this.op === Ops.CONTIGUOUS && !(this.src[0].base.op === Ops.VIEW && this.src[0].base.src.length === 2)
 
   //   # *** from LazyBuffer ***
 
-  //   @staticmethod
-  //   def const_with_shape(dtype:DType, val:ConstLike, shape:Tuple[sint,...]) -> UOp:
-  //     from tinygrad.shape.shapetracker import ShapeTracker
-  //     return UOp(Ops.VALID, dtypes.bool, (ShapeTracker.from_shape(()).reshape((1,)*len(shape)).expand(shape).to_uop(),)).where(UOp.const(dtype, val), 0)
-
+  static const_with_shape = (dtype: DType, val: ConstLike, shape: sint[]): UOp => {
+    return new UOp({ op: Ops.VALID, dtype: dtypes.bool, src: [ShapeTracker.from_shape([]).reshape(range(shape.length).map((x) => 1)).expand(shape).to_uop()] }).where(UOp.const(dtype, val), 0)
+  }
   //   # *** uop movement ops ***
-
-  base = () => this.op === Ops.VIEW && this.src.length === 1 ? this.src[0] : this
-  //   def view(this, st:ShapeTracker) -> UOp:
-  //     assert this.op is not Ops.STORE, "VIEW of STORE is invalid, STORE is always base"
-  //     return this if this.st is None or this.st === st else UOp(Ops.VIEW, this.dtype, (this,), st)
-  //   def reshape(this, arg:Tuple[sint, ...]) -> UOp: return this.view(unwrap(this.st).reshape(arg))
+  // deno-fmt-ignore
+  get base(): UOp {return this.op === Ops.VIEW && this.src.length === 1 ? this.src[0] : this}
+  view = (st: ShapeTracker): UOp => {
+    assert(this.op !== Ops.STORE, 'VIEW of STORE is invalid, STORE is always base')
+    return isNone(this.st) || this.st === st ? this : new UOp({ op: Ops.VIEW, dtype: this.dtype, src: [this], arg: st })
+  }
+  reshape = (arg: sint[]): UOp => this.view(this.st!.reshape(arg))
 
   //   # *** uop Buffer stuff ***
 
   static newBuffer = (device: string, size: number, dtype: DType, num = -1) => new UOp({ op: Ops.BUFFER, dtype: dtype.ptr(), src: [], arg: [num, [device, size, dtype]] })
+  get device(): string {
+    if (this.op === Ops.COPY) return this.arg
+    if (this.op === Ops.BUFFER) return this.arg[1][0]
+    return this.src[0].device
+  }
   // deno-fmt-ignore
-  device = ():string => {
-        switch (this.op){
-            case Ops.COPY: return this.arg
-            case Ops.BUFFER: return this .arg[1][0]
-            default: return this.src[0].device()
-        }
-    }
-  size = (): number => this.bufUOp().arg[1][1]
-  bufUOp = () => {
+  get size(): number {return this.bufUOp.arg[1][1]}
+  get bufUOp(): UOp {
     if (this.op === Ops.BUFFER) return this
     assert([...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.op) && this.src[0].op === Ops.BUFFER, `buf_uop called on ${this.op}`)
     return this.src[0]
@@ -366,7 +362,7 @@ export class UOp extends MathTrait {
     assert(!(minVal instanceof UOp) && !(maxVal instanceof UOp), `can't create Variable ${name} with ${minVal}/${maxVal}`)
     return new UOp({ op: Ops.DEFINE_VAR, dtype, arg: [name, minVal, maxVal] })
   }
-  expr = () => {
+  get expr() {
     assert(this.op === Ops.DEFINE_VAR, `op is ${this.op}, need DEFINE_VAR`)
     return this.arg[0]
   }
@@ -388,7 +384,7 @@ export class UOp extends MathTrait {
     return boundVars.union(new Set([...allVars].filter((x) => !boundVarBase.has(x))))
   }
   variables = (): Variable[] => {
-    const stVars: Set<Variable>[] = [...this.sparents().keys()].filter((x) => GroupOp.Buffer.includes(x.op)).map((x) => x.stArg().vars())
+    const stVars: Set<Variable>[] = [...this.sparents().keys()].filter((x) => GroupOp.Buffer.includes(x.op)).map((x) => x.st_arg.vars())
     const idk = new Set([...this.vars()].map((x) => x.op !== Ops.DEFINE_VAR ? x.unbind()[0] : x))
     return [...new Set([...stVars.flatMap((x) => [...x]), ...idk])].sort((a, b) => b.arg - a.arg)
   }
@@ -745,7 +741,7 @@ export class RewriteContext {
     return ret
   }
 }
-const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>): UOp => {
+export const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>): UOp => {
   return new RewriteContext(pm, ctx).rewrite(sink)
 }
 // # ***** uop type spec *****
@@ -986,7 +982,7 @@ const parseValid = (valid: UOp): [UOp, boolean, number] => {
   throw new Error(`not able to parse ${valid}`)
 }
 
-const uopGivenValid = (valid: UOp, uop: UOp): UOp | undefined => {
+export const uopGivenValid = (valid: UOp, uop: UOp): UOp | undefined => {
   // return None if valid is always False, otherwise the simplified uop (might be the same as input)
 
   // first, parse valid into {expr: (lower_bound, upper_bound)}
@@ -1197,3 +1193,10 @@ export const le = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 
 export const ge = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.ge(b) : typeof b !== 'number' ? b.lt(a) : Number(a >= b)) as A | B
 
 export const mod = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mod(b) : typeof b !== 'number' ? b.mod(a, true) : a % b) as A | B
+export const ne = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.ne(b) : typeof b !== 'number' ? b.ne(a) : Number((a as number) !== b)) as A | B
+export const eq = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.eq(b) : typeof b !== 'number' ? b.eq(a) : Number((a as number) === b)) as A | B
+
+export const sint_prod = (x: sint[]) => x.reduce((acc, curr) => mul(acc, curr), 1)
+export const sint_sorted = (items: sint[], reverse = false) => items.toSorted((a, b) => lt(a, b) ? (!reverse ? -1 : 1) : (!reverse ? 1 : -1))
+
+export const sint_ceildiv = (num: sint, amt: sint): sint => mul(-1, idiv(num, mul(amt, -1)))

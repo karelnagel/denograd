@@ -1,13 +1,6 @@
-// from __future__ import annotations
-// import functools, operator, itertools, math
-// from dataclasses import dataclass
-// from typing import Tuple, List, Optional, Dict, Set, cast
-// from tinygrad.dtype import dtypes
-// from tinygrad.ops import resolve, UOp, Variable, sint, sym_infer, smax, smin, sint_to_uop
-// from tinygrad.helpers import prod, all_int, argsort, flatten, ceildiv
-
 import { dtypes } from '../dtype.ts'
-import { assert, flatten, isLessThan, isNone, isNotNone, prod, range, zip } from '../helpers.ts'
+import { allInt, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, prod, range, zip } from '../helpers.ts'
+import { eq, gt, le, ne, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sintToUOp, sub, UOp } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
@@ -20,24 +13,23 @@ export const strides_for_shape = (shape: sint[]): sint[] => {
   return canonicalize_strides(shape, [...strides].reverse())
 }
 
-// @functools.lru_cache(maxsize=None)
-export const _merge_dims = (shape: number[], strides: number[], mask?: [number, number][]): [number, number, number][] => {
+export const _merge_dims = (shape: sint[], strides: sint[], mask?: [sint, sint][]): [sint, sint, sint][] => {
   // merge contiguous sub-parts or zero strided dims. ret = Tuple[(merged_size, stride, merged size w/o zero stride), ...]
   if (!shape.length) return []
   assert(shape.length === strides.length && (isNone(mask) || shape.length === mask?.length))
-  const ret: [number, number, number][] = [[shape[0], strides[0], strides[0] !== 0 ? shape[0] : 0]]
+  const ret = [[shape[0], strides[0], strides[0] !== 0 ? shape[0] : 0] as [sint, sint, sint]]
   // merge this dim to next dim if size is 1
-  let merging = isNotNone(mask) ? (mask[0][1] - mask[0][0] === 1) : shape[0] === 1
+  let merging = isNotNone(mask) ? eq(sub(mask[0][1], mask[0][0]), 1) : eq(shape[0], 1)
   for (let i = 1; i < shape.length; i++) {
     const s = shape[i], st = strides[i]
     const [last_s, last_st, last_pre_expand_s] = ret.at(-1)!
     // always merge 1
     if (s === 1) continue
     // merge last dim with this dim if merging or strides matched
-    if (merging || last_st === s * st) ret[ret.length - 1] = [last_s * s, st, st != 0 ? (merging ? s : last_pre_expand_s * s) : 0]
+    if (merging || last_st === mul(s, st)) ret[ret.length - 1] = [mul(last_s, s), st, st != 0 ? (merging ? s : mul(last_pre_expand_s, s)) : 0]
     else ret.push([s, st, st != 0 ? s : 0])
     // merge this dim to next dim if size is 1
-    merging = isNotNone(mask) ? (mask[i][1] - mask[i][0] === 1) : s === 1
+    merging = isNotNone(mask) ? eq(sub(mask[i][1], mask[i][0]), 1) : eq(s, 1)
   }
   return ret
 }
@@ -92,11 +84,15 @@ const un1d = (shape: sint[], offs: sint): sint[] => {
 }
 
 export class View {
-  shape!: sint[]
-  strides!: sint[]
-  offset!: sint
+  shape: sint[]
+  strides: sint[]
+  offset: sint
   mask?: [sint, sint][]
-  contiguous!: boolean
+  contiguous: boolean
+  // deno-fmt-ignore
+  constructor(a: { shape: sint[]; strides: sint[]; offset: sint; mask?: [sint, sint][]; contiguous: boolean }) {
+    this.shape=a.shape; this.strides=a.strides; this.offset=a.offset; this.mask=a.mask; this.contiguous=a.contiguous;
+  }
 
   get t() {
     return [...this.shape, ...this.strides, this.offset, ...(isNotNone(this.mask) ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize() : [x])
@@ -120,234 +116,258 @@ export class View {
     assert(typeof ret === 'number', `${ret} is not int`)
     return ret
   }
-  //   @staticmethod
-  //   @functools.lru_cache(maxsize=None)
-  //   def create(shape:Tuple[sint, ...], strides:Optional[Tuple[sint, ...]]=None, offset:sint=0, mask:Optional[Tuple[Tuple[sint, sint], ...]]=None):
-  //     # TODO: this resolve shouldn't be needed
-  //     if not all(resolve(s >= 0) for s in shape): raise ValueError(f"Trying to create View with negative dimension: {shape=}")
-  //     strides = canonicalize_strides(shape, strides) if strides else strides_for_shape(shape)
-  //     # canonicalize 0 in shape
-  //     if 0 in shape: return View(shape, (0,) * len(shape), offset=0, mask=None, contiguous=True)
-  //     # canonicalize empty mask
-  //     if mask is not None and all(m == (0,s) for m,s in zip(mask, shape)): mask = None
-  //     # if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
-  //     # then its stride can also be set to 0, albeit with a corresponding adjustment required to the offset
-  //     if mask and any(elim := [not resolve(b+1 < e) for b,e in mask]):
-  //       if any(not resolve(b < e) for b,e in mask):
-  //         strides, offset, mask = (0,) * len(shape), 0, ((0,0),) * len(shape)
-  //       offset += sum((strides[i] * mask[i][0]) if e else 0 for i, e in enumerate(elim))
-  //       strides = tuple(0 if e else st for st,e in zip(strides, elim))
-  //     # simplify as we go
-  //     if isinstance(offset, UOp): offset = cast(sint, offset.ssimplify())
-  //     shape = tuple(cast(sint, x.ssimplify()) if isinstance(x, UOp) else x for x in shape)
-  //     # TODO: enabling stride simplification breaks it
-  //     """
-  //     strides = tuple(x.ssimplify() if isinstance(x, UOp) else x for x in strides)
-  //     if mask: mask = tuple((s.ssimplify() if isinstance(s, UOp) else s, e.ssimplify() if isinstance(e, UOp) else e) for s,e in mask)
-  //     """
-  //     contiguous = offset == 0 and mask is None and strides == strides_for_shape(shape)
-  //     return View(shape, strides, offset, mask, contiguous)
 
-  //   @functools.lru_cache(None)  # pylint: disable=method-cache-max-size-none
-  //   def vars(self) -> Set[Variable]:
-  //     flatten_mask = tuple(x for m in self.mask for x in m) if self.mask is not None else tuple()
-  //     return functools.reduce(operator.or_, [x.vars() for x in self.shape+self.strides+(self.offset,)+flatten_mask if isinstance(x, UOp)], set())
+  static create = (shape: sint[], strides?: sint[], offset: sint = 0, mask?: [sint, sint][]) => {
+    // TODO: this resolve shouldn't be needed
+    if (!shape.some((s) => resolve(ge(s, 0)))) throw new Error(`Trying to create View with negative dimension: ${shape}`)
+    strides = strides ? canonicalize_strides(shape, strides) : strides_for_shape(shape)
+    // # canonicalize 0 in shape
+    if (shape.includes(0)) return new View({ shape, strides: range(shape.length).map(() => 0), offset: 0, mask: undefined, contiguous: true })
+    // # canonicalize empty mask
+    if (isNotNone(mask) && zip(mask, shape).every(([m, s]) => isEq(m, [0, s]))) mask = undefined
+    // # if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
+    // # then its stride can also be set to 0, albeit with a corresponding adjustment required to the offset
+    const elim = mask?.map(([b, e]) => !resolve(lt(add(b, 1), e)))
+    if (mask && elim?.some((x) => x)) {
+      if (mask.some(([b, e]) => !resolve(lt(b, e)))) [strides, offset, mask] = [range(shape.length).map((x) => 0), 0, range(shape.length).map((x) => [0, 0])]
+      offset = add(offset, elim.entries().map(([i, e]) => e ? (mul(strides![i], mask![i][0])) : 0).reduce((prev, curr) => add(prev, curr), 0))
+      strides = [...zip(strides, elim).map(([st, e]) => e ? 0 : st)]
+    }
+    // # simplify as we go
+    if (offset instanceof UOp) offset = offset.ssimplify()
+    shape = shape.map((x) => x instanceof UOp ? x.simplify() : x)
+    // # TODO: enabling stride simplification breaks it
+    // """
+    // strides = tuple(x.ssimplify() if isinstance(x, UOp) else x for x in strides)
+    // if mask: mask = tuple((s.ssimplify() if isinstance(s, UOp) else s, e.ssimplify() if isinstance(e, UOp) else e) for s,e in mask)
+    // """
+    const contiguous = offset === 0 && isNone(mask) && strides === strides_for_shape(shape)
+    return new View({ shape, strides, offset, mask, contiguous })
+  }
 
-  //   @functools.lru_cache(None)  # pylint: disable=method-cache-max-size-none
-  //   def unbind(self) -> Tuple[View, Dict[Variable, int]]:
-  //     var_unboundvar_val = [(v, v.unbind()) for v in self.vars()]
-  //     unbound_vars = {v:uv for v,(uv,_) in var_unboundvar_val}
-  //     def substitute(x): return x if isinstance(x, int) else x.substitute(unbound_vars)
-  //     new_shape = tuple(map(substitute, self.shape))
-  //     new_strides = tuple(map(substitute, self.strides))
-  //     new_offset = substitute(self.offset)
-  //     new_mask = tuple((substitute(x[0]), substitute(x[1])) for x in self.mask) if self.mask is not None else None
-  //     return View.create(new_shape, new_strides, new_offset, new_mask), dict(x[1] for x in var_unboundvar_val)
-
+  vars = (): Set<Variable> => {
+    const flatten_mask = isNotNone(this.mask) ? this.mask.flatMap((m) => m.map((x) => x)) : []
+    return new Set([...this.shape, ...this.strides, this.offset, ...flatten_mask].filter((x) => x instanceof UOp).reduce((acc, x) => [...acc, ...x.vars()], [] as UOp[]))
+  }
+  unbind = (): [View, Map<Variable, number>] => {
+    const var_unboundvar_val = [...this.vars()].map((v) => [v, v.unbind()] as const)
+    const unbound_vars = new Map(var_unboundvar_val.map(([v, [uv, _]]) => [v, uv]))
+    const substitute = (x: sint) => typeof x === 'number' ? x : x.substitute(unbound_vars)
+    const new_shape = this.shape.map((x) => substitute(x))
+    const new_strides = this.strides.map((x) => substitute(x))
+    const new_offset = substitute(this.offset)
+    const new_mask = isNotNone(this.mask) ? this.mask.map((x) => [substitute(x[0]), substitute(x[1])] as [sint, sint]) : undefined
+    return [View.create(new_shape, new_strides, new_offset, new_mask), Object.fromEntries(var_unboundvar_val.map((x) => x[1]))]
+  }
   //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def __add__(self, vm1:View) -> Optional[View]:
-  //     vm2 = self
-  //     if vm2.contiguous: return vm1
-  //     if vm1.contiguous and vm1.shape == vm2.shape: return vm2
-  //     if vm1.contiguous and vm1.size() == vm2.size() and (ret := vm2.reshape(vm1.shape)) is not None: return ret
-  //     if vm1.mask:
-  //       for b,e in vm1.mask:
-  //         if resolve(b >= e, False): return View.create(vm1.shape, (0,) * len(vm1.shape), 0, ((0,0),) * len(vm1.shape))
-  //       return (merged := vm2 + vm1.shrink(vm1.mask)) and merged.pad(tuple((b,s-e) for (b,e),s in zip(vm1.mask, vm1.shape)))
+  __add__ = (vm1: View): View | undefined => {
+    const vm2 = new View({ ...this })
+    if (vm2.contiguous) return vm1
+    if (vm1.contiguous && isEq(vm1.shape, vm2.shape)) return vm2
+    const ret = vm2.reshape(vm1.shape)
+    if (vm1.contiguous && vm1.size() === vm2.size() && isNotNone(ret)) return ret
+    if (vm1.mask) {
+      for (const [b, e] of vm1.mask) {
+        if (resolve(b >= e, false)) return View.create(vm1.shape, range(vm1.shape.length).map(() => 0), 0, range(vm1.shape.length).map((x) => [0, 0] as const))
+      }
+      const merged = vm2.__add__(vm1.shrink(vm1.mask))
+      return merged && merged.pad([...zip(vm1.mask, vm1.shape)].map(([[b, e], s]) => [b, sub(s, e)]))
+    }
+    //     # Project vm1's offset and strides on to vm2.
+    const origin = un1d(vm2.shape, vm1.offset)
+    const terms: [number, sint][][] = origin.map((x) => [])
+    const strides: sint[] = range(vm1.shape.length).map((x) => 0)
+    for (const [d1, st] of vm1.strides.entries()) {
+      if (st === 0) continue
+      for (let [d2, [o, s1]] of [...zip(origin, un1d(vm2.shape, add(vm1.offset, st)))].entries()) {
+        s1 = sub(s1, o)
+        if (s1 === 0) continue
+        terms[d2].push([d1, s1])
+        strides[d1] = add(strides[d1], mul(s1, vm2.strides[d2]))
+      }
+    }
+    //     # Merge dimensions in vm2 if required.
+    //     # NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
+    if (!allInt(vm1.shape)) return undefined
+    const idxs: UOp[] = [...vm1.shape.entries().map(([i, s]) => UOp.variable(`idx${i}`, 0, s - 1))]
+    let [merged_size, merged_term] = [1, UOp.const(dtypes.int, 0)] as [sint, UOp]
+    const extents: [sint, UOp][] = []
+    for (const [term, s, o] of zip(terms.toReversed(), vm2.shape.toReversed(), origin.toReversed())) {
+      merged_term = merged_term.add(term.map(([d1, s1]) => idxs[d1].mul(s1)).reduce((acc, x) => acc.add(x)).add(o).mul(merged_size))
+      merged_size = mul(merged_size, s)
+      if (resolve(merged_term < merged_size, false) && resolve(le(0, merged_term), false)) {
+        extents.push([merged_size, merged_term])
+        ;[merged_size, merged_term] = [1, UOp.const(dtypes.int, 0)]
+      }
+    }
+    if (resolve(merged_term.ne(0))) return undefined
+    const vm2_shape = extents.toReversed().map(([s, _]) => s)
+    if (!isEq(vm2_shape, vm2.shape)) {
+      const reshaped_vm2 = vm2.reshape(vm2_shape)
+      if (isNone(reshaped_vm2)) return undefined
+      if (!isEq(reshaped_vm2.shape, vm2.shape)) return reshaped_vm2.__add__(vm1)
+    }
+    if (vm2.mask) {
+      //       # Try to project vm2's mask on to vm1.
+      let [newb, newe, bad] = [range(vm1.shape.length).map((x) => 0), vm1.shape, false]
+      for (const [[b, e], o, term, [_, t]] of zip(vm2.mask, origin, terms, extents.toReversed())) {
+        if (resolve(le(b, t.vmin) && lt(t.vmax, e), false)) continue
+        if (typeof o !== 'number' || typeof b !== 'number' || typeof e !== 'number') {
+          bad = true
+          continue
+        }
+        if (term.length !== 1) {
+          if (!term && newe) newe[0] = 0
+          else bad = true
+          continue
+        }
 
-  //     # Project vm1's offset and strides on to vm2.
-  //     origin = un1d(vm2.shape, vm1.offset)
-  //     terms: List[List[Tuple[int, sint]]] = [[] for _ in origin]
-  //     strides: List[sint] = [0] * len(vm1.shape)
-  //     for d1, st in enumerate(vm1.strides):
-  //       if st == 0: continue
-  //       for d2, (o, s1) in enumerate(zip(origin, un1d(vm2.shape, vm1.offset + st))):
-  //         if (s1 := s1 - o) == 0: continue
-  //         terms[d2].append((d1, s1))
-  //         strides[d1] += s1 * vm2.strides[d2]
-
-  //     # Merge dimensions in vm2 if required.
-  //     # NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
-  //     if not all_int(vm1.shape): return None
-  //     idxs: List[UOp] = [UOp.variable(f"idx{i}", 0, s-1) for i,s in enumerate(vm1.shape)]
-  //     merged_size, merged_term = 1, UOp.const(dtypes.int, 0)
-  //     extents: List[Tuple[sint, UOp]] = []
-  //     for term, s, o in zip(reversed(terms), reversed(vm2.shape), reversed(origin)):
-  //       merged_term += (sum([idxs[d1] * s1 for d1, s1 in term]) + o) * merged_size
-  //       merged_size *= s
-  //       if resolve(merged_term < merged_size, False) and resolve(0 <= merged_term, False):
-  //         extents.append((merged_size, merged_term))
-  //         merged_size, merged_term = 1, UOp.const(dtypes.int, 0)
-  //     if resolve(merged_term != 0): return None
-  //     if (vm2_shape := tuple(s for s,_ in reversed(extents))) != vm2.shape:
-  //       reshaped_vm2 = vm2.reshape(vm2_shape)
-  //       if reshaped_vm2 is None: return None
-  //       if reshaped_vm2.shape != vm2.shape: return reshaped_vm2 + vm1
-
-  //     if vm2.mask:
-  //       # Try to project vm2's mask on to vm1.
-  //       newb, newe, bad = [0] * len(vm1.shape), list(vm1.shape), False
-  //       for (b, e), o, term, (_, t) in zip(vm2.mask, origin, terms, reversed(extents)):
-  //         if resolve(b <= t.vmin and t.vmax < e, False): continue
-  //         if not all_int([o, b, e]):
-  //           bad = True
-  //           continue
-  //         if len(term) != 1:
-  //           if not term and newe: newe[0] = 0
-  //           else: bad = True
-  //           continue
-  //         d1, s1 = term[0]
-  //         if not isinstance(s1, int) or not isinstance(newe[d1], int):
-  //           bad = True
-  //           continue
-  //         newb[d1] = max(newb[d1], math.ceil((b - o if s1 > 0 else e - o - 1) / s1))
-  //         newe[d1] = min(newe[d1], (b - o if s1 < 0 else e - o - 1) // s1 + 1)
-
-  //       # If any of vm1 was masked off, try again with that mask in place.
-  //       for b, e, s in zip(newb, newe, vm1.shape):
-  //         if (b, e) != (0, s):
-  //           return vm2 + View.create(vm1.shape, vm1.strides, vm1.offset, tuple(zip(newb, newe)))
-  //       # Otherwise if vm2's mask was violated, then cannot merge.
-  //       if bad: return None
-
-  //     return View.create(vm1.shape, tuple(strides), sum(o * s for o, s in zip(origin, vm2.strides)) + vm2.offset)
-
+        const [d1, s1] = term[0]
+        if (typeof s1 !== 'number' || typeof newe[d1] !== 'number') {
+          bad = true
+          continue
+        }
+        newb[d1] = Math.max(newb[d1], Math.ceil((s1 > 0 ? b - o : e - o - 1) / s1))
+        newe[d1] = Math.min(newe[d1], idiv(s1 < 0 ? b - o : e - o - 1, s1) + 1)
+      }
+      //       # If any of vm1 was masked off, try again with that mask in place.
+      for (const [b, e, s] of zip(newb, newe, vm1.shape)) {
+        if (!isEq([b, e], [0, s])) {
+          return vm2.__add__(View.create(vm1.shape, vm1.strides, vm1.offset, [...zip(newb, newe)]))
+        }
+      }
+      //       # Otherwise if vm2's mask was violated, then cannot merge.
+      if (bad) return undefined
+    }
+    return View.create(vm1.shape, strides, add(zip(origin, vm2.strides).reduce((acc, [o, s]) => add(acc, add(o, s)), 0 as sint), vm2.offset))
+  }
+  invert = (out_shape: sint[]): View | undefined => {
+    let ret = View.create(this.shape)
+    if (this.mask) ret = ret.shrink(this.mask)
+    ret = ret.stride(this.strides.map((x) => lt(x, 0) ? -1 : 1)).permute(argsort(this.strides.map((x) => gt(x, 0) ? -x : x)))
+    return isEq(sint_prod(ret.shape), sint_prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride != (-1, 1)
+  }
+  minify = () => this.reshape(_merge_dims(this.shape, this.strides, this.mask).map((x) => x[0])) || this
+  __unsafe_resize = (arg: [sint, sint][], mask?: [sint, sint][]): View => {
+    const offset = zip(this.strides, arg).reduce((acc, [s, x]) => add(acc, mul(s, x[0])), 0 as sint)
+    if (this.mask) {
+      //       # move the old mask
+      const nmask = [...zip(this.mask, arg).map(([[mx, my], [ax, ay]]) => [smax(0, smin(sub(mx, ax), sub(ay, ax))), smax(0, smin(sub(my, ax), sub(ay, ax)))] as [sint, sint])]
+      //       # merge the masks if we have two
+      mask = isNotNone(mask) ? [...zip(nmask, mask).map(([[mx1, my1], [mx2, my2]]) => [smax(mx1, mx2), smin(my1, my2)] as [sint, sint])] : nmask
+    }
+    const shape = arg.map(([x, y]) => sub(y, x))
+    if (isNotNone(mask) && zip(mask, shape).every(([m, s]) => m[0] === 0 && m[1] === s)) mask = undefined
+    return View.create(shape.map((s) => s instanceof UOp ? s.ssimplify() : s), this.strides, add(this.offset, offset), mask)
+  }
   //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def invert(self, out_shape:Tuple[sint, ...]) -> Optional[View]:
-  //     ret = View.create(self.shape)
-  //     if self.mask: ret = ret.shrink(self.mask)
-  //     ret = ret.stride(tuple(-1 if x < 0 else 1 for x in self.strides)).permute(argsort(tuple(-x if x > 0 else x for x in self.strides)))
-  //     return ret if prod(ret.shape) == prod(out_shape) else None   # don't support shrink, expand, or stride != (-1, 1)
-
+  pad = (arg: [sint, sint][]): View => {
+    assert(arg.length === this.shape.length, `invalid pad ${arg} for ${this.shape}`)
+    //     # NOTE: not checking for symbolic arg
+    for (const [b, e] of arg) assert((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0), `invalid pad ${arg} for ${this.shape}`)
+    if (arg.some(([b, e]) => resolve(ne(b, 0)) || resolve(ne(e, 0)))) {
+      const zvarg = [...zip(this.shape, arg)].map(([s, [b, e]]) => [mul(b, -1), add(s, e)] as [sint, sint])
+      const mask = [...zip(this.shape, arg)].map(([s, [b, _]]) => [b, add(s, b)] as [sint, sint])
+      return this.__unsafe_resize(zvarg, mask)
+    }
+    return this
+  }
   //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def minify(self):
-  //     min_shape = tuple(x[0] for x in _merge_dims(self.shape, self.strides, self.mask))
-  //     return nv if (nv := self.reshape(min_shape)) else self
-
-  //   def __unsafe_resize(self, arg: Tuple[Tuple[sint, sint], ...], mask=None) -> View:
-  //     offset = sum([s * x[0] for s, x in zip(self.strides,arg)])
-  //     if self.mask:
-  //       # move the old mask
-  //       nmask = tuple([(smax(0, smin(mx-ax,ay-ax)), smax(0, smin(my-ax,ay-ax))) for (mx,my),(ax,ay) in zip(self.mask, arg)])
-  //       # merge the masks if we have two
-  //       mask = tuple([(smax(mx1, mx2), smin(my1, my2)) for (mx1, my1), (mx2, my2) in zip(nmask, mask)]) if mask is not None else nmask
-  //     shape = [y-x for x,y in arg]
-  //     if mask is not None and all(m[0] == 0 and m[1] == s for m,s in zip(mask, shape)): mask = None
-  //     return View.create(tuple(s.ssimplify() if isinstance(s, UOp) else s for s in shape), self.strides, self.offset+offset, mask)
-
+  shrink = (arg: [sint, sint][]): View => {
+    assert(arg.length === this.shape.length, `invalid shrink ${arg} for ${this.shape}`)
+    // # NOTE: not checking for symbolic arg
+    for (const [s, [b, e]] of zip(this.shape, arg)) assert(!(isInt(b) && isInt(e) && isInt(s)) || (0 <= b && b <= e && e <= s), `invalid shrink ${arg} for ${this.shape}`)
+    return this.__unsafe_resize(arg)
+  }
   //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def pad(self, arg: Tuple[Tuple[sint, sint], ...]) -> View:
-  //     assert len(arg) == len(self.shape), f"invalid pad {arg} for {self.shape}"
-  //     # NOTE: not checking for symbolic arg
-  //     for b,e in arg: assert not all_int([b,e]) or b>=0 and e>=0, f"invalid pad {arg} for {self.shape}"
-  //     if any(resolve(b!=0) or resolve(e!=0) for b, e in arg):
-  //       zvarg = tuple([(-b,s+e) for s,(b,e) in zip(self.shape, arg)])
-  //       mask = tuple([(b,s+b) for s,(b,_) in zip(self.shape, arg)])
-  //       return self.__unsafe_resize(zvarg, mask=mask)
-  //     return self
+  expand = (new_shape: sint[]): View => {
+    assert(new_shape.length === this.shape.length, `expand arg ${new_shape} must have same number of dimensions as shape ${this.shape}`)
+    if (this.shape.includes(0)) {
+      assert(zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0)), `can't expand ${this.shape} into ${new_shape}`)
+      return View.create(new_shape)
+    }
+    //     # TODO: this resolve might be wrong
+    assert(zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1), `can't expand ${this.shape} into ${new_shape}`)
+    //     # NOTE: can the mask ever be (0,0)?
+    //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
+    const mask = this.mask ? [...zip(this.mask, this.shape, new_shape)].map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!isEq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
+    return View.create(new_shape, this.strides, this.offset, mask)
+  }
 
+  permute = (axis: number[]): View => {
+    assert(isEq(sint_sorted(axis), range(this.shape.length)), `invalid permutation ${axis} of len ${this.shape.length}`)
+    return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, isNotNone(this.mask) ? axis.map((a) => this.mask![a]) : undefined)
+  }
   //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def shrink(self, arg: Tuple[Tuple[sint, sint], ...]) -> View:
-  //     assert len(arg) == len(self.shape), f"invalid shrink {arg} for {self.shape}"
-  //     # NOTE: not checking for symbolic arg
-  //     for s,(b,e) in zip(self.shape,arg): assert not all_int([s,b,e]) or (0<=b<=e<=s), f"invalid shrink {arg} for {self.shape}"
-  //     return self.__unsafe_resize(arg)
+  stride = (multi: number[]): View => {
+    //     # except for the negative case, you can build this from the others. invertible in the negative case
+    assert(multi.every((x) => typeof x === 'number' && x !== 0), `invalid stride ${mul} for ${this.shape}`)
+    const strides = [...zip(this.strides, multi).map(([z, m]) => mul(z, m))]
+    const new_shape = [...zip(this.shape, multi).map(([s, m]) => sint_ceildiv(s, Math.abs(m)))]
+    const offset = zip(this.shape, this.strides, multi).filter(([s, z, m]) => m < 0).reduce((acc, [s, z, m]) => add(acc, mul(sub(s, 1), z)), 0 as sint)
+    const mask = isNotNone(this.mask) ? [...zip(this.mask, this.shape, multi).map(([[mx, my], s, m]) => [sint_ceildiv(m > 0 ? mx : sub(s, my), Math.abs(m)), sint_ceildiv(m > 0 ? my : sub(s, mx), Math.abs(m))] as [sint, sint])] : undefined
+    return View.create(new_shape, strides, add(this.offset, offset), mask)
+  }
 
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def expand(self, new_shape: Tuple[sint, ...]) -> View:
-  //     if len(new_shape) != len(self.shape): raise ValueError(f"expand arg {new_shape=} must have same number of dimensions as shape {self.shape=}")
-  //     if 0 in self.shape:
-  //       assert all((s == x == 0) or (s > 0 and (x % s) == 0) for s,x in zip(self.shape, new_shape)), f"can't expand {self.shape} into {new_shape}"
-  //       return View.create(new_shape)
-  //     # TODO: this resolve might be wrong
-  //     assert all((not resolve(s != x, False) or s == 1) for s,x in zip(self.shape, new_shape)), f"can't expand {self.shape} into {new_shape}"
-  //     # NOTE: can the mask ever be (0,0)?
-  //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
-  //     mask = tuple([(((0,0) if m != (0,1) else (0,ns)) if resolve(s != ns, False) else m) \
-  //                   for m,s,ns in zip(self.mask, self.shape, new_shape)]) if self.mask else None
-  //     return View.create(new_shape, self.strides, self.offset, mask)
+  reshape = (new_shape: sint[]): View | undefined => {
+    if (isEq(this.shape, new_shape)) return this
 
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def permute(self, axis: Tuple[int, ...]) -> View:
-  //     assert sorted(axis) == list(range(len(self.shape))), f"invalid permutation {axis} of len {len(self.shape)}"
-  //     return View.create(tuple(self.shape[a] for a in axis), tuple(self.strides[a] for a in axis), self.offset,
-  //                        tuple(self.mask[a] for a in axis) if self.mask is not None else None)
+    //     # TODO: this resolve shouldn't be needed
+    assert(new_shape.every((x) => resolve(ge(x, 0))), `shape can't contain negative numbers ${new_shape}`)
+    if (this.shape.includes(0)) {
+      assert(new_shape.includes(0), `cannot reshape 0 size to ${new_shape}`)
+      return View.create(new_shape)
+    }
+    //     # check for the same size
+    if (allInt(this.shape)) {
+      assert(new_shape.every((s) => s instanceof UOp || typeof s === 'number'), `${this.shape} -> ${new_shape} contains non (int, Variable) dim`)
+      if (resolve(ne(sint_prod(this.shape), sint_prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape ${this.shape} -> ${new_shape}`)
+    }
+    if (new_shape.length === 0 && this.mask && this.mask.some(([mx, my]) => mx === my)) return undefined
 
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def stride(self, mul: Tuple[int, ...]) -> View:
-  //     # except for the negative case, you can build this from the others. invertible in the negative case
-  //     assert all(isinstance(x, int) and x != 0 for x in mul), f"invalid stride {mul} for {self.shape}"
-  //     strides = tuple([z*m for z,m in zip(self.strides, mul)])
-  //     new_shape = tuple([ceildiv(s, abs(m)) for s,m in zip(self.shape, mul)])
-  //     offset = sum([(s-1)*z for s,z,m in zip(self.shape, self.strides, mul) if m < 0])
-  //     mask = tuple([(ceildiv(mx if m > 0 else s-my, abs(m)), ceildiv(my if m > 0 else s-mx, abs(m))) \
-  //                   for (mx,my),s,m in zip(self.mask, self.shape, mul)]) if self.mask is not None else None
-  //     return View.create(new_shape, strides, self.offset + offset, mask)
+    //     # after the asserts, it's okay to check contiguous
+    if (this.contiguous) return View.create(new_shape)
 
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
-  //   def reshape(self, new_shape: Tuple[sint, ...]) -> Optional[View]:
-  //     if self.shape == new_shape: return self
-
-  //     # TODO: this resolve shouldn't be needed
-  //     assert all(resolve(x >= 0) for x in new_shape), f"shape can't contain negative numbers {new_shape}"
-  //     if 0 in self.shape:
-  //       assert 0 in new_shape, f"cannot reshape 0 size to {new_shape}"
-  //       return View.create(new_shape)
-  //     # check for the same size
-  //     if (self_all_int := all_int(self.shape)):
-  //       assert all(isinstance(s, (int, UOp)) for s in new_shape), f"{self.shape=} -> {new_shape=} contains non (int, Variable) dim"
-  //       if resolve(prod(self.shape) != prod(new_shape), False): raise ValueError(f"size mismatched, can't reshape {self.shape=} -> {new_shape=}")
-
-  //     if new_shape == () and self.mask and any(mx==my for (mx,my) in self.mask): return None
-
-  //     # after the asserts, it's okay to check contiguous
-  //     if self.contiguous: return View.create(new_shape)
-
-  //     # if it's not contiguous and new shape is symbolic, check if it's directly replaceable
-  //     if self_all_int and not all_int(new_shape):
-  //       if len(self.shape) != len(new_shape): raise ValueError(f"cannot symbolic reshape non-contiguous {self} -> {new_shape}")
-  //       for si, so in zip(self.shape, new_shape):
-  //         if not isinstance(so, int): so = sym_infer(so, dict([v.unbind() for v in so.vars()]))
-  //         if si != so: raise ValueError(f"cannot symbolic reshape non-contiguous {self} -> {new_shape}")
-  //       # all dimensions matched, return the new view directly
-  //       return View(new_shape, self.strides, self.offset, self.mask, self.contiguous)
-
-  //     strides, r_new_shape = [], reversed(new_shape)
-  //     for merged_dim, new_stride, real_dim in reversed(_merge_dims(self.shape, self.strides, self.mask)):
-  //       acc = 1
-  //       # TODO: third resolve shouldn't be needed
-  //       while resolve(acc <= merged_dim) and resolve(acc != merged_dim) and resolve((new_dim := next(r_new_shape, 0)) > 0):
-  //         strides.append(new_stride)
-  //         if resolve(new_dim != 1): new_stride *= (new_dim if resolve((acc := acc * new_dim) < real_dim) else 0)
-  //       if resolve(acc != merged_dim): break
-  //     else:
-  //       strides += [0,] * (len(new_shape) - len(strides))
-  //       new_mask = _reshape_mask(self.mask, self.shape, new_shape)
-  //       if new_mask is not None:
-  //         new_strides = canonicalize_strides(tuple(e-b for b,e in new_mask), tuple(reversed(strides)))
-  //         extra_offset = (sum(m[0] * s for m,s in zip(self.mask, self.strides)) if self.mask else 0) - \
-  //                        (sum(m[0] * s for m,s in zip(new_mask, new_strides)))
-  //         return View.create(new_shape, new_strides, self.offset + extra_offset, new_mask)
-
-  //     return None
+    //     # if it's not contiguous and new shape is symbolic, check if it's directly replaceable
+    if (allInt(this.shape) && !allInt(new_shape)) {
+      if (this.shape.length !== new_shape.length) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
+      for (let [si, so] of zip(this.shape, new_shape)) {
+        if (typeof so !== 'number') so = symInfer(so, new Map([...so.vars()].map((v) => v.unbind())))
+        if (si !== so) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
+        //       # all dimensions matched, return the new view directly
+      }
+      return new View({ shape: new_shape, strides: this.strides, offset: this.offset, mask: this.mask, contiguous: this.contiguous })
+    }
+    let [strides, r_new_shape] = [[] as sint[], new_shape.toReversed()]
+    let exitedWithBreak = false
+    for (let [merged_dim, new_stride, real_dim] of _merge_dims(this.shape, this.strides, this.mask).toReversed()) {
+      let acc = 1 as sint
+      //       # TODO: third resolve shouldn't be needed
+      for (const new_dim of r_new_shape) {
+        if (!(resolve(le(acc, merged_dim)) && resolve(ne(acc, merged_dim)) && resolve(ge(new_dim, 0)))) {
+          exitedWithBreak = true
+          break
+        }
+        strides.push(new_stride)
+        if (resolve(ne(new_dim, 1))) {
+          acc = mul(acc, new_dim)
+          new_stride = mul(new_stride, resolve(lt(acc, real_dim)) ? new_dim : 0)
+        }
+      }
+      if (resolve(ne(acc, merged_dim))) {
+        exitedWithBreak = true
+        break
+      }
+    }
+    if (!exitedWithBreak) {
+      strides = [...strides, ...range(new_shape.length - strides.length).map((x) => 0)]
+      const new_mask = _reshape_mask(this.mask, this.shape, new_shape)
+      if (isNotNone(new_mask)) {
+        const new_strides = canonicalize_strides(new_mask.map(([b, e]) => sub(e, b)), strides.toReversed())
+        const extra_offset = sub(this.mask ? [...zip(this.mask, this.strides)].reduce((acc, [m, s]) => add(acc, mul(m[0], s)), 1 as sint) : 0, zip(new_mask, new_strides).reduce((acc, [m, s]) => add(acc, mul(m[0], s)), 1 as sint))
+        return View.create(new_shape, new_strides, add(this.offset, extra_offset), new_mask)
+      }
+    }
+    return undefined
+  }
 }

@@ -118,6 +118,7 @@ export const argfix = (...x: any[]) => {
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
 export const allSame = <T>(items: T[]) => items.every((x) => isEq(x, items[0]))
+export const isInt = (x: any): x is number => Number.isInteger(x)
 export const allInt = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
 export const colored = (st: string, color?: string, background = false) => {
   if (!color) return st
@@ -162,6 +163,13 @@ export const mergeDicts = <T extends string, U = any>(ds: Record<T, U>[]): Recor
   if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
   return Object.fromEntries(Array.from(kvs)) as Record<T, U>
 }
+export const mergeMaps = <K, V>(maps: Map<K, V>[]): Map<K, V> => {
+  const kvs = new Set(maps.flatMap((m) => Array.from(m.entries())))
+  const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
+  if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
+  return new Map(Array.from(kvs))
+}
+
 
 export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])
 export const unwrap = <T>(x: T | undefined): T => x!
