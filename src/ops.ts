@@ -236,7 +236,7 @@ export class UOp extends MathTrait {
 
   //   # *** uop syntactic sugar ***
   get st_arg(): ShapeTracker {
-    if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on ${this.op}`)
+    if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on ${opsString(this.op)}`)
     const ret = this.src[this.op === Ops.VALID ? 0 : 1]
     if (ret.op !== Ops.VIEW) throw new Error(`st_arg trying to return ${ret}`)
     return ret.arg

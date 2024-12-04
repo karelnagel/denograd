@@ -364,5 +364,6 @@ Deno.test(
     ],
     testView((v) => v.reshape),
     'out(trycatch(lambda:data[0].reshape(*data[1])))',
+    { stringSimilarity: 1 },
   ),
 )

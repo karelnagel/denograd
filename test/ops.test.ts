@@ -197,7 +197,7 @@ Deno.test(
     ],
     tryCatch((x: UOp) => [x.render(true), x.render(false)]),
     'out([data[0].render(True).lower(),data[0].render(False).lower()])',
-    [6, 14], // ignoring these because python and TS code for UOps is different, so tests fail, but they are correct
+    { ignore: [6, 14] }, // ignoring these because python and TS code for UOps is different, so tests fail, but they are correct
   ),
 )
 
