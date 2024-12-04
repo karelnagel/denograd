@@ -1,5 +1,5 @@
 import { Ops, spec, symbolicFlat, UOp, UPat } from '../src/ops.ts'
-import { compare } from './helpers.ts'
+import { compare, tryCatch } from './helpers.ts'
 import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape } from '../src/shape/view.ts'
 import { dtypes } from '../src/dtype.ts'
 
@@ -55,12 +55,14 @@ Deno.test(
   compare(
     [
       [[UOp.int(4), UOp.int(9), UOp.int(4)], [UOp.int(1), UOp.int(9), UOp.int(4)], [[UOp.int(23), UOp.int(44)], [UOp.int(323), UOp.int(23)], [UOp.int(43), UOp.int(43)]]],
+      [[UOp.int(4), UOp.int(9), 44], [4, 9, 4], [[UOp.int(23), UOp.int(44)], [UOp.int(323), UOp.int(23)], [UOp.int(43), UOp.int(43)]]],
+      [[UOp.int(4), UOp.int(9), 44], [4, 9, 4,44], [[UOp.int(23), UOp.int(44)], [44, UOp.int(23)], [UOp.int(43), UOp.int(43)]]],
       [[4, 34, 534], [3, 4, 6], [[23, 32], [43, 43], [43, 43]]],
       [[7, 21, 123], [8, 2, 9], [[12, 45], [31, 55.4], [67, 89]]],
       [[4, 34, 534], [3, 4, 6]],
     ],
-    _merge_dims,
-    `out(tiny.shape.view._merge_dims(*data))`,
+    tryCatch(_merge_dims),
+    `out(trycatch(lambda: tiny.shape.view._merge_dims(*data)))`,
   ),
 )
 

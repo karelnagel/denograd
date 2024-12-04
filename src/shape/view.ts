@@ -19,7 +19,7 @@ export const _merge_dims = (shape: sint[], strides: sint[], mask?: [sint, sint][
   assert(shape.length === strides.length && (isNone(mask) || shape.length === mask?.length))
   const ret = [[shape[0], strides[0], strides[0] !== 0 ? shape[0] : 0] as [sint, sint, sint]]
   // merge this dim to next dim if size is 1
-  let merging = isNotNone(mask) ? eq(sub(mask[0][1], mask[0][0]), 1) : eq(shape[0], 1)
+  let merging = isNotNone(mask) ? sub(mask[0][1], mask[0][0]) === 1 : shape[0] === 1
   for (let i = 1; i < shape.length; i++) {
     const s = shape[i], st = strides[i]
     const [last_s, last_st, last_pre_expand_s] = ret.at(-1)!
@@ -29,7 +29,7 @@ export const _merge_dims = (shape: sint[], strides: sint[], mask?: [sint, sint][
     if (merging || last_st === mul(s, st)) ret[ret.length - 1] = [mul(last_s, s), st, st != 0 ? (merging ? s : mul(last_pre_expand_s, s)) : 0]
     else ret.push([s, st, st != 0 ? s : 0])
     // merge this dim to next dim if size is 1
-    merging = isNotNone(mask) ? eq(sub(mask[i][1], mask[i][0]), 1) : eq(s, 1)
+    merging = isNotNone(mask) ? sub(mask[i][1], mask[i][0]) === 1 : s === 1
   }
   return ret
 }
