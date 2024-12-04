@@ -8,6 +8,7 @@ import { expect } from 'expect'
 import { pyStr } from '../src/str.ts'
 import process from 'node:process'
 import { View } from '../src/shape/view.ts'
+import { ShapeTracker } from '../src/shape/shapetracker.ts'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -46,6 +47,7 @@ export const deserialize = (data: string): any => {
     if (type === 'UOp') return new UOp({ op: de(i.op), dtype: de(i.dtype), src: de(i.src), arg: de(i.arg) })
     if (type === 'DType') return new DType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar) })
     if (type === 'View') return new View({ shape: de(i.shape), strides: de(i.strides), offset: de(i.offset), mask: de(i.mask), contiguous: de(i.contiguous) })
+    if (type === 'ShapeTracker') return new ShapeTracker(de(i.views))
     return Object.fromEntries(Object.entries(i).map(([k, v]) => [k, de(v)]))
   }
 
@@ -71,6 +73,7 @@ def serialize(data):
           if isinstance(o, tiny.ops.UOp): return {"__type": "UOp",'op': o.op, "dtype": o.dtype,"src":o.src,"arg":o.arg} 
           if isinstance(o, tiny.ops.DType): return {"__type": "DType", "priority": o.priority,"itemsize":o.itemsize,"name":o.name,"fmt":o.fmt,"count":o.count,"_scalar":o._scalar}
           if isinstance(o, tiny.shape.view.View): return {"__type": "View", "shape": o.shape, "strides": o.strides, "offset": o.offset, "mask": o.mask, "contiguous": o.contiguous}
+          if isinstance(o, tiny.shape.shapetracker.ShapeTracker): return {"__type": "ShapeTracker", "views": o.views}
           if isinstance(o, itertools.repeat): return CustomEncoder.default(o)
           if callable(o): return None
           if isinstance(o, set): return list(o)

@@ -145,12 +145,12 @@ export class View {
     return new View({ shape, strides, offset, mask, contiguous })
   }
 
-  vars = (): Set<Variable> => {
+  vars = (): Variable[] => {
     const flatten_mask = isNotNone(this.mask) ? this.mask.flatMap((m) => m.map((x) => x)) : []
-    return new Set([...this.shape, ...this.strides, this.offset, ...flatten_mask].filter((x) => x instanceof UOp).reduce((acc, x) => [...acc, ...x.vars()], [] as UOp[]))
+    return [...new Set([...this.shape, ...this.strides, this.offset, ...flatten_mask].filter((x) => x instanceof UOp).reduce((acc, x) => [...acc, ...x.vars()], [] as UOp[]))]
   }
   unbind = (): [View, Map<Variable, number>] => {
-    const var_unboundvar_val = [...this.vars()].map((v) => [v, v.unbind()] as const)
+    const var_unboundvar_val = this.vars().map((v) => [v, v.unbind()] as const)
     const unbound_vars = new Map(var_unboundvar_val.map(([v, [uv, _]]) => [v, uv]))
     const substitute = (x: sint) => typeof x === 'number' ? x : x.substitute(unbound_vars)
     const new_shape = this.shape.map((x) => substitute(x))
@@ -159,7 +159,6 @@ export class View {
     const new_mask = isNotNone(this.mask) ? this.mask.map((x) => [substitute(x[0]), substitute(x[1])] as [sint, sint]) : undefined
     return [View.create(new_shape, new_strides, new_offset, new_mask), Object.fromEntries(var_unboundvar_val.map((x) => x[1]))]
   }
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
   __add__ = (vm1: View): View | undefined => {
     const vm2 = new View({ ...this })
     if (vm2.contiguous) return vm1

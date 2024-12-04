@@ -1,5 +1,7 @@
 import { DType } from './dtype.ts'
 import { getEnumString, type Ops, UOp, UPat } from './ops.ts'
+import { ShapeTracker } from './shape/shapetracker.ts'
+import { View } from './shape/view.ts'
 
 const getPyOpsStr = (op: Ops) => `tiny.ops.Ops.${getEnumString(op)}`
 export const pyStr = (v: any, useList = false): string => {
@@ -18,6 +20,8 @@ export const pyStr = (v: any, useList = false): string => {
   }
   if (v instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(v.op)}, dtype=${pyStr(v.dtype)}, src=${pyStr(v.src)}, arg=${pyStr(v.arg)})`
   if (v instanceof DType) return `tiny.ops.DType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)})`
+  if (v instanceof View) return `tiny.shape.view.View(shape=${pyStr(v.shape)}, strides=${pyStr(v.strides)}, offset=${pyStr(v.offset)}, mask=${pyStr(v.mask)}, contiguous=${pyStr(v.contiguous)})`
+  if (v instanceof ShapeTracker) return `tiny.shape.shapetracker.ShapeTracker(views=${pyStr(v.views)})`
 
   if (typeof v === 'function') return 'lambda x: x'
   if (typeof v === 'object') return `{${Object.entries(v).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
