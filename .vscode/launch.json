@@ -14,7 +14,7 @@
         "--allow-all",
         "--no-check",
         "--filter",
-        "symbolic_10",
+        "symbolic_10"
       ],
       "attachSimplePort": 9229,
       "outputCapture": "std"

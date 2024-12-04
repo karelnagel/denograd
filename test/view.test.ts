@@ -26,7 +26,11 @@ Deno.test(
 Deno.test(
   'canonicalize_strides',
   compare(
-    [[[UOp.int(200), UOp.int(100), UOp.int(30)], [UOp.int(20), UOp.int(2100), UOp.int(20000)]]],
+    [
+      [[UOp.int(200), UOp.int(100), UOp.int(30)], [UOp.int(20), UOp.int(2100), UOp.int(20000)]],
+      [[44444, UOp.int(100), 4.4], [UOp.int(20), 5555, -5.5]],
+      [[44444, 543, 4.4], [555, 5555, -5.5]],
+    ],
     canonicalize_strides,
     'out(tiny.shape.view.canonicalize_strides(*data))',
   ),
@@ -50,6 +54,7 @@ Deno.test(
   'merge_dims',
   compare(
     [
+      [[UOp.int(4), UOp.int(9), UOp.int(4)], [UOp.int(1), UOp.int(9), UOp.int(4)], [[UOp.int(23), UOp.int(44)], [UOp.int(323), UOp.int(23)], [UOp.int(43), UOp.int(43)]]],
       [[4, 34, 534], [3, 4, 6], [[23, 32], [43, 43], [43, 43]]],
       [[7, 21, 123], [8, 2, 9], [[12, 45], [31, 55.4], [67, 89]]],
       [[4, 34, 534], [3, 4, 6]],
@@ -65,12 +70,9 @@ Deno.test(
     [
       [[[UOp.int(2), UOp.int(3)]], [UOp.int(44), UOp.int(44)], [UOp.int(444), UOp.int(44)]],
       [[[UOp.int(2), UOp.int(3)], [UOp.int(5), UOp.int(5)]], [UOp.int(44), UOp.int(44)], [UOp.int(444), UOp.int(44)]],
+      [[[2, 3], [UOp.int(5), 44444]], [555, UOp.int(44)], [UOp.int(444), UOp.float(44)]],
     ],
-    (...args) => {
-      const res = _reshape_mask(args[0] as any, args[1] as any, args[2] as any)
-      console.log(res)
-      return res
-    },
-    `res =tiny.shape.view._reshape_mask(*data)\nout(res)`,
+    _reshape_mask,
+    `out(tiny.shape.view._reshape_mask(*data))`,
   ),
 )

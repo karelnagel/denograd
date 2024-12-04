@@ -170,7 +170,6 @@ export const mergeMaps = <K, V>(maps: Map<K, V>[]): Map<K, V> => {
   return new Map(Array.from(kvs))
 }
 
-
 export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])
 export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
