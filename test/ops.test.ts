@@ -1,6 +1,7 @@
 import { canPad, Ops, resolve, smax, smin, UOp, UPat } from '../src/ops.ts'
 import { compare, tryCatch } from './helpers.ts'
 import { dtypes } from '../src/dtype.ts'
+import { ShapeTracker } from '../src/shape/shapetracker.ts'
 
 Deno.test(
   'canPad',
@@ -229,5 +230,74 @@ Deno.test(
     ],
     smin,
     'out(tiny.ops.smin(*data))',
+  ),
+)
+
+Deno.test(
+  'has_st',
+  compare(
+    [
+      [new UOp({ op: Ops.DEFINE_LOCAL })],
+      [new UOp({ op: Ops.DEFINE_GLOBAL })],
+      [new UOp({ op: Ops.BUFFER })],
+      [new UOp({ op: Ops.CONST })],
+      [new UOp({ op: Ops.DEFINE_VAR })],
+      [new UOp({ op: Ops.ADD })],
+      [new UOp({ op: Ops.MUL })],
+    ],
+    tryCatch((x: UOp) => x.has_st),
+    'out(trycatch(lambda: data[0].has_st))',
+  ),
+)
+
+Deno.test(
+  'st',
+  compare(
+    [
+      [new UOp({ op: Ops.DEFINE_LOCAL })],
+      [new UOp({ op: Ops.ADD, src: [UOp.int(4), UOp.int(5)] })],
+      [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([2, 2]) })],
+    ],
+    tryCatch((x: UOp) => x.st),
+    'out(trycatch(lambda: data[0].st))',
+  ),
+)
+
+Deno.test(
+  'full_shape',
+  compare(
+    [
+      [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })],
+      [new UOp({ op: Ops.ADD, src: [UOp.int(4), UOp.int(5)] })],
+    ],
+    (x: UOp) => x.full_shape,
+    'out(trycatch(lambda: data[0].full_shape))',
+  ),
+)
+
+Deno.test(
+  'st_arg',
+  compare(
+    [
+      [new UOp({ op: Ops.BUFFER, src: [UOp.int(1), new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([2, 2]) })] })],
+      [new UOp({ op: Ops.VALID, src: [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 3]) })] })],
+      [new UOp({ op: Ops.ADD })], // Should throw error - not a buffer op
+      [new UOp({ op: Ops.BUFFER, src: [UOp.int(1), UOp.int(2)] })], // Should throw error - src[1] not VIEW
+    ],
+    tryCatch((x: UOp) => x.st_arg),
+    'out(trycatch(lambda: data[0].st_arg))',
+  ),
+)
+
+Deno.test(
+  'const_with_shape',
+  compare(
+    [
+      [dtypes.float, 3.14, [2, 2]],
+      [dtypes.int, 42, [3, 3]],
+      [dtypes.bool, true, [1, 4]],
+    ],
+    tryCatch(UOp.const_with_shape),
+    'out(trycatch(lambda: tiny.ops.UOp.const_with_shape(*data)))',
   ),
 )
