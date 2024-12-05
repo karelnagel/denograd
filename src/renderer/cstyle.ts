@@ -20,7 +20,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), ({ ctx, x }) => `${ctx.smem_align}${ctx.smem_prefix}${ctx.render_dtype(x.dtype.base)} ${ctx.get(x)}[${x.arg[1]}];`],
   [new UPat({ op: Ops.BARRIER }), ({ ctx }) => ctx.barrier],
   [new UPat({ op: Ops.NOOP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0])],
-  [new UPat({ op: Ops.SPECIAL, name: 'x' }), ({ ctx, x }) => `${ctx.code_for_workitem[x.arg[0][0] as keyof typeof ctx.code_for_workitem](x.arg[0][-1])}; /* ${x.arg[1]} */`],
+  [new UPat({ op: Ops.SPECIAL, name: 'x' }), ({ ctx, x }) => `${ctx.code_for_workitem[x.arg[0][0] as keyof typeof ctx.code_for_workitem]?.(x.arg[0][-1])}; /* ${x.arg[1]} */`],
   // const
   [new UPat({ op: Ops.CONST, arg: Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`],
   [new UPat({ op: Ops.CONST, arg: -Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`],
@@ -63,9 +63,8 @@ export const uops_to_dtypes = (uops: UOp[]): DType[] => dedup(uops.filter((u) =>
 type RenderKernelArgs = { functionName: string; kernel: string[]; bufs: [string, [DType, boolean]][]; uops: UOp[]; prefix?: string[] }
 const root_render_kernel = (self: CStyleLanguage, { bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
   const tmp = bufs.some(([_, [dtype]]) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
-  const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, dtype == dtypes.int ? (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.render_dtype(dtype, mutable) + self.buffer_suffix : self.arg_int_prefix : undefined])
-
-  const prg = [`${self.kernel_prefix}void ${self.get_kernel_modifier(uops)}${functionName}(`, ...buftypes.map(([name, t]) => `${t} ${name}`), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
+  const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.render_dtype(dtype, mutable) + self.buffer_suffix : dtype === dtypes.int ? self.arg_int_prefix : undefined])
+  const prg = [`${self.kernel_prefix}void ${self.get_kernel_modifier(uops)}${functionName}(`, ...buftypes.map(([name, t]) => `${t} ${name}`).join(', '), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
   return isNone(prefix) ? prg : `${prefix.join('\n')}\n${prg}`
 }
 

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
-import { DType } from '../src/dtype.ts'
+import { DType, ImageDType, PtrDType } from '../src/dtype.ts'
 import { isNotNone } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
@@ -24,6 +24,8 @@ export const pyStr = (v: any, useList = false): string => {
     }, custom_early_reject=${pyStr(v.customEarlyReject)})`
   }
   if (v instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(v.op)}, dtype=${pyStr(v.dtype)}, src=${pyStr(v.src)}, arg=${pyStr(v.arg)})`
+  if (v instanceof ImageDType) return `tiny.dtype.ImageDType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)}, ${pyStr(v._base)}, ${pyStr(v.local)}, ${pyStr(v.v)}, ${pyStr(v.shape)})`
+  if (v instanceof PtrDType) return `tiny.dtype.PtrDType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)}, ${pyStr(v._base)}, ${pyStr(v.local)}, ${pyStr(v.v)})`
   if (v instanceof DType) return `tiny.dtype.DType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)})`
   if (v instanceof View) return `tiny.shape.view.View(shape=${pyStr(v.shape)}, strides=${pyStr(v.strides)}, offset=${pyStr(v.offset)}, mask=${pyStr(v.mask)}, contiguous=${pyStr(v.contiguous)})`
   if (v instanceof ShapeTracker) return `tiny.shape.shapetracker.ShapeTracker(views=${pyStr(v.views)})`
@@ -68,6 +70,8 @@ export const deserialize = (data: string): any => {
     const type = i.__type
     if (type === 'UPat') return new UPat({ op: de(i.op), dtype: de(i.dtype), src: de(i.src), arg: de(i.arg), name: de(i.name), allowAnyLen: de(i.allow_any_len), location: de(i.location), customEarlyReject: de(i.custom_early_reject) })
     if (type === 'UOp') return new UOp({ op: de(i.op), dtype: de(i.dtype), src: de(i.src), arg: de(i.arg) })
+    if (type === 'ImageDType') return new ImageDType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar), shape: de(i.shape), base: de(i.base), local: de(i.local), v: de(i.v) })
+    if (type === 'PtrDType') return new PtrDType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar), base: de(i.base), local: de(i.local), v: de(i.v) })
     if (type === 'DType') return new DType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar) })
     if (type === 'View') return new View({ shape: de(i.shape), strides: de(i.strides), offset: de(i.offset), mask: de(i.mask), contiguous: de(i.contiguous) })
     if (type === 'ShapeTracker') return new ShapeTracker(de(i.views))
@@ -95,7 +99,9 @@ def serialize(data):
       def default(self, o):
           if isinstance(o,tiny.ops.UPat): return {"__type":"UPat","op":o.op,"dtype":o.dtype,"src":[o._in_src] if isinstance(o._in_src,list) else o._in_src,"arg":o.arg,"name":o.name,"allow_any_len":o.allowed_len == -1,"location":o.location,"custom_early_reject":o.custom_early_reject}
           if isinstance(o, tiny.ops.UOp): return {"__type": "UOp",'op': o.op, "dtype": o.dtype,"src":o.src,"arg":o.arg} 
-          if isinstance(o, tiny.ops.DType): return {"__type": "DType", "priority": o.priority,"itemsize":o.itemsize,"name":o.name,"fmt":o.fmt,"count":o.count,"_scalar":o._scalar}
+          if isinstance(o, tiny.dtype.ImageDType): return {"__type": "ImageDType", "priority": o.priority,"itemsize":o.itemsize,"name":o.name,"fmt":o.fmt,"count":o.count,"_scalar":o._scalar,"shape":o.shape,"base":o.base,"local":o.local,"v":o.v}
+          if isinstance(o, tiny.dtype.PtrDType): return {"__type": "PtrDType", "priority": o.priority,"itemsize":o.itemsize,"name":o.name,"fmt":o.fmt,"count":o.count,"_scalar":o._scalar,"base":o.base,"local":o.local,"v":o.v}
+          if isinstance(o, tiny.dtype.DType): return {"__type": "DType", "priority": o.priority,"itemsize":o.itemsize,"name":o.name,"fmt":o.fmt,"count":o.count,"_scalar":o._scalar}
           if isinstance(o, tiny.shape.view.View): return {"__type": "View", "shape": o.shape, "strides": o.strides, "offset": o.offset, "mask": o.mask, "contiguous": o.contiguous}
           if isinstance(o, tiny.shape.shapetracker.ShapeTracker): return {"__type": "ShapeTracker", "views": o.views}
           if isinstance(o, itertools.repeat): return CustomEncoder.default(o)
