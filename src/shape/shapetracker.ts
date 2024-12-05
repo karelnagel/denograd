@@ -58,10 +58,10 @@ export class ShapeTracker {
     assert(idx.vmax < 1e12, `real_size broken for ${self}`)
     return Math.floor(idx.vmax + 1)
   }
-  vars = (): Set<Variable> => new Set(this.views.flatMap((v) => [...v.vars()]))
+  vars = (): Variable[] => [...new Set(this.views.flatMap((v) => v.vars()))]
 
   get var_vals(): Map<Variable, number> {
-    return mergeMaps([...this.vars()].map((v) => new Map([v.unbind()])))
+    return mergeMaps(this.vars().map((v) => new Map([v.unbind()])))
   }
 
   unbind = (): [ShapeTracker, Map<Variable, number>] => {
@@ -91,7 +91,7 @@ export class ShapeTracker {
     }
     return ret
   }
-  unit_stride_axes = (ignore_valid = false): number[] => this.real_strides(ignore_valid).filter((st) => st === 1).map((st, i) => i)
+  unit_stride_axes = (ignore_valid = false): number[] => [...this.real_strides(ignore_valid).entries()].filter(([i, st]) => st === 1).map(([i, st]) => i)
 
   axis_is_masked = (axis: number): boolean => {
     const [_, valid] = this.to_indexed_uops()

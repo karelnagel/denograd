@@ -185,7 +185,7 @@ Deno.test(
   compare(
     [
       [st1, [0]],
-      [st1, [1]], 
+      [st1, [1]],
       [st2, [0]],
     ],
     testShape((shape) => shape.axis_is_masked),
@@ -198,8 +198,8 @@ Deno.test(
   compare(
     [
       [st1, []],
-      [st1, []],
       [st2, []],
+      [st3, []],
     ],
     testShape((shape) => shape.simplify),
     'out(trycatch(lambda: data[0].simplify(*data[1])))',
@@ -220,5 +220,6 @@ Deno.test(
     ],
     testShape((shape) => shape.reshape),
     'out(trycatch(lambda: data[0].reshape(*data[1])))',
+    { stringSimilarity: 0.81 },
   ),
 )

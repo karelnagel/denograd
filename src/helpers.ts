@@ -6,7 +6,7 @@ import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
-export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map((x) => Array.isArray(x) ? listStr(x) : x).join(", ")}]` : `${x}`
+export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map((x) => Array.isArray(x) ? listStr(x) : x).join(', ')}]` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const isLessThan = (a: any, b: any): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -161,11 +161,17 @@ export const mergeDicts = <T extends string, U = any>(ds: Record<T, U>[]): Recor
   if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
   return Object.fromEntries(Array.from(kvs)) as Record<T, U>
 }
-export const mergeMaps = <K, V>(maps: Map<K, V>[]): Map<K, V> => {
-  const kvs = new Set(maps.flatMap((m) => Array.from(m.entries())))
-  const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
-  if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
-  return new Map(Array.from(kvs))
+export function mergeMaps<K, V>(maps: Iterable<Map<K, V>>): Map<K, V> {
+  const resultMap = new Map<K, V>()
+  for (const map of maps) {
+    if (!(map instanceof Map)) continue
+    for (const [key, value] of map.entries()) {
+      if (resultMap.has(key) && resultMap.get(key) !== value) throw new Error(`Cannot merge, key "${key}" has conflicting values.`)
+      resultMap.set(key, value)
+    }
+  }
+
+  return resultMap
 }
 
 export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])

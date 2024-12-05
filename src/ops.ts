@@ -343,17 +343,17 @@ export class UOp extends MathTrait {
     return [this.src[0], this.src[1].arg]
   }
   val = () => this.unbind()[1]
-  vars = (): Set<UOp> => {
+  vars = (): UOp[] => {
     const sparents = [...this.sparents().keys()]
     const boundVars = new Set(sparents.filter((x) => x.op === Ops.BIND && x.src[0].op === Ops.DEFINE_VAR))
     const boundVarBase = new Set([...boundVars].map((x) => x.src[0]))
     const allVars = new Set(sparents.filter((x) => x.op === Ops.DEFINE_VAR))
-    return boundVars.union(new Set([...allVars].filter((x) => !boundVarBase.has(x))))
+    return [...boundVars.union(new Set([...allVars].filter((x) => !boundVarBase.has(x))))]
   }
   variables = (): Variable[] => {
-    const stVars: Set<Variable>[] = [...this.sparents().keys()].filter((x) => GroupOp.Buffer.includes(x.op)).map((x) => x.st_arg.vars())
-    const idk = new Set([...this.vars()].map((x) => x.op !== Ops.DEFINE_VAR ? x.unbind()[0] : x))
-    return [...new Set([...stVars.flatMap((x) => [...x]), ...idk])].sort((a, b) => b.arg - a.arg)
+    const stVars: Variable[] = [...this.sparents().keys()].filter((x) => GroupOp.Buffer.includes(x.op)).flatMap((x) => x.st_arg.vars())
+    const idk = new Set(this.vars().map((x) => x.op !== Ops.DEFINE_VAR ? x.unbind()[0] : x))
+    return [...new Set([...stVars, ...idk])].sort((a, b) => b.arg - a.arg)
   }
 
   //   # *** uop symbolic stuff ***
