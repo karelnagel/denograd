@@ -1,7 +1,7 @@
 import { expect } from 'expect/expect'
 import { _substitute, Ops, renderer, spec, symbolicFlat, UOp, type UPat } from '../src/ops.ts'
 import { asdict, python, removeKeys, tryCatch } from './helpers.ts'
-import { baseRewrite, extraPm } from '../src/renderer/cstyle.ts'
+import { base_rewrite, extra_pm } from '../src/renderer/cstyle.ts'
 import { entries, zip } from '../src/helpers.ts'
 import { type DType, dtypes } from '../src/dtype.ts'
 import { symbolicSimple } from '../src/ops.ts'
@@ -172,7 +172,7 @@ const ALL_PATTERN_MATCHERS = {
     ],
   },
   'tinygrad.renderer.cstyle.base_rewrite': {
-    matcher: baseRewrite,
+    matcher: base_rewrite,
     uops: [
       // These should be tested with CStyleLanguage.render() instead, cause it needs self.h
       //   new UOp({ op: Ops.DEFINE_ACC, src: [new UOp({ op: Ops.CONST })] }),
@@ -192,7 +192,7 @@ const ALL_PATTERN_MATCHERS = {
     ],
   },
   'tinygrad.renderer.cstyle.extra_pm': {
-    matcher: extraPm,
+    matcher: extra_pm,
     uops: [],
   },
 }

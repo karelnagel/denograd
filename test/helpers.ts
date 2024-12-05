@@ -84,6 +84,7 @@ import math
 import json
 from dataclasses import asdict
 import itertools
+from tinygrad.renderer import cstyle
 
 def trycatch(fn):
   try: return fn()

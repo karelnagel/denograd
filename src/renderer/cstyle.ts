@@ -3,37 +3,37 @@ import { AMX, assert, dedup, getEnv, isNone, isNotNone, stripParens } from '../h
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
-export const baseRewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<string, UOp>, string | undefined>([
+export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<string, UOp>, string | undefined>([
   [new UPat({ op: Ops.DEFINE_ACC, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0])],
   [new UPat({ op: Ops.ASSIGN, name: 'x' }), ({ ctx, x }) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
   [new UPat({ op: Ops.IF, name: 'x' }), ({ ctx, x }) => `if (${ctx.get(x.src[0])}) {`],
   [new UPat({ op: [Ops.ENDIF, Ops.ENDRANGE] }), ({ ctx }) => '}'],
   [new UPat({ op: Ops.WMMA, name: 'x' }), ({ ctx, x }) => `__${x.arg[0]}(${ctx.get(x.src[0])}, ${ctx.get(x.src[1])}, ${ctx.get(x.src[2])})`],
   // r method accesses
-  [new UPat({ op: Ops.RANGE, name: 'x' }), ({ ctx, x }) => `for (${ctx.renderDType(x.dtype)} ${ctx.get(x)} = ${ctx.get(x.src[0])}; ${ctx.get(x)} < ${ctx.get(x.src[1])}; ${ctx.get(x)}++) {{`],
+  [new UPat({ op: Ops.RANGE, name: 'x' }), ({ ctx, x }) => `for (${ctx.render_dtype(x.dtype)} ${ctx.get(x)} = ${ctx.get(x.src[0])}; ${ctx.get(x)} < ${ctx.get(x.src[1])}; ${ctx.get(x)}++) {{`],
   [
     new UPat({ op: Ops.VECTORIZE, name: 'x' }),
-    ({ ctx, x }) => `${ctx.float4!.replace('float4', ctx.renderDType(x.dtype))}` + (ctx.device === 'CLANG' ? `{${x.src.map((y: any) => ctx.get(y)).join(',')}}` : `(${x.src.map((y: any) => ctx.get(y)).join(',')})`),
+    ({ ctx, x }) => `${ctx.float4!.replace('float4', ctx.render_dtype(x.dtype))}` + (ctx.device === 'CLANG' ? `{${x.src.map((y: any) => ctx.get(y)).join(',')}}` : `(${x.src.map((y: any) => ctx.get(y)).join(',')})`),
   ],
-  [new UPat({ op: Ops.CAST, name: 'x' }), ({ ctx, x }) => `(${ctx.renderCast(x.dtype, ctx.get(x.src[0])!)})`],
-  [new UPat({ op: Ops.BITCAST, name: 'x' }), ({ ctx, x }) => `(*((${ctx.bufferPrefix}${ctx.renderDType(x.dtype)}*)&${ctx.get(x.src[0])}))`],
-  [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), ({ ctx, x }) => `${ctx.smemAlign}${ctx.smemPrefix}${ctx.renderDType(x.dtype.base)} ${ctx.get(x)}[${x.arg[1]}];`],
+  [new UPat({ op: Ops.CAST, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.get(x.src[0])!)})`],
+  [new UPat({ op: Ops.BITCAST, name: 'x' }), ({ ctx, x }) => `(*((${ctx.buffer_prefix}${ctx.render_dtype(x.dtype)}*)&${ctx.get(x.src[0])}))`],
+  [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), ({ ctx, x }) => `${ctx.smem_align}${ctx.smem_prefix}${ctx.render_dtype(x.dtype.base)} ${ctx.get(x)}[${x.arg[1]}];`],
   [new UPat({ op: Ops.BARRIER }), ({ ctx }) => ctx.barrier],
   [new UPat({ op: Ops.NOOP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0])],
-  [new UPat({ op: Ops.SPECIAL, name: 'x' }), ({ ctx, x }) => `${ctx.codeForWorkitem[x.arg[0][0] as keyof typeof ctx.codeForWorkitem](x.arg[0][-1])}; /* ${x.arg[1]} */`],
+  [new UPat({ op: Ops.SPECIAL, name: 'x' }), ({ ctx, x }) => `${ctx.code_for_workitem[x.arg[0][0] as keyof typeof ctx.code_for_workitem](x.arg[0][-1])}; /* ${x.arg[1]} */`],
   // const
-  [new UPat({ op: Ops.CONST, arg: Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.renderCast(x.dtype, ctx.infinity)})`],
-  [new UPat({ op: Ops.CONST, arg: -Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.renderCast(x.dtype, `-${ctx.infinity}`)})`],
-  [new UPat({ op: Ops.CONST, dtype: dtypes.floats, name: 'x' }), ({ ctx, x }) => !isFinite(x.arg) ? `(${ctx.renderCast(x.dtype, ctx.nan)})` : undefined],
+  [new UPat({ op: Ops.CONST, arg: Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`],
+  [new UPat({ op: Ops.CONST, arg: -Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`],
+  [new UPat({ op: Ops.CONST, dtype: dtypes.floats, name: 'x' }), ({ ctx, x }) => !isFinite(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined],
   [new UPat({ op: Ops.CONST, dtype: dtypes.float, name: 'x' }), ({ ctx, x }) => `${x.arg}f`],
   [new UPat({ op: Ops.CONST, dtype: dtypes.int64, name: 'x' }), ({ ctx, x }) => `${x.arg}ll`],
   [new UPat({ op: Ops.CONST, dtype: dtypes.uint64, name: 'x' }), ({ ctx, x }) => `${x.arg}ull`],
   [new UPat({ op: Ops.CONST, dtype: dtypes.uint32, name: 'x' }), ({ ctx, x }) => `${x.arg}u`],
   [new UPat({ op: Ops.CONST, dtype: dtypes.bool, name: 'x' }), ({ ctx, x }) => x.arg ? '1' : '0'],
   // consts are rendered to larger type and casted
-  [new UPat({ op: Ops.CONST, dtype: [dtypes.bfloat16, dtypes.half], name: 'x' }), ({ ctx, x }) => `(${ctx.renderCast(x.dtype, `${x.arg}f`)})`],
-  [new UPat({ op: Ops.CONST, dtype: [dtypes.uint8, dtypes.uint16], name: 'x' }), ({ ctx, x }) => `(${ctx.renderCast(x.dtype, `${x.arg}u`)})`],
-  [new UPat({ op: Ops.CONST, dtype: [dtypes.int8, dtypes.int16], name: 'x' }), ({ ctx, x }) => `(${ctx.renderCast(x.dtype, x.arg)})`],
+  [new UPat({ op: Ops.CONST, dtype: [dtypes.bfloat16, dtypes.half], name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}f`)})`],
+  [new UPat({ op: Ops.CONST, dtype: [dtypes.uint8, dtypes.uint16], name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}u`)})`],
+  [new UPat({ op: Ops.CONST, dtype: [dtypes.int8, dtypes.int16], name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, x.arg)})`],
   // default const render
   [new UPat({ op: Ops.CONST, name: 'x' }), ({ ctx, x }) => x.arg.toString()],
   // new load/store
@@ -42,11 +42,11 @@ export const baseRewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<s
   [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx')], allowAnyLen: true }), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
   [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allowAnyLen: true }), ({ ctx, bidx, var1 }) => `*${ctx.get(bidx)} = ${ctx.get(var1)};`],
   // alu/gep
-  [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ ctx, x }) => ctx.codeForOp[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
+  [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ ctx, x }) => ctx.code_for_op[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
   [new UPat({ op: Ops.GEP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device == 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
 ])
 
-export const extraPm = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
+export const extra_pm = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
   // insert a NOOP before BITCAST to force it to be rendered. not needed on all backends?
   [new UPat({ op: Ops.BITCAST, name: 'x' }), ({ x }) => x.src[0].op !== Ops.NOOP ? new UOp({ op: Ops.BITCAST, dtype: x.dtype, src: [new UOp({ op: Ops.NOOP, dtype: x.src[0].dtype, src: x.src })] }) : undefined],
   // gate any stores that aren't gated with ifs
@@ -58,34 +58,34 @@ export const extraPm = new PatternMatcher<Record<string, UOp>, UOp | undefined>(
   [new UPat({ op: Ops.MAX, name: 'm' }), ({ m }) => (m.src[0].lt(m.src[1])).where(m.src[1], m.src[0])],
 ])
 
-export const uopsToDTypes = (uops: UOp[]): DType[] => dedup(uops.filter((u) => !(u.dtype instanceof ImageDType || u.dtype instanceof PtrDType)).map((u) => u.dtype))
+export const uops_to_dtypes = (uops: UOp[]): DType[] => dedup(uops.filter((u) => !(u.dtype instanceof ImageDType || u.dtype instanceof PtrDType)).map((u) => u.dtype))
 
 type RenderKernelArgs = { functionName: string; kernel: string[]; bufs: [string, [DType, boolean]][]; uops: UOp[]; prefix?: string[] }
-const renderKernel = (self: CStyleLanguage, { bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
+const root_render_kernel = (self: CStyleLanguage, { bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
   const tmp = bufs.some(([_, [dtype]]) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
-  const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, dtype == dtypes.int ? (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.renderDType(dtype, mutable) + self.bufferSuffix : self.argIntPrefix : undefined])
+  const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, dtype == dtypes.int ? (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.render_dtype(dtype, mutable) + self.buffer_suffix : self.arg_int_prefix : undefined])
 
-  const prg = [`${self.kernelPrefix}void ${self.getKernelModifier(uops)}${functionName}(`, ...buftypes.map(([name, t]) => `${t} ${name}`), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
-  return isNone(prefix) ? prg : prefix.join('\n') + `\n${prg}`
+  const prg = [`${self.kernel_prefix}void ${self.get_kernel_modifier(uops)}${functionName}(`, ...buftypes.map(([name, t]) => `${t} ${name}`), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
+  return isNone(prefix) ? prg : `${prefix.join('\n')}\n${prg}`
 }
 
 export class CStyleLanguage extends Renderer {
-  kernelPrefix = ''
-  bufferPrefix = ''
-  bufferSuffix = ''
-  smemAlign = ''
-  smemPrefix = ''
-  smemPrefixForCast = true
-  argIntPrefix = 'const int'
+  kernel_prefix = ''
+  buffer_prefix = ''
+  buffer_suffix = ''
+  smem_align = ''
+  smem_prefix = ''
+  smem_prefix_for_cast = true
+  arg_int_prefix = 'const int'
   barrier = ''
-  codeForWorkitem: Record<'g' | 'l' | 'i', (...x: any[]) => string> = {} as any
+  code_for_workitem: Record<'g' | 'l' | 'i', (...x: any[]) => string> = {} as any
   extra_args: string[] = []
   float4?: string
-  typeMap: Map<DType, string> = new Map()
+  type_map: Map<DType, string> = new Map()
   infinity = 'INFINITY'
   nan = 'NAN'
   r?: Map<UOp, string>
-  static override codeForOp: { [key in Ops]?: (...args: (string | DType)[]) => string } = {
+  override code_for_op: { [key in Ops]?: (...args: (string | DType)[]) => string } = {
     [Ops.SQRT]: (x, dtype) => `sqrt(${x})`,
     [Ops.RECIP]: (x, dtype) => `(1/${x})`,
     [Ops.NEG]: (x, dtype) => `-${x}`,
@@ -106,18 +106,17 @@ export class CStyleLanguage extends Renderer {
     [Ops.CMPLT]: (a, b, dtype) => `(${a}<${b})`,
     [Ops.WHERE]: (a, b, c, dtype) => `(${a}?${b}:${c})`,
   }
-  codeForOp = CStyleLanguage.codeForOp
-  stringRewrite = baseRewrite
-  override extraMatcher = extraPm
+  string_rewrite = base_rewrite
+  override extra_matcher = extra_pm
 
-  getKernelModifier = (uops: UOp[]) => ''
-  renderKernel = (args: RenderKernelArgs) => renderKernel(this, args)
-  renderCast = (dt: DType, val: string): string => `(${this.renderDType(dt)})(${val})`
-  renderDType = (dt: DType, mutable = true): string => {
+  get_kernel_modifier = (uops: UOp[]) => ''
+  render_kernel = (args: RenderKernelArgs) => root_render_kernel(this, args)
+  render_cast = (dt: DType, val: string): string => `(${this.render_dtype(dt)})(${val})`
+  render_dtype = (dt: DType, mutable = true): string => {
     if (dt instanceof ImageDType) return `${mutable ? 'write_only' : 'read_only'} image2d_t`
-    if (dt instanceof PtrDType) return (dt.local && this.smemPrefixForCast ? this.smemPrefix : this.bufferPrefix) + this.renderDType(dt.base) + (dt instanceof PtrDType ? '*' : '')
+    if (dt instanceof PtrDType) return (dt.local && this.smem_prefix_for_cast ? this.smem_prefix : this.buffer_prefix) + this.render_dtype(dt.base) + (dt instanceof PtrDType ? '*' : '')
     const scalar = dt.scalar()
-    return (this.typeMap.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
+    return (this.type_map.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
   }
   get = (key: UOp) => this.r?.get(key) // hacky helper
   override render = (name: string, uops: UOp[]): string => {
@@ -164,7 +163,7 @@ export class CStyleLanguage extends Renderer {
         prefix = prefixes[u.op as keyof typeof prefixes] || 'alu'
         r.set(u, `${prefix}${c[prefix]}`)
       }
-      let l = String(this.stringRewrite.rewrite(u, this))
+      let l = String(this.string_rewrite.rewrite(u, this))
       assert(isNotNone(l), `failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)
 
       if ([Ops.ENDIF, Ops.ENDRANGE].includes(u.op)) depth -= 1
@@ -174,7 +173,7 @@ export class CStyleLanguage extends Renderer {
         if ([Ops.RANGE, Ops.ASSIGN, Ops.DEFINE_LOCAL].includes(u.op) || u.dtype === dtypes.void) {
           if (u.op === Ops.ASSIGN) r.set(u, r.get(u.src[0])!)
         } else {
-          l = `${this.renderDType(u.dtype)} ${r.get(u)!} = ${l}` + (u.op !== Ops.SPECIAL ? ';' : '')
+          l = `${this.render_dtype(u.dtype)} ${r.get(u)!} = ${l}` + (u.op !== Ops.SPECIAL ? ';' : '')
         }
         kernel.push('  '.repeat(depth) + l)
         if (prefix) c[prefix] += 1 // if it was used, increment
@@ -184,7 +183,7 @@ export class CStyleLanguage extends Renderer {
     delete this.r
 
     //  NOTE: this relies on bufs dict preserving order
-    return this.renderKernel({ functionName: name, kernel, bufs: bufs.values().toArray(), uops })
+    return this.render_kernel({ functionName: name, kernel, bufs: bufs.values().toArray(), uops })
   }
 }
 
@@ -197,21 +196,23 @@ export class ClangRenderer extends CStyleLanguage {
   override nan = '__builtin_nanf("")'
 
   // language options
-  override bufferSuffix = ' restrict'
-  override typeMap = new Map([[dtypes.bool, '_Bool'], [dtypes.half, '__fp16']])
-  static override codeForOp = {
-    ...Object.fromEntries(Object.entries(CStyleLanguage.codeForOp).filter(([k]) => ![Ops.EXP2, Ops.SIN, Ops.LOG2].includes(k as unknown as Ops))),
+  override buffer_suffix = ' restrict'
+  override type_map = new Map([[dtypes.bool, '_Bool'], [dtypes.half, '__fp16']])
+  override code_for_op: { [key in Ops]?: ((...args: (string | DType)[]) => string) } = {
+    ...new CStyleLanguage().code_for_op,
+    [Ops.EXP2]: undefined,
+    [Ops.SIN]: undefined,
+    [Ops.LOG2]: undefined,
     [Ops.SQRT]: (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`,
   }
-  override codeForOp = CStyleLanguage.codeForOp
-  tensorCores = !AMX
+  tensor_cores = !AMX
     ? undefined
     : [dtypes.float].map((dt) => [dt, Math.floor(64 / dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: [], reduceAxes: [], upcastAxes: [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]], dtypeIn: dt, dtypeOut: dt }))
 
-  renderVectorPrefix = (dt: DType): string => `typedef ${this.renderDType(dt.scalar())} ${this.renderDType(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
+  render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 
-  override renderKernel = ({ bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
-    prefix = uopsToDTypes(uops).filter((dt) => dt.count > 1).map((dt) => this.renderVectorPrefix(dt))
+  override render_kernel = ({ bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
+    prefix = uops_to_dtypes(uops).filter((dt) => dt.count > 1).map((dt) => this.render_vector_prefix(dt))
     // https://github.com/corsix/amx
     for (const [name, [N, M, _], dtypeIn] of dedup(uops.filter((uop) => uop.op === Ops.WMMA).map((uop) => uop.arg))) {
       prefix = [
@@ -219,14 +220,14 @@ export class ClangRenderer extends CStyleLanguage {
         '#define AMX_SET(imm5) __asm("nop\\nnop\\nnop\\n.word (0x201000+(%0<<5)+%1)" : : "i"(17), "i"(imm5) : "memory")',
         '#define AMX(op, gpr, btf) __asm(".word (0x201000+(%0 << 5)+0%1-((0%1>>4)*6))" : : "i"(op), "r"((unsigned long long)(gpr)+(btf)) : "memory")',
       ]
-      const out = this.renderDType(dtypeIn.vec(N * N))
+      const out = this.render_dtype(dtypeIn.vec(N * N))
       prefix = [
         ...prefix,
-        `${out} __$${this.renderDType(dtypeIn.vec(N))} data1, ${
-          this.renderDType(dtypeIn.vec(M))
+        `${out} __$${this.render_dtype(dtypeIn.vec(N))} data1, ${
+          this.render_dtype(dtypeIn.vec(M))
         } data2, ${out} data0){{ AMX_SET(0);\n  for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(4, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }} AMX(0, (int *)(&data2), 0ull<<62); AMX(1, (int *)(&data1), 0ull<<62); AMX(12, 0, 0ull); for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(5, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }}\n  AMX_SET(1);\n  return data0;\n}}`,
       ]
     }
-    return renderKernel(this, { functionName, kernel, bufs, uops, prefix })
+    return root_render_kernel(this, { functionName, kernel, bufs, uops, prefix })
   }
 }

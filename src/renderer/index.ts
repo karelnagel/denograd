@@ -91,8 +91,8 @@ export class Renderer {
   localMax = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
   sharedMax = 32768
   tensorMores: TensorCore[] = []
-  extraMatcher?: any
-  static codeForOp: { [key in Ops]?: (...a: string[]) => string } = {}
+  extra_matcher?: any
+  code_for_op: { [key in Ops]?: (...a: string[]) => string } = {}
 
   render = (name: string, uops: UOp[]): string => raise('needs a renderer')
 }
