@@ -28,7 +28,7 @@ export class SimpleMathTrait {
   bitwiseOr = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.OR, x, reverse)
   xor = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.XOR, x, reverse)
   idiv = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.IDIV, x, reverse)
-  sub = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, this.ufix(x).neg())
+  sub = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, typeof x === 'number' || typeof x === 'boolean' ? this.ufix(-x) : x.neg())
   div = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).mul(this.alu(Ops.RECIP)) : this.mul(this.ufix(x).alu(Ops.RECIP))
 
   lt = (x: ConstType<typeof this>) => this.alu(Ops.CMPLT, this.ufix(x))
@@ -47,7 +47,7 @@ export class MathTrait extends SimpleMathTrait {
   //   # not in Tensor
   mod = (x: ConstType<typeof this>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
   maximum = (x: ConstType<typeof this>) => this.alu(Ops.MAX, this.ufix(x))
-  minimum = (x: ConstType<typeof this>) => this.neg().maximum(this.ufix(x).neg()).neg()
+  minimum = (x: ConstType<typeof this>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' ? this.ufix(-x) : x.neg()).neg()
   where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(y))
   threefry = (seed: ConstType<typeof this>) => this.alu(Ops.THREEFRY, this.ufix(seed))
   reciprocal = () => this.alu(Ops.RECIP)
@@ -1123,9 +1123,10 @@ export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
 
 export type sint = number | UOp
 export const add = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.add(b) : typeof b !== 'number' ? b.add(a, true) : a + b) as A | B
-export const sub = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.sub(b) : typeof b !== 'number' ? b.sub(a, true) : a - b) as A | B
+export const sub = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.sub(b) : typeof b !== 'number' ? b.constLike(a).sub(b) : a - b) as A | B
 export const mul = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mul(b) : typeof b !== 'number' ? b.mul(a, true) : a * b) as A | B
 export const idiv = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.idiv(b) : typeof b !== 'number' ? b.idiv(a, true) : Math.floor(a / b)) as A | B
+export const neg = <A extends sint>(a: A) => (typeof a !== 'number' ? a.mul(-1) : a * -1)
 
 export const lt = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.lt(b) : typeof b !== 'number' ? b.constLike(a).lt(b) : Number(a < b)) as A | B
 export const gt = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.gt(b) : typeof b !== 'number' ? b.constLike(a).gt(b) : Number(a > b)) as A | B
@@ -1142,4 +1143,4 @@ export const or = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 
 export const sint_prod = (x: sint[]) => x.reduce((acc, curr) => mul(acc, curr), 1)
 export const sint_sorted = (items: sint[], reverse = false) => items.toSorted((a, b) => lt(a, b) ? (!reverse ? -1 : 1) : (!reverse ? 1 : -1))
 
-export const sint_ceildiv = (num: sint, amt: sint): sint => mul(idiv(num, mul(amt, -1)), -1)
+export const sint_ceildiv = (num: sint, amt: sint): sint => neg(idiv(num, neg(amt)))

@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { allInt, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
-import { and, gt, le, ne, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
+import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sintToUOp, sub, UOp } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
@@ -169,7 +169,7 @@ export class View {
     }
     if (vm1.mask) {
       for (const [b, e] of vm1.mask) {
-        if (resolve(ge(b, e), false)) return View.create(vm1.shape, range(vm1.shape.length).map(() => 0), 0, range(vm1.shape.length).map((x) => [0, 0] as const))
+        if (resolve(ge(b, e), false)) return View.create(vm1.shape, range(vm1.shape.length).map(() => 0), 0, range(vm1.shape.length).map((x) => [0, 0]))
       }
       const merged = vm2.__add__(vm1.shrink(vm1.mask))
       return merged && merged.pad(zip(vm1.mask, vm1.shape).map(([[b, e], s]) => [b, sub(s, e)]))
@@ -194,7 +194,7 @@ export class View {
     let [merged_size, merged_term] = [1, UOp.int(0)] as [sint, UOp]
     const extents: [sint, UOp][] = []
     for (const [term, s, o] of zip(terms.toReversed(), vm2.shape.toReversed(), origin.toReversed())) {
-      merged_term = merged_term.add(mul(add( term.reduce((acc, [d1, s1]) => add(acc, mul(idxs[d1], s1)), 0 as sint), o), merged_size))
+      merged_term = merged_term.add(mul(add(term.reduce((acc, [d1, s1]) => add(acc, mul(idxs[d1], s1)), 0 as sint), o), merged_size))
       merged_size = mul(merged_size, s)
       if (resolve(lt(merged_term, merged_size), false) && resolve(le(0, merged_term), false)) {
         extents.push([merged_size, merged_term])
@@ -266,7 +266,7 @@ export class View {
     //     # NOTE: not checking for symbolic arg
     for (const [b, e] of arg) assert((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0), `invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
     if (arg.some(([b, e]) => resolve(ne(b, 0)) || resolve(ne(e, 0)))) {
-      const zvarg = zip(this.shape, arg).map(([s, [b, e]]) => [mul(b, -1), add(s, e)] as [sint, sint])
+      const zvarg = zip(this.shape, arg).map(([s, [b, e]]) => [neg(b), add(s, e)] as [sint, sint])
       const mask = zip(this.shape, arg).map(([s, [b, _]]) => [b, add(s, b)] as [sint, sint])
       return this.__unsafe_resize(zvarg, mask)
     }
