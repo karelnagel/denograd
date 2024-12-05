@@ -138,7 +138,7 @@ export const canPad = (u: UOp) => ![...u.sparents().keys()].some((x) => GroupOp.
 export const END_FOR_UOP = new Map([[Ops.IF, [Ops.STORE, Ops.ENDIF]], [Ops.RANGE, [Ops.ASSIGN, Ops.ENDRANGE]]])
 
 // With True as the default, this matches the old symbolic behavior
-export const resolve = (x: ConstType<UOp>, def = false) => {
+export const resolve = (x: ConstType<UOp>, def = true) => {
   if (!(x instanceof UOp)) return Boolean(x)
   if (x.dtype.name !== 'bool') throw new Error('UOp in resolve must be bool')
   // NOTE: generating the text for the exception is expensive, so we do this
