@@ -48,7 +48,7 @@ export class MathTrait extends SimpleMathTrait {
   mod = (x: ConstType<typeof this>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
   maximum = (x: ConstType<typeof this>) => this.alu(Ops.MAX, this.ufix(x))
   minimum = (x: ConstType<typeof this>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' ? this.ufix(-x) : x.neg()).neg()
-  where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(y))
+  where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(x).ufix(y))
   threefry = (seed: ConstType<typeof this>) => this.alu(Ops.THREEFRY, this.ufix(seed))
   reciprocal = () => this.alu(Ops.RECIP)
   sqrt = () => this.alu(Ops.SQRT)
@@ -650,12 +650,12 @@ export class PatternMatcher<Args extends object = Record<string, any>, Res exten
     for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op) || []) {
       const index = this.patterns.findIndex((pattern) => pattern[0] === p)
       if (!isSubset(ler, earlyReject)) {
-        console.log(`${index} early rejected`)
+        console.log(`TS ${index} early rejected`)
         continue
       }
       for (const match of p.match(uop, new Map())) {
         const ret = hasCtx ? fxn({ ctx, ...Object.fromEntries(match) } as any) : fxn(Object.fromEntries(match) as any)
-        console.log(`Matched with ${index}, returned ${ret}`)
+        console.log(`TS Matched with ${index}, returned ${ret}`)
         if (isNotNone(ret)) return ret
       }
     }
