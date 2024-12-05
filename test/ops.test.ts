@@ -251,11 +251,11 @@ Deno.test(
 )
 
 Deno.test(
-  'st',
+  'UOp.st',
   compare(
     [
       [new UOp({ op: Ops.DEFINE_LOCAL })],
-      [new UOp({ op: Ops.ADD, src: [UOp.int(4), UOp.int(5)] })],
+      [new UOp({ op: Ops.ADD, src: [ShapeTracker.from_shape([2, 2]).to_uop()] })],
       [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([2, 2]) })],
     ],
     tryCatch((x: UOp) => x.st),

@@ -206,8 +206,8 @@ export class UOp extends MathTrait {
     if (GroupOp.Buffer.includes(this.op)) return this.st_arg
     if (this.op === Ops.VIEW) return this.arg
     const src_sts = this.src.filter((x) => isNotNone(x.st)).map((x) => x.st) as ShapeTracker[]
-    assert(allSame(src_sts.map((x) => x.shape)), `UOp parents must have the same shape ${this} ${src_sts.map((x) => x.shape)}`)
-    return this.op === Ops.REDUCE_AXIS ? ShapeTracker.from_shape(src_sts[0].reduce(this.axisArg())) : src_sts[0]
+    assert(allSame(src_sts.map((x) => x.shape)), `UOp parents must have the same shape ${this} ${listStr(src_sts.map((x) => x.shape))}`)
+    return this.op === Ops.REDUCE_AXIS ? ShapeTracker.from_shape(src_sts[0].reduce(this.axis_arg)) : src_sts[0]
   }
   get full_shape(): sint[] {
     return this.op === Ops.VIEW ? this.arg.shape : this.src.filter((x) => x.has_st).map((x) => smax(x.full_shape))
@@ -241,7 +241,7 @@ export class UOp extends MathTrait {
     if (ret.op !== Ops.VIEW) throw new Error(`st_arg trying to return ${ret}`)
     return ret.arg
   }
-  axisArg = (): number[] => {
+  get axis_arg() {
     if (![Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op)) throw new Error(`axis_arg called on ${this.op}`)
     const ret = this.op === Ops.REDUCE_AXIS ? this.arg[1] : this.arg[7]
     if (!(Array.isArray(ret) && ret.every((x) => typeof x === 'number'))) throw new Error(`axis_arg trying to return ${ret}`)
