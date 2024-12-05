@@ -6,7 +6,7 @@ import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
-export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map((x) => Array.isArray(x) ? listStr(x) : x)}]` : `${x}`
+export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map((x) => Array.isArray(x) ? listStr(x) : x).join(", ")}]` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const isLessThan = (a: any, b: any): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {

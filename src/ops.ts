@@ -175,7 +175,7 @@ export class UOp extends MathTrait {
       super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
       UOp.ucache.set(key,this)
     }
-  override toString = () => `new UOp({op:${opsString(this.op)}, dtype:${this.dtype}, src:${listStr(this.src)}, arg:${listStr(this.arg)}})`
+  override toString = () => `new UOp({op:${opsString(this.op)}, dtype:${this.dtype}, arg:${listStr(this.arg)}, src:${listStr(this.src)}})`
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => {
     const oldArgs: UOpInput = { dtype: this.dtype, arg: this.arg, op: this.op, src: this.src }
@@ -1136,8 +1136,10 @@ export const ge = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 
 export const mod = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mod(b) : typeof b !== 'number' ? b.mod(a, true) : a % b) as A | B
 export const ne = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.ne(b) : typeof b !== 'number' ? b.ne(a) : Number((a as number) !== b)) as A | B
 export const eq = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.eq(b) : typeof b !== 'number' ? b.eq(a) : Number((a as number) === b)) as A | B
+export const and = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.bitwiseAnd(b) : typeof b !== 'number' ? b.bitwiseAnd(a, true) : Number(a && b)) as A | B
+export const or = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.bitwiseOr(b) : typeof b !== 'number' ? b.bitwiseOr(a, true) : Number(a || b)) as A | B
 
 export const sint_prod = (x: sint[]) => x.reduce((acc, curr) => mul(acc, curr), 1)
 export const sint_sorted = (items: sint[], reverse = false) => items.toSorted((a, b) => lt(a, b) ? (!reverse ? -1 : 1) : (!reverse ? 1 : -1))
 
-export const sint_ceildiv = (num: sint, amt: sint): sint => mul(-1, idiv(num, mul(amt, -1)))
+export const sint_ceildiv = (num: sint, amt: sint): sint => mul(idiv(num, mul(amt, -1)), -1)

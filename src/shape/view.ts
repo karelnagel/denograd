@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { allInt, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
-import { gt, le, ne, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
+import { and, gt, le, ne, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sintToUOp, sub, UOp } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
@@ -103,10 +103,10 @@ export class View {
     const idxs = isNone(_idxs) ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
     let iexpr = sintToUOp(this.offset)
     for (const [idx, sh, st, m] of zip(idxs, this.shape, this.strides, isNotNone(this.mask) ? this.mask : this.shape.map((x) => undefined))) {
-      if (resolve(sh !== 1) && resolve(st !== 0)) iexpr = iexpr.add(idx.mul(st))
+      if (resolve(ne(sh, 1)) && resolve(ne(st, 0))) iexpr = iexpr.add(idx.mul(st))
       if (isNotNone(m)) {
-        if (resolve(m[0] !== 0)) vexpr = vexpr.mul(idx.ge(m[0]))
-        if (resolve(m[1] !== sh)) vexpr = vexpr.mul(idx.lt(m[1]))
+        if (resolve(ne(m[0], 0))) vexpr = vexpr.mul(idx.ge(m[0]))
+        if (resolve(ne(m[1], sh))) vexpr = vexpr.mul(idx.lt(m[1]))
       }
     }
     return [iexpr, vexpr]
@@ -167,7 +167,7 @@ export class View {
     if (vm1.contiguous && vm1.size() === vm2.size() && isNotNone(ret)) return ret
     if (vm1.mask) {
       for (const [b, e] of vm1.mask) {
-        if (resolve(b >= e, false)) return View.create(vm1.shape, range(vm1.shape.length).map(() => 0), 0, range(vm1.shape.length).map((x) => [0, 0] as const))
+        if (resolve(ge(b, e), false)) return View.create(vm1.shape, range(vm1.shape.length).map(() => 0), 0, range(vm1.shape.length).map((x) => [0, 0] as const))
       }
       const merged = vm2.__add__(vm1.shrink(vm1.mask))
       return merged && merged.pad(zip(vm1.mask, vm1.shape).map(([[b, e], s]) => [b, sub(s, e)]))
@@ -194,7 +194,7 @@ export class View {
     for (const [term, s, o] of zip(terms.toReversed(), vm2.shape.toReversed(), origin.toReversed())) {
       merged_term = merged_term.add(term.map(([d1, s1]) => idxs[d1].mul(s1)).reduce((acc, x) => acc.add(x)).add(o).mul(merged_size))
       merged_size = mul(merged_size, s)
-      if (resolve(merged_term < merged_size, false) && resolve(le(0, merged_term), false)) {
+      if (resolve(lt(merged_term, merged_size), false) && resolve(le(0, merged_term), false)) {
         extents.push([merged_size, merged_term])
         ;[merged_size, merged_term] = [1, UOp.const(dtypes.int, 0)]
       }
@@ -210,7 +210,7 @@ export class View {
       //       # Try to project vm2's mask on to vm1.
       let [newb, newe, bad] = [range(vm1.shape.length).map((x) => 0), vm1.shape, false]
       for (const [[b, e], o, term, [_, t]] of zip(vm2.mask, origin, terms, extents.toReversed())) {
-        if (resolve(le(b, t.vmin) && lt(t.vmax, e), false)) continue
+        if (resolve(and(le(b, t.vmin), lt(t.vmax, e)), false)) continue
         if (typeof o !== 'number' || typeof b !== 'number' || typeof e !== 'number') {
           bad = true
           continue
@@ -259,7 +259,6 @@ export class View {
     if (isNotNone(mask) && zip(mask, shape).every(([m, s]) => m[0] === 0 && m[1] === s)) mask = undefined
     return View.create(shape.map((s) => s instanceof UOp ? s.ssimplify() : s), this.strides, add(this.offset, offset), mask)
   }
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
   pad = (arg: [sint, sint][]): View => {
     assert(arg.length === this.shape.length, `invalid pad ${arg} for ${this.shape}`)
     //     # NOTE: not checking for symbolic arg
@@ -271,22 +270,20 @@ export class View {
     }
     return this
   }
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
   shrink = (arg: [sint, sint][]): View => {
-    assert(arg.length === this.shape.length, `invalid shrink ${arg} for ${this.shape}`)
+    assert(arg.length === this.shape.length, `invalid shrink ${listStr(arg)} for ${listStr(this.shape)}`)
     // # NOTE: not checking for symbolic arg
-    for (const [s, [b, e]] of zip(this.shape, arg)) assert(!(isInt(b) && isInt(e) && isInt(s)) || (0 <= b && b <= e && e <= s), `invalid shrink ${arg} for ${this.shape}`)
+    for (const [s, [b, e]] of zip(this.shape, arg)) assert(!(isInt(b) && isInt(e) && isInt(s)) || (0 <= b && b <= e && e <= s), `invalid shrink ${listStr(arg)} for ${listStr(this.shape)}`)
     return this.__unsafe_resize(arg)
   }
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
   expand = (new_shape: sint[]): View => {
-    assert(new_shape.length === this.shape.length, `expand arg ${new_shape} must have same number of dimensions as shape ${this.shape}`)
+    assert(new_shape.length === this.shape.length, `expand arg new_shape=${listStr(new_shape)} must have same number of dimensions as shape self.shape=${listStr(this.shape)}`)
     if (this.shape.includes(0)) {
-      assert(zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0)), `can't expand ${this.shape} into ${new_shape}`)
+      assert(zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0)), `can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
       return View.create(new_shape)
     }
     //     # TODO: this resolve might be wrong
-    assert(zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1), `can't expand ${this.shape} into ${new_shape}`)
+    assert(zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1), `can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
     //     # NOTE: can the mask ever be (0,0)?
     //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
     const mask = this.mask ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!isEq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
@@ -294,13 +291,12 @@ export class View {
   }
 
   permute = (axis: number[]): View => {
-    assert(isEq(sint_sorted(axis), range(this.shape.length)), `invalid permutation ${axis} of len ${this.shape.length}`)
+    assert(isEq(sint_sorted(axis), range(this.shape.length)), `invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
     return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, isNotNone(this.mask) ? axis.map((a) => this.mask![a]) : undefined)
   }
-  //   @functools.lru_cache(maxsize=None)  # pylint: disable=method-cache-max-size-none
   stride = (multi: number[]): View => {
     //     # except for the negative case, you can build this from the others. invertible in the negative case
-    assert(multi.every((x) => typeof x === 'number' && x !== 0), `invalid stride ${mul} for ${this.shape}`)
+    assert(multi.every((x) => typeof x === 'number' && x !== 0), `invalid stride ${multi} for ${this.shape}`)
     const strides = zip(this.strides, multi).map(([z, m]) => mul(z, m))
     const new_shape = zip(this.shape, multi).map(([s, m]) => sint_ceildiv(s, Math.abs(m)))
     const offset = zip(this.shape, this.strides, multi).filter(([s, z, m]) => m < 0).reduce((acc, [s, z, m]) => add(acc, mul(sub(s, 1), z)), 0 as sint)
