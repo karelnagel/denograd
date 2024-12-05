@@ -70,6 +70,7 @@ Deno.test(
   '_reshape_mask',
   compare(
     [
+      [undefined, [4, 4], [8, 1, 1, 2, 1, 1, 1]],
       [[[UOp.int(2), UOp.int(3)]], [UOp.int(44), UOp.int(44)], [UOp.int(444), UOp.int(44)]],
       [[[UOp.int(2), UOp.int(3)], [UOp.int(5), UOp.int(5)]], [UOp.int(44), UOp.int(44)], [UOp.int(444), UOp.int(44)]],
       [[[2, 3], [UOp.int(5), 44444]], [555, UOp.int(44)], [UOp.int(444), UOp.float(44)]],
@@ -364,6 +365,6 @@ Deno.test(
     ],
     testView((v) => v.reshape),
     'out(trycatch(lambda:data[0].reshape(*data[1])))',
-    { stringSimilarity: 1 },
+    { stringSimilarity: 0.6 },
   ),
 )

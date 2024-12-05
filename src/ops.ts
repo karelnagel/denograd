@@ -428,7 +428,6 @@ export class UOp extends MathTrait {
   }
   symInfer = (varVals: Map<UOp, number>) => {
     const [fxn, varnames] = this._sym_fxn()
-    console.log(fxn.toString())
     const args = Object.fromEntries(varVals.entries().filter(([k, v]) => varnames.includes(k.arg[0])).map(([k, v]) => [k.arg[0] as string, v]))
     return fxn(args)
   }
@@ -599,16 +598,6 @@ export class UPat extends MathTrait {
     }
   override toString = () => `new UPat({op:${listStr(this.op?.map((o) => opsString(o)))}, arg:${listStr(this.arg)}, name:${this.name}, dtype:${listStr(this.dtype)}, allow_any_len:${this.allowedLen === 0}, src=${listStr(this.src)})`
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
-    console.log(
-      isNotNone(this.op) && !this.op.includes(uop.op),
-      isNotNone(this.name) && !isEq(setDefault(store, this.name, uop), uop),
-      isNotNone(this.dtype) && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar()),
-      isNotNone(this.arg) && !isEq(this.arg, uop.arg),
-      this.allowedLen !== -1 && uop.src.length !== this.allowedLen,
-      this.allowedLen,
-      uop.src.length,
-      isNone(this.src),
-    )
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
       (isNotNone(this.name) && !isEq(setDefault(store, this.name, uop), uop)) ||
@@ -660,13 +649,11 @@ export class PatternMatcher<Args extends object = Record<string, any>, Res exten
     const ler = new Set(uop.src.map((u) => u.op))
     for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op) || []) {
       const index = this.patterns.findIndex((pattern) => pattern[0] === p)
-      console.log(index)
       if (!isSubset(ler, earlyReject)) {
         console.log(`${index} early rejected`)
         continue
       }
       for (const match of p.match(uop, new Map())) {
-        console.log(`Matched with ${index}`)
         const ret = hasCtx ? fxn({ ctx, ...Object.fromEntries(match) } as any) : fxn(Object.fromEntries(match) as any)
         console.log(`Matched with ${index}, returned ${ret}`)
         if (isNotNone(ret)) return ret

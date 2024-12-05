@@ -37,13 +37,10 @@ export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
 }
 
 type Iterableify<T> = { [K in keyof T]: Iterable<T[K]> }
-export function* zip<T extends Array<any>>(...toZip: Iterableify<T>): Generator<T> {
-  const iterators = toZip.map((i) => i[Symbol.iterator]())
-  while (true) {
-    const results = iterators.map((i) => i.next())
-    if (results.some(({ done }) => done)) break
-    yield results.map(({ value }) => value) as T
-  }
+export function zip<T extends Array<any>>(...toZip: Iterableify<T>): T[] {
+  const iterators = toZip.map((i) => [...i])
+  const minLength = Math.min(...iterators.map((i) => i.length))
+  return range(minLength).map((i) => iterators.map((arr) => arr[i]) as T)
 }
 
 export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
