@@ -154,8 +154,8 @@ const _suop = (lst: sint[], uop_fxn: (...x: UOp[]) => UOp, python_fxn: (...a: nu
   return python_fxn(...maxNum)
 }
 // TODO: really unsure about these
-export const smax = (...lst: (sint | sint[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst as sint[], (...x) => x.reduce((prev, curr) => curr.maximum(prev)), (...x) => Math.max(...x))
-export const smin = (...lst: (sint | sint[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst as sint[], (...x) => x.reduce((prev, curr) => curr.minimum(prev)), (...x) => Math.min(...x))
+export const smax = (...lst: (sint | sint[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst as sint[], (...x) => x.reduce((acc, x) => acc.maximum(x)), (...x) => Math.max(...x))
+export const smin = (...lst: (sint | sint[])[]) => _suop(Array.isArray(lst[0]) ? lst[0] : lst as sint[], (...x) => x.reduce((acc, x) => acc.minimum(x)), (...x) => Math.min(...x))
 
 export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uop
 export const symInfer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.symInfer(varVals) : uop
@@ -1127,11 +1127,11 @@ export const sub = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !==
 export const mul = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mul(b) : typeof b !== 'number' ? b.mul(a, true) : a * b) as A | B
 export const idiv = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.idiv(b) : typeof b !== 'number' ? b.idiv(a, true) : Math.floor(a / b)) as A | B
 
-export const lt = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.lt(b) : typeof b !== 'number' ? b.ge(a) : Number(a < b)) as A | B
-export const gt = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.gt(b) : typeof b !== 'number' ? b.le(a) : Number(a > b)) as A | B
+export const lt = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.lt(b) : typeof b !== 'number' ? b.constLike(a).lt(b) : Number(a < b)) as A | B
+export const gt = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.gt(b) : typeof b !== 'number' ? b.constLike(a).gt(b) : Number(a > b)) as A | B
 
-export const le = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.le(b) : typeof b !== 'number' ? b.gt(a) : Number(a <= b)) as A | B
-export const ge = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.ge(b) : typeof b !== 'number' ? b.lt(a) : Number(a >= b)) as A | B
+export const le = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.le(b) : typeof b !== 'number' ? b.constLike(a).le(b) : Number(a <= b)) as A | B
+export const ge = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.ge(b) : typeof b !== 'number' ? b.constLike(a).ge(b) : Number(a >= b)) as A | B
 
 export const mod = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mod(b) : typeof b !== 'number' ? b.mod(a, true) : a % b) as A | B
 export const ne = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.ne(b) : typeof b !== 'number' ? b.ne(a) : Number((a as number) !== b)) as A | B

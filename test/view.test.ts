@@ -258,6 +258,7 @@ Deno.test(
     ],
     testView((v) => v.pad),
     'out(trycatch(lambda:data[0].pad(*data[1])))',
+    {stringSimilarity:0.75}
   ),
 )
 

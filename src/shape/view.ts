@@ -163,8 +163,10 @@ export class View {
     const vm2 = new View({ ...this })
     if (vm2.contiguous) return vm1
     if (vm1.contiguous && isEq(vm1.shape, vm2.shape)) return vm2
-    const ret = vm2.reshape(vm1.shape)
-    if (vm1.contiguous && vm1.size() === vm2.size() && isNotNone(ret)) return ret
+    if (vm1.contiguous && vm1.size() === vm2.size()) {
+      const ret = vm2.reshape(vm1.shape)
+      if (ret) return ret
+    }
     if (vm1.mask) {
       for (const [b, e] of vm1.mask) {
         if (resolve(ge(b, e), false)) return View.create(vm1.shape, range(vm1.shape.length).map(() => 0), 0, range(vm1.shape.length).map((x) => [0, 0] as const))
@@ -189,14 +191,14 @@ export class View {
     //     # NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
     if (!allInt(vm1.shape)) return undefined
     const idxs: UOp[] = [...vm1.shape.map((s, i) => UOp.variable(`idx${i}`, 0, s - 1))]
-    let [merged_size, merged_term] = [1, UOp.const(dtypes.int, 0)] as [sint, UOp]
+    let [merged_size, merged_term] = [1, UOp.int(0)] as [sint, UOp]
     const extents: [sint, UOp][] = []
     for (const [term, s, o] of zip(terms.toReversed(), vm2.shape.toReversed(), origin.toReversed())) {
-      merged_term = merged_term.add(term.map(([d1, s1]) => idxs[d1].mul(s1)).reduce((acc, x) => acc.add(x)).add(o).mul(merged_size))
+      merged_term = merged_term.add(mul(add( term.reduce((acc, [d1, s1]) => add(acc, mul(idxs[d1], s1)), 0 as sint), o), merged_size))
       merged_size = mul(merged_size, s)
       if (resolve(lt(merged_term, merged_size), false) && resolve(le(0, merged_term), false)) {
         extents.push([merged_size, merged_term])
-        ;[merged_size, merged_term] = [1, UOp.const(dtypes.int, 0)]
+        ;[merged_size, merged_term] = [1, UOp.int(0)]
       }
     }
     if (resolve(merged_term.ne(0))) return undefined
@@ -260,9 +262,9 @@ export class View {
     return View.create(shape.map((s) => s instanceof UOp ? s.ssimplify() : s), this.strides, add(this.offset, offset), mask)
   }
   pad = (arg: [sint, sint][]): View => {
-    assert(arg.length === this.shape.length, `invalid pad ${arg} for ${this.shape}`)
+    assert(arg.length === this.shape.length, `invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
     //     # NOTE: not checking for symbolic arg
-    for (const [b, e] of arg) assert((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0), `invalid pad ${arg} for ${this.shape}`)
+    for (const [b, e] of arg) assert((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0), `invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
     if (arg.some(([b, e]) => resolve(ne(b, 0)) || resolve(ne(e, 0)))) {
       const zvarg = zip(this.shape, arg).map(([s, [b, e]]) => [mul(b, -1), add(s, e)] as [sint, sint])
       const mask = zip(this.shape, arg).map(([s, [b, _]]) => [b, add(s, b)] as [sint, sint])
@@ -308,16 +310,16 @@ export class View {
     if (isEq(this.shape, new_shape)) return this
 
     //     # TODO: this resolve shouldn't be needed
-    assert(new_shape.every((x) => resolve(ge(x, 0))), `shape can't contain negative numbers ${new_shape}`)
+    assert(new_shape.every((x) => resolve(ge(x, 0))), `shape can't contain negative numbers ${listStr(new_shape)}`)
     if (this.shape.includes(0)) {
-      assert(new_shape.includes(0), `cannot reshape 0 size to ${new_shape}`)
+      assert(new_shape.includes(0), `cannot reshape 0 size to ${listStr(new_shape)}`)
       return View.create(new_shape)
     }
     //     # check for the same size
     const self_all_int = allInt(this.shape)
     if (self_all_int) {
-      assert(new_shape.every((s) => s instanceof UOp || typeof s === 'number'), `${this.shape} -> ${new_shape} contains non (int, Variable) dim`)
-      if (resolve(ne(sint_prod(this.shape), sint_prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape ${this.shape} -> ${new_shape}`)
+      assert(new_shape.every((s) => s instanceof UOp || typeof s === 'number'), `${listStr(this.shape)} -> ${listStr(new_shape)} contains non (int, Variable) dim`)
+      if (resolve(ne(sint_prod(this.shape), sint_prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${listStr(this.shape)} -> new_shape=${listStr(new_shape)}`)
     }
     if (new_shape.length === 0 && this.mask && this.mask.some(([mx, my]) => mx === my)) return undefined
 
