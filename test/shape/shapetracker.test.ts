@@ -1,6 +1,6 @@
-import { UOp } from '../src/ops.ts'
-import { ShapeTracker } from '../src/shape/shapetracker.ts'
-import { compare, tryCatch } from './helpers.ts'
+import { UOp } from '../../src/ops.ts'
+import { ShapeTracker } from '../../src/shape/shapetracker.ts'
+import { compare, tryCatch } from '../helpers.ts'
 
 Deno.test(
   'ShapeTracker.from_shape',

@@ -1,7 +1,7 @@
-import { Ops, spec, symbolicFlat, UOp, UPat } from '../src/ops.ts'
-import { compare, tryCatch } from './helpers.ts'
-import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape, un1d, View } from '../src/shape/view.ts'
-import { dtypes } from '../src/dtype.ts'
+import { Ops, spec, symbolicFlat, UOp, UPat } from '../../src/ops.ts'
+import { compare, tryCatch } from '../helpers.ts'
+import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape, un1d, View } from '../../src/shape/view.ts'
+import { dtypes } from '../../src/dtype.ts'
 
 Deno.test(
   'serialization',
