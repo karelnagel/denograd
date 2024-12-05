@@ -124,8 +124,8 @@ ${code}
 }
 
 function calculateSimilarity(str1: string, str2: string): number {
-  str1 = str1.replaceAll('(', '[').replaceAll(')', ']')
-  str2 = str2.replaceAll('(', '[').replaceAll(')', ']')
+  str1 = str1.replaceAll('(', '[').replaceAll(')', ']').replaceAll("new ","")
+  str2 = str2.replaceAll('(', '[').replaceAll(')', ']').replaceAll("new ","")
   const len1 = str1.length
   const len2 = str2.length
   const dp: number[][] = Array.from({ length: len1 + 1 }, () => Array(len2 + 1).fill(0))

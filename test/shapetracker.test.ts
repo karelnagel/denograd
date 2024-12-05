@@ -8,9 +8,12 @@ Deno.test(
     [
       [[5, 5]],
       [[UOp.int(44), UOp.int(-44)]],
+      [[UOp.int(44), UOp.int(44)]],
+      [[4, UOp.int(44344)]],
     ],
     tryCatch(ShapeTracker.from_shape),
     'out(trycatch(lambda: tiny.shape.shapetracker.ShapeTracker.from_shape(*data)))',
+    { stringSimilarity: 0.82 },
   ),
 )
 

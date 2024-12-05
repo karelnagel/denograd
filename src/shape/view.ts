@@ -119,7 +119,7 @@ export class View {
 
   static create = (shape: sint[], strides?: sint[], offset: sint = 0, mask?: [sint, sint][]) => {
     // TODO: this resolve shouldn't be needed
-    if (!shape.some((s) => resolve(ge(s, 0)))) throw new Error(`Trying to create View with negative dimension: ${shape}`)
+    if (!shape.every((s) => resolve(ge(s, 0)))) throw new Error(`Trying to create View with negative dimension: shape=${shape}`)
     strides = strides ? canonicalize_strides(shape, strides) : strides_for_shape(shape)
     // # canonicalize 0 in shape
     if (shape.includes(0)) return new View({ shape, strides: range(shape.length).map(() => 0), offset: 0, mask: undefined, contiguous: true })

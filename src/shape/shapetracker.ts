@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { assert, range } from '../helpers.ts'
+import { assert, isEq, range } from '../helpers.ts'
 import { getNumberEnv, isNone, isNotNone, mergeMaps, zip } from '../helpers.ts'
 import { graphRewrite, mul, Ops, simplifyValid, type sint, splitUOp, symbolicFlat, UOp, uopGivenValid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
@@ -27,8 +27,10 @@ export class ShapeTracker {
 
   // deno-fmt-ignore
   get contiguous() {return this.views.length === 1 && this.views[0].contiguous}
-  // deno-fmt-ignore
-  get consecutive() {return this.views.length === 1 && isNone(this.views[0].mask) && this.views[0].strides === strides_for_shape(this.views[0].shape)}
+  get consecutive() {
+    const v = this.views[0]
+    return this.views.length === 1 && isNone(v.mask) && isEq(v.strides, strides_for_shape(v.shape))
+  }
   // deno-fmt-ignore
   get shape() {return this.views.at(-1)!.shape}
   // deno-fmt-ignore
