@@ -122,6 +122,7 @@ Deno.test(
   compare(
     [
       ['kernel1', [
+        new UOp({ op: Ops.SPECIAL, arg: ['#pragma unroll'] }),
         new UOp({ op: Ops.DEFINE_GLOBAL, dtype: dtypes.int, arg: 0 }),
         new UOp({ op: Ops.STORE, src: [new UOp({ op: Ops.DEFINE_GLOBAL, arg: 0 }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 42 })] }),
       ]],
@@ -142,7 +143,7 @@ Deno.test(
         new UOp({ op: Ops.ENDIF }),
       ]],
       ['kernel5', [
-        new UOp({ op: Ops.DEFINE_ACC, dtype: dtypes.float, arg: 'acc' }),
+        new UOp({ op: Ops.DEFINE_ACC, dtype: dtypes.float, arg: 'acc',src:[UOp.int(3)] }),
         new UOp({ op: Ops.SPECIAL, arg: ['#pragma unroll'] }),
         new UOp({ op: Ops.GEP, src: [new UOp({ op: Ops.DEFINE_GLOBAL, arg: 0 })], arg: [0] }),
       ]],
