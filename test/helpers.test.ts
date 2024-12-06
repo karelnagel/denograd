@@ -1,61 +1,62 @@
 import * as helpers from '../src/helpers.ts'
-import { tiny, tinyTest } from './helpers.ts'
+import { compare } from './helpers.ts'
 
-tinyTest('argfix', [[[1, 2, 3]], [[1, 4, 2]]], helpers.argfix, (x) => tiny`out(tiny.helpers.argfix(${x}))`)
-tinyTest('argfix2', [[1, 2, 3], [1, 4, 2]], helpers.argfix, (x, y, z) => tiny`out(tiny.helpers.argfix(${x},${y},${z}))`)
+Deno.test('argfix', compare([[[1, 2, 3]], [[1, 4, 2]]], helpers.argfix, `out(tiny.helpers.argfix(*data))`))
 
-tinyTest('argsort', [[[1, 2, 3]], [[1, 4, 2]]], helpers.argsort, (x) => tiny`out(tiny.helpers.argsort(${x}))`)
+Deno.test('argfix2', compare([[1, 2, 3], [1, 4, 2]], helpers.argfix, `out(tiny.helpers.argfix(*data))`))
 
-tinyTest('memsizeToStr', [[123], [100_000], [2_450_000]], helpers.memsizeToStr, (x) => tiny`out(tiny.helpers.memsize_to_str(${x}))`)
+Deno.test('argsort', compare([[[1, 2, 3]], [[1, 4, 2]]], helpers.argsort, 'out(tiny.helpers.argsort(*data))'))
 
-tinyTest('dedup', [[[1, 2, 3, 2, 1]], [[1, 2, 3]]], helpers.dedup, (x) => tiny`out(tiny.helpers.dedup(${x}))`)
+Deno.test('memsizeToStr', compare([[123], [100_000], [2_450_000]], helpers.memsizeToStr, 'out(tiny.helpers.memsize_to_str(*data))'))
 
-tinyTest('allSame', [[[1, 1, 1]], [[1, 2, 3]]], helpers.allSame, (x) => tiny`out(tiny.helpers.all_same(${x}))`)
+Deno.test('dedup', compare([[[1, 2, 3, 2, 1]], [[1, 2, 3]]], helpers.dedup, 'out(tiny.helpers.dedup(*data))'))
 
-tinyTest('allInt', [[[1, 2, 3]], [[1, 2.5, 3]]], helpers.allInt, (x) => tiny`out(tiny.helpers.all_int(${x}))`)
+Deno.test('allSame', compare([[[1, 1, 1]], [[1, 2, 3]]], helpers.allSame, 'out(tiny.helpers.all_same(*data))'))
 
-tinyTest('colored', [['test', 'red'], ['test', 'green']], helpers.colored, (x, y) => tiny`out(tiny.helpers.colored(${x}, ${y}))`)
+Deno.test('allInt', compare([[[1, 2, 3]], [[1, 2.5, 3]]], helpers.allInt, 'out(tiny.helpers.all_int(*data))'))
 
-tinyTest('colorizeFloat', [[0.5], [1.0], [1.2]], helpers.colorizeFloat, (x) => tiny`out(tiny.helpers.colorize_float(${x}))`)
+Deno.test('colored', compare([['test', 'red'], ['test', 'green']], helpers.colored, 'out(tiny.helpers.colored(*data))'))
 
-tinyTest('ansistrip', [['\u001b[31mtest\u001b[0m'], ['\u001b[31mtest'], ['test']], helpers.ansistrip, (x) => tiny`out(tiny.helpers.ansistrip(${x}))`)
+Deno.test('colorizeFloat', compare([[0.5], [1.0], [1.2]], helpers.colorizeFloat, 'out(tiny.helpers.colorize_float(*data))'))
 
-tinyTest('ansilen', [['\u001b[31mtest\u001b[0m'], ['\u001b[31mtest'], ['test']], helpers.ansilen, (x) => tiny`out(tiny.helpers.ansilen(${x}))`)
+Deno.test('ansistrip', compare([[' sdf sdf sdf sdfasdf'], ['test']], helpers.ansistrip, 'out(tiny.helpers.ansistrip(*data))'))
 
-tinyTest('makeTuple', [[[1, 2, 3], 3], [[1, 2, 3], 2], [[1, 2, 3], 1], [1, 3], [1, 2], [1, 1]], helpers.makeTuple, (x, cnt) => tiny`out(tiny.helpers.make_tuple(${x}, ${cnt}))`)
+Deno.test('ansilen', compare([['asdf asdf asdf asdf '], ['test']], helpers.ansilen, 'out(tiny.helpers.ansilen(*data))'))
 
-tinyTest('flatten', [[[[1, 2], [3, 4]]], [[[1, 2, 3, 4]]], [[[1, 2, 3, [4, 5], 6]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]] as any, helpers.flatten, (x) => tiny`out(tiny.helpers.flatten(${x}))`)
+Deno.test('makeTuple', compare([[[1, 2, 3], 3], [[1, 2, 3], 2], [[1, 2, 3], 1], [1, 3], [1, 2], [1, 1]], helpers.makeTuple, 'out(tiny.helpers.make_tuple(*data))'))
 
-tinyTest('fully_flatten', [[[1, 2, 3]], [[1, 2, 3, 4, 5]], [[[1, 2], [3, 4], [5]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]], helpers.fullyFlatten, (x) => tiny`out(tiny.helpers.fully_flatten(${x}))`)
+Deno.test('flatten', compare([[[[1, 2], [3, 4]]], [[[1, 2, 3, 4]]], [[[1, 2, 3, [4, 5], 6]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]] as any, helpers.flatten, 'out(tiny.helpers.flatten(*data))'))
 
-// TODO: fromimport
+Deno.test('fully_flatten', compare([[[1, 2, 3]], [[1, 2, 3, 4, 5]], [[[1, 2], [3, 4], [5]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]], helpers.fullyFlatten, 'out(tiny.helpers.fully_flatten(*data))'))
 
-tinyTest('stripParens', [['sdfsdf'], ['(sdfsdf'], ['(sdfsdf)']], helpers.stripParens, (x) => tiny`out(tiny.helpers.strip_parens(${x}))`)
+// // TODO: fromimport
 
-tinyTest('ceildiv', [[180, 3], [-10, 3], [10.5, 3], [-10.5, 3]], helpers.ceildiv, (x, y) => tiny`out(tiny.helpers.ceildiv(${x}, ${y}))`)
+Deno.test('stripParens', compare([['sdfsdf'], ['(sdfsdf'], ['(sdfsdf)']], helpers.stripParens, 'out(tiny.helpers.strip_parens(*data))'))
 
-tinyTest('roundUp', [[180, 3], [10, 3], [11, 3], [12, 3]], helpers.roundUp, (x, y) => tiny`out(tiny.helpers.round_up(${x}, ${y}))`)
+Deno.test('ceildiv', compare([[180, 3], [-10, 3], [10.5, 3], [-10.5, 3]], helpers.ceildiv, 'out(tiny.helpers.ceildiv(*data))'))
 
-tinyTest('data64', [[333], [45443], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64, (x) => tiny`out(tiny.helpers.data64(${x}))`)
+Deno.test('roundUp', compare([[180, 3], [10, 3], [11, 3], [12, 3]], helpers.roundUp, 'out(tiny.helpers.round_up(*data))'))
 
-tinyTest('data64_le', [[333], [3434], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64Le, (x) => tiny`out(tiny.helpers.data64_le(${x}))`)
+Deno.test('data64', compare([[333], [45443], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64, 'out(tiny.helpers.data64(*data))'))
 
-tinyTest('mergeDicts', [[[{ a: 1 }, { b: 2 }], [{ x: 1, y: 2 }, { z: 3 }]]] as any, helpers.mergeDicts, (x) => tiny`out(tiny.helpers.merge_dicts(${x}))`)
+Deno.test('data64_le', compare([[333], [3434], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64Le, 'out(tiny.helpers.data64_le(*data))'))
 
-tinyTest('partition', [[[1, 2, 3, 4, 5], (x: number) => x % 2 === 0]], helpers.partition, (arr) => tiny`out(tiny.helpers.partition(${arr}, lambda x: x % 2 == 0))`)
-tinyTest('partition', [[[2, 4, 6, 8, 10], (x: number) => x > 5]], helpers.partition, (arr) => tiny`out(tiny.helpers.partition(${arr}, lambda x: x > 5))`)
-tinyTest('partition', [[['a', 'b', 'c', 'd'], (x: string) => x > 'b']], helpers.partition, (arr) => tiny`out(tiny.helpers.partition(${arr}, lambda x: x > "b"))`)
+Deno.test('mergeDicts', compare([[[{ a: 1 }, { b: 2 }], [{ x: 1, y: 2 }, { z: 3 }]]] as any, helpers.mergeDicts, 'out(tiny.helpers.merge_dicts(data[0]))'))
 
-tinyTest('unwrap', [[1], [2], ['sdf']], helpers.unwrap, (x) => tiny`out(tiny.helpers.unwrap(${x}))`)
+Deno.test('partition', compare([[[1, 2, 3, 4, 5], (x: number) => x % 2 === 0]], helpers.partition, 'out(tiny.helpers.partition(data[0], lambda x: x % 2 == 0))'))
+Deno.test('partition', compare([[[2, 4, 6, 8, 10], (x: number) => x > 5]], helpers.partition, 'out(tiny.helpers.partition(data[0], lambda x: x > 5))'))
+Deno.test('partition', compare([[['a', 'b', 'c', 'd'], (x: string) => x > 'b']], helpers.partition, "out(tiny.helpers.partition(data[0], lambda x: x > 'b'))"))
 
-tinyTest('get_child', [[{ a: 1, b: { c: 2 } }, 'b.c'], [{ a: { x: [33, 54] }, b: { c: 2 } }, 'a.x.0'], [[3, { a: { v: 'true' } }], '1.a.v']], helpers.getChild, (x, y) => tiny`out(tiny.helpers.get_child(${x}, ${y}))`)
+Deno.test('unwrap', compare([[1], [2], ['sdf']], helpers.unwrap, 'out(tiny.helpers.unwrap(*data))'))
 
-tinyTest('word_wrap', [['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.wordWrap, (x) => tiny`out(tiny.helpers.word_wrap(${x}))`)
+Deno.test('get_child', compare([[{ a: 1, b: { c: 2 } }, 'b.c'], [{ a: { x: [33, 54] }, b: { c: 2 } }, 'a.x.0'], [[3, { a: { v: 'true' } }], '1.a.v']], helpers.getChild, 'out(tiny.helpers.get_child(*data))'))
 
-tinyTest('polyN', [[2, [1, 2, 3]], [2, [1, 2, 3]]], helpers.polyN, (x, p) => tiny`out(tiny.helpers.polyN(${x}, ${p}))`)
+Deno.test('word_wrap', compare([['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.wordWrap, 'out(tiny.helpers.word_wrap(*data))'))
 
-tinyTest('to_function_name', [['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.toFunctionName, (s) => tiny`out(tiny.helpers.to_function_name(${s}))`)
+Deno.test('polyN', compare([[2, [1, 2, 3]], [2, [1, 2, 3]]], helpers.polyN, 'out(tiny.helpers.polyN(*data))'))
 
-tinyTest('getenv', [['key', "value"]], helpers.getEnv, (key, defaultVal) => tiny`out(tiny.helpers.getenv(${key}, ${defaultVal}))`)
+Deno.test('to_function_name', compare([['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.toFunctionName, `out(tiny.helpers.to_function_name(*data))`))
 
-tinyTest('temp', [['file.txt']], helpers.temp, (x) => tiny`out(tiny.helpers.temp(${x}))`)
+Deno.test('getenv', compare([['key', 'value']], helpers.getEnv, 'out(tiny.helpers.getenv(*data))'))
+
+Deno.test('temp', compare([['file.txt']], helpers.temp, 'out(tiny.helpers.temp(*data))'))

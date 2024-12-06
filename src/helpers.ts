@@ -1,13 +1,105 @@
-// deno-lint-ignore-file no-explicit-any no-control-regex
+// deno-lint-ignore-file no-explicit-any no-control-regex camelcase
 import path from 'node:path'
 import process from 'node:process'
 import os from 'node:os'
+import { unlinkSync, writeFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
+export const divmod = (a: number, b: number) => [Math.floor(a / b), a % b] as [number, number]
+export function* counter(start = 0) {
+  let current = start
+  while (true) yield current++
+}
+export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map((x) => Array.isArray(x) ? listStr(x) : x).join(', ')}]` : `${x}`
+export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
+export const isLessThan = (a: any, b: any): boolean => {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return a.length < b.length
+    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return isLessThan(ai, bi)
+  }
+  if (typeof a === 'object' && typeof b === 'object' && 'lt' in a && 'lt' in b) {
+    return a.lt(b)
+  }
+  return a < b
+}
+export const isEq = (one: any, two: any): boolean => {
+  if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => isEq(o, two[i]))
+  // if (typeof one === 'object' && typeof two === 'object') return JSON.stringify(one) === JSON.stringify(two)//should not be needed after having cahces for classes
+  return one == two // this uses == instead of ===, cause in python 0==False, but in js 0!==false, but 0==false
+}
+export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
+
+type Sortable = { lt: (x: any) => boolean }
+export const sorted = <T extends Sortable>(items: T[], reverse = false) => !reverse ? items.toSorted((a, b) => a.lt(b) ? -1 : 1) : items.toSorted((a, b) => a.lt(b) ? 1 : -1)
+export const max = <T extends Sortable>(items: T[]) => sorted(items, true)[0]
+export const min = <T extends Sortable>(items: T[]) => sorted(items)[0]
+
+export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
+  if (map.has(key)) return map.get(key)!
+  map.set(key, defaultValue)
+  return defaultValue
+}
+
+type Iterableify<T> = { [K in keyof T]: Iterable<T[K]> }
+export function zip<T extends Array<any>>(...toZip: Iterableify<T>): T[] {
+  const iterators = toZip.map((i) => [...i])
+  const minLength = Math.min(...iterators.map((i) => i.length))
+  return range(minLength).map((i) => iterators.map((arr) => arr[i]) as T)
+}
+
+export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
+export const isNotNone = <T>(x: T | null | undefined): x is T => x !== undefined && x !== null
+
+export const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
+  const newVal = fn(map.get(key)!)
+  map.set(key, newVal)
+  return newVal
+}
 export const range = (i: number) => Array.from({ length: i }, (_, i) => i)
 export const d = <T extends any[]>(...t: T) => t
-export const assert = (condition: boolean, message: string) => {
+export const assert = (condition: boolean, message?: string): condition is true => {
   if (!condition) throw new Error(message)
+  return condition
+}
+export const raise = (msg?: string) => {
+  throw new Error(msg)
+}
+export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
+  if (length === 1) return arr.map((item) => [item])
+
+  const result: T[][] = []
+  arr.forEach((item, i) => {
+    const remaining = arr.slice(0, i).concat(arr.slice(i + 1))
+    permutations(remaining, length - 1).forEach((perm) => result.push([item, ...perm]))
+  })
+  return result
+}
+export const resolvePromise = <T>(promise: Promise<T>): T => {
+  let result
+  promise.then((x) => result = x)
+  while (result === undefined) {
+    // Wait for promise to resolve
+  }
+  return result
+}
+
+export function isSubset<T>(main: Set<T>, subset: Set<T>): boolean {
+  for (const elem of subset) if (!main.has(elem)) return false
+  return true
+}
+
+export function mathGcd(...numbers: number[]): number {
+  function gcdTwo(a: number, b: number): number {
+    while (b !== 0) {
+      const temp = b
+      b = a % b
+      a = temp
+    }
+    return Math.abs(a)
+  }
+  if (numbers.length === 0) throw new Error('At least one number must be provided')
+  return numbers.reduce((acc, num) => gcdTwo(acc, num))
 }
 // TINYGRAD CODE
 // NOTE: it returns int 1 if x is empty regardless of the type of x
@@ -28,7 +120,8 @@ export const argfix = (...x: any[]) => {
 }
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
-export const allSame = <T>(items: T[]) => items.every((x) => x === items[0])
+export const allSame = <T>(items: T[]) => items.every((x) => isEq(x, items[0]))
+export const isInt = (x: any): x is number => Number.isInteger(x)
 export const allInt = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
 export const colored = (st: string, color?: string, background = false) => {
   if (!color) return st
@@ -65,24 +158,36 @@ export const ceildiv = (num: number, amt: number): number => {
   return Number.isInteger(ret) ? ret : Math.floor(ret)
 }
 export const roundUp = (num: number, amt: number) => Math.ceil(num / amt) * amt
-export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0]
-export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))]
+export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0] // TODO:make work with sint
+export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))] // TODO:make work with sint
 export const mergeDicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
   const kvs = new Set(ds.flatMap((d) => Object.entries(d))) as Set<[T, U]>
   const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
   if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
   return Object.fromEntries(Array.from(kvs)) as Record<T, U>
 }
+export function mergeMaps<K, V>(maps: Iterable<Map<K, V>>): Map<K, V> {
+  const resultMap = new Map<K, V>()
+  for (const map of maps) {
+    if (!(map instanceof Map)) continue
+    for (const [key, value] of map.entries()) {
+      if (resultMap.has(key) && resultMap.get(key) !== value) throw new Error(`Cannot merge, key "${key}" has conflicting values.`)
+      resultMap.set(key, value)
+    }
+  }
+
+  return resultMap
+}
 
 export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])
 export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
-export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
+export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
 export const toFunctionName = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
 export const getEnv = (key: string, defaultVal = '') => process.env[key] || defaultVal
-export const getNumberEnv = (key: string, defaultVal: number) => Number(process.env[key] || defaultVal)
+export const getNumberEnv = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)
 
 export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [getNumberEnv('DEBUG', 0), getNumberEnv('IMAGE', 0), getNumberEnv('BEAM', 0), getNumberEnv('NOOPT', 0), getNumberEnv('JIT', 1)]
@@ -151,57 +256,57 @@ export const CACHELEVEL = getNumberEnv('CACHELEVEL', 2)
 
 // VERSION = 16
 // _db_connection = None
-// def db_connection():
-//   global _db_connection
-//   if _db_connection is None:
-//     os.makedirs(CACHEDB.rsplit(os.sep, 1)[0], exist_ok=True)
-//     _db_connection = sqlite3.connect(CACHEDB, timeout=60, isolation_level="IMMEDIATE")
-//     # another connection has set it already or is in the process of setting it
-//     # that connection will lock the database
-//     with contextlib.suppress(sqlite3.OperationalError): _db_connection.execute("PRAGMA journal_mode=WAL").fetchone()
-//     if DEBUG >= 7: _db_connection.set_trace_callback(print)
-//   return _db_connection
-
-// def diskcache_clear():
-//   cur = db_connection().cursor()
-//   drop_tables = cur.execute("SELECT 'DROP TABLE IF EXISTS ' || quote(name) || ';' FROM sqlite_master WHERE type = 'table';").fetchall()
-//   cur.executescript("\n".join([s[0] for s in drop_tables] + ["VACUUM;"]))
-
-// def diskcache_get(table:str, key:Union[Dict, str, int]) -> Any:
-//   if CACHELEVEL == 0: return None
-//   if isinstance(key, (str,int)): key = {"key": key}
-//   conn = db_connection()
-//   cur = conn.cursor()
-//   try:
-//     res = cur.execute(f"SELECT val FROM '{table}_{VERSION}' WHERE {' AND '.join([f'{x}=?' for x in key.keys()])}", tuple(key.values()))
-//   except sqlite3.OperationalError:
-//     return None  # table doesn't exist
-//   if (val:=res.fetchone()) is not None: return pickle.loads(val[0])
-//   return None
-
+export const dbConnection = () => {
+  //   global _db_connection
+  //   if _db_connection is None:
+  //     os.makedirs(CACHEDB.rsplit(os.sep, 1)[0], exist_ok=True)
+  //     _db_connection = sqlite3.connect(CACHEDB, timeout=60, isolation_level="IMMEDIATE")
+  //     # another connection has set it already or is in the process of setting it
+  //     # that connection will lock the database
+  //     with contextlib.suppress(sqlite3.OperationalError): _db_connection.execute("PRAGMA journal_mode=WAL").fetchone()
+  //     if DEBUG >= 7: _db_connection.set_trace_callback(print)
+  //   return _db_connection
+}
+export const diskcacheClear = () => {
+  //   cur = db_connection().cursor()
+  //   drop_tables = cur.execute("SELECT 'DROP TABLE IF EXISTS ' || quote(name) || ';' FROM sqlite_master WHERE type = 'table';").fetchall()
+  //   cur.executescript("\n".join([s[0] for s in drop_tables] + ["VACUUM;"]))
+}
+export const diskcacheGet = (table: string, key: string | number): string | null => {
+  //   if CACHELEVEL == 0: return None
+  //   if isinstance(key, (str,int)): key = {"key": key}
+  //   conn = db_connection()
+  //   cur = conn.cursor()
+  //   try:
+  //     res = cur.execute(f"SELECT val FROM '{table}_{VERSION}' WHERE {' AND '.join([f'{x}=?' for x in key.keys()])}", tuple(key.values()))
+  //   except sqlite3.OperationalError:
+  //     return None  # table doesn't exist
+  //   if (val:=res.fetchone()) is not None: return pickle.loads(val[0])
+  return null
+}
 // _db_tables = set()
-// def diskcache_put(table:str, key:Union[Dict, str, int], val:Any):
-//   if CACHELEVEL == 0: return val
-//   if isinstance(key, (str,int)): key = {"key": key}
-//   conn = db_connection()
-//   cur = conn.cursor()
-//   if table not in _db_tables:
-//     TYPES = {str: "text", bool: "integer", int: "integer", float: "numeric", bytes: "blob"}
-//     ltypes = ', '.join(f"{k} {TYPES[type(key[k])]}" for k in key.keys())
-//     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}_{VERSION}' ({ltypes}, val blob, PRIMARY KEY ({', '.join(key.keys())}))")
-//     _db_tables.add(table)
-//   cur.execute(f"REPLACE INTO '{table}_{VERSION}' ({', '.join(key.keys())}, val) VALUES ({', '.join(['?']*len(key.keys()))}, ?)", tuple(key.values()) + (pickle.dumps(val), ))  # noqa: E501
-//   conn.commit()
-//   cur.close()
-//   return val
-
-// def diskcache(func):
-//   def wrapper(*args, **kwargs) -> bytes:
-//     table, key = f"cache_{func.__name__}", hashlib.sha256(pickle.dumps((args, kwargs))).hexdigest()
-//     if (ret:=diskcache_get(table, key)): return ret
-//     return diskcache_put(table, key, func(*args, **kwargs))
-//   return wrapper
-
+export const diskcachePut = (table: string, key: string | number, val: any) => {
+  //   if CACHELEVEL == 0: return val
+  //   if isinstance(key, (str,int)): key = {"key": key}
+  //   conn = db_connection()
+  //   cur = conn.cursor()
+  //   if table not in _db_tables:
+  //     TYPES = {str: "text", bool: "integer", int: "integer", float: "numeric", bytes: "blob"}
+  //     ltypes = ', '.join(f"{k} {TYPES[type(key[k])]}" for k in key.keys())
+  //     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}_{VERSION}' ({ltypes}, val blob, PRIMARY KEY ({', '.join(key.keys())}))")
+  //     _db_tables.add(table)
+  //   cur.execute(f"REPLACE INTO '{table}_{VERSION}' ({', '.join(key.keys())}, val) VALUES ({', '.join(['?']*len(key.keys()))}, ?)", tuple(key.values()) + (pickle.dumps(val), ))  # noqa: E501
+  //   conn.commit()
+  //   cur.close()
+  //   return val
+}
+export const diskcache = (func: any) => {
+  //   def wrapper(*args, **kwargs) -> bytes:
+  //     table, key = f"cache_{func.__name__}", hashlib.sha256(pickle.dumps((args, kwargs))).hexdigest()
+  //     if (ret:=diskcache_get(table, key)): return ret
+  //     return diskcache_put(table, key, func(*args, **kwargs))
+  //   return wrapper
+}
 // # *** http support ***
 
 // def _ensure_downloads_dir() -> pathlib.Path:
@@ -239,31 +344,74 @@ export const CACHELEVEL = getNumberEnv('CACHELEVEL', 2)
 
 // # *** Exec helpers
 
-// def cpu_time_execution(cb, enable):
-//   if enable: st = time.perf_counter()
-//   cb()
-//   if enable: return time.perf_counter()-st
-
-// def cpu_objdump(lib, objdump_tool='objdump'):
-//   with tempfile.NamedTemporaryFile(delete=True) as f:
-//     pathlib.Path(f.name).write_bytes(lib)
-//     print(subprocess.check_output([objdump_tool, '-d', f.name]).decode('utf-8'))
+export const cpuTimeExecution = (cb: () => void, enable: boolean) => {
+  let st = 0
+  if (enable) st = performance.now()
+  cb()
+  if (enable) return performance.now() - st
+}
+export const cpuObjdump = (lib: bytes, objdumpTool = 'objdump') => {
+  const outputFile = temp('temp_output.so')
+  writeFileSync(outputFile, lib)
+  try {
+    const output = execSync(`${objdumpTool} -d ${outputFile}`, { encoding: 'utf-8' })
+    console.log(output)
+  } finally {
+    unlinkSync(outputFile)
+  }
+}
 
 // # *** ctypes helpers
+export type bytes = any
+export class bytearray {
+  constructor(i: number) {}
+}
+export class memoryview {
+  constructor(obj?: c_char | bytearray) {}
+  get length() {
+    return 0
+  }
+  get nbytes() {
+    return 0
+  }
+  cast = (format: string, shape?: number[]) => new memoryview()
+  slice = (from: number, to?: number) => new memoryview()
+}
+
+export class c_char {
+  from_buffer = (mv: memoryview) => {}
+  mul = (other: number) => new c_char()
+  call = () => {}
+}
+export class c_ubyte {
+  mul = (other: number) => new c_ubyte()
+  call = () => {}
+  fromAddress = (ptr: number) => {}
+}
+type CData = any
+
+export class ctypes {
+  static cast = (obj: any, type: any) => {
+    return { contents: [new c_char()] }
+  }
+  static addressof = (obj: CData): number => {
+    return 0
+  }
+  static memmove = (dst: any, src: any, count: number) => {}
+  static POINTER = (type: c_char) => new c_char()
+  static create_string_buffer = (init: bytes) => {}
+  static c_char = new c_char()
+  static c_uint8 = new c_ubyte()
+  static CDLL = (file: string) => {
+    return { get: (name: string) => (...args: any[]) => {} }
+  }
+}
 
 // # TODO: make this work with read only memoryviews (if possible)
-// def from_mv(mv:memoryview, to_type=ctypes.c_char):
-//   return ctypes.cast(ctypes.addressof(to_type.from_buffer(mv)), ctypes.POINTER(to_type * len(mv))).contents
-// def to_mv(ptr, sz) -> memoryview: return memoryview(ctypes.cast(ptr, ctypes.POINTER(ctypes.c_uint8 * sz)).contents).cast("B")
-// def mv_address(mv:memoryview): return ctypes.addressof(ctypes.c_char.from_buffer(mv))
-// def to_char_p_p(options: List[bytes], to_type=ctypes.c_char): return (ctypes.POINTER(to_type) * len(options))(*[ctypes.cast(ctypes.create_str_buffer(o), ctypes.POINTER(to_type)) for o in options])  # noqa: E501
-// @functools.lru_cache(maxsize=None)
-// def init_c_struct_t(fields: Tuple[Tuple[str, ctypes._SimpleCData], ...]):
-//   class CStruct(ctypes.Structure):
-//     _pack_, _fields_ = 1, fields
-//   return CStruct
-// def init_c_var(ctypes_var, creat_cb): return (creat_cb(ctypes_var), ctypes_var)[1]
-// def flat_mv(mv:memoryview): return mv if len(mv) == 0 else mv.cast("B", shape=(mv.nbytes,))
+export const from_mv = (mv: memoryview, to_type = ctypes.c_char): c_char[] => {
+  return ctypes.cast(ctypes.addressof(to_type.from_buffer(mv)), ctypes.POINTER(to_type.mul(mv.length))).contents
+}
+export const flat_mv = (mv: memoryview) => mv.length === 0 ? mv : mv.cast('B', [mv.nbytes])
 
 // # *** universal support for code object pickling
 

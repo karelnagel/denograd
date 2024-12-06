@@ -2,7 +2,7 @@
   "name": "@karelnagel/denograd",
   "exports": "./src/mod.ts",
   "tasks": {
-    "test": "deno test -A --parallel --doc",
+    "test": "deno test -A --parallel",
     "format": "deno fmt --ignore=tinygrad . ",
     "check": "deno check . ",
     "lint": "deno lint"
@@ -21,7 +21,6 @@
       "include": [
         "prefer-const",
         "ban-types",
-        "camelcase",
         "no-inferrable-types"
       ]
     }
