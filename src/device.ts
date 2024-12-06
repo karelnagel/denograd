@@ -27,7 +27,7 @@ export class _Device {
   __getCanonicalizedItem = (ix: string): Compiled => {
     // TODO take this progremmatically
     const cpn = 'MainProcess' //multiprocessing.current_process().name
-    assert(cpn === 'MainProcess' || ['DISK', 'NPY'].includes(ix.split(':')[0]), `can only open device ${ix} from parent, not ${cpn}`)
+    assert(cpn === 'MainProcess' || ['DISK', 'NPY', 'PYTHON'].includes(ix.split(':')[0]), `can only open device ${ix} from parent, not ${cpn}`)
     const ret = resolvePromise(DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]())
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
     return new ret(ix)
@@ -131,7 +131,7 @@ export class Buffer {
     if (isNotNone(this._base)) {
       return [Buffer, [this.device, this.size, this.dtype, undefined, undefined, undefined, 0, this.base(), this.offset, this.isAllocated()]]
     }
-    if (this.device == 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lbRefcount()]]
+    if (this.device === 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lbRefcount()]]
     if (this.isAllocated()) {
       buf = new bytearray(this.nbytes)
       this.copyout(new memoryview(buf))
@@ -160,7 +160,7 @@ export class Buffer {
   }
   copyin = (mv: memoryview): Buffer => {
     mv = flat_mv(mv)
-    assert(mv.length == this.nbytes, `size mismatch, ${mv.length} != ${this.dtype} ${this.size}`)
+    assert(mv.length === this.nbytes, `size mismatch, ${mv.length} != ${this.dtype} ${this.size}`)
     assert(this.isAllocated(), "can't copyin to unallocated buffer")
     this.allocator?._copyin(this._buf, mv)
     return this
@@ -293,7 +293,7 @@ export const isDTypeSupported = (dtype: DType, device?: string): boolean => {
     // NOTE: this requires bf16 buffer support
     return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !CI && !getEnv('PTX')
   }
-  if (['WEBGPU', 'WEBGL'].includes(device)) return [dtypes.float, dtypes.int32, dtypes.uint32].includes(dtype)
+  if (device === 'WEBGPU') return [dtypes.bool, dtypes.char, dtypes.uchar, dtypes.short, dtypes.ushort, dtypes.float, dtypes.int32, dtypes.uint32].includes(dtype)
   // for CI GPU and OSX, cl_khr_fp16 isn't supported
   // for CI LLVM, it segfaults because it can't link to the casting function
   // CI CUDA architecture is sm_35 but we need at least sm_70 to run fp16 ALUs
@@ -302,7 +302,7 @@ export const isDTypeSupported = (dtype: DType, device?: string): boolean => {
     if (device === 'GPU') return !CI && !OSX
     if (['CUDA', 'NV'].includes(device)) return !CI
     if (device === 'LLVM') return OSX
-    // if device == "PYTHON": return sys.version_info >= (3, 12)
+    // if device === "PYTHON": return sys.version_info >= (3, 12)
   }
   if (dtype === dtypes.float64) return device !== 'METAL' && !(OSX && device === 'GPU')
   return true

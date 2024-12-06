@@ -1,10 +1,10 @@
 import { dtypes } from '../dtype.ts'
 import { allInt, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
 import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
-import { add, ge, idiv, lt, mod, mul, resolve, type sint, sintToUOp, sub, UOp } from '../ops.ts'
+import { add, ge, idiv, lt, mod, mul, resolve, type sint, sint_to_uop, sub, UOp } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
-  return shape.map((s, i) => ({ s, st: strides[i] })).map(({ s, st }) => s == 1 ? 0 : st)
+  return shape.map((s, i) => ({ s, st: strides[i] })).map(({ s, st }) => s === 1 ? 0 : st)
 }
 
 export const strides_for_shape = (shape: sint[]): sint[] => {
@@ -26,8 +26,8 @@ export const _merge_dims = (shape: sint[], strides: sint[], mask?: [sint, sint][
     // always merge 1
     if (s === 1) continue
     // merge last dim with this dim if merging or strides matched
-    if (merging || last_st === mul(s, st)) ret[ret.length - 1] = [mul(last_s, s), st, st != 0 ? (merging ? s : mul(last_pre_expand_s, s)) : 0]
-    else ret.push([s, st, st != 0 ? s : 0])
+    if (merging || last_st === mul(s, st)) ret[ret.length - 1] = [mul(last_s, s), st, st !== 0 ? (merging ? s : mul(last_pre_expand_s, s)) : 0]
+    else ret.push([s, st, st !== 0 ? s : 0])
     // merge this dim to next dim if size is 1
     merging = isNotNone(mask) ? sub(mask[i][1], mask[i][0]) === 1 : s === 1
   }
@@ -101,7 +101,7 @@ export class View {
   toString = () => `new View({shape:${listStr(this.shape)},strides:${listStr(this.strides)},offset:${this.offset},mask:${listStr(this.mask)},contiguous:${this.contiguous}})`
   to_indexed_uops = (_idxs?: UOp[], vexpr = UOp.const(dtypes.bool, true)): [UOp, UOp] => {
     const idxs = isNone(_idxs) ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
-    let iexpr = sintToUOp(this.offset)
+    let iexpr = sint_to_uop(this.offset)
     for (const [idx, sh, st, m] of zip(idxs, this.shape, this.strides, isNotNone(this.mask) ? this.mask : this.shape.map((x) => undefined))) {
       if (resolve(ne(sh, 1)) && resolve(ne(st, 0))) iexpr = iexpr.add(idx.mul(st))
       if (isNotNone(m)) {
@@ -246,7 +246,7 @@ export class View {
     let ret = View.create(this.shape)
     if (this.mask) ret = ret.shrink(this.mask)
     ret = ret.stride(this.strides.map((x) => lt(x, 0) ? -1 : 1)).permute(argsort(this.strides.map((x) => gt(x, 0) ? -x : x)))
-    return isEq(sint_prod(ret.shape), sint_prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride != (-1, 1)
+    return isEq(sint_prod(ret.shape), sint_prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride !== (-1, 1)
   }
   minify = () => this.reshape(_merge_dims(this.shape, this.strides, this.mask).map((x) => x[0])) || this
   __unsafe_resize = (arg: [sint, sint][], mask?: [sint, sint][]): View => {

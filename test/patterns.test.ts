@@ -1,11 +1,12 @@
 import { expect } from 'expect/expect'
-import { _substitute, Ops, renderer, spec, symbolicFlat, UOp, type UPat } from '../src/ops.ts'
+import { _substitute, merge_views, Ops, renderer, spec, symbolicFlat, UOp, type UPat, view_left } from '../src/ops.ts'
 import { asdict, python, removeKeys, tryCatch } from './helpers.ts'
 import { base_rewrite, extra_pm } from '../src/renderer/cstyle.ts'
 import { entries, zip } from '../src/helpers.ts'
 import { type DType, dtypes } from '../src/dtype.ts'
 import { symbolicSimple } from '../src/ops.ts'
 import { symbolic } from '../src/ops.ts'
+import { ShapeTracker } from '../src/shape/shapetracker.ts'
 
 const ALL_PATTERN_MATCHERS = {
   'tinygrad.ops.spec': {
@@ -171,6 +172,23 @@ const ALL_PATTERN_MATCHERS = {
       new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.NOOP, arg: 'a' }), new UOp({ op: Ops.NOOP, arg: 'b' })] }),
     ],
   },
+  'tinygrad.ops.merge_views': {
+    matcher: merge_views,
+    uops: [
+      new UOp({ op: Ops.VIEW, src: [UOp.int(20)], arg: new ShapeTracker([]) }),
+    ],
+  },
+  // TODO: not sure if these trigger any patterns at all
+  'tinygrad.ops.view_left': {
+    matcher: view_left,
+    uops: [
+      new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
+      new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.CONST })] }),
+      new UOp({ op: Ops.BITCAST, src: [new UOp({ op: Ops.CONST })] }),
+      new UOp({ op: Ops.ASSIGN, src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
+      new UOp({ op: Ops.LOAD, src: [new UOp({ op: Ops.VIEW })] }),
+    ],
+  },
   'tinygrad.renderer.cstyle.base_rewrite': {
     matcher: base_rewrite,
     uops: [
@@ -200,22 +218,26 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
   const splits = name.split('.')
   const pythonImport = `from ${splits.slice(0, -2).join('.')} import ${splits.at(-2)}`
 
-  Deno.test(`${name}_patterns`, async () => {
+  Deno.test(`${name}_patterns`, async (t) => {
     const TSPatterns = matcher.patterns.map((pattern) => pattern[0])
     const PYPatterns = await python(`${pythonImport}\nout([pattern[0] for pattern in ${splits.slice(-2).join('.')}.patterns])`)
-    for (const [ts, py] of zip(TSPatterns, PYPatterns)) {
-      expect(asdict(removeKeys(ts, ['location', 'op']))).toEqual(asdict(removeKeys(py, ['location', 'op'])))
+    for (const [i, [ts, py]] of zip(TSPatterns, PYPatterns).entries()) {
+      await t.step(i.toString(), () => {
+        expect(asdict(removeKeys(ts, ['location', 'op']))).toEqual(asdict(removeKeys(py, ['location', 'op'])))
+      })
     }
   })
 
-  Deno.test(`${name}_pdict`, async () => {
+  Deno.test(`${name}_pdict`, async (t) => {
     const PYDict = await python<Record<string, [UPat, undefined, Ops[], boolean][]>>(`${pythonImport}\nout(${splits.slice(-2).join('.')}.pdict)`)
     for (const [key, ts] of matcher.pdict.entries()) {
       const py = PYDict[key]
-      for (const [ts1, py1] of zip(ts as any[], py)) {
-        expect(asdict(removeKeys(ts1[0], ['location', 'op']))).toEqual(asdict(removeKeys(py1[0], ['location', 'op']))) //UPat
-        expect([...ts1[2]].toSorted()).toEqual(py1[2].toSorted()) // Ops[]
-        expect(ts1[3]).toEqual(py1[3]) // has ctx?
+      for (const [i, [ts1, py1]] of zip(ts as any[], py).entries()) {
+        await t.step(i.toString(), () => {
+          expect(asdict(removeKeys(ts1[0], ['location', 'op']))).toEqual(asdict(removeKeys(py1[0], ['location', 'op']))) //UPat
+          expect([...ts1[2]].toSorted()).toEqual(py1[2].toSorted()) // Ops[]
+          expect(ts1[3]).toEqual(py1[3]) // has ctx?
+        })
       }
     }
   })

@@ -1,20 +1,20 @@
-import { canPad, Ops, resolve, smax, smin, UOp, UPat } from '../src/ops.ts'
+import { can_pad, Ops, resolve, smax, smin, UOp, UPat } from '../src/ops.ts'
 import { compare, tryCatch } from './helpers.ts'
 import { dtypes } from '../src/dtype.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
 
 Deno.test(
-  'canPad',
+  'can_pad',
   compare(
     [
-      [new UOp({ op: Ops.RECIP })],
-      [new UOp({ op: Ops.ADD })],
+      [new UOp({ op: Ops.RECIP }), new Map(), new Set([])],
+      [new UOp({ op: Ops.ADD }), new Map(), new Set([])],
 
-      [new UOp({ op: Ops.RECIP, src: [new UOp({ op: Ops.IDIV })] })],
-      [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.IDIV })] })],
+      [new UOp({ op: Ops.RECIP, src: [new UOp({ op: Ops.IDIV })] }), new Map(), new Set([])],
+      [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.IDIV })] }), new Map(), new Set([])],
     ],
-    canPad,
-    'out(tiny.ops.can_pad(*data))',
+    can_pad,
+    'out(tiny.ops.can_pad(data[0],{},set()))',
   ),
 )
 Deno.test(
@@ -40,19 +40,8 @@ Deno.test(
       [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.BARRIER, src: [new UOp({ op: Ops.CONST, arg: 69 })] })] })],
       [new UOp({ op: Ops.CONST, arg: 1 })],
     ],
-    (x: UOp) => [...x.parents().keys()],
-    'out(list(data[0].parents.keys()))',
-  ),
-)
-Deno.test(
-  'uop.sparents',
-  compare(
-    [
-      [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.BARRIER, src: [new UOp({ op: Ops.CONST, arg: 69 })] })] })],
-      [new UOp({ op: Ops.CONST, arg: 1 })],
-    ],
-    (x: UOp) => [...x.sparents().keys()],
-    'out(list(data[0].sparents.keys()))',
+    (x: UOp) => [...x.toposort],
+    'out(list(data[0].toposort.keys()))',
   ),
 )
 Deno.test(

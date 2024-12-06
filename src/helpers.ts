@@ -6,6 +6,11 @@ import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
+export const divmod = (a: number, b: number) => [Math.floor(a / b), a % b] as [number, number]
+export function* counter(start = 0) {
+  let current = start
+  while (true) yield current++
+}
 export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map((x) => Array.isArray(x) ? listStr(x) : x).join(', ')}]` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const isLessThan = (a: any, b: any): boolean => {
@@ -153,8 +158,8 @@ export const ceildiv = (num: number, amt: number): number => {
   return Number.isInteger(ret) ? ret : Math.floor(ret)
 }
 export const roundUp = (num: number, amt: number) => Math.ceil(num / amt) * amt
-export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0]
-export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))]
+export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0] // TODO:make work with sint
+export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))] // TODO:make work with sint
 export const mergeDicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
   const kvs = new Set(ds.flatMap((d) => Object.entries(d))) as Set<[T, U]>
   const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
@@ -178,7 +183,7 @@ export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr
 export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
-export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
+export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
 export const toFunctionName = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
 export const getEnv = (key: string, defaultVal = '') => process.env[key] || defaultVal

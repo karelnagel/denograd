@@ -52,13 +52,13 @@ export class ProgramSpec {
       for (const u of this.uops) {
         if (u.op === Ops.DEFINE_VAR) this.vars?.push(u)
         if (u.op === Ops.DEFINE_GLOBAL) this.globals.push(u.arg)
-        if (u.op === Ops.STORE) this.outs = [...this.outs, ...[...u.src[0].sparents().keys()].filter((x) => x.op === Ops.DEFINE_GLOBAL).map((x) => x.arg)]
+        if (u.op === Ops.STORE) this.outs = [...this.outs, ...[...u.src[0].toposort].filter((x) => x.op === Ops.DEFINE_GLOBAL).map((x) => x.arg)]
         if (u.op === Ops.SPECIAL) {
           // NOTE: you have to set local_size and global_size to the base [1,1,1] outside this
-          if (u.arg[0][0] == 'i') this.localSize = undefined
-          const specialSize = (u.arg[0][0] == 'l' ? this.localSize : this.globalSize) || []
+          if (u.arg[0][0] === 'i') this.localSize = undefined
+          const specialSize = (u.arg[0][0] === 'l' ? this.localSize : this.globalSize) || []
           assert(isNotNone(specialSize))
-          specialSize[Number(u.arg[0][-1])] = u.arg[1]
+          specialSize[Number(u.arg[0].at(-1)!)] = u.arg[1]
         }
       }
       this.vars = this.vars?.toSorted((a, b) => b.arg - a.arg)

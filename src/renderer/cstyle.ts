@@ -20,7 +20,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), ({ ctx, x }) => `${ctx.smem_align}${ctx.smem_prefix}${ctx.render_dtype(x.dtype.base)} ${ctx.get(x)}[${x.arg[1]}];`],
   [new UPat({ op: Ops.BARRIER }), ({ ctx }) => ctx.barrier],
   [new UPat({ op: Ops.NOOP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0])],
-  [new UPat({ op: Ops.SPECIAL, name: 'x' }), ({ ctx, x }) => `${ctx.code_for_workitem[x.arg[0][0] as keyof typeof ctx.code_for_workitem]?.(x.arg[0][-1])}; /* ${x.arg[1]} */`],
+  [new UPat({ op: Ops.SPECIAL, name: 'x' }), ({ ctx, x }) => `${ctx.code_for_workitem[x.arg[0][0] as keyof typeof ctx.code_for_workitem]?.(x.arg[0].at(-1)!)}; /* ${x.arg[1]} */`],
   // const
   [new UPat({ op: Ops.CONST, arg: Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`],
   [new UPat({ op: Ops.CONST, arg: -Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`],
@@ -43,17 +43,12 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allowAnyLen: true }), ({ ctx, bidx, var1 }) => `*${ctx.get(bidx)} = ${ctx.get(var1)};`],
   // alu/gep
   [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ ctx, x }) => ctx.code_for_op[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
-  [new UPat({ op: Ops.GEP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device == 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
+  [new UPat({ op: Ops.GEP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device === 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
 ])
 
 export const extra_pm = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
   // insert a NOOP before BITCAST to force it to be rendered. not needed on all backends?
   [new UPat({ op: Ops.BITCAST, name: 'x' }), ({ x }) => x.src[0].op !== Ops.NOOP ? new UOp({ op: Ops.BITCAST, dtype: x.dtype, src: [new UOp({ op: Ops.NOOP, dtype: x.src[0].dtype, src: x.src })] }) : undefined],
-  // gate any stores that aren't gated with ifs
-  [
-    new UPat({ op: Ops.STORE, dtype: dtypes.void, src: [new UPat({}), new UPat({}), new UPat({ dtype: dtypes.bool })], name: 'store' }),
-    ({ store }) => new UOp({ op: Ops.STORE, src: [...store.src.slice(0, -2), new UOp({ op: Ops.IF, src: [store.src[2]] })] }),
-  ],
   // rewrite MAX to CMPLT + WHERE (max function is annoying on many cstyle backends)
   [new UPat({ op: Ops.MAX, name: 'm' }), ({ m }) => (m.src[0].lt(m.src[1])).where(m.src[1], m.src[0])],
 ])
@@ -137,7 +132,7 @@ export class CStyleLanguage extends Renderer {
 
       // // mark buffers that we store to writable
       if (u.op === Ops.STORE) {
-        for (const up of u.src[0].sparents().keys()) {
+        for (const up of u.src[0].toposort) {
           if (up.op === Ops.DEFINE_GLOBAL) bufs.set(up, [bufs.get(up)![0], [bufs.get(up)![1][0], true]])
         }
       }
