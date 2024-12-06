@@ -1,14 +1,15 @@
 import { assert, getEnv, intersection, isEq, isLessThan, max, sorted } from './helpers.ts'
 
 export type ConstType<This = never> = number | boolean | This
+export type FmtStr = '?' | 'b' | 'B' | 'h' | 'H' | 'i' | 'I' | 'q' | 'Q' | 'e' | 'f' | 'd'
 
-export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: string; count: number; _scalar?: DType; kwargs?: any }
+export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: FmtStr; count: number; _scalar?: DType; kwargs?: any }
 export class DType {
   static dcache = new Map<string, DType>()
   priority!: number
   itemsize!: number
   name!: string
-  fmt?: string
+  fmt?: FmtStr
   count!: number
   _scalar?: DType
   // deno-fmt-ignore
@@ -19,7 +20,7 @@ export class DType {
     DType.dcache.set(key,this)
   }
 
-  static new = (...[priority, itemsize, name, fmt]: [number, number, string, string | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, _scalar: undefined })
+  static new = (...[priority, itemsize, name, fmt]: [number, number, string, FmtStr | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, _scalar: undefined })
   reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
   toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
   lt = (o: DType) => isLessThan(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]) as [number[], number[]])
@@ -34,28 +35,28 @@ export class DType {
     if (sz === 1 || isEq(this, dtypes.void)) return this // void doesn't vectorize, and sz=1 is scalar
     return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name]}${sz}`, fmt: undefined, count: sz, _scalar: this })
   }
-  ptr = (local = false) => new PtrDType({ ...this, _scalar: undefined, base: this, local, v: 1 })
+  ptr = (local = false) => new PtrDType({ ...this, _scalar: undefined, _base: this, local, v: 1 })
   scalar = () => this._scalar || this
 }
-export type PtrDTypeArgs = DTypeArgs & { base: DType; local: boolean; v: number }
+export type PtrDTypeArgs = DTypeArgs & { _base: DType; local: boolean; v: number }
 
 export class PtrDType extends DType {
   _base: DType
   local: boolean
   v: number
-  constructor({ base, local, v, ...args }: PtrDTypeArgs) {
-    super({ ...args, kwargs: { base, local, v } })
-    this._base = base
+  constructor({ _base, local, v, ...args }: PtrDTypeArgs) {
+    super({ ...args, kwargs: { _base, local, v } })
+    this._base = _base
     this.local = local
     this.v = v
   }
   override get base() {
     return this._base
   }
-  override vec(sz: number): DType {
-    assert(this.v === 1, `can't vectorize ptr ${self} with size ${sz}`)
+  override vec(sz: number): PtrDType {
+    assert(this.v === 1, `can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
-    return new PtrDType({ ...this, v: sz, _scalar: this, base: this.base, local: this.local })
+    return new PtrDType({ priority: this.priority, itemsize: this.itemsize, name: this.name, fmt: this.fmt, count: this.count, _scalar: this, _base: this.base, local: this.local, v: sz })
   }
   override ptr = (local = false): PtrDType => {
     throw new Error("can't make a pointer from a pointer")
@@ -75,6 +76,11 @@ export class ImageDType extends PtrDType {
   override ptr = (local = false) => {
     assert(!local, "images can't be local")
     return this
+  }
+  override vec(sz: number): ImageDType {
+    assert(this.v === 1, `can't vectorize ptr ${this} with size ${sz}`)
+    if (sz === 1) return this
+    return new ImageDType({ ...this, v: sz, _scalar: this, _base: this.base, local: this.local })
   }
   override toString = () => `dtypes.${this.name}((${this.shape.join(', ')}))${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
@@ -105,9 +111,9 @@ export class dtypes {
     if (dtypes.isInt(x)) return dtypes.isUnsigned(x) ? 0 : (-2) ** (x.itemsize * 8 - 1)
     return dtypes.isFloat(x) ? -Infinity : false
   }
-  static max(x: DType) {
-    if (dtypes.isInt(x)) return (2 ** (x.itemsize * 8 - (dtypes.isUnsigned(x) ? 0 : 1))) - 1
-    return dtypes.isFloat(x) ? Infinity : true
+  static max(dtype: DType) {
+    if (dtypes.isInt(dtype)) return 2 ** (dtype.itemsize * 8) - 1 + Number(dtypes.min(dtype))
+    return dtypes.isFloat(dtype) ? Infinity : true
   }
   /**
    * @returns [exponent, mantissa]
@@ -151,8 +157,8 @@ export class dtypes {
   static long = dtypes.int64
 
   // NOTE: these are image dtypes
-  static imageh = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, _scalar: undefined, base: dtypes.float32, local: false, v: 1, shape: shp })
-  static imagef = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, _scalar: undefined, base: dtypes.float32, local: false, v: 1, shape: shp })
+  static imageh = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, _scalar: undefined, _base: dtypes.float32, local: false, v: 1, shape: shp })
+  static imagef = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, _scalar: undefined, _base: dtypes.float32, local: false, v: 1, shape: shp })
 
   static defaultFloat = dtypes.float32
   static defaultInt = dtypes.int32

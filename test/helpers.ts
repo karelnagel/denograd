@@ -24,7 +24,9 @@ export const pyStr = (v: any, useList = false): string => {
     }, custom_early_reject=${pyStr(v.customEarlyReject)})`
   }
   if (v instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(v.op)}, dtype=${pyStr(v.dtype)}, src=${pyStr(v.src)}, arg=${pyStr(v.arg)})`
-  if (v instanceof ImageDType) return `tiny.dtype.ImageDType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)}, ${pyStr(v._base)}, ${pyStr(v.local)}, ${pyStr(v.v)}, ${pyStr(v.shape)})`
+  if (v instanceof ImageDType) {
+    return `tiny.dtype.ImageDType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)}, ${pyStr(v._base)}, ${pyStr(v.local)}, ${pyStr(v.v)}, ${pyStr(v.shape)})`
+  }
   if (v instanceof PtrDType) return `tiny.dtype.PtrDType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)}, ${pyStr(v._base)}, ${pyStr(v.local)}, ${pyStr(v.v)})`
   if (v instanceof DType) return `tiny.dtype.DType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)})`
   if (v instanceof View) return `tiny.shape.view.View(shape=${pyStr(v.shape)}, strides=${pyStr(v.strides)}, offset=${pyStr(v.offset)}, mask=${pyStr(v.mask)}, contiguous=${pyStr(v.contiguous)})`
@@ -70,8 +72,10 @@ export const deserialize = (data: string): any => {
     const type = i.__type
     if (type === 'UPat') return new UPat({ op: de(i.op), dtype: de(i.dtype), src: de(i.src), arg: de(i.arg), name: de(i.name), allowAnyLen: de(i.allow_any_len), location: de(i.location), customEarlyReject: de(i.custom_early_reject) })
     if (type === 'UOp') return new UOp({ op: de(i.op), dtype: de(i.dtype), src: de(i.src), arg: de(i.arg) })
-    if (type === 'ImageDType') return new ImageDType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar), shape: de(i.shape), base: de(i.base), local: de(i.local), v: de(i.v) })
-    if (type === 'PtrDType') return new PtrDType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar), base: de(i.base), local: de(i.local), v: de(i.v) })
+    if (type === 'ImageDType') {
+      return new ImageDType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar), shape: de(i.shape), _base: de(i.base), local: de(i.local), v: de(i.v) })
+    }
+    if (type === 'PtrDType') return new PtrDType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar), _base: de(i.base), local: de(i.local), v: de(i.v) })
     if (type === 'DType') return new DType({ priority: de(i.priority), itemsize: de(i.itemsize), name: de(i.name), fmt: de(i.fmt), count: de(i.count), _scalar: de(i._scalar) })
     if (type === 'View') return new View({ shape: de(i.shape), strides: de(i.strides), offset: de(i.offset), mask: de(i.mask), contiguous: de(i.contiguous) })
     if (type === 'ShapeTracker') return new ShapeTracker(de(i.views))
@@ -131,8 +135,8 @@ ${code}
 }
 
 function calculateSimilarity(str1: string, str2: string): number {
-  str1 = str1.replaceAll('(', '[').replaceAll(')', ']').replaceAll("new ","")
-  str2 = str2.replaceAll('(', '[').replaceAll(')', ']').replaceAll("new ","")
+  str1 = str1.replaceAll('(', '[').replaceAll(')', ']').replaceAll('new ', '')
+  str2 = str2.replaceAll('(', '[').replaceAll(')', ']').replaceAll('new ', '')
   const len1 = str1.length
   const len2 = str2.length
   const dp: number[][] = Array.from({ length: len1 + 1 }, () => Array(len2 + 1).fill(0))
