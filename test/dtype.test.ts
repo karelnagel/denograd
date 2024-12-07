@@ -62,7 +62,7 @@ Deno.test('dtypes', async () => {
   ;[dtypes.int, dtypes.bool, dtypes.void, dtypes.int8].forEach((int) => expect(dtypes.is_float(int)).toBe(false))
   ;[dtypes.uint8, dtypes.uchar, dtypes.ulong].forEach((uint) => expect(dtypes.is_unsigned(uint)).toBe(true))
   ;[dtypes.int16, dtypes.long, dtypes.float, dtypes.imagef(4, 4)].forEach((uint) => expect(dtypes.is_unsigned(uint)).toBe(false))
-  ;[dtypes.int, dtypes.defaultInt, dtypes.uint, dtypes.uchar].forEach((int) => expect(dtypes.is_int(int)).toBe(true))
+  ;[dtypes.int, dtypes.default_int, dtypes.uint, dtypes.uchar].forEach((int) => expect(dtypes.is_int(int)).toBe(true))
   ;[dtypes.float, dtypes.imagef(4, 4)].forEach((int) => expect(dtypes.is_int(int)).toBe(false))
 
   expect(asdict(dtypes.fields())).toEqual(await python(`out({k:asdict(v) for k,v in tiny.dtype.dtypes.fields().items()})`))
@@ -152,7 +152,7 @@ Deno.test(
       ['half', 'int'],
       ['half', 'float'],
     ] as const,
-    (...inputs) => dt.leastUpperDType(...inputs.map((i) => dtypes[i])),
+    (...inputs) => dt.least_upper_dtype(...inputs.map((i) => dtypes[i])),
     'out(tiny.dtype.least_upper_dtype(*[tiny.dtype.DTYPES_DICT[key] for key in data]))',
   ),
 )
@@ -167,7 +167,7 @@ Deno.test(
       ['int'],
       ['uint'],
     ] as const,
-    (input) => dt.sumAccDType(dtypes[input]),
+    (input) => dt.sum_acc_dtype(dtypes[input]),
     'out(tiny.dtype.sum_acc_dtype(tiny.dtype.DTYPES_DICT[data[0]]))',
   ),
 )

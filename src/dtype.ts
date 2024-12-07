@@ -90,10 +90,10 @@ export class dtypes {
   static is_int = (x: DType) => dtypes.ints.includes(x.scalar())
   static is_unsigned = (x: DType) => dtypes.uints.includes(x.scalar())
   static from_js = (x: number | boolean | (number | boolean)[]): DType => {
-    if (typeof x === 'number') return Number.isInteger(x) ? dtypes.defaultInt : dtypes.defaultFloat
+    if (typeof x === 'number') return Number.isInteger(x) ? dtypes.default_int : dtypes.default_float
     if (typeof x === 'boolean') return dtypes.bool
     //  put this in the last is faster because there are more items than lists/tuples to check
-    if (Array.isArray(x)) return x ? max(x.map((x) => dtypes.from_js(x))) : dtypes.defaultFloat
+    if (Array.isArray(x)) return x ? max(x.map((x) => dtypes.from_js(x))) : dtypes.default_float
     throw new Error(`Could not infer dtype of ${x} with type ${typeof x}`)
   }
   static as_const(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
@@ -160,8 +160,8 @@ export class dtypes {
   static imageh = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, _scalar: undefined, _base: dtypes.float32, local: false, v: 1, shape: shp })
   static imagef = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, _scalar: undefined, _base: dtypes.float32, local: false, v: 1, shape: shp })
 
-  static defaultFloat = dtypes.float32
-  static defaultInt = dtypes.int32
+  static default_float = dtypes.float32
+  static default_int = dtypes.int32
 
   static floats = [dtypes.float16, dtypes.bfloat16, dtypes.float32, dtypes.float64]
   static uints = [dtypes.uint8, dtypes.uint16, dtypes.uint32, dtypes.uint64]
@@ -170,12 +170,12 @@ export class dtypes {
 }
 const envDefaultFloat = getEnv('DEFAULT_FLOAT', '')
 if (envDefaultFloat) {
-  dtypes.defaultFloat = dtypes[envDefaultFloat as keyof dtypes]
-  assert(dtypes.is_float(dtypes.defaultFloat), `${envDefaultFloat} is not a float dtype`)
+  dtypes.default_float = dtypes[envDefaultFloat as keyof dtypes]
+  assert(dtypes.is_float(dtypes.default_float), `${envDefaultFloat} is not a float dtype`)
 }
 
 type DTypeLike = string | DType
-export const toDType = (x: DTypeLike): DType => (x instanceof DType) ? x : dtypes[x as 'float16']
+export const to_dtype = (x: DTypeLike): DType => (x instanceof DType) ? x : dtypes[x as 'float16']
 
 // https://jax.readthedocs.io/en/latest/jep/9407-type-promotion.html
 // we don't support weak type and complex type
@@ -199,22 +199,22 @@ export const _getRecursiveParents = (dtype: DType): DType[] => {
   return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_getRecursiveParents)])]
 }
 
-export const leastUpperDType = (...ds: DType[]): DType => {
+export const least_upper_dtype = (...ds: DType[]): DType => {
   const images = ds.filter((d) => (d instanceof ImageDType))
   if (images.length) return images[0]
   const res = [...intersection(...ds.flatMap((d) => new Set(_getRecursiveParents(d))))]
   return sorted(res)[0]
 }
-export const leastUpperFloat = (dt: DType) => dtypes.is_float(dt) ? dt : leastUpperDType(dt, dtypes.float32)
+export const least_upper_float = (dt: DType) => dtypes.is_float(dt) ? dt : least_upper_dtype(dt, dtypes.float32)
 
 export const DTYPES_DICT: Record<string, DType> = Object.fromEntries(Object.entries(dtypes).filter(([k, v]) => v instanceof DType && !k.startsWith('default') && k !== 'void'))
 export const INVERSE_DTYPES_DICT: Record<string, string> = { ...Object.fromEntries(Object.entries(DTYPES_DICT).map(([k, v]) => [v.name, k])), 'void': 'void' }
 
-export const sumAccDType = (dt: DType) => {
+export const sum_acc_dtype = (dt: DType) => {
   // default acc dtype for sum
-  if (dtypes.is_unsigned(dt)) return leastUpperDType(dt, dtypes.uint)
-  if (dtypes.is_int(dt) || isEq(dt, dtypes.bool)) return leastUpperDType(dt, dtypes.int)
-  return leastUpperDType(dt, dtypes.float)
+  if (dtypes.is_unsigned(dt)) return least_upper_dtype(dt, dtypes.uint)
+  if (dtypes.is_int(dt) || isEq(dt, dtypes.bool)) return least_upper_dtype(dt, dtypes.int)
+  return least_upper_dtype(dt, dtypes.float)
 }
 
 // deno-fmt-ignore

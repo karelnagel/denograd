@@ -1,10 +1,10 @@
 import { expect } from 'expect/expect'
-import { _substitute, merge_views, Ops, renderer, spec, symbolicFlat, UOp, type UPat, view_left } from '../src/ops.ts'
+import { _substitute, merge_views, Ops, renderer, spec, symbolic_flat, UOp, type UPat, view_left } from '../src/ops.ts'
 import { asdict, python, removeKeys, tryCatch } from './helpers.ts'
 import { base_rewrite, extra_pm } from '../src/renderer/cstyle.ts'
 import { entries, zip } from '../src/helpers.ts'
-import { type DType, dtypes } from '../src/dtype.ts'
-import { symbolicSimple } from '../src/ops.ts'
+import { dtypes } from '../src/dtype.ts'
+import { symbolic_simple } from '../src/ops.ts'
 import { symbolic } from '../src/ops.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
 
@@ -76,7 +76,7 @@ const ALL_PATTERN_MATCHERS = {
   },
 
   'tinygrad.ops.symbolic_simple': {
-    matcher: symbolicSimple,
+    matcher: symbolic_simple,
     uops: [
       UOp.variable('x').add(0),
       UOp.variable('x').mul(UOp.int(1)),
@@ -144,7 +144,7 @@ const ALL_PATTERN_MATCHERS = {
     ],
   },
   'tinygrad.ops.symbolic_flat': {
-    matcher: symbolicFlat,
+    matcher: symbolic_flat,
     uops: [
       UOp.variable('x').add(UOp.variable('y')).mul(-1),
       UOp.variable('x').add(UOp.variable('y')).mul(UOp.int(3)),

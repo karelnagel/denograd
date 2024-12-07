@@ -1,4 +1,4 @@
-import { Ops, spec, symbolicFlat, UOp, UPat } from '../../src/ops.ts'
+import { Ops, spec, symbolic_flat, UOp, UPat } from '../../src/ops.ts'
 import { compare, tryCatch } from '../helpers.ts'
 import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape, un1d, View } from '../../src/shape/view.ts'
 import { dtypes } from '../../src/dtype.ts'
@@ -14,9 +14,9 @@ Deno.test(
       [new UPat({ op: Ops.IF, name: 'conditional_op', dtype: dtypes.bool, src: [new UPat({ op: Ops.CMPLT, name: 'cmp_op', dtype: dtypes.bool }), new UPat({ name: 'true_case' }), new UPat({ name: 'false_case' })] })],
       [new UPat({ op: Ops.ASSIGN })],
       [dtypes.floats],
-      [dtypes.defaultFloat],
+      [dtypes.default_float],
       ...spec.patterns.map((p) => [p[0]] as any),
-      ...symbolicFlat.patterns.map((p) => [p[0]]),
+      ...symbolic_flat.patterns.map((p) => [p[0]]),
     ],
     (x) => x,
     'out(*data)',

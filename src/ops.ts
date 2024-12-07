@@ -609,7 +609,7 @@ export class UPat extends MathTrait {
   cast = (dtype?: DType) => new UPat({ op: Ops.CAST, dtype, src: [this] })
   bitcast = (dtype?: DType) => new UPat({ op: Ops.BITCAST, dtype, src: [this] })
   gep = (i: number) => new UPat({ op: Ops.GEP, src: [this], arg: [i] })
-  load = (src: UPat[], kwargs?: any) => new UPat({ op: Ops.LOAD, src: [this, ...src], ...kwargs })
+  load = (src?: UPat[], kwargs?: any) => new UPat({ op: Ops.LOAD, src: [this, ...(src || [])], ...kwargs })
   store = (src: UPat[], kwargs?: any) => new UPat({ op: Ops.STORE, dtype: dtypes.void, src: [this, ...src], ...kwargs })
   assign = (x: UPat) => new UPat({ op: Ops.ASSIGN, dtype: this.dtype, src: [this, x] })
 
@@ -671,7 +671,7 @@ export class PatternMatcher<Args extends object = Record<string, any>, Res exten
     }
   }
 
-  __add__ = (more: PatternMatcher<Args, Res, Fn>) => new PatternMatcher<Args, Res, Fn>([...this.patterns, ...more.patterns])
+  add = (more: PatternMatcher<Args, Res, Fn>) => new PatternMatcher<Args, Res, Fn>([...this.patterns, ...more.patterns])
 
   rewrite = (uop: UOp, ctx?: any): Res | undefined => {
     const ler = new Set(uop.src.map((u) => u.op))
@@ -1043,7 +1043,7 @@ export const maxVarConst = ({ x, c1, c2 }: { x: UOp; c1: UOp; c2: UOp }) => {
 }
 export const sint_to_uop = (x: sint, dtype = dtypes.int) => typeof x === 'number' ? UOp.const(dtype, x) : x
 
-export const symbolicSimple = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
+export const symbolic_simple = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
   //   // ** this folding **
   [UPat.var('x').add(0), ({ x }) => x], // x+0 -> x
   [UPat.var('x').mul(1), ({ x }) => x], // x*1 -> x
@@ -1080,7 +1080,7 @@ export const symbolicSimple = new PatternMatcher<Record<string, UOp>, UOp | unde
   [new UPat({ op: Ops.CAST, name: 'root' }), ({ root }) => isEq(root.dtype, root.src![0].dtype) ? root.src![0] : undefined], //24
 ])
 
-export const symbolic = symbolicSimple.__add__(
+export const symbolic = symbolic_simple.add(
   new PatternMatcher([
     // ** COMMUTATIVE flipping **
     [new UPat({ op: GroupOp.Commutative, name: 'x' }), ({ x }) => isLessThan(x.src[1].tuplize(), x.src[0].tuplize()) ? x.replace({ src: x.src.toReversed() }) : undefined],
@@ -1146,7 +1146,7 @@ export const symbolic = symbolicSimple.__add__(
   ]),
 )
 
-export const symbolicFlat = symbolic.__add__(
+export const symbolic_flat = symbolic.add(
   new PatternMatcher<Record<string, UOp>, UOp | undefined>([
     // ** combine terms (opinionated) **
     [UPat.var('x').add(UPat.var('y')).mul(-1, true), ({ x, y }) => x.neg().add(y.neg())], // -(x+y) -> -x + -y
@@ -1207,7 +1207,7 @@ const res = sum([UOp.int(33)], (a, b) => a.base.add(b.base))
 export const merge_views = new PatternMatcher<Record<string, UOp>, UOp>([[new UPat({ op: Ops.VIEW, name: 's0' }).view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st?.__add__(s1.st!) })]])
 
 // push VIEW to loads
-export const view_left = merge_views.__add__(
+export const view_left = merge_views.add(
   new PatternMatcher<Record<string, UOp>, UOp>([
     // VIEW before elementwise ops
     [
