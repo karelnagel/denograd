@@ -1194,6 +1194,8 @@ export const eq = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 
 export const and = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.bitwiseAnd(b) : typeof b !== 'number' ? b.bitwiseAnd(a, true) : Number(a && b)) as A | B
 export const or = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.bitwiseOr(b) : typeof b !== 'number' ? b.bitwiseOr(a, true) : Number(a || b)) as A | B
 
+export const sint_polyN = <A extends sint>(x: A, p: number[]): A => p.reduce((acc, c) => add(mul(acc, x), c), 0 as sint) as A
+
 export const sint_prod = (x: sint[]) => x.reduce((acc, curr) => mul(acc, curr), 1)
 export const sint_sorted = (items: sint[], reverse = false) => items.toSorted((a, b) => lt(a, b) ? (!reverse ? -1 : 1) : (!reverse ? 1 : -1))
 
