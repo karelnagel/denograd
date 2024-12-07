@@ -2,7 +2,7 @@ import { DType, dtypes } from '../dtype.ts'
 import { assert } from '../helpers.ts'
 import { sint_polyN, UOp } from '../ops.ts'
 
-const TRANSCENDENTAL_SUPPORTED_DTYPES = [dtypes.float16, dtypes.float32, dtypes.float64]
+export const TRANSCENDENTAL_SUPPORTED_DTYPES = [dtypes.float16, dtypes.float32, dtypes.float64]
 
 /**replace inf -> inf, -inf -> _inf, nan -> nan, otherwise -> ratio*/
 export const _lazy_map_numbers = (x: UOp, inf: UOp, _inf: UOp, nan: UOp, ratio: UOp) => x.ne(Infinity).where(x.ne(x).where(nan, x.ne(-Infinity).where(ratio, _inf)), inf)
@@ -82,7 +82,7 @@ export const sin_poly_large = (d: UOp, q: UOp): UOp => {
 
 // *** toplevel functions for xsin/xlog2/xexp2 ***
 
-export const xsin = (d: UOp, fast = false, switch_over = 30.0) => {
+export const xsin = ({ d, fast = false, switch_over = 30.0 }: { d: UOp; fast?: boolean; switch_over?: number }) => {
   throw new Error()
 }
 
@@ -91,7 +91,7 @@ export const xsin = (d: UOp, fast = false, switch_over = 30.0) => {
  * Paper: https://arxiv.org/pdf/2001.09258
  */
 
-export const xexp2 = (d: UOp): UOp => {
+export const xexp2 = ({ d }: { d: UOp }): UOp => {
   assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(d.dtype))
   //   # mask +=inf/nan as zero.
   const x = _lazy_map_numbers(d, d.const_like(0.0), d.const_like(0.0), d.const_like(0.0), d)
@@ -120,10 +120,10 @@ export const xexp2 = (d: UOp): UOp => {
  * Implements a 1.0 ULP approximation for Ops.LOG2
  * Paper: https://arxiv.org/pdf/2001.09258 5.5
  */
-export const xlog2 = (d: UOp): UOp => {
+export const xlog2 = ({ d }: { d: UOp }): UOp => {
   assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(d.dtype))
   //   # TODO: float16 denormal need float32 to achieve precision
-  if (d.dtype === dtypes.float16) return xlog2(d.cast(dtypes.float32)).cast(dtypes.float16)
+  if (d.dtype === dtypes.float16) return xlog2({ d: d.cast(dtypes.float32) }).cast(dtypes.float16)
   const FLT_MIN = d.const_like(d.dtype === dtypes.float16 ? 1e-6 : 1e-4)
   const is_denormal = d.lt(FLT_MIN)
   const a = is_denormal.where(d.mul(2 ** 64), d)

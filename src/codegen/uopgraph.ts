@@ -1,84 +1,86 @@
-// from __future__ import annotations
-// from typing import Optional, Tuple, Dict, List, TYPE_CHECKING, Any, DefaultDict, Callable, Set
-// import functools, itertools, operator
-// from collections import defaultdict
-// from tinygrad.dtype import dtypes, ImageDType, PtrDType
-// from tinygrad.ops import UOp, Ops, UPat, PatternMatcher, symbolic_flat, symbolic_simple
-// from tinygrad.ops import graph_rewrite, split_uop, uop_given_valid, parse_valid, is_increasing, simplify_valid, GroupOp
-// from tinygrad.helpers import DEBUG, getenv, flatten, dedup, TRANSCENDENTAL, AMX, prod, partition, all_same
-// from tinygrad.codegen.transcendental import xexp2, xlog2, xsin, TRANSCENDENTAL_SUPPORTED_DTYPES
-
-import { dtypes } from '../dtype.ts'
-import { Ops, PatternMatcher, symbolic_flat, UOp, UPat } from '../ops.ts'
+import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
+import { allSame, AMX, assert, DEBUG, dedup, flatten, getEnv, isEq, isinstance, isNone, isNotNone, prod, range, sorted, TRANSCENDENTAL } from '../helpers.ts'
+import { graph_rewrite, idiv, Ops, PatternMatcher, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
+import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
 
 // if TYPE_CHECKING: from tinygrad.renderer import Renderer
 
 // # ***** float4/image store handling *****
 
-const fold_expanded = (ex, buf) => {
-  //   if buf.dtype.base != dtypes.float and buf.dtype.base != dtypes.half and not isinstance(buf.dtype, ImageDType): return None
-  //   new_srcs = dedup(list(ex.src))
-  //   old_new_srcs = new_srcs[:]
-  //   is_load, is_image = new_srcs[0].op is Ops.LOAD, isinstance(buf.dtype, ImageDType)
+const fold_expanded = (ex: UOp, buf: UOp) => {
+  if (buf.dtype.base !== dtypes.float && buf.dtype.base !== dtypes.half && !isinstance(buf.dtype, ImageDType)) return undefined
+  let new_srcs: (UOp | undefined)[] = dedup([...ex.src])
+  const old_new_srcs = [...new_srcs]
+  const [is_load, is_image] = [new_srcs[0]?.op === Ops.LOAD, isinstance(buf.dtype, ImageDType)]
 
   //   # first, extract all the relevant offsets
-  //   offsets_rootsrc: DefaultDict[Any, dict] = defaultdict(dict)
-  //   for i,s in enumerate(new_srcs):
-  //     idx = s.src[0].src[1]
-  //     if s.dtype.count != 1 or (is_image and idx.dtype.count == 2): continue
-  //     if idx.op is Ops.ADD and idx.src[1].op is Ops.CONST: root_src, arg = idx.src[0], idx.src[1].arg
-  //     elif idx.op is Ops.CONST: root_src, arg = "CONST", idx.arg
-  //     else: root_src, arg = idx, 0
-  //     # add gates for gated
-  //     if len(s.src[0].src) == 3: root_src = (s.src[0].src[2], root_src)
-  //     assert arg not in offsets_rootsrc[root_src], f"{offsets_rootsrc[root_src][arg]} != {i} with {len(s.src)} sources"
-  //     offsets_rootsrc[root_src][arg] = i
-
+  const offsets_rootsrc = new Map<any, Map<string, number>>()
+  for (const [i, s] of new_srcs.entries()) {
+    const idx = s!.src[0].src[1]
+    let root_src, arg
+    if (s!.dtype.count !== 1 || (is_image && idx.dtype.count == 2)) continue
+    if (idx.op === Ops.ADD && idx.src[1].op === Ops.CONST) [root_src, arg] = [idx.src[0], idx.src[1].arg]
+    else if (idx.op === Ops.CONST) [root_src, arg] = ['CONST', idx.arg]
+    else [root_src, arg] = [idx, 0]
+    //     # add gates for gated
+    if (s!.src[0].src.length === 3) root_src = [s!.src[0].src[2], root_src]
+    assert(!offsets_rootsrc.get(root_src)!.has(arg), `${offsets_rootsrc.get(root_src)?.get(arg)} != ${i} with ${s.src.length} sources`)
+    offsets_rootsrc.get(root_src)!.set(arg, i)
+  }
   //   # then rewrite everything we can
-  //   lengths = [4] if is_image else ([8,4,2] if buf.dtype.base == dtypes.half and getenv("ALLOW_HALF8") else ([16,8,4,2] if AMX else [4,2]))
-  //   used: Set[Tuple[UOp, UOp]] = set()
-  //   for rootsrc, offsets in offsets_rootsrc.items():
-  //     for o in offsets:
-  //       for fold_length in lengths:
-  //         if all((rootsrc,o+i) not in used and o+i in offsets for i in range(fold_length)):
-  //           load_1 = new_srcs[offsets[o]]
-  //           new_src = list(load_1.src)
-  //           oidx = new_src[0].src[1]
-  //           if oidx.divides(fold_length) is None: continue
-  //           if is_image:
-  //             # for images, we rewrite the index. it must evenly divide 4 from the above check
-  //             new_src[0] = buf.index(
-  //               UOp(Ops.VECTORIZE, dtypes.int.vec(2), ((oidx // 4) % buf.dtype.shape[1], (oidx // (4*buf.dtype.shape[1])))),
-  //               rootsrc[0] if isinstance(rootsrc, tuple) else None)
-  //           else:
-  //             # for non image, we upcast the index pointer
-  //             new_src[0] = new_src[0].cast(new_src[0].dtype.base.vec(fold_length).ptr(new_src[0].dtype.local))
-  //           # generate the folded new_srcs
-  //           if is_load:
-  //             new_load = UOp(Ops.LOAD, load_1.dtype.vec(fold_length), tuple(new_src))
-  //             for i in range(fold_length): new_srcs[offsets[o+i]] = new_load.gep(i)
-  //           else: # vectorize the store
-  //             new_src[1] = UOp(Ops.VECTORIZE, new_src[1].dtype.vec(fold_length), tuple(new_srcs[offsets[o+i]].src[1] for i in range(fold_length)))
-  //             for i in range(fold_length): new_srcs[offsets[o+i]] = UOp(Ops.STORE, dtypes.void, tuple(new_src)) if i == 0 else None
-  //           used.update((rootsrc,o+i) for i in range(fold_length))
-
+  const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && getEnv('ALLOW_HALF8') ? [8, 4, 2] : (AMX ? [16, 8, 4, 2] : [4, 2]))
+  let used = new Set<[UOp, UOp]>()
+  for (const [rootsrc, offsets] of offsets_rootsrc.entries()) {
+    for (const o of offsets.keys()) { //TODO:????
+      for (const fold_length of lengths) {
+        if (range(fold_length).every((i) => !used.has([rootsrc, o + i]) && offsets.has(o + i))) {
+          const load_1 = new_srcs[offsets.get(o)!]
+          const new_src = [...load_1!.src]
+          const oidx = new_src[0].src[1]
+          if (isNone(oidx.divides(fold_length))) continue
+          if (is_image) {
+            //             # for images, we rewrite the index. it must evenly divide 4 from the above check
+            new_src[0] = buf.index(
+              new UOp({ op: Ops.VECTORIZE, dtype: dtypes.int.vec(2), src: [oidx.idiv(4).mod((buf.dtype as ImageDType).shape[1]), oidx.idiv(4 * (buf.dtype as ImageDType).shape[1])] }),
+              isinstance(rootsrc, Array) ? rootsrc[0] : undefined,
+            )
+          } else {
+            //             # for non image, we upcast the index pointer
+            new_src[0] = new_src[0].cast(new_src[0].dtype.base.vec(fold_length).ptr((new_src[0].dtype as PtrDType).local))
+          }
+          //           # generate the folded new_srcs
+          if (is_load) {
+            const new_load = new UOp({ op: Ops.LOAD, dtype: load_1.dtype.vec(fold_length), src: new_src })
+            for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = new_load.gep(i)
+          } else { // vectorize the store
+            new_src[1] = new UOp({ op: Ops.VECTORIZE, dtype: new_src[1].dtype.vec(fold_length), src: range(fold_length).map((i) => new_srcs[offsets.get(o + i)!]!.src[1]) })
+            for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = i == 0 ? new UOp({ op: Ops.STORE, dtype: dtypes.void, src: new_src }) : undefined
+          }
+          used = new Set([...used, ...range(fold_length).map((x) => [rootsrc, o + i] as [UOp, UOp])])
+        }
+      }
+    }
+  }
   //   # dedup expand for LOAD
-  //   if is_load and len(old_new_srcs) != len(ex.src): new_srcs = [new_srcs[old_new_srcs.index(s)] for s in ex.src]
+  if (is_load && old_new_srcs.length !== ex.src.length) new_srcs = ex.src.map((s) => new_srcs[old_new_srcs.indexOf(s)])
   //   # remove Nones for STORE
-  //   return UOp(ex.op, ex.dtype, tuple(x for x in new_srcs if x is not None), ex.arg) if len(used) else None
+  return used.size ? new UOp({ op: ex.op, dtype: ex.dtype, src: [...new_srcs.filter((x) => isNotNone(x))], arg: ex.arg }) : undefined
 }
 export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {
-  //   if not isinstance(buf.dtype, ImageDType) or (oidx:=load.src[0].src[1]).dtype.count == 2: return None
-  //   id4 = oidx % 4
-  //   new_src = list(load.src)
+  const oidx = load.src[0].src[1]
+  if (!isinstance(buf.dtype, ImageDType) || oidx.dtype.count === 2) return undefined
+  const id4 = oidx.mod(4)
+  const new_src = [...load.src]
   //   # TODO: copied logic from above
-  //   new_src[0] = load.src[0].src[0].index(
-  //     UOp(Ops.VECTORIZE, dtypes.int.vec(2), ((oidx // 4) % buf.dtype.shape[1], (oidx // (4*buf.dtype.shape[1])))),
-  //     load.src[0].src[2] if len(load.src[0].src) == 3 else None)
-  //   vec_load = UOp(Ops.LOAD, load.dtype.vec(4), tuple(new_src))
-  //   return functools.reduce(lambda ret, i: id4.ne(i).where(ret, vec_load.gep(i)), range(4), load.const_like(float('nan')))
+  new_src[0] = load.src[0].src[0].index(
+    new UOp({ op: Ops.VECTORIZE, dtype: dtypes.int.vec(2), src: [(oidx.idiv(4)).mod(buf.dtype.shape[1]), oidx.idiv(4 * buf.dtype.shape[1])] }),
+    load.src[0].src.length === 3 ? load.src[0].src[2] : undefined,
+  )
+  const vec_load = new UOp({ op: Ops.LOAD, dtype: load.dtype.vec(4), src: [...new_src] })
+  return range(4).reduce((ret, i) => id4.ne(i).where(ret, vec_load.gep(i)), load.const_like(NaN))
 }
+
 export const buf_idx_pat = new UPat({ op: Ops.INDEX, src: [UPat.var('buf')], allow_any_len: true })
 export const float4_folding = new PatternMatcher([
   [new UPat({ op: Ops.VECTORIZE, src: new UPat({ op: Ops.LOAD, src: [buf_idx_pat], allow_any_len: true }), name: 'ex' }), fold_expanded],
@@ -88,8 +90,9 @@ export const float4_folding = new PatternMatcher([
 // # ***** image load valid simplification *****
 
 export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undefined | UOp => {
-  //   if (idx:=uop_given_valid(valid, start_idx)) is None: return buf.const_like(0)
-  //   if not isinstance(buf.dtype, ImageDType): return None if idx is start_idx else buf.index(idx, valid)
+  const idx = uop_given_valid(valid, start_idx)
+  if (isNone(idx)) return buf.const_like(0)
+  if (!isinstance(buf.dtype, ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
 
   //   # wait for it to be image indexed before running simplification
   //   # TODO:not needed for mnist
@@ -124,73 +127,83 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
 }
 // # ***** optional patterns *****
 
-// powers_of_two = {2**i:i for i in range(64)}
+const powers_of_two = Object.fromEntries(range(64).map((i) => [2 ** i, i]))
 // @functools.lru_cache(None)
-export const get_late_rewrite_patterns = (ops: Ops, force_transcendental = false) => {
-  //   pat: List[Tuple[UPat, Callable]] = [(UPat(op, dtype=TRANSCENDENTAL_SUPPORTED_DTYPES, src=(UPat.var("d"),)), f) for op,f in \
-  //            ((Ops.EXP2, xexp2), (Ops.LOG2, xlog2), (Ops.SIN, xsin)) if op not in ops or force_transcendental]
+type Pat = [UPat, (a: Record<'d' | 'base' | 'const' | 'div' | 'mul' | 'x' | 'y' | 'a' | 'b' | 'c', UOp>) => UOp | undefined]
+export const get_late_rewrite_patterns = (ops: Ops[], force_transcendental = false) => {
+  let pat: Pat[] = ([[Ops.EXP2, xexp2], [Ops.LOG2, xlog2], [Ops.SIN, xsin]] as const).filter(([op, f]) => !ops.includes(op) || force_transcendental)
+    .map(([op, f]) => [new UPat({ op, dtype: TRANSCENDENTAL_SUPPORTED_DTYPES, src: [UPat.var('d')] }), f] as const)
   //   # rewrite MOD to AND (which should always be supported, but not for generic in tests)
-  //   if Ops.AND in ops:
-  //     pat += [(UPat(Ops.MOD, src=(UPat.var('base'), UPat.cvar("const"))),
-  //             lambda base,const: base & (const.arg-1) if const.arg in powers_of_two else None)]
+  if (ops.includes(Ops.AND)) {
+    pat = [...pat, [new UPat({ op: Ops.MOD, src: [UPat.var('base'), UPat.cvar('const')] }), (args: { base: UOp; const: UOp }) => powers_of_two[args.const.arg] ? args.base.bitwiseAnd(args.const.arg - 1) : undefined]]
+  }
   //   # rewrite MUL/IDIV to SHL+SHR
-  //   if Ops.SHL in ops and Ops.SHR in ops:
-  //     pat += [
-  //     (UPat(Ops.MUL, dtype=dtypes.ints, src=[UPat.cvar("const"), UPat.var("mul")]), lambda mul, const:
-  //       mul << powers_of_two[const.arg] if const.arg in powers_of_two else None), # (x  * (2**y)) -> shl(x,y)
-  //     (UPat(Ops.IDIV, src=(UPat.var("div"), UPat.cvar("const"))), lambda div, const:
-  //       div >> powers_of_two[const.arg] if const.arg in powers_of_two else None)] # (x // (2**y)) -> shr(x,y)
-  //   if Ops.NEG in ops:
-  //     pat += [(UPat.var('x')*-1, lambda x: x.alu(Ops.NEG))]
-  //     if Ops.SUB in ops: pat += [(UPat.var('x')+UPat.var('y').alu(Ops.NEG), lambda x,y: x.alu(Ops.SUB, y))]
-  //   if Ops.MULACC in ops:
-  //     pat += [(UPat.var('a')*UPat.var('b')+UPat.var('c'), lambda a,b,c: a.alu(Ops.MULACC, b, c))]
-  //   return PatternMatcher(pat)
+  if (ops.includes(Ops.SHL) && ops.includes(Ops.SHR)) {
+    pat = [
+      ...pat,
+      [new UPat({ op: Ops.MUL, dtype: dtypes.ints, src: [[UPat.cvar('const'), UPat.var('mul')]] }), (a) => powers_of_two[a.const.arg] ? a.mul.lshift(powers_of_two[a.const.arg]) : undefined], // (x  * (2**y)) -> shl(x,y)
+      [new UPat({ op: Ops.IDIV, src: [UPat.var('div'), UPat.cvar('const')] }), (a) => powers_of_two[a.const.arg] ? a.div.rshift(powers_of_two[a.const.arg]) : undefined], // (x // (2**y)) -> shr(x,y)
+    ]
+  }
+  if (ops.includes(Ops.NEG)) {
+    pat = [...pat, [UPat.var('x').mul(-1), ({ x }) => x.alu(Ops.NEG)]]
+    if (ops.includes(Ops.SUB)) pat = [...pat, [UPat.var('x').add(UPat.var('y').alu(Ops.NEG)), ({ x, y }) => x.alu(Ops.SUB, y)]]
+  }
+  if (ops.includes(Ops.MULACC)) {
+    pat = [...pat, [UPat.var('a').mul(UPat.var('b')).add(UPat.var('c')), ({ a, b, c }) => a.alu(Ops.MULACC, b, c)]]
+  }
+  return new PatternMatcher(pat)
 }
 // # ***** threefry *****
 
 export const threefry2x32 = (x: UOp, key: UOp) => {
   //   # split x into two uint32, since x in a uint64
-  //   x0, x1 = (x & 0xffffffff).cast(dtypes.uint32), ((x // 2**32) & 0xffffffff).cast(dtypes.uint32)
+  const [x0, x1] = [(x.bitwiseAnd(0xffffffff)).cast(dtypes.uint32), ((x.idiv(2 ** 32)).bitwiseAnd(0xffffffff)).cast(dtypes.uint32)]
 
-  //   rotations = [[13, 15, 26, 6], [17, 29, 16, 24]]
-  //   key0, key1 = (key & 0xffffffff).cast(dtypes.uint32), ((key // 2**32) & 0xffffffff).cast(dtypes.uint32)
-  //   ks = [key1, key0 ^ key1 ^ 0x1BD11BDA, key0]
-  //   xr = [x0 + ks[-1], x1 + ks[0]]
-  //   for i in range(5):
-  //     for r in rotations[i % 2]: xr[0], xr[1] = (x0 := xr[0] + xr[1]), x0 ^ ((xr[1] * 2**r) + (xr[1] // 2**(32 - r)))
-  //     xr = [(xr[0] + ks[i % 3]), (xr[1] + ks[(i + 1) % 3] + i + 1)]
-
-  //   return xr[1].cast(dtypes.uint64) * 2**32 | xr[0].cast(dtypes.uint64)
+  const rotations = [[13, 15, 26, 6], [17, 29, 16, 24]]
+  const [key0, key1] = [(key.bitwiseAnd(0xffffffff)).cast(dtypes.uint32), ((key.idiv(2 ** 32)).bitwiseAnd(0xffffffff)).cast(dtypes.uint32)]
+  const ks = [key1, key0.xor(key1).xor(0x1BD11BDA), key0]
+  let xr = [x0.add(ks[-1]), x1.add(ks[0])]
+  for (const i of range(5)) {
+    for (const r of rotations[i % 2]) {
+      const x0 = xr[0].add(xr[1])
+      ;[xr[0], xr[1]] = [x0, x0.xor(xr[1].mul(2 ** r).add(xr[1].idiv(2 ** (32 - r))))]
+      xr = [xr[0].add(ks[i % 3]), xr[1].add(ks[(i + 1) % 3]).add(i + 1)]
+    }
+  }
+  return xr[1].cast(dtypes.uint64).mul(2 ** 32).bitwiseOr(xr[0].cast(dtypes.uint64))
 }
 // # ***** main rewriter *****
 
 export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, idx2?: any, idx3?: any, extra?: any, vec?: any, ne?: any, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
-  //   if getenv("DISABLE_LOOP_COLLAPSE") or rng not in acc.src: return None  # must be the right REDUCE
-  //   loop_start, loop_end = rng.src
-  //   if loop_start.arg != 0:
-  //     # TODO: support and test this with other mul and loop_starts
-  //     if DEBUG >= 1: print(f"WARNING, NOT FOLDING: mul:{mul.arg} loop_start:{loop_start.arg}")
-  //     return None
-  //   if idx2 is not None: add = add + idx2
-  //   if idx3 is not None: add = add + idx3
-  //   if vec is not None:
-  //     # add, mul, loop_start, loop_end
-  //     def dvec(x:UOp):
-  //       if x.op is Ops.CONST: return UOp.const(x.dtype.vec(vec.dtype.count), x.arg)
-  //       return UOp(Ops.VECTORIZE, x.dtype.vec(vec.dtype.count), src=(x,)*vec.dtype.count)
-  //     add, mul, loop_start, loop_end = dvec(add), dvec(mul), dvec(loop_start), dvec(loop_end)
-  //   if mul.vmin > 0 and ne is not None:
-  //     comprange = UOp.minimum(loop_end, UOp.maximum((add-compval)//mul + (loop_end-loop_start), loop_start))
-  //   elif mul.vmax < 0 and ne is None:
-  //     comprange = UOp.minimum(loop_end, UOp.maximum((add-compval-mul)//mul + (loop_end-loop_start), loop_start))
-  //   else:
-  //     return None
-  //   new_reduce_op = comprange.cast(multconst.dtype) * multconst
+  if (getEnv('DISABLE_LOOP_COLLAPSE') || !acc.src.includes(rng)) return undefined // must be the right REDUCE
+  let [loop_start, loop_end] = rng.src
+  if (loop_start.arg !== 0) {
+    //     # TODO: support and test this with other mul and loop_starts
+    if (DEBUG >= 1) console.log(`WARNING, NOT FOLDING: mul:${mul.arg} loop_start:${loop_start.arg}`)
+    return undefined
+  }
+  if (isNotNone(idx2)) add = add + idx2
+  if (isNotNone(idx3)) add = add + idx3
+  if (isNotNone(vec)) {
+    //     # add, mul, loop_start, loop_end
+    const dvec = (x: UOp) => {
+      if (x.op === Ops.CONST) return UOp.const(x.dtype.vec(vec.dtype.count), x.arg)
+      return new UOp({ op: Ops.VECTORIZE, dtype: x.dtype.vec(vec.dtype.count), src: range(vec.dtype.count).map(() => x) })
+    }
+    ;[add, mul, loop_start, loop_end] = [dvec(add), dvec(mul), dvec(loop_start), dvec(loop_end)]
+  }
+
+  let comprange
+  if (mul.vmin > 0 && isNotNone(ne)) {
+    comprange = loop_end.minimum(add.sub(compval)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
+  } else if (mul.vmax < 0 && isNone(ne)) comprange = loop_end.minimum(add.sub(compval).sub(mul)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
+  else return undefined
+  const new_reduce_op = comprange.cast(multconst.dtype).mul(multconst)
   //   # TODO: what does it mean to have the same numbered DEFINE_ACC with different ranges?
-  //   new_acc = acc.replace(src=acc.src[0:1]+tuple(x for x in acc.src[1:] if x is not rng))
-  //   ret = new_acc.assign(new_acc+new_reduce_op)
-  //   if extra is not None: ret = ret + acc.assign(acc+extra)
+  const new_acc = acc.replace({ src: [acc.src[1], ...acc.src.slice(1).filter((x) => x !== rng)] })
+  let ret = new_acc.assign(new_acc.add(new_reduce_op))
+  if (isNotNone(extra)) ret = ret.add(acc.assign(acc.add(extra)))
   //   return ret
 }
 export const index_collapse = (idx: UOp, rng: UOp, buf: UOp, ld: UOp, acc: UOp, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
@@ -297,92 +310,93 @@ export const sym = symbolic_flat.add(
 // # *** uop expander ***
 
 export const _expand_arg_to_idx = (args: [number, number][], rpk: Record<number, number>): number => {
-  //   idx, mul = 0, 1
-  //   for axis,m in args[::-1]:
-  //     idx += rpk[axis] * mul
-  //     mul *= m
-  //   return idx
+  let [idx, mul] = [0, 1]
+  for (const [axis, m] of args.toReversed()) {
+    idx += rpk[axis] * mul
+    mul *= m
+  }
+  return idx
 }
 export const _choices_from_args = (args: [number, number][]): Record<number, number>[] => {
-  //   return [dict(x) for x in itertools.product(*[zip(itertools.repeat(axis), range(m)) for axis,m in args])]
+  return args.reduce((acc, [axis, m]) => acc.flatMap((d) => range(m).map((i) => ({ ...d, [axis]: i }))), [{}]) // TODO: Can likely be wrong
 }
-// @functools.lru_cache(None)
 export const _swizzle_args = (cargs: [number, number][], eargs: [number, number][], exclude_args: number[]): number[] => {
-  //   return [_expand_arg_to_idx(eargs, {**rpk, **{x:0 for x in exclude_args}} if exclude_args else rpk) for rpk in _choices_from_args(cargs)]
+  return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? Object.fromEntries(exclude_args.map((x) => [x, 0])) : rpk))
 }
 export const do_expand = (root: UOp) => {
-  //   expands = [x for x in root.src if x.op is Ops.EXPAND]
-  //   if len(expands) == 0: return None
+  const expands = root.src.filter((x) => x.op === Ops.EXPAND)
+  if (expands.length === 0) return undefined
   //   # NOTE: we 0 out the reduce axis for WMMA. in theory they should all be the same, but is this always correct?
-  //   exclude_args = tuple(dedup(root.arg[-1] + tuple(y[0] for y in flatten(root.arg[-2])))) if root.op is Ops.WMMA else ()
-  //   if all_same(expands_args:=[x.arg for x in expands]) and len(exclude_args) == 0:
-  //     # if there's only one expand arg, it's okay to use it (optimization)
-  //     expand_args = expands[0].arg
-  //   else:
-  //     # otherwise, we sort them and GEP
-  //     expand_args = tuple(x for x in sorted(dedup(flatten(expands_args))) if x[0] not in exclude_args)
-  //   expand_sz = prod([x[1] for x in expand_args])
-  //   new_srcs = []
-  //   for i,src in enumerate(root.src):
-  //     if src.op is Ops.EXPAND:
-  //       if root.op is Ops.IF and i == 0:
-  //         # IF means OR on first arg to IF
-  //         new_srcs.append(functools.reduce(operator.__or__, [src.src[0].gep(i) for i in range(expand_sz)]))
-  //       elif expand_args == src.arg:
-  //         # just remove the expand
-  //         new_srcs.append(src.src[0])
-  //       else:
-  //         lst = _swizzle_args(expand_args, src.arg, exclude_args)
-  //         # if the base dtype is > 1, put those at the end
-  //         if src.dtype.count > 1: lst = flatten([[i*src.dtype.count+j for j in range(src.dtype.count)] for i in lst])
-  //         new_srcs.append(src.src[0].gep(tuple(lst)))
-  //     else:
-  //       # non-EXPAND input
-  //       if root.op is Ops.IF:
-  //         # for the first arg of IF, just pass them through ignoring EXPANDS
-  //         new_srcs.append(src)
-  //       elif src.dtype.count > 1:
-  //         # put any input dtype > 1 grouped together
-  //         new_srcs.append(UOp(Ops.VECTORIZE,
-  //                             src.dtype.scalar().vec(expand_sz*src.dtype.count), tuple(src.gep(i) for i in range(src.dtype.count))*expand_sz))
-  //       else:
-  //         # repeat the arg
-  //         new_srcs.append(src.broadcast(expand_sz))
-
-  //   new_arg = root.arg
-  //   if root.op is Ops.GEP:
-  //     assert root.dtype.count == 1
-  //     # is this right?
-  //     new_arg = tuple(range(root.arg[0], new_srcs[0].dtype.count, new_srcs[0].dtype.count // expand_sz))
-  //   nsrc = UOp(root.op, root.dtype.scalar().vec(root.dtype.count*expand_sz), tuple(new_srcs), new_arg)
-  //   return UOp(Ops.EXPAND, root.dtype, (nsrc,), expand_args)
+  const exclude_args = root.op === Ops.WMMA ? dedup([...root.arg[-1], ...flatten(root.arg.slice(-2)).map((y: any) => y[0])]) : []
+  const expands_args = expands.map((x) => x.arg)
+  let expand_args
+  if (allSame(expands_args) && exclude_args.length === 0) {
+    //     # if there's only one expand arg, it's okay to use it (optimization)
+    expand_args = expands[0].arg
+  } // otherwise, we sort them and GEP
+  else expand_args = sorted(dedup(flatten(expands_args)) as any).filter((x) => !exclude_args.includes((x as any)[0]))
+  const expand_sz = prod(exclude_args.map((x) => x[1]))
+  let new_srcs = []
+  for (const [i, src] of root.src.entries()) {
+    if (src.op === Ops.EXPAND) {
+      //         # IF means OR on first arg to IF
+      if (root.op === Ops.IF && i === 0) new_srcs.push(range(expand_sz).map((i) => src.src[0].gep(i)).reduce((acc, x) => acc.bitwiseOr(x)))
+      //         # just remove the expand
+      else if (expand_args == src.arg) new_srcs.push(src.src[0])
+      else {
+        let lst = _swizzle_args(expand_args, src.arg, exclude_args)
+        //         # if the base dtype is > 1, put those at the end
+        if (src.dtype.count > 1) lst = lst.flatMap((i) => range(src.dtype.count).map((j) => i * src.dtype.count + j))
+        new_srcs.push(src.src[0].gep([...lst]))
+      }
+    } //       # non-EXPAND input
+    else {
+      //         # for the first arg of IF, just pass them through ignoring EXPANDS
+      if (root.op === Ops.IF) new_srcs.push(src)
+      //         # put any input dtype > 1 grouped together
+      else if (src.dtype.count > 1) new_srcs.push(new UOp({ op: Ops.VECTORIZE, dtype: src.dtype.scalar().vec(expand_sz * src.dtype.count), src: range(src.dtype.count).map((i) => src.gep(i).mul(expand_sz)) })) //TODO: this src.mul() might not be right
+      //         # repeat the arg
+      else new_srcs.push(src.broadcast(expand_sz))
+    }
+  }
+  let new_arg = root.arg
+  if (root.op === Ops.GEP) {
+    assert(root.dtype.count === 1)
+    //     # is this right?
+    new_arg = range(root.arg[0], new_srcs[0].dtype.count, idiv(new_srcs[0].dtype.count, expand_sz))
+  }
+  const nsrc = new UOp({ op: root.op, dtype: root.dtype.scalar().vec(root.dtype.count * expand_sz), src: new_srcs, arg: new_arg })
+  return new UOp({ op: Ops.EXPAND, dtype: root.dtype, src: [nsrc], arg: expand_args })
 }
 export const do_contract = (con: UOp) => {
-  //   ex = con.src[0]
+  const ex = con.src[0]
   //   # CONTRACT without EXPAND repeats the element VECTORIZED
-  //   if ex.op is not Ops.EXPAND: return UOp(Ops.VECTORIZE, con.dtype, con.src*con.dtype.count)
+  if (ex.op !== Ops.EXPAND) return new UOp({ op: Ops.VECTORIZE, dtype: con.dtype, src: con.src.map((x) => x.mul(con.dtype.count)) }) // TODO: not sure
   //   # CONTRACT may remove several axes from EXPAND
-  //   assert con.dtype.count == prod([x[1] for x in con.arg]), "dtype is wrong"
-  //   idxs = []
-  //   for rpk in _choices_from_args(new_ex_args:=tuple(x for x in ex.arg if x not in con.arg)):
-  //     idxs += [_expand_arg_to_idx(ex.arg, {**rpk, **lrpk}) for lrpk in _choices_from_args(con.arg)]
-  //   return UOp(Ops.EXPAND, con.dtype, (ex.src[0].gep(tuple(idxs)),), new_ex_args)
+  assert(con.dtype.count === prod(con.arg.map((x) => x[1])), 'dtype is wrong')
+  let idxs: number[] = []
+  const new_ex_args = ex.arg.filter((x) => !con.arg.includes(x))
+  for (const rpk of _choices_from_args(new_ex_args)) {
+    idxs = [...idxs, ..._choices_from_args(con.arg).map((lrpk) => _expand_arg_to_idx(ex.arg, { ...rpk, ...lrpk }))]
+  }
+  return new UOp({ op: Ops.EXPAND, dtype: con.dtype, src: [ex.src[0].gep([...idxs])], arg: new_ex_args })
 }
-export const no_vectorized_alu = (alu: any) => {
-  //   if alu.dtype.vcount == 1: return None
-  //   alus = tuple(UOp(alu.op, alu.dtype.scalar(), tuple(s.gep(i) for s in alu.src), alu.arg) for i in range(alu.dtype.vcount))
-  //   return UOp(Ops.VECTORIZE, alu.dtype, alus)
+export const no_vectorized_alu = (alu: UOp) => {
+  if (alu.dtype.vcount === 1) return undefined
+  const alus = range(alu.dtype.vcount).map((i) => new UOp({ op: alu.op, dtype: alu.dtype.scalar(), src: alu.src.map((s) => s.gep(i)), arg: alu.arg }))
+  return new UOp({ op: Ops.VECTORIZE, dtype: alu.dtype, src: alus })
 }
 export const create_gate = (root: UOp): undefined | UOp => {
-  //   @functools.lru_cache(None)
-  //   def _gate_srcs(u:UOp, gate:UOp) -> UOp:
-  //     if u.op is Ops.BARRIER: return u
-  //     if u.op is Ops.LOAD and u.src[-1].op is Ops.BARRIER:
-  //       return UOp(u.op, u.dtype, u.src[:-1]+(UOp(Ops.IF, dtypes.void, (gate, u.src[-1])),), u.arg)
-  //     return u if (replace_source:=tuple(_gate_srcs(x, gate) for x in u.src)) == u.src else UOp(u.op, u.dtype, replace_source, u.arg)
-  //   idx = root.src[0]
-  //   if idx.op is Ops.CAST: idx = idx.src[0]
-  //   return None if idx.op is not Ops.INDEX or len(idx.src) == 2 or (ret:=_gate_srcs(root, idx.src[2])) is root else ret
+  const _gate_srcs = (u: UOp, gate: UOp): UOp => {
+    if (u.op === Ops.BARRIER) return u
+    if (u.op === Ops.LOAD && u.src[-1].op === Ops.BARRIER) return new UOp({ op: u.op, dtype: u.dtype, src: [...u.src.toReversed(), new UOp({ op: Ops.IF, dtype: dtypes.void, src: [gate, u.src.at(-1)!] })], arg: u.arg })
+    const replace_source = u.src.map((x) => _gate_srcs(x, gate))
+    return isEq(replace_source, u.src) ? u : new UOp({ op: u.op, dtype: u.dtype, src: replace_source, arg: u.arg })
+  }
+  let idx = root.src[0]
+  if (idx.op === Ops.CAST) idx = idx.src[0]
+  const ret = _gate_srcs(root, idx.src[2])
+  return idx.op !== Ops.INDEX || idx.src.length === 2 || ret === root ? undefined : ret
 }
 export const expander = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
   //   # double expand
@@ -405,17 +419,16 @@ export const expander = new PatternMatcher<Record<string, UOp>, UOp | undefined>
 ])
 
 export const no_vectorized_load_store = (ls: UOp) => {
-  //   idx = ls.src[0]
-  //   assert isinstance(idx.dtype, PtrDType)
-  //   if idx.dtype.v == 1: return None
-  //   tv = [UOp(ls.op, ls.dtype.scalar(), tuple(j.gep(i) for j in ls.src)) for i in range(idx.dtype.v)]
-  //   return UOp(Ops.VECTORIZE, ls.dtype, tuple(tv))
+  let idx = ls.src[0]
+  if (!isinstance(idx.dtype, PtrDType)) throw new Error()
+  if (idx.dtype.v === 1) return undefined
+  const tv = range(idx.dtype.v).map((i) => new UOp({ op: ls.op, dtype: ls.dtype.scalar(), src: ls.src.map((j) => j.gep(i)) }))
+  return new UOp({ op: Ops.VECTORIZE, dtype: ls.dtype, src: tv })
 }
 export const no_vectorized_acc = (acc: UOp) => {
-  //   if acc.dtype.count == 1: return None
-  //   alus = tuple(UOp(acc.op, acc.dtype.scalar(),
-  //     tuple(s.gep(i) if j == 0 else s for j,s in enumerate(acc.src)), acc.arg+(i,)) for i in range(acc.dtype.count))
-  //   return UOp(Ops.VECTORIZE, acc.dtype, alus)
+  if (acc.dtype.count === 1) return undefined
+  const alus = [new UOp({ op: acc.op, dtype: acc.dtype.scalar(), src: range(acc.dtype.count).flatMap((i) => acc.src.entries().map(([j, s]) => j === 0 ? s.gep(i) : s)) })]
+  return new UOp({ op: Ops.VECTORIZE, dtype: acc.dtype, src: alus })
 }
 export const devectorize = new PatternMatcher([
   //   # no ALU on vectorized dtypes
@@ -426,9 +439,9 @@ export const devectorize = new PatternMatcher([
 ])
 
 export const delete_redundant_gates = (buf: UOp, idx: UOp, val: UOp, store_gate: UOp, cast?: UOp): undefined | UOp => {
-  //   if store_gate not in [gate.src[0] for gate in val.toposort if gate.op is Ops.IF]: return None
+  if (![...val.toposort].filter((gate) => gate.op === Ops.IF).map((gate) => gate.src[0]).includes(store_gate)) return undefined
   //   # remove the gate from the index
-  //   return UOp.store(buf.index(idx).cast(cast.dtype) if cast is not None else buf.index(idx), val)
+  return (isNotNone(cast) ? buf.index(idx).cast(cast.dtype) : buf.index(idx)).store([ val])
 }
 export const load_store_indexing = new PatternMatcher([
   //   # late fixup of unfoldable image loads
@@ -449,8 +462,8 @@ export const migrate_indexing = new PatternMatcher([
 
 export const move_mask = (x: UOp, buf: UOp, idx: UOp, mask: UOp, cast?: UOp): UOp => {
   //   # this moves the mask from the indexing to the load/store op for rendering
-  //   nidx = buf.index(idx).cast(cast.dtype) if cast is not None else buf.index(idx)
-  //   return UOp.load(nidx, x.const_like(0), mask, *x.src[1:], dtype=x.dtype) if x.op is Ops.LOAD else UOp.store(nidx, x.src[1], mask, *x.src[2:])
+  const nidx = isNotNone(cast) ? buf.index(idx).cast(cast.dtype) : buf.index(idx)
+  return x.op === Ops.LOAD ? nidx.load([x.const_like(0), mask, ...x.src.slice(1)], { dtype: x.dtype }) : nidx.store([x.src[1], mask, ...x.src.slice(2)])
 }
 export const pm_render = new PatternMatcher([
   //   # for rendering, we use explicit VECTORIZE
@@ -470,20 +483,20 @@ export const pm_render = new PatternMatcher([
 // # *** uop graph ***
 
 export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
-  //   assert sink.op is Ops.SINK, f"sink isn't sink, it's {sink.op}"
-  //   supported_ops = tuple(opts.code_for_op.keys()) if opts is not None else ()
-  //   extra_matcher = opts.extra_matcher if opts is not None and opts.extra_matcher is not None else PatternMatcher([])
+  assert(sink.op === Ops.SINK, `sink isn't sink, it's ${sink.op}`)
+  const supported_ops = isNotNone(opts) ? Object.keys(opts?.code_for_op) : []
+  const extra_matcher = isNotNone(opts) && isNotNone(opts.extra_matcher) ? opts.extra_matcher : new PatternMatcher([])
 
   //   # initial symbolic + migrate indexing (remove this)
-  //   sink = graph_rewrite(sink, sym+migrate_indexing)
+  sink = graph_rewrite(sink, sym.add(migrate_indexing))
 
   //   # expand
-  //   sink = graph_rewrite(sink, sym+expander)
+  sink = graph_rewrite(sink, sym.add(expander))
 
   //   # devectorize + load_store_indexing
-  //   sink = graph_rewrite(sink, sym+(devectorize+float4_folding if opts is not None and opts.supports_float4 else devectorize)+load_store_indexing)
+  sink = graph_rewrite(sink, sym.add(isNotNone(opts) && opts.supports_float4 ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing))
 
   //   # final rules for the renderer (without sym)
-  //   sink = graph_rewrite(sink, symbolic_simple+get_late_rewrite_patterns(supported_ops, TRANSCENDENTAL>=2)+pm_render+extra_matcher)
-  //   return sink
+  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops as unknown as Ops[], TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
+  return sink
 }

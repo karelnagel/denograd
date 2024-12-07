@@ -49,6 +49,7 @@ export class MathTrait extends SimpleMathTrait {
   mod = (x: ConstType<typeof this>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
   maximum = (x: ConstType<typeof this>) => this.alu(Ops.MAX, this.ufix(x))
   minimum = (x: ConstType<typeof this>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' ? this.ufix(-x) : x.neg()).neg()
+  static maximum = (self: typeof this, x: ConstType<typeof this>) => self.maximum(x)
   where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(x).ufix(y))
   threefry = (seed: ConstType<typeof this>) => this.alu(Ops.THREEFRY, this.ufix(seed))
   reciprocal = () => this.alu(Ops.RECIP)

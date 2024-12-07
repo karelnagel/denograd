@@ -83,7 +83,7 @@ export class Renderer {
   device = ''
   suffix = ''
   // TODO: make this generic with a list of supported types
-  supports_float_4 = true
+  supports_float4 = true
   has_local = true
   has_hared = true
   // NOTE: these two should be in (x,y,z) order to match the max_sizes argument in get_grouped_dims
