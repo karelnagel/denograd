@@ -86,40 +86,40 @@ export class ImageDType extends PtrDType {
 }
 
 export class dtypes {
-  static isFloat = (x: DType) => dtypes.floats.includes(x.scalar()) || x instanceof ImageDType
-  static isInt = (x: DType) => dtypes.ints.includes(x.scalar())
-  static isUnsigned = (x: DType) => dtypes.uints.includes(x.scalar())
-  static fromJS = (x: number | boolean | (number | boolean)[]): DType => {
+  static is_float = (x: DType) => dtypes.floats.includes(x.scalar()) || x instanceof ImageDType
+  static is_int = (x: DType) => dtypes.ints.includes(x.scalar())
+  static is_unsigned = (x: DType) => dtypes.uints.includes(x.scalar())
+  static from_js = (x: number | boolean | (number | boolean)[]): DType => {
     if (typeof x === 'number') return Number.isInteger(x) ? dtypes.defaultInt : dtypes.defaultFloat
     if (typeof x === 'boolean') return dtypes.bool
     //  put this in the last is faster because there are more items than lists/tuples to check
-    if (Array.isArray(x)) return x ? max(x.map((x) => dtypes.fromJS(x))) : dtypes.defaultFloat
+    if (Array.isArray(x)) return x ? max(x.map((x) => dtypes.from_js(x))) : dtypes.defaultFloat
     throw new Error(`Could not infer dtype of ${x} with type ${typeof x}`)
   }
-  static asConst(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
+  static as_const(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
     if (Array.isArray(val)) {
       assert(val.length === dtype.count, `mismatch (${val.map((val) => typeof val === 'boolean' ? (val ? 'True' : 'False') : val)},) ${dtype.toString()}`)
-      return val.map((x) => dtypes.asConst(x, dtype) as ConstType)
+      return val.map((x) => dtypes.as_const(x, dtype) as ConstType)
     }
 
     // TODO: should truncate here (tinygrad)
-    if (dtypes.isInt(dtype)) return Math.floor(Number(val)) //TODO: floor????? - seems ok
-    else if (dtypes.isFloat(dtype)) return Number(val)
+    if (dtypes.is_int(dtype)) return Math.floor(Number(val)) //TODO: floor????? - seems ok
+    else if (dtypes.is_float(dtype)) return Number(val)
     else return Boolean(val)
   }
   static min(x: DType) {
-    if (dtypes.isInt(x)) return dtypes.isUnsigned(x) ? 0 : (-2) ** (x.itemsize * 8 - 1)
-    return dtypes.isFloat(x) ? -Infinity : false
+    if (dtypes.is_int(x)) return dtypes.is_unsigned(x) ? 0 : (-2) ** (x.itemsize * 8 - 1)
+    return dtypes.is_float(x) ? -Infinity : false
   }
   static max(dtype: DType) {
-    if (dtypes.isInt(dtype)) return 2 ** (dtype.itemsize * 8) - 1 + Number(dtypes.min(dtype))
-    return dtypes.isFloat(dtype) ? Infinity : true
+    if (dtypes.is_int(dtype)) return 2 ** (dtype.itemsize * 8) - 1 + Number(dtypes.min(dtype))
+    return dtypes.is_float(dtype) ? Infinity : true
   }
   /**
    * @returns [exponent, mantissa]
    */
   static finfo(x: DType): [number, number] {
-    assert(dtypes.isFloat(x), `${x} is not a floating point type`)
+    assert(dtypes.is_float(x), `${x} is not a floating point type`)
     if (isEq(x, dtypes.float16)) return [5, 10]
     if (isEq(x, dtypes.bfloat16)) return [8, 7]
     if (isEq(x, dtypes.float32)) return [8, 23]
@@ -171,7 +171,7 @@ export class dtypes {
 const envDefaultFloat = getEnv('DEFAULT_FLOAT', '')
 if (envDefaultFloat) {
   dtypes.defaultFloat = dtypes[envDefaultFloat as keyof dtypes]
-  assert(dtypes.isFloat(dtypes.defaultFloat), `${envDefaultFloat} is not a float dtype`)
+  assert(dtypes.is_float(dtypes.defaultFloat), `${envDefaultFloat} is not a float dtype`)
 }
 
 type DTypeLike = string | DType
@@ -205,15 +205,15 @@ export const leastUpperDType = (...ds: DType[]): DType => {
   const res = [...intersection(...ds.flatMap((d) => new Set(_getRecursiveParents(d))))]
   return sorted(res)[0]
 }
-export const leastUpperFloat = (dt: DType) => dtypes.isFloat(dt) ? dt : leastUpperDType(dt, dtypes.float32)
+export const leastUpperFloat = (dt: DType) => dtypes.is_float(dt) ? dt : leastUpperDType(dt, dtypes.float32)
 
 export const DTYPES_DICT: Record<string, DType> = Object.fromEntries(Object.entries(dtypes).filter(([k, v]) => v instanceof DType && !k.startsWith('default') && k !== 'void'))
 export const INVERSE_DTYPES_DICT: Record<string, string> = { ...Object.fromEntries(Object.entries(DTYPES_DICT).map(([k, v]) => [v.name, k])), 'void': 'void' }
 
 export const sumAccDType = (dt: DType) => {
   // default acc dtype for sum
-  if (dtypes.isUnsigned(dt)) return leastUpperDType(dt, dtypes.uint)
-  if (dtypes.isInt(dt) || isEq(dt, dtypes.bool)) return leastUpperDType(dt, dtypes.int)
+  if (dtypes.is_unsigned(dt)) return leastUpperDType(dt, dtypes.uint)
+  if (dtypes.is_int(dt) || isEq(dt, dtypes.bool)) return leastUpperDType(dt, dtypes.int)
   return leastUpperDType(dt, dtypes.float)
 }
 

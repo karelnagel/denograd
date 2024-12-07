@@ -39,8 +39,8 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   // new load/store
   [new UPat({ op: Ops.INDEX, src: [UPat.var('buf'), UPat.var('idx')] }), ({ ctx, buf, idx }) => `(${ctx.get(buf)}+${idx.arg === Ops.ADD ? stripParens(ctx.get(idx)!) : ctx.get(idx)})`],
   [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')] }), ({ ctx, bidx, var1, gate }) => `(${ctx.get(gate)}?*${ctx.get(bidx)}:${ctx.get(var1)})`],
-  [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx')], allowAnyLen: true }), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
-  [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allowAnyLen: true }), ({ ctx, bidx, var1 }) => `*${ctx.get(bidx)} = ${ctx.get(var1)};`],
+  [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx')], allow_any_len: true }), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
+  [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allow_any_len: true }), ({ ctx, bidx, var1 }) => `*${ctx.get(bidx)} = ${ctx.get(var1)};`],
   // alu/gep
   [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ ctx, x }) => ctx.code_for_op[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
   [new UPat({ op: Ops.GEP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device === 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
@@ -184,8 +184,8 @@ export class CStyleLanguage extends Renderer {
 export class ClangRenderer extends CStyleLanguage {
   override device = 'CLANG'
   override float4 = '(float4)'
-  override hasLocal = false
-  override globalMax = undefined
+  override has_local = false
+  override global_max = undefined
   override infinity = '__builtin_inff()'
   override nan = '__builtin_nanf("")'
 
@@ -199,7 +199,7 @@ export class ClangRenderer extends CStyleLanguage {
     [Ops.LOG2]: undefined,
     [Ops.SQRT]: (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`,
   }
-  tensor_cores = !AMX
+  override tensor_cores = !AMX
     ? undefined
     : [dtypes.float].map((dt) => [dt, Math.floor(64 / dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: [], reduceAxes: [], upcastAxes: [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]], dtypeIn: dt, dtypeOut: dt }))
 

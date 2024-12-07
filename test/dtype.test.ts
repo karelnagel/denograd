@@ -58,12 +58,12 @@ out({
 Deno.test('dtypes', async () => {
   const shouldBeFloats = [dtypes.float, dtypes.float32, dtypes.float64, dtypes.double, dtypes.half, dtypes.imagef(2, 3), dtypes.imageh(4, 4, 4)]
 
-  shouldBeFloats.forEach((float) => expect(dtypes.isFloat(float)).toBe(true))
-  ;[dtypes.int, dtypes.bool, dtypes.void, dtypes.int8].forEach((int) => expect(dtypes.isFloat(int)).toBe(false))
-  ;[dtypes.uint8, dtypes.uchar, dtypes.ulong].forEach((uint) => expect(dtypes.isUnsigned(uint)).toBe(true))
-  ;[dtypes.int16, dtypes.long, dtypes.float, dtypes.imagef(4, 4)].forEach((uint) => expect(dtypes.isUnsigned(uint)).toBe(false))
-  ;[dtypes.int, dtypes.defaultInt, dtypes.uint, dtypes.uchar].forEach((int) => expect(dtypes.isInt(int)).toBe(true))
-  ;[dtypes.float, dtypes.imagef(4, 4)].forEach((int) => expect(dtypes.isInt(int)).toBe(false))
+  shouldBeFloats.forEach((float) => expect(dtypes.is_float(float)).toBe(true))
+  ;[dtypes.int, dtypes.bool, dtypes.void, dtypes.int8].forEach((int) => expect(dtypes.is_float(int)).toBe(false))
+  ;[dtypes.uint8, dtypes.uchar, dtypes.ulong].forEach((uint) => expect(dtypes.is_unsigned(uint)).toBe(true))
+  ;[dtypes.int16, dtypes.long, dtypes.float, dtypes.imagef(4, 4)].forEach((uint) => expect(dtypes.is_unsigned(uint)).toBe(false))
+  ;[dtypes.int, dtypes.defaultInt, dtypes.uint, dtypes.uchar].forEach((int) => expect(dtypes.is_int(int)).toBe(true))
+  ;[dtypes.float, dtypes.imagef(4, 4)].forEach((int) => expect(dtypes.is_int(int)).toBe(false))
 
   expect(asdict(dtypes.fields())).toEqual(await python(`out({k:asdict(v) for k,v in tiny.dtype.dtypes.fields().items()})`))
   expect(dt.INVERSE_DTYPES_DICT).toEqual(await python(`out(tiny.dtype.INVERSE_DTYPES_DICT)`))
@@ -101,7 +101,7 @@ Deno.test(
   'fromJS',
   compare(
     [[4], [true], [4.4], [[4, 4, 2, 5, 3]], [[true, false, true, 4, 5.5]], [[4, 5.4]], [[false, 4]], [[3.3, 5]]],
-    dt.dtypes.fromJS,
+    dt.dtypes.from_js,
     'out(tiny.dtype.dtypes.from_py(*data))',
   ),
 )
@@ -118,7 +118,7 @@ Deno.test(
       [[true, 4, 4.4], dtypes.float.vec(3)],
       [[true], dtypes.float.vec(3)],
     ],
-    tryCatch(dt.dtypes.asConst),
+    tryCatch(dt.dtypes.as_const),
     'out(trycatch(lambda:tiny.dtype.dtypes.as_const(*data)))',
   ),
 )

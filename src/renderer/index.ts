@@ -83,14 +83,14 @@ export class Renderer {
   device = ''
   suffix = ''
   // TODO: make this generic with a list of supported types
-  supportsFloat4 = true
-  hasLocal = true
-  hasShared = true
+  supports_float_4 = true
+  has_local = true
+  has_hared = true
   // NOTE: these two should be in (x,y,z) order to match the max_sizes argument in get_grouped_dims
-  globalMax?: [number, number, number] = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
-  localMax = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
-  sharedMax = 32768
-  tensorMores: TensorCore[] = []
+  global_max?: [number, number, number] = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
+  local_max = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
+  shared_max = 32768
+  tensor_cores: TensorCore[] | undefined = []
   extra_matcher?: any
   code_for_op: { [key in Ops]?: (...a: string[]) => string } = {}
 

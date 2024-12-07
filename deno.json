@@ -16,7 +16,8 @@
     "rules": {
       "exclude": [
         "no-explicit-any",
-        "no-unused-vars"
+        "no-unused-vars",
+        "verbatim-module-syntax"
       ],
       "include": [
         "prefer-const",

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, counter, divmod, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, zip } from './helpers.ts'
+import { allSame, assert, counter, divmod, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -136,7 +136,7 @@ export class GroupOp {
 }
 
 // # https://en.wikipedia.org/wiki/Identity_element
-// const identityElement=(op:Ops, dt:DType) =>  dtypes.asConst({Ops.ADD:0, Ops.MUL:1, Ops.MAX:dtypes.min(dt)}[op], dt)
+export const identity_element = (op: Ops, dt: DType) => dtypes.as_const({ [Ops.ADD]: 0, [Ops.MUL]: 1, [Ops.MAX]: dtypes.min(dt) }[op as 37], dt)
 
 export const can_pad = (u: UOp, edges: Map<UOp, UOp>, visisted: Set<UOp>): boolean => {
   if (GroupOp.UnsafePad.includes(u.op)) return false
@@ -230,7 +230,7 @@ export class UOp extends MathTrait {
   }
   //   # *** uop evaluation ***
 
-  simplify = (): UOp => graphRewrite(this, symbolic)
+  simplify = (): UOp => graph_rewrite(this, symbolic)
   ssimplify = (): UOp => {
     const ret = this.simplify()
     return ret.op === Ops.CONST ? ret.arg : ret
@@ -247,7 +247,7 @@ export class UOp extends MathTrait {
   __int__ = () => this._eval(dtypes.ints, Number)
   __float__ = () => this._eval(dtypes.floats, Number)
   substitute = (dvars: Map<UOp, UOp>) => {
-    return graphRewrite(this, _substitute, dvars, true)
+    return graph_rewrite(this, _substitute, dvars, true)
   }
 
   //   # *** uop syntactic sugar ***
@@ -294,7 +294,7 @@ export class UOp extends MathTrait {
   static const = (dtype: DType, b: ConstLike) => {
     if (b instanceof UOp) return b.unbind()[0]
     if (Array.isArray(b) && allSame(b)) b = b[0]
-    return new UOp({ op: Array.isArray(b) ? Ops.VCONST : Ops.CONST, dtype, arg: dtypes.asConst(b, dtype) })
+    return new UOp({ op: Array.isArray(b) ? Ops.VCONST : Ops.CONST, dtype, arg: dtypes.as_const(b, dtype) })
   }
   static int = (b: number) => UOp.const(dtypes.int, b)
   static bool = (b: boolean) => UOp.const(dtypes.bool, b)
@@ -405,7 +405,7 @@ export class UOp extends MathTrait {
   get vmax() {return this._minMax()[1]}
   // Actually can return boolean as well, but types don't like it
   _minMax = (): [number, number] => {
-    if (GroupOp.Binary.includes(this.op) && !dtypes.isFloat(this.dtype)) {
+    if (GroupOp.Binary.includes(this.op) && !dtypes.is_float(this.dtype)) {
       const [[s0_vmin, s0_vmax], [s1_vmin, s1_vmax]] = [this.src[0]._minMax(), this.src[1]._minMax()]
       if (this.op === Ops.ADD) return [s0_vmin + s1_vmin, s0_vmax + s1_vmax]
       if (this.op === Ops.MUL) {
@@ -431,7 +431,7 @@ export class UOp extends MathTrait {
       }
     }
     // float has NAN issue and we use explicit NAN in transcendental
-    if (this.op === Ops.WHERE && dtypes.isInt(this.dtype)) return [Math.min(this.src[1].vmin, this.src[2].vmin), Math.max(this.src[1].vmax, this.src[2].vmax)]
+    if (this.op === Ops.WHERE && dtypes.is_int(this.dtype)) return [Math.min(this.src[1].vmin, this.src[2].vmin), Math.max(this.src[1].vmax, this.src[2].vmax)]
     // NOTE: returned UOp is assumed to be CONST
     if (this.op === Ops.DEFINE_VAR && this.arg) return [this.arg[1], this.arg[2]]
     if (this.op === Ops.RANGE) return [this.src[0].vmin, (this.src[1].sub(1)).vmax]
@@ -457,7 +457,7 @@ export class UOp extends MathTrait {
   }
 
   render = (simplify = true): string => {
-    const ret = graphRewrite(simplify ? this.simplify() : this, renderer)
+    const ret = graph_rewrite(simplify ? this.simplify() : this, renderer)
     return ret.op === Ops.NOOP ? ret.arg : ret.toString()
   }
 }
@@ -550,20 +550,20 @@ const lines = (fn: string): string[] => {
   return readFileSync(fn).toString().split('\n')
 }
 
-type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allowAnyLen?: boolean; location?: any; customEarlyReject?: Ops[] }
+type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allow_any_len?: boolean; location?: any; custom_early_reject?: Ops[] }
 export class UPat extends MathTrait {
   op?: Ops[]
   dtype?: DType[]
   arg?: any
   name?: string
   _inSrc?: UPat | UPat[] | [UPat[]]
-  customEarlyReject?: Ops[]
+  custom_early_reject?: Ops[]
   src?: UPat[][]
-  allowedLen: number
+  allowed_len: number
   location: [string, number]
-  earlyReject: Ops[]
+  early_reject: Ops[]
 
-  constructor({ op, dtype, arg, location, name, src, allowAnyLen = false, customEarlyReject }: UPatInput) {
+  constructor({ op, dtype, arg, location, name, src, allow_any_len = false, custom_early_reject }: UPatInput) {
     super()
     assert(isNone(op) || !(!Array.isArray(op) && Object.values(Ops).includes(op)) || !(Array.isArray(op) && Object.values(Ops).includes(op[0])), 'op must be Ops or tuple of Ops')
     this.op = Array.isArray(op) ? op : !isNone(op) ? [op] : undefined
@@ -571,7 +571,7 @@ export class UPat extends MathTrait {
     this.arg = arg
     this.name = name
     this._inSrc = src
-    this.customEarlyReject = customEarlyReject
+    this.custom_early_reject = custom_early_reject
     assert(this.name !== 'ctx', "UPat can't be named ctx")
 
     // TODO: still not sure of this
@@ -585,17 +585,17 @@ export class UPat extends MathTrait {
     // NOTE: This is here because we can't differentaite between list and tuple so we use Upat[][] to achieve the same thing as list. but after this part the difference isn't needed anymore so we convert back to UPat[]
     if (Array.isArray(src) && src?.length === 1 && Array.isArray(src[0])) src = src[0]
 
-    this.allowedLen = (allowAnyLen || src instanceof UPat || isNone(src)) ? -1 : src.length
+    this.allowed_len = (allow_any_len || src instanceof UPat || isNone(src)) ? -1 : src.length
     this.location = location || getLocation()
 
-    if (isNotNone(customEarlyReject)) this.earlyReject = customEarlyReject
+    if (isNotNone(custom_early_reject)) this.early_reject = custom_early_reject
     else {
       const upatMatch = src instanceof UPat ? [src] : (isNone(src) ? [] : this.src![0])
-      this.earlyReject = upatMatch.filter((pp) => isNotNone(pp.op) && pp.op.length === 1).map((pp) => pp.op![0])
+      this.early_reject = upatMatch.filter((pp) => isNotNone(pp.op) && pp.op.length === 1).map((pp) => pp.op![0])
     }
   }
 
-  named = (name: string) => new UPat({ op: this.op, dtype: this.dtype, src: this._inSrc, arg: this.arg, name, allowAnyLen: this.allowedLen === -1, customEarlyReject: this.customEarlyReject })
+  named = (name: string) => new UPat({ op: this.op, dtype: this.dtype, src: this._inSrc, arg: this.arg, name, allow_any_len: this.allowed_len === -1, custom_early_reject: this.custom_early_reject })
 
   static any = (src: UPatInput['src']) => new UPatAny({ src: src })
 
@@ -624,14 +624,14 @@ export class UPat extends MathTrait {
         try{ return lines(this.location[0])[this.location[1]-1].trim() }
         catch { return "<missing>"}
     }
-  override toString = () => `new UPat({op:${listStr(this.op?.map((o) => opsString(o)))}, arg:${listStr(this.arg)}, name:${this.name}, dtype:${listStr(this.dtype)}, allow_any_len:${this.allowedLen === 0}, src=${listStr(this.src)})`
+  override toString = () => `new UPat({op:${listStr(this.op?.map((o) => opsString(o)))}, arg:${listStr(this.arg)}, name:${this.name}, dtype:${listStr(this.dtype)}, allow_any_len:${this.allowed_len === 0}, src=${listStr(this.src)})`
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
       (isNotNone(this.name) && !isEq(setDefault(store, this.name, uop), uop)) ||
       (isNotNone(this.dtype) && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
       (isNotNone(this.arg) && !isEq(this.arg, uop.arg)) ||
-      (this.allowedLen !== -1 && uop.src.length !== this.allowedLen)
+      (this.allowed_len !== -1 && uop.src.length !== this.allowed_len)
     ) return []
     if (isNone(this.src)) return [store]
     let res: Map<string, UOp>[] = []
@@ -667,7 +667,7 @@ export class PatternMatcher<Args extends object = Record<string, any>, Res exten
     this.patterns = patterns
     for (const [p, fxn] of this.patterns) {
       assert(isNotNone(p.op))
-      for (const uop of p.op || []) setDefault(this.pdict, uop, []).push([p, fxn, new Set(p.earlyReject), fxn.toString().includes('ctx')])
+      for (const uop of p.op || []) setDefault(this.pdict, uop, []).push([p, fxn, new Set(p.early_reject), fxn.toString().includes('ctx')])
     }
   }
 
@@ -675,9 +675,9 @@ export class PatternMatcher<Args extends object = Record<string, any>, Res exten
 
   rewrite = (uop: UOp, ctx?: any): Res | undefined => {
     const ler = new Set(uop.src.map((u) => u.op))
-    for (const [p, fxn, earlyReject, hasCtx] of this.pdict.get(uop.op) || []) {
+    for (const [p, fxn, early_reject, hasCtx] of this.pdict.get(uop.op) || []) {
       const index = this.patterns.findIndex((pattern) => pattern[0] === p)
-      if (!isSubset(ler, earlyReject)) {
+      if (!isSubset(ler, early_reject)) {
         console.log(`TS ${index} early rejected`)
         continue
       }
@@ -722,7 +722,7 @@ export class RewriteContext {
     return ret
   }
 }
-export const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>, bottom_up = false): UOp => {
+export const graph_rewrite = (sink: UOp, pm: PatternMatcher<any, any>, ctx?: any, bottom_up = false): UOp => {
   return bottom_up ? new RewriteContext(pm, ctx).bottom_up_rewrite(sink) : new RewriteContext(pm, ctx).rewrite(sink)
 }
 // # ***** uop type spec *****
@@ -732,7 +732,7 @@ export const graphRewrite = (sink: UOp, pm: PatternMatcher, ctx?: Map<UOp, UOp>,
 export const spec = new PatternMatcher<{ x: UOp; c: UOp; rng: UOp; y: UOp; src: UOp; ld: UOp; alt: UOp; gep: UOp; w: UOp; a: UOp }, boolean | undefined>([
   [new UPat({ op: Ops.DEFINE_GLOBAL, name: 'x' }), ({ x }) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
   [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), ({ x }) => x.dtype instanceof PtrDType && x.dtype.local],
-  [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('c')], name: 'x', allowAnyLen: true }), ({ x, c }) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && isEq(c.dtype, x.dtype)],
+  [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('c')], name: 'x', allow_any_len: true }), ({ x, c }) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && isEq(c.dtype, x.dtype)],
   [new UPat({ op: Ops.DEFINE_VAR, src: [], name: 'x' }), ({ x }) => typeof x.arg[1] === 'number' && typeof x.arg[2] === 'number'],
 
   [new UPat({ op: Ops.RANGE, src: [new UPat({ name: 'x' }), new UPat({ name: 'y' })], name: 'rng' }), ({ rng, x, y }) => isEq(rng.dtype, x.dtype) && isEq(x.dtype, y.dtype) && typeof rng.arg === 'number'],
@@ -742,7 +742,7 @@ export const spec = new PatternMatcher<{ x: UOp; c: UOp; rng: UOp; y: UOp; src: 
   [new UPat({ op: Ops.VIEW, dtype: dtypes.void, src: [] }), () => true],
   [new UPat({ op: Ops.VIEW, src: [UPat.var('src')], name: 'x' }), ({ x, src }) => src.op !== Ops.STORE && isEq(x.dtype, src.dtype)],
   [new UPat({ op: Ops.VALID, dtype: dtypes.bool, src: [new UPat({ op: Ops.VIEW })] }), () => true],
-  [new UPat({ op: Ops.CONST, name: 'x' }), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && typeof x.arg === typeof dtypes.asConst(x.arg, x.dtype)],
+  [new UPat({ op: Ops.CONST, name: 'x' }), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && typeof x.arg === typeof dtypes.as_const(x.arg, x.dtype)],
 
   //   # early LOAD has a <buf, shapetracker, store?>
   [new UPat({ op: Ops.LOAD, src: [new UPat({ op: [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL] }), new UPat({ op: Ops.VIEW })] }), () => true],
@@ -769,7 +769,7 @@ export const spec = new PatternMatcher<{ x: UOp; c: UOp; rng: UOp; y: UOp; src: 
 
   //   # and SHL/SHR, the shift distance can be an int
   [new UPat({ op: [Ops.SHL, Ops.SHR], src: [new UPat({ name: 'x' }), new UPat({ name: 'y' })], name: 'a' }), ({ a, x, y }) => isEq(a.dtype, x.dtype) && [x.dtype, dtypes.uint].includes(y.dtype)],
-  [new UPat({ op: Ops.IDIV, name: 'x' }), ({ x }) => dtypes.isInt(x.dtype) ? undefined : false],
+  [new UPat({ op: Ops.IDIV, name: 'x' }), ({ x }) => dtypes.is_int(x.dtype) ? undefined : false],
   [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ x }) => x.src!.every((y) => isEq(x.dtype, y.dtype))],
   [new UPat({ op: Ops.ASSIGN, src: [new UPat({ op: [Ops.DEFINE_ACC, Ops.DEFINE_GLOBAL] }), new UPat({})] }), () => true],
   [new UPat({ op: Ops.ENDRANGE, dtype: dtypes.void, src: [new UPat({ op: Ops.RANGE })] }), () => true],
@@ -788,15 +788,15 @@ export const spec = new PatternMatcher<{ x: UOp; c: UOp; rng: UOp; y: UOp; src: 
   [new UPat({ op: Ops.GEP, src: [new UPat({ name: 'src' })], name: 'gep' }), ({ gep, src }) => isEq(gep.dtype, src.dtype.scalar())],
   [new UPat({ op: Ops.VECTORIZE, name: 'x' }), ({ x }) => x.src!.length > 1 && x.src!.length === x.dtype.count && x.src!.every((y) => isEq(x.dtype, y.dtype.vec(x.src?.length)))],
   [new UPat({ op: [Ops.BITCAST, Ops.CAST], src: [new UPat({})], name: 'x' }), ({ x }) => isNone(x.arg)],
-  [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, allowAnyLen: true }) }), () => true], // NOTE: all pointers must be local
+  [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, allow_any_len: true }) }), () => true], // NOTE: all pointers must be local
   //   # NOTE: for testing, we let sinks be anything
   // [new UPat({ op: UOps.SINK, src: new UPat({ op: UOps.STORE }) }), () => true],
   [new UPat({ op: Ops.SINK, dtype: dtypes.void }), () => true],
   [new UPat({ op: Ops.NOOP }), () => true],
 
   //   # PTX LOAD/STORE
-  [new UPat({ op: [Ops.LOAD, Ops.STORE], src: [new UPat({ dtype: dtypes.int64 })], allowAnyLen: true }), () => true],
-  [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, src: [new UPat({ dtype: dtypes.int64 })], allowAnyLen: true }) }), () => true],
+  [new UPat({ op: [Ops.LOAD, Ops.STORE], src: [new UPat({ dtype: dtypes.int64 })], allow_any_len: true }), () => true],
+  [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, src: [new UPat({ dtype: dtypes.int64 })], allow_any_len: true }) }), () => true],
 ])
 
 export const typeVerify = (uops: UOp[]) => {
@@ -1082,7 +1082,7 @@ export const symbolicSimple = new PatternMatcher<Record<string, UOp>, UOp | unde
 
 export const symbolic = symbolicSimple.__add__(
   new PatternMatcher([
-      // ** COMMUTATIVE flipping **
+    // ** COMMUTATIVE flipping **
     [new UPat({ op: GroupOp.Commutative, name: 'x' }), ({ x }) => isLessThan(x.src[1].tuplize(), x.src[0].tuplize()) ? x.replace({ src: x.src.toReversed() }) : undefined],
     //   // group like
     [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, y, c }) => (x.add(x.mul(c))).add(y)],
@@ -1129,10 +1129,10 @@ export const symbolic = symbolicSimple.__add__(
     //   // *** rules from symbolic ***
     //   // unrolled arange div folding
     [new UPat({ op: Ops.ADD, name: 'divs', src: [[new UPat({}), new UPat({ op: Ops.IDIV })]] }), ({ divs }) => foldUnrolledDivs({ divs })],
-      // generic lt folding
+    // generic lt folding
     [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), ({ x, c }) => 0 < c.arg ? ltFolding(x, c.arg) : undefined],
-      // canonicalize a simplex with positive coefficients > 0
-      // not x < 1 -> X > 0
+    // canonicalize a simplex with positive coefficients > 0
+    // not x < 1 -> X > 0
     [UPat.var('x', dtypes.ints).lt(1).ne(true), ({ x }) => {
       const newx = canonicalizeSimplex(x)
       return isNotNone(newx) ? newx.lt(1).ne(true) : undefined
@@ -1198,6 +1198,7 @@ export const sint_prod = (x: sint[]) => x.reduce((acc, curr) => mul(acc, curr), 
 export const sint_sorted = (items: sint[], reverse = false) => items.toSorted((a, b) => lt(a, b) ? (!reverse ? -1 : 1) : (!reverse ? 1 : -1))
 
 export const sint_ceildiv = (num: sint, amt: sint): sint => neg(idiv(num, neg(amt)))
+const res = sum([UOp.int(33)], (a, b) => a.base.add(b.base))
 
 // *** uop swizzling ***
 

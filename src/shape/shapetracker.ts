@@ -1,7 +1,7 @@
 import { dtypes } from '../dtype.ts'
 import { assert, isEq, range } from '../helpers.ts'
 import { getNumberEnv, isNone, isNotNone, mergeMaps, zip } from '../helpers.ts'
-import { graphRewrite, idiv, mod, mul, Ops, simplifyValid, type sint, splitUOp, symbolicFlat, UOp, uop_given_valid, type Variable } from '../ops.ts'
+import { graph_rewrite, idiv, mod, mul, Ops, simplifyValid, type sint, splitUOp, symbolicFlat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
 
 const views_to_indexed_uops = (views: View[], _idxs?: UOp[]): [UOp, UOp] => {
@@ -21,12 +21,12 @@ const views_to_real_strides = (views: View[], ignore_valid = false): (undefined 
   // NOTE: if a stride is not always valid, it will be None
   if (views.length === 1 && isNone(views.at(-1)!.mask)) return views.at(-1)!.strides
   let ret: (undefined | sint)[] = range(views.at(-1)!.shape.length).map((x) => undefined)
-  let [idx, valid] = views_to_indexed_uops(views).map((u) => graphRewrite(u, symbolicFlat))
+  let [idx, valid] = views_to_indexed_uops(views).map((u) => graph_rewrite(u, symbolicFlat))
   // TODO: always apply these in to_indexed_uops?
   const newvalid = simplifyValid(valid)
   if (isNotNone(newvalid)) valid = newvalid
   const newidx = uop_given_valid(valid, idx)
-  if (isNotNone(newidx)) idx = graphRewrite(newidx, symbolicFlat)
+  if (isNotNone(newidx)) idx = graph_rewrite(newidx, symbolicFlat)
   for (const c of splitUOp(idx, Ops.ADD)) {
     if (c.op === Ops.RANGE) ret[c.arg] = 1
     if (c.op === Ops.MUL && c.src[0].op === Ops.RANGE && c.src[1].op === Ops.CONST) ret[c.src[0].arg] = c.src[1].arg
@@ -136,7 +136,7 @@ export class ShapeTracker {
 
   axis_is_masked = (axis: number): boolean => {
     const [_, valid] = this.to_indexed_uops()
-    return [...graphRewrite(valid, symbolicFlat).toposort].filter((x) => x.op === Ops.RANGE).map((x) => x.arg).includes(axis)
+    return [...graph_rewrite(valid, symbolicFlat).toposort].filter((x) => x.op === Ops.RANGE).map((x) => x.arg).includes(axis)
   }
   simplify = (): ShapeTracker => {
     const new_view = this.views.at(-2)?.__add__(this.views.at(-1)!)

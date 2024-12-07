@@ -6,6 +6,19 @@ import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 // GENERAL HELPERS
+export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
+  instance: any,
+  classType: T | NumberConstructor | BooleanConstructor | ArrayConstructor | StringConstructor,
+): instance is InstanceType<T> => {
+  if (classType === Number && typeof instance === 'number') return true
+  if (classType === Boolean && typeof instance === 'boolean') return true
+  if (classType === String && typeof instance === 'string') return true
+  if (classType === Array && Array.isArray(instance)) return true
+  return Array.isArray(classType) ? classType.some((t) => instance instanceof t) : instance instanceof classType
+}
+
+export const len = (x: { length: number } | null | undefined): number => isNone(x) ? 0 : x.length
+
 export const divmod = (a: number, b: number) => [Math.floor(a / b), a % b] as [number, number]
 export function* counter(start = 0) {
   let current = start
@@ -30,10 +43,20 @@ export const isEq = (one: any, two: any): boolean => {
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
-type Sortable = { lt: (x: any) => boolean }
-export const sorted = <T extends Sortable>(items: T[], reverse = false) => !reverse ? items.toSorted((a, b) => a.lt(b) ? -1 : 1) : items.toSorted((a, b) => a.lt(b) ? 1 : -1)
-export const max = <T extends Sortable>(items: T[]) => sorted(items, true)[0]
-export const min = <T extends Sortable>(items: T[]) => sorted(items)[0]
+type LT = { lt: (x: any) => boolean }
+type ADD = { add: (x: any) => ADD }
+
+const defaultSum = <T extends ADD | number>(a: T, b: T): T => (typeof a !== 'number' ? a.add(b) : typeof b !== 'number' ? b.add(a) : a + b) as T
+export const sum = <T extends ADD | number>(items: T[], fn = (a: T, b: T) => defaultSum(a, b)): T => items.reduce((acc, x) => fn(acc, x))
+
+const defaultLt = <T extends LT | number>(a: T, b: T) => (typeof a !== 'number' ? a.lt(b) : typeof b !== 'number' ? b.lt(a) : a < b)
+
+export const sorted = <T extends LT | number>(items: T[], reverse = false, fn = (a: T, b: T) => defaultLt(a, b)) => !reverse ? items.toSorted((a, b) => fn(a, b) ? -1 : 1) : items.toSorted((a, b) => fn(a, b) ? 1 : -1)
+export const max = <T extends LT | number>(items: T[], fn = (a: T, b: T) => defaultLt(a, b)) => sorted(items, true, fn)[0]
+export const min = <T extends LT | number>(items: T[], fn = (a: T, b: T) => defaultLt(a, b)) => sorted(items, false, fn)[0]
+
+export const all = (items: boolean[]) => items.every((x) => x)
+export const any = (items: boolean[]) => items.some((x) => x)
 
 export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
@@ -56,7 +79,16 @@ export const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
   map.set(key, newVal)
   return newVal
 }
-export const range = (i: number) => Array.from({ length: i }, (_, i) => i)
+export function range(start: number, stop?: number, step = 1): number[] {
+  const result: number[] = []
+  if (stop === undefined) {
+    stop = start
+    start = 0
+  }
+  if (step > 0) { for (let i = start; i < stop; i += step) result.push(i) }
+  else if (step < 0) { for (let i = start; i > stop; i += step) result.push(i) }
+  return result
+}
 export const d = <T extends any[]>(...t: T) => t
 export const assert = (condition: boolean, message?: string): condition is true => {
   if (!condition) throw new Error(message)
