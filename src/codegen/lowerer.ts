@@ -1,14 +1,3 @@
-// deno-lint-ignore-file verbatim-module-syntax
-// # the job of the lowerer is to do indexing
-// from __future__ import annotations
-// import functools, itertools, operator
-// from dataclasses import dataclass
-// from typing import List, Tuple, cast, Optional
-// from tinygrad.dtype import dtypes, PtrDType
-// from tinygrad.ops import KernelInfo, UOp, Ops, graph_rewrite, PatternMatcher, UPat, sint, identity_element, sint_to_uop
-// from tinygrad.renderer import Renderer
-// from tinygrad.helpers import all_int, prod, partition, flatten
-
 import { dtypes, PtrDType } from '../dtype.ts'
 import { all, assert, isinstance, len, min, partition, prod, range, sum, zip } from '../helpers.ts'
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, sint, sint_to_uop, UOp, UPat } from '../ops.ts'
