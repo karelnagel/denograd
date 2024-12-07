@@ -49,7 +49,6 @@ export class MathTrait extends SimpleMathTrait {
   mod = (x: ConstType<typeof this>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
   maximum = (x: ConstType<typeof this>) => this.alu(Ops.MAX, this.ufix(x))
   minimum = (x: ConstType<typeof this>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' ? this.ufix(-x) : x.neg()).neg()
-  static maximum = (self: typeof this, x: ConstType<typeof this>) => self.maximum(x)
   where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(x).ufix(y))
   threefry = (seed: ConstType<typeof this>) => this.alu(Ops.THREEFRY, this.ufix(seed))
   reciprocal = () => this.alu(Ops.RECIP)
@@ -661,7 +660,7 @@ export class UPatAny extends UPat {
   }
 }
 
-export class PatternMatcher<Args extends object = Record<string, any>, Res extends any = any, Fn extends ((args: Args) => Res) = (args: Args) => Res> {
+export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, Fn extends ((args: Args) => Res) = (args: Args) => Res> {
   patterns: [UPat, Fn][]
   pdict = new Map<Ops, ([UPat, Fn, Set<Ops>, boolean][])>()
   constructor(patterns: [UPat, Fn][]) {
@@ -716,7 +715,7 @@ export class RewriteContext {
     let new_n = n
     let last_n: UOp
     while (isNotNone(new_n));
-    ;[last_n, new_n] = [new_n, this.pm.rewrite(new_n, this.ctx)]
+    ;[last_n, new_n] = [new_n, this.pm.rewrite(new_n, this.ctx)!]
     const new_src = last_n.src.map((x) => this.bottom_up_rewrite(x))
     const ret = new_src === last_n.src ? last_n : this.bottom_up_rewrite(new UOp({ op: last_n.op, dtype: last_n.dtype, src: new_src, arg: last_n.arg }))
     this.replace.set(n, ret)
@@ -730,7 +729,7 @@ export const graph_rewrite = (sink: UOp, pm: PatternMatcher<any, any>, ctx?: any
 
 // # this is the matcher for the final rendered UOps
 // # matcher functions returns True or False (or None to not match)
-export const spec = new PatternMatcher<{ x: UOp; c: UOp; rng: UOp; y: UOp; src: UOp; ld: UOp; alt: UOp; gep: UOp; w: UOp; a: UOp }, boolean | undefined>([
+export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>([
   [new UPat({ op: Ops.DEFINE_GLOBAL, name: 'x' }), ({ x }) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
   [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), ({ x }) => x.dtype instanceof PtrDType && x.dtype.local],
   [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('c')], name: 'x', allow_any_len: true }), ({ x, c }) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && isEq(c.dtype, x.dtype)],
@@ -1027,7 +1026,7 @@ const _validPriority = (v: UOp, valids: UOp[]): number => {
     return 0
   }
 }
-export const simplifyValid = (valid: UOp): UOp | undefined => {
+export const simplify_valid = (valid: UOp): UOp | undefined => {
   const ret: UOp[] = []
   let somethingChanged = false
   const valids = splitUOp(valid, Ops.AND).toArray()
@@ -1044,7 +1043,7 @@ export const maxVarConst = ({ x, c1, c2 }: { x: UOp; c1: UOp; c2: UOp }) => {
 }
 export const sint_to_uop = (x: sint, dtype = dtypes.int) => typeof x === 'number' ? UOp.const(dtype, x) : x
 
-export const symbolic_simple = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
+export const symbolic_simple = new PatternMatcher([
   //   // ** this folding **
   [UPat.var('x').add(0), ({ x }) => x], // x+0 -> x
   [UPat.var('x').mul(1), ({ x }) => x], // x*1 -> x

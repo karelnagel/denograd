@@ -1,7 +1,7 @@
 import { dtypes } from '../dtype.ts'
 import { assert, isEq, range } from '../helpers.ts'
 import { getNumberEnv, isNone, isNotNone, mergeMaps, zip } from '../helpers.ts'
-import { graph_rewrite, idiv, mod, mul, Ops, simplifyValid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
+import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
 
 const views_to_indexed_uops = (views: View[], _idxs?: UOp[]): [UOp, UOp] => {
@@ -23,7 +23,7 @@ const views_to_real_strides = (views: View[], ignore_valid = false): (undefined 
   let ret: (undefined | sint)[] = range(views.at(-1)!.shape.length).map((x) => undefined)
   let [idx, valid] = views_to_indexed_uops(views).map((u) => graph_rewrite(u, symbolic_flat))
   // TODO: always apply these in to_indexed_uops?
-  const newvalid = simplifyValid(valid)
+  const newvalid = simplify_valid(valid)
   if (isNotNone(newvalid)) valid = newvalid
   const newidx = uop_given_valid(valid, idx)
   if (isNotNone(newidx)) idx = graph_rewrite(newidx, symbolic_flat)
