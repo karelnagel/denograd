@@ -154,7 +154,7 @@ export const argfix = (...x: any[]) => {
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
 export const allSame = <T>(items: T[]) => items.every((x) => isEq(x, items[0]))
 export const isInt = (x: any): x is number => Number.isInteger(x)
-export const allInt = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
+export const all_int = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
 export const colored = (st: string, color?: string, background = false) => {
   if (!color) return st
   const colors = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
@@ -189,7 +189,7 @@ export const ceildiv = (num: number, amt: number): number => {
   const ret = -(Math.floor(-num / amt))
   return Number.isInteger(ret) ? ret : Math.floor(ret)
 }
-export const roundUp = (num: number, amt: number) => Math.ceil(num / amt) * amt
+export const round_up = (num: number, amt: number) => Math.ceil(num / amt) * amt
 export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0] // TODO:make work with sint
 export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))] // TODO:make work with sint
 export const mergeDicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
@@ -217,7 +217,7 @@ export const getChild = (obj: any, key: string): any => key.split('.').reduce((c
 
 export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
-export const toFunctionName = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
+export const to_function_name = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
 export const getEnv = (key: string, defaultVal = '') => process.env[key] || defaultVal
 export const getNumberEnv = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)

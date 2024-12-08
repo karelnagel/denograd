@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { allInt, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
 import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sint_to_uop, sub, UOp } from '../ops.ts'
 
@@ -189,7 +189,7 @@ export class View {
     }
     //     # Merge dimensions in vm2 if required.
     //     # NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
-    if (!allInt(vm1.shape)) return undefined
+    if (!all_int(vm1.shape)) return undefined
     const idxs: UOp[] = [...vm1.shape.map((s, i) => UOp.variable(`idx${i}`, 0, s - 1))]
     let [merged_size, merged_term] = [1, UOp.int(0)] as [sint, UOp]
     const extents: [sint, UOp][] = []
@@ -316,7 +316,7 @@ export class View {
       return View.create(new_shape)
     }
     //     # check for the same size
-    const self_all_int = allInt(this.shape)
+    const self_all_int = all_int(this.shape)
     if (self_all_int) {
       assert(new_shape.every((s) => s instanceof UOp || typeof s === 'number'), `${listStr(this.shape)} -> ${listStr(new_shape)} contains non (int, Variable) dim`)
       if (resolve(ne(sint_prod(this.shape), sint_prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${listStr(this.shape)} -> new_shape=${listStr(new_shape)}`)
@@ -327,7 +327,7 @@ export class View {
     if (this.contiguous) return View.create(new_shape)
 
     //     # if it's not contiguous and new shape is symbolic, check if it's directly replaceable
-    if (self_all_int && !allInt(new_shape)) {
+    if (self_all_int && !all_int(new_shape)) {
       if (this.shape.length !== new_shape.length) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
       for (let [si, so] of zip(this.shape, new_shape)) {
         if (typeof so !== 'number') so = symInfer(so, new Map([...so.vars()].map((v) => v.unbind())))

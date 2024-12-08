@@ -13,7 +13,7 @@ Deno.test('dedup', compare([[[1, 2, 3, 2, 1]], [[1, 2, 3]]], helpers.dedup, 'out
 
 Deno.test('allSame', compare([[[1, 1, 1]], [[1, 2, 3]]], helpers.allSame, 'out(tiny.helpers.all_same(*data))'))
 
-Deno.test('allInt', compare([[[1, 2, 3]], [[1, 2.5, 3]]], helpers.allInt, 'out(tiny.helpers.all_int(*data))'))
+Deno.test('allInt', compare([[[1, 2, 3]], [[1, 2.5, 3]]], helpers.all_int, 'out(tiny.helpers.all_int(*data))'))
 
 Deno.test('colored', compare([['test', 'red'], ['test', 'green']], helpers.colored, 'out(tiny.helpers.colored(*data))'))
 
@@ -35,7 +35,7 @@ Deno.test('stripParens', compare([['sdfsdf'], ['(sdfsdf'], ['(sdfsdf)']], helper
 
 Deno.test('ceildiv', compare([[180, 3], [-10, 3], [10.5, 3], [-10.5, 3]], helpers.ceildiv, 'out(tiny.helpers.ceildiv(*data))'))
 
-Deno.test('roundUp', compare([[180, 3], [10, 3], [11, 3], [12, 3]], helpers.roundUp, 'out(tiny.helpers.round_up(*data))'))
+Deno.test('roundUp', compare([[180, 3], [10, 3], [11, 3], [12, 3]], helpers.round_up, 'out(tiny.helpers.round_up(*data))'))
 
 Deno.test('data64', compare([[333], [45443], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64, 'out(tiny.helpers.data64(*data))'))
 
@@ -55,7 +55,7 @@ Deno.test('word_wrap', compare([['This is a long string that needs to be wrapped
 
 Deno.test('polyN', compare([[2, [1, 2, 3]], [2, [1, 2, 3]]], helpers.polyN, 'out(tiny.helpers.polyN(*data))'))
 
-Deno.test('to_function_name', compare([['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.toFunctionName, `out(tiny.helpers.to_function_name(*data))`))
+Deno.test('to_function_name', compare([['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.to_function_name, `out(tiny.helpers.to_function_name(*data))`))
 
 Deno.test('getenv', compare([['key', 'value']], helpers.getEnv, 'out(tiny.helpers.getenv(*data))'))
 

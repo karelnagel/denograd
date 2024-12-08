@@ -466,6 +466,10 @@ export class KernelInfo {
   local_dims = 0 // number of local dimensions  (this is remapping RANGE to SPECIAL)
   upcasted = 0 // count that are upcasted     (this is remapping RANGE to EXPAND)
   dont_use_locals = false // don't use local indexing
+  // deno-fmt-ignore
+  constructor(local_dims = 0, upcasted = 0, dont_use_locals = false) {
+    this.local_dims = local_dims; this.upcasted = upcasted; this.dont_use_locals = dont_use_locals
+  }
 }
 
 // # ***** ops in python *****
@@ -507,7 +511,7 @@ const execAlu = (op: Ops, dtype: DType, operands: number[], truncateOutput = tru
 }
 // # ***** uop helpers *****
 
-export const printUOps = (uops: UOp[]) => {
+export const print_uops = (uops: UOp[]) => {
   for (const [i, u] of uops.entries()) {
     const formattedParents = u.src.map((x) => uops.includes(x) ? x.op !== Ops.CONST ? uops.indexOf(x) : `${x.arg}` : '--')
     console.log(`${i.toString().padStart(4)} ${u.op.toString().padEnd(20)} ${u.dtype.toString().padEnd(30)} ${formattedParents.toString().padEnd(32)} ${u.arg}`)
@@ -802,7 +806,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
 export const typeVerify = (uops: UOp[]) => {
   for (const [i, u] of uops.entries()) {
     if (!spec.rewrite(u)) {
-      printUOps(uops)
+      print_uops(uops)
       throw new Error(`UOp verification failed at ${i} on ${u.op} ${u.dtype} ${u.src.length} ${u.src.map((x) => x.op)} ${u.arg}`)
     }
   }

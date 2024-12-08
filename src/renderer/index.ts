@@ -1,5 +1,5 @@
 import type { DType } from '../dtype.ts'
-import { raise, toFunctionName } from '../helpers.ts'
+import { raise, to_function_name } from '../helpers.ts'
 import { isNone } from '../helpers.ts'
 import { assert, isNotNone, prod, range } from '../helpers.ts'
 import { flopsMem, Ops, type sint, symInfer, type UOp, type Variable } from '../ops.ts'
@@ -27,27 +27,47 @@ export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D 
   toString = () => ['WMMA', ...this.dims.map((d) => d.toString()), this.dtypeIn.name, this.dtypeOut.name].join('_')
 }
 
+type Props = {
+  name: string
+  src: string
+  device: string
+  uops?: UOp[]
+  mem_estimate?: sint
+  global_size?: number[]
+  local_size?: number[]
+  vars?: Variable[]
+  globals?: number[]
+  outs?: number[]
+}
 export class ProgramSpec {
   name: string
   src: string
   device: string
   uops?: UOp[]
-  memEstimate: sint = 0 // TODO: get this from the load/store uops once min/max are good
-  // deno-fmt-ignore
-  constructor(name: string, src: string, device: string, uops?: UOp[], memEstimate: sint = 0) {
-    this.name = name; this.src = src; this.device = device; this.uops = uops; this.memEstimate = memEstimate
+  mem_estimate: sint // TODO: get this from the load/store uops once min/max are good
+  constructor(p: Props) {
+    this.name = p.name
+    this.src = p.src
+    this.device = p.device
+    this.uops = p.uops
+    this.mem_estimate = p.mem_estimate || 0
+    this.global_size = p.global_size
+    this.local_size = p.local_size
+    this.vars = p.vars || []
+    this.globals = p.globals || []
+    this.outs = p.outs || []
   }
 
   // filled in from uops (if we have uops)
-  globalSize?: number[]
-  localSize?: number[]
+  global_size?: number[]
+  local_size?: number[]
   vars?: Variable[] = []
   globals: number[] = []
   outs: number[] = []
-  _ranPostInit = false // NOTE: this is needed if you call replace on the Program
+  _ran_post_nit = false // NOTE: this is needed if you call replace on the Program
 
   __postInit__ = () => {
-    if (!this._ranPostInit && isNotNone(this.uops)) {
+    if (!this._ran_post_nit && isNotNone(this.uops)) {
       // single pass through the uops
       for (const u of this.uops) {
         if (u.op === Ops.DEFINE_VAR) this.vars?.push(u)
@@ -55,26 +75,26 @@ export class ProgramSpec {
         if (u.op === Ops.STORE) this.outs = [...this.outs, ...[...u.src[0].toposort].filter((x) => x.op === Ops.DEFINE_GLOBAL).map((x) => x.arg)]
         if (u.op === Ops.SPECIAL) {
           // NOTE: you have to set local_size and global_size to the base [1,1,1] outside this
-          if (u.arg[0][0] === 'i') this.localSize = undefined
-          const specialSize = (u.arg[0][0] === 'l' ? this.localSize : this.globalSize) || []
+          if (u.arg[0][0] === 'i') this.local_size = undefined
+          const specialSize = (u.arg[0][0] === 'l' ? this.local_size : this.global_size) || []
           assert(isNotNone(specialSize))
           specialSize[Number(u.arg[0].at(-1)!)] = u.arg[1]
         }
       }
       this.vars = this.vars?.toSorted((a, b) => b.arg - a.arg)
       this.outs = [...new Set(this.outs)].toSorted()
-      this._ranPostInit = true
+      this._ran_post_nit = true
     }
   }
   opEstimate = () => this._opsLds()[0]
   ldsEstimate = () => this._opsLds()[1]
   _opsLds = (): [sint, sint] => isNone(this.uops) ? [0, 0] : flopsMem(this.uops, true)
 
-  functionName = () => toFunctionName(this.name)
+  functionName = () => to_function_name(this.name)
 
   launchDims = (varVals: Map<Variable, number>) => {
-    const globalSize = this.globalSize?.map((sz) => symInfer(sz, varVals))
-    const localSize = this.localSize?.map((sz) => symInfer(sz, varVals))
+    const globalSize = this.global_size?.map((sz) => symInfer(sz, varVals))
+    const localSize = this.local_size?.map((sz) => symInfer(sz, varVals))
     return [globalSize, localSize]
   }
 }
@@ -85,7 +105,7 @@ export class Renderer {
   // TODO: make this generic with a list of supported types
   supports_float4 = true
   has_local = true
-  has_hared = true
+  has_shared = true
   // NOTE: these two should be in (x,y,z) order to match the max_sizes argument in get_grouped_dims
   global_max?: [number, number, number] = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
   local_max = [0x8FFFFFFF, 0x8FFFFFFF, 0x8FFFFFFF] // TODO: UOps.SPECIAL int32 indexes right now
