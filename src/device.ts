@@ -23,7 +23,7 @@ export class _Device {
   }
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
   canonicalize = (device?: string): string => isNotNone(device) ? this._canonicalize(device) : Device.DEFAULT
-  __getitem__ = (ix: string): Compiled => this.__getCanonicalizedItem(this.canonicalize(ix))
+  get = (ix: string): Compiled => this.__getCanonicalizedItem(this.canonicalize(ix))
   __getCanonicalizedItem = (ix: string): Compiled => {
     // TODO take this progremmatically
     const cpn = 'MainProcess' //multiprocessing.current_process().name
@@ -32,11 +32,11 @@ export class _Device {
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
     return new ret(ix)
   }
-  default = (): Compiled => this.__getitem__(this.DEFAULT)
+  default = (): Compiled => this.get(this.DEFAULT)
   public *getAvailableDevices(): Generator<string> {
     for (const device in DEVICES) {
       try {
-        yield this.__getitem__(device).device
+        yield this.get(device).device
       } catch {
         continue
       }
@@ -105,54 +105,56 @@ export class Buffer {
     }
     if (preallocate) this.allocate()
   }
-  base = () => isNotNone(this._base) ? this._base : this
-  lbRefcount = () => this.base()._lbRefcount
-  ref = (cnt: number) => this.base()._lbRefcount += cnt
-  isAllocated = () => !!this._buf
-  ensureAllocated = (): Buffer => !this.isAllocated() ? this.allocate() : this
+  get base(): Buffer {
+    return isNotNone(this._base) ? this._base : this
+  }
+  lb_refcount = () => this.base._lbRefcount
+  ref = (cnt: number) => this.base._lbRefcount += cnt
+  is_allocated = () => !!this._buf
+  ensure_allocated = (): Buffer => !this.is_allocated() ? this.allocate() : this
   allocate = (opaque?: any, externalPtr?: any): Buffer => {
-    assert(!this.isAllocated(), "can't allocate already allocated buffer")
-    this.allocator = Device.__getitem__(this.device).allocator
+    assert(!this.is_allocated(), "can't allocate already allocated buffer")
+    this.allocator = Device.get(this.device).allocator
     if (isNotNone(externalPtr)) {
       this.options = this.options ? new BufferSpec({ ...this.options, externalPtr }) : new BufferSpec({ externalPtr })
     }
     if (isNotNone(this._base)) {
-      this._base.ensureAllocated()
+      this._base.ensure_allocated()
       if (!this.allocator || !('_offset' in this.allocator)) throw new Error('offset function required for view')
-      this._buf = (this.allocator._offset as any)(this.base()._buf, this.nbytes, this.offset)
+      this._buf = (this.allocator._offset as any)(this.base._buf, this.nbytes, this.offset)
     } else {
       this._buf = isNotNone(opaque) ? opaque : this.allocator?.alloc(this.nbytes, this.options)
-      if (!this.device.startsWith('DISK')) GlobalCounters.memUsed += this.nbytes
+      if (!this.device.startsWith('DISK')) GlobalCounters.mem_used += this.nbytes
     }
     return this
   }
   __reduce__ = () => {
     let buf
     if (isNotNone(this._base)) {
-      return [Buffer, [this.device, this.size, this.dtype, undefined, undefined, undefined, 0, this.base(), this.offset, this.isAllocated()]]
+      return [Buffer, [this.device, this.size, this.dtype, undefined, undefined, undefined, 0, this.base, this.offset, this.is_allocated()]]
     }
-    if (this.device === 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lbRefcount()]]
-    if (this.isAllocated()) {
+    if (this.device === 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lb_refcount()]]
+    if (this.is_allocated()) {
       buf = new bytearray(this.nbytes)
       this.copyout(new memoryview(buf))
     }
-    return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lbRefcount()]]
+    return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lb_refcount()]]
   }
   // deno-fmt-ignore
   get nbytes() {
         return this.size * this.dtype.itemsize
     }
   __del__ = () => {
-    if (!this.isAllocated()) return
+    if (!this.is_allocated()) return
     if (isNone(this._base) && (isNone(this.options) || isNone(this.options.externalPtr))) {
-      if (!this.device.startsWith('DISK')) GlobalCounters.memUsed -= this.nbytes
+      if (!this.device.startsWith('DISK')) GlobalCounters.mem_used -= this.nbytes
       this.allocator?.free(this._buf, this.nbytes, this.options)
     }
   }
   __repr__ = () => {
-    return `<buf real:${this.isAllocated()} device:${this.device} size:${this.size} dtype:${this.dtype}` + (this.base() ? ` offset:${this.offset}` : '') + (isNotNone(this.options) ? ` ${this.options}` : '') + '>'
+    return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}` + (this.base ? ` offset:${this.offset}` : '') + (isNotNone(this.options) ? ` ${this.options}` : '') + '>'
   }
-  asBuffer = (allowZeroCopy = false, forceZeroCopy = false) => {
+  as_buffer = (allowZeroCopy = false, forceZeroCopy = false) => {
     // zero copy with as_buffer (disabled by default due to use after free)
     if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (isNone(this.options) || isNone(this.options.image))) return (this.allocator._asBuffer as any)(this._buf)
     assert(!forceZeroCopy, 'force zero copy was passed, but copy is required')
@@ -161,14 +163,14 @@ export class Buffer {
   copyin = (mv: memoryview): Buffer => {
     mv = flat_mv(mv)
     assert(mv.length === this.nbytes, `size mismatch, ${mv.length} != ${this.dtype} ${this.size}`)
-    assert(this.isAllocated(), "can't copyin to unallocated buffer")
+    assert(this.is_allocated(), "can't copyin to unallocated buffer")
     this.allocator?._copyin(this._buf, mv)
     return this
   }
   copyout = (mv: memoryview): memoryview => {
     mv = flat_mv(mv)
     assert(mv.length === this.nbytes, `size mismatch, {len(mv)=} != {this.dtype=} ${this.size}`)
-    assert(this.isAllocated(), "can't copyout unallocated buffer")
+    assert(this.is_allocated(), "can't copyout unallocated buffer")
     this.allocator?._copyout(mv, this._buf)
     return mv
   }
@@ -212,12 +214,12 @@ export abstract class LRUAllocator extends Allocator {
       assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
       return this._alloc(size, isNotNone(options) ? options : new BufferSpec({}))
     } catch {
-      this.freeCache()
+      this.free_cache()
       assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
       return this._alloc(size, isNotNone(options) ? options : new BufferSpec({}))
     }
   }
-  freeCache = () => {
+  free_cache = () => {
     for (const [[sz, options], opaques] of this.cache.entries()) {
       for (const opaque of opaques) {
         this._free(opaque, isNotNone(options) ? options : new BufferSpec({}))
@@ -253,7 +255,7 @@ export class Compiler {
     this.cachekey = getEnv('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
   compile = (src: string): bytes => new TextEncoder().encode(src) // NOTE: empty compiler is the default
-  compileCached = (src: string): bytes => {
+  compile_cached = (src: string): bytes => {
     let lib = this.cachekey ? diskcacheGet(this.cachekey, src) : undefined
     if (isNone(lib)) {
       assert(!getEnv('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)

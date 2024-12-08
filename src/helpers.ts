@@ -245,12 +245,12 @@ export const _METADATA: Metadata | undefined = undefined
 // # **************** global state Counters ****************
 
 export class GlobalCounters {
-  static globalOps = 0
-  static globalMem = 0
-  static timeSumS = 0
-  static kernelCount = 0
-  static memUsed = 0 // NOTE: this is not reset
-  static reset = () => [GlobalCounters.globalOps, GlobalCounters.globalMem, GlobalCounters.timeSumS, GlobalCounters.kernelCount] = [0, 0, 0, 0]
+  static global_ops = 0
+  static global_mem = 0
+  static time_sum_s = 0
+  static kernel_count = 0
+  static mem_used = 0 // NOTE: this is not reset
+  static reset = () => [GlobalCounters.global_ops, GlobalCounters.global_mem, GlobalCounters.time_sum_s, GlobalCounters.kernel_count] = [0, 0, 0, 0]
 }
 
 // # **************** timer and profiler ****************

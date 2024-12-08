@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { all_int, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
-import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, smax, smin, symInfer, type Variable } from '../ops.ts'
+import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, smax, smin, sym_infer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sint_to_uop, sub, UOp } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
@@ -330,7 +330,7 @@ export class View {
     if (self_all_int && !all_int(new_shape)) {
       if (this.shape.length !== new_shape.length) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
       for (let [si, so] of zip(this.shape, new_shape)) {
-        if (typeof so !== 'number') so = symInfer(so, new Map([...so.vars()].map((v) => v.unbind())))
+        if (typeof so !== 'number') so = sym_infer(so, new Map([...so.vars()].map((v) => v.unbind())))
         if (si !== so) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
         //       # all dimensions matched, return the new view directly
       }

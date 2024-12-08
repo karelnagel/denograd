@@ -2,7 +2,7 @@ import type { DType } from '../dtype.ts'
 import { raise, to_function_name } from '../helpers.ts'
 import { isNone } from '../helpers.ts'
 import { assert, isNotNone, prod, range } from '../helpers.ts'
-import { flopsMem, Ops, type sint, symInfer, type UOp, type Variable } from '../ops.ts'
+import { flopsMem, Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
@@ -66,7 +66,7 @@ export class ProgramSpec {
   outs: number[] = []
   _ran_post_nit = false // NOTE: this is needed if you call replace on the Program
 
-  __postInit__ = () => {
+  __post_init__ = () => {
     if (!this._ran_post_nit && isNotNone(this.uops)) {
       // single pass through the uops
       for (const u of this.uops) {
@@ -86,15 +86,21 @@ export class ProgramSpec {
       this._ran_post_nit = true
     }
   }
-  opEstimate = () => this._opsLds()[0]
-  ldsEstimate = () => this._opsLds()[1]
-  _opsLds = (): [sint, sint] => isNone(this.uops) ? [0, 0] : flopsMem(this.uops, true)
+  get op_estimate() {
+    return this._ops_lds()[0]
+  }
+  get lds_estimate() {
+    return this._ops_lds()[1]
+  }
+  _ops_lds = (): [sint, sint] => isNone(this.uops) ? [0, 0] : flopsMem(this.uops, true)
 
-  functionName = () => to_function_name(this.name)
+  get function_name() {
+    return to_function_name(this.name)
+  }
 
-  launchDims = (varVals: Map<Variable, number>) => {
-    const globalSize = this.global_size?.map((sz) => symInfer(sz, varVals))
-    const localSize = this.local_size?.map((sz) => symInfer(sz, varVals))
+  launch_dims = (varVals: Map<Variable, number>) => {
+    const globalSize = this.global_size?.map((sz) => sym_infer(sz, varVals))
+    const localSize = this.local_size?.map((sz) => sym_infer(sz, varVals))
     return [globalSize, localSize]
   }
 }

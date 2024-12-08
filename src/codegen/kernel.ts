@@ -67,7 +67,7 @@ export class Kernel {
   constructor(ast: UOp, opts?: Renderer) {
     if (ast.op === Ops.SINK) this.ast = ast
 
-    this.opts = isNotNone(opts) ? opts : Device.__getitem__(Device.DEFAULT).renderer
+    this.opts = isNotNone(opts) ? opts : Device.get(Device.DEFAULT).renderer
     let uop_sts_map
     try {
       uop_sts_map = verify_ast(this.ast)

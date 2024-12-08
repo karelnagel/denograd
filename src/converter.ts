@@ -22,7 +22,11 @@ export const main = async () => {
     return `\n/**\n * ${clean}\n */`
   })
 
-  code = code.replace(/for (.*?) in (.*?): /g, ' for (const $1 of $2){ ')
+  code = code.replace(/for (.*?) in (.*?): /g, 'for (const $1 of $2){ ')
+  code = code.replace(/for (.*?) in (.*?):\n/g, 'for (const $1 of $2){\n')
+
+  code = code.replace(/while (.*?): /g, 'while ($1){ ')
+  code = code.replace(/while (.*?):\n/g, 'while ($1){\n')
 
   code = code.replace(/ (.*?) not in \[(.*?)\] /g, ' ![($2)].includes($1) ')
   code = code.replace(/ (.*?) in \[(.*?)\] /g, ' [($2)].includes($1) ')
@@ -33,10 +37,12 @@ export const main = async () => {
   code = code.replace(/: ?Optional\[(.*?)\] ?= ?None/g, '?: $1')
   code = code.replace(/: ?Optional\[(.*?)\]/g, '?: $1')
 
-  code = code.replace(/: ?Tuple\[(.*?), ?...\]/g, ': $1[]')
-  code = code.replace(/: ?Tuple\[(.*?)\]/g, ': [$1]')
-  code = code.replace(/: ?List\[(.*?)\]/g, ': $1[]')
-  code = code.replace(/: ?Dict\[(.*?)\]/g, ': Map<$1>')
+  code = code.replace(/Tuple\[(.*?), ?...\]/g, '$1[]')
+  code = code.replace(/Tuple\[(.*?)\]/g, '[$1]')
+  code = code.replace(/List\[(.*?)\]/g, '$1[]')
+  code = code.replace(/List\[(.*?)\]/g, '$1[]')
+  code = code.replace(/Dict\[(.*?)\]/g, 'Map<$1>')
+  code = code.replace(/Optional\[(.*?)\]/g, '$1 | undefined')
 
   code = code.replace(/: ?int/, ':number')
   code = code.replace(/: ?float/, ':number')
@@ -44,10 +50,19 @@ export const main = async () => {
   code = code.replace(/: ?bool/, ':boolean')
   code = code.replace(/: ?Any/, ':any')
 
+  code = code.replaceAll(/\bint\b/g, 'number')
+  code = code.replaceAll(/\bfloat\b/g, 'number')
+  code = code.replaceAll(/\bstr\b/g, 'string')
+  code = code.replaceAll(/\bbool\b/g, 'boolean')
+  code = code.replaceAll(/\bAny\b/g, 'any')
+
   code = code.replace(':=', '696996969696')
-  code = code.replace(/if (.*?): /g, 'if ($1) ')
   code = code.replace(/elif (.*?): /g, 'else if ($1) ')
+  code = code.replace(/elif (.*?):\n/g, 'else if ($1){\n')
+  code = code.replace(/if (.*?): /g, 'if ($1) ')
+  code = code.replace(/if (.*?):\n/g, 'if ($1) {\n')
   code = code.replace(/else: /g, 'else ')
+  code = code.replace(/else:\n/g, 'else {\n')
   code = code.replace('696996969696', ':=')
 
   code = code.replace(/class (.*?)\((.*?)\):/, 'class $1 extends $2 {')
