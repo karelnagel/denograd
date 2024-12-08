@@ -152,7 +152,7 @@ export const argfix = (...x: any[]) => {
 }
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
-export const allSame = <T>(items: T[]) => items.every((x) => isEq(x, items[0]))
+export const all_same = <T>(items: T[]) => items.every((x) => isEq(x, items[0]))
 export const isInt = (x: any): x is number => Number.isInteger(x)
 export const all_int = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
 export const colored = (st: string, color?: string, background = false) => {
@@ -230,15 +230,18 @@ export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [getNumberEnv('FUSE_ARANGE
 export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [getNumberEnv('SPLIT_REDUCEOP', 1), getNumberEnv('NO_MEMORY_PLANNER', 0), getNumberEnv('RING', 1)]
 
 // @dataclass(frozen=True)
-// class Metadata:
-//   name: str
-//   caller: str
-//   backward: bool = False
-//   def __hash__(self): return hash(self.name)
-//   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
-//   def __str__(self): return self.name + (" bw" if self.backward else "")
-// _METADATA: contextvars.ContextVar[Optional[Metadata]] = contextvars.ContextVar("_METADATA", default=None)
-
+export class Metadata {
+  name: string
+  caller: string
+  backward: boolean
+  constructor(name: string, caller: string, backward = false) {
+    this.name = name, this.caller = caller, this.backward = backward
+  }
+  // def __hash__(self): return hash(self.name)
+  //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
+  //   def __str__(self): return self.name + (" bw" if self.backward else "")
+}
+export const _METADATA: Metadata | undefined = undefined
 // # **************** global state Counters ****************
 
 export class GlobalCounters {

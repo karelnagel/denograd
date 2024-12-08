@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { allSame, AMX, assert, DEBUG, dedup, flatten, getEnv, isEq, isinstance, isNone, isNotNone, prod, range, sorted, TRANSCENDENTAL } from '../helpers.ts'
+import { all_same, AMX, assert, DEBUG, dedup, flatten, getEnv, isEq, isinstance, isNone, isNotNone, prod, range, sorted, TRANSCENDENTAL } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -331,7 +331,7 @@ export const do_expand = (root: UOp) => {
   const exclude_args = root.op === Ops.WMMA ? dedup([...root.arg[-1], ...flatten(root.arg.slice(-2)).map((y: any) => y[0])]) : []
   const expands_args = expands.map((x) => x.arg)
   let expand_args
-  if (allSame(expands_args) && exclude_args.length === 0) {
+  if (all_same(expands_args) && exclude_args.length === 0) {
     //     # if there's only one expand arg, it's okay to use it (optimization)
     expand_args = expands[0].arg
   } // otherwise, we sort them and GEP

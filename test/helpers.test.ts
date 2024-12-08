@@ -11,7 +11,7 @@ Deno.test('memsizeToStr', compare([[123], [100_000], [2_450_000]], helpers.memsi
 
 Deno.test('dedup', compare([[[1, 2, 3, 2, 1]], [[1, 2, 3]]], helpers.dedup, 'out(tiny.helpers.dedup(*data))'))
 
-Deno.test('allSame', compare([[[1, 1, 1]], [[1, 2, 3]]], helpers.allSame, 'out(tiny.helpers.all_same(*data))'))
+Deno.test('allSame', compare([[[1, 1, 1]], [[1, 2, 3]]], helpers.all_same, 'out(tiny.helpers.all_same(*data))'))
 
 Deno.test('allInt', compare([[[1, 2, 3]], [[1, 2.5, 3]]], helpers.all_int, 'out(tiny.helpers.all_int(*data))'))
 

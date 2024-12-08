@@ -38,15 +38,16 @@ export const main = async () => {
   code = code.replace(/: ?List\[(.*?)\]/g, ': $1[]')
   code = code.replace(/: ?Dict\[(.*?)\]/g, ': Map<$1>')
 
-  code = code.replace(/: ?int/, ': number')
-  code = code.replace(/: ?float/, ': number')
-  code = code.replace(/: ?str/, ': string')
-  code = code.replace(/: ?bool/, ': boolean')
+  code = code.replace(/: ?int/, ':number')
+  code = code.replace(/: ?float/, ':number')
+  code = code.replace(/: ?str/, ':string')
+  code = code.replace(/: ?bool/, ':boolean')
+  code = code.replace(/: ?Any/, ':any')
 
   code = code.replace(':=', '696996969696')
-  code = code.replace(/if (.*?):/g, 'if ($1)')
-  code = code.replace(/elif (.*?):/g, 'else if ($1)')
-  code = code.replace(/else:/g, 'else')
+  code = code.replace(/if (.*?): /g, 'if ($1) ')
+  code = code.replace(/elif (.*?): /g, 'else if ($1) ')
+  code = code.replace(/else: /g, 'else ')
   code = code.replace('696996969696', ':=')
 
   code = code.replace(/class (.*?)\((.*?)\):/, 'class $1 extends $2 {')
@@ -75,8 +76,11 @@ export const main = async () => {
   code = code.replace(/def (.*?)\((.*?)\) ?-> ?(.*?):/g, 'const $1 = ($2): $3 => {')
   code = code.replace(/def (.*?)\((.*?)\) ?:/g, 'const $1 = ($2) => {')
 
+  code = code.replace(/def (.*?)\(/g, 'const $1 = (')
+
   code = code.replace(/\[-(.*?)\]/g, '.at(-$1)!')
 
+  code = code.replaceAll('print(', 'console.log(')
   code = code.replaceAll('#', '//')
 
   await writeFile(ouptutFile, code)

@@ -8,221 +8,249 @@
 // from tinygrad.device import Buffer
 // from weakref import ref, ReferenceType, WeakValueDictionary
 
-// lazycache: WeakValueDictionary[Any, LazyBuffer] = WeakValueDictionary()
-// def create_lazybuffer(device:str, st:ShapeTracker, dtype:DType, op:Optional[Ops]=None, arg:Any=None, srcs:Tuple[LazyBuffer, ...]=(),
-//                       base:Optional[LazyBuffer]=None, enable_cache=bool(LAZYCACHE)):
-//   if st.size == 0: op, arg, srcs, base = Ops.CONST, 0, (), None
-//   dtype = to_dtype(dtype)
-//   if op is Ops.CONST: arg, enable_cache = dtypes.as_const(arg, dtype) if not isinstance(arg, UOp) else arg, True
+import { Buffer } from '../device.ts'
+import { ConstType, DType, dtypes, ImageDType, to_dtype } from '../dtype.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, getNumberEnv, isinstance, LAZYCACHE, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { exec_alu, GroupOp, identity_element, mod, ne, python_alu, resolve, sint_prod, sub } from '../ops.ts'
+import { idiv, MathTrait, mul, Ops, sint, UOp } from '../ops.ts'
+import { ShapeTracker } from '../shape/shapetracker.ts'
 
-//   cache_key = (device, st, dtype, op, arg, tuple(ref(x) for x in srcs)) if base is None else (st, ref(base))
-//   if enable_cache and (rret := lazycache.get(cache_key, None)) is not None: return rret
+const lazycache = new Map<any, LazyBuffer>()
+export const create_lazybuffer = (device: string, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, enable_cache = Boolean(LAZYCACHE)) => {
+  dtype = to_dtype(dtype)
+  if (op === Ops.CONST) [arg, enable_cache] = [!isinstance(arg, UOp) ? dtypes.as_const(arg, dtype) : arg, true]
 
-//   ret = LazyBuffer(device, st, dtype, op, arg, srcs, base=base, metadata=_METADATA.get())
-//   if enable_cache: lazycache[cache_key] = ret
-//   return ret
+  const cache_key = base === undefined ? [device, st, dtype, op, arg, srcs.map((x) => ref(x))] : [st, ref(base)]
+  if (enable_cache) {
+    const rret = lazycache.get(cache_key)
+    if (rret !== undefined) return rret
+  }
 
-// view_supported_devices = {"LLVM", "CLANG", "CUDA", "NV", "AMD", "METAL", "QCOM", "DSP", "DISK"}
-// class LazyBuffer(MathTrait):
-//   def __init__(self, device:str, st:ShapeTracker, dtype:DType,
-//                op:Optional[Ops]=None, arg:Any=None, srcs:Tuple[LazyBuffer, ...]=(),
-//                base:Optional[LazyBuffer]=None, metadata:Optional[Metadata]=None):
-//     self.device, self.st, self.dtype, self.shape, self.size, self.metadata = device, st, to_dtype(dtype), st.shape, st.size, metadata
-//     self._base: Optional[LazyBuffer] = None
-//     if base is None:
-//       # properties on base
-//       self.op, self.arg, self.srcs = op, arg, srcs  # this is a UOp, except the src is LazyBuffers and not UOps
-//       assert self.op is not Ops.ASSIGN or srcs[0].base.realized is not None, "assign target must be realized"
+  const ret = new LazyBuffer(device, st, dtype, op, arg, srcs, base, _METADATA)
+  if (enable_cache) lazycache.set(cache_key, ret)
+  return ret
+}
+export const view_supported_devices = ['LLVM', 'CLANG', 'CUDA', 'NV', 'AMD', 'METAL', 'QCOM', 'DSP', 'DISK']
+export class LazyBuffer extends MathTrait {
+  device: string
+  st: ShapeTracker
+  dtype: DType
+  shape
+  size
+  metadata?: Metadata
 
-//       if self.op is Ops.BUFFER_VIEW:
-//         # some LazyBuffers can be processed with only a view, no AST required
-//         self.buffer: Buffer = srcs[0].base.buffer.view(st.size, self.dtype, srcs[0].st.views[0].offset * srcs[0].dtype.itemsize)
-//       else:
-//         self.buffer = srcs[0].base.buffer if self.op is Ops.ASSIGN else Buffer(device, self.size, self.dtype)
-//       self.buffer.ref(1)
-//       self.contiguous_child: Optional[Tuple[ReferenceType[LazyBuffer], ShapeTracker]] = None
-//       self.forced_realize = False
-//     else:
-//       # properties on view
-//       assert base.base == base, "base must be a base itself"
-//       self._base = base
+  op?: Ops
+  arg?: any
+  srcs?: LazyBuffer[]
 
-//   def __del__(self):
-//     if hasattr(self, 'buffer'): self.buffer.ref(-1)
+  buffer?: Buffer
+  contiguous_child?: [LazyBuffer, ShapeTracker]
+  forced_realize?: boolean
+  _base?: LazyBuffer
+  constructor(device: string, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, metadata?: Metadata) {
+    super()
+    this.device = device, this.st = st, this.dtype = dtype, this.shape = st.shape, this.size = st.size, this.metadata = metadata
+    if (base === undefined) {
+      //       // properties on base
+      this.op = op, this.arg = arg, this.srcs = srcs // this === a UOp, except the src === LazyBuffers && !UOps
+      assert(this.op !== Ops.ASSIGN || srcs[0].base.realized !== undefined, 'assign target must be realized')
+      assert(all_same(this.srcs.map((x) => x.st.shape)), `src shape mismatch! ${this.srcs}`)
+      //         // some LazyBuffers can be processed with only a view, no AST required
+      if (this.op === Ops.BUFFER_VIEW) this.buffer = srcs[0].base.buffer!.view(st.size, this.dtype, (srcs[0].st.views[0].offset as number) * srcs[0].dtype.itemsize)
+      else this.op === Ops.ASSIGN ? this.buffer = srcs[0].base.buffer : new Buffer({ device, size: this.size, dtype: this.dtype })
+      this.forced_realize = false
+    } else {
+      //       // properties on view
+      assert(base.base === base, 'base must be a base itthis')
+      this._base = base
+    }
+  }
+  __del__ = () => {
+    if (this.buffer) this.buffer.ref(-1)
+  }
+  __repr__ = (): string => {
+    return `<LB ${this.device} ${this.shape} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st : (this.op, this.realized)}>`
+  }
+  get realized(): undefined | Buffer {
+    // NOTE: we check for a lack of srcs instead of an allocated buffer to make unrealized assigns return undefined here
+    return this._base === undefined && !this.srcs ? this.buffer : undefined
+  }
 
-//   def __repr__(self) -> str:
-//     return f"<LB {self.device} {self.shape} {str(self.dtype)[7:]} {self.st if self.base is not self else (self.op, self.realized)}>"
+  //   // NOTE: this has to be a function to prevent this reference
+  get base(): LazyBuffer {
+    return this._base !== undefined ? this._base : this
+  }
 
-//   @property
-//   def realized(self) -> Optional[Buffer]:
-//     # NOTE: we check for a lack of srcs instead of an allocated buffer to make unrealized assigns return None here
-//     return self.buffer if self._base is None and not hasattr(self, 'srcs') else None
+  //   // same API as multi
+  get lbs(): LazyBuffer[] {
+    return [this]
+  }
 
-//   # NOTE: this has to be a function to prevent self reference
-//   @property
-//   def base(self) -> LazyBuffer: return self._base if self._base is not None else self
+  static metaop = (op: Ops, shape: sint[], dtype: DType, device: string, arg?: any, src: LazyBuffer[] = [], enable_cache = false): LazyBuffer => {
+    assert(isinstance(src, Array))
+    return create_lazybuffer(device, ShapeTracker.from_shape(shape), dtype, op, arg, src, undefined, enable_cache)
+  }
+  override const_like = (b: ConstType): typeof this => this.const_with_shape(b, this.shape) as typeof this
+  const_with_shape = (val: ConstType, shape: sint[]): LazyBuffer => {
+    assert(isinstance(val, Number) || isinstance(val, Boolean), `val=${val} has ${typeof val}, !a ConstType`)
+    return LazyBuffer.metaop(Ops.CONST, [], this.dtype, this.device, val).reshape(range(shape.length).map((x) => 1)).expand(shape)
+  }
+  //   @property
+  get is_realized(): boolean {
+    return this.base.realized !== undefined
+  }
 
-//   # same API as multi
-//   @property
-//   def lbs(self) -> List[LazyBuffer]: return [self]
+  assign = (x: LazyBuffer): LazyBuffer => {
+    assert(x.size === this.size, `assign target must have same size ${this.size} !== ${x.size}`)
+    assert(this.is_realized, `assign target must be realized ${this}`)
+    return LazyBuffer.metaop(Ops.ASSIGN, this.shape, this.dtype, this.device, this.st.contiguous ? undefined : this.st, [this, x], true) // NOTE: assign to VIEW === fine
+  }
+  can_view = () => {
+    return (this.st.consecutive && !this.is_unrealized_const() && !isinstance(this.dtype, ImageDType) && this.device.split(':')[0] in view_supported_devices)
+  }
+  contiguous = (allow_buffer_view = true) => {
+    if (!this.st.contiguous || this.size !== this.base.size || this.is_unrealized_const()) {
+      const ret = allow_buffer_view && this.can_view() ? this.alu(Ops.BUFFER_VIEW) : this.alu(Ops.CONTIGUOUS)
+      const sti = this.st.invert(this.base.shape)
+      if (sti !== undefined) this.base.contiguous_child = [ref(ret), sti]
+      return ret
+    }
+    this.base.forced_realize = true
+    return this
+  }
 
-//   @staticmethod
-//   def metaop(op, shape:Tuple[sint,...], dtype:DType, device:str, arg=None, src:Tuple[LazyBuffer, ...]=(), enable_cache=False) -> LazyBuffer:
-//     assert isinstance(src, tuple)
-//     return create_lazybuffer(device, ShapeTracker.from_shape(shape), dtype, op, arg, src, enable_cache=enable_cache)
+  bitcast = (dtype: DType): LazyBuffer => this.cast(dtype, true)
+  cast = (dtype: DType, bitcast = false, allow_buffer_view = true): LazyBuffer => {
+    if (this.dtype === dtype) return this
+    if (this.device.startsWith('DISK') && !bitcast) throw new Error('attempted to cast disk buffer (bitcast only)')
+    if (this.is_unrealized_unmasked_const() && !bitcast) return create_lazybuffer(this.device, this.st, dtype, Ops.CONST, dtypes.as_const(this.base.arg, dtype))
+    let new_shape = this.shape
+    if (bitcast && this.dtype.itemsize !== dtype.itemsize) {
+      if (!this.device.startsWith('DISK')) throw new Error('shape changing bitcast only supported on DISK right now')
+      if (!all_int(new_shape)) throw new Error("shape changing bitcast with symbolic shape isn't supported yet")
+      //       // https://pytorch.org/docs/stable/generated/torch.Tensor.view.html
+      if ((new_shape.at(-1)! * this.dtype.itemsize) % dtype.itemsize !== 0) throw new Error('unsupported size in bitcast')
+      new_shape = [...new_shape.slice(0, -1), idiv(new_shape.at(-1)! * this.dtype.itemsize, dtype.itemsize)]
+    } else if (getNumberEnv('CAST_BEFORE_VIEW', 1) && dtype.itemsize <= this.dtype.itemsize && this !== this.base) {
+      //       // TODO: applying this makes gpt2 slower
+      return this.base.cast(dtype, bitcast)._view(this.st)
+    }
+    const cast_op: Ops = bitcast ? (this.can_view() && allow_buffer_view ? Ops.BUFFER_VIEW : Ops.BITCAST) : Ops.CAST
+    return create_lazybuffer(this.device, ShapeTracker.from_shape(new_shape), dtype, cast_op, undefined, [this])
+  }
+  is_unrealized_const = () => this.base.realized === undefined && this.base.op === Ops.CONST && !isinstance(this.base.arg, UOp)
+  is_unrealized_unmasked_const = () => this.is_unrealized_const() && this.st.views.every((v) => v.mask === undefined)
 
-//   def const_like(self, b): return self.const_with_shape(b, self.shape)
-//   def const_with_shape(self, val:ConstType, shape:Tuple[sint,...]) -> LazyBuffer:
-//     assert isinstance(val, get_args(ConstType)), f"{val=} has {type(val)=}, not a ConstType"
-//     return LazyBuffer.metaop(Ops.CONST, tuple(), self.dtype, self.device, arg=val).reshape((1,)*len(shape)).expand(shape)
+  _copy = (device: string): LazyBuffer => {
+    assert(this.st.contiguous && this.size === this.base.size, `can only copy contig ${this} ${this.base}`)
+    return create_lazybuffer(device, ShapeTracker.from_shape(this.shape), this.dtype, Ops.COPY, this.buffer?.nbytes, [this], undefined, false)
+  }
+  copy_to_device = (device: string, force = false, clone = false): LazyBuffer => {
+    //     // no COPY
+    if (this.device === device && !clone) return this
 
-//   @property
-//   def is_realized(self) -> bool: return self.base.realized is not None
+    //     // double COPY = one COPY
+    if (!force && this.st.contiguous && this.size === this.base.size && !this.base.realized && this.base.op === Ops.COPY) {
+      return this.base.srcs![0].copy_to_device(device).reshape(this.st.shape)
+    }
 
-//   def assign(self, x:LazyBuffer) -> LazyBuffer:
-//     assert x.size == self.size, f"assign target must have same size {self.size=} != {x.size=}"
-//     assert self.is_realized, f"assign target must be realized {self}"
-//     return LazyBuffer.metaop(Ops.ASSIGN, self.shape, self.dtype, self.device, arg=() if self.st.contiguous else (self.st,),
-//                              src=(self.base, x), enable_cache=True)
+    //     // const doesn't have to be copied (issues with disk tensor)
+    if (this.is_unrealized_const()) {
+      return LazyBuffer.metaop(Ops.CONST, [], this.dtype, device, this.base.arg)._view(this.st)
+    }
 
-//   def can_view(self):
-//     return (self.st.consecutive and not self.is_unrealized_const() and not isinstance(self.dtype, ImageDType) and
-//             self.device.split(":")[0] in view_supported_devices)
+    //     // if it's a shrink, do the shrink before the copy with CONTIGUOUS
+    if (sint_prod(this.st.shape) < sint_prod(this.base.st.shape)) return this.contiguous()._copy(device)
 
-//   def contiguous(self, allow_buffer_view=True):
-//     if not self.st.contiguous or self.size != self.base.size or self.is_unrealized_const():
-//       ret = self.alu(Ops.BUFFER_VIEW) if allow_buffer_view and self.can_view() else self.alu(Ops.CONTIGUOUS)
-//       if (sti := self.st.invert(self.base.shape)) is not None: self.base.contiguous_child = ref(ret), sti
-//       return ret
-//     self.base.forced_realize = True
-//     return self
+    //     // copy the base && apply the shapetracker on the new device
+    return this.base._copy(device)._view(this.st)
+  }
+  clone = (): LazyBuffer => this.copy_to_device(this.device, undefined, true)
 
-//   def bitcast(self, dtype:DType) -> LazyBuffer: return self.cast(dtype, bitcast=True)
-//   def cast(self, dtype:DType, bitcast:bool=False, allow_buffer_view=True) -> LazyBuffer:
-//     if self.dtype == dtype: return self
-//     if self.device.startswith("DISK") and not bitcast: raise RuntimeError("attempted to cast disk buffer (bitcast only)")
-//     if self.is_unrealized_unmasked_const() and not bitcast:
-//       return create_lazybuffer(self.device, self.st, dtype, Ops.CONST, dtypes.as_const(self.base.arg, dtype))
-//     new_shape = self.shape
-//     if bitcast and self.dtype.itemsize != dtype.itemsize:
-//       if not self.device.startswith("DISK"): raise RuntimeError("shape changing bitcast only supported on DISK right now")
-//       if not all_int(new_shape): raise RuntimeError("shape changing bitcast with symbolic shape isn't supported yet")
-//       # https://pytorch.org/docs/stable/generated/torch.Tensor.view.html
-//       if not (new_shape[-1]*self.dtype.itemsize) % dtype.itemsize == 0: raise RuntimeError("unsupported size in bitcast")
-//       new_shape = new_shape[:-1] + ((new_shape[-1]*self.dtype.itemsize) // dtype.itemsize,)
-//     elif getenv("CAST_BEFORE_VIEW", 1) and dtype.itemsize <= self.dtype.itemsize and self is not self.base:
-//       # TODO: applying this makes gpt2 slower
-//       return self.base.cast(dtype, bitcast)._view(self.st)
-//     cast_op: Ops = (Ops.BUFFER_VIEW if self.can_view() and allow_buffer_view else Ops.BITCAST) if bitcast else Ops.CAST
-//     return create_lazybuffer(self.device, ShapeTracker.from_shape(new_shape), dtype, cast_op, dtype, (self,))
+  alu = (op: Ops, in_srcs: LazyBuffer[]=[]): LazyBuffer => {
+    const srcs: LazyBuffer[] = []
+    for (const s of [this, ...in_srcs]) {
+      if (s === s.base && s.base.contiguous_child) {
+        const root = s.base.contiguous_child[0]()
+        if (root !== undefined) srcs.push(root._view(s.base.contiguous_child[1]))
+      } else {
+        srcs.push(s)
+      }
+    }
+    const dts = (op === Ops.WHERE ? srcs.slice(1) : srcs).map((x) => x.dtype.base)
+    if (!all_same(dts)) throw new Error(`all dtypes must match ${dts} on ${op}`)
+    assert(all_same(srcs.map((x) => x.shape)), `all shapes must be the same ${srcs.map((x) => x.shape)}`)
+    if (op === Ops.WHERE) assert(srcs[0].dtype === dtypes.bool, 'Ops.WHERE must have the first arg be bool')
 
-//   def is_unrealized_const(self): return self.base.realized is None and self.base.op is Ops.CONST and not isinstance(self.base.arg, UOp)
-//   def is_unrealized_unmasked_const(self): return self.is_unrealized_const() and all(v.mask is None for v in self.st.views)
+    const out_dtype = [Ops.CMPLT, Ops.CMPNE].includes(op) ? dtypes.bool : srcs.at(-1)!.dtype
 
-//   def _copy(self, device:str) -> LazyBuffer:
-//     assert self.st.contiguous and self.size == self.base.size, f"can only copy contig {self} {self.base}"
-//     return create_lazybuffer(device, ShapeTracker.from_shape(self.shape), self.dtype, Ops.COPY, self.buffer.nbytes, (self,), enable_cache=False)
+    //     // const folding
+    if (python_alu[op] && srcs.every((s) => s.is_unrealized_unmasked_const())) return this.cast(out_dtype).const_like(exec_alu(op, out_dtype, srcs.map((s) => s.base.arg)))
+    if (GroupOp.Binary.includes(op)) {
+      const [x, y] = [this, in_srcs[0]]
+      if (op === Ops.ADD) {
+        if (y.is_unrealized_unmasked_const() && y.base.arg === 0) return x
+        if (x.is_unrealized_unmasked_const() && x.base.arg === 0) return y
+      }
+      if (op === Ops.MUL) {
+        if (x.is_unrealized_unmasked_const() && [1, 0].includes(x.base.arg)) return x.base.arg === 1 ? y : y.const_like(0)
+        if (y.is_unrealized_unmasked_const() && [1, 0].includes(y.base.arg)) return y.base.arg === 1 ? x : x.const_like(0)
+      }
+      if (op === Ops.IDIV && y.is_unrealized_unmasked_const() && y.base.arg === 1) return x
+    }
+    return create_lazybuffer(this.device, ShapeTracker.from_shape(this.shape), out_dtype, op, undefined, srcs)
+  }
+  //   // *** reduce ops ***
 
-//   def copy_to_device(self, device:str, force:bool=False, clone:bool=False) -> LazyBuffer:
-//     # no COPY
-//     if self.device == device and not clone: return self
+  _reduce_op = (op: Ops, axis: number[]): LazyBuffer => {
+    assert(axis.every((x) => 0 <= x && x < this.shape.length), `axis args ${axis} out of range for shape ${this.shape}`)
+    axis = axis.filter((x) => resolve(ne(this.shape[x], 1))).toSorted()
+    if (axis.length === 0) return this
+    return create_lazybuffer(this.device, ShapeTracker.from_shape(this.st.reduce(axis)), this.dtype, Ops.REDUCE_AXIS, [op, axis], [this])
+  }
+  r = (op: Ops, axis: number[]): LazyBuffer => {
+    let new_shape = this.st.reduce(axis)
+    //     // TODO: this logic should move to the scheduler
+    if (this.shape.includes(0) && !new_shape.includes(0)) return this.const_with_shape(identity_element(op, this.dtype) as number, new_shape)
 
-//     # double COPY = one COPY
-//     if not force and self.st.contiguous and self.size == self.base.size and not self.base.realized and self.base.op is Ops.COPY:
-//       return self.base.srcs[0].copy_to_device(device).reshape(self.st.shape)
+    //     // const folding
+    //     // TODO: fold this for symbolic?
+    if (this.is_unrealized_unmasked_const() && all_int(this.shape)) {
+      if (op === Ops.ADD) return this.const_with_shape(this.base.arg * (sint_prod(axis.map((i) => this.shape[i])) as number), new_shape)
+      if (op === Ops.MUL) return this.const_with_shape(this.base.arg ** (sint_prod(axis.map((i) => this.shape[i])) as number), new_shape)
+      if (op === Ops.MAX) return this.const_with_shape(this.base.arg, new_shape)
+    }
+    //     // TODO: can we split symbolic shape if the reduce axis !== symbolic?
+    if (!SPLIT_REDUCEOP || !all_int(this.shape) || (this.shape.includes(0)) || idiv(prod(this.shape), prod(new_shape as number[])) < getNumberEnv('REDUCEOP_SPLIT_THRESHOLD', 32768)) return this._reduce_op(op, axis)
 
-//     # const doesn't have to be copied (issues with disk tensor)
-//     if self.is_unrealized_const():
-//       return LazyBuffer.metaop(Ops.CONST, tuple(), self.dtype, device, arg=self.base.arg)._view(self.st)
+    //     // if there are few globals, make some reduces into globals by splitting into two kernels
+    //     // cap output buffer to 2**22: heuristic number of global outputs to achieve max occupancy with enough locals+upcasts for gemm
+    //     //   ~2**10 should be enough if GROUP === used
+    //     // 256 split maximum should be "negligible reduce" for low prod(new_shape), 8 split minimum.
+    //     // split === moved to the end to provide maximum locality for the second phase reduce.
+    const this_real_strides = this.st.real_strides(true)
+    const split_candidates = range(Math.min(256, idiv(2 ** getNumberEnv('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape as number[]))), 8 - 1, -1).flatMap((x) => axis.map((i) => [i, x]))
+      .filter(([i, x]) => mod(this.shape[i], x) as number === 0 && this_real_strides[i] !== 0)
+    if (!split_candidates) return this._reduce_op(op, axis)
+    const [dim_to_split, divisor] = split_candidates[0]
+    const splitted_shape = [...this.shape.slice(0, dim_to_split), divisor, idiv(this.shape[dim_to_split], divisor), ...this.shape.slice(dim_to_split + 1)]
+    const splitted = this.reshape(splitted_shape).permute([...range(splitted_shape.length).filter((x) => x !== dim_to_split), dim_to_split])
+    if (DEBUG >= 3) console.log(`split ${divisor}: ${this.shape} -> ${splitted.shape} -> ${new_shape}`)
+    return splitted._reduce_op(op, axis)._reduce_op(op, [new_shape.length]).reshape(new_shape) // reduce original axes, then split
+  }
+  //   // *** movement ops ***
 
-//     # if it's a shrink, do the shrink before the copy with CONTIGUOUS
-//     if prod(self.st.shape) < prod(self.base.st.shape): return self.contiguous()._copy(device)
-
-//     # copy the base and apply the shapetracker on the new device
-//     return self.base._copy(device)._view(self.st)
-
-//   def clone(self) -> LazyBuffer: return self.copy_to_device(self.device, clone=True)
-
-//   def alu(self, op:Ops, *in_srcs:LazyBuffer) -> LazyBuffer:
-//     srcs: List[LazyBuffer] = []
-//     for s in (self,)+in_srcs:
-//       if s == s.base and s.base.contiguous_child and (root:=s.base.contiguous_child[0]()) is not None:
-//         srcs.append(root._view(s.base.contiguous_child[1]))
-//       else:
-//         srcs.append(s)
-//     if not all_same(dts:=[x.dtype.base for x in (srcs[1:] if op is Ops.WHERE else srcs)]):
-//       raise AssertionError(f"all dtypes must match {dts} on {op}")
-//     assert all_same([x.shape for x in srcs]), f"all shapes must be the same {[x.shape for x in srcs]}"
-//     if op is Ops.WHERE: assert srcs[0].dtype == dtypes.bool, "Ops.WHERE must have the first arg be bool"
-
-//     out_dtype = dtypes.bool if op in (Ops.CMPLT, Ops.CMPNE) else srcs[-1].dtype
-
-//     # const folding
-//     if op in python_alu and all(s.is_unrealized_unmasked_const() for s in srcs):
-//       return self.cast(out_dtype).const_like(exec_alu(op, out_dtype, [s.base.arg for s in srcs]))
-//     if op in GroupOp.Binary:
-//       x, y = self, in_srcs[0]
-//       if op is Ops.ADD:
-//         if y.is_unrealized_unmasked_const() and y.base.arg == 0: return x
-//         if x.is_unrealized_unmasked_const() and x.base.arg == 0: return y
-//       if op is Ops.MUL:
-//         if x.is_unrealized_unmasked_const() and (val := x.base.arg) in (1, 0): return y if val == 1 else y.const_like(0)
-//         if y.is_unrealized_unmasked_const() and (val := y.base.arg) in (1, 0): return x if val == 1 else x.const_like(0)
-//       if op is Ops.IDIV and y.is_unrealized_unmasked_const() and y.base.arg == 1: return x
-
-//     return create_lazybuffer(self.device, ShapeTracker.from_shape(self.shape), out_dtype, op, None, tuple(srcs))
-
-//   # *** reduce ops ***
-
-//   def _reduce_op(self, op:Ops, axis:Tuple[int, ...]) -> LazyBuffer:
-//     assert all(0 <= x < len(self.shape) for x in axis), f"axis args {axis} out of range for shape {self.shape}"
-//     axis = tuple(sorted([x for x in axis if resolve(self.shape[x] != 1)]))
-//     if len(axis) == 0: return self
-//     return create_lazybuffer(self.device, ShapeTracker.from_shape(self.st.reduce(axis)), self.dtype, Ops.REDUCE_AXIS, (op, axis), (self,))
-
-//   def r(self, op:Ops, axis:Tuple[int, ...]) -> LazyBuffer:
-//     new_shape = self.st.reduce(axis)
-//     # TODO: this logic should move to the scheduler
-//     if 0 in self.shape and 0 not in new_shape: return self.const_with_shape(identity_element(op, self.dtype), new_shape)
-
-//     # const folding
-//     # TODO: fold this for symbolic?
-//     if self.is_unrealized_unmasked_const() and all_int(self.shape):
-//       if op is Ops.ADD: return self.const_with_shape(self.base.arg * prod(self.shape[i] for i in axis), new_shape)
-//       if op is Ops.MUL: return self.const_with_shape(self.base.arg ** prod(self.shape[i] for i in axis), new_shape)
-//       if op is Ops.MAX: return self.const_with_shape(self.base.arg, new_shape)
-
-//     # TODO: can we split symbolic shape if the reduce axis is not symbolic?
-//     if not SPLIT_REDUCEOP or not all_int(self.shape) or (0 in self.shape) or \
-//       prod(self.shape) // prod(new_shape) < getenv("REDUCEOP_SPLIT_THRESHOLD", 32768):
-//       return self._reduce_op(op, axis)
-
-//     # if there are few globals, make some reduces into globals by splitting into two kernels
-//     # cap output buffer to 2**22: heuristic number of global outputs to achieve max occupancy with enough locals+upcasts for gemm
-//     #   ~2**10 should be enough if GROUP is used
-//     # 256 split maximum should be "negligible reduce" for low prod(new_shape), 8 split minimum.
-//     # split is moved to the end to provide maximum locality for the second phase reduce.
-//     self_real_strides = self.st.real_strides(ignore_valid=True)
-//     split_candidates = [(i, x) for i in axis for x in range(min(256,2**getenv("REDUCEOP_SPLIT_SIZE",22)//prod(new_shape)),8-1,-1)
-//                         if self.shape[i] % x == 0 and self_real_strides[i] != 0]
-//     if not split_candidates: return self._reduce_op(op, axis)
-//     dim_to_split, divisor = split_candidates[0]
-//     splitted_shape = self.shape[:dim_to_split] + (divisor,) + (self.shape[dim_to_split]//divisor,) + self.shape[dim_to_split+1:]
-//     splitted = self.reshape(splitted_shape).permute(tuple([x for x in range(len(splitted_shape)) if x != dim_to_split]+[dim_to_split]))
-//     if DEBUG >= 3: print(f"split {divisor}: {self.shape} -> {splitted.shape} -> {new_shape}")
-//     return splitted._reduce_op(op, axis)._reduce_op(op, (len(new_shape),)).reshape(new_shape)  # reduce original axes, then split
-
-//   # *** movement ops ***
-
-//   def _view(self, new_st:ShapeTracker) -> LazyBuffer:
-//     if self.st.size == 0 or (new_st.views[-1].mask is not None and any((x[1]-x[0]) == 0 for x in new_st.views[-1].mask)):
-//       return self.const_with_shape(0, new_st.shape)
-//     if new_st.contiguous and self.base.shape == new_st.shape: return self.base
-//     return create_lazybuffer(self.device, new_st, self.dtype, base=self.base)
-
-//   def reshape(self, arg:Tuple[sint, ...]): return self._view(self.st.reshape(arg))
-//   def pad(self, arg:Tuple[Tuple[sint, sint], ...]): return self._view(self.st.pad(arg))
-//   def expand(self, arg:Tuple[sint, ...]): return self._view(self.st.expand(arg))
-//   def permute(self, arg:Tuple[int, ...]): return self._view(self.st.permute(arg))
-//   def shrink(self, arg:Tuple[Tuple[sint, sint], ...]): return self._view(self.st.shrink(arg))
-//   def stride(self, arg:Tuple[int, ...]): return self._view(self.st.stride(arg))
+  _view = (new_st: ShapeTracker): LazyBuffer => {
+    if (this.st.size === 0 || (new_st.views.at(-1)!.mask !== undefined && new_st.views.at(-1)!.mask!.some((x) => sub(x[1], x[0]) === 0))) {
+      return this.const_with_shape(0, new_st.shape)
+    }
+    if (new_st.contiguous && this.base.shape === new_st.shape) return this.base
+    return create_lazybuffer(this.device, new_st, this.dtype, undefined, undefined, undefined, this.base)
+  }
+  reshape = (arg: sint[]) => this._view(this.st.reshape(arg))
+  pad = (arg: [sint, sint][]) => this._view(this.st.pad(arg))
+  expand = (arg: sint[]) => this._view(this.st.expand(arg))
+  permute = (arg: number[]) => this._view(this.st.permute(arg))
+  shrink = (arg: [sint, sint][]) => this._view(this.st.shrink(arg))
+  stride = (arg: number[]) => this._view(this.st.stride(arg))
+}

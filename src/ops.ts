@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { allSame, assert, counter, divmod, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
+import { all_same, assert, counter, divmod, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -216,7 +216,7 @@ export class UOp extends MathTrait {
     if (GroupOp.Buffer.includes(this.op) && src_sts.length !== 0) return src_sts[0]
     src_sts = this.src.filter((x) => isNotNone(x.st)).map((x) => x.st!)
     if (src_sts.length === 0) return undefined
-    assert(allSame(src_sts.map((x) => x.shape)), `UOp parents must have the same shape ${this} ${listStr(src_sts.map((x) => x.shape))}`)
+    assert(all_same(src_sts.map((x) => x.shape)), `UOp parents must have the same shape ${this} ${listStr(src_sts.map((x) => x.shape))}`)
     // all other ops have a contiguous shapetracker
     return ShapeTracker.from_shape([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op) ? src_sts[0].reduce(this.axis_arg) : src_sts[0].shape)
   }
@@ -293,7 +293,7 @@ export class UOp extends MathTrait {
   }
   static const = (dtype: DType, b: ConstLike) => {
     if (b instanceof UOp) return b.unbind()[0]
-    if (Array.isArray(b) && allSame(b)) b = b[0]
+    if (Array.isArray(b) && all_same(b)) b = b[0]
     return new UOp({ op: Array.isArray(b) ? Ops.VCONST : Ops.CONST, dtype, arg: dtypes.as_const(b, dtype) })
   }
   static int = (b: number) => UOp.const(dtypes.int, b)
@@ -480,7 +480,7 @@ const safe_exp2 = (x: number) => {
     return Infinity
   }
 }
-export const pythonAlu: { [key in Ops]?: (...x: number[]) => number } = {
+export const python_alu: { [key in Ops]?: (...x: number[]) => number } = {
   [Ops.LOG2]: (x) => x === 0 ? x > 0 ? Math.log2(2) : -Infinity : NaN,
   [Ops.EXP2]: safe_exp2,
   [Ops.SQRT]: (x) => x >= 0 ? Math.sqrt(x) : NaN,
@@ -504,9 +504,9 @@ export const pythonAlu: { [key in Ops]?: (...x: number[]) => number } = {
   [Ops.WHERE]: (x, y, z) => x ? y : z,
 }
 
-const execAlu = (op: Ops, dtype: DType, operands: number[], truncateOutput = true): any => {
-  if (dtype.count > 1) return range(dtype.count).map((i) => execAlu(op, dtype.scalar(), operands.map((x) => Array.isArray(x) ? x[i] : x)))
-  const alu = pythonAlu[op]!(...operands)
+export const exec_alu = (op: Ops, dtype: DType, operands: number[], truncateOutput = true): any => {
+  if (dtype.count > 1) return range(dtype.count).map((i) => exec_alu(op, dtype.scalar(), operands.map((x) => Array.isArray(x) ? x[i] : x)))
+  const alu = python_alu[op]!(...operands)
   return truncateOutput ? truncate(dtype)(alu) : alu
 }
 // # ***** uop helpers *****
@@ -580,7 +580,7 @@ export class UPat extends MathTrait {
 
     // TODO: still not sure of this
     // try all permutations if it's a list (we use src[][])
-    if (Array.isArray(src) && Array.isArray(src[0])) this.src = !allSame(src[0]) ? permutations(src[0]) : [src[0]]
+    if (Array.isArray(src) && Array.isArray(src[0])) this.src = !all_same(src[0]) ? permutations(src[0]) : [src[0]]
     // only one if it's a tuple (we use src[])
     else if (Array.isArray(src)) this.src = [src as UPat[]]
     // repeat if it's a UPat
@@ -1014,9 +1014,9 @@ export const uop_given_valid = (valid: UOp, uop: UOp): UOp | undefined => {
       // if every branch in candidate gives the same simplified uop, we can rewrite the uop
       const newuops = candidate.map(([X, newX]) => uop.substitute(new Map([[X, newX]])).simplify().substitute(new Map([[X, newX]])).simplify())
       if (uop.op === Ops.VECTORIZE && uop.src.length === 2) {
-        if (allSame(newuops.map((uops) => uops.src[0]))) uop = uop.replace({ src: [newuops[0].src[0], uop.src[1]] })
-        if (allSame(newuops.map((uops) => uops.src[1]))) uop = uop.replace({ src: [uop.src[0], newuops[0].src[1]] })
-      } else if (allSame(newuops)) uop = newuops[0]
+        if (all_same(newuops.map((uops) => uops.src[0]))) uop = uop.replace({ src: [newuops[0].src[0], uop.src[1]] })
+        if (all_same(newuops.map((uops) => uops.src[1]))) uop = uop.replace({ src: [uop.src[0], newuops[0].src[1]] })
+      } else if (all_same(newuops)) uop = newuops[0]
     }
   }
   return uop
@@ -1074,7 +1074,7 @@ export const symbolic_simple = new PatternMatcher([
   //   // NOTE: this can be wrong for loaded NaN
   [UPat.var('x').mul(0), ({ x }) => x.const_like(typeof x.arg === 'number' && (isNaN(x.arg) || !isFinite(x.arg)) ? NaN : 0)],
   //   // ** constant folding **
-  [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), ({ a }) => a.const_like(execAlu(a.op, a.dtype, a.src?.map((x) => x.arg), false))],
+  [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), ({ a }) => a.const_like(exec_alu(a.op, a.dtype, a.src?.map((x) => x.arg), false))],
   //   // bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly
   [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwiseAnd(y)],
   [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwiseOr(y)],

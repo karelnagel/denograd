@@ -1,7 +1,7 @@
 import { group } from 'node:console'
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, allSame, assert, colored, DEBUG, dedup, getEnv, getNumberEnv, isinstance, isNone, isNotNone, range, round_up, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, assert, colored, DEBUG, dedup, getEnv, getNumberEnv, isinstance, isNone, isNotNone, range, round_up, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, ge, graph_rewrite, GroupOp, gt, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, resolve, sint, sint_prod, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -712,9 +712,9 @@ export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, Shap
     const src_sts = uop.src.filter((x) => x.has_st).map((x) => sts.get(x)!)
     st = src_sts[0]
     const shapes = src_sts.map((x) => x.shape)
-    if (!allSame(shapes)) {
+    if (!all_same(shapes)) {
       const sizes = shapes.map((x) => sint_prod(x))
-      if (allSame(sizes)) throw new Error(`found implicit reshape ${shapes}`)
+      if (all_same(sizes)) throw new Error(`found implicit reshape ${shapes}`)
       throw new Error(`found implicit expand ${sizes} ${shapes}`)
     }
   }
@@ -722,7 +722,7 @@ export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, Shap
 }
 export const verify_ast = (ast: UOp): Map<UOp, ShapeTracker> => {
   assert(ast.op === Ops.SINK && ast.src.every((x) => x.op === Ops.STORE), 'must be SINK')
-  assert(allSame(ast.src.map((x) => x.st_arg.size)), 'outputs must be exactly the same size')
+  assert(all_same(ast.src.map((x) => x.st_arg.size)), 'outputs must be exactly the same size')
   const sts = new Map<UOp, ShapeTracker>()
   for (const out of ast.src) _assert_valid_uop(out, out.st_arg, sts)
   const shape_dims = zip(...sts.values().map((x) => x.shape)).map((dims) => [...new Set(dims)].toSorted())
