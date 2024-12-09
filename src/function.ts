@@ -1,212 +1,228 @@
-// """This is where the forwards and backwards passes live."""
-// import math
-// from typing import Tuple, Optional
-// from tinygrad.helpers import argsort
-// from tinygrad.dtype import dtypes, DType, sum_acc_dtype
-// from tinygrad.ops import Ops, resolve, sint
-// from tinygrad.tensor import Function
-// from tinygrad.engine.lazy import LazyBuffer
+/**
+ * This === where the forwards && backwards passes live.
+ */
+import { DType, dtypes, sum_acc_dtype } from './dtype.ts'
+import { LazyBuffer } from './engine/lazy.ts'
+import { argsort, range, zip } from './helpers.ts'
+import { add, ne, Ops, resolve, sint, sub } from './ops.ts'
+import { Function } from './tensor.ts'
 
-// class Contiguous(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer: return x.contiguous()
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output
+export class Contiguous extends Function {
+  override forward = (x: LazyBuffer): LazyBuffer => x.contiguous()
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output
+}
 
-// class ContiguousBackward(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer: return x
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.contiguous()
+export class ContiguousBackward extends Function {
+  override forward = (x: LazyBuffer): LazyBuffer => x
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.contiguous()
+}
 
-// class Cast(Function):
-//   def forward(self, x:LazyBuffer, dtype:DType, bitcast:bool=False) -> LazyBuffer:
-//     self.input_dtype, self.bitcast = x.dtype, bitcast
-//     return x.bitcast(dtype) if self.bitcast else x.cast(dtype)
+export class Cast extends Function {
+  input_dtype!: DType
+  bitcast!: boolean
+  override forward = ({ x, dtype, bitcast = false }: { x: LazyBuffer; dtype: DType; bitcast?: boolean }): LazyBuffer => {
+    this.input_dtype = x.dtype, this.bitcast = bitcast
+    return this.bitcast ? x.bitcast(dtype) : x.cast(dtype)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+    if (this.bitcast) throw new Error('bitcast can!backward')
+    return grad_output.cast(this.input_dtype!)
+  }
+}
 
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer:
-//     if self.bitcast: raise RuntimeError("bitcast cannot backward")
-//     return grad_output.cast(self.input_dtype)
+// // ************* unary ops *************
 
-// # ************* unary ops *************
+export class Reciprocal extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.ret = x.reciprocal()
+    return this.ret
+  }
 
-// class Reciprocal(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer:
-//     self.ret = x.reciprocal()
-//     return self.ret
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.neg().mul(this.ret).mul(this.ret)
+}
+export class Sin extends Function {
+  x!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.x = x
+    return x.sin()
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => (this.x.sub(Math.PI / 2, true)).sin().mul(grad_output)
+}
+export class Relu extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.ret = x.maximum(0)
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => (this.ret.gt(0)).cast(grad_output.dtype).mul(grad_output)
+}
+export class Log extends Function {
+  x!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.x = x
+    return x.log2().mul(Math.log(2))
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.div(this.x)
+}
+export class Exp extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.ret = (x.mul(1 / Math.log(2))).exp2()
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => this.ret.mul(grad_output)
+}
+export class Sqrt extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.ret = x.sqrt()
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.div(this.ret.mul(2))
+}
+// // NOTE: the implicit derivative of sigmoid !== stable
+// // https://towardsdatascience.com/derivative-of-the-sigmoid-function-536880cf918e
+// // TODO: have the backend automatically find this
+export class Sigmoid extends Function {
+}
+export class Sign extends Function {
+  override forward = (x: LazyBuffer): LazyBuffer => x.ne(0).where((x.lt(0)).where(x.const_like(-1), x.const_like(1)), x.const_like(0))
+  //   // backward always return 0 to match torch
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.const_like(0)
+}
+// // ************* binary ops *************
 
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return -grad_output * self.ret * self.ret
+export class Less extends Function {
+  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.lt(y)
+  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
+}
+export class Neq extends Function {
+  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.ne(y)
+  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
+}
+export class Xor extends Function {
+  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.xor(y)
+}
+export class BitwiseAnd extends Function {
+  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.bitwiseAnd(y)
+}
+export class BitwiseOr extends Function {
+  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.bitwiseOr(y)
+}
+export class Threefry extends Function {
+  override forward = ({ x, seed }: { x: LazyBuffer; seed: LazyBuffer }): LazyBuffer => x.threefry(seed)
+}
 
-// class Sin(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer:
-//     self.x = x
-//     return x.sin()
+export class Add extends Function {
+  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.add(y)
 
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return (math.pi/2 - self.x).sin() * grad_output
+  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [this.needs_input_grad[0] ? grad_output : undefined, this.needs_input_grad[1] ? grad_output : undefined]
+}
+export class Mul extends Function {
+  x!: LazyBuffer
+  y!: LazyBuffer
+  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => {
+    this.x, this.y = x, y
+    return x.mul(y)
+  }
+  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [this.needs_input_grad[0] ? (this.y.mul(grad_output)) : undefined, this.needs_input_grad[1] ? (this.x.mul(grad_output)) : undefined]
+}
+export class IDiv extends Function {
+  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.idiv(y)
+}
+// // ************* ternary ops *************
 
-// class Relu(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer:
-//     self.ret = x.maximum(0)
-//     return self.ret
+export class Where extends Function {
+  x!: LazyBuffer
+  override forward = ({ x, y, z }: { x: LazyBuffer; y: LazyBuffer; z: LazyBuffer }): LazyBuffer => {
+    this.x = x
+    return this.x.where(y, z)
+  }
+  override backward = (grad_output: LazyBuffer): [undefined, LazyBuffer | undefined, LazyBuffer | undefined] => [
+    undefined,
+    this.needs_input_grad[1] ? this.x.where(grad_output, grad_output.const_like(0)) : undefined,
+    this.needs_input_grad[2] ? this.x.where(grad_output.const_like(0), grad_output) : undefined,
+  ]
+}
+// // ************* reduce ops *************
 
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return self.ret.gt(0).cast(grad_output.dtype) * grad_output
+export class Sum extends Function {
+  input_shape!: sint[]
+  override forward = ({ x, axis }: { x: LazyBuffer; axis: number[] }): LazyBuffer => {
+    this.input_shape = x.shape
+    return x.r(Ops.ADD, axis)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.expand(this.input_shape)
+}
+export class Prod extends Function {
+}
+export class Max extends Function {
+  x!: LazyBuffer
+  ret!: LazyBuffer
+  axis!: number[]
+  override forward = ({ x, axis }: { x: LazyBuffer; axis: number[] }): LazyBuffer => {
+    this.x = x, this.ret = x.r(Ops.MAX, axis), this.axis = axis
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+    // 1s in locations where the max was chosen (can be two locations)
+    const max_is_1s = this.x.ne(this.ret.expand(this.x.shape)).ne(this.x.const_like(1).cast(dtypes.bool)).cast(grad_output.dtype)
+    const div = max_is_1s.r(Ops.ADD, this.axis).expand(this.x.shape)
+    return (max_is_1s.div(div)).mul(grad_output.expand(this.x.shape))
+  }
+}
+// // ************* movement ops *************
 
-// class Log(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer:
-//     self.x = x
-//     return x.log2() * math.log(2)
+// // NOTE: this === sum in reverse
+export class Expand extends Function {
+  expanded_axis!: number[]
+  override forward = ({ x, shape }: { x: LazyBuffer; shape: number[] }): LazyBuffer => {
+    this.expanded_axis = zip(x.shape, shape).filter(([si, so]) => resolve(ne(si, so))).map((_, i) => i)
+    return x.expand(shape)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+    return grad_output.cast(sum_acc_dtype(grad_output.dtype)).r(Ops.ADD, this.expanded_axis).cast(grad_output.dtype)
+  }
+}
 
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output / self.x
-
-// class Exp(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer:
-//     self.ret = (x * (1/math.log(2))).exp2()
-//     return self.ret
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return self.ret * grad_output
-
-// class Sqrt(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer:
-//     self.ret = x.sqrt()
-//     return self.ret
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output / (self.ret*2)
-
-// # NOTE: the implicit derivative of sigmoid is not stable
-// # https://towardsdatascience.com/derivative-of-the-sigmoid-function-536880cf918e
-// # TODO: have the backend automatically find this
-// class Sigmoid(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer:
-//     self.ret = (1 + (x * (-1/math.log(2))).exp2()).reciprocal()
-//     return self.ret
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer:
-//     return (self.ret * (1 - self.ret)) * grad_output
-
-// class Sign(Function):
-//   def forward(self, x:LazyBuffer) -> LazyBuffer: return x.ne(0).where(x.lt(0).where(x.const_like(-1), x.const_like(1)), x.const_like(0))
-//   # backward always return 0 to match torch
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.const_like(0)
-
-// # ************* binary ops *************
-
-// class Less(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer) -> LazyBuffer: return x.lt(y)
-//   def backward(self, grad_output:LazyBuffer) -> Tuple[Optional[LazyBuffer], Optional[LazyBuffer]]: return None, None
-
-// class Neq(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer) -> LazyBuffer: return x.ne(y)
-//   def backward(self, grad_output:LazyBuffer) -> Tuple[Optional[LazyBuffer], Optional[LazyBuffer]]: return None, None
-
-// class Xor(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer) -> LazyBuffer: return x^y
-
-// class BitwiseAnd(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer) -> LazyBuffer: return x&y
-
-// class BitwiseOr(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer) -> LazyBuffer: return x|y
-
-// class Threefry(Function):
-//   def forward(self, x:LazyBuffer, seed:LazyBuffer) -> LazyBuffer: return x.threefry(seed)
-
-// class Add(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer) -> LazyBuffer: return x+y
-
-//   def backward(self, grad_output:LazyBuffer) -> Tuple[Optional[LazyBuffer], Optional[LazyBuffer]]:
-//     return grad_output if self.needs_input_grad[0] else None, \
-//            grad_output if self.needs_input_grad[1] else None
-
-// class Mul(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer) -> LazyBuffer:
-//     self.x, self.y = x, y
-//     return x * y
-
-//   def backward(self, grad_output:LazyBuffer) -> Tuple[Optional[LazyBuffer], Optional[LazyBuffer]]:
-//     return (self.y * grad_output) if self.needs_input_grad[0] else None, \
-//            (self.x * grad_output) if self.needs_input_grad[1] else None
-
-// class IDiv(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer) -> LazyBuffer: return x // y
-
-// # ************* ternary ops *************
-
-// class Where(Function):
-//   def forward(self, x:LazyBuffer, y:LazyBuffer, z:LazyBuffer) -> LazyBuffer:
-//     self.x = x
-//     return self.x.where(y, z)
-
-//   def backward(self, grad_output:LazyBuffer) -> Tuple[None, Optional[LazyBuffer], Optional[LazyBuffer]]:
-//     return None, \
-//       self.x.where(grad_output, grad_output.const_like(0)) if self.needs_input_grad[1] else None, \
-//       self.x.where(grad_output.const_like(0), grad_output) if self.needs_input_grad[2] else None
-
-// # ************* reduce ops *************
-
-// class Sum(Function):
-//   def forward(self, x:LazyBuffer, axis:Tuple[int, ...]) -> LazyBuffer:
-//     self.input_shape = x.shape
-//     return x.r(Ops.ADD, axis)
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.expand(self.input_shape)
-
-// class Prod(Function):
-//   def forward(self, x:LazyBuffer, axis:Tuple[int, ...]) -> LazyBuffer:
-//     self.x, self.ret = x, x.r(Ops.MUL, axis)
-//     return self.ret
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer:
-//     return (grad_output * self.ret).expand(self.x.shape) / self.x
-
-// class Max(Function):
-//   def forward(self, x:LazyBuffer, axis:Tuple[int, ...]) -> LazyBuffer:
-//     self.x, self.ret, self.axis = x, x.r(Ops.MAX, axis), axis
-//     return self.ret
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer:
-//     # 1s in locations where the max was chosen (can be two locations)
-//     max_is_1s = self.x.ne(self.ret.expand(self.x.shape)).ne(self.x.const_like(1).cast(dtypes.bool)).cast(grad_output.dtype)
-//     div = max_is_1s.r(Ops.ADD, self.axis).expand(self.x.shape)
-//     return (max_is_1s/div) * grad_output.expand(self.x.shape)
-
-// # ************* movement ops *************
-
-// # NOTE: this is sum in reverse
-// class Expand(Function):
-//   def forward(self, x:LazyBuffer, shape:Tuple[int, ...]) -> LazyBuffer:
-//     self.expanded_axis = tuple(i for i, (si, so) in enumerate(zip(x.shape, shape)) if resolve(si != so))
-//     return x.expand(shape)
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer:
-//     return grad_output.cast(sum_acc_dtype(grad_output.dtype)).r(Ops.ADD, self.expanded_axis).cast(grad_output.dtype)
-
-// class Reshape(Function):
-//   def forward(self, x:LazyBuffer, shape:Tuple[int, ...]) -> LazyBuffer:
-//     self.input_shape = x.shape
-//     return x.reshape(shape)
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.reshape(self.input_shape)
-
-// class Permute(Function):
-//   def forward(self, x:LazyBuffer, order:Tuple[int, ...]) -> LazyBuffer:
-//     self.input_order = order
-//     return x.permute(order)
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.permute(argsort(self.input_order))
-
-// class Pad(Function):
-//   def forward(self, x:LazyBuffer, arg:Tuple[Tuple[int, int], ...]) -> LazyBuffer:
-//     self.narg = tuple([(p[0], s+p[0]) for s,p in zip(x.shape, arg)])
-//     return x.pad(arg)
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.shrink(self.narg)
-
-// class Shrink(Function):
-//   def forward(self, x:LazyBuffer, arg:Tuple[Tuple[sint, sint], ...]) -> LazyBuffer:
-//     self.narg = tuple([(p[0], s-p[1]) for s,p in zip(x.shape, arg)])
-//     return x.shrink(arg)
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.pad(self.narg)
-
-// class Flip(Function):
-//   def forward(self, x:LazyBuffer, axis:Tuple[int, ...]) -> LazyBuffer:
-//     self.arg = tuple([-1 if i in axis else 1 for i in range(len(x.shape))])
-//     return x.stride(self.arg)
-
-//   def backward(self, grad_output:LazyBuffer) -> LazyBuffer: return grad_output.stride(self.arg)
+export class Reshape extends Function {
+  input_shape!: sint[]
+  override forward = ({ x, shape }: { x: LazyBuffer; shape: number[] }): LazyBuffer => {
+    this.input_shape = x.shape
+    return x.reshape(shape)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.reshape(this.input_shape)
+}
+export class Permute extends Function {
+  input_order!: number[]
+  override forward = ({ x, order }: { x: LazyBuffer; order: number[] }): LazyBuffer => {
+    this.input_order = order
+    return x.permute(order)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.permute(argsort(this.input_order))
+}
+export class Pad extends Function {
+  narg!: [sint, sint][]
+  override forward = ({ x, arg }: { x: LazyBuffer; arg: [number, number][] }): LazyBuffer => {
+    this.narg = zip(x.shape, arg).map(([s, p]) => [p[0], add(s, p[0])])
+    return x.pad(arg)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.shrink(this.narg)
+}
+export class Shrink extends Function {
+  narg!: [sint, sint][]
+  override forward = ({ x, arg }: { x: LazyBuffer; arg: [sint, sint][] }): LazyBuffer => {
+    this.narg = zip(x.shape, arg).map(([s, p]) => [p[0], sub(s, p[1])])
+    return x.shrink(arg)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.pad(this.narg)
+}
+export class Flip extends Function {
+  arg!: number[]
+  override forward = ({ x, axis }: { x: LazyBuffer; axis: number[] }): LazyBuffer => {
+    this.arg = range(x.shape.length).map((i) => axis.includes(i) ? -1 : 1)
+    return x.stride(this.arg)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.stride(this.arg)
+}
