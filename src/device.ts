@@ -108,7 +108,9 @@ export class Buffer {
   get base(): Buffer {
     return isNotNone(this._base) ? this._base : this
   }
-  lb_refcount = () => this.base._lbRefcount
+  get lb_refcount() {
+    return this.base._lbRefcount
+  }
   ref = (cnt: number) => this.base._lbRefcount += cnt
   is_allocated = () => !!this._buf
   ensure_allocated = (): Buffer => !this.is_allocated() ? this.allocate() : this
