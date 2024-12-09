@@ -14,6 +14,7 @@ const DEVICES = {
   // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
   CLANG: () => import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
+  DISK: () => import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
 }
 
 export class _Device {
@@ -135,12 +136,12 @@ export class Buffer {
     if (isNotNone(this._base)) {
       return [Buffer, [this.device, this.size, this.dtype, undefined, undefined, undefined, 0, this.base, this.offset, this.is_allocated()]]
     }
-    if (this.device === 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lb_refcount()]]
+    if (this.device === 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lb_refcount]]
     if (this.is_allocated()) {
       buf = new bytearray(this.nbytes)
       this.copyout(new memoryview(buf))
     }
-    return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lb_refcount()]]
+    return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lb_refcount]]
   }
   // deno-fmt-ignore
   get nbytes() {
