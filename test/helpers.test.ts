@@ -41,7 +41,7 @@ Deno.test('data64', compare([[333], [45443], [0], [-1], [Number.MAX_SAFE_INTEGER
 
 Deno.test('data64_le', compare([[333], [3434], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64Le, 'out(tiny.helpers.data64_le(*data))'))
 
-Deno.test('mergeDicts', compare([[[{ a: 1 }, { b: 2 }], [{ x: 1, y: 2 }, { z: 3 }]]] as any, helpers.mergeDicts, 'out(tiny.helpers.merge_dicts(data[0]))'))
+Deno.test('mergeDicts', compare([[[{ a: 1 }, { b: 2 }], [{ x: 1, y: 2 }, { z: 3 }]]] as any, helpers.merge_dicts, 'out(tiny.helpers.merge_dicts(data[0]))'))
 
 Deno.test('partition', compare([[[1, 2, 3, 4, 5], (x: number) => x % 2 === 0]], helpers.partition, 'out(tiny.helpers.partition(data[0], lambda x: x % 2 == 0))'))
 Deno.test('partition', compare([[[2, 4, 6, 8, 10], (x: number) => x > 5]], helpers.partition, 'out(tiny.helpers.partition(data[0], lambda x: x > 5))'))

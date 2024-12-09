@@ -192,13 +192,13 @@ export const ceildiv = (num: number, amt: number): number => {
 export const round_up = (num: number, amt: number) => Math.ceil(num / amt) * amt
 export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0] // TODO:make work with sint
 export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))] // TODO:make work with sint
-export const mergeDicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
+export const merge_dicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
   const kvs = new Set(ds.flatMap((d) => Object.entries(d))) as Set<[T, U]>
   const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
   if (kvs.size !== keys.size) throw new Error(`cannot merge, ${Array.from(kvs)} contains different values for the same key`)
   return Object.fromEntries(Array.from(kvs)) as Record<T, U>
 }
-export function mergeMaps<K, V>(maps: Iterable<Map<K, V>>): Map<K, V> {
+export function merge_maps<K, V>(maps: Iterable<Map<K, V>>): Map<K, V> {
   const resultMap = new Map<K, V>()
   for (const map of maps) {
     if (!(map instanceof Map)) continue
@@ -209,6 +209,11 @@ export function mergeMaps<K, V>(maps: Iterable<Map<K, V>>): Map<K, V> {
   }
 
   return resultMap
+}
+export function merge_sets<V>(sets: Iterable<Set<V>>): Set<V> {
+  const resultSet = new Set<V>()
+  for (const set of sets) for (const value of set) resultSet.add(value)
+  return resultSet
 }
 
 export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])

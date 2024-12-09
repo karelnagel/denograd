@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { assert, isEq, range } from '../helpers.ts'
-import { getNumberEnv, isNone, isNotNone, mergeMaps, zip } from '../helpers.ts'
+import { getNumberEnv, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
 
@@ -44,7 +44,7 @@ export class ShapeTracker {
   constructor(views: View[]) {
     this.views = views
   }
-  __add__ = (st: ShapeTracker): ShapeTracker => {
+  add = (st: ShapeTracker): ShapeTracker => {
     let ret = new ShapeTracker(this.views)
     for (const v of st.views) ret = new ShapeTracker([...ret.views, v]).simplify() // one view at a time = better simplification
     return ret
@@ -100,13 +100,13 @@ export class ShapeTracker {
   vars = (): Variable[] => [...new Set(this.views.flatMap((v) => v.vars()))]
 
   get var_vals(): Map<Variable, number> {
-    return mergeMaps(this.vars().map((v) => new Map([v.unbind()])))
+    return merge_maps(this.vars().map((v) => new Map([v.unbind()])))
   }
 
   unbind = (): [ShapeTracker, Map<Variable, number>] => {
     const un = this.views.map((v) => v.unbind())
     const [unbound_views, var_vals] = [un.map((x) => x[0]), un.map((v) => v[1])]
-    return [new ShapeTracker(unbound_views), mergeMaps(var_vals)]
+    return [new ShapeTracker(unbound_views), merge_maps(var_vals)]
   }
   //   # NOTE: if a stride is not always valid, it will be None
   real_strides = (ignore_valid = false) => views_to_real_strides(this.views, ignore_valid)

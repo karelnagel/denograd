@@ -73,7 +73,7 @@ Deno.test(
       [st1, [st3]],
       [st2, [st3]],
     ],
-    testShape((shape) => shape.__add__),
+    testShape((shape) => shape.add),
     'out(trycatch(lambda: data[0].__add__(*data[1])))',
   ),
 )

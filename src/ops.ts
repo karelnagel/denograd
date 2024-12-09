@@ -111,6 +111,7 @@ export enum Ops{
     // consts last!
     VCONST, CONST,
 }
+export const OpsAll = Object.values(Ops).filter((value) => typeof value === 'number') as Ops[]
 export const opsString = (op: Ops) => {
   for (const key in Ops) if (Ops[key] === op as unknown as keyof Ops) return `Ops.${key}`
   return undefined
@@ -263,7 +264,7 @@ export class UOp extends MathTrait {
     if (!(Array.isArray(ret) && ret.every((x) => typeof x === 'number'))) throw new Error(`axis_arg trying to return ${ret}`)
     return ret
   }
-  sink = (...srcs: UOp[]) => new UOp({ op: Ops.SINK, dtype: dtypes.void, src: [this, ...srcs] })
+  static sink = (...srcs: UOp[]) => new UOp({ op: Ops.SINK, dtype: dtypes.void, src: [...srcs] })
   index = (idx: UOp, valid?: UOp) => new UOp({ op: Ops.INDEX, dtype: this.dtype, src: isNotNone(valid) ? [this, idx, valid] : [this, idx] })
   override const_like = (b: ConstLike<typeof this>) => (isNone(this.st) ? UOp.const(this.dtype, b) : UOp.const_with_shape(this.dtype, b, this.shape)) as typeof this
   broadcast = (count: number) => {
@@ -554,7 +555,7 @@ const lines = (fn: string): string[] => {
   return readFileSync(fn).toString().split('\n')
 }
 
-type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allow_any_len?: boolean; location?: any; custom_early_reject?: Ops[] }
+export type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allow_any_len?: boolean; location?: any; custom_early_reject?: Ops[] }
 export class UPat extends MathTrait {
   op?: Ops[]
   dtype?: DType[]
@@ -675,7 +676,7 @@ export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, F
     }
   }
 
-  add = (more: PatternMatcher<Args, Res, Fn>) => new PatternMatcher<Args, Res, Fn>([...this.patterns, ...more.patterns])
+  add = <NewArgs, NewRes>(more: PatternMatcher<NewArgs, NewRes>) => new PatternMatcher<Args | NewArgs, Res | NewRes>([...this.patterns, ...more.patterns] as any)
 
   rewrite = (uop: UOp, ctx?: any): Res | undefined => {
     const ler = new Set(uop.src.map((u) => u.op))
@@ -1208,7 +1209,7 @@ const res = sum([UOp.int(33)], (a, b) => a.base.add(b.base))
 
 // *** uop swizzling ***
 
-export const merge_views = new PatternMatcher<Record<string, UOp>, UOp>([[new UPat({ op: Ops.VIEW, name: 's0' }).view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st?.__add__(s1.st!) })]])
+export const merge_views = new PatternMatcher<Record<string, UOp>, UOp>([[new UPat({ op: Ops.VIEW, name: 's0' }).view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st?.add(s1.st!) })]])
 
 // push VIEW to loads
 export const view_left = merge_views.add(
@@ -1216,9 +1217,9 @@ export const view_left = merge_views.add(
     // VIEW before elementwise ops
     [
       new UPat({ op: [...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN], name: 'e' }).view(undefined, { name: 'v' }),
-      ({ e, v }) => e.replace({ src: e.src.map((s) => !s.has_st ? s : s === s.base ? s.view(v.st!) : s.base.view(s.st!.__add__(v.st!))) }),
+      ({ e, v }) => e.replace({ src: e.src.map((s) => !s.has_st ? s : s === s.base ? s.view(v.st!) : s.base.view(s.st!.add(v.st!))) }),
     ],
     // early merge VIEW buffer ops
-    [new UPat({ op: GroupOp.Buffer, name: 'b' }).view(undefined, { name: 'v' }), ({ b, v }) => b.replace({ src: b.src.map((s) => s.op === Ops.VIEW ? (s.st!.__add__(v.st!)).to_uop() : s) })],
+    [new UPat({ op: GroupOp.Buffer, name: 'b' }).view(undefined, { name: 'v' }), ({ b, v }) => b.replace({ src: b.src.map((s) => s.op === Ops.VIEW ? (s.st!.add(v.st!)).to_uop() : s) })],
   ]),
 )
