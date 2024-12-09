@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, bytearray, type bytes, CI, ctypes, DEBUG, diskcacheGet, diskcachePut, flat_mv, from_mv, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, memoryview, OSX, resolvePromise } from './helpers.ts'
+import { assert, bytearray, type bytes, CI, ctypes, DEBUG, diskcache_get, diskcache_put, flat_mv, from_mv, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, memoryview, OSX, resolvePromise } from './helpers.ts'
 import process from 'node:process'
 import { Renderer } from './renderer/index.ts'
 
@@ -258,11 +258,11 @@ export class Compiler {
   }
   compile = (src: string): bytes => new TextEncoder().encode(src) // NOTE: empty compiler is the default
   compile_cached = (src: string): bytes => {
-    let lib = this.cachekey ? diskcacheGet(this.cachekey, src) : undefined
+    let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
     if (isNone(lib)) {
       assert(!getEnv('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
       lib = this.compile(src)
-      if (isNotNone(this.cachekey)) diskcachePut(this.cachekey, src, lib)
+      if (isNotNone(this.cachekey)) diskcache_put(this.cachekey, src, lib)
     }
     return lib
   }

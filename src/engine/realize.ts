@@ -50,7 +50,7 @@ class Runner {
     throw new Error('override this')
   }
 }
-class CompiledRunner extends Runner {
+export class CompiledRunner extends Runner {
   p: ProgramSpec
   lib: bytes
   _prg: any

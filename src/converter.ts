@@ -13,8 +13,8 @@ export const main = async () => {
   //   functions
   code = code.replaceAll('.append(', '.push(')
   code = code.replaceAll('.startswith(', '.startsWith(')
-  code = code.replace(/len\(((?:[^()]|\([^()]*\))*)\)/g, '$1.length')
-  code = code.replace(/enumerate\(((?:[^()]|\([^()]*\))*)\)/g, '$1.entries()')
+  // code = code.replace(/len\(((?:[^()]|\([^()]*\))*)\)/g, '$1.length')
+  // code = code.replace(/enumerate\(((?:[^()]|\([^()]*\))*)\)/g, '$1.entries()')
   code = code.replace(/assert (.*?)\n/g, 'assert($1)\n')
 
   code = code.replace(/\s*"""([\s\S]*?)"""/g, (_, content) => {
@@ -28,10 +28,10 @@ export const main = async () => {
   code = code.replace(/while (.*?): /g, 'while ($1){ ')
   code = code.replace(/while (.*?):\n/g, 'while ($1){\n')
 
-  code = code.replace(/ (.*?) not in \[(.*?)\] /g, ' ![($2)].includes($1) ')
-  code = code.replace(/ (.*?) in \[(.*?)\] /g, ' [($2)].includes($1) ')
-  code = code.replace(/ (.*?) not in \{(.*?)\} /g, ' ![($2)].includes($1) ')
-  code = code.replace(/ (.*?) in \{(.*?)\} /g, ' [($2)].includes($1) ')
+  // code = code.replace(/ (.*?) not in \[(.*?)\] /g, ' ![($2)].includes($1) ')
+  // code = code.replace(/ (.*?) in \[(.*?)\] /g, ' [($2)].includes($1) ')
+  // code = code.replace(/ (.*?) not in \{(.*?)\} /g, ' ![($2)].includes($1) ')
+  // code = code.replace(/ (.*?) in \{(.*?)\} /g, ' [($2)].includes($1) ')
 
   // TYPES
   code = code.replace(/: ?Optional\[(.*?)\] ?= ?None/g, '?: $1')

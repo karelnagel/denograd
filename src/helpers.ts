@@ -296,7 +296,7 @@ export const CACHELEVEL = getNumberEnv('CACHELEVEL', 2)
 
 // VERSION = 16
 // _db_connection = None
-export const dbConnection = () => {
+export const db_connection = () => {
   //   global _db_connection
   //   if _db_connection is None:
   //     os.makedirs(CACHEDB.rsplit(os.sep, 1)[0], exist_ok=True)
@@ -307,12 +307,12 @@ export const dbConnection = () => {
   //     if DEBUG >= 7: _db_connection.set_trace_callback(print)
   //   return _db_connection
 }
-export const diskcacheClear = () => {
+export const diskcache_clear = () => {
   //   cur = db_connection().cursor()
   //   drop_tables = cur.execute("SELECT 'DROP TABLE IF EXISTS ' || quote(name) || ';' FROM sqlite_master WHERE type = 'table';").fetchall()
   //   cur.executescript("\n".join([s[0] for s in drop_tables] + ["VACUUM;"]))
 }
-export const diskcacheGet = (table: string, key: string | number): string | null => {
+export const diskcache_get = (table: string, key: any): any | null => {
   //   if CACHELEVEL == 0: return None
   //   if isinstance(key, (str,int)): key = {"key": key}
   //   conn = db_connection()
@@ -325,7 +325,7 @@ export const diskcacheGet = (table: string, key: string | number): string | null
   return null
 }
 // _db_tables = set()
-export const diskcachePut = (table: string, key: string | number, val: any) => {
+export const diskcache_put = (table: string, key: any, val: any) => {
   //   if CACHELEVEL == 0: return val
   //   if isinstance(key, (str,int)): key = {"key": key}
   //   conn = db_connection()
