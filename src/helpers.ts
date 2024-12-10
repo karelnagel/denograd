@@ -402,7 +402,12 @@ export const cpuObjdump = (lib: bytes, objdumpTool = 'objdump') => {
 }
 
 // # *** ctypes helpers
-export type bytes = any
+export class bytes {
+  toString = () => ''
+  get length() {
+    return 3
+  }
+}
 export class bytearray {
   constructor(i: number) {}
 }

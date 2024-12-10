@@ -174,7 +174,7 @@ Deno.test(
 Deno.test('truncate', async (t) => {
   const truncate = async (dtype: string, val1: any, val2: any) => {
     await t.step(dtype, async () => {
-      expect(dt.truncate(dtypes[dtype as keyof dtypes])(val1)).toEqual(await python(`out(tiny.dtype.truncate[tiny.dtype.dtypes.${dtype}](${val2}))`))
+      expect(dt.truncate.get(dtypes[dtype as keyof dtypes])!(val1)).toEqual(await python(`out(tiny.dtype.truncate[tiny.dtype.dtypes.${dtype}](${val2}))`))
     })
   }
   await truncate('bool', true, 'True')

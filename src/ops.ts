@@ -508,7 +508,7 @@ export const python_alu: { [key in Ops]?: (...x: number[]) => number } = {
 export const exec_alu = (op: Ops, dtype: DType, operands: number[], truncateOutput = true): any => {
   if (dtype.count > 1) return range(dtype.count).map((i) => exec_alu(op, dtype.scalar(), operands.map((x) => Array.isArray(x) ? x[i] : x)))
   const alu = python_alu[op]!(...operands)
-  return truncateOutput ? truncate(dtype)(alu) : alu
+  return truncateOutput ? truncate.get(dtype)!(alu) : alu
 }
 // # ***** uop helpers *****
 

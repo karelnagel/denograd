@@ -174,7 +174,7 @@ if (envDefaultFloat) {
   assert(dtypes.is_float(dtypes.default_float), `${envDefaultFloat} is not a float dtype`)
 }
 
-type DTypeLike = string | DType
+export type DTypeLike = string | DType
 export const to_dtype = (x: DTypeLike): DType => (x instanceof DType) ? x : dtypes[x as 'float16']
 
 // https://jax.readthedocs.io/en/latest/jep/9407-type-promotion.html
@@ -217,22 +217,18 @@ export const sum_acc_dtype = (dt: DType) => {
   return least_upper_dtype(dt, dtypes.float)
 }
 
-// deno-fmt-ignore
-export const truncate=(dtype:DType) => {
-    switch (dtype){
-    case dtypes.bool: return (x: any) => Boolean(x)
-    // TODO: bfloat16 (tinygrad)
-    case dtypes.float16: return (x: number) => new Float16Array([x])[0]
-    case dtypes.float32: return (x: number) => new Float32Array([x])[0]
-    case dtypes.float64: return (x: number) => new Float64Array([x])[0]
-    case dtypes.uint8: return (x: number) => new Uint8Array([x])[0]
-    case dtypes.uint16: return (x: number) => new Uint16Array([x])[0]
-    case dtypes.uint32: return (x: number) => new Uint32Array([x])[0]
-    case dtypes.uint64: return (x: bigint) => BigInt.asUintN(64, x)
-    case dtypes.int8: return (x: number) => new Int8Array([x])[0]
-    case dtypes.int16: return (x: number) => new Int16Array([x])[0]
-    case dtypes.int32: return (x: number) => new Int32Array([x])[0]
-    case dtypes.int64: return (x: bigint) => BigInt.asIntN(64, x)
-    default: throw new Error(`Invalid dtype ${dtype}`)
-    }
-}
+export const truncate = new Map<DType, (x: any) => any>([
+  [dtypes.bool, (x: any) => Boolean(x)],
+  // TODO: bfloat16 (tinygrad)
+  [dtypes.float16, (x: number) => new Float16Array([x])[0]],
+  [dtypes.float32, (x: number) => new Float32Array([x])[0]],
+  [dtypes.float64, (x: number) => new Float64Array([x])[0]],
+  [dtypes.uint8, (x: number) => new Uint8Array([x])[0]],
+  [dtypes.uint16, (x: number) => new Uint16Array([x])[0]],
+  [dtypes.uint32, (x: number) => new Uint32Array([x])[0]],
+  [dtypes.uint64, (x: bigint) => BigInt.asUintN(64, x)],
+  [dtypes.int8, (x: number) => new Int8Array([x])[0]],
+  [dtypes.int16, (x: number) => new Int16Array([x])[0]],
+  [dtypes.int32, (x: number) => new Int32Array([x])[0]],
+  [dtypes.int64, (x: bigint) => BigInt.asIntN(64, x)],
+])

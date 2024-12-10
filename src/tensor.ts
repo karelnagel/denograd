@@ -13,9 +13,16 @@
 // from tinygrad.engine.memory import memory_planner
 // from tinygrad.engine.schedule import ScheduleItem, create_schedule_with_vars
 
-import { _METADATA, Metadata } from './helpers.ts'
-import { SimpleMathTrait } from './ops.ts'
-
+import { Buffer as NodeBuffer } from 'node:buffer'
+import { ConstType, DType, DTypeLike, dtypes, to_dtype, truncate } from './dtype.ts'
+import { LazyBuffer } from './engine/lazy.ts'
+import { _METADATA, all_int, all_same, assert, bytearray, bytes, isinstance, max, memoryview, Metadata, range, zip } from './helpers.ts'
+import { idiv, Ops, SimpleMathTrait, sint, smax, UOp, Variable } from './ops.ts'
+import { Device } from './device.ts'
+import path from 'node:path'
+import { statSync } from 'node:fs'
+import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
+import { memory_planner } from './engine/memory.ts'
 // // **** start with two base classes, Tensor && Function ****
 
 export class Function {
@@ -40,7 +47,7 @@ export class Function {
 
   static apply(fxn: typeof Function, x: Tensor[], kwargs: Record<string, any>): Tensor {
     const ctx = new fxn(x[0].device, x, _METADATA)
-    const  ret = Tensor.new(Tensor)
+    const ret = Tensor.new(Tensor)
     ;[ret.lazydata, ret.requires_grad, ret.grad] = [ctx.forward(x.map((t) => t.lazydata), kwargs), ctx.requires_grad, undefined]
     ret._ctx = ctx.requires_grad && !Tensor.no_grad ? ctx : undefined // used by autograd engine
     return ret
@@ -48,153 +55,180 @@ export class Function {
 }
 // import tinygrad.function as F
 
-// const _metaop = (op, shape:sint[], dtype:DType, device:Union[string, string[]], arg=undefined, src:LazyBuffer[]=()) => {
-//   if isinstance(device, string): return LazyBuffer.metaop(op, shape, dtype, device, arg, src)
-//   raise NotImplementedError("MultiLazyBuffer")
+export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: string | string[], arg?: any, src: LazyBuffer[] = []) => {
+  if (isinstance(device, String)) return LazyBuffer.metaop(op, shape, dtype, device, arg, src)
+  throw new Error('MultiLazyBuffer')
+}
+export const get_shape = (x: any): number[] => {
+  //   // NOTE:string === special because __getitem__ on a string === still a string
+  if (!Array.isArray(x) || isinstance(x, String)) return []
+  const subs = x.map((xi) => get_shape(xi))
+  if (!all_same(subs)) throw new Error(`inhomogeneous shape from ${x}`)
+  return [subs.length, ...(subs.length ? subs[0] : [])]
+}
+export const _frompy = (x: any[] | bytes, dtype: DType): LazyBuffer => {
+  let ret, data
+  if (x instanceof bytes) [ret, data] = [LazyBuffer.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
+  else {
+    ret = LazyBuffer.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
+    assert(dtype.fmt !== undefined, `${dtype} has undefined fmt`)
+    const truncate_function = truncate.get(dtype)!
+    data = NodeBuffer.from(new Uint8Array(ret.size).map((_, i) => truncate_function(x.flat()[i])))
+  }
+  //   // fake realize
+  ret.buffer!.allocate(new memoryview(Device.DEFAULT !== 'PYTHON' ? data : new bytearray(data)))
+  delete ret.srcs
+  return ret
+}
+const _align_left = (...shapes: sint[][]): sint[][] => {
+  //   // unsqueeze left to make every shape same length
+  const max_dim = max(shapes.map((shape) => shape.length))
+  return shapes.map((shape) => range(max_dim - shape.length).map((x) => 1))
+}
+export const _broadcast_shape = (...shapes: sint[][]): sint[] => {
+  return zip(..._align_left(...shapes)).map((nth_dim_sizes) => nth_dim_sizes.includes(0) ? 0 : smax(nth_dim_sizes))
+}
+type ReductionStr = 'mean' | 'sum' | 'none'
 
-// const get_shape = (x): number[] => {
-//   // NOTE:string === special because __getitem__ on a string === still a string
-//   if !hasattr(x, "__len__") || !hasattr(x, "__getitem__") || isinstance(x, string) || (hasattr(x, "shape") && x.shape === ()): return ()
-//   if !all_same(subs:=[get_shape(xi) for (const xi of x])){ raise ValueError(`inhomogeneous shape from ${x}`)
-//   return (len(subs),) + (subs[0] if subs else ())
-
-// const _frompy = (x:Union[List, Tuple, bytes], dtype:DType): LazyBuffer => {
-//   if isinstance(x, bytes): ret, data = LazyBuffer.metaop(Ops.EMPTY, (len(x)//dtype.itemsize,), dtype, "PYTHON"), x
-//   else:
-//     ret = LazyBuffer.metaop(Ops.EMPTY, get_shape(x), dtype, "PYTHON")
-//     assert(dtype.fmt !== undefined, `${dtype=} has undefined fmt`)
-//     truncate_function = truncate[dtype]
-//     data = struct.pack(`@${ret.size}${dtype.fmt}`, *[truncate_function(xi) for xi in fully_flatten(x)])
-//   // fake realize
-//   ret.buffer.allocate(memoryview(data if Device.DEFAULT !== "PYTHON" else bytearray(data)))
-//   del ret.srcs
-//   return ret
-
-// const _align_left = (*shapes:sint[]): [sint[], ...] => {
-//   // unsqueeze left to make every shape same length
-//   max_dim = max(len(shape) for shape in shapes)
-//   return tuple((1,) * (max_dim - len(shape)) + shape for shape in shapes)
-// const _broadcast_shape = (*shapes:sint[]): sint[] => {
-//   return tuple(0 if 0 in nth_dim_sizes else smax(nth_dim_sizes) for nth_dim_sizes in zip(*_align_left(*shapes)))
-
-// ReductionStr = Literal["mean", "sum", "none"]
-
+/**
+ * A `Tensor` === a multi-dimensional matrix containing elements of a single data type.
+ *
+ * ```python exec="true" session="tensor"
+ * from tinygrad import Tensor, dtypes, nn
+ * import numpy as np
+ * import math
+ * np.set_printoptions(precision=4)
+ * ```
+ */
 export class Tensor extends SimpleMathTrait {
-  // /**
-  //  * A `Tensor` === a multi-dimensional matrix containing elements of a single data type.
-  //  *
-  //  * ```python exec="true" session="tensor"
-  //  * from tinygrad import Tensor, dtypes, nn
-  //  * import numpy as np
-  //  * import math
-  //  * np.set_printoptions(precision=4)
-  //  * ```
-  //  */
-  //   __slots__ = "lazydata", "requires_grad", "grad", "_ctx"
-  //   __deletable__ = ('_ctx',)
-  //   training: ClassVar[boolean] = false
-  //   no_grad: ClassVar[boolean] = false
+  lazydata: LazyBuffer
+  requires_grad?: boolean
+  // tensors can have gradients if you have called .backward
+  grad?: Tensor
+  // internal variable used for autograd graph construction
+  _ctx?: Function
+  __deletable__ = ['_ctx']
+  static training = false
+  static no_grad = false
 
-  //   const __init__ = (data:Union[undefined, ConstType, UOp, bytes, List, Tuple, LazyBuffer, 'np.ndarray', pathlib.Path],  // type: ignore [name-defined] // noqa: F821
-  //                device?: Union[string, tuple, list], dtype?: DTypeLike, requires_grad?:boolean):
-  //     if dtype !== undefined: dtype = to_dtype(dtype)
-  //     assert(dtype === undefined || isinstance(dtype, DType), `invalid dtype ${dtype}`)
-  //     if device === undefined && isinstance(data, pathlib.Path): device = `DISK:${data.resolve()}`  // keep it on the disk if device === undefined
-  //     device = tuple(Device.canonicalize(x) for x in device) if isinstance(device, (tuple, list)) else Device.canonicalize(device)
+  constructor(data?: ConstType | UOp | bytes | any[] | LazyBuffer | string, device?: string | string[], dtype?: DTypeLike, requires_grad?: boolean) {
+    super()
+    if (dtype !== undefined) dtype = to_dtype(dtype)
+    assert(dtype === undefined || isinstance(dtype, DType), `invalid dtype ${dtype}`)
+    if (device === undefined && typeof data === 'string' && path.isAbsolute(data)) device = `DISK:${data}` // keep it on the disk if device === undefined
+    device = isinstance(device, Array) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
 
-  //     // tensors can have gradients if you have called .backward
-  //     this.grad?: Tensor
+    //     // NOTE: this can be in three states. false && undefined: no gradient, true: gradient
+    //     // undefined (the default) will be updated to true if it's put in an optimizer
+    this.requires_grad = requires_grad
 
-  //     // NOTE: this can be in three states. false && undefined: no gradient, true: gradient
-  //     // undefined (the default) will be updated to true if it's put in an optimizer
-  //     this.requires_grad?: boolean = requires_grad
+    //     // create a LazyBuffer from the different types of inputs
+    if (isinstance(data, LazyBuffer)) assert(dtype === undefined || dtype == data.dtype, "dtype doesn't match, && casting isn't supported")
+    else if (data === undefined) data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
+    else if (isinstance(data, Number) || isinstance(data, Boolean)) data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
+    else if (isinstance(data, UOp)) {
+      assert(data.op === Ops.BIND && data.src[0].op === Ops.DEFINE_VAR && data.src[1].op === Ops.CONST, `can't create tensor from UOp ${data}`)
+      data = _metaop(Ops.CONST, [], dtype || data.dtype, device, data)
+    } else if (isinstance(data, bytes)) data = _frompy(data, dtype === undefined ? dtypes.uint8 : dtype)
+    else if (Array.isArray(data)) {
+      if (dtype === undefined) {
+        const d = data.flat()
+        if (d.length && d.every((s) => s instanceof Boolean)) dtype = dtypes.bool
+        else dtype = d && all_int(d) ? dtypes.default_int : dtypes.default_float
+      }
+      if (dtype === dtypes.bfloat16) data = new Tensor(_frompy(data, dtypes.float32), device).cast(dtypes.bfloat16).lazydata
+      else data = _frompy(data, dtype)
+    } //     // else if string(type(data)) === "<class 'numpy.ndarray'>":
+    //     //   import numpy as np
+    //     //   assert(isinstance(data, np.ndarray), `expected np.ndarray, got ${data}`)
+    //     //   if data.shape === (): data = _metaop(Ops.CONST, tuple(), dtype || _from_np_dtype(data.dtype), device, data.item())
+    //     //   else: data = _fromnp(data.astype(npdtype) if dtype !== undefined && (npdtype:=_to_np_dtype(dtype)) !== undefined else data)  // type: ignore [name-defined]
+    else if (typeof data === 'string') {
+      dtype = dtype || dtypes.uint8
+      data = _metaop(Ops.EMPTY, [idiv(statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
+    }
 
-  //     // internal variable used for autograd graph construction
-  //     this._ctx?: Function
+    //     // by this point, it has to be a LazyBuffer
+    if (!isinstance(data, LazyBuffer)) throw new Error(`can't create Tensor from ${data} with type ${typeof data}`)
 
-  //     // create a LazyBuffer from the different types of inputs
-  //     if isinstance(data, (LazyBuffer)): assert(dtype === undefined || dtype==data.dtype, "dtype doesn't match, && casting isn't supported")
-  //     elif data === undefined: data = _metaop(Ops.EMPTY, (0,), dtype || dtypes.default_float, device)
-  //     elif isinstance(data, get_args(ConstType)): data = _metaop(Ops.CONST, tuple(), dtype || dtypes.from_py(data), device, data)
-  //     elif isinstance(data, UOp):
-  //       assert(data.op === Ops.BIND && data.src[0].op === Ops.DEFINE_VAR && data.src[1].op === Ops.CONST, `can't create tensor from UOp ${data}`)
-  //       data = _metaop(Ops.CONST, tuple(), dtype || data.dtype, device, data)
-  //     elif isinstance(data, bytes): data = _frompy(data, dtypes.uint8 if dtype === undefined else dtype)
-  //     elif isinstance(data, (list, tuple)):
-  //       if dtype === undefined:
-  //         if (d := fully_flatten(data)) && all(isinstance(s, boolean) for (const s of d)){ dtype = dtypes.boolean
-  //         else: dtype = dtypes.default_int if d && all_int(d) else dtypes.default_float
-  //       if dtype === dtypes.bfloat16: data = Tensor(_frompy(data, dtypes.float32), device=device).cast(dtypes.bfloat16).lazydata
-  //       else: data = _frompy(data, dtype)
-  //     // elif string(type(data)) === "<class 'numpy.ndarray'>":
-  //     //   import numpy as np
-  //     //   assert(isinstance(data, np.ndarray), `expected np.ndarray, got ${data}`)
-  //     //   if data.shape === (): data = _metaop(Ops.CONST, tuple(), dtype || _from_np_dtype(data.dtype), device, data.item())
-  //     //   else: data = _fromnp(data.astype(npdtype) if dtype !== undefined && (npdtype:=_to_np_dtype(dtype)) !== undefined else data)  // type: ignore [name-defined]
-  //     elif isinstance(data, pathlib.Path):
-  //       dtype = dtype || dtypes.uint8
-  //       data = _metaop(Ops.EMPTY, (data.stat().st_size // dtype.itemsize,), dtype, `DISK:${data.resolve()}`)
-
-  //     // by this point, it has to be a LazyBuffer
-  //     if !isinstance(data, (LazyBuffer)): raise RuntimeError(`can't create Tensor from ${data!r} with type ${type(data)}`)
-
-  //     // data might be on a different device
-  //     if isinstance(device, string): this.lazydata:Union[LazyBuffer] = data if data.device === device else data.copy_to_device(device)
-  //     // if device === a tuple, we should have/construct a MultiLazyBuffer
-  //     elif isinstance(data, LazyBuffer): raise NotImplementedError("MultiLazyBuffer")
-  //     else:
-  //       assert(data.device === device, `MultiLazyBuffer device mismatch, ${data.device} !== ${device}`)
-  //       this.lazydata = data
-
-  //   class train(ContextDecorator):
-  //     const __init__ = (mode:boolean = true) => { this.mode = mode
-  //     const __enter__ = () => { this.prev, Tensor.training = Tensor.training, this.mode
-  //     const __exit__ = (exc_type, exc_value, traceback) => { Tensor.training = this.prev
-
-  //   class test(ContextDecorator):
-  //     const __init__ = (mode:boolean = true) => { this.mode = mode
-  //     const __enter__ = () => { this.prev, Tensor.no_grad = Tensor.no_grad, this.mode
-  //     const __exit__ = (exc_type, exc_value, traceback) => { Tensor.no_grad = this.prev
-
-  //   const __repr__ = () => {
-  //     return `<Tensor ${this.lazydata!r} on ${this.device} with grad ${(this.grad.lazydata if this.grad !== undefined else undefined)!r}>`
+    //     // data might be on a different device
+    if (typeof device === 'string') this.lazydata = data.device === device ? data : data.copy_to_device(device)
+    //     // if device === a tuple, we should have/construct a MultiLazyBuffer
+    else if (isinstance(data, LazyBuffer)) throw new Error('MultiLazyBuffer')
+    else {
+      // assert(data.device === device, `MultiLazyBuffer device mismatch, ${data.device} !== ${device}`)
+      this.lazydata = data
+    }
+  }
+  static train = class {
+    mode: boolean
+    prev!: boolean
+    constructor(mode = true) {
+      this.mode = mode
+    }
+    enter = () => {
+      this.prev = Tensor.training, Tensor.training = this.mode
+    }
+    exit = (exc_type: any, exc_value: any, traceback: any) => {
+      Tensor.training = this.prev
+    }
+  }
+  static test = class test {
+    mode: boolean
+    prev!: boolean
+    constructor(mode = true) {
+      this.mode = mode
+    }
+    enter = () => {
+      this.prev = Tensor.no_grad, Tensor.no_grad = this.mode
+    }
+    exit = (exc_type: any, exc_value: any, traceback: any) => {
+      Tensor.no_grad = this.prev
+    }
+  }
+  override toString = () => `<Tensor ${this.lazydata} on ${this.device} with grad ${this.grad?.lazydata}>`
 
   //   // Python has a non moving GC, so this should be okay
-  //   const __hash__ = () =>  id(this)
+  // const __hash__ = () =>  id(this)
 
-  //   const __bool__ = () => { raise TypeError("__bool__ on Tensor !== defined")
+  bool = () => {
+    throw new Error('__bool__ on Tensor !== defined')
+  }
 
-  //   const __len__ = () => {
-  //     if !this.shape: raise TypeError("len() of a 0-d tensor")
-  //     return this.shape[0]
+  get length() {
+    if (!this.shape) throw new Error('len() of a 0-d tensor')
+    return this.shape[0]
+  }
+  get device(): string | string[] {
+    return this.lazydata.device
+  }
+  get shape(): sint[] {
+    return this.lazydata.shape
+  }
 
-  //   @property
-  //   const device = (): Union[string, string[]] =>  this.lazydata.device
-
-  //   @property
-  //   const shape = (): sint[] =>  this.lazydata.shape
-
-  //   @property
-  //   const dtype = (): DType =>  this.lazydata.dtype
+  get dtype(): DType {
+    return this.lazydata.dtype
+  }
 
   //   // ***** data handlers ****
 
-  //   const schedule_with_vars = (*lst:Tensor): ScheduleItem[], Map<Variable[>] => {
-  // /**
-  //  * Creates the schedule needed to realize these Tensor(s), with Variables.
-  //  *
-  //  * NOTE: A Tensor can only be scheduled once.
-  //  */
-  //     schedule, var_vals = create_schedule_with_vars(flatten([x.lazydata.lbs for x in (this,)+lst]))
-  //     return memory_planner(schedule), var_vals
-
-  //   const schedule = (*lst:Tensor): ScheduleItem[] => {
-  // /**
-  //  * Creates the schedule needed to realize these Tensor(s).
-  //  */
-  //     schedule, var_vals = this.schedule_with_vars(*lst)
-  //     assert(len(var_vals) === 0)
-  //     return schedule
+  /**
+   * Creates the schedule needed to realize these Tensor(s), with Variables.
+   *
+   * NOTE: A Tensor can only be scheduled once.
+   */
+  schedule_with_vars = (...lst: Tensor[]): [ScheduleItem[], Map<Variable, number>] => {
+    const [schedule, var_vals] = create_schedule_with_vars([this, ...lst].flatMap((x) => x.lazydata.lbs))
+    return [memory_planner(schedule), var_vals]
+  }
+  /**
+   * Creates the schedule needed to realize these Tensor(s).
+   */
+  schedule = (...lst: Tensor[]): ScheduleItem[] => {
+    const [schedule, var_vals] = this.schedule_with_vars(...lst)
+    assert(var_vals.size === 0)
+    return schedule
+  }
 
   //   const realize = (*lst:Tensor, do_update_stats=true): Tensor => {
   // /**
@@ -829,7 +863,7 @@ export class Tensor extends SimpleMathTrait {
   //           // handle number slicing
   //           *boundary, stride = index.indices(cast(SupportsIndex, size))
   //           if stride * (boundary[1] - boundary[0]) < 0: boundary = [0, 0]
-  //           elif stride < 0: boundary = [boundary[1] + 1, boundary[0] + 1]
+  //           else if stride < 0: boundary = [boundary[1] + 1, boundary[0] + 1]
   //           // update size for slice
   //           size = ceildiv((boundary[1] - boundary[0]), abs(stride))
   //         case undefined: pass // do nothing
@@ -2186,7 +2220,7 @@ export class Tensor extends SimpleMathTrait {
   //       // make y a Tensor
   //       assert(isinstance(y, (*get_args(ConstType), UOp)), `${type(y)=}, ${y=}`)
   //       if isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_int(x.dtype) && isinstance(y, number)): y_dtype = x.dtype
-  //       elif !isinstance(y, UOp): y_dtype = dtypes.from_py(y)
+  //       else if !isinstance(y, UOp): y_dtype = dtypes.from_py(y)
   //       if isinstance(y, UOp): y = Tensor.from_uop(y, device=x.device)
   //       else: y = Tensor(dtypes.as_const(y, y_dtype), x.device, y_dtype, requires_grad=false)
 
@@ -2428,7 +2462,7 @@ export class Tensor extends SimpleMathTrait {
   //  * ```
   //  */
   //     if isinstance(x, Tensor): x, y = x._broadcasted(y)
-  //     elif isinstance(y, Tensor): y, x = y._broadcasted(x)
+  //     else if isinstance(y, Tensor): y, x = y._broadcasted(x)
   //     cond, x = this._broadcasted(x, match_dtype=false)
   //     cond, y = cond._broadcasted(y, match_dtype=false)
   //     return F.Where.apply(cond.cast(dtypes.boolean), *x._broadcasted(y))
