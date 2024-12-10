@@ -19,8 +19,8 @@ export class ContiguousBackward extends Function {
 
 export class Cast extends Function {
   input_dtype!: DType
-  bitcast!: boolean
-  override forward = ({ x, dtype, bitcast = false }: { x: LazyBuffer; dtype: DType; bitcast?: boolean }): LazyBuffer => {
+  bitcast?: boolean
+  override forward = (x: LazyBuffer, dtype: DType, bitcast?: boolean): LazyBuffer => {
     this.input_dtype = x.dtype, this.bitcast = bitcast
     return this.bitcast ? x.bitcast(dtype) : x.cast(dtype)
   }
@@ -94,48 +94,48 @@ export class Sign extends Function {
 // // ************* binary ops *************
 
 export class Less extends Function {
-  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.lt(y)
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.lt(y)
   override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
 }
 export class Neq extends Function {
-  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.ne(y)
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.ne(y)
   override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
 }
 export class Xor extends Function {
-  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.xor(y)
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.xor(y)
 }
 export class BitwiseAnd extends Function {
-  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.bitwiseAnd(y)
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.bitwise_and(y)
 }
 export class BitwiseOr extends Function {
-  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.bitwiseOr(y)
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.bitwise_or(y)
 }
 export class Threefry extends Function {
-  override forward = ({ x, seed }: { x: LazyBuffer; seed: LazyBuffer }): LazyBuffer => x.threefry(seed)
+  override forward = (x: LazyBuffer, seed: LazyBuffer): LazyBuffer => x.threefry(seed)
 }
 
 export class Add extends Function {
-  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.add(y)
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.add(y)
 
   override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [this.needs_input_grad[0] ? grad_output : undefined, this.needs_input_grad[1] ? grad_output : undefined]
 }
 export class Mul extends Function {
   x!: LazyBuffer
   y!: LazyBuffer
-  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => {
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => {
     this.x, this.y = x, y
     return x.mul(y)
   }
   override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [this.needs_input_grad[0] ? (this.y.mul(grad_output)) : undefined, this.needs_input_grad[1] ? (this.x.mul(grad_output)) : undefined]
 }
 export class IDiv extends Function {
-  override forward = ({ x, y }: { x: LazyBuffer; y: LazyBuffer }): LazyBuffer => x.idiv(y)
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.idiv(y)
 }
 // // ************* ternary ops *************
 
 export class Where extends Function {
   x!: LazyBuffer
-  override forward = ({ x, y, z }: { x: LazyBuffer; y: LazyBuffer; z: LazyBuffer }): LazyBuffer => {
+  override forward = (x: LazyBuffer, y: LazyBuffer, z: LazyBuffer): LazyBuffer => {
     this.x = x
     return this.x.where(y, z)
   }
@@ -149,7 +149,7 @@ export class Where extends Function {
 
 export class Sum extends Function {
   input_shape!: sint[]
-  override forward = ({ x, axis }: { x: LazyBuffer; axis: number[] }): LazyBuffer => {
+  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
     this.input_shape = x.shape
     return x.r(Ops.ADD, axis)
   }
@@ -161,7 +161,7 @@ export class Max extends Function {
   x!: LazyBuffer
   ret!: LazyBuffer
   axis!: number[]
-  override forward = ({ x, axis }: { x: LazyBuffer; axis: number[] }): LazyBuffer => {
+  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
     this.x = x, this.ret = x.r(Ops.MAX, axis), this.axis = axis
     return this.ret
   }
@@ -177,7 +177,7 @@ export class Max extends Function {
 // // NOTE: this === sum in reverse
 export class Expand extends Function {
   expanded_axis!: number[]
-  override forward = ({ x, shape }: { x: LazyBuffer; shape: number[] }): LazyBuffer => {
+  override forward = (x: LazyBuffer, shape: number[]): LazyBuffer => {
     this.expanded_axis = zip(x.shape, shape).filter(([si, so]) => resolve(ne(si, so))).map((_, i) => i)
     return x.expand(shape)
   }
@@ -188,7 +188,7 @@ export class Expand extends Function {
 
 export class Reshape extends Function {
   input_shape!: sint[]
-  override forward = ({ x, shape }: { x: LazyBuffer; shape: number[] }): LazyBuffer => {
+  override forward = (x: LazyBuffer, shape: number[]): LazyBuffer => {
     this.input_shape = x.shape
     return x.reshape(shape)
   }
@@ -196,7 +196,7 @@ export class Reshape extends Function {
 }
 export class Permute extends Function {
   input_order!: number[]
-  override forward = ({ x, order }: { x: LazyBuffer; order: number[] }): LazyBuffer => {
+  override forward = (x: LazyBuffer, order: number[]): LazyBuffer => {
     this.input_order = order
     return x.permute(order)
   }
@@ -204,7 +204,7 @@ export class Permute extends Function {
 }
 export class Pad extends Function {
   narg!: [sint, sint][]
-  override forward = ({ x, arg }: { x: LazyBuffer; arg: [number, number][] }): LazyBuffer => {
+  override forward = (x: LazyBuffer, arg: [number, number][]): LazyBuffer => {
     this.narg = zip(x.shape, arg).map(([s, p]) => [p[0], add(s, p[0])])
     return x.pad(arg)
   }
@@ -212,7 +212,7 @@ export class Pad extends Function {
 }
 export class Shrink extends Function {
   narg!: [sint, sint][]
-  override forward = ({ x, arg }: { x: LazyBuffer; arg: [sint, sint][] }): LazyBuffer => {
+  override forward = (x: LazyBuffer, arg: [sint, sint][]): LazyBuffer => {
     this.narg = zip(x.shape, arg).map(([s, p]) => [p[0], sub(s, p[1])])
     return x.shrink(arg)
   }
@@ -220,7 +220,7 @@ export class Shrink extends Function {
 }
 export class Flip extends Function {
   arg!: number[]
-  override forward = ({ x, axis }: { x: LazyBuffer; axis: number[] }): LazyBuffer => {
+  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
     this.arg = range(x.shape.length).map((i) => axis.includes(i) ? -1 : 1)
     return x.stride(this.arg)
   }

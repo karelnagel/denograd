@@ -32,7 +32,7 @@ export const ilogb2k = (d: UOp): UOp => {
   assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(d.dtype))
   const dint = d.bitcast(new Map([[dtypes.float64, dtypes.int64], [dtypes.float32, dtypes.int32], [dtypes.float16, dtypes.int16]]).get(d.dtype)!)
   // -1 <= ilog2bk(d) <= 128
-  return (shr(dint, mantissa_bits(d.dtype)).bitwiseAnd(exponent_mask(d.dtype))).sub(exponent_bias(d.dtype))
+  return (shr(dint, mantissa_bits(d.dtype)).bitwise_and(exponent_mask(d.dtype))).sub(exponent_bias(d.dtype))
 }
 /**d*2^e. e is a number obtained by casting an integer in the range [-127, 127] to a float. d is any float number.*/
 export const ldexp3k = (d: UOp, e: UOp): UOp => {
@@ -70,7 +70,7 @@ export const sin_poly = (d: UOp): UOp => {
   )
 }
 
-const _ifand = (q: UOp, n: number) => (q.bitwiseAnd(n)).ne(0)
+const _ifand = (q: UOp, n: number) => (q.bitwise_and(n)).ne(0)
 
 export const sin_poly_small = (d: UOp, q: UOp): UOp => {
   throw new Error()

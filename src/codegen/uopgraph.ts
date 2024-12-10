@@ -135,7 +135,7 @@ export const get_late_rewrite_patterns = (ops: Ops[], force_transcendental = fal
     .map(([op, f]) => [new UPat({ op, dtype: TRANSCENDENTAL_SUPPORTED_DTYPES, src: [UPat.var('d')] }), f] as const)
   //   # rewrite MOD to AND (which should always be supported, but not for generic in tests)
   if (ops.includes(Ops.AND)) {
-    pat = [...pat, [new UPat({ op: Ops.MOD, src: [UPat.var('base'), UPat.cvar('const')] }), (args: { base: UOp; const: UOp }) => powers_of_two[args.const.arg] ? args.base.bitwiseAnd(args.const.arg - 1) : undefined]]
+    pat = [...pat, [new UPat({ op: Ops.MOD, src: [UPat.var('base'), UPat.cvar('const')] }), (args: { base: UOp; const: UOp }) => powers_of_two[args.const.arg] ? args.base.bitwise_and(args.const.arg - 1) : undefined]]
   }
   //   # rewrite MUL/IDIV to SHL+SHR
   if (ops.includes(Ops.SHL) && ops.includes(Ops.SHR)) {
@@ -158,10 +158,10 @@ export const get_late_rewrite_patterns = (ops: Ops[], force_transcendental = fal
 
 export const threefry2x32 = (x: UOp, key: UOp) => {
   //   # split x into two uint32, since x in a uint64
-  const [x0, x1] = [(x.bitwiseAnd(0xffffffff)).cast(dtypes.uint32), ((x.idiv(2 ** 32)).bitwiseAnd(0xffffffff)).cast(dtypes.uint32)]
+  const [x0, x1] = [(x.bitwise_and(0xffffffff)).cast(dtypes.uint32), ((x.idiv(2 ** 32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)]
 
   const rotations = [[13, 15, 26, 6], [17, 29, 16, 24]]
-  const [key0, key1] = [(key.bitwiseAnd(0xffffffff)).cast(dtypes.uint32), ((key.idiv(2 ** 32)).bitwiseAnd(0xffffffff)).cast(dtypes.uint32)]
+  const [key0, key1] = [(key.bitwise_and(0xffffffff)).cast(dtypes.uint32), ((key.idiv(2 ** 32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)]
   const ks = [key1, key0.xor(key1).xor(0x1BD11BDA), key0]
   let xr = [x0.add(ks[-1]), x1.add(ks[0])]
   for (const i of range(5)) {
@@ -171,7 +171,7 @@ export const threefry2x32 = (x: UOp, key: UOp) => {
       xr = [xr[0].add(ks[i % 3]), xr[1].add(ks[(i + 1) % 3]).add(i + 1)]
     }
   }
-  return xr[1].cast(dtypes.uint64).mul(2 ** 32).bitwiseOr(xr[0].cast(dtypes.uint64))
+  return xr[1].cast(dtypes.uint64).mul(2 ** 32).bitwise_or(xr[0].cast(dtypes.uint64))
 }
 // # ***** main rewriter *****
 
@@ -268,12 +268,12 @@ export const sym = symbolic_flat.add(
     //   # threefry + remove longs
     [new UPat({ op: Ops.THREEFRY, dtype: dtypes.uint64, src: [UPat.var('x'), UPat.var('key')] }), ({ x, key }) => threefry2x32(x, key)],
     [UPat.var('x', dtypes.uint32).cast(dtypes.uint64).cast(dtypes.uint32), ({ x }) => x], // cast there and back is noop (TODO: genericize)
-    [(UPat.var('x', dtypes.uint64).bitwiseAnd(0xFFFFFFFF)).cast(dtypes.uint32), ({ x }) => x.cast(dtypes.uint32)], // cast does truncation
-    [((UPat.var(undefined, dtypes.uint64).mul(1 << 32)).bitwiseOr(UPat.var('y', dtypes.uint32).cast(dtypes.uint64))).cast(dtypes.uint32), ({ y }) => y],
-    [((UPat.var('x', dtypes.uint64).mul(1 << 32)).bitwiseOr(UPat.var(undefined, dtypes.uint32).cast(dtypes.uint64))).idiv(1 << 32), ({ x }) => x],
+    [(UPat.var('x', dtypes.uint64).bitwise_and(0xFFFFFFFF)).cast(dtypes.uint32), ({ x }) => x.cast(dtypes.uint32)], // cast does truncation
+    [((UPat.var(undefined, dtypes.uint64).mul(1 << 32)).bitwise_or(UPat.var('y', dtypes.uint32).cast(dtypes.uint64))).cast(dtypes.uint32), ({ y }) => y],
+    [((UPat.var('x', dtypes.uint64).mul(1 << 32)).bitwise_or(UPat.var(undefined, dtypes.uint32).cast(dtypes.uint64))).idiv(1 << 32), ({ x }) => x],
     //   # hacks for threefry long removal when padded (TODO: genericize)
     [UPat.var('x', dtypes.uint32).cast(dtypes.uint64).mul(UPat.var('y').where(UPat.const(dtypes.uint64, 1 << 32), UPat.const(dtypes.uint64, 0))), ({ x, y }) => y.where(x, UOp.const(dtypes.uint32, 0)).cast(dtypes.uint64).mul(1 << 32)],
-    [(UPat.var('x', dtypes.uint64).bitwiseAnd(UPat.var('y').where(UPat.const(dtypes.uint64, 0xFFFFFFFF), UPat.const(dtypes.uint64, 0)))).cast(dtypes.uint32), ({ x, y }) => y.where(x.cast(dtypes.uint32), UOp.const(dtypes.uint32, 0))],
+    [(UPat.var('x', dtypes.uint64).bitwise_and(UPat.var('y').where(UPat.const(dtypes.uint64, 0xFFFFFFFF), UPat.const(dtypes.uint64, 0)))).cast(dtypes.uint32), ({ x, y }) => y.where(x.cast(dtypes.uint32), UOp.const(dtypes.uint32, 0))],
     //   # arange loop folding
     [acc_pat.assign(UPat.any([arange_m, arange_m.add(UPat.var('extra'))]).add(acc_pat)), ({ compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul }) => loop_collapse(compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul)],
     //   # indexing, with cast or where
@@ -341,7 +341,7 @@ export const do_expand = (root: UOp) => {
   for (const [i, src] of root.src.entries()) {
     if (src.op === Ops.EXPAND) {
       //         # IF means OR on first arg to IF
-      if (root.op === Ops.IF && i === 0) new_srcs.push(range(expand_sz).map((i) => src.src[0].gep(i)).reduce((acc, x) => acc.bitwiseOr(x)))
+      if (root.op === Ops.IF && i === 0) new_srcs.push(range(expand_sz).map((i) => src.src[0].gep(i)).reduce((acc, x) => acc.bitwise_or(x)))
       //         # just remove the expand
       else if (expand_args == src.arg) new_srcs.push(src.src[0])
       else {

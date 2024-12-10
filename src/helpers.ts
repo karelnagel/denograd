@@ -246,7 +246,7 @@ export class Metadata {
   //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
   //   def __str__(self): return self.name + (" bw" if self.backward else "")
 }
-export const _METADATA: Metadata | undefined = undefined
+export const  _METADATA: Metadata | undefined = undefined
 // # **************** global state Counters ****************
 
 export class GlobalCounters {
@@ -412,12 +412,18 @@ export class bytearray {
   constructor(i: number) {}
 }
 export class memoryview {
-  constructor(obj?: c_char | bytearray) {}
+  constructor(obj?: c_char | bytearray | any) {}
   get length() {
     return 0
   }
   get nbytes() {
     return 0
+  }
+  get = (x: number[]) => {
+    return 0
+  }
+  tolist=()=>{
+    return [3]
   }
   cast = (format: string, shape?: number[]) => new memoryview()
   slice = (from: number, to?: number) => new memoryview()

@@ -87,13 +87,13 @@ const ALL_PATTERN_MATCHERS = {
       UOp.variable('x').mul(UOp.variable('x2')).div(UOp.variable('x2')),
       UOp.variable('base').mod(UOp.variable('y')).mod(UOp.variable('y')),
       UOp.variable('x').mod(UOp.int(1)).add(UOp.variable('x').idiv(UOp.int(1)).mul(UOp.int(1))),
-      UOp.variable('x', false, true, dtypes.bool).bitwiseAnd(UOp.bool(false)),
-      UOp.variable('x', false, true, dtypes.bool).bitwiseOr(UOp.bool(false)),
+      UOp.variable('x', false, true, dtypes.bool).bitwise_and(UOp.bool(false)),
+      UOp.variable('x', false, true, dtypes.bool).bitwise_or(UOp.bool(false)),
 
       UOp.variable('x').maximum(UOp.variable('x')),
-      UOp.variable('x').bitwiseAnd(UOp.variable('x')),
-      UOp.variable('x').bitwiseOr(UOp.variable('x')),
-      UOp.variable('x', false, true, dtypes.bool).logicalNot().logicalNot(),
+      UOp.variable('x').bitwise_and(UOp.variable('x')),
+      UOp.variable('x').bitwise_or(UOp.variable('x')),
+      UOp.variable('x', false, true, dtypes.bool).logical_not().logical_not(),
       UOp.variable('x', false, true, dtypes.bool).where(UOp.bool(true), UOp.bool(false)),
 
       UOp.variable('x').lt(UOp.variable('x')),
@@ -113,7 +113,7 @@ const ALL_PATTERN_MATCHERS = {
     matcher: symbolic,
     uops: [
       UOp.variable('x').add(UOp.variable('y')).add(UOp.variable('x').mul(UOp.int(5))), // group like
-      UOp.variable('x').bitwiseOr(UOp.variable('x').bitwiseAnd(UOp.variable('y'))), // boolean algebra
+      UOp.variable('x').bitwise_or(UOp.variable('x').bitwise_and(UOp.variable('y'))), // boolean algebra
       UOp.variable('x').mul(UOp.int(2)).add(UOp.variable('x').mul(UOp.int(3))), // combine terms
       UOp.variable('x').add(UOp.variable('x').mul(UOp.int(3))), // x + x*c -> x*(c+1)
       UOp.variable('x').add(UOp.variable('x')), // x + x -> x*2
@@ -129,8 +129,8 @@ const ALL_PATTERN_MATCHERS = {
 
       UOp.variable('x').add(UOp.int(2)).add(UOp.int(3)), // (x+c1)+c2 -> x+(c1+c2)
       UOp.variable('x').mul(UOp.int(2)).mul(UOp.int(3)), // (x*c1)*c2 -> x*(c1*c2)
-      UOp.variable('x').bitwiseAnd(UOp.int(2)).bitwiseAnd(UOp.int(3)), // (x&c1)&c2 -> x&(c1&c2)
-      UOp.variable('x').bitwiseOr(UOp.int(2)).bitwiseOr(UOp.int(3)), // (x|c1)|c2 -> x|(c1|c2)
+      UOp.variable('x').bitwise_and(UOp.int(2)).bitwise_and(UOp.int(3)), // (x&c1)&c2 -> x&(c1&c2)
+      UOp.variable('x').bitwise_or(UOp.int(2)).bitwise_or(UOp.int(3)), // (x|c1)|c2 -> x|(c1|c2)
       UOp.int(2).add(UOp.variable('x')).lt(UOp.int(5)), // c0+x<c1 -> x<c1-c0
       UOp.variable('x').idiv(UOp.int(2)).idiv(UOp.int(3)), // (x//c1)//c2 -> x//(c1*c2)
       UOp.int(2).mul(UOp.variable('x')).lt(UOp.int(5)), // 2x < 5 -> x < ceil(5/2)

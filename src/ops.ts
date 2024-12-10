@@ -17,16 +17,16 @@ export class SimpleMathTrait {
   //   # great functions you get!
   ufix = (x: ConstType<typeof this>): typeof this => x instanceof MathTrait ? x : this.const_like(x as any) //ignoring this error, cause not sure
   _binop = (op: Ops, x: ConstType<typeof this>, reverse: boolean) => reverse ? this.ufix(x).alu(op, this) : this.alu(op, this.ufix(x))
-  logicalNot = () => this.ne(true)
+  logical_not = () => this.ne(true)
   neg = () => {
     const dtype = 'dtype' in this && this.dtype instanceof DType ? this.dtype : undefined
     if (isNone(dtype)) throw new Error(`MathTraits __neg__ requires a dtype, ${this}`)
-    return isEq(dtype.scalar(), dtypes.bool) ? this.logicalNot() : this.mul(-1)
+    return isEq(dtype.scalar(), dtypes.bool) ? this.logical_not() : this.mul(-1)
   }
   add = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.ADD, x, reverse)
   mul = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.MUL, x, reverse)
-  bitwiseAnd = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.AND, x, reverse)
-  bitwiseOr = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.OR, x, reverse)
+  bitwise_and = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.AND, x, reverse)
+  bitwise_or = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.OR, x, reverse)
   xor = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.XOR, x, reverse)
   idiv = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.IDIV, x, reverse)
   sub = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, typeof x === 'number' || typeof x === 'boolean' ? this.ufix(-x) : x.neg())
@@ -34,10 +34,10 @@ export class SimpleMathTrait {
 
   lt = (x: ConstType<typeof this>) => this.alu(Ops.CMPLT, this.ufix(x))
   gt = (x: ConstType<typeof this>) => this.ufix(x).alu(Ops.CMPLT, this)
-  ge = (x: ConstType<typeof this>) => this.lt(x).logicalNot()
-  le = (x: ConstType<typeof this>) => this.gt(x).logicalNot()
+  ge = (x: ConstType<typeof this>) => this.lt(x).logical_not()
+  le = (x: ConstType<typeof this>) => this.gt(x).logical_not()
   ne = (x: ConstType<typeof this>) => this.alu(Ops.CMPNE, this.ufix(x))
-  eq = (x: ConstType<typeof this>) => this.ne(x).logicalNot()
+  eq = (x: ConstType<typeof this>) => this.ne(x).logical_not()
 }
 
 export class MathTrait extends SimpleMathTrait {
@@ -1036,11 +1036,11 @@ export const simplify_valid = (valid: UOp): UOp | undefined => {
   let somethingChanged = false
   const valids = splitUOp(valid, Ops.AND).toArray()
   for (const stmt of valids.sort((a, b) => _validPriority(b, valids) - _validPriority(a, valids))) {
-    const newstmt = uop_given_valid(ret.reduce((p, c) => p.bitwiseAnd(c)), stmt)
+    const newstmt = uop_given_valid(ret.reduce((p, c) => p.bitwise_and(c)), stmt)
     ret.push(ret && isNotNone(newstmt) ? newstmt : stmt)
     if (!isEq(ret.at(-1), stmt)) somethingChanged = true
   }
-  return somethingChanged ? ret.reduce((p, c) => p.bitwiseAnd(c)) : undefined
+  return somethingChanged ? ret.reduce((p, c) => p.bitwise_and(c)) : undefined
 }
 export const maxVarConst = ({ x, c1, c2 }: { x: UOp; c1: UOp; c2: UOp }) => {
   if (x.vmin >= (0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
@@ -1060,12 +1060,12 @@ export const symbolic_simple = new PatternMatcher([
   [(UPat.var().mod(UPat.var('y'))).named('base').mod(UPat.var('y')), ({ base, y }) => base], // (x%y)%y = -> x%y (rewritten with base for speed)
   [UPat.var('x').mod(UPat.cvar('c')).add(UPat.var('x').idiv(UPat.cvar('c')).mul(UPat.cvar('c'))), ({ x, c }) => x], // (x%c)+(x//c)*c = x
   [(UPat.var('x').idiv(UPat.cvar('c1'))).mul(UPat.cvar('c3')).add(UPat.var('x').mod(UPat.cvar('c1')).mul(UPat.cvar('c2'))), ({ x, c1, c2, c3 }) => c1.arg * c2.arg === c3.arg ? x.mul(c2) : undefined], // (x%c1)*c2+(x//c1)*c3 = x*c2 if c1*c2==c3
-  [UPat.var('x', dtypes.bool).bitwiseAnd(UPat.cvar('c', undefined, false)), ({ x, c }) => c.arg ? x : c],
-  [UPat.var('x', dtypes.bool).bitwiseOr(UPat.cvar('c', undefined, false)), ({ x, c }) => c.arg ? c : x],
+  [UPat.var('x', dtypes.bool).bitwise_and(UPat.cvar('c', undefined, false)), ({ x, c }) => c.arg ? x : c],
+  [UPat.var('x', dtypes.bool).bitwise_or(UPat.cvar('c', undefined, false)), ({ x, c }) => c.arg ? c : x],
   [UPat.var('x').maximum(UPat.var('x')), ({ x }) => x],
-  [UPat.var('x').bitwiseAnd(UPat.var('x')), ({ x }) => x],
-  [UPat.var('x').bitwiseOr(UPat.var('x')), ({ x }) => x],
-  [UPat.var('x', dtypes.bool).logicalNot().logicalNot(), ({ x }) => x],
+  [UPat.var('x').bitwise_and(UPat.var('x')), ({ x }) => x],
+  [UPat.var('x').bitwise_or(UPat.var('x')), ({ x }) => x],
+  [UPat.var('x', dtypes.bool).logical_not().logical_not(), ({ x }) => x],
   [UPat.var('x', dtypes.bool).where(UPat.const(dtypes.bool, true), UPat.const(dtypes.bool, false)), ({ x }) => x],
   //   // ** zero folding **
   [UPat.var('x').lt(UPat.var('x')), ({ x }) => UOp.const(dtypes.bool.vec(x.dtype.count), false)], // x < x -> False
@@ -1077,9 +1077,9 @@ export const symbolic_simple = new PatternMatcher([
   //   // ** constant folding **
   [new UPat({ op: GroupOp.ALU, name: 'a', src: new UPat({ op: [Ops.VCONST, Ops.CONST] }) }), ({ a }) => a.const_like(exec_alu(a.op, a.dtype, a.src?.map((x) => x.arg), false))],
   //   // bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly
-  [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwiseAnd(y)],
-  [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwiseOr(y)],
-  [UPat.var('x', dtypes.bool).maximum(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwiseOr(y)],
+  [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_and(y)],
+  [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_or(y)],
+  [UPat.var('x', dtypes.bool).maximum(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_or(y)],
   //   // *** cast ***
   [new UPat({ op: Ops.CAST, name: 'root', src: UPat.cvar('c') }), ({ root, c }) => root.const_like(c.arg)],
   [new UPat({ op: Ops.CAST, name: 'root' }), ({ root }) => isEq(root.dtype, root.src![0].dtype) ? root.src![0] : undefined], //24
@@ -1092,7 +1092,7 @@ export const symbolic = symbolic_simple.add(
     //   // group like
     [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, y, c }) => (x.add(x.mul(c))).add(y)],
     //   // ** boolean algebra **
-    [UPat.var('x').bitwiseOr(UPat.var('x').bitwiseAnd(UPat.var())), ({ x }) => x], // x|(x&y) -> x
+    [UPat.var('x').bitwise_or(UPat.var('x').bitwise_and(UPat.var())), ({ x }) => x], // x|(x&y) -> x
     //   // ** combine terms **
     [UPat.var('x').mul(UPat.cvar('c0')).add(UPat.var('x').mul(UPat.cvar('c1'))), ({ x, c0, c1 }) => x.mul(c0.add(c1))], // (x*c0)+(x*c1) -> x*(c0+c1)
     [UPat.var('x').add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, c }) => x.mul(c.add(1))], // (x+x*c)-> x*(c+1)
@@ -1117,8 +1117,8 @@ export const symbolic = symbolic_simple.add(
     //   // ** two stage ALU folding **
     [(UPat.var('x').add(UPat.cvar('c1'))).add(UPat.cvar('c2')), ({ x, c1, c2 }) => x.add(c1.add(c2))],
     [(UPat.var('x').mul(UPat.cvar('c1'))).mul(UPat.cvar('c2')), ({ x, c1, c2 }) => x.mul(c1.mul(c2))],
-    [(UPat.var('x').bitwiseAnd(UPat.cvar('c1'))).bitwiseAnd(UPat.cvar('c2')), ({ x, c1, c2 }) => x.bitwiseAnd(c1.bitwiseAnd(c2))],
-    [(UPat.var('x').bitwiseOr(UPat.cvar('c1'))).bitwiseOr(UPat.cvar('c2')), ({ x, c1, c2 }) => x.bitwiseOr(c1.bitwiseOr(c2))],
+    [(UPat.var('x').bitwise_and(UPat.cvar('c1'))).bitwise_and(UPat.cvar('c2')), ({ x, c1, c2 }) => x.bitwise_and(c1.bitwise_and(c2))],
+    [(UPat.var('x').bitwise_or(UPat.cvar('c1'))).bitwise_or(UPat.cvar('c2')), ({ x, c1, c2 }) => x.bitwise_or(c1.bitwise_or(c2))],
     [(UPat.cvar('c0').add(UPat.var('x'))).lt(UPat.cvar('c1')), ({ x, c0, c1 }) => x.lt(c1.sub(c0))], // c0 + x < c1 -> x < c1 - c0
     [(UPat.var('x').idiv(UPat.cvar('c1'))).idiv(UPat.cvar('c2')), ({ x, c1, c2 }) => x.idiv(c1.mul(c2))], // (x//c1)//c2 -> x//(c1*c2)
     // //   // ** lt **
@@ -1196,8 +1196,8 @@ export const ge = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 
 export const mod = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mod(b) : typeof b !== 'number' ? b.mod(a, true) : a % b) as A | B
 export const ne = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.ne(b) : typeof b !== 'number' ? b.ne(a) : Number((a as number) !== b)) as A | B
 export const eq = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.eq(b) : typeof b !== 'number' ? b.eq(a) : Number((a as number) === b)) as A | B
-export const and = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.bitwiseAnd(b) : typeof b !== 'number' ? b.bitwiseAnd(a, true) : Number(a && b)) as A | B
-export const or = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.bitwiseOr(b) : typeof b !== 'number' ? b.bitwiseOr(a, true) : Number(a || b)) as A | B
+export const and = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.bitwise_and(b) : typeof b !== 'number' ? b.bitwise_and(a, true) : Number(a && b)) as A | B
+export const or = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.bitwise_or(b) : typeof b !== 'number' ? b.bitwise_or(a, true) : Number(a || b)) as A | B
 
 export const sint_polyN = <A extends sint>(x: A, p: number[]): A => p.reduce((acc, c) => add(mul(acc, x), c), 0 as sint) as A
 
