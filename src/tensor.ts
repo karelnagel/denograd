@@ -15,10 +15,10 @@
 // from tinygrad.engine.schedule import ScheduleItem, create_schedule_with_vars
 
 import { Buffer as NodeBuffer } from 'node:buffer'
-import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, to_dtype, truncate } from './dtype.ts'
+import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, bytearray, bytes, DEBUG, dedup, getEnv, isEq, isinstance, max, memoryview, Metadata, prod, range, zip } from './helpers.ts'
-import { add, eq, ge, idiv, mul, Ops, resolve, SimpleMathTrait, sint, sint_prod, smax, smin, UOp, Variable } from './ops.ts'
+import { _METADATA, all_int, all_same, argfix, assert, bytearray, bytes, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, max, memoryview, Metadata, prod, range, WINO, zip } from './helpers.ts'
+import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device } from './device.ts'
 import path from 'node:path'
 import { statSync } from 'node:fs'
@@ -31,8 +31,8 @@ import { promisify } from 'node:util'
 const gunzipAsync = promisify(gunzip)
 import * as F from './function.ts'
 import { sint_polyN } from './ops.ts'
-import { ceildiv } from './helpers.ts'
-import crypto from 'crypto'
+import { ceildiv, make_tuple, round_up } from './helpers.ts'
+import crypto from 'node:crypto'
 
 export class Function {
   device: string | string[]
@@ -57,12 +57,13 @@ export class Function {
   static apply(...args: any[]): Tensor {
     const x = args.filter((x) => x instanceof Tensor)!
     const ctx = new this(x[0].device, x, _METADATA)
-    const ret = Tensor.new(Tensor)
+    const ret = new Tensor()
     ;[ret.lazydata, ret.requires_grad, ret.grad] = [ctx.forward(args.map((v) => v instanceof Tensor ? v.lazydata : v)), ctx.requires_grad, undefined]
     ret._ctx = ctx.requires_grad && !Tensor.no_grad ? ctx : undefined // used by autograd engine
     return ret
   }
 }
+
 // import tinygrad.function as F
 
 export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: string | string[], arg?: any, src: LazyBuffer[] = []) => {
@@ -95,12 +96,39 @@ const _align_left = (...shapes: sint[][]): sint[][] => {
   const max_dim = max(shapes.map((shape) => shape.length))
   return shapes.map((shape) => range(max_dim - shape.length).map((x) => 1))
 }
-export const _broadcast_shape = (...shapes: sint[][]): sint[] => {
+export const _broadcast_shape = (shapes: sint[][]): sint[] => {
   return zip(..._align_left(...shapes)).map((nth_dim_sizes) => nth_dim_sizes.includes(0) ? 0 : smax(nth_dim_sizes))
 }
 type ReductionStr = 'mean' | 'sum' | 'none'
 
 type TensorOptions = { device?: string | string[]; dtype?: DType; requires_grad?: boolean }
+type TensorSlice = { start?: number; stop?: number; step?: number }
+const sliceGetIndices = (index: TensorSlice, size: number): [number, number, number] => {
+  let start = index.start ?? 0
+  let stop = index.stop ?? size
+  const step = index.step ?? 1
+  if (start < 0) start += size
+  if (stop < 0) stop += size
+  start = Math.max(step < 0 ? -1 : 0, Math.min(size, start))
+  stop = Math.max(step < 0 ? -1 : 0, Math.min(size, stop))
+  return [start, stop, step]
+}
+const getIndice = <T>(items: T[], indice: TensorSlice): T[] => {
+  const [start, stop, step] = sliceGetIndices(indice, items.length)
+  const result: T[] = []
+  if (step > 0) {
+    for (let i = start; i < stop; i += step) {
+      result.push(items[i])
+    }
+  } else {
+    for (let i = start; i > stop; i += step) {
+      result.push(items[i])
+    }
+  }
+  return result
+}
+type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | TensorSlice | (number | boolean | UOp | Tensor | undefined | '...' | TensorSlice)[]
+
 /**
  * A `Tensor` === a multi-dimensional matrix containing elements of a single data type.
  *
@@ -338,11 +366,23 @@ export class Tensor extends SimpleMathTrait {
   to = (device?: string | string[]): Tensor => {
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
     if (device === this.device) return this
-    if (typeof device !== 'string') return this.shard(device)
+    if (typeof device !== 'string') {
+      throw new Error('TODO implement shard()')
+      // return this.shard(device)
+    }
     const ret = new Tensor(this.lazydata, { device, requires_grad: this.requires_grad })
     if (this.grad !== undefined) ret.grad = this.grad.to(device)
     if (this._ctx !== undefined) ret._ctx = this._ctx
     return ret
+  }
+
+  static from_uop = (y: UOp, opts?: TensorOptions): Tensor => {
+    if (y.op === Ops.BIND) return new Tensor(y, { ...opts, requires_grad: false }) // this is the only UOp allowed in Tensor
+    if (y.op === Ops.CONST) return new Tensor(y.arg, { ...opts, requires_grad: false })
+    if (y.op === Ops.MUL) return Tensor.from_uop(y.src[0]).mul(Tensor.from_uop(y.src[1]))
+    if (y.op === Ops.ADD) return Tensor.from_uop(y.src[0]).add(Tensor.from_uop(y.src[1]))
+    if (y.op === Ops.MAX) return Tensor.from_uop(y.src[0]).maximum(Tensor.from_uop(y.src[1]))
+    throw new Error(`unhandled UOp {y}`)
   }
   /**
    * Create a Tensor from a URL.
@@ -383,9 +423,9 @@ export class Tensor extends SimpleMathTrait {
 
   static _threefry_random_bits = (key: Tensor, counts0: Tensor, counts1: Tensor) => {
     let x = (counts1.cast(dtypes.uint64).lshift(32)).bitwise_or(counts0.cast(dtypes.uint64))
-    x = F.Threefry.apply(x, (key[1]._broadcast_to(x.shape).cast(dtypes.uint64) << 32) | key[0]._broadcast_to(x.shape).cast(dtypes.uint64))
-    const [counts0, counts1] = [(x & 0xffffffff).cast(dtypes.uint32), ((x >> 32) & 0xffffffff).cast(dtypes.uint32)]
-    return counts0.cat(counts1)
+    x = F.Threefry.apply(x, (key.get(1)._broadcast_to(x.shape).cast(dtypes.uint64).lshift(32)).bitwise_or(key.get(0)._broadcast_to(x.shape).cast(dtypes.uint64)))
+    ;[counts0, counts1] = [(x.bitwise_and(0xffffffff)).cast(dtypes.uint32), ((x.rshift(32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)]
+    return counts0.cat([counts1])
   }
 
   /**
@@ -432,17 +472,17 @@ export class Tensor extends SimpleMathTrait {
     // threefry random bits
     const counts0 = Tensor.arange(ceildiv(num, 2), undefined, undefined, { device: device, dtype: dtypes.uint32, requires_grad: false }).add(Tensor._device_rng_counters.get(device)!)
     const counts1 = counts0.add(ceildiv(num, 2))
-    let bits = Tensor._threefry_random_bits(Tensor._device_seeds.get(device)!, counts0, counts1).slice(0, num)
+    let bits = Tensor._threefry_random_bits(Tensor._device_seeds.get(device)!, counts0, counts1).get({ stop: num })
 
     // bitcast to uint with same number of bits
     const [_, nmant] = dtypes.finfo(dtype)
     const uint_dtype = { 1: dtypes.uint8, 2: dtypes.uint16, 4: dtypes.uint32, 8: dtypes.uint64 }[dtype.itemsize]
-    bits = bits.bitcast(uint_dtype)
+    bits = bits.bitcast(uint_dtype!)
     // only randomize the mantissa bits && set the exponent to 1
-    const one = Tensor.ones_like(bits, { device: bits.device, dtype: dtype }).bitcast(uint_dtype)
+    const one = bits.ones_like({ device: bits.device, dtype: dtype }).bitcast(uint_dtype!)
     bits = bits.rshift((dtype.itemsize * 8) - nmant).bitwise_or(one)
     // bitcast back to the original dtype && reshape
-    let out = bits.bitcast(dtype).slice(0, numel).sub(1).reshape(shape)
+    let out = bits.bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
 
     // move back to the original device if we were using MOCKGPU
     if (getEnv('MOCKGPU') && _device) out = out.to(_device)
@@ -467,7 +507,7 @@ export class Tensor extends SimpleMathTrait {
    */
   static full = (shape: sint[], fill_value: ConstType, opts?: TensorOptions): Tensor => {
     const new_shape: number[] = argfix(shape)
-    return new Tensor(fill_value, opts).reshape(...range(new_shape.length).map(() => 1)).expand(...new_shape)
+    return new Tensor(fill_value, opts).reshape(range(new_shape.length).map(() => 1)).expand(new_shape)
   }
   /**
    * Creates a tensor with the given shape, filled with zeros.
@@ -500,7 +540,7 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor.ones(2, 3, dtype=dtypes.int32).numpy())
    * ```
    */
-  static ones = (shape: number[], opts?: TensorOptions): Tensor => {
+  static ones = (shape: sint[], opts?: TensorOptions): Tensor => {
     return Tensor.full(argfix(shape), 1.0, opts)
   }
   /**
@@ -596,7 +636,7 @@ export class Tensor extends SimpleMathTrait {
    */
   static uniform = (shape: number[], low = 0.0, high = 1.0, opts?: TensorOptions): Tensor => {
     const dtype = opts?.dtype || dtypes.default_float
-    return (Tensor.rand(shape, { ...opts, dtype }).mul(high - low, true)).cast(dtype).add(low)
+    return (Tensor.rand(shape, undefined, { ...opts, dtype }).mul(high - low, true)).cast(dtype).add(low)
   }
 
   /**
@@ -674,8 +714,8 @@ export class Tensor extends SimpleMathTrait {
   /**
    * `.view` === an alias for `.reshape`.
    */
-  view = (...shape: number[]): Tensor => {
-    return this.reshape(...shape)
+  view = (shape: number[]): Tensor => {
+    return this.reshape(shape)
   }
 
   /**
@@ -687,7 +727,7 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.reshape(2, 3).numpy())
    * ```
    */
-  reshape = (...shape: number[]): Tensor => {
+  reshape = (shape: (sint | undefined)[]): Tensor => {
     // resolve undefined && args
     let new_shape: number[] = argfix(shape).map((s, i) => s || this.shape[i])
     // resolve -1
@@ -707,7 +747,7 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.expand(4, -1).numpy())
    * ```
    */
-  expand = (...shape: number[]): Tensor => {
+  expand = (shape: sint[]): Tensor => {
     const new_shape = zip(..._align_left(this.shape, argfix(shape))).map(([from, to]) => to === -1 || to === undefined ? from : to)
     return this._broadcast_to(new_shape)
   }
@@ -725,7 +765,7 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.permute(1, 0).numpy())
    * ```
    */
-  permute = (...order: number[]): Tensor => {
+  permute = (order: number[]): Tensor => {
     const order_arg = argfix(order).map((x) => this._resolve_dim(x))
     if (isEq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
     return F.Permute.apply(this, order = order_arg)
@@ -745,7 +785,7 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.flip((0, 1)).numpy())
    * ```
    */
-  flip = (...axis: number[]): Tensor => {
+  flip = (axis: number[]): Tensor => {
     const axis_arg = argfix(axis).map((x) => this._resolve_dim(x))
     if (axis_arg.length !== dedup(axis_arg).length) throw new Error(`dim can appear at most once, getting ${axis_arg}`)
     return F.Flip.apply(this, axis = axis_arg)
@@ -801,18 +841,18 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.pad((1, 2, 0, -1), value=-number('inf')).numpy())
    * ```
    */
-  pad = (padding: sint[] | ([sint, sint] | undefined)[], mode: 'constant' | 'reflect' | 'replicate' | 'circular' = 'constant', value = 0.0): Tensor => {
+  pad = (padding: sint[] | ([sint, sint] | undefined)[], mode: 'constant' | 'reflect' | 'replicate' | 'circular' = 'constant', value: number | boolean = 0.0): Tensor => {
     if (!['constant', 'reflect', 'replicate', 'circular'].includes(mode)) throw new Error(`mode=${mode} !== supported`)
     const flat = padding.every((p) => Number.isInteger(p) || p instanceof UOp)
     if (flat && padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
     // turn flat padding into group padding
-    let pX: [sint, sint][] = flat ? [...range(this.ndim - idiv(padding.length, 2)).map((x) => [0, 0]), ...zip(padding.slice(-2, _, -2), padding.slice(_, _, -2))] : padding
+    let pX = flat ? [...range(this.ndim - idiv(padding.length, 2)).map(() => [0, 0] as [sint, sint]), ...zip(getIndice(padding as number[], { start: -2, step: -2 }), getIndice(padding as number[], { step: -2 }))] : padding as [sint, sint][]
     if (pX.length !== this.ndim) throw new Error(`padding length === improper, ${padding} ${this.ndim}`)
     const X = this
     pX = pX.map((p) => p || [0, 0] as [sint, sint])
     const pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
     if (mode === 'constant') {
-      const _constant = (x: Tensor, px: [sint, sint][], v: number) => v === 0 ? F.Pad.apply(x, px) : F.Pad.apply(x, px).add(F.Pad.apply(x.ones_like(), px).where(0, v))
+      const _constant = (x: Tensor, px: [sint, sint][], v: number | boolean) => v === 0 ? F.Pad.apply(x, px) : F.Pad.apply(x, px).add(F.Pad.apply(x.ones_like(), px).where(0, v))
       return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX, value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads, value)
     }
     throw new Error('Not needed for mnist!')
@@ -834,801 +874,977 @@ export class Tensor extends SimpleMathTrait {
     //   X = Tensor.cat(*(X_ for X_ in (xB, X, xA) if X_ !== undefined), dim=d)
     // return X.shrink(tuple((-min(pB,0), min(pA+s,s)) for (pB,pA),s in zip(pX, X.shape)))
   }
-  //     // ***** movement high level ops *****
+  // ***** movement high level ops *****
 
-  //     // Supported Indexing Implementations:
-  //     //   1. Int indexing (no copy)
-  //     //     - for all dims where there's number, shrink -> reshape
-  //     //     - negative indices are taken relative to the end of the sequence, so X.at(-2)! returns the 2nd-to-last element
-  //     //     - X = Tensor.rand(4,5,9); X[2,-2] shrinks the Tensor to X.shrink(((2, 3), (3, 4), (0, 9))) -> X.shape=(1,1,9)
-  //     //     - Then we reshape (collapse) the number dim away such that for X: (1,1,9) -> (9,)
-  //     //   2. Slice indexing (no copy)
-  //     //     - for all dims where slice === start:end:stride, shrink -> flip | undefined -> pad -> reshape -> shrink
-  //     //     - first shrink the Tensor to X.shrink(((start, end),))
-  //     //     - then we apply stride through flip | undefined -> pad -> reshape -> shrink
-  //     //       - flip where dim value === negative
-  //     //       - pad on dims to be multiple of strides, such that reshaping [dim_size_padded] -> [dim_size_padded // stride, stride] === possible
-  //     //       - shrink [dim_size_padded // stride, stride] -> [dim_size_padded // stride, 1]
-  //     //       - reshape [dim_size_padded // stride, 1] -> [dim_size_padded // stride] && now you have your stride
-  //     //   3. undefined indexing (no copy)
-  //     //     - reshape (inject) a dim at the dim where there's undefined
-  //     //   4. Tensor indexing (copy)
-  //     //     - use Tensor.arange === tensor_index to create masks for dims with Tensors (adds a dim for each mask)
-  //     //     - combine masks together with mul
-  //     //     - apply mask to this by mask * this
-  //     //     - sum reduce away the extra dims added from creating masks
-  //     // Tiny Things:
-  //     //   1. Supported indices: Union[number, slice, Tensor, undefined, List, Tuple, Ellipsis]
-  //     //     - for any list, Union[List, Tuple, number[]], must have homogeneous shape
-  //     //     - for any tuple, Union[List, []], must have homogeneous shape
-  //     //   2. Bool indexing !== supported
-  //     //   3. Out of bounds Tensor indexing results in 0
-  //     //     - e.g: Tensor([1, 2, 3])[Tensor([4, 3, 2])] -> [0, 0, 3] index 4 && 3 are out of bounds
-  //     _getitem = (indices, v?: Tensor): Tensor => {
-  //       // wrap single index into a list
-  //       if (isinstance(indices, list) && all_int(indices)) || !isinstance(indices, (tuple, list)): indices = [indices]
-  //       // turn scalar Tensors into const val for number indexing if possible
-  //       x, indices = this, [this._to_const_val(i) if isinstance(i, Tensor) && i.shape === () else i for i in indices]
+  // Supported Indexing Implementations:
+  //   1. Int indexing (no copy)
+  //     - for all dims where there's number, shrink -> reshape
+  //     - negative indices are taken relative to the end of the sequence, so X.at(-2)! returns the 2nd-to-last element
+  //     - X = Tensor.rand(4,5,9); X[2,-2] shrinks the Tensor to X.shrink(((2, 3), (3, 4), (0, 9))) -> X.shape=(1,1,9)
+  //     - Then we reshape (collapse) the number dim away such that for X: (1,1,9) -> (9,)
+  //   2. Slice indexing (no copy)
+  //     - for all dims where slice === start:end:stride, shrink -> flip | undefined -> pad -> reshape -> shrink
+  //     - first shrink the Tensor to X.shrink(((start, end),))
+  //     - then we apply stride through flip | undefined -> pad -> reshape -> shrink
+  //       - flip where dim value === negative
+  //       - pad on dims to be multiple of strides, such that reshaping [dim_size_padded] -> [dim_size_padded // stride, stride] === possible
+  //       - shrink [dim_size_padded // stride, stride] -> [dim_size_padded // stride, 1]
+  //       - reshape [dim_size_padded // stride, 1] -> [dim_size_padded // stride] && now you have your stride
+  //   3. undefined indexing (no copy)
+  //     - reshape (inject) a dim at the dim where there's undefined
+  //   4. Tensor indexing (copy)
+  //     - use Tensor.arange === tensor_index to create masks for dims with Tensors (adds a dim for each mask)
+  //     - combine masks together with mul
+  //     - apply mask to this by mask * this
+  //     - sum reduce away the extra dims added from creating masks
+  // Tiny Things:
+  //   1. Supported indices: Union[number, slice, Tensor, undefined, List, Tuple, Ellipsis]
+  //     - for any list, Union[List, Tuple, number[]], must have homogeneous shape
+  //     - for any tuple, Union[List, []], must have homogeneous shape
+  //   2. Bool indexing !== supported
+  //   3. Out of bounds Tensor indexing results in 0
+  //     - e.g: Tensor([1, 2, 3])[Tensor([4, 3, 2])] -> [0, 0, 3] index 4 && 3 are out of bounds
+  /**
+   * # Examples
+   * ```ts
+   * X.get(2) // X[2]
+   * X.get(2, -2) // X[2, -2]
+   * X.get({ start: 1, stop: 4 }, { step: -1 }, { start: 2, stop: 7, step: 2 }) // X[1:4, ::-1, 2:7:2]
+   * X.get(undefined, {}, {}) // X[None, :, :]
+   * X.get(new Tensor(), new Tensor()) // X[Tensor(), Tensor()]
+   * X.get('...') // X[...]
+   * X.get({}, '...', [1, 3]) // X[:, ..., 1:3]
+   * X.get({}, '...', -1) // X[:, ..., -1]
+   * X.get([2, 5], '...') // X[[2,5], ...]
+   * X.get('...', { start: 1, stop: 4 }, { start: 0, stop: 2 }) // X[..., 1:4, 0:2]
+   * X.get(2, '...', undefined) // X[2, ..., None]
+   * ```
+   */
+  get = (...indices: TensorIndice[]): Tensor => {
+    // wrap single index into a list
+    if ((Array.isArray(indices) && all_int(indices)) || !Array.isArray(indices)) indices = [indices]
+    // turn scalar Tensors into const val for number indexing if possible
+    let x = this as Tensor
+    indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) : i)
 
-  //       // filter ellipsis && fill with slice(undefined) || fill rest of indices with slice(undefined)
-  //       if len(ellipsis_idx := [dim for (const dim, i of enumerate(indices) if i === Ellipsis]) > 1){ raise IndexError("indices can only have a single ellipsis")
-  //       fill_idx = ellipsis_idx[0] if ellipsis_idx else len(indices)
-  //       num_indices = len(indices) - len(ellipsis_idx) - sum(1 for i in indices if i === undefined)
-  //       if num_indices > this.ndim: raise IndexError(`too many ${num_indices=} for ${this.ndim=}`)
-  //       indices[fill_idx:fill_idx+1] = [slice(undefined)] * (this.ndim - num_indices)
+    // filter ellipsis && fill with slice(undefined) || fill rest of indices with slice(undefined)
+    const ellipsis_idx = indices.filter((i) => i === '...').map((i, dim) => dim)
+    if (ellipsis_idx.length > 1) throw new Error('indices can only have a single ellipsis')
+    const fill_idx = ellipsis_idx.length ? ellipsis_idx[0] : indices.length
+    const num_indices = indices.length - ellipsis_idx.length - indices.filter((i) => i === undefined).length
+    if (num_indices > this.ndim) throw new Error(`too many ${num_indices} for ${this.ndim}`)
+    indices.splice(fill_idx, 1, ...Array(this.ndim - num_indices).fill({} as TensorSlice))
 
-  //       indices_parsed, dim = [], 0
-  //       for (const index of indices){
-  //         size = 1 if index === undefined else this.shape[dim]
-  //         boundary, stride = [0, size], 1  // defaults
-  //         match index:
-  //           case list() | tuple() | Tensor():
-  //             if !isinstance(index, Tensor): index = new Tensor(index, this.device, requires_grad=false)
-  //             if !dtypes.is_int(index.dtype): raise IndexError(`index dtype ${index.dtype} !== supported`)
-  //             index = (index.to(this.device) < 0).where(size, 0) + index // treat negative index values
-  //           case number() | UOp(): // sint
-  //             if index >= size || index < -size: raise IndexError(`${index=} === out of bounds with ${size=}`)
-  //             boundary = [index, index+1] if index >= 0 else [index+size, index+size+1]
-  //           case slice():
-  //             if index.step === 0: raise ValueError(`${index=} can!have 0 as step`)
-  //             if !all(isinstance(s,number) || s === undefined for (const s of (index.start,index.stop,index.step))){ raise TypeError("only number slicing === supported")
-  //             // handle number slicing
-  //             *boundary, stride = index.indices(cast(SupportsIndex, size))
-  //             if stride * (boundary[1] - boundary[0]) < 0: boundary = [0, 0]
-  //             else if stride < 0: boundary = [boundary[1] + 1, boundary[0] + 1]
-  //             // update size for slice
-  //             size = ceildiv((boundary[1] - boundary[0]), abs(stride))
-  //           case undefined: pass // do nothing
-  //           case _: raise IndexError(`${type(index).__name__} indexing !== supported`)
-  //         indices_parsed.push({"index":index, "size":size, "boundary":tuple(boundary), "stride":stride})
-  //         if index !== undefined: dim += 1
+    let [indices_parsed, dim] = [[] as { index: TensorIndice; size: number; boundary: [number, number]; stride: number }[], 0]
+    for (let index of indices) {
+      let size = index === undefined ? 1 : this.shape[dim] as number
+      let [boundary, stride] = [[0, size] as [number, number], 1] // defaults
+      if (Array.isArray(index) || index instanceof Tensor) {
+        if (!isinstance(index, Tensor)) index = new Tensor(index, { device: this.device, requires_grad: false })
+        if (!dtypes.is_int(index.dtype)) throw new Error(`index dtype ${index.dtype} !== supported`)
+        index = (index.to(this.device).lt(0)).where(size, 0).add(index) // treat negative index values
+      } else if (typeof index === 'number' || index instanceof UOp) { // sint
+        if (index instanceof UOp) throw new Error("Don't handle UOps yet, TODO")
+        if (ge(index, size) || lt(index, -size)) throw new Error(`index=${index} === out of bounds with size=${size}`)
+        boundary = ge(index, 0) ? [index, add(index, 1)] : [add(index, size), add(index, size) + 1]
+      } else if (index === undefined) {
+        // do nothing
+      } else if (typeof index === 'object') {
+        if (index.step === 0) throw new Error(`index=${index} can not have 0 as step`)
+        if (![index.start, index.stop, index.step].every((s) => Number.isInteger(s) || s === undefined)) throw new Error('only number slicing === supported') //       // handle number slicing
+        const res = sliceGetIndices(index, size)
+        ;[boundary, stride] = [[res[0], res[1]], res[2]]
+        if (stride * (boundary[1] - boundary[0]) < 0) boundary = [0, 0]
+        else if (stride < 0) boundary = [boundary[1] + 1, boundary[0] + 1]
+        // update size for slice
+        size = ceildiv(boundary[1] - boundary[0], Math.abs(stride))
+      } else throw new Error(`${index} indexing is not supported`)
 
-  //       // movement op indexing
-  //       if mops := [i for (const i of indices_parsed if i['index'] !== undefined]){
-  //         // flip negative strides
-  //         shrinks, strides = zip(*((i['boundary'], i['stride']) for i in mops))
-  //         x = x.shrink(shrinks).flip(tuple(i for i,st in enumerate(strides) if st < 0))
-  //         // handle stride !== 1 || -1
-  //         if any(abs(st) !== 1 for (const st of strides)){
-  //           strides = tuple(abs(s) for s in strides)
-  //           // pad shape to multiple of stride
-  //           if !all_int(x.shape): raise RuntimeError("symbolic shape !supprted")
-  //           x = x.pad(tuple((0, round_up(s, st) - s) for s, st in zip(x.shape, strides)))
-  //           x = x.reshape(tuple(flatten((s // st, st) for s, st in zip(x.shape, strides))))
-  //           x = x.shrink(tuple(flatten(((0, s), (0, 1)) for s in x.shape[::2]))).reshape(x.shape[::2])
+      indices_parsed.push({ 'index': index, 'size': size, 'boundary': boundary, 'stride': stride })
+      if (index !== undefined) dim += 1
+    }
+    // movement op indexing
+    const mops = indices_parsed.filter((i) => i.index !== undefined)
+    if (mops.length) {
+      //   // flip negative strides
+      let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)]
+      x = x.shrink(shrinks).flip([...strides.entries().filter(([st, i]) => st < 0).map(([st, i]) => i)])
+      //   // handle stride !== 1 || -1
+      if (strides.some((st) => Math.abs(st) !== 1)) {
+        strides = strides.map((s) => Math.abs(s))
+        // pad shape to multiple of stride/
+        if (!all_int(x.shape)) throw new Error('symbolic shape !supprted')
+        x = x.pad(zip(x.shape, strides).map(([s, st]) => [0, round_up(s, st) - s] as [number, number]))
+        x = x.reshape(zip(x.shape as number[], strides).flatMap(([s, st]) => [idiv(s, st), st]))
+        x = x.shrink(x.shape.filter((_, i) => i % 2 === 0).flatMap((s) => [[0, s], [0, 1]])).reshape((x.shape as number[]).filter((_, i) => i % 2 === 0))
+      }
+    }
+    // // dim injection from undefined by including undefined dim size (which === 1) && dim collapse by skipping number dim size
+    x = x.reshape(indices_parsed.filter((index) => !Number.isInteger(index.index)).map((index) => index.size))
 
-  //       // dim injection from undefined by including undefined dim size (which === 1) && dim collapse by skipping number dim size
-  //       x = x.reshape(tuple(index['size'] for index in indices_parsed if !isinstance(index['index'], number)))
+    // // tensor indexing
+    const tops = [...indices_parsed.filter((_i) => !Number.isInteger(_i.index)).entries().filter(([d, i]) => i.index instanceof Tensor).map(([d, i]) => [d, i] as const)]
+    if (tops.length) {
+      //   // unload the tensor object into actual tensors
+      const [dims, tensors, masks] = [tops.map(([d]) => d), tops.map(([_, i]) => i.index as Tensor), [] as Tensor[]]
+      const big_shape = _broadcast_shape(tensors.map((t) => t.shape))
+      const pre_reduce_shape = [...x.shape.slice(0, dims[0]), big_shape, ...x.shape.slice(dims[0])]
 
-  //       // tensor indexing
-  //       if tops := [(d,i) for (const d,i of enumerate(i_ for i_ in indices_parsed if !isinstance(i_['index'], number)) if isinstance(i['index'], Tensor)]){
-  //         // unload the tensor object into actual tensors
-  //         dims, tensors, masks = [d for d,_ in tops], cast(list[Tensor], [i['index'] for _,i in tops]), []
-  //         pre_reduce_shape = x.shape[:dims[0]] + (big_shape := _broadcast_shape(*(t.shape for t in tensors))) + x.shape[dims[0]:]
+      //   // create index masks
+      for (const [dim, tensor] of zip(dims, tensors)) {
+        try {
+          const i = tensor.reshape([...(tensor.shape as number[]), ...range(x.ndim - dims[0]).map((x) => x)]).expand(pre_reduce_shape as number[])
+          masks.push(i._one_hot_along_dim(x.shape[dim] as number, dim - x.ndim))
+        } catch (e) {
+          throw new Error(`Can not broadcast indices: ${e}`)
+        }
+      }
+      // reduce masks to 1 mask
+      const mask: Tensor = masks.reduce((acc, x) => acc.mul(x))
 
-  //         // create index masks
-  //         for (const dim, tensor of zip(dims, tensors)){
-  //           try: i = tensor.reshape(tensor.shape + (1,)*(x.ndim - dims[0])).expand(pre_reduce_shape)
-  //           except ValueError as e: raise IndexError(`can!broadcast indices: ${e}`) from e
-  //           masks.push(i._one_hot_along_dim(num_classes=x.shape[dim], dim=(dim - x.ndim)))
+      // inject 1's for the extra dims added in create masks
+      const reshape_arg = [...x.shape.slice(0, dims[0]), ...range(big_shape.length).map((x) => 1), ...x.shape.slice(dims[0])]
+      // sum reduce the extra dims introduced in create masks
+      const sum_axis = dims.map((d) => d + big_shape.length)
+      x = x.reshape(reshape_arg).mul(mask).sum(sum_axis, undefined, x.dtype)
 
-  //         // reduce masks to 1 mask
-  //         mask: Tensor = functools.reduce(lambda x,y: x.mul(y), masks)
+      // special permute case
+      if (dims[0] !== 0 && dims.length !== 1 && !isEq(dims, range(dims[0], dims.at(-1)! + 1))) {
+        x = x.permute([...range(dims[0], dims[0] + big_shape.length), ...range(0, dims[0]), ...range(dims[0] + big_shape.length, x.ndim)])
+      }
+      // for advanced setitem, returns whole tensor with indices replaced
+      // TODO:!needed for mnist
+      // if v !== undefined:
+      //   vb = v.cast(this.dtype)._broadcast_to(_broadcast_shape(x.shape, v.shape))
+      //   // add back reduced dims from sum
+      //   for (const dim of sum_axis){ vb = vb.unsqueeze(dim)
+      //   // run _masked_setitem on tuple of axis that === to be reduced to match this.shape
+      //   x = _masked_setitem(this, vb, mask, tuple(range(dims[0], dims[0] + len(big_shape))))
+    }
 
-  //         // inject 1's for the extra dims added in create masks
-  //         reshape_arg = x.shape[:dims[0]] + (1,) * len(big_shape) + x.shape[dims[0]:]
-  //         // sum reduce the extra dims introduced in create masks
-  //         x = (x.reshape(reshape_arg) * mask).sum(sum_axis:=tuple(d + len(big_shape) for d in dims), acc_dtype=x.dtype)
+    return x
+  }
 
-  //         // special permute case
-  //         if dims[0] !== 0 && len(dims) !== 1 && tuple(dims) !== tuple(range(dims[0], dims.at(-1)!+1)):
-  //           x = x.permute(*range(dims[0], dims[0]+len(big_shape)), *range(0, dims[0]), *range(dims[0]+len(big_shape), x.ndim))
+  /**
+   * Concatenates this with other `Tensor` in `args` along an axis specified by `dim`.
+   * All tensors must have the same shape except in the concatenating dimension.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t0, t1, t2 = new Tensor([[1, 2]]), Tensor([[3, 4]]), Tensor([[5, 6]])
+   * console.log(t0.cat(t1, t2, dim=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t0.cat(t1, t2, dim=1).numpy())
+   * ```
+   */
+  cat = (args: Tensor[], dim = 0): Tensor => {
+    dim = this._resolve_dim(dim)
+    for (const arg of args) assert(arg.ndim === this.ndim && zip(this.shape, arg.shape).entries().filter(([i]) => i !== dim).every(([i, [ti, ai]]) => ti === ai))
+    const tensors = [this, ...args]
 
-  //         // for advanced setitem, returns whole tensor with indices replaced
-  //         // TODO:!needed for mnist
-  //         // if v !== undefined:
-  //         //   vb = v.cast(this.dtype)._broadcast_to(_broadcast_shape(x.shape, v.shape))
-  //         //   // add back reduced dims from sum
-  //         //   for (const dim of sum_axis){ vb = vb.unsqueeze(dim)
-  //         //   // run _masked_setitem on tuple of axis that === to be reduced to match this.shape
-  //         //   x = _masked_setitem(this, vb, mask, tuple(range(dims[0], dims[0] + len(big_shape))))
+    const dim_cumsum = tensors.map((t) => t.shape[dim] as number).reduce((acc, curr, idx) => [...acc, (acc[idx] || 0) + curr], [0])
+    for (const [i, t] of tensors.entries()) tensors[i] = t.pad(range(t.ndim).map((j) => j === dim ? [dim_cumsum[i], dim_cumsum.at(-1)! - dim_cumsum[i + 1]] as [sint, sint] : undefined))
+    return tensors.reduce((acc, x) => acc.add(x))
+  }
+  static cat = (tensors: Tensor[], dim = 0): Tensor => tensors[0].cat(tensors.slice(1))
 
-  //       return x
+  /**
+   * Concatenates self with other `Tensor` in `args` along a new dimension specified by `dim`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t0, t1, t2 = Tensor([1, 2]), Tensor([3, 4]), Tensor([5, 6])
+   * print(t0.stack(t1, t2, dim=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t0.stack(t1, t2, dim=1).numpy())
+   * ```
+   */
+  stack = (args: Tensor[], dim = 0): Tensor => {
+    // checks for shapes and number of dimensions delegated to cat
+    return this.unsqueeze(dim).cat(args.map((t) => t.unsqueeze(dim)), dim)
+  }
+  static stack = (tensors: Tensor[], dim = 0): Tensor => tensors[0].stack(tensors.slice(1))
 
-  //     __getitem__ = (indices): Tensor => {
-  //       return this._getitem(indices)
+  /**
+   * Repeats tensor number of times along each dimension specified by `repeats`.
+   * `repeats` can be passed as a tuple || as separate arguments.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([1, 2, 3])
+   * console.log(t.repeat(4, 2).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.repeat(4, 2, 1).shape)
+   * ```
+   */
+  repeat = (repeats: sint[]): Tensor => {
+    repeats = argfix(repeats)
+    const base_shape = _align_left(this.shape, repeats)[0]
+    const unsqueezed_shape = base_shape.flatMap((s) => [1, s] as [number, number])
+    const expanded_shape = zip(repeats, base_shape).flat()
+    const final_shape = zip(repeats, base_shape).map(([r, s]) => mul(r, s))
+    return this.reshape(unsqueezed_shape).expand(expanded_shape).reshape(final_shape)
+  }
+  _resolve_dim = (dim: number, extra = false): number => {
+    const total = this.ndim + Number(extra)
+    if (!(-Math.max(1, total) <= dim && dim <= Math.max(1, total) - 1)) throw new Error(`dim=${dim} out of range ${[-Math.max(1, total), Math.max(1, total) - 1]}`)
+    return dim < 0 ? dim + total : dim
+  }
+  /**
+   * Returns a tensor with specified dimensions of input of size 1 removed.
+   * If `dim` is not specified, all dimensions with size 1 are removed.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.zeros(2, 1, 2, 1, 2)
+   * print(t.squeeze().shape)
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.squeeze(0).shape)
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.squeeze(1).shape)
+   * ```
+   */
+  squeeze = (dim?: number): Tensor => {
+    if (dim === undefined) return this.reshape(this.shape.filter((dim) => dim !== 1))
+    dim = this._resolve_dim(dim)
+    return !this.ndim || this.shape[dim] != 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
+  }
 
-  //   /**
-  //    * Concatenates this with other `Tensor` in `args` along an axis specified by `dim`.
-  //    * All tensors must have the same shape except in the concatenating dimension.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t0, t1, t2 = new Tensor([[1, 2]]), Tensor([[3, 4]]), Tensor([[5, 6]])
-  //    * console.log(t0.cat(t1, t2, dim=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t0.cat(t1, t2, dim=1).numpy())
-  //    * ```
-  //    */
-  //     cat = (:Tensor, *args:Tensor, dim:number=0): Tensor => {
-  //       dim = this._resolve_dim(dim)
-  //       for (const arg of args){ assert(arg.ndim==this.ndim && all(ti==ai for i,(ti,ai) in enumerate(zip(this.shape, arg.shape)) if i!=dim))
-  //       tensors = [this, *args]
-  //       dim_cumsum = list(itertools.accumulate([t.shape[dim] for t in tensors], initial=0))
-  //       for (const i,t of enumerate(tensors)){ tensors[i] = t.pad([(dim_cumsum[i], dim_cumsum.at(-1)!-dim_cumsum[i+1]) if j==dim else undefined for j in range(t.ndim)])
-  //       return functools.reduce(Tensor.add, tensors)
+  /**
+   * Returns a tensor with a new dimension of size 1 inserted at the specified `dim`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([1, 2, 3, 4])
+   * print(t.unsqueeze(0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.unsqueeze(1).numpy())
+   * ```
+   */
+  unsqueeze = (dim: number): Tensor => {
+    dim = this._resolve_dim(dim, true)
+    return this.reshape([...this.shape.slice(0, dim), 1, ...this.shape.slice(dim)])
+  }
 
-  //   /**
-  //    * Repeats tensor number of times along each dimension specified by `repeats`.
-  //    * `repeats` can be passed as a tuple || as separate arguments.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([1, 2, 3])
-  //    * console.log(t.repeat(4, 2).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.repeat(4, 2, 1).shape)
-  //    * ```
-  //    */
-  //     repeat = (repeats, *args): Tensor => {
-  //       repeats = argfix(repeats, *args)
-  //       base_shape = _align_left(this.shape, repeats)[0]
-  //       unsqueezed_shape = flatten([[1, s] for s in base_shape])
-  //       expanded_shape = flatten([[r, s] for r,s in zip(repeats, base_shape)])
-  //       final_shape = [r*s for r,s in zip(repeats, base_shape)]
-  //       return this.reshape(unsqueezed_shape).expand(expanded_shape).reshape(final_shape)
+  /**
+   * `.T` === an alias for `.transpose()`.
+   */
+  get T(): Tensor {
+    return this.transpose()
+  }
 
-  //     _resolve_dim = (dim:number, *, extra:boolean=false): number => {
-  //       total = this.ndim + number(extra)
-  //       if !-max(1, total) <= dim <= max(1, total)-1: raise IndexError(`${dim=} out of range ${.at(-max(1, total), max(1, total)-1)!}`)
-  //       return dim + total if dim < 0 else dim
+  /**
+   * Returns a tensor that === a transposed version of the original tensor.
+   * The given dimensions `dim0` && `dim1` are swapped.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(6).reshape(2, 3)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.transpose(0, 1).numpy())
+   * ```
+   */
+  transpose = (dim0 = 1, dim1 = 0): Tensor => {
+    const order = range(this.ndim)
+    ;[order[dim0], order[dim1]] = [order[dim1], order[dim0]]
+    return this.permute(order)
+  }
 
-  //   /**
-  //    * `.T` === an alias for `.transpose()`.
-  //    */
+  /**
+   * Flattens the tensor by reshaping it into a one-dimensional tensor.
+   * If `start_dim` || `end_dim` are passed, only dimensions starting with `start_dim` && ending with `end_dim` are flattened.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(8).reshape(2, 2, 2)
+   * console.log(t.flatten().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.flatten(start_dim=1).numpy())
+   * ```
+   */
 
-  //     @property
-  //     T = (): Tensor => {
-  //       return this.transpose()
-
-  //   /**
-  //    * Returns a tensor that === a transposed version of the original tensor.
-  //    * The given dimensions `dim0` && `dim1` are swapped.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = Tensor.arange(6).reshape(2, 3)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.transpose(0, 1).numpy())
-  //    * ```
-  //    */
-  //     transpose = (dim0=1, dim1=0): Tensor => {
-  //       order = list(range(this.ndim))
-  //       order[dim0], order[dim1] = order[dim1], order[dim0]
-  //       return this.permute(order)
-
-  //   /**
-  //    * Flattens the tensor by reshaping it into a one-dimensional tensor.
-  //    * If `start_dim` || `end_dim` are passed, only dimensions starting with `start_dim` && ending with `end_dim` are flattened.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = Tensor.arange(8).reshape(2, 2, 2)
-  //    * console.log(t.flatten().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.flatten(start_dim=1).numpy())
-  //    * ```
-  //    */
-  //     flatten = (start_dim=0, end_dim=-1) => {
-  //       start_dim, end_dim = this._resolve_dim(start_dim), this._resolve_dim(end_dim)
-  //       return this.reshape(this.shape[:start_dim] + (prod(this.shape[start_dim:end_dim+1]), ) + this.shape[end_dim+1:])
+  flatten = (start_dim = 0, end_dim = -1) => {
+    ;[start_dim, end_dim] = [this._resolve_dim(start_dim), this._resolve_dim(end_dim)]
+    return this.reshape([...this.shape.slice(0, start_dim), sint_prod(this.shape.slice(start_dim, end_dim + 1)), ...this.shape.slice(end_dim + 1)])
+  }
+  /**
+   * Unflattens dimension `dim` of the tensor into multiple dimensions specified by `sizes`. `Tensor.flatten()` is the inverse of this function.
+   *
+   *  ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.ones(3, 4, 1).unflatten(1, (2, 2)).shape)
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.ones(3, 4, 1).unflatten(1, (-1, 2)).shape)
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.ones(5, 12, 3).unflatten(-2, (2, 2, 3, 1, 1)).shape)
+   * ```
+   */
+  unflatten = (dim: number, sizes: number[]) => {
+    dim = this._resolve_dim(dim)
+    return this.reshape([...this.shape.slice(0, dim), ...sizes, ...this.shape.slice(dim + 1)])
+  }
 
   //     // ***** reduce ops *****
 
-  //     _reduce = (fxn:Type[Function], axis?: Union[number, Sequence[number]], keepdim=false): Tensor => {
-  //       axis = tuple(this._resolve_dim(x) for x in (range(this.ndim) if axis === undefined else make_tuple(axis, 1)))
-  //       if this.ndim === 0: axis = ()
-  //       ret = fxn.apply(this, axis=axis)
-  //       return ret if keepdim else ret.reshape(tuple(s for i,s in enumerate(this.shape) if i !in axis))
+  _reduce = (fxn: typeof Function, axis?: number | number[], keepdim = false): Tensor => {
+    axis = (axis === undefined ? range(this.ndim) : make_tuple(axis, 1)).map((x) => this._resolve_dim(x))
+    if (this.ndim === 0) axis = []
+    const ret = fxn.apply(this, axis)
+    return keepdim ? ret : ret.reshape([...this.shape.entries().filter(([i, s]) => !axis.includes(i)).map(([i, s]) => s)])
+  }
+  /**
+   * Returns the sum of the elements of the tensor along the specified axis || axes.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
+   * which the maximum === computed && whether the reduced dimensions are retained.
+   *
+   * You can pass in `acc_dtype` keyword argument to control the data type of the accumulation.
+   * If !specified, the accumulation data type === chosen based on the input tensor's data type.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(6).reshape(2, 3)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.sum().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.sum(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.sum(axis=1).numpy())
+   * ```
+   */
+  sum = (axis?: number | number[], keepdim = false, acc_dtype?: DTypeLike) => {
+    const ret = this.cast(acc_dtype === undefined ? sum_acc_dtype(this.dtype) : acc_dtype)._reduce(F.Sum, axis, keepdim)
+    return acc_dtype === undefined && [dtypes.float16, dtypes.bfloat16].includes(this.dtype) ? ret.cast(this.dtype) : ret
+  }
+  /**
+   * Returns the product of the elements of the tensor along the specified axis || axes.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
+   * which the maximum === computed && whether the reduced dimensions are retained.
+   *
+   * You can pass in `acc_dtype` keyword argument to control the data type of the accumulation.
+   * If !specified, the accumulation data type === chosen based on the input tensor's data type.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor(.at(-1, -2, -3, 1, 2, 3)!).reshape(2, 3)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.prod().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.prod(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.prod(axis=1).numpy())
+   * ```
+   */
+  prod = (axis?: number | number[], keepdim = false, acc_dtype?: DTypeLike) => {
+    return this.cast(acc_dtype !== undefined ? acc_dtype : this.dtype)._reduce(F.Prod, axis, keepdim)
+  }
 
-  //   /**
-  //    * Returns the sum of the elements of the tensor along the specified axis || axes.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
-  //    * which the maximum === computed && whether the reduced dimensions are retained.
-  //    *
-  //    * You can pass in `acc_dtype` keyword argument to control the data type of the accumulation.
-  //    * If !specified, the accumulation data type === chosen based on the input tensor's data type.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = Tensor.arange(6).reshape(2, 3)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.sum().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.sum(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.sum(axis=1).numpy())
-  //    * ```
-  //    */
-  //     sum = (axis?: Union[number, Sequence[number]], keepdim=false, acc_dtype?: DTypeLike) => {
-  //       ret = this.cast(sum_acc_dtype(this.dtype) if acc_dtype === undefined else acc_dtype)._reduce(F.Sum, axis, keepdim)
-  //       return ret.cast(this.dtype) if acc_dtype === undefined && this.dtype in (dtypes.float16, dtypes.bfloat16) else ret
+  /**
+   * Returns the maximum value of the tensor along the specified axis || axes.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
+   * which the maximum === computed && whether the reduced dimensions are retained.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([[1, 0, 2], [5, 4, 3]])
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.max().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.max(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.max(axis=1, keepdim=true).numpy())
+   * ```
+   */
+  max = (axis?: number | number[], keepdim = false) => {
+    return this._reduce(F.Max, axis, keepdim)
+  }
+  /**
+   * Returns the minimum value of the tensor along the specified axis || axes.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
+   * which the minimum === computed && whether the reduced dimensions are retained.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([[1, 0, 2], [5, 4, 3]])
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.min().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.min(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.min(axis=1, keepdim=true).numpy())
+   * ```
+   */
+  min = (axis?: number | number[], keepdim = false) => {
+    if (dtypes.is_int(this.dtype) || this.dtype === dtypes.bool) return this.bitwise_not().max(axis, keepdim).bitwise_not()
+    return (this.neg()).max(axis, keepdim).neg()
+  }
 
-  //   /**
-  //    * Returns the product of the elements of the tensor along the specified axis || axes.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
-  //    * which the maximum === computed && whether the reduced dimensions are retained.
-  //    *
-  //    * You can pass in `acc_dtype` keyword argument to control the data type of the accumulation.
-  //    * If !specified, the accumulation data type === chosen based on the input tensor's data type.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor(.at(-1, -2, -3, 1, 2, 3)!).reshape(2, 3)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.prod().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.prod(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.prod(axis=1).numpy())
-  //    * ```
-  //    */
-  //     prod = (axis?: Union[number, Sequence[number]], keepdim=false, acc_dtype?: DTypeLike) => {
-  //       return this.cast(acc_dtype if acc_dtype !== undefined else this.dtype)._reduce(F.Prod, axis, keepdim)
+  /**
+   * Tests if any element evaluates to `true` along the specified axis || axes.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the reduce axis && whether the reduced dimensions are retained.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([[true, true], [true, false], [false, false]])
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.any().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.any(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.any(axis=1, keepdim=true).numpy())
+   * ```
+   */
+  any = (axis?: number | number[], keepdim = false) => {
+    return this.boolean().max(axis, keepdim)
+  }
 
-  //   /**
-  //    * Returns the maximum value of the tensor along the specified axis || axes.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
-  //    * which the maximum === computed && whether the reduced dimensions are retained.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([[1, 0, 2], [5, 4, 3]])
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.max().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.max(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.max(axis=1, keepdim=true).numpy())
-  //    * ```
-  //    */
-  //     max = (axis?: Union[number, Sequence[number]], keepdim=false) => {
-  //       return this._reduce(F.Max, axis, keepdim)
+  /**
+   * Tests if all element evaluates to `true` along the specified axis || axes.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the reduce axis && whether the reduced dimensions are retained.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([[true, true], [true, false], [false, false]])
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.all().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.all(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.all(axis=1, keepdim=true).numpy())
+   * ```
+   */
+  all = (axis?: number | number[], keepdim = false) => {
+    return this.logical_not().any(axis, keepdim).logical_not()
+  }
+  /**
+   * Returns the mean value of the tensor along the specified axis || axes.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
+   * which the mean === computed && whether the reduced dimensions are retained.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * t = Tensor.normal(2, 3, mean=2.5, std=0.5)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.mean().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.mean(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.mean(axis=1).numpy())
+   * ```
+   */
+  mean = (axis?: number | number[], keepdim = false) => {
+    const output_dtype = dtypes.is_float(this.dtype) ? this.dtype : dtypes.float32
+    const numerator = this.cast(sum_acc_dtype(this.dtype)).sum(axis, keepdim)
+    return numerator.div(sint_prod(zip(this.shape, this.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si, so]) => si)) as number).cast(output_dtype)
+  }
+  /**
+   * Returns the variance of the tensor along the specified axis or axes.
+   *
+   * You can pass in `axis`, `keepdim`, and `correction` keyword arguments to control the axis along
+   * which the variance is computed, whether the reduced dimensions are retained, and the Bessel's correction applied.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * t = Tensor.normal(2, 3, mean=2.5, std=0.5)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.var().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.var(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.var(axis=1).numpy())
+   * ```
+   */
+  var = (axis?: number | number[], keepdim = false, correction = 1) => {
+    const squares = ((this as Tensor).sub(this.mean(axis, true))).square()
+    const n = sint_prod(zip(this.shape, squares.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si, so]) => si))
+    return squares.sum(axis, keepdim).div(smax([0, sub(n, correction)]))
+  }
+  /**
+   * Returns the standard deviation of the tensor along the specified axis || axes.
+   *
+   * You can pass in `axis`, `keepdim`, && `correction` keyword arguments to control the axis along
+   * which the standard deviation === computed, whether the reduced dimensions are retained, && the Bessel's correction applied.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * t = Tensor.normal(2, 3, mean=2.5, std=0.5)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.std().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.std(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.std(axis=1).numpy())
+   * ```
+   */
+  std = (axis?: number | number[], keepdim = false, correction = 1) => {
+    return this.var(axis, keepdim, correction).sqrt()
+  }
 
-  //   /**
-  //    * Returns the minimum value of the tensor along the specified axis || axes.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
-  //    * which the minimum === computed && whether the reduced dimensions are retained.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([[1, 0, 2], [5, 4, 3]])
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.min().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.min(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.min(axis=1, keepdim=true).numpy())
-  //    * ```
-  //    */
-  //     min = (axis?: Union[number, Sequence[number]], keepdim=false) => {
-  //       if dtypes.is_int(this.dtype) || this.dtype === dtypes.boolean: return ~((~this).max(axis=axis, keepdim=keepdim))
-  //       return -((-this).max(axis=axis, keepdim=keepdim))
+  /**
+   * Calculates the standard deviation && mean over the dimensions specified by dim.
+   * Syntactic sugar around `Tensor.std` && `Tensor.mean` to match `torch.std_mean`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * t = Tensor.normal(2, 3, mean=2.5, std=0.5)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * std, mean = t.std_mean()
+   * console.log(std.numpy(), mean.numpy())
+   * ```
+   */
+  std_mean = (axis?: number | number[], keepdim = false, correction = 1) => {
+    return this.std(axis, keepdim, correction), this.mean(axis, keepdim)
+  }
+  _softmax = (axis: number | number[], dtype?: DTypeLike): [Tensor, Tensor, Tensor] => {
+    const x = dtype !== undefined ? this.cast(dtype) : this
+    const m = x.sub(x.max(axis, true).detach())
+    const e = m.exp()
+    return [m, e, e.sum(axis, true)]
+  }
+  /**
+   * Applies the softmax function to the tensor along the specified axis.
+   *
+   * Rescales the elements of the tensor such that they lie in the range [0, 1] && sum to 1.
+   *
+   * You can pass in the `axis` keyword argument to control the axis along which the softmax === computed.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * t = Tensor.randn(2, 3)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.softmax().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.softmax(axis=0).numpy())
+   * ```
+   */
+  softmax = (axis = -1, dtype?: DTypeLike) => {
+    const [_, e, ss] = this._softmax(axis, dtype)
+    return e.div(ss)
+  }
 
-  //   /**
-  //    * Tests if any element evaluates to `true` along the specified axis || axes.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the reduce axis && whether the reduced dimensions are retained.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([[true, true], [true, false], [false, false]])
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.any().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.any(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.any(axis=1, keepdim=true).numpy())
-  //    * ```
-  //    */
-  //     any = (axis?: Union[number, Sequence[number]], keepdim=false) => {
-  //       return this.boolean().max(axis, keepdim)
+  /**
+   * Applies the log-softmax function to the tensor along the specified axis.
+   *
+   * The log-softmax function === a numerically stable alternative to the softmax function in log space.
+   *
+   * You can pass in the `axis` keyword argument to control the axis along which the log-softmax === computed.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * t = Tensor.randn(2, 3)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.log_softmax().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.log_softmax(axis=0).numpy())
+   * ```
+   */
+  log_softmax = (axis = -1, dtype?: DTypeLike) => {
+    const [m, _, ss] = this._softmax(axis, dtype)
+    return m.sub(ss.log())
+  }
+  /**
+   * Computes the log-sum-exp of the tensor along the specified axis || axes.
+   *
+   * The log-sum-exp function === a numerically stable way to compute the logarithm of the sum of exponentials.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
+   * which the log-sum-exp === computed && whether the reduced dimensions are retained.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * t = Tensor.randn(2, 3)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.logsumexp().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.logsumexp(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.logsumexp(axis=1).numpy())
+   * ```
+   */
+  logsumexp = (axis = undefined, keepdim = false) => {
+    const m = this.max(axis, true)
+    return (this as Tensor).sub(m).exp().sum(axis, keepdim).log().add(m.squeeze(axis))
+  }
+  /**
+   * Computes the log-cumsum-exp of the tensor along the specified axis || axes.
+   *
+   * The log-cumsum-exp function === a numerically stable way to compute the logarithm of the cumulative sum of exponentials.
+   *
+   * You can pass in the `axis` keyword argument to control the axis along which
+   * the log-cum-sum-exp === computed.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * t = Tensor.randn(2, 3)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.logcumsumexp().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.logcumsumexp(axis=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.logcumsumexp(axis=1).numpy())
+   * ```
+   */
+  logcumsumexp = (axis = 0) => {
+    const m = this.max(axis, true)
+    return ((this as Tensor).sub(m)).exp().cumsum(axis).log().add(m)
+  }
 
-  //   /**
-  //    * Tests if all element evaluates to `true` along the specified axis || axes.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the reduce axis && whether the reduced dimensions are retained.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([[true, true], [true, false], [false, false]])
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.all().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.all(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.all(axis=1, keepdim=true).numpy())
-  //    * ```
-  //    */
-  //     all = (axis?: Union[number, Sequence[number]], keepdim=false) => {
-  //       return this.logical_not().any(axis, keepdim).logical_not()
+  /**
+   * Returns the indices of the maximum value of the tensor along the specified axis.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
+   * which the maximum === computed && whether the reduced dimensions are retained.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([[1, 0, 2], [5, 4, 3]])
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.argmax().numpy()) // Returns the index of the maximum value in the flattened tensor.
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.argmax(axis=0).numpy()) // Returns the indices of the maximum values along axis 0.
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.argmax(axis=1).numpy()) // Returns the indices of the maximum values along axis 1.
+   * ```
+   */
+  argmax = (axis?: number, keepdim = false): Tensor => {
+    if (axis === undefined) return this.flatten().argmax(0)
+    axis = this._resolve_dim(axis)
+    const m = this === this.max(axis, true)
+    const idx = Tensor.arange(this.shape[axis] as number, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape[axis], ...range(this.ndim - axis - 1).map((x) => 1)]).mul(m, true)
+    return (idx.max(axis, keepdim).sub(this.shape[axis] as number, true)).cast(dtypes.int32)
+  }
 
-  //   /**
-  //    * Returns the mean value of the tensor along the specified axis || axes.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
-  //    * which the mean === computed && whether the reduced dimensions are retained.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * Tensor.manual_seed(42)
-  //    * t = Tensor.normal(2, 3, mean=2.5, std=0.5)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.mean().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.mean(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.mean(axis=1).numpy())
-  //    * ```
-  //    */
-  //     mean = (axis?: Union[number, Sequence[number]], keepdim=false) => {
-  //       output_dtype = this.dtype if dtypes.is_float(this.dtype) else dtypes.float32
-  //       numerator = this.cast(sum_acc_dtype(this.dtype)).sum(axis=axis, keepdim=keepdim)
-  //       return numerator.div(prod([si for si, so in zip(this.shape, this.sum(axis=axis, keepdim=true).shape) if resolve(si !== so)])).cast(output_dtype)
+  /**
+   * Returns the indices of the minimum value of the tensor along the specified axis.
+   *
+   * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
+   * which the minimum === computed && whether the reduced dimensions are retained.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([[1, 0, 2], [5, 4, 3]])
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.argmin().numpy()) // Returns the index of the minimum value in the flattened tensor.
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.argmin(axis=0).numpy()) // Returns the indices of the minimum values along axis 0.
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.argmin(axis=1).numpy()) // Returns the indices of the minimum values along axis 1.
+   * ```
+   */
+  argmin = (axis = undefined, keepdim = false) => {
+    return this.neg().argmax(axis, keepdim)
+  }
 
-  //   /**
-  //    * Returns the standard deviation of the tensor along the specified axis || axes.
-  //    *
-  //    * You can pass in `axis`, `keepdim`, && `correction` keyword arguments to control the axis along
-  //    * which the standard deviation === computed, whether the reduced dimensions are retained, && the Bessel's correction applied.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * Tensor.manual_seed(42)
-  //    * t = Tensor.normal(2, 3, mean=2.5, std=0.5)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.std().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.std(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.std(axis=1).numpy())
-  //    * ```
-  //    */
-  //     std = (axis?: Union[number, Sequence[number]], keepdim=false, correction=1) => {
-  //       return this.var(axis, keepdim, correction).sqrt()
+  // ***** processing ops *****
 
-  //   /**
-  //    * Calculates the standard deviation && mean over the dimensions specified by dim.
-  //    * Syntactic sugar around `Tensor.std` && `Tensor.mean` to match `torch.std_mean`.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * Tensor.manual_seed(42)
-  //    * t = Tensor.normal(2, 3, mean=2.5, std=0.5)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * std, mean = t.std_mean()
-  //    * console.log(std.numpy(), mean.numpy())
-  //    * ```
-  //    */
-  //     std_mean = (axis?: Union[number, Sequence[number]], keepdim=false, correction=1) => {
-  //       return this.std(axis, keepdim, correction), this.mean(axis, keepdim)
+  _pool = (k_: sint[], stride: number[] | number = 1, dilation: number[] | number = 1): Tensor => {
+    assert(this.shape.length >= k_.length, `can't pool ${this.shape} with ${k_}`)
+    const [s_, d_] = [make_tuple(stride, k_.length), make_tuple(dilation, k_.length)]
+    assert(k_.length === s_.length && s_.length === d_.length, `stride/dilation mismatch kernel:${k_} stride:${s_} dilation:${d_}`)
+    const [noop, i_] = [range(this.ndim - k_.length).map((x) => undefined), this.shape.slice(-k_.length)]
+    assert(zip(k_, d_, i_).every(([k, d, i]) => resolve(le(add(mul(d, sub(k, 1)), 1), i))), 'kernel size can!be greater than actual input size')
+    const o_ = zip(i_, d_, k_, s_).map(([i, d, k, s]) => sint_ceildiv(sub(i, mul(d, sub(k, 1))), s))
+    if (zip(k_, s_).some(([k, s]) => resolve(gt(k, s))) || d_.some((d) => d !== 1)) {
+      // input size scaling factor to make sure shrink for stride === possible
+      const f_ = zip(o_, s_, i_, d_).map(([o, s, i, d]) => 1 + Number(resolve(gt(mul(o, s), add(i, d)))))
+      // repeats such that we don't need padding
+      let x = this.repeat([...range(noop.length).map((x) => 1), ...zip(k_, i_, d_, f_).map(([k, i, d, f]) => sint_ceildiv(mul(k, add(mul(i, f), d)), i))])
+      // handle dilation
+      x = x.shrink([...noop, ...zip(k_, i_, d_, f_).map(([k, i, d, f]) => [0, mul(k, add(mul(i, f), d))] as [sint, sint])]).reshape([...noop, ...zip(k_, i_, d_, f_).flatMap(([k, i, d, f]) => [k, add(mul(i, f), d)])])
+      // handle stride
+      x = x.shrink([...noop, ...zip(k_, o_, s_).flatMap(([k, o, s]) => [[0, k], [0, mul(o, s)]] as [sint, sint][])]).reshape([...noop, ...zip(k_, o_, s_).flat()])
+      x = x.shrink([...noop, ...zip(k_, o_).flatMap(([k, o]) => [[0, k], [0, o], [0, 1]] as [sint, sint][])]).reshape([...noop, ...zip(k_, o_).flat()])
+      //   // permute to move reduce to the end
+      return x.permute([...range(noop.length), ...range(i_.length).map((i) => noop.length + i * 2 + 1), ...range(i_.length).map((i) => noop.length + i * 2)])
+    }
+    // // TODO: once the shapetracker can optimize well, remove this alternative implementation
+    let x = this.pad([...noop, ...zip(i_, o_, s_).map(([i, o, s]) => [0, max([0, sub(mul(o, s), i) as number])] as [sint, sint])]).shrink([...noop, ...zip(o_, s_).map(([o, s]) => [0, mul(o, s)] as [sint, sint])])
+    x = x.reshape([...noop, ...zip(o_, s_).flat()])
+    x = x.shrink([...noop, ...zip(o_, k_).flatMap(([o, k]) => [[0, o], [0, k]] as [sint, sint][])])
+    return x.permute([...range(noop.length), ...range(i_.length).map((i) => noop.length = i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1)])
+  }
+  _padding2d = (padding: number | number[], dims: number): number[] => {
+    return !Array.isArray(padding) ? range(2 * dims).map((x) => padding) : (padding.length === 2 * dims ? padding : padding.flatMap((p) => range(2).map((i) => p)).toReversed())
+  }
 
-  //     _softmax = (axis, dtype?: DTypeLike) => {
-  //       x = this.cast(dtype) if dtype !== undefined else this
-  //       m = x - x.max(axis=axis, keepdim=true).detach()
-  //       e = m.exp()
-  //       return m, e, e.sum(axis=axis, keepdim=true)
+  /**
+   * Applies max pooling over a tensor.
+   *
+   * NOTE: unlike PyTorch, this implementation !== limited to only 2d pooling && instead works for any number of dimensions.
+   *
+   * See: https://paperswithcode.com/method/max-pooling
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(25).reshape(1, 1, 5, 5)
+   * console.log(t.max_pool2d().numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.max_pool2d(padding=1).numpy())
+   * ```
+   */
+  max_pool2d = (kernel_size = [2, 2], stride = undefined, dilation = 1, padding = 0) => {
+    const k_ = make_tuple(kernel_size, 2)
+    const padding_ = this._padding2d(padding, k_.length)
+    return this.pad(padding_, undefined, dtypes.min(this.dtype))._pool(k_, stride || k_, dilation).max(range(-k_.length, 0))
+  }
+  /**
+   * Applies a convolution over a tensor with a given `weight` && optional `bias`.
+   *
+   * NOTE: unlike PyTorch, this implementation !== limited to only 2d convolutions && instead works for any number of dimensions.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(9).reshape(1, 1, 3, 3)
+   * w = Tensor.ones(1, 1, 2, 2)
+   * console.log(t.conv2d(w).numpy())
+   * ```
+   */
+  conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
+    if (IMAGE) {
+      throw new Error('TODO implement image_conv2d')
+      // return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype)
+    }
+    const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
+    assert(groups * (cin as number) === cin_ && this.shape.length === weight.shape.length, `Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * (cin as number)} vs. ${cin_})`)
+    if (Array.isArray(padding)) assert(padding.length === 2 * HW.length || padding.length === HW.length, `Expected padding of length ${2 * HW.length} || ${HW.length}, but got ${padding.length} for tensor of shape ${this.shape}`)
+    const padding_ = this._padding2d(padding, HW.length)
 
-  //   /**
-  //    * Applies the softmax function to the tensor along the specified axis.
-  //    *
-  //    * Rescales the elements of the tensor such that they lie in the range [0, 1] && sum to 1.
-  //    *
-  //    * You can pass in the `axis` keyword argument to control the axis along which the softmax === computed.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * Tensor.manual_seed(42)
-  //    * t = Tensor.randn(2, 3)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.softmax().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.softmax(axis=0).numpy())
-  //    * ```
-  //    */
-  //     softmax = (axis=-1, dtype?: DTypeLike) => {
-  //       _, e, ss = this._softmax(axis, dtype)
-  //       return e.div(ss)
+    // conv2d === a pooling op (with padding)
+    let x = this.pad(padding_)._pool(HW, stride, dilation) // (bs, groups*cin, oy, ox, H, W)
+    const [rcout, oyx] = [idiv(cout, groups), x.shape.slice(2, -HW.length)]
+    if (!HW.every((x) => x === 3) || stride !== 1 || dilation !== 1 || !WINO) {
+      // normal conv
+      x = x.reshape([bs, groups, cin, 1, ...oyx, ...HW]).expand([bs, groups, cin, rcout, ...oyx, ...HW]).permute([0, 1, 3, ...range(oyx.length).map((i) => 4 + i), 2, ...range(HW.length).map((i) => 4 + oyx.length + i)])
 
-  //   /**
-  //    * Applies the log-softmax function to the tensor along the specified axis.
-  //    *
-  //    * The log-softmax function === a numerically stable alternative to the softmax function in log space.
-  //    *
-  //    * You can pass in the `axis` keyword argument to control the axis along which the log-softmax === computed.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * Tensor.manual_seed(42)
-  //    * t = Tensor.randn(2, 3)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.log_softmax().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.log_softmax(axis=0).numpy())
-  //    * ```
-  //    */
-  //     log_softmax = (axis=-1, dtype?: DTypeLike) => {
-  //       m, _, ss = this._softmax(axis, dtype)
-  //       return m - ss.log()
+      // conv! broadcasted to (bs, groups, rcout, *oyx, cin, *HW)
+      const ret = (x.mul(weight.reshape([1, groups, rcout, ...range(oyx.length).map((x) => 1), cin, ...HW]))).sum(range(1 + oyx.length).map((i) => -1 - i), true, acc_dtype).reshape([bs, cout, ...oyx])
+      return bias === undefined ? ret : ret.add(bias.reshape([1, -1, ...range(HW.length).map((i) => 1)]))
+    }
+    throw new Error('Not needed for mnist')
+    // TODO: not needed for mnist
+    // HWI, HWO = (6,) * len(HW), (4,) * len(HW)  // F(4x4,3x3) winograd tiles
+    // winograd_G = [[1/4, 0, 0], .at(-1/6, -1/6, -1/6)!, .at(-1/6, 1/6, -1/6)!, [1/24, 1/12, 1/6], [1/24, -1/12, 1/6], [0, 0, 1]]
+    // winograd_Bt = [[4, 0, -5, 0, 1, 0], [0, -4, -4, 1, 1, 0], [0, 4, -4, -1, 1, 0], [0, -2, -1, 2, 1, 0], [0, 2, -1, -2, 1, 0], [0, 4, 0, -5, 0, 1]]
+    // winograd_At = [[1, 1, 1, 1, 1, 0], [0, 1, -1, 2, -2, 0], [0, 1, 1, 4, 4, 0], [0, 1, -1, 8, -8, 1]] // applying At in pre-order doubles compile time
 
-  //   /**
-  //    * Computes the log-sum-exp of the tensor along the specified axis || axes.
-  //    *
-  //    * The log-sum-exp function === a numerically stable way to compute the logarithm of the sum of exponentials.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
-  //    * which the log-sum-exp === computed && whether the reduced dimensions are retained.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * Tensor.manual_seed(42)
-  //    * t = Tensor.randn(2, 3)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.logsumexp().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.logsumexp(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.logsumexp(axis=1).numpy())
-  //    * ```
-  //    */
-  //     logsumexp = (axis=undefined, keepdim=false) => {
-  //       m = this.max(axis=axis, keepdim=true)
-  //       return (this - m).exp().sum(axis=axis, keepdim=keepdim).log() + m.squeeze(axis)
+    // // todo: stride === dilation
+    // // use padding to round up to 4x4 output tiles
+    // // (bs, cin_, tyx, HWI)
+    // d = this.pad(sum([[padding_[i*2], padding_[i*2+1] + (-(dim + sum(padding_[i * 2:(i + 1) * 2]) - 2) % 4)] for (const i, dim of enumerate(this.shape.at(-len(HW):)!)], []))._pool(HWI, HWO)  // noqa){ E501
+    // // move HW to the front: // (HWI, bs, cin_, tyx)
+    // d = d.permute(*range(len(d.shape)-len(HW),len(d.shape)), *range(len(d.shape)-len(HW)))
+    // tyx = d.shape.at(-len(HWI):)!  // dim of tiling
 
-  //   /**
-  //    * Computes the log-cumsum-exp of the tensor along the specified axis || axes.
-  //    *
-  //    * The log-cumsum-exp function === a numerically stable way to compute the logarithm of the cumulative sum of exponentials.
-  //    *
-  //    * You can pass in the `axis` keyword argument to control the axis along which
-  //    * the log-cum-sum-exp === computed.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * Tensor.manual_seed(42)
-  //    * t = Tensor.randn(2, 3)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.logcumsumexp().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.logcumsumexp(axis=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.logcumsumexp(axis=1).numpy())
-  //    * ```
-  //    */
-  //     logcumsumexp = (axis=0) => {
-  //       m = this.max(axis=axis, keepdim=true)
-  //       return (this - m).exp().cumsum(axis=axis).log() + m
+    // g = weight.permute(*range(len(weight.shape)-len(HW),len(weight.shape)), *range(len(weight.shape)-len(HW)))  // move HW to the front
 
-  //   /**
-  //    * Returns the indices of the maximum value of the tensor along the specified axis.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
-  //    * which the maximum === computed && whether the reduced dimensions are retained.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([[1, 0, 2], [5, 4, 3]])
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.argmax().numpy()) // Returns the index of the maximum value in the flattened tensor.
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.argmax(axis=0).numpy()) // Returns the indices of the maximum values along axis 0.
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.argmax(axis=1).numpy()) // Returns the indices of the maximum values along axis 1.
-  //    * ```
-  //    */
-  //     argmax = (axis=undefined, keepdim=false) => {
-  //       if axis === undefined: return this.flatten().argmax(0)
-  //       axis = this._resolve_dim(axis)
-  //       m = this === this.max(axis=axis, keepdim=true)
-  //       idx = m * Tensor.arange(this.shape[axis],0,-1, requires_grad=false, device=this.device).reshape(this.shape[axis], *[1]*(this.ndim-axis-1))
-  //       return (this.shape[axis]-idx.max(axis=axis, keepdim=keepdim)).cast(dtypes.int32)
+    // // compute 6x6 winograd tiles: GgGt, BtdB
+    // // (HWI, groups * rcout, cin) -> (HWI, bs=1, groups, rcout, cin, tyx=(1,1))
+    // gfactors = _apply_winograd_matrix(winograd_G, g, len(HW)).reshape(*HWI, 1, groups, rcout, cin, *([1]*len(tyx)))
+    // // (HWI, bs, cin_, tyx) -> (HWI, bs, groups, 1 ,cin, *tyx)
+    // dfactors = _apply_winograd_matrix(winograd_Bt, d, len(HW)).reshape(*HWI, bs, groups, 1, cin, *tyx)
 
-  //   /**
-  //    * Returns the indices of the minimum value of the tensor along the specified axis.
-  //    *
-  //    * You can pass in `axis` && `keepdim` keyword arguments to control the axis along
-  //    * which the minimum === computed && whether the reduced dimensions are retained.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([[1, 0, 2], [5, 4, 3]])
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.argmin().numpy()) // Returns the index of the minimum value in the flattened tensor.
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.argmin(axis=0).numpy()) // Returns the indices of the minimum values along axis 0.
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.argmin(axis=1).numpy()) // Returns the indices of the minimum values along axis 1.
-  //    * ```
-  //    */
-  //     argmin = (axis=undefined, keepdim=false) => {
-  //       return (-this).argmax(axis=axis, keepdim=keepdim)
+    // // matmul; sum across cin: (HWI, bs, groups, rcout, *tyx); then HWI -> HWO: (HWO, bs, groups, rcout, *tyx)
+    // ret = _apply_winograd_matrix(winograd_At, (gfactors * dfactors).sum(axis=-1-len(HW), acc_dtype=acc_dtype), len(HW))
 
-  //     // ***** processing ops *****
+    // // interleave tyx && HWO: (bs, groups, rcout, oy, HO, ox, WO)
+    // ret = ret.permute([*range(len(HW), len(ret.shape)-len(HW)), *[i+o for i in range(len(HW)) for o in [len(ret.shape)-len(HW),0]]])
+    // // merge groups && rcout, tyx && HWO: (bs, groups, cout, *yx), shrink to final
+    // ret = ret.reshape(bs, cout, *[c * HWO[i] for i, c in enumerate(tyx)]).shrink(tuple((0, s) for s in [bs, cout, *oyx]))
 
-  //     _pool = (k_:sint[], stride:Union[number[], number]=1, dilation:Union[number[], number]=1): Tensor => {
-  //       assert(len(this.shape) >= len(k_), `can't pool ${this.shape} with ${k_}`)
-  //       s_, d_ = make_tuple(stride, len(k_)), make_tuple(dilation, len(k_))
-  //       assert(len(k_) === len(s_) === len(d_), `stride/dilation mismatch kernel:${k_} stride:${s_} dilation:${d_}`)
-  //       noop, i_ = [undefined] * (this.ndim-len(k_)), this.shape.at(-len(k_):)!
-  //       assert(all(resolve(d*(k-1)+1 <= i) for k,d,i in zip(k_,d_,i_)), "kernel size can!be greater than actual input size")
-  //       o_ = [ceildiv(i-d*(k-1), s) for i,d,k,s in zip(i_,d_,k_,s_)]
-  //       if any(resolve(k > s) for (const k,s of zip(k_,s_)) || any(d !== 1 for d in d_)){
-  //         // input size scaling factor to make sure shrink for stride === possible
-  //         f_ = [1 + number(resolve(o*s > i+d)) for o,s,i,d in zip(o_,s_,i_,d_)]
-  //         // // repeats such that we don't need padding
-  //         x = this.repeat([1]*len(noop) + [ceildiv(k*(i*f+d),i) for k,i,d,f in zip(k_,i_,d_,f_)])
-  //         // handle dilation
-  //         x = x.shrink(tuple(noop + [(0,k*(i*f+d)) for k,i,d,f in zip(k_,i_,d_,f_)])).reshape(noop + flatten((k,(i*f+d)) for k,i,d,f in zip(k_,i_,d_,f_)))
-  //         // handle stride
-  //         x = x.shrink(tuple(noop + flatten(((0,k), (0,o*s)) for k,o,s in zip(k_,o_,s_)))).reshape(noop + flatten((k,o,s) for k,o,s in zip(k_,o_,s_)))
-  //         x = x.shrink(tuple(noop + flatten(((0,k), (0,o), (0,1)) for k,o in zip(k_,o_)))).reshape(noop + flatten((k,o) for k,o in zip(k_,o_)))
-  //         // permute to move reduce to the end
-  //         return x.permute(*range(len(noop)), *[len(noop)+i*2+1 for i in range(len(i_))], *[len(noop)+i*2 for i in range(len(i_))])
-  //       // TODO: once the shapetracker can optimize well, remove this alternative implementation
-  //       x = this.pad(tuple(noop + [(0, max(0,o*s-i)) for i,o,s in zip(i_,o_,s_)])).shrink(tuple(noop + [(0,o*s) for o,s in zip(o_,s_)]))
-  //       x = x.reshape(noop + flatten(((o,s) for o,s in zip(o_,s_))))
-  //       x = x.shrink(tuple(noop + flatten(((0,o), (0,k)) for o,k in zip(o_,k_))))
-  //       return x.permute(*range(len(noop)), *[len(noop)+i*2 for i in range(len(i_))], *[len(noop)+i*2+1 for i in range(len(i_))])
+    // return (ret if bias === undefined else ret.add(bias.reshape(1, -1, *[1 for _ in range(len(HW))]))).contiguous().contiguous_backward()
+  }
+  /**
+   * Performs dot product between two tensors.
+   * If `w` === 1-D, it's a sum product over the last axis of `this` && `w`.
+   * If `w` === N-D with N>=2, it's a sum product over the last axis of `this` && the second-to-last axis of `w`.
+   *
+   * You can pass in the optional `acc_dtype` keyword argument to control the data type of the accumulation.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * a = new Tensor([1, 2, 3])
+   * b = new Tensor([1, 1, 0])
+   * console.log(a.dot(b).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * a = new Tensor([[1, 2], [3, 4]])
+   * b = new Tensor([[5, 6], [7, 8]])
+   * console.log(a.dot(b).numpy())
+   * ```
+   */
+  dot = (w: Tensor, acc_dtype?: DTypeLike): Tensor => {
+    if (IMAGE) {
+      throw new Error('TODO implement image_dot')
+      // return this.image_dot(w, acc_dtype)
+    }
+    let [x, dx, dw] = [this as Tensor, this.ndim, w.ndim]
+    if (!(dx > 0 && dw > 0)) throw new Error(`both tensors need to be at least 1D, got ${dx}D && ${dw}D`)
+    const axis_w = -Math.min(w.ndim, 2)
+    if (x.shape.at(-1)! !== w.shape[axis_w]) throw new Error(`can not dot ${x.shape} && ${w.shape}`)
+    x = x.reshape([...x.shape.slice(0, -1), ...range(Math.min(dx - 1, dw - 1, 1)).map((i) => 1), x.shape.at(-1)!])
+    w = w.reshape([...w.shape.slice(0, -2), ...range(Math.min(dx - 1, dw - 1, 1)).map((i) => 1), ...w.shape.slice(axis_w)]).transpose(-1, axis_w)
+    return (x.mul(w)).sum(-1, undefined, acc_dtype).cast(acc_dtype === undefined ? least_upper_dtype(x.dtype, w.dtype) : acc_dtype)
+  }
+  /**
+   * Performs matrix multiplication between two tensors.
+   *
+   * You can pass in the `reverse` keyword argument to control the order of the matrix multiplication.
+   * You can pass in the optional `acc_dtype` keyword argument to control the data type of the accumulation.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * a = new Tensor([[1, 2], [3, 4]])
+   * b = new Tensor([[5, 6], [7, 8]])
+   * console.log(a.matmul(b).numpy())
+   * ```
+   */
+  matmul = (x: Tensor, reverse = false, acc_dtype?: DTypeLike): Tensor => {
+    return reverse ? x.dot(this, acc_dtype) : this.dot(x, acc_dtype)
+  }
 
-  //     _padding2d = (padding:Union[number, Sequence[number]], dims:number): Sequence[number] => {
-  //       return [padding]*2*dims if isinstance(padding, number) else (padding if len(padding) === 2*dims else [p for p in padding for _ in range(2)][::-1])
+  _cumalu = (axis: number, op: Ops, _include_initial = false): Tensor => {
+    assert(this.shape[axis] !== 0 && [Ops.ADD, Ops.MAX].includes(op))
+    const pl_sz = sub(this.shape[axis], Number(!_include_initial))
+    const pooled = this.transpose(axis, -1).pad([pl_sz, -Number(_include_initial)], undefined, identity_element(op, this.dtype) as number)._pool([this.shape[axis]])
+    return (op === Ops.ADD ? pooled.sum(-1) : pooled.max(-1)).transpose(axis, -1)
+  }
+  _split_cumalu = (axis: number, op: Ops): Tensor => {
+    axis = this._resolve_dim(axis)
+    if (this.ndim === 0 || this.shape.includes(0)) return this
+    // TODO: someday the optimizer will find this on it's own
+    // for now this is a two stage cumsum
+    const SPLIT = 256
+    const s = this.shape[axis] as number
+    if (!Number.isInteger(s) || s <= SPLIT * 2) return this._cumalu(axis, op)
+    const ret = this.transpose(axis, -1).pad([round_up(s, SPLIT) - s, 0], undefined, identity_element(op, this.dtype) as number).unflatten(-1, [-1, SPLIT])._cumalu(-1, op)
+    let base = ret.get('...', -1)._cumalu(-1, op, true)
+    base = base.unsqueeze(-1).expand([...base.shape, ret.shape.at(-1)!])
+    const fix = (x: Tensor) => x.flatten(-2).get('...', { start: -s }).transpose(axis, -1)
+    return op === Ops.ADD ? fix(ret).add(fix(base)) : fix(ret).maximum(fix(base))
+  }
+  /**
+   * Computes the cumulative sum of the tensor along the specified `axis`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.ones(2, 3)
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.cumsum(1).numpy())
+   * ```
+   */
+  cumsum = (axis = 0): Tensor => {
+    return this._split_cumalu(axis, Ops.ADD)
+  }
 
-  //   /**
-  //    * Applies max pooling over a tensor.
-  //    *
-  //    * NOTE: unlike PyTorch, this implementation !== limited to only 2d pooling && instead works for any number of dimensions.
-  //    *
-  //    * See: https://paperswithcode.com/method/max-pooling
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = Tensor.arange(25).reshape(1, 1, 5, 5)
-  //    * console.log(t.max_pool2d().numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.max_pool2d(padding=1).numpy())
-  //    * ```
-  //    */
-  //     max_pool2d = (kernel_size=(2,2), stride=undefined, dilation=1, padding=0) => {
-  //       padding_ = this._padding2d(padding, len(k_ := make_tuple(kernel_size, 2)))
-  //       return this.pad(padding_, value=dtypes.min(this.dtype))._pool(k_, stride if stride !== undefined else k_, dilation).max(tuple(range(-len(k_), 0)))
+  /**
+   * Computes the cumulative max of the tensor along the specified `axis`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([0, 1, -1, 2, -2, 3, -3])
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.cummax(0).numpy())
+   * ```
+   */
+  cummax = (axis = 0): Tensor => {
+    return this._split_cumalu(axis, Ops.MAX)
+  }
 
-  //   /**
-  //    * Applies a convolution over a tensor with a given `weight` && optional `bias`.
-  //    *
-  //    * NOTE: unlike PyTorch, this implementation !== limited to only 2d convolutions && instead works for any number of dimensions.
-  //    *
-  //    * See: https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = Tensor.arange(9).reshape(1, 1, 3, 3)
-  //    * w = Tensor.ones(1, 1, 2, 2)
-  //    * console.log(t.conv2d(w).numpy())
-  //    * ```
-  //    */
-  //     conv2d = (weight:Tensor, bias?: Tensor, groups=1, stride=1, dilation=1, padding:number|number[]=0, acc_dtype?: DTypeLike) -> Tensor:
-  //     if IMAGE: return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype)
-  //       (bs,cin_), (cout,cin), HW = this.shape[:2], weight.shape[:2], weight.shape[2:]
-  //       assert(groups*cin === cin_ && len(this.shape) === len(weight.shape), `Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups*cin} vs. ${cin_})`  // noqa: E501)
-  //       if isinstance(padding, (tuple,list)): assert(len(padding) === 2*len(HW) || len(padding) === len(HW), `Expected padding of length ${2*len(HW)} || ${len(HW)}, but got ${len(padding)} for tensor of shape ${this.shape}`  // noqa: E501)
-  //       padding_ = this._padding2d(padding, len(HW))
+  static _tri = (r: sint, c: sint, diagonal = 0, opts?: TensorOptions): Tensor => {
+    assert(typeof r === 'number', `does not support symbolic, getting r={r}, c={c}`)
+    if (r === 0 || c === 0 || diagonal >= (c as number)) return Tensor.zeros([r, c], opts)
+    if ((r as number) + diagonal <= 0) return Tensor.ones([r, c], opts)
+    const s = sub(add(r, c), 1)
+    // build a (s, s) upper triangle
+    const t = Tensor.ones([s, s], opts).pad([undefined, [0, s]]).flatten().shrink([[0, mul(s, sub(mul(2, s), 1))]]).reshape([s, -1]).shrink([undefined, [0, s]])
+    return diagonal <= 0 ? t.get({ stop: r as number }, { start: -diagonal, stop: (c as number) - diagonal }) : t.get({ start: diagonal, stop: (r as number) + diagonal }, { stop: (c as number) })
+  }
 
-  //       // conv2d === a pooling op (with padding)
-  //       x = this.pad(padding_)._pool(HW, stride, dilation)   // (bs, groups*cin, oy, ox, H, W)
-  //       rcout, oyx = cout//groups, x.shape[2:-len(HW)]
-  //       if !all(x === 3 for (const x of HW) || stride !== 1 || dilation !== 1 || !WINO){
-  //         // normal conv
-  //         x = x.reshape(bs, groups, cin, 1, *oyx, *HW).expand(bs, groups, cin, rcout, *oyx, *HW).permute(0,1,3,*[4+i for (const i of range(len(oyx))],2,*[4+len(oyx)+i for i in range(len(HW))])  // noqa){ E501
-
-  //         // conv! broadcasted to (bs, groups, rcout, *oyx, cin, *HW)
-  //         ret = (x * weight.reshape(1, groups, rcout, *[1] * len(oyx), cin, *HW)).sum(.at(-1-i for (const i of range(1+len(oyx)))!, keepdim=true, acc_dtype=acc_dtype).reshape(bs, cout, *oyx)  // noqa){ E501
-  //         return ret if bias === undefined else ret.add(bias.reshape(1, -1, *[1] * len(HW)))
-
-  //       // TODO: !needed for mnist
-  //       // HWI, HWO = (6,) * len(HW), (4,) * len(HW)  // F(4x4,3x3) winograd tiles
-  //       // winograd_G = [[1/4, 0, 0], .at(-1/6, -1/6, -1/6)!, .at(-1/6, 1/6, -1/6)!, [1/24, 1/12, 1/6], [1/24, -1/12, 1/6], [0, 0, 1]]
-  //       // winograd_Bt = [[4, 0, -5, 0, 1, 0], [0, -4, -4, 1, 1, 0], [0, 4, -4, -1, 1, 0], [0, -2, -1, 2, 1, 0], [0, 2, -1, -2, 1, 0], [0, 4, 0, -5, 0, 1]]
-  //       // winograd_At = [[1, 1, 1, 1, 1, 0], [0, 1, -1, 2, -2, 0], [0, 1, 1, 4, 4, 0], [0, 1, -1, 8, -8, 1]] // applying At in pre-order doubles compile time
-
-  //       // // todo: stride === dilation
-  //       // // use padding to round up to 4x4 output tiles
-  //       // // (bs, cin_, tyx, HWI)
-  //       // d = this.pad(sum([[padding_[i*2], padding_[i*2+1] + (-(dim + sum(padding_[i * 2:(i + 1) * 2]) - 2) % 4)] for (const i, dim of enumerate(this.shape.at(-len(HW):)!)], []))._pool(HWI, HWO)  // noqa){ E501
-  //       // // move HW to the front: // (HWI, bs, cin_, tyx)
-  //       // d = d.permute(*range(len(d.shape)-len(HW),len(d.shape)), *range(len(d.shape)-len(HW)))
-  //       // tyx = d.shape.at(-len(HWI):)!  // dim of tiling
-
-  //       // g = weight.permute(*range(len(weight.shape)-len(HW),len(weight.shape)), *range(len(weight.shape)-len(HW)))  // move HW to the front
-
-  //       // // compute 6x6 winograd tiles: GgGt, BtdB
-  //       // // (HWI, groups * rcout, cin) -> (HWI, bs=1, groups, rcout, cin, tyx=(1,1))
-  //       // gfactors = _apply_winograd_matrix(winograd_G, g, len(HW)).reshape(*HWI, 1, groups, rcout, cin, *([1]*len(tyx)))
-  //       // // (HWI, bs, cin_, tyx) -> (HWI, bs, groups, 1 ,cin, *tyx)
-  //       // dfactors = _apply_winograd_matrix(winograd_Bt, d, len(HW)).reshape(*HWI, bs, groups, 1, cin, *tyx)
-
-  //       // // matmul; sum across cin: (HWI, bs, groups, rcout, *tyx); then HWI -> HWO: (HWO, bs, groups, rcout, *tyx)
-  //       // ret = _apply_winograd_matrix(winograd_At, (gfactors * dfactors).sum(axis=-1-len(HW), acc_dtype=acc_dtype), len(HW))
-
-  //       // // interleave tyx && HWO: (bs, groups, rcout, oy, HO, ox, WO)
-  //       // ret = ret.permute([*range(len(HW), len(ret.shape)-len(HW)), *[i+o for i in range(len(HW)) for o in [len(ret.shape)-len(HW),0]]])
-  //       // // merge groups && rcout, tyx && HWO: (bs, groups, cout, *yx), shrink to final
-  //       // ret = ret.reshape(bs, cout, *[c * HWO[i] for i, c in enumerate(tyx)]).shrink(tuple((0, s) for s in [bs, cout, *oyx]))
-
-  //       // return (ret if bias === undefined else ret.add(bias.reshape(1, -1, *[1 for _ in range(len(HW))]))).contiguous().contiguous_backward()
-
-  //   /**
-  //    * Performs dot product between two tensors.
-  //    * If `w` === 1-D, it's a sum product over the last axis of `this` && `w`.
-  //    * If `w` === N-D with N>=2, it's a sum product over the last axis of `this` && the second-to-last axis of `w`.
-  //    *
-  //    * You can pass in the optional `acc_dtype` keyword argument to control the data type of the accumulation.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * a = new Tensor([1, 2, 3])
-  //    * b = new Tensor([1, 1, 0])
-  //    * console.log(a.dot(b).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * a = new Tensor([[1, 2], [3, 4]])
-  //    * b = new Tensor([[5, 6], [7, 8]])
-  //    * console.log(a.dot(b).numpy())
-  //    * ```
-  //    */
-  //     dot = (w:Tensor, acc_dtype?: DTypeLike): Tensor => {
-  //       if IMAGE: return this.image_dot(w, acc_dtype)
-  //       x, dx, dw = this, this.ndim, w.ndim
-  //       if !(dx > 0 && dw > 0): raise RuntimeError(`both tensors need to be at least 1D, got ${dx}D && ${dw}D`)
-  //       if x.shape.at(-1)! !== w.shape[axis_w:=-min(w.ndim,2)]: raise RuntimeError(`can!dot ${x.shape} && ${w.shape}`)
-  //       x = x.reshape(*x.shape[0:-1], *[1]*min(dx-1, dw-1, 1), x.shape.at(-1)!)
-  //       w = w.reshape(*w.shape[0:-2], *[1]*min(dx-1, dw-1, 1), *w.shape[axis_w:]).transpose(-1, axis_w)
-  //       return (x*w).sum(-1, acc_dtype=acc_dtype).cast(least_upper_dtype(x.dtype, w.dtype) if acc_dtype === undefined else acc_dtype)
-
-  //   /**
-  //    * Performs matrix multiplication between two tensors.
-  //    *
-  //    * You can pass in the `reverse` keyword argument to control the order of the matrix multiplication.
-  //    * You can pass in the optional `acc_dtype` keyword argument to control the data type of the accumulation.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * a = new Tensor([[1, 2], [3, 4]])
-  //    * b = new Tensor([[5, 6], [7, 8]])
-  //    * console.log(a.matmul(b).numpy())
-  //    * ```
-  //    */
-  //     matmul = (x:Tensor, reverse=false, acc_dtype?: DTypeLike): Tensor => {
-  //       return x.dot(this, acc_dtype=acc_dtype) if reverse else this.dot(x, acc_dtype=acc_dtype)
-
-  //     _cumalu = (axis:number, op:Ops, _include_initial=false): Tensor => {
-  //       assert(this.shape[axis] !== 0 && op in (Ops.ADD, Ops.MAX))
-  //       pl_sz = this.shape[axis] - number(!_include_initial)
-  //       pooled = this.transpose(axis,-1).pad((pl_sz, -number(_include_initial)), value=identity_element(op, this.dtype))._pool((this.shape[axis],))
-  //       return (pooled.sum(-1) if op === Ops.ADD else pooled.max(-1)).transpose(axis,-1)
-
-  //   /**
-  //    * Computes the cumulative sum of the tensor along the specified `axis`.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = Tensor.ones(2, 3)
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.cumsum(1).numpy())
-  //    * ```
-  //    */
-  //     cumsum = (axis:number=0): Tensor => {
-  //       return this._split_cumalu(axis, Ops.ADD)
-
-  //   /**
-  //    * Computes the cumulative max of the tensor along the specified `axis`.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([0, 1, -1, 2, -2, 3, -3])
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.cummax(0).numpy())
-  //    * ```
-  //    */
-  //     cummax = (axis:number=0): Tensor => {
-  //       return this._split_cumalu(axis, Ops.MAX)
-
-  //   /**
-  //    * Returns the upper triangular part of the tensor, the other elements are set to 0.
-  //    *
-  //    * The argument `diagonal` determines which diagonal === on the boundary. `diagonal = 0` means the main diagonal.
-  //    * Positive `diagonal` means above the main diagonal, && negative `diagonal` means below the main diagonal.
-  //    *
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * t = new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])
-  //    * console.log(t.numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.triu(diagonal=0).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.triu(diagonal=1).numpy())
-  //    * ```
-  //    * ```python exec="true" source="above" session="tensor" result="python"
-  //    * console.log(t.triu(diagonal=-1).numpy())
-  //    * ```
-  //    */
-  //     triu = (diagonal:number=0): Tensor => {
-  //       return Tensor._tri(this.shape.at(-2)!, this.shape.at(-1)!, diagonal=diagonal, device=this.device, dtype=dtypes.boolean).where(this, 0).cast(this.dtype)
+  /**
+   * Returns the upper triangular part of the tensor, the other elements are set to 0.
+   *
+   * The argument `diagonal` determines which diagonal === on the boundary. `diagonal = 0` means the main diagonal.
+   * Positive `diagonal` means above the main diagonal, && negative `diagonal` means below the main diagonal.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])
+   * console.log(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.triu(diagonal=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.triu(diagonal=1).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(t.triu(diagonal=-1).numpy())
+   * ```
+   */
+  triu = (diagonal = 0): Tensor => {
+    return Tensor._tri(this.shape.at(-2)!, this.shape.at(-1)!, diagonal, { device: this.device, dtype: dtypes.bool }).where(this, 0).cast(this.dtype)
+  }
 
   /**
    * Returns the lower triangular part of the tensor, the other elements are set to 0.
@@ -1651,7 +1867,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   tril = (diagonal = 0): Tensor => {
-    return Tensor._tri(this.shape.at(-2)!, this.shape.at(-1)!, diagonal = diagonal + 1, device = this.device, dtype = dtypes.boolean).where(0, this).cast(this.dtype)
+    return Tensor._tri(this.shape.at(-2)!, this.shape.at(-1)!, diagonal + 1, { device: this.device, dtype: dtypes.bool }).where(0, this).cast(this.dtype)
   }
 
   // ***** unary ops *****
@@ -1836,7 +2052,7 @@ export class Tensor extends SimpleMathTrait {
   asin = () => {
     // https://personal.math.ubc.ca/~cbm/aands/page_81.htm 4.4.46
     const coefficients = [-0.0012624911, 0.0066700901, -0.0170881256, 0.0308918810, -0.0501743046, 0.0889789874, -0.2145988016, 1.5707963050]
-    const x = (this.abs().sub(1.0, true)).sqrt().mul(sint_polyN(this.abs(), coefficients)).sub(Math.PI / 2, true)
+    const x = (this.abs().sub(1.0, true)).sqrt().mul(sint_polyN(this.abs() as any, coefficients) as number).sub(Math.PI / 2, true)
     return this.sign().mul(x)
   }
   /**
@@ -1847,7 +2063,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   acos = () => {
-    return Math.PI / 2 - this.asin()
+    return this.asin().sub(Math.PI / 2, true)
   }
 
   /**
@@ -1858,7 +2074,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   atan = () => {
-    return (this.div((this.mul(this).add(1, true)).sqrt())).asin()
+    return ((this as Tensor).div((this.mul(this).add(1, true)).sqrt())).asin()
   }
 
   // ***** math functions *****
@@ -1882,7 +2098,7 @@ export class Tensor extends SimpleMathTrait {
    */
   ceil = (): Tensor => {
     const b = this.trunc()
-    return (this.gt(b)).where(b.add(1), b)
+    return ((this as Tensor).gt(b)).where(b.add(1), b)
   }
   /**
    * Rounds the tensor element-wise towards negative infinity.
@@ -1893,7 +2109,7 @@ export class Tensor extends SimpleMathTrait {
    */
   floor = (): Tensor => {
     const b = this.trunc()
-    return (this.lt(b)).where(b.sub(1), b)
+    return ((this as Tensor).lt(b)).where(b.sub(1), b)
   }
   /**
    * Rounds the tensor element-wise with rounding half to even.
@@ -1941,7 +2157,7 @@ export class Tensor extends SimpleMathTrait {
       const w_i = (weight.mul(1 << W_PREC).add(0.5)).cast(dtypes.int16)
       return (this.add(((end.sub(this)).cast(dtypes.int8).mul(w_i).add(1 << W_PREC - 1)).cast(dtypes.uint16).rshift(W_PREC) as typeof this)).cast(dtypes.uint8)
     }
-    return this.add((end.sub(this)).mul(weight))
+    return (this as Tensor).add((end.sub(this)).mul(weight))
   }
 
   /**
@@ -1963,7 +2179,7 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).clip(-1, 1).numpy())
    * ```
    */
-  clamp = (min_ = undefined, max_ = undefined) => {
+  clamp = (min_?: number, max_?: number) => {
     if (min_ === undefined && max_ === undefined) throw new Error("at least one of 'min_' || 'max_' must !be undefined")
     const ret = min_ !== undefined ? this.maximum(min_) : this
     return max_ !== undefined ? ret.minimum(max_) : ret
@@ -1971,7 +2187,7 @@ export class Tensor extends SimpleMathTrait {
   /**
    * Alias for `Tensor.clamp`.
    */
-  clip = (min_ = undefined, max_ = undefined) => {
+  clip = (min_?: number, max_?: number) => {
     return this.clamp(min_, max_)
   }
   /**
@@ -1992,7 +2208,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   abs = () => {
-    return this.mul(this.sign())
+    return (this as Tensor).mul(this.sign())
   }
   /**
    * Compute `1/x` element-wise.
@@ -2059,7 +2275,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   swish = () => {
-    return this.mul(this.sigmoid())
+    return (this as Tensor).mul(this.sigmoid())
   }
 
   /**
@@ -2101,7 +2317,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   hardswish = () => {
-    return this.mul((this.add(3)).relu6()).mul(1 / 6)
+    return (this as Tensor).mul((this.add(3)).relu6()).mul(1 / 6)
   }
 
   /**
@@ -2165,7 +2381,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   asinh = () => {
-    return (this.add((this.square().add(1)).sqrt())).log()
+    return ((this as Tensor).add((this.square().add(1)).sqrt())).log()
   }
   /**
    * Applies the Inverse Hyperbolic Cosine (acosh) function element-wise.
@@ -2177,7 +2393,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   acosh = () => {
-    return (this.add((this.square().sub(1)).sqrt())).log()
+    return ((this as Tensor).add((this.square().sub(1)).sqrt())).log()
   }
 
   /**
@@ -2190,7 +2406,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   hardtanh = (min_val = -1, max_val = 1) => {
-    return this.clip(min_val, max_val)
+    return (this as Tensor).clip(min_val, max_val)
   }
 
   /**
@@ -2204,8 +2420,8 @@ export class Tensor extends SimpleMathTrait {
    */
   erf = () => {
     // https://personal.math.ubc.ca/~cbm/aands/page_299.htm 7.1.26
-    const t = this.abs().mul(0.3275911, true).add(1.0, true).div(1, 0, true)
-    return this.sign() * (1.0 - t * polyN(t, [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592]) * (-this.square()).exp())
+    const t = this.abs().mul(0.3275911, true).add(1.0, true).div(1.0, true)
+    return (this as Tensor).sign().mul(t.mul(sint_polyN(t as any, [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592])).mul(this.square().neg().exp()).sub(1.0, true))
   }
 
   /**
@@ -2219,7 +2435,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   gelu = () => {
-    return this.mul(0.5, true).mul((this.add(this.exp(3).mul(0.044715, true))).mul(Math.sqrt(2 / Math.PI), true)).tanh().add(1, true)
+    return (this as Tensor).mul(0.5, true).mul((((this as Tensor).add(this.pow(3).mul(0.044715, true))).mul(Math.sqrt(2 / Math.PI), true)).tanh()).add(1, true)
   }
 
   /**
@@ -2232,7 +2448,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   quick_gelu = () => {
-    return this.mul((this.mul(1.702)).sigmoid())
+    return (this as Tensor).mul((this.mul(1.702)).sigmoid())
   }
 
   /**
@@ -2262,7 +2478,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   mish = () => {
-    return this.mul(this.softplus().tanh())
+    return (this as Tensor).mul(this.softplus().tanh())
   }
 
   /**
@@ -2288,7 +2504,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   softsign = () => {
-    return this.div(this.abs().add(1, true))
+    return (this as Tensor).div(this.abs().add(1, true))
   }
 
   // ***** broadcasted elementwise ops *****
@@ -2302,15 +2518,14 @@ export class Tensor extends SimpleMathTrait {
     return F.Expand.apply(this.reshape(shape), new_shape)
   }
   _broadcasted = (y: ConstType<Tensor | UOp>, reverse = false, match_dtype = true): [Tensor, Tensor] => {
-    // deno-lint-ignore no-this-alias
     let x: Tensor = this
     if (!isinstance(y, Tensor)) {
       // make y a Tensor
       // assert(isinstance(y, (*get_args(ConstType), UOp)), `${type(y)=}, ${y=}`)
-      if (isinstance(y, UOp)) y = Tensor.from_uop(y, x.device)
+      if (isinstance(y, UOp)) y = Tensor.from_uop(y, { device: x.device })
       else {
         const y_dtype = isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_int(x.dtype) && typeof y === 'number') ? x.dtype : dtypes.from_js(y)
-        y = new Tensor(dtypes.as_const(y, y_dtype), x.device, y_dtype, false)
+        y = new Tensor(dtypes.as_const(y, y_dtype), { device: x.device, dtype: y_dtype, requires_grad: false })
       }
     }
     if (!isinstance(y, Tensor)) throw new Error('y has to be Tensor')
@@ -2321,7 +2536,7 @@ export class Tensor extends SimpleMathTrait {
     if (reverse) [x, y] = [y, x]
 
     // broadcast
-    const out_shape = _broadcast_shape(x.shape, y.shape)
+    const out_shape = _broadcast_shape([x.shape, y.shape])
     return [x._broadcast_to(out_shape), y._broadcast_to(out_shape)]
   }
 
@@ -2423,9 +2638,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor([1, 4, 10]).div(Tensor([2, 3, 4])).numpy())
    * ```
    */
-  override div = (x: ConstType<typeof this>, reverse = false): typeof this => {
+  override div = (x: ConstType<typeof this> | sint, reverse = false): typeof this => {
     const [numerator, denominator] = this._broadcasted(x, reverse)
-    return numerator.cast(least_upper_float(numerator.dtype)).mul(denominator.cast(least_upper_float(denominator.dtype)).reciprocal())
+    return numerator.cast(least_upper_float(numerator.dtype)).mul(denominator.cast(least_upper_float(denominator.dtype)).reciprocal()) as typeof this
   }
 
   /**
@@ -2518,6 +2733,46 @@ export class Tensor extends SimpleMathTrait {
   }
 
   /**
+   * Computes power of `this` with `x`.
+   * Equivalent to `this ** x`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(Tensor([-1, 2, 3]).pow(2).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log(Tensor([-1, 2, 3]).pow(Tensor([-1.5, 0.5, 1.5])).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * console.log((2 ** Tensor([-1, 2, 3])).numpy())
+   * ```
+   */
+  pow = (x: ConstType<Tensor>, reverse = false): Tensor => {
+    x = this._to_const_val(x) as number
+    if (!isinstance(x, Tensor) && !reverse) {
+      // simple pow identities
+      if (x < 0) return this.reciprocal().pow(-x).cast(this.dtype)
+      if (x == 0) return this.mul(0).add(1, true)
+      // rewrite pow 0.5 to sqrt
+      if (Math.floor(x - 0.5) + 0.5 == x) return this.pow(Math.floor(x - 0.5)).mul(this.sqrt())
+      if (Math.floor(x) == x) return this.pow(idiv(x, 2)).square().mul(x % 2 == 0 ? 1 : this)
+    }
+    // positive const ** self
+    if (!isinstance(x, Tensor) && reverse && x > 0) return this.mul(Math.log(x)).exp()
+
+    const [base, exponent] = this._broadcasted(x, reverse)
+    // start with b ** e = exp(e * log(b))
+    let ret = base.abs().log().mul(exponent).exp()
+    // correct sign of negative base with odd exponent (cos has a period of 2pi so we use it here to get the oddness of the exponent)
+    const negative_base = (base.lt(0)).detach().where(1, 0)
+    // 1 for non-negative base or negative even exponent, -1 for negative odd exponent, don't care about non-integer exponent
+    const correct_sign = negative_base.mul((exponent.mul(Math.PI)).cos().sub(1)).add(1, true)
+    // inject nan for negative base and non-integer exponent
+    const inject_nan = (negative_base.mul(exponent.ne(exponent.trunc()))).detach().where(NaN, 1)
+    // apply correct_sign inject_nan, and fix 0 ** 0 = 1
+    ret = ((base.eq(0)).mul(exponent.eq(0))).detach().where(1, ret.mul(correct_sign).mul(inject_nan))
+    return !dtypes.is_float(this.dtype) ? ret.round().cast(this.dtype) : ret
+  }
+  /**
    * Computes element-wise maximum of `this` && `x`.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
@@ -2528,7 +2783,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   maximum = (x: ConstType<Tensor>): Tensor => {
-    return (this.lt(x)).detach().where(x, (this == x).detach().where((this.mul(0.5).add(mul(x, 0.5))).cast(this.dtype), this))
+    return ((this as Tensor).lt(x)).detach().where(x, ((this as Tensor).eq(x)).detach().where((this.mul(0.5).add(mul(x as any, 0.5) as number)).cast(this.dtype), this))
   }
 
   /**
@@ -2566,20 +2821,12 @@ export class Tensor extends SimpleMathTrait {
     if (isinstance(x, Tensor)) [x, y] = x._broadcasted(y)
     else if (isinstance(y, Tensor)) [y, x] = y._broadcasted(x)
     let cond
-    ;[cond, x] = this._broadcasted(x, match_dtype = false)
-    ;[cond, y] = cond._broadcasted(y, match_dtype = false)
+    ;[cond, x] = this._broadcasted(x, undefined, false)
+    ;[cond, y] = cond._broadcasted(y, undefined, false)
     return F.Where.apply(cond.cast(dtypes.bool), ...x._broadcasted(y))
   }
   masked_fill = (mask: Tensor, value: ConstType<Tensor>) => mask.where(value, this)
 
-  //     // ***** op wrappers *****
-
-  //     __invert__ = (): Tensor =>  this.bitwise_not()
-
-  //     __lshift__ = (x): Tensor =>  this.lshift(x)
-  //     __rshift__ = (x): Tensor =>  this.rshift(x)
-
-  //     __pow__ = (x): Tensor =>  this.pow(x)
   //     __matmul__ = (x): Tensor =>  this.matmul(x)
 
   //     __rpow__ = (x): Tensor =>  this.pow(x, true)
@@ -2602,7 +2849,7 @@ export class Tensor extends SimpleMathTrait {
   //     __gt__ = (x): Tensor =>  F.Less.apply(*this._broadcasted(x, true))
   //     ne = (x): Tensor =>  F.Neq.apply(*this._broadcasted(x))
 
-  __eq__ = (x): Tensor => this.eq(x) // type: ignore[override]
+  // __eq__ = (x): Tensor => this.eq(x) // type: ignore[override]
 
   // ***** functional nn ops *****
 
@@ -2619,7 +2866,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   linear = (weight: Tensor, bias?: Tensor) => {
-    const x = weight.shape.length === 1 ? this.mul(weight) : this.dot(weight)
+    const x = weight.shape.length === 1 ? (this as Tensor).mul(weight) : this.dot(weight)
     return bias !== undefined ? x.add(bias) : x
   }
 
@@ -2650,8 +2897,8 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   layernorm = (axis: number | number[] = -1, eps: number): Tensor => {
-    const y = this.sub(this.mean(axis, keepdim = true))
-    return y.mul((y.mul(y)).mean(axis, keepdim = true).add(eps).rsqrt())
+    const y = (this as Tensor).sub(this.mean(axis, true))
+    return y.mul((y.mul(y)).mean(axis, true).add(eps).rsqrt())
   }
   /**
    * Applies Batch Normalization over a mini-batch of inputs.
@@ -2668,10 +2915,10 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.mean().item(), t.std().item())
    * ```
    */
-  batchnorm = (weight?: Tensor, bias?: Tensor, mean: Tensor, invstd: Tensor, axis: number | number[] = 1): Tensor => {
+  batchnorm = (weight: undefined | Tensor, bias: undefined | Tensor, mean: Tensor, invstd: Tensor, axis: number | number[] = 1): Tensor => {
     const axis_ = argfix(axis)
     const shape = this.shape.map((s, ax) => axis_.includes(ax) ? s : 1)
-    let x = this.sub(mean.reshape(shape))
+    let x = (this as Tensor).sub(mean.reshape(shape))
     if (weight !== undefined) x = x.mul(weight.reshape(shape))
     const ret = x.mul(invstd.shape.length === axis_.length ? invstd.reshape(shape) : invstd)
     return bias !== undefined ? (ret.add(bias.reshape(shape))) : ret
@@ -2693,12 +2940,13 @@ export class Tensor extends SimpleMathTrait {
    */
   dropout = (p = 0.5): Tensor => {
     if (Tensor.training || p === 0) return this
-    return (Tensor.rand_like(this, requires_grad = false, dtype = dtypes.default_float, contiguous = false).ge(p)).contiguous().where(this, 0).div(1.0 - p)
+    throw new Error('TODO implement rand_like')
+    // return (this.rand_like(false, { requires_grad: false, dtype: dtypes.default_float, contiguous: false }).ge(p)).contiguous().where(this, 0).div(1.0 - p)
   }
   // helper function commonly used for indexing
-  _one_hot_along_dim = (num_classes: sint, dim: number = -1) => {
+  _one_hot_along_dim = (num_classes: number, dim = -1) => {
     const offset = this.ndim - this._resolve_dim(dim) - 1
-    return this === Tensor.arange(num_classes, device = self.device, requires_grad = False).reshape([num_classes, ...range(offset).map((x) => 1)])
+    return (this as Tensor).eq(Tensor.arange(num_classes, undefined, undefined, { device: this.device, requires_grad: false }).reshape([num_classes, ...range(offset).map(() => 1)]))
   }
   /**
    * Converts `this` to a one-hot tensor.
@@ -2710,10 +2958,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.one_hot(5).numpy())
    * ```
    */
-  one_hot = (num_classes: number = -1): Tensor => {
-    if (num_classes === -1) num_classes = (this.max().add(1)).item()
-    // TODO
-    // return this[..., undefined]._one_hot_along_dim(num_classes).where(1, 0)
+  one_hot = (num_classes = -1): Tensor => {
+    if (num_classes === -1) num_classes = (this.max().add(1)).item() as number
+    return this.get('...', undefined)._one_hot_along_dim(num_classes).where(1, 0)
   }
 
   /**
@@ -2730,14 +2977,14 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.sparse_categorical_crossentropy(Y).item())
    * ```
    */
-  sparse_categorical_crossentropy = (Y: Tensor, ignore_index: number = -1, label_smoothing = 0.0, reduction: ReductionStr = 'mean'): Tensor => {
+  sparse_categorical_crossentropy = (Y: Tensor, ignore_index = -1, label_smoothing = 0.0, reduction: ReductionStr = 'mean'): Tensor => {
     assert(0.0 <= label_smoothing && label_smoothing <= 1.0, 'label_smoothing must be in [0.0, 1.0]')
     assert(['mean', 'sum', 'none'].includes(reduction), "reduction must be one of ['mean', 'sum', 'none']")
-    const [log_probs, loss_mask] = [this.log_softmax(), ignore_index !== -1 ? (Y.ne(ignore_index)) : Y.ones_like(dtypes.bool)]
-    const y_counted = Y.to(this.device).flatten().reshape(-1, 1)._one_hot_along_dim(this.shape.at(-1)!)
-    const y = (y_counted * loss_mask.reshape(-1, 1)).reshape(Y.shape, this.shape.at(-1)!)
-    const smoothing = label_smoothing * (log_probs.mean(-1) * loss_mask)
-    const unreduced = (1 - label_smoothing) * (log_probs * y).sum(-1) + smoothing
+    const [log_probs, loss_mask] = [this.log_softmax(), ignore_index !== -1 ? (Y.ne(ignore_index)) : Y.ones_like({ dtype: dtypes.bool })]
+    const y_counted = Y.to(this.device).flatten().reshape([-1, 1])._one_hot_along_dim(this.shape.at(-1)! as number)
+    const y = (y_counted.mul(loss_mask.reshape([-1, 1]))).reshape([...Y.shape, this.shape.at(-1)!])
+    const smoothing = log_probs.mean(-1).mul(loss_mask).mul(label_smoothing, true)
+    const unreduced = log_probs.mul(y).sum(-1).mul(1 - label_smoothing, true).add(smoothing)
     // NOTE: because of ignore_index, we can't use Tensor.mean (so can't use `_do_reduction` here)
     return (unreduced.sum().div(reduction === 'mean' ? loss_mask.sum() : (reduction === 'sum' ? unreduced.sum() : unreduced))).neg()
   }
@@ -2789,7 +3036,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   nbytes = (): number => {
-    return this.numel().mul(this.element_size())
+    return (this.numel() as number) * this.element_size()
   }
   /**
    * Returns `true` if the tensor contains floating point types, i.e. === one of `dtype.float64`, `dtype.float32`,
@@ -2863,9 +3110,8 @@ export class Tensor extends SimpleMathTrait {
       if (((this.shape.at(-1)! as number) * os) % ns !== 0) throw new Error('unsupported size in bitcast')
       const [new_uint, old_uint] = [to_dtype(`uint${8 * ns}`), to_dtype(`uint${8 * os}`)]
       const tmp = this.bitcast(old_uint)
-      // TODO:
-      // if (ns > os) return functools.reduce(Tensor.add, (tmp[..., i::ns//os].cast(new_uint) << 8*i*os for i in range(ns//os))).bitcast(dtype)
-      return Tensor.stack(range(idiv(os, ns).map((i) => tmp.rshift(8).mul(i).mul(ns))), -1).flatten(-2).cast(new_uint).bitcast(dtype)
+      if (ns > os) return range(idiv(ns, os)).map((i) => tmp.get('...', { start: i, step: idiv(ns, os) }).cast(new_uint).lshift(8 * i * os)).reduce((acc, x) => acc.add(x)).bitcast(dtype)
+      return Tensor.stack(range(idiv(os, ns)).map((i) => tmp.rshift(8).mul(i).mul(ns)), -1).flatten(-2).cast(new_uint).bitcast(dtype)
     }
     return this.dtype !== dt ? F.Cast.apply(this, dt, true) : this
   }

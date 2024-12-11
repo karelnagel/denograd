@@ -23,7 +23,7 @@ Deno.test('ansistrip', compare([[' sdf sdf sdf sdfasdf'], ['test']], helpers.ans
 
 Deno.test('ansilen', compare([['asdf asdf asdf asdf '], ['test']], helpers.ansilen, 'out(tiny.helpers.ansilen(*data))'))
 
-Deno.test('makeTuple', compare([[[1, 2, 3], 3], [[1, 2, 3], 2], [[1, 2, 3], 1], [1, 3], [1, 2], [1, 1]], helpers.makeTuple, 'out(tiny.helpers.make_tuple(*data))'))
+Deno.test('makeTuple', compare([[[1, 2, 3], 3], [[1, 2, 3], 2], [[1, 2, 3], 1], [1, 3], [1, 2], [1, 1]], helpers.make_tuple, 'out(tiny.helpers.make_tuple(*data))'))
 
 Deno.test('flatten', compare([[[[1, 2], [3, 4]]], [[[1, 2, 3, 4]]], [[[1, 2, 3, [4, 5], 6]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]] as any, helpers.flatten, 'out(tiny.helpers.flatten(*data))'))
 

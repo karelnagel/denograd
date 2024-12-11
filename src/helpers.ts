@@ -165,7 +165,7 @@ export const colorizeFloat = (x: number) => colored(x.toFixed(2).padStart(7) + '
 export const memsizeToStr = (_b: number) => [d(1e9, 'GB'), d(1e6, 'MB'), d(1e3, 'KB'), d(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
 export const ansistrip = (s: string) => s.replace(/\x1b\[(K|.*?m)/g, '')
 export const ansilen = (s: string) => ansistrip(s).length
-export const makeTuple = (x: number | number[], cnt: number): number[] => Array.isArray(x) ? [...x] : Array(cnt).fill(x)
+export const make_tuple = (x: number | number[], cnt: number): number[] => Array.isArray(x) ? [...x] : Array(cnt).fill(x)
 export const flatten = <T>(l: T[][]): T[] => l.flat()
 export const fullyFlatten = <T>(l: any): T[] => {
   if (Array.isArray(l) || (l && typeof l === 'object' && 'length' in l && !('length' in String.prototype))) {
@@ -246,7 +246,7 @@ export class Metadata {
   //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
   //   def __str__(self): return self.name + (" bw" if self.backward else "")
 }
-export let  _METADATA: Metadata | undefined = undefined
+export let _METADATA: Metadata | undefined = undefined
 // # **************** global state Counters ****************
 
 export class GlobalCounters {
@@ -409,7 +409,7 @@ export class bytes {
   }
 }
 export class bytearray {
-  constructor(i: number|bytes) {}
+  constructor(i: number | bytes) {}
 }
 export class memoryview {
   constructor(obj?: c_char | bytearray | any) {}
@@ -422,7 +422,7 @@ export class memoryview {
   get = (x: number[]) => {
     return 0
   }
-  tolist=()=>{
+  tolist = () => {
     return [3]
   }
   cast = (format: string, shape?: number[]) => new memoryview()
