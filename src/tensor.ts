@@ -29,10 +29,10 @@ import { run_schedule } from './engine/realize.ts'
 import { gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
 const gunzipAsync = promisify(gunzip)
-import * as F from './function.ts'
 import { sint_polyN } from './ops.ts'
 import { ceildiv, make_tuple, round_up } from './helpers.ts'
 import crypto from 'node:crypto'
+import { argsort } from './helpers.ts'
 
 export class Function {
   device: string | string[]
@@ -63,8 +63,232 @@ export class Function {
     return ret
   }
 }
+// ************* function.py start *************
+/**
+ * This === where the forwards && backwards passes live.
+ */
 
-// import tinygrad.function as F
+export class Contiguous extends Function {
+  override forward = (x: LazyBuffer): LazyBuffer => x.contiguous()
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output
+}
+
+export class ContiguousBackward extends Function {
+  override forward = (x: LazyBuffer): LazyBuffer => x
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.contiguous()
+}
+
+export class Cast extends Function {
+  input_dtype!: DType
+  bitcast?: boolean
+  override forward = (x: LazyBuffer, dtype: DType, bitcast?: boolean): LazyBuffer => {
+    this.input_dtype = x.dtype, this.bitcast = bitcast
+    return this.bitcast ? x.bitcast(dtype) : x.cast(dtype)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+    if (this.bitcast) throw new Error('bitcast can!backward')
+    return grad_output.cast(this.input_dtype!)
+  }
+}
+
+// // ************* unary ops *************
+
+export class Reciprocal extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.ret = x.reciprocal()
+    return this.ret
+  }
+
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.neg().mul(this.ret).mul(this.ret)
+}
+export class Sin extends Function {
+  x!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.x = x
+    return x.sin()
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => (this.x.sub(Math.PI / 2, true)).sin().mul(grad_output)
+}
+export class Relu extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.ret = x.maximum(0)
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => (this.ret.gt(0)).cast(grad_output.dtype).mul(grad_output)
+}
+export class Log extends Function {
+  x!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.x = x
+    return x.log2().mul(Math.log(2))
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.div(this.x)
+}
+export class Exp extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.ret = (x.mul(1 / Math.log(2))).exp2()
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => this.ret.mul(grad_output)
+}
+export class Sqrt extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer): LazyBuffer => {
+    this.ret = x.sqrt()
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.div(this.ret.mul(2))
+}
+// // NOTE: the implicit derivative of sigmoid !== stable
+// // https://towardsdatascience.com/derivative-of-the-sigmoid-function-536880cf918e
+// // TODO: have the backend automatically find this
+export class Sigmoid extends Function {
+}
+export class Sign extends Function {
+  override forward = (x: LazyBuffer): LazyBuffer => x.ne(0).where((x.lt(0)).where(x.const_like(-1), x.const_like(1)), x.const_like(0))
+  //   // backward always return 0 to match torch
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.const_like(0)
+}
+// // ************* binary ops *************
+
+export class Less extends Function {
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.lt(y)
+  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
+}
+export class Neq extends Function {
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.ne(y)
+  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
+}
+export class Xor extends Function {
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.xor(y)
+}
+export class BitwiseAnd extends Function {
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.bitwise_and(y)
+}
+export class BitwiseOr extends Function {
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.bitwise_or(y)
+}
+export class Threefry extends Function {
+  override forward = (x: LazyBuffer, seed: LazyBuffer): LazyBuffer => x.threefry(seed)
+}
+
+export class Add extends Function {
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.add(y)
+
+  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [this.needs_input_grad[0] ? grad_output : undefined, this.needs_input_grad[1] ? grad_output : undefined]
+}
+export class Mul extends Function {
+  x!: LazyBuffer
+  y!: LazyBuffer
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => {
+    this.x, this.y = x, y
+    return x.mul(y)
+  }
+  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [this.needs_input_grad[0] ? (this.y.mul(grad_output)) : undefined, this.needs_input_grad[1] ? (this.x.mul(grad_output)) : undefined]
+}
+export class IDiv extends Function {
+  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.idiv(y)
+}
+// // ************* ternary ops *************
+
+export class Where extends Function {
+  x!: LazyBuffer
+  override forward = (x: LazyBuffer, y: LazyBuffer, z: LazyBuffer): LazyBuffer => {
+    this.x = x
+    return this.x.where(y, z)
+  }
+  override backward = (grad_output: LazyBuffer): [undefined, LazyBuffer | undefined, LazyBuffer | undefined] => [
+    undefined,
+    this.needs_input_grad[1] ? this.x.where(grad_output, grad_output.const_like(0)) : undefined,
+    this.needs_input_grad[2] ? this.x.where(grad_output.const_like(0), grad_output) : undefined,
+  ]
+}
+// // ************* reduce ops *************
+
+export class Sum extends Function {
+  input_shape!: sint[]
+  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
+    this.input_shape = x.shape
+    return x.r(Ops.ADD, axis)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.expand(this.input_shape)
+}
+export class Prod extends Function {
+}
+export class Max extends Function {
+  x!: LazyBuffer
+  ret!: LazyBuffer
+  axis!: number[]
+  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
+    this.x = x, this.ret = x.r(Ops.MAX, axis), this.axis = axis
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+    // 1s in locations where the max was chosen (can be two locations)
+    const max_is_1s = this.x.ne(this.ret.expand(this.x.shape)).ne(this.x.const_like(1).cast(dtypes.bool)).cast(grad_output.dtype)
+    const div = max_is_1s.r(Ops.ADD, this.axis).expand(this.x.shape)
+    return (max_is_1s.div(div)).mul(grad_output.expand(this.x.shape))
+  }
+}
+// // ************* movement ops *************
+
+// // NOTE: this === sum in reverse
+export class Expand extends Function {
+  expanded_axis!: number[]
+  override forward = (x: LazyBuffer, shape: number[]): LazyBuffer => {
+    this.expanded_axis = zip(x.shape, shape).filter(([si, so]) => resolve(ne(si, so))).map((_, i) => i)
+    return x.expand(shape)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+    return grad_output.cast(sum_acc_dtype(grad_output.dtype)).r(Ops.ADD, this.expanded_axis).cast(grad_output.dtype)
+  }
+}
+
+export class Reshape extends Function {
+  input_shape!: sint[]
+  override forward = (x: LazyBuffer, shape: number[]): LazyBuffer => {
+    this.input_shape = x.shape
+    return x.reshape(shape)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.reshape(this.input_shape)
+}
+export class Permute extends Function {
+  input_order!: number[]
+  override forward = (x: LazyBuffer, order: number[]): LazyBuffer => {
+    this.input_order = order
+    return x.permute(order)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.permute(argsort(this.input_order))
+}
+export class Pad extends Function {
+  narg!: [sint, sint][]
+  override forward = (x: LazyBuffer, arg: [number, number][]): LazyBuffer => {
+    this.narg = zip(x.shape, arg).map(([s, p]) => [p[0], add(s, p[0])])
+    return x.pad(arg)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.shrink(this.narg)
+}
+export class Shrink extends Function {
+  narg!: [sint, sint][]
+  override forward = (x: LazyBuffer, arg: [sint, sint][]): LazyBuffer => {
+    this.narg = zip(x.shape, arg).map(([s, p]) => [p[0], sub(s, p[1])])
+    return x.shrink(arg)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.pad(this.narg)
+}
+export class Flip extends Function {
+  arg!: number[]
+  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
+    this.arg = range(x.shape.length).map((i) => axis.includes(i) ? -1 : 1)
+    return x.stride(this.arg)
+  }
+  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.stride(this.arg)
+}
+
+// ************* function.py end *************
 
 export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: string | string[], arg?: any, src: LazyBuffer[] = []) => {
   if (isinstance(device, String)) return LazyBuffer.metaop(op, shape, dtype, device, arg, src)
@@ -424,7 +648,7 @@ export class Tensor extends SimpleMathTrait {
 
   static _threefry_random_bits = (key: Tensor, counts0: Tensor, counts1: Tensor) => {
     let x = (counts1.cast(dtypes.uint64).lshift(32)).bitwise_or(counts0.cast(dtypes.uint64))
-    x = F.Threefry.apply(x, (key.get(1)._broadcast_to(x.shape).cast(dtypes.uint64).lshift(32)).bitwise_or(key.get(0)._broadcast_to(x.shape).cast(dtypes.uint64)))
+    x = Threefry.apply(x, (key.get(1)._broadcast_to(x.shape).cast(dtypes.uint64).lshift(32)).bitwise_or(key.get(0)._broadcast_to(x.shape).cast(dtypes.uint64)))
     ;[counts0, counts1] = [(x.bitwise_and(0xffffffff)).cast(dtypes.uint32), ((x.rshift(32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)]
     return counts0.cat([counts1])
   }
@@ -735,7 +959,7 @@ export class Tensor extends SimpleMathTrait {
     const c = new_shape.filter((x) => x === -1).length
     if (c > 1) throw new Error(`only one dimension can be inferred using -1, getting ${new_shape}`)
     if (c) new_shape = new_shape.map((s) => s === -1 ? idiv(-prod(this.shape as number[]), prod(new_shape)) : s)
-    return new_shape !== this.shape ? F.Reshape.apply(this, shape = new_shape) : this
+    return new_shape !== this.shape ? Reshape.apply(this, shape = new_shape) : this
   }
   /**
    * Returns a tensor that === expanded to the shape that === specified.
@@ -769,7 +993,7 @@ export class Tensor extends SimpleMathTrait {
   permute = (order: number[]): Tensor => {
     const order_arg = argfix(order).map((x) => this._resolve_dim(x))
     if (isEq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
-    return F.Permute.apply(this, order = order_arg)
+    return Permute.apply(this, order = order_arg)
   }
   /**
    * Returns a tensor that reverses the order of the original tensor along given `axis`.
@@ -789,7 +1013,7 @@ export class Tensor extends SimpleMathTrait {
   flip = (axis: number[]): Tensor => {
     const axis_arg = argfix(axis).map((x) => this._resolve_dim(x))
     if (axis_arg.length !== dedup(axis_arg).length) throw new Error(`dim can appear at most once, getting ${axis_arg}`)
-    return F.Flip.apply(this, axis = axis_arg)
+    return Flip.apply(this, axis = axis_arg)
   }
   /**
    * Returns a tensor that shrinks the each axis based on input arg.
@@ -810,7 +1034,7 @@ export class Tensor extends SimpleMathTrait {
   shrink = (arg: ([sint, sint] | undefined)[]): Tensor => {
     const shrink_arg: [sint, sint][] = zip(arg, this.shape).map(([x, s]) => x || [0, s])
     if (isEq(shrink_arg, this.shape.map((s) => [0, s]))) return this
-    return F.Shrink.apply(this, shrink_arg)
+    return Shrink.apply(this, shrink_arg)
   }
   /**
    * Returns a tensor with padding applied based on the input `padding`.
@@ -853,7 +1077,7 @@ export class Tensor extends SimpleMathTrait {
     pX = pX.map((p) => p || [0, 0] as [sint, sint])
     const pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
     if (mode === 'constant') {
-      const _constant = (x: Tensor, px: [sint, sint][], v: number | boolean) => v === 0 ? F.Pad.apply(x, px) : F.Pad.apply(x, px).add(F.Pad.apply(x.ones_like(), px).where(0, v))
+      const _constant = (x: Tensor, px: [sint, sint][], v: number | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
       return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX, value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads, value)
     }
     throw new Error('Not needed for mnist!')
@@ -1220,7 +1444,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   sum = (axis?: number | number[], keepdim = false, acc_dtype?: DTypeLike) => {
-    const ret = this.cast(acc_dtype === undefined ? sum_acc_dtype(this.dtype) : acc_dtype)._reduce(F.Sum, axis, keepdim)
+    const ret = this.cast(acc_dtype === undefined ? sum_acc_dtype(this.dtype) : acc_dtype)._reduce(Sum, axis, keepdim)
     return acc_dtype === undefined && [dtypes.float16, dtypes.bfloat16].includes(this.dtype) ? ret.cast(this.dtype) : ret
   }
   /**
@@ -1247,7 +1471,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   prod = (axis?: number | number[], keepdim = false, acc_dtype?: DTypeLike) => {
-    return this.cast(acc_dtype !== undefined ? acc_dtype : this.dtype)._reduce(F.Prod, axis, keepdim)
+    return this.cast(acc_dtype !== undefined ? acc_dtype : this.dtype)._reduce(Prod, axis, keepdim)
   }
 
   /**
@@ -1271,7 +1495,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   max = (axis?: number | number[], keepdim = false) => {
-    return this._reduce(F.Max, axis, keepdim)
+    return this._reduce(Max, axis, keepdim)
   }
   /**
    * Returns the minimum value of the tensor along the specified axis || axes.
@@ -1881,7 +2105,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   override logical_not = () => {
-    return F.Neq.apply(...this.cast(dtypes.bool)._broadcasted(true)) as typeof this
+    return Neq.apply(...this.cast(dtypes.bool)._broadcasted(true)) as typeof this
   }
   /**
    * Negates the tensor element-wise.
@@ -1897,13 +2121,13 @@ export class Tensor extends SimpleMathTrait {
    * Returns a contiguous tensor.
    */
   contiguous = () => {
-    return F.Contiguous.apply(this)
+    return Contiguous.apply(this)
   }
   /**
    * Inserts a contiguous operation in the backward pass.
    */
   contiguous_backward = () => {
-    return F.ContiguousBackward.apply(this)
+    return ContiguousBackward.apply(this)
   }
   /**
    * Computes the natural logarithm element-wise.
@@ -1915,7 +2139,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   log = () => {
-    return F.Log.apply(this.cast(least_upper_float(this.dtype)))
+    return Log.apply(this.cast(least_upper_float(this.dtype)))
   }
   /**
    * Computes the base-2 logarithm element-wise.
@@ -1939,7 +2163,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   exp = () => {
-    return F.Exp.apply(this.cast(least_upper_float(this.dtype)))
+    return Exp.apply(this.cast(least_upper_float(this.dtype)))
   }
   /**
    * Computes the base-2 exponential function element-wise.
@@ -1951,7 +2175,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   exp2 = () => {
-    return F.Exp.apply(this.mul(Math.log(2)))
+    return Exp.apply(this.mul(Math.log(2)))
   }
   /**
    * Applies the Rectified Linear Unit (ReLU) function element-wise.
@@ -1963,7 +2187,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   relu = () => {
-    return F.Relu.apply(this)
+    return Relu.apply(this)
   }
   /**
    * Applies the Sigmoid function element-wise.
@@ -1975,7 +2199,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   sigmoid = () => {
-    return F.Sigmoid.apply(this.cast(least_upper_float(this.dtype)))
+    return Sigmoid.apply(this.cast(least_upper_float(this.dtype)))
   }
   /**
    * Applies the Hardsigmoid function element-wise.
@@ -2000,7 +2224,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   sqrt = () => {
-    return F.Sqrt.apply(this.cast(least_upper_float(this.dtype)))
+    return Sqrt.apply(this.cast(least_upper_float(this.dtype)))
   }
   /**
    * Computes the reciprocal of the square root of the tensor element-wise.
@@ -2020,7 +2244,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   sin = () => {
-    return F.Sin.apply(this.cast(least_upper_float(this.dtype)))
+    return Sin.apply(this.cast(least_upper_float(this.dtype)))
   }
   /**
    * Computes the cosine of the tensor element-wise.
@@ -2199,7 +2423,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   sign = () => {
-    return F.Sign.apply(this)
+    return Sign.apply(this)
   }
   /**
    * Computes the absolute value of the tensor element-wise.
@@ -2219,7 +2443,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   reciprocal = () => {
-    return F.Reciprocal.apply(this.cast(least_upper_float(this.dtype)))
+    return Reciprocal.apply(this.cast(least_upper_float(this.dtype)))
   }
 
   // ***** activation functions *****
@@ -2516,7 +2740,7 @@ export class Tensor extends SimpleMathTrait {
     const [shape, _] = _align_left(this.shape, new_shape)
     // for each dimension, check either dim === 1, || it does !change
     if (zip(shape, new_shape).every(([s, ns]) => resolve(eq(s, ns)) || resolve(eq(s, 1)))) throw new Error(`can not broadcast ${this.shape} to ${new_shape}`)
-    return F.Expand.apply(this.reshape(shape), new_shape)
+    return Expand.apply(this.reshape(shape), new_shape)
   }
   _broadcasted = (y: ConstType<Tensor | UOp>, reverse = false, match_dtype = true): [Tensor, Tensor] => {
     let x: Tensor = this
@@ -2562,7 +2786,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   override add = (x: ConstType<typeof this>, reverse = false): typeof this => {
-    return F.Add.apply(...this._broadcasted(x, reverse)) as typeof this
+    return Add.apply(...this._broadcasted(x, reverse)) as typeof this
   }
 
   /**
@@ -2604,7 +2828,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   override mul = (x: ConstType<typeof this>, reverse = false): typeof this => {
-    return F.Mul.apply(...this._broadcasted(x, reverse)) as typeof this
+    return Mul.apply(...this._broadcasted(x, reverse)) as typeof this
   }
 
   /**
@@ -2618,7 +2842,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   override idiv = (x: ConstType<typeof this>, reverse = false): typeof this => {
-    return F.IDiv.apply(...this._broadcasted(x, reverse)) as typeof this
+    return IDiv.apply(...this._broadcasted(x, reverse)) as typeof this
   }
 
   /**
@@ -2658,7 +2882,7 @@ export class Tensor extends SimpleMathTrait {
    */
   override xor = (x: ConstType<typeof this>, reverse = false): typeof this => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
-    return F.Xor.apply(...this._broadcasted(x, reverse)) as typeof this
+    return Xor.apply(...this._broadcasted(x, reverse)) as typeof this
   }
 
   /**
@@ -2674,7 +2898,7 @@ export class Tensor extends SimpleMathTrait {
    */
   override bitwise_and = (x: ConstType<typeof this>, reverse = false): typeof this => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
-    return F.BitwiseAnd.apply(...this._broadcasted(x, reverse)) as typeof this
+    return BitwiseAnd.apply(...this._broadcasted(x, reverse)) as typeof this
   }
   /**
    * Compute the bit-wise OR of `this` && `x`.
@@ -2689,7 +2913,7 @@ export class Tensor extends SimpleMathTrait {
    */
   override bitwise_or = (x: ConstType<typeof this>, reverse = false): typeof this => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
-    return F.BitwiseOr.apply(...this._broadcasted(x, reverse)) as typeof this
+    return BitwiseOr.apply(...this._broadcasted(x, reverse)) as typeof this
   }
 
   /**
@@ -2824,13 +3048,13 @@ export class Tensor extends SimpleMathTrait {
     let cond
     ;[cond, x] = this._broadcasted(x, undefined, false)
     ;[cond, y] = cond._broadcasted(y, undefined, false)
-    return F.Where.apply(cond.cast(dtypes.bool), ...x._broadcasted(y))
+    return Where.apply(cond.cast(dtypes.bool), ...x._broadcasted(y))
   }
   masked_fill = (mask: Tensor, value: ConstType<Tensor>) => mask.where(value, this)
 
-  override lt = (x: ConstType<typeof this>): typeof this => F.Less.apply(...this._broadcasted(x, false)) as typeof this
-  override gt = (x: ConstType<typeof this>): typeof this => F.Less.apply(...this._broadcasted(x, true)) as typeof this
-  override ne = (x: ConstType<typeof this>): typeof this => F.Neq.apply(...this._broadcasted(x)) as typeof this
+  override lt = (x: ConstType<typeof this>): typeof this => Less.apply(...this._broadcasted(x, false)) as typeof this
+  override gt = (x: ConstType<typeof this>): typeof this => Less.apply(...this._broadcasted(x, true)) as typeof this
+  override ne = (x: ConstType<typeof this>): typeof this => Neq.apply(...this._broadcasted(x)) as typeof this
 
   // ***** functional nn ops *****
 
@@ -3067,7 +3291,7 @@ export class Tensor extends SimpleMathTrait {
    */
   cast = (dtype: DTypeLike): Tensor => {
     const dt = to_dtype(dtype)
-    return this.dtype === dt ? this : F.Cast.apply(this, dt)
+    return this.dtype === dt ? this : Cast.apply(this, dt)
   }
   /**
    * Bitcasts `this` to the given `dtype` of the same itemsize.
@@ -3094,7 +3318,7 @@ export class Tensor extends SimpleMathTrait {
       if (ns > os) return range(idiv(ns, os)).map((i) => tmp.get('...', { start: i, step: idiv(ns, os) }).cast(new_uint).lshift(8 * i * os)).reduce((acc, x) => acc.add(x)).bitcast(dtype)
       return Tensor.stack(range(idiv(os, ns)).map((i) => tmp.rshift(8).mul(i).mul(ns)), -1).flatten(-2).cast(new_uint).bitcast(dtype)
     }
-    return this.dtype !== dt ? F.Cast.apply(this, dt, true) : this
+    return this.dtype !== dt ? Cast.apply(this, dt, true) : this
   }
   /**
    * Convenience method to cast `this` to a `float32` Tensor.
