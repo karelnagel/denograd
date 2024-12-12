@@ -1,7 +1,7 @@
 import { group } from 'node:console'
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, colored, DEBUG, dedup, getEnv, getNumberEnv, isinstance, isNone, isNotNone, range, round_up, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, colored, DEBUG, dedup, getEnv, getNumberEnv, isinstance, isNone, isNotNone, range, round_up, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, ge, graph_rewrite, GroupOp, gt, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, resolve, sint, sint_prod, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -99,7 +99,7 @@ export class Kernel {
     }
     //     # move all reduce axes to the end
     const reduce = zip(this.full_shape, this.output_shape).entries()
-    const permute = [...reduce.filter(([i, [s, n]]) => !resolve(s.ne(n))).map(([i]) => i), ...reduce.filter(([i, [s, n]]) => resolve(s.ne(n))).map(([i]) => i)]
+    const permute = [...reduce.filter(([i, [s, n]]) => !resolve(ne(s, n))).map(([i]) => i), ...reduce.filter(([i, [s, n]]) => resolve(ne(s, n))).map(([i]) => i)]
     this.reshape_and_permute(undefined, permute)
 
     //     # parameters for optimization
@@ -109,7 +109,6 @@ export class Kernel {
     this.simplify_merge_adjacent()
   }
 
-  //   @property
   get membufs(): UOp[] {
     return dedup(this.bufs.filter((x) => [Ops.LOAD, Ops.STORE].includes(x.op)).map((x) => x.src[0]))
   }
@@ -122,41 +121,38 @@ export class Kernel {
     assert(all_int(upcasted_shape), `cannot upcast a symbolic amount upcasted_shape=${upcasted_shape}`)
     return zip(upcasted_shape as number[], upcasted_stride, zip(this.sts[0].shape.slice(this.first_upcast), this.full_shape.slice(this.first_upcast)).map(([x, y]) => Boolean(ne(x, y))))
   }
-  //   @property
   get first_reduce() {
     return zip([...this.sts[0].shape.slice(0, this.first_upcast), 0], [...this.full_shape.slice(0, this.first_upcast), 1]).map(([x, y]) => resolve(ne(x, y))).indexOf(true)
   }
-  //   @property
+
   get first_upcast() {
     return this.shape_len - this.upcasted
   }
 
-  //   @property
   get reduceop() {
     return this.reduceops.length > 0 ? this.reduceops[0] : undefined
   }
 
-  //   @property
   get output_shape() {
     return this.sts[0].shape
   }
 
-  //   @property
   get full_shape() {
     return this.sts[this.full_buf_index].shape
   }
 
-  //   @property
   get full_unupcasted_shape() {
     return this.full_shape.slice(0, this.first_upcast)
   }
 
-  //   @property
   get shape_len() {
     return this.sts[0].shape.length
   }
 
-  //   @property
+  get upcast_in_mid_reduce_axes(): number[] {
+    throw new Error('not implemented')
+  }
+
   get global_dims() {
     return this.first_reduce - this.local_dims
   }
@@ -185,6 +181,13 @@ export class Kernel {
     assert(colors.length === this.shape_len, 'colors size mismatch')
     return colors
   }
+  colored_shape = (pad?: number, dense = false): string => {
+    const shape_strs = this.full_shape.map((s) => typeof s === 'number' ? (dense ? `${s}` : s.toString().padStart(4)) : s.render())
+    let ret = zip(shape_strs, this.colors()).map(([s, color]) => colored(s, color)).join(' ')
+    if (pad) ret += ' '.repeat(pad - ansilen(ret))
+    return ret
+  }
+
   //   # ******************** base simplifiers ********************
 
   //   # apply reshape && permute to all shapetrackers
@@ -286,6 +289,10 @@ export class Kernel {
    * 1: allows kernels with multiple reduce axes && also multiplication of UOps.CAST'd buffers
    * 2: allows kernels with M, N, K axes that are not multiples of the tensor core dimensions by applying padding those axes as needed
    */
+  _apply_tc_opt = (use_tensor_cores: number, axis: number, opt_level: number): boolean => {
+    throw new Error('not implemented')
+  }
+
   apply_tensor_cores = (use_tensor_cores = 1, extra_opts?: Opt[], axis = 0, tc_opt?: number): boolean => {
     return false
   }
@@ -296,11 +303,11 @@ export class Kernel {
       check(this.applied_opts.length === 0, 'tensor core opts must be first') // TODO: things like PADTO might be fine
       check(opt.axis !== undefined && opt.amt !== undefined, 'tensor core opts must have an axis && amt')
       check(USE_TC === 2 || (this.opts.tensor_cores?.length || 0) > 0, 'must have tensor cores ||TC=2')
-      check(this._apply_tc_opt(USE_TC, opt.axis, opt.amt), 'no tensor core available')
+      check(this._apply_tc_opt(USE_TC, opt.axis!, opt.amt!), 'no tensor core available')
       this.applied_opts.push(opt)
       return
     }
-    let axis = opt.real_axis(this)
+    const axis = opt.real_axis(this)
     check(axis < this.full_shape.length, 'invalid axis')
     let amt: number
     if (opt.op === OptOps.SWAP) amt = opt.amt! // amt===an axis in the SWAPs

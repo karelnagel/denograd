@@ -1,23 +1,8 @@
 // deno-lint-ignore-file no-this-alias
-// // inspired by https://github.com/karpathy/micrograd/blob/master/micrograd/engine.py
-// from __future__ import annotations
-// import time, math, itertools, functools, struct, sys, inspect, pathlib, string, dataclasses, hashlib
-// from contextlib import ContextDecorator
-// from typing import List, Tuple, Callable, Optional, ClassVar, Type, Union, Sequence, Dict, cast, get_args, Literal, TYPE_CHECKING, SupportsIndex
-// from tinygrad.dtype import DType, DTypeLike, dtypes, ImageDType, ConstType, least_upper_float, least_upper_dtype, sum_acc_dtype, to_dtype, truncate
-// from tinygrad.helpers import argfix, make_tuple, flatten, prod, all_int, round_up, merge_dicts, argsort, getenv, all_same, fully_flatten, dedup
-// from tinygrad.helpers import IMAGE, DEBUG, WINO, _METADATA, Metadata, TRACEMETA, ceildiv, fetch, polyN
-// from tinygrad.ops import smax, smin, resolve, UOp, Ops, sint, Variable, SimpleMathTrait, identity_element
-// from tinygrad.device import Device, Buffer, BufferSpec
-// from tinygrad.engine.lazy import LazyBuffer
-// from tinygrad.engine.realize import run_schedule
-// from tinygrad.engine.memory import memory_planner
-// from tinygrad.engine.schedule import ScheduleItem, create_schedule_with_vars
-
 import { Buffer as NodeBuffer } from 'node:buffer'
-import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
+import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate, TYPED_ARRAYS, TypedArrays } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, bytearray, bytes, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, max, memoryview, Metadata, prod, range, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
 import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device } from './device.ts'
 import path from 'node:path'
@@ -301,17 +286,17 @@ export const get_shape = (x: any): number[] => {
   if (!all_same(subs)) throw new Error(`inhomogeneous shape from ${x}`)
   return [subs.length, ...(subs.length ? subs[0] : [])]
 }
-export const _frompy = (x: any[] | bytes, dtype: DType): LazyBuffer => {
+export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
   let ret, data
-  if (x instanceof bytes) [ret, data] = [LazyBuffer.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
+  if (x instanceof Uint8Array) [ret, data] = [LazyBuffer.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
   else {
     ret = LazyBuffer.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
     assert(dtype.fmt !== undefined, `${dtype} has undefined fmt`)
     const truncate_function = truncate.get(dtype)!
-    data = NodeBuffer.from(new Uint8Array(ret.size).map((_, i) => truncate_function(x.flat()[i])))
+    data = new Uint8Array(ret.size).map((_, i) => truncate_function(x.flat()[i]))
   }
   //   // fake realize
-  ret.buffer!.allocate(new memoryview(Device.DEFAULT !== 'PYTHON' ? data : new bytearray(data)))
+  ret.buffer!.allocate(new DataView(Device.DEFAULT !== 'PYTHON' ? data.buffer : new Uint8Array(data).buffer))
   delete ret.srcs
   return ret
 }
@@ -374,7 +359,7 @@ export class Tensor extends SimpleMathTrait {
   static training = false
   static no_grad = false
 
-  constructor(data?: ConstType | UOp | bytes | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}) {
+  constructor(data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}) {
     super()
     if (dtype !== undefined) dtype = to_dtype(dtype)
     assert(dtype === undefined || isinstance(dtype, DType), `invalid dtype ${dtype}`)
@@ -392,7 +377,7 @@ export class Tensor extends SimpleMathTrait {
     else if (isinstance(data, UOp)) {
       assert(data.op === Ops.BIND && data.src[0].op === Ops.DEFINE_VAR && data.src[1].op === Ops.CONST, `can't create tensor from UOp ${data}`)
       data = _metaop(Ops.CONST, [], dtype || data.dtype, device, data)
-    } else if (isinstance(data, bytes)) data = _frompy(data, dtype === undefined ? dtypes.uint8 : dtype)
+    } else if (isinstance(data, Uint8Array)) data = _frompy(data, dtype === undefined ? dtypes.uint8 : dtype)
     else if (Array.isArray(data)) {
       if (dtype === undefined) {
         const d = (data as any[]).flat()
@@ -480,7 +465,7 @@ export class Tensor extends SimpleMathTrait {
    *
    * NOTE: A Tensor can only be scheduled once.
    */
-  schedule_with_vars = (...lst: Tensor[]): [ScheduleItem[], Map<Variable, number>] => {
+  schedule_with_vars = (lst: Tensor[]): [ScheduleItem[], Map<Variable, number>] => {
     const [schedule, var_vals] = create_schedule_with_vars([this, ...lst].flatMap((x) => x.lazydata.lbs))
     return [memory_planner(schedule), var_vals]
   }
@@ -488,7 +473,7 @@ export class Tensor extends SimpleMathTrait {
    * Creates the schedule needed to realize these Tensor(s).
    */
   schedule = (...lst: Tensor[]): ScheduleItem[] => {
-    const [schedule, var_vals] = this.schedule_with_vars(...lst)
+    const [schedule, var_vals] = this.schedule_with_vars(lst)
     assert(var_vals.size === 0)
     return schedule
   }
@@ -497,7 +482,7 @@ export class Tensor extends SimpleMathTrait {
   //    * Triggers the computation needed to create these Tensor(s).
   //    */
   realize = (lst?: Tensor[], do_update_stats = true): Tensor => {
-    run_schedule(this.schedule_with_vars(...(lst || [])), undefined, do_update_stats)
+    run_schedule(...this.schedule_with_vars(lst || []), do_update_stats)
     return this
   }
   static realize = (lst: Tensor[], do_update_stats = true): Tensor => lst[0].realize(lst.slice(1), do_update_stats)
@@ -538,8 +523,8 @@ export class Tensor extends SimpleMathTrait {
   detach = (): Tensor => {
     return new Tensor(this.lazydata, { device: this.device, requires_grad: false })
   }
-  _data = (): memoryview => {
-    if (this.shape.includes(0)) return new memoryview(new bytearray(0))
+  _data = (): DataView => {
+    if (this.shape.includes(0)) return new DataView(new ArrayBuffer(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = this.cast(this.dtype.base).contiguous().to('CLANG').realize()
     const buf = cpu.lazydata!.base.realized
@@ -554,11 +539,14 @@ export class Tensor extends SimpleMathTrait {
    * console.log(np.frombuffer(t.data(), dtype=np.int32))
    * ```
    */
-  data = (): memoryview => {
+  data = (): DataView => {
     assert(this.dtype.base.fmt !== undefined, `no fmt dtype for ${this.dtype.base}`)
     assert(all_int(this.shape), `no data if shape === symbolic, ${this.shape}`)
     // if (TYPE_CHECKING ) assert(this.dtype.base.fmt !== "e")
-    return this.shape.includes(0) ? this._data().cast(this.dtype.base.fmt!) : this._data().cast(this.dtype.base.fmt!, this.shape as number[])
+    // TODO should work with .fmt
+    // const TypedArray = TYPED_ARRAYS[this.dtype.base.fmt!]
+    // return this.shape.includes(0) ? new TypedArray(this._data().buffer) : new TypedArray(this._data().buffer, this.shape[0] as number, this.shape[1] as number)
+    return this._data()
   }
   /**
    * Returns the value of this tensor as a standard Python number.
@@ -570,7 +558,7 @@ export class Tensor extends SimpleMathTrait {
    */
   item = (): ConstType => {
     assert(this.numel() === 1, 'must have one element for item')
-    return this.data().get(range(this.shape.length).map((x) => 0))
+    return this.data().getFloat64(this.shape.length) //TODO: this is wrong
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
   // src: https://github.com/python/mypy/blob/release-1.6/mypy/typeshed/stdlib/builtins.pyi//L803
@@ -583,7 +571,10 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   tolist = (): ConstType[] | ConstType => {
-    return this.data().tolist()
+    const data = this.data()
+    const TypedArray = TYPED_ARRAYS[this.dtype.base.fmt!]
+    const arr = new TypedArray(data.buffer)
+    return Array.from(arr as Uint8Array) // TOOD: probably wrong
   }
   /**
    * Moves the tensor to the given device.

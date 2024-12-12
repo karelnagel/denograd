@@ -1,5 +1,5 @@
 import { Compiled, Compiler, MallocAllocator } from '../device.ts'
-import { type bytes, cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '../helpers.ts'
+import { cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '../helpers.ts'
 import { execSync } from 'node:child_process'
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { ClangRenderer } from '../renderer/cstyle.ts'
@@ -13,7 +13,7 @@ export class ClangCompiler extends Compiler {
     this.objdumpTool = objdumpTool
   }
 
-  override compile = (src: string): bytes => {
+  override compile = (src: string): Uint8Array => {
     // TODO: remove file write. sadly clang doesn't like the use of /dev/stdout here
     const outputFile = temp('temp_output.so')
     const args = ['clang', '-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', '-', '-o', outputFile]
@@ -22,13 +22,13 @@ export class ClangCompiler extends Compiler {
     unlinkSync(outputFile)
     return data
   }
-  override disassemble = (lib: bytes) => cpuObjdump(lib, this.objdumpTool)
+  override disassemble = (lib: Uint8Array) => cpuObjdump(lib, this.objdumpTool)
 }
 export class ClangProgram {
   name
   lib
   fxn
-  constructor(name: string, lib: bytes) {
+  constructor(name: string, lib: Uint8Array) {
     this.name = name
     this.lib = lib
     // write to disk so we can load it

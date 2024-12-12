@@ -25,7 +25,7 @@ const fold_expanded = (ex: UOp, buf: UOp) => {
     else [root_src, arg] = [idx, 0]
     //     # add gates for gated
     if (s!.src[0].src.length === 3) root_src = [s!.src[0].src[2], root_src]
-    assert(!offsets_rootsrc.get(root_src)!.has(arg), `${offsets_rootsrc.get(root_src)?.get(arg)} != ${i} with ${s.src.length} sources`)
+    assert(!offsets_rootsrc.get(root_src)!.has(arg), `${offsets_rootsrc.get(root_src)?.get(arg)} != ${i} with ${s?.src.length} sources`)
     offsets_rootsrc.get(root_src)!.set(arg, i)
   }
   //   # then rewrite everything we can
@@ -34,7 +34,7 @@ const fold_expanded = (ex: UOp, buf: UOp) => {
   for (const [rootsrc, offsets] of offsets_rootsrc.entries()) {
     for (const o of offsets.keys()) { //TODO:????
       for (const fold_length of lengths) {
-        if (range(fold_length).every((i) => !used.has([rootsrc, o + i]) && offsets.has(o + i))) {
+        if (range(fold_length).every((i) => !used.has([rootsrc, o + i as any]) && offsets.has(o + i))) {
           const load_1 = new_srcs[offsets.get(o)!]
           const new_src = [...load_1!.src]
           const oidx = new_src[0].src[1]
@@ -43,7 +43,7 @@ const fold_expanded = (ex: UOp, buf: UOp) => {
             //             # for images, we rewrite the index. it must evenly divide 4 from the above check
             new_src[0] = buf.index(
               new UOp({ op: Ops.VECTORIZE, dtype: dtypes.int.vec(2), src: [oidx.idiv(4).mod((buf.dtype as ImageDType).shape[1]), oidx.idiv(4 * (buf.dtype as ImageDType).shape[1])] }),
-              isinstance(rootsrc, Array) ? rootsrc[0] : undefined,
+              isinstance(rootsrc, Array) ? rootsrc[0] as UOp : undefined,
             )
           } else {
             //             # for non image, we upcast the index pointer
@@ -51,13 +51,13 @@ const fold_expanded = (ex: UOp, buf: UOp) => {
           }
           //           # generate the folded new_srcs
           if (is_load) {
-            const new_load = new UOp({ op: Ops.LOAD, dtype: load_1.dtype.vec(fold_length), src: new_src })
+            const new_load = new UOp({ op: Ops.LOAD, dtype: load_1!.dtype.vec(fold_length), src: new_src })
             for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = new_load.gep(i)
           } else { // vectorize the store
             new_src[1] = new UOp({ op: Ops.VECTORIZE, dtype: new_src[1].dtype.vec(fold_length), src: range(fold_length).map((i) => new_srcs[offsets.get(o + i)!]!.src[1]) })
             for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = i == 0 ? new UOp({ op: Ops.STORE, dtype: dtypes.void, src: new_src }) : undefined
           }
-          used = new Set([...used, ...range(fold_length).map((x) => [rootsrc, o + i] as [UOp, UOp])])
+          used = new Set([...used, ...range(fold_length).map((i) => [rootsrc, o + i as any] as [UOp, UOp])])
         }
       }
     }
@@ -250,7 +250,7 @@ export const sym = symbolic_flat.add(
     [new UPat({ op: Ops.VECTORIZE, dtype: dtypes.void, name: 'x' }), ({ x }) => new UOp({ op: Ops.SINK, dtype: dtypes.void, src: x.src })],
     //   # GEP/VECTORIZE, GEP/GEP, GEP/CONST, GEP/VCONST
     [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.GEP, name: 'g2' })], name: 'g1' }), ({ g1, g2 }) => g2.src[0].gep(range(g1.dtype.count).map((i) => g2.arg[g1.arg[i]]))],
-    [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.VECTORIZE, name: 'vec' })], name: 'gep' }), ({ gep, vec }) => new UOp({ op: Ops.VECTORIZE, dtype: gep.dtype, src: gep.arg.length > 1 ? gep.arg.map((i) => vec.src[i]) : vec.src[gep.arg[0]] })],
+    [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.VECTORIZE, name: 'vec' })], name: 'gep' }), ({ gep, vec }) => new UOp({ op: Ops.VECTORIZE, dtype: gep.dtype, src: gep.arg.length > 1 ? gep.arg.map((i:number) => vec.src[i]) : vec.src[gep.arg[0]] })],
     [new UPat({ op: Ops.GEP, src: [UPat.cvar('c', undefined, false)], name: 'gep' }), ({ gep, c }) => gep.const_like(c.arg)],
     [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.VCONST, name: 'c' })], name: 'gep' }), ({ gep, c }) => gep.const_like(gep.arg.map((x: any) => c.arg[x]))],
     //   # push all GEPs through ALUs (fix arange stuff)
@@ -337,7 +337,7 @@ export const do_expand = (root: UOp) => {
   } // otherwise, we sort them and GEP
   else expand_args = sorted(dedup(flatten(expands_args)) as any).filter((x) => !exclude_args.includes((x as any)[0]))
   const expand_sz = prod(exclude_args.map((x) => x[1]))
-  let new_srcs = []
+  const new_srcs = []
   for (const [i, src] of root.src.entries()) {
     if (src.op === Ops.EXPAND) {
       //         # IF means OR on first arg to IF

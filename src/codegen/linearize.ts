@@ -6,7 +6,7 @@ const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR
 
 export const disp = (y: UOp): string => {
   if (y.op === Ops.BLOCKSTART) return 'w' + disp(y.src[0])
-  if (y.op === Ops.IF) return `IF${y.key()}` // TODO: not sure
+  if (y.op === Ops.IF) return `IF${y.key}` // TODO: not sure
   if (y.op === Ops.RANGE) return y.arg.toString()
   return '<NONE>'
 }
@@ -98,7 +98,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
   let new_srcs: UOp[] = []
   let to_append: UOp[] = []
   let new_ctx = x.arg.ctx
-  let placed = new Set()
+  const placed = new Set()
   for (const u of x.src) {
     if (u.op === Ops.BLOCK && (isEq(u.arg.ctx, x.arg.ctx) || (isNotNone(x.arg.end) && u.arg.ctx.includes(x.arg.end)))) {
       //       # NOTE: this can't appear in srcs twice or it would be a BLOCKFORK
@@ -118,7 +118,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
   if (to_append.length === 0 && placed.size === 0) return undefined
   return new UOp({ op: x.op, dtype: dtypes.void, src: new_srcs, arg: new BasicBlock(new_ctx.toSorted((a, b) => isLessThan(a.tuplize(), b.tuplize()) ? -1 : 1), /**TODO:not sure about sort */ [...to_append, ...x.arg.lst], x.arg.end) })
 }
-export const pm_block_merge = new PatternMatcher([[new UPat({ op: [Ops.BLOCKEND, Ops.BLOCK], name: 'x' }), ({ ctx, x }) => block_merge(ctx, x)]])
+export const pm_block_merge = new PatternMatcher<{ctx:Map<UOp,UOp[]>,x:UOp}>([[new UPat({ op: [Ops.BLOCKEND, Ops.BLOCK], name: 'x' }), ({ ctx, x }) => block_merge(ctx, x)]])
 
 // # NOTE: any toposort should be valid here, unlike last time this isn't required, it's just for speed
 export const block_reorder = (in_block: UOp): UOp => {
@@ -140,15 +140,25 @@ export const block_reorder = (in_block: UOp): UOp => {
   }
 
   //   # placement queue
-  const queue: [number, any[], UOp][] = []
-  const push = (u: UOp) => heapq.heappush(queue, (priorities.get(u), u.tuplize(), u))
+  const queue: UOp[] = [];
+  const push = (u: UOp) => {
+    queue.push(u);
+    queue.sort((a, b) => {
+      const priA = priorities.get(a) || 0;
+      const priB = priorities.get(b) || 0;
+      if (priA !== priB) return priA - priB;
+      // Compare tuplize as secondary sort key
+      // Assuming tuplize comparison works similar to Python
+      return JSON.stringify(a.tuplize) < JSON.stringify(b.tuplize) ? -1 : 1;
+    });
+  };
 
   //   # place the first ones that don't have deps
   for (const u of in_block.arg.lst) if (!in_degree.has(u)) push(u)
 
   const newlst = []
   while (queue.length) {
-    const [_, _2, x] = heapq.heappop(queue)
+    const x = queue.shift()!;
     newlst.push(x)
     for (const u of local_children.get(x)!) {
       in_degree.set(u, in_degree.get(u)! - 1)

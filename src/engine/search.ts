@@ -1,7 +1,7 @@
 import { Kernel, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, Compiler, Device } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
-import { assert, bytes, CACHELEVEL, DEBUG, diskcache_get, diskcache_put, getEnv, getNumberEnv, isinstance, min, prod, range, to_function_name, zip } from '../helpers.ts'
+import { assert, CACHELEVEL, DEBUG, diskcache_get, diskcache_put, getEnv, getNumberEnv, isinstance, min, prod, range, to_function_name, zip } from '../helpers.ts'
 import { idiv, mul, Ops, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -37,7 +37,7 @@ export const _get_test_global_size = (global_size: number[], max_global_size: nu
   }
   return [test_global_size, factor]
 }
-export const _time_program = (p: ProgramSpec, lib: bytes, var_vals: Map<Variable, number>, rawbufs: Buffer[], early_stop?: number, max_global_size = 65536, clear_l2 = false, cnt = 3, name = 'test'): number[] => {
+export const _time_program = (p: ProgramSpec, lib: Uint8Array, var_vals: Map<Variable, number>, rawbufs: Buffer[], early_stop?: number, max_global_size = 65536, clear_l2 = false, cnt = 3, name = 'test'): number[] => {
   let factor = 1, global_size, car
   if (p.global_size !== undefined && max_global_size !== undefined) {
     ;[global_size, factor] = _get_test_global_size(p.global_size, max_global_size, var_vals)
@@ -54,7 +54,7 @@ export const _time_program = (p: ProgramSpec, lib: bytes, var_vals: Map<Variable
     if (clear_l2) {
       const dev = Device.get(p.device)
       if ('invalidate_caches' in dev) (dev.invalidate_caches as any)()
-      else Tensor.ones(1024, 1024).contiguous().realize(false)
+      else Tensor.ones([1024, 1024]).contiguous().realize(undefined, false)
       //TODO:  with Context(DEBUG=0, BEAM=0, CAPTURING=0, TRACK_MATCH_STATS=0): Tensor.ones(1024,1024).contiguous().realize(do_update_stats=false)
     }
     tms.push(car.call(input_bufs, var_vals, true)! * factor)
@@ -67,13 +67,13 @@ export const timeout_handler = (signum: any, frame: any) => {
   throw new Error('Timout handler')
 }
 
-export const _try_compile_linearized_w_idx = (x: [number, Kernel], compiler: Compiler): [number, [ProgramSpec, bytes, number | undefined] | undefined] => {
+export const _try_compile_linearized_w_idx = (x: [number, Kernel], compiler: Compiler): [number, [ProgramSpec, Uint8Array, number | undefined] | undefined] => {
   // TODO:
   //   if hasattr(signal, "alarm"):
   //     signal.signal(getattr(signal, 'SIGALRM'), timeout_handler)
   //     // set timeout
   //     signal.alarm(getenv("BEAM_TIMEOUT_SEC", 10))
-  let ret: [ProgramSpec, bytes, number | undefined] | undefined = undefined
+  let ret: [ProgramSpec, Uint8Array, number | undefined] | undefined = undefined
   try {
     const p = x[1].to_program('test')
     assert(p.uops !== undefined, "uop list wasn't generated?")
@@ -140,7 +140,7 @@ export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, K
   }
   return acted_lins
 }
-let [beam_pool, BEAM_DEBUG, CAPTURE_BEAM] = [undefined, getEnv('BEAM_DEBUG'), getEnv('CAPTURE_BEAM', '')]
+const [beam_pool, BEAM_DEBUG, CAPTURE_BEAM] = [undefined, getEnv('BEAM_DEBUG'), getEnv('CAPTURE_BEAM', '')]
 export const beam_search = (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = getEnv('IGNORE_BEAM_CACHE')): Kernel => {
   const key = { 'ast': lin.ast.key, 'amt': amt, 'allow_test_size': allow_test_size, 'device': lin.opts.device, 'suffix': lin.opts.suffix }
   const val = diskcache_get('beam_search', key)
@@ -173,7 +173,7 @@ export const beam_search = (lin: Kernel, rawbufs: Buffer[], amt: number, allow_t
       let least_compute_ops = Infinity
       for (const [i, proc] of (beam_pool === undefined ? acted_lins.map((k, i) => _compile_fn([i, k])) : acted_lins.map((k, i) => _compile_fn([i, k])))) { //Todo
         if (proc === undefined) continue
-        let [p, lib, compile_et] = proc
+        const [p, lib, compile_et] = proc
         if (seen_libs.has(lib)) continue
         //         // filter out kernels that use 1000x more compute than the smallest
         const this_compute_ops = sym_infer(p.op_estimate, var_vals)
@@ -206,19 +206,19 @@ export const beam_search = (lin: Kernel, rawbufs: Buffer[], amt: number, allow_t
       //       if DEBUG >= 2: console.log(`\r${time.perf_counter() - st:7.2f}s:`, colored(`${beam[0][1]*1e6:12.2f} us`, "green" if exiting else undefined), `from ${len(acted_lins):3d} -> ${len(opts):3d} actions\033[K`, beam[0][0].colored_shape())  // noqa: E501
     }
   } catch (e) {
-    if (beam_pool !== undefined) beam_pool.terminate()
+    // if (beam_pool !== undefined) beam_pool.terminate()
     throw e
   }
   if (CACHELEVEL >= 1) diskcache_put('beam_search', key, beam[0][0].applied_opts)
   //   if BEAM_DEBUG: console.log(`BEAM_SEARCH: final tm=${beam[0][1]*1e6:0.2f} us, applied_opts=${beam[0][0].applied_opts}`)
   return beam[0][0]
 }
-export const optimize_local_size = (_prg: () => number, global_size: number[], rawbufs: Buffer[]): number[] => {
+export const optimize_local_size = (_prg: (x: any) => number, global_size: number[], rawbufs: Buffer[]): number[] => {
   const test_rawbuffers = rawbufs.slice(1).includes(rawbufs[0]) ? [new Buffer({ device: rawbufs[0].device, size: rawbufs[0].size, dtype: rawbufs[0].dtype }).allocate(), ...rawbufs.slice(1)] : rawbufs
   const MAX_WORKGROUP = 1024
   const local_dims = global_size.map((sz) => [...new Set([sz, 1, 2, 4, 8, 16, 32, 64, 128, 256, MAX_WORKGROUP])].filter((x) => x <= sz))
   const local_sizes = [...local_dims.reduce((acc, curr) => acc.flatMap((x) => curr.map((y) => [...x, y])), [[]] as number[][])].filter((x) => prod(x) <= MAX_WORKGROUP).flatMap((x) => [x, x]) // try each valid size twice
-  const try_exec = (local_size: number[]): number[] => {
+  const try_exec = (local_size: number[]): number => {
     try {
       return _prg({
         idk: test_rawbuffers.map((x) => x._buf),
@@ -230,12 +230,12 @@ export const optimize_local_size = (_prg: () => number, global_size: number[], r
       return Infinity
     }
   }
-  const ret = local_sizes.flatMap((local_size) => [try_exec(local_size), local_size]) // TODO: randomise local_sizes
+  const ret = local_sizes.map((local_size) => [try_exec(local_size), local_size] as [number, number[]])[0] // TODO: randomise local_sizes, and instead of [0] use min()
   assert(isFinite(ret[0]), 'all optimize_local_size exec failed')
   return ret[1]
 }
 export const time_linearizer = (lin: Kernel, rawbufs: Buffer[], allow_test_size = true, max_global_size = 65536, cnt = 3, disable_cache = false, clear_l2 = false): number => { // noqa: E501
-  const key = { 'ast': lin.ast.key, 'opts': string(lin.applied_opts), 'allow_test_size': allow_test_size, 'max_global_size': max_global_size, 'clear_l2': clear_l2, 'device': lin.opts.device, 'suffix': lin.opts.suffix }
+  const key = { 'ast': lin.ast.key, 'opts': lin.applied_opts.toString(), 'allow_test_size': allow_test_size, 'max_global_size': max_global_size, 'clear_l2': clear_l2, 'device': lin.opts.device, 'suffix': lin.opts.suffix }
   if (!disable_cache && CACHELEVEL >= 2) {
     const val = diskcache_get('time_linearizer', key)
     if (val !== undefined) return min(val)

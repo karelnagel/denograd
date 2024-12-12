@@ -8,7 +8,7 @@
 //   from tinygrad.runtime.autogen import io_uring, libc
 
 import { Allocator, Compiled } from '../device.ts'
-import { assert, memoryview, OSX } from '../helpers.ts'
+import { assert, OSX } from '../helpers.ts'
 import process from 'node:process'
 import os from 'node:os'
 
@@ -21,12 +21,12 @@ export class DiskBuffer {
     this.device = device, this.size = size, this.offset = offset
   }
   toString = () => `<DiskBuffer size=${this.size} offset=${this.offset}>`
-  _buf = (): memoryview => {
+  _buf = (): DataView => {
     assert(this.device.mem !== undefined, "DiskBuffer wasn't opened")
-    return memoryview(this.device.mem).slice(this.offset, this.offset + this.size)
+    return new DataView(this.device.mem, this.offset, this.offset + this.size)
   }
 }
-const [MAP_LOCKED, MAP_POPULATE] = [OSX ? 0 : 0x2000, mmap.MAP_POPULATE || (OSX ? 0 : 0x008000)]
+// const [MAP_LOCKED, MAP_POPULATE] = [OSX ? 0 : 0x2000, mmap.MAP_POPULATE || (OSX ? 0 : 0x008000)]
 
 export class DiskAllocator extends Allocator {
   dev: DiskDevice
@@ -40,11 +40,11 @@ export class DiskAllocator extends Allocator {
   }
   override _free = (opaque: any, options: any) => this.dev._might_close()
   _as_buffer = (src: DiskBuffer) => src._buf()
-  _copyin = (dest: DiskBuffer, src: memoryview) => {
+  override _copyin = (dest: DiskBuffer, src: DataView) => {
     // TODO:
     // dest._buf() = src
   }
-  _copyout = (dest: memoryview, src: DiskBuffer) => {
+  override _copyout = (dest: DataView, src: DiskBuffer) => {
     if (OSX && this.dev.fd !== undefined) {
       //       // OSX doesn't seem great at mmap, this === faster
       // with io.FileIO(this.dev.fd, "a+b", closefd=false) as fo:
@@ -61,7 +61,7 @@ export class DiskDevice extends Compiled {
   size?: number
   fd?: number
   count = 0
-
+  mem!: ArrayBuffer
   constructor(device: string) {
     super(device, undefined, undefined, undefined, undefined)
     this.allocator = new DiskAllocator(this)
@@ -84,14 +84,14 @@ export class DiskDevice extends Compiled {
       //       if os.fstat(this.fd).st_size < this.size: os.ftruncate(this.fd, this.size)
       //       this.mem = mmap.mmap(this.fd, this.size)
     }
-    const hp = mmap.MADV_HUGEPAGE || undefined
-    if (hasattr(this.mem, 'madvise') && hp !== undefined) this.mem.madvise(hp)
+    // const hp = mmap.MADV_HUGEPAGE || undefined
+    // if (hasattr(this.mem, 'madvise') && hp !== undefined) this.mem.madvise(hp)
     //       with contextlib.suppress(OSError): this.mem.madvise(hp) // some systems have transparent_hugepage disabled
   }
   _might_close = () => {
     this.count -= 1
     if (this.count === 0) {
-      if (this.fd !== undefined) os.close(this.fd)
+      // if (this.fd !== undefined) os.close(this.fd)
       this.size = undefined
     }
   }

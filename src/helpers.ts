@@ -415,9 +415,9 @@ export const cpuTimeExecution = (cb: () => void, enable: boolean) => {
   if (enable) return performance.now() - st
 }
 
-export const cpuObjdump = (lib: bytes, objdumpTool = 'objdump') => {
+export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
   const outputFile = temp('temp_output.so')
-  writeFileSync(outputFile, lib.toString())
+  writeFileSync(outputFile, lib)
   try {
     const output = execSync(`${objdumpTool} -d ${outputFile}`, { encoding: 'utf-8' })
     console.log(output)
@@ -425,37 +425,12 @@ export const cpuObjdump = (lib: bytes, objdumpTool = 'objdump') => {
     unlinkSync(outputFile)
   }
 }
-
+export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {
+  return { ...obj, ...replace } as T
+}
 // # *** ctypes helpers
-export class bytes {
-  toString = () => ''
-  get length() {
-    return 3
-  }
-}
-export class bytearray {
-  constructor(i: number | bytes) {}
-}
-export class memoryview {
-  constructor(obj?: c_char | bytearray | any) {}
-  get length() {
-    return 0
-  }
-  get nbytes() {
-    return 0
-  }
-  get = (x: number[]) => {
-    return 0
-  }
-  tolist = () => {
-    return [3]
-  }
-  cast = (format: string, shape?: number[]) => new memoryview()
-  slice = (from: number, to?: number) => new memoryview()
-}
-
 export class c_char {
-  from_buffer = (mv: memoryview) => {}
+  from_buffer = (mv: DataView) => {}
   mul = (other: number) => new c_char()
   call = () => {}
 }
@@ -475,7 +450,7 @@ export class ctypes {
   }
   static memmove = (dst: any, src: any, count: number) => {}
   static POINTER = (type: c_char) => new c_char()
-  static create_string_buffer = (init: bytes) => {}
+  static create_string_buffer = (init: Uint8Array) => {}
   static c_char = new c_char()
   static c_uint8 = new c_ubyte()
   static CDLL = (file: string) => {
@@ -484,10 +459,10 @@ export class ctypes {
 }
 
 // # TODO: make this work with read only memoryviews (if possible)
-export const from_mv = (mv: memoryview, to_type = ctypes.c_char): c_char[] => {
-  return ctypes.cast(ctypes.addressof(to_type.from_buffer(mv)), ctypes.POINTER(to_type.mul(mv.length))).contents
+export const from_mv = (mv: DataView, to_type = ctypes.c_char): c_char[] => {
+  throw new Error('not implemented')
 }
-export const flat_mv = (mv: memoryview) => mv.length === 0 ? mv : mv.cast('B', [mv.nbytes])
+export const flat_mv = (mv: DataView): DataView => mv.byteLength === 0 ? mv : new DataView(mv.buffer, mv.byteOffset, mv.byteLength)
 
 // # *** universal support for code object pickling
 

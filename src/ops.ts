@@ -191,11 +191,11 @@ export class UOp extends MathTrait {
     const newArgs: UOpInput = { ...oldArgs, ...args }
     return (Object.entries(oldArgs).every(([k, v]) => isEq(v, newArgs[k as keyof UOpInput]))) ? this : new UOp(newArgs)
   }
-  key = (): Buffer => {
+  get key(): string {
     const hash = createHash('sha256')
-    hash.update(Buffer.from(JSON.stringify([this.op, this.dtype, this.arg])))
-    for (const s of this.src) hash.update(s.key())
-    return hash.digest()
+    hash.update(JSON.stringify([this.op, this.dtype, this.arg]))
+    for (const s of this.src) hash.update(s.key)
+    return hash.digest().toString()
   }
   get toposort(): Set<UOp> {
     let nodes = new Set<UOp>()

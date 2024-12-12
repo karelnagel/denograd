@@ -11,13 +11,15 @@
 
 import { Kernel } from '../codegen/kernel.ts'
 import { Buffer, Device } from '../device.ts'
-import { all_int, assert, BEAM, bytes, CAPTURING, colored, DEBUG, getEnv, getNumberEnv, GlobalCounters, NOOPT, zip } from '../helpers.ts'
+import { all_int, assert, BEAM, CAPTURING, colored, DEBUG, getEnv, getNumberEnv, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
 import { idiv, Ops, sint, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec, Renderer } from '../renderer/index.ts'
+import { ScheduleItem } from './schedule.ts'
+import { optimize_local_size } from './search.ts'
 
 // **************** Program Creation ****************
 
-const [logkerns, logkerns_level] = [getEnv('LOGKERNS', '') ? open(getEnv('LOGKERNS', ''), 'a') : undefined, getNumberEnv('LOGKERNS_LEVEL', 1)]
+// const [logkerns, logkerns_level] = [getEnv('LOGKERNS', '') ? open(getEnv('LOGKERNS', ''), 'a') : undefined, getNumberEnv('LOGKERNS_LEVEL', 1)]
 export const get_kernel = (renderer: Renderer, ast: UOp): Kernel => {
   if (DEBUG >= 5) console.log(ast)
   const k = new Kernel(ast, renderer).required_optimizations()
@@ -25,7 +27,7 @@ export const get_kernel = (renderer: Renderer, ast: UOp): Kernel => {
     const used_tensor_cores = k.apply_tensor_cores(getNumberEnv('TC', 1))
     if (!used_tensor_cores) k.hand_coded_optimizations()
   }
-  if (logkerns !== undefined) logkerns.writelines([`${(k.ast, k.applied_opts)}\n`])
+  // if (logkerns !== undefined) logkerns.writelines([`${(k.ast, k.applied_opts)}\n`])
   if (DEBUG >= 5) console.log((k.ast, k.applied_opts)) // print here to show final applied_opts for all kernels instead of just in beam_search
   return k
 }
@@ -37,10 +39,10 @@ class Runner {
   device: string
   op_estimate: sint
   mem_estimate: sint
-  ldx_estimate: sint
+  lds_estimate: sint
 
   constructor(display_name: string, device: string, op_estimate: sint = 0, mem_estimate: sint = 0, lds_estimate?: sint) {
-    this.display_name = display_name, this.device = device, this.op_estimate = op_estimate, this.mem_estimate = mem_estimate, this.ldx_estimate = lds_estimate || mem_estimate
+    this.display_name = display_name, this.device = device, this.op_estimate = op_estimate, this.mem_estimate = mem_estimate, this.lds_estimate = lds_estimate || mem_estimate
   }
   get dev() {
     return Device.get(this.device)
@@ -52,9 +54,9 @@ class Runner {
 }
 export class CompiledRunner extends Runner {
   p: ProgramSpec
-  lib: bytes
+  lib: Uint8Array
   _prg: any
-  constructor(p: ProgramSpec, precompiled?: bytes) {
+  constructor(p: ProgramSpec, precompiled?: Uint8Array) {
     super(p.name, p.device, p.op_estimate, p.mem_estimate, p.lds_estimate)
     if (DEBUG >= 4) console.log(p.src)
     this.p = p
@@ -64,7 +66,7 @@ export class CompiledRunner extends Runner {
   }
   __reduce__ = () => [this.p, this.lib]
 
-  call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): number | undefined => {
+  override call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): number | undefined => {
     let [global_size, local_size] = this.p.launch_dims(var_vals)
     if (global_size !== undefined && local_size === undefined && all_int(this.p.global_size!)) {
       // TODO: this === copied from get_program
@@ -108,12 +110,13 @@ export class BufferCopy extends Runner {
     super(colored(name, 'yellow'), dest_device, 0, total_sz)
   }
   copy = (dest: Buffer, src: Buffer) => {
-    const disk_supports_fast_copyout = src.device.startsWith('DISK') && 'io_uring' in src.allocator!.dev && src.allocator.dev.fd !== undefined
+    const disk_supports_fast_copyout = src.device.startsWith('DISK') //TODO: && 'io_uring' in src.allocator!.dev && src.allocator!.dev.fd !== undefined
     if (src.device.startsWith('DISK') && 'copy_from_disk' in dest.allocator! && disk_supports_fast_copyout && src.nbytes >= 4096) {
-      dest.allocator.copy_from_disk(dest._buf, src._buf, src.nbytes)
-    } else if (src.device.startsWith('DISK') && hasattr(dest.allocator, '_as_buffer')) {
+      throw new Error('TODO implement copy_from_disk')
+      // dest.allocator.copy_from_disk(dest._buf, src._buf, src.nbytes)
+    } else if (src.device.startsWith('DISK') && '_as_buffer' in dest.allocator!) {
       //       // fast(ish) path, uses readinto in diskbuffers
-      src.allocator._copyout(dest.allocator._as_buffer(dest._buf), src._buf)
+      src.allocator!._copyout((dest.allocator._as_buffer as any)(dest._buf), src._buf)
     } else {
       dest.copyin(src.as_buffer(true)) // may allocate a CPU buffer depending on allow_zero_copy
     }
@@ -131,21 +134,23 @@ export class BufferCopy extends Runner {
 }
 class BufferXfer extends BufferCopy {
   override copy = (dest: Buffer, src: Buffer) => {
-    return dest.allocator._transfer(dest._buf, src._buf, dest.nbytes, src_dev = src.allocator.dev, dest_dev = dest.allocator.dev)
+    throw new Error('TODO implement _transfer')
+    // return dest.allocator._transfer(dest._buf, src._buf, dest.nbytes, src_dev = src.allocator.dev, dest_dev = dest.allocator.dev)
   }
 }
 // // **************** method cache ****************
 
-const method_cache = new Map<[string, bytes, number, number, boolean], CompiledRunner>()
+type Key = [string, string, number, number, boolean]
+const method_cache = new Map<Key, CompiledRunner>()
 export const get_runner = (device: string, ast: UOp): CompiledRunner => {
-  const ckey = [device, ast.key, BEAM, NOOPT, false]
+  const ckey = [device, ast.key, BEAM, NOOPT, false] as Key
   const cret = method_cache.get(ckey)
   if (cret) return cret
-  const bkey = [device.split(':')[0], ast.key, BEAM, NOOPT, true]
+  const bkey = [device.split(':')[0], ast.key, BEAM, NOOPT, true] as Key
   let ret
   const bret = method_cache.get(bkey)
   if (bret) {
-    ret = new CompiledRunner(replace(bret.p, device = device), bret.lib)
+    ret = new CompiledRunner(replace(bret.p, { device: device }), bret.lib)
     method_cache.set(ckey, ret)
   } else {
     const prg: ProgramSpec = get_kernel(Device.get(device).renderer, ast).to_program()
@@ -153,7 +158,7 @@ export const get_runner = (device: string, ast: UOp): CompiledRunner => {
     //       from test.external.fuzz_uops import UOpsFuzzerRunner
     //       return UOpsFuzzerRunner(replace(prg, device=device))
     // }
-    ret = new CompiledRunner(replace(prg, device = device))
+    ret = new CompiledRunner(replace(prg, { device: device }))
     method_cache.set(ckey, ret), method_cache.set(bkey, ret)
   }
   return ret
@@ -169,9 +174,9 @@ export class ExecItem {
     this.prg = prg, this.bufs = bufs, this.metadata = metadata
   }
   run = (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): number | undefined => {
-    const var_vals = _var_vals === undefined ? {} : _var_vals
+    const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
     const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())
-    let et = this.prg.call(bufs, var_vals, wait = wait || DEBUG >= 2)
+    const et = this.prg.call(bufs, var_vals, wait = wait || DEBUG >= 2)
     if (do_update_stats) {
       GlobalCounters.kernel_count += 1
       const op_est = sym_infer(this.prg.op_estimate, var_vals)
@@ -202,7 +207,7 @@ export const lower_schedule_item = (si: ScheduleItem): ExecItem => {
   const [out, arg] = [si.outputs[0], si.ast.arg]
   if (si.ast.op === Ops.COPY) {
     let kernel_type = BufferCopy
-    if (hasattr(Device.get(out.device).allocator, '_transfer') && out.device.split(':')[0] === si.inputs[0].device.split(':')[0]) {
+    if ('_transfer' in Device.get(out.device).allocator! && out.device.split(':')[0] === si.inputs[0].device.split(':')[0]) {
       kernel_type = BufferXfer
     }
     return new ExecItem(new kernel_type(arg, out.device, si.inputs[0].device), si.bufs)
@@ -213,14 +218,14 @@ export const lower_schedule_item = (si: ScheduleItem): ExecItem => {
 }
 export const lower_schedule = function* (schedule: ScheduleItem[]): Generator<ExecItem, void, unknown> {
   while (schedule.length) {
-    const si = schedule.pop(0)
+    const si = schedule.shift()
     try {
-      yield lower_schedule_item(si)
+      yield lower_schedule_item(si!)
     } catch (e) {
       if (DEBUG >= 2) {
-        console.log(`error lowering ${si.ast.op}`)
+        console.log(`error lowering ${si!.ast.op}`)
         console.log('tensor operations:')
-        console.log(si.metadata) //indent=2)
+        console.log(si!.metadata) //indent=2)
       }
       throw e
     }

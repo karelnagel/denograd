@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, bytearray, type bytes, CI, ctypes, DEBUG, diskcache_get, diskcache_put, flat_mv, from_mv, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, memoryview, OSX, resolvePromise } from './helpers.ts'
+import { assert, CI, ctypes, DEBUG, diskcache_get, diskcache_put, flat_mv, from_mv, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, OSX, resolvePromise } from './helpers.ts'
 import process from 'node:process'
 import { Renderer } from './renderer/index.ts'
 
@@ -74,7 +74,7 @@ export class BufferSpec {
     this.externalPtr = p.externalPtr
   }
 }
-type BufferInput = { device: string; size: number; dtype: DType; opaque?: any; options?: BufferSpec; initialValue?: ByteLengthQueuingStrategy; lbRefcount?: number; base?: Buffer; offset?: number; preallocate?: boolean }
+type BufferInput = { device: string; size: number; dtype: DType; opaque?: any; options?: BufferSpec; initialValue?: Uint8Array; lbRefcount?: number; base?: Buffer; offset?: number; preallocate?: boolean }
 export class Buffer {
   device: string
   size: number
@@ -97,7 +97,7 @@ export class Buffer {
       if (isNotNone(opaque)) this.allocate(opaque)
       if (isNotNone(initialValue)) {
         this.allocate()
-        this.copyin(new memoryview(initialValue))
+        this.copyin(new DataView(initialValue.buffer))
       }
     } else {
       assert(isNone(base._base), "base can't have a base")
@@ -138,8 +138,8 @@ export class Buffer {
     }
     if (this.device === 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lb_refcount]]
     if (this.is_allocated()) {
-      buf = new bytearray(this.nbytes)
-      this.copyout(new memoryview(buf))
+      buf = new Uint8Array(this.nbytes)
+      this.copyout(new DataView(buf.buffer))
     }
     return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lb_refcount]]
   }
@@ -161,18 +161,18 @@ export class Buffer {
     // zero copy with as_buffer (disabled by default due to use after free)
     if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (isNone(this.options) || isNone(this.options.image))) return (this.allocator._asBuffer as any)(this._buf)
     assert(!forceZeroCopy, 'force zero copy was passed, but copy is required')
-    return this.copyout(new memoryview(new bytearray(this.nbytes)))
+    return this.copyout(new DataView(new Uint8Array(this.nbytes).buffer))
   }
-  copyin = (mv: memoryview): Buffer => {
+  copyin = (mv: DataView): Buffer => {
     mv = flat_mv(mv)
-    assert(mv.length === this.nbytes, `size mismatch, ${mv.length} != ${this.dtype} ${this.size}`)
+    assert(mv.byteLength === this.nbytes, `size mismatch, ${mv.byteLength} != ${this.dtype} ${this.size}`)
     assert(this.is_allocated(), "can't copyin to unallocated buffer")
     this.allocator?._copyin(this._buf, mv)
     return this
   }
-  copyout = (mv: memoryview): memoryview => {
+  copyout = (mv: DataView): DataView => {
     mv = flat_mv(mv)
-    assert(mv.length === this.nbytes, `size mismatch, {len(mv)=} != {this.dtype=} ${this.size}`)
+    assert(mv.byteLength === this.nbytes, `size mismatch, {len(mv)=} != {this.dtype=} ${this.size}`)
     assert(this.is_allocated(), "can't copyout unallocated buffer")
     this.allocator?._copyout(mv, this._buf)
     return mv
@@ -197,8 +197,8 @@ export abstract class Allocator {
   //   # implemented by the runtime
   abstract _alloc: (size: number, options: BufferSpec) => void
   abstract _free: (opaque: number, options: BufferSpec) => void // if opaque is a Python object, you don't need a free
-  abstract _copyin: (dest: string, src: memoryview) => void
-  abstract _copyout: (dest: memoryview, src: string) => void
+  abstract _copyin: (dest: any, src: DataView) => void
+  abstract _copyout: (dest: DataView, src: any) => void
   // def _as_buffer( src) -> memoryview:
   // def _offset( buf, size:number, offset:number):
   // def _transfer( dest, src, sz:number, src_dev, dest_dev):
@@ -238,10 +238,10 @@ export abstract class LRUAllocator extends Allocator {
 
 export class _MallocAllocator extends LRUAllocator {
   _alloc = (size: number, options: BufferSpec) => options.externalPtr ? (ctypes.c_uint8.mul(size)).fromAddress(options.externalPtr) : (ctypes.c_uint8.mul(size)).call()
-  _asBuffer = (src: any): memoryview => flat_mv(new memoryview(src))
-  _copyin = (dest: any, src: memoryview) => ctypes.memmove(dest, from_mv(src), src.length)
-  _copyout = (dest: memoryview, src: any) => ctypes.memmove(from_mv(dest), src, dest.length)
-  _offset = (buf: any, size: number, offset: number) => from_mv(this._asBuffer(buf).slice(offset, offset + size))
+  _asBuffer = (src: ArrayBuffer): DataView => flat_mv(new DataView(src))
+  _copyin = (dest: any, src: DataView) => ctypes.memmove(dest, from_mv(src), src.byteLength)
+  _copyout = (dest: DataView, src: any) => ctypes.memmove(from_mv(dest), src, dest.byteLength)
+  _offset = (buf: ArrayBuffer, size: number, offset: number) => from_mv(new DataView(this._asBuffer(buf).buffer, offset, offset + size))
   _free = () => {
     throw new Error('Not implemented')
   }
@@ -257,8 +257,8 @@ export class Compiler {
   constructor(cachekey?: string) {
     this.cachekey = getEnv('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
-  compile = (src: string): bytes => new TextEncoder().encode(src) // NOTE: empty compiler is the default
-  compile_cached = (src: string): bytes => {
+  compile = (src: string): Uint8Array => new TextEncoder().encode(src) // NOTE: empty compiler is the default
+  compile_cached = (src: string): Uint8Array => {
     let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
     if (isNone(lib)) {
       assert(!getEnv('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
@@ -267,7 +267,7 @@ export class Compiler {
     }
     return lib
   }
-  disassemble = (lib: bytes) => {/** pass */}
+  disassemble = (lib: Uint8Array) => {/** pass */}
 }
 
 export class Compiled {
