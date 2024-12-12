@@ -56,7 +56,7 @@ export class Function {
 
   static apply(...args: any[]): Tensor {
     const x = args.filter((x) => x instanceof Tensor)!
-    const ctx = new this(x[0].device, x, _METADATA)
+    const ctx = new this(x[0].device, x, _METADATA.value)
     const ret = new Tensor()
     ;[ret.lazydata, ret.requires_grad, ret.grad] = [ctx.forward(args.map((v) => v instanceof Tensor ? v.lazydata : v)), ctx.requires_grad, undefined]
     ret._ctx = ctx.requires_grad && !Tensor.no_grad ? ctx : undefined // used by autograd engine
@@ -150,7 +150,7 @@ export class Tensor extends SimpleMathTrait {
   static training = false
   static no_grad = false
 
-  constructor(data?: ConstType | UOp | bytes | any[] | LazyBuffer | string, { device, dtype, requires_grad }: TensorOptions = {}) {
+  constructor(data?: ConstType | UOp | bytes | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}) {
     super()
     if (dtype !== undefined) dtype = to_dtype(dtype)
     assert(dtype === undefined || isinstance(dtype, DType), `invalid dtype ${dtype}`)
@@ -698,7 +698,7 @@ export class Tensor extends SimpleMathTrait {
       const token = _METADATA.set(md !== undefined ? { ...md, backward: true } : undefined)
       let grads: (Tensor | undefined)[] = t0._ctx!.backward(t0.grad.lazydata)
       _METADATA.reset(token)
-      grads = (t0._ctx?.parents?.length === 1 ? [grads] : grads).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
+      grads = (t0._ctx?.parents?.length === 1 ? [grads] : grads).map((g) => g !== undefined ? new Tensor(g as Tensor, { device: this.device, requires_grad: false }) : undefined)
       for (const [t, g] of zip(t0._ctx!.parents! as Tensor[], grads)) {
         if (g !== undefined && t.requires_grad) {
           assert(g.shape === t.shape, `grad shape must match tensor shape, ${g.shape} !== ${t.shape}`)
@@ -2827,29 +2827,9 @@ export class Tensor extends SimpleMathTrait {
   }
   masked_fill = (mask: Tensor, value: ConstType<Tensor>) => mask.where(value, this)
 
-  //     __matmul__ = (x): Tensor =>  this.matmul(x)
-
-  //     __rpow__ = (x): Tensor =>  this.pow(x, true)
-  //     __rmatmul__ = (x): Tensor =>  this.matmul(x, true)
-
-  //     __iadd__ = (x): Tensor =>  this.assign(this.add(x))
-  //     __isub__ = (x): Tensor =>  this.assign(this.sub(x))
-  //     __imul__ = (x): Tensor =>  this.assign(this.mul(x))
-  //     __ipow__ = (x): Tensor =>  this.assign(this.pow(x))
-  //     __itruediv__ = (x): Tensor =>  this.assign(this.div(x))
-  //     __ifloordiv__ = (x): Tensor =>  this.assign(this.idiv(x))
-  //     __imatmul__ = (x): Tensor =>  this.assign(this.matmul(x))
-  //     __iand__ = (x): Tensor =>  this.assign(this.bitwise_and(x))
-  //     __ior__ = (x): Tensor =>  this.assign(this.bitwise_or(x))
-  //     __ixor__ = (x): Tensor =>  this.assign(this.xor(x))
-  //     __ilshift__ = (x): Tensor =>  this.assign(this.lshift(x))
-  //     __irshift__ = (x): Tensor =>  this.assign(this.rshift(x))
-
-  //     __lt__ = (x): Tensor =>  F.Less.apply(*this._broadcasted(x, false))
-  //     __gt__ = (x): Tensor =>  F.Less.apply(*this._broadcasted(x, true))
-  //     ne = (x): Tensor =>  F.Neq.apply(*this._broadcasted(x))
-
-  // __eq__ = (x): Tensor => this.eq(x) // type: ignore[override]
+  override lt = (x: ConstType<typeof this>): typeof this => F.Less.apply(...this._broadcasted(x, false)) as typeof this
+  override gt = (x: ConstType<typeof this>): typeof this => F.Less.apply(...this._broadcasted(x, true)) as typeof this
+  override ne = (x: ConstType<typeof this>): typeof this => F.Neq.apply(...this._broadcasted(x)) as typeof this
 
   // ***** functional nn ops *****
 

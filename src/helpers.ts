@@ -4,6 +4,7 @@ import process from 'node:process'
 import os from 'node:os'
 import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 
 // GENERAL HELPERS
 export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
@@ -246,7 +247,30 @@ export class Metadata {
   //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
   //   def __str__(self): return self.name + (" bw" if self.backward else "")
 }
-export let _METADATA: Metadata | undefined = undefined
+
+class ContextVar<T> {
+  static _cache: Record<string, ContextVar<any>> = {}
+  initialValue!: string
+  key!: string
+  value!: T
+  tokens: Record<string, T> = {}
+  constructor(key: string, value: T) {
+    const cached = ContextVar._cache[key]
+    if (cached) return cached
+    this.key = key
+    this.value = value
+  }
+  set = (v: T): string => {
+    const token = randomUUID()
+    this.value = v
+    this.tokens[token] = v
+    return token
+  }
+  reset = (token: string) => {
+    this.value = this.tokens[token]
+  }
+}
+export const _METADATA = new ContextVar<Metadata | undefined>('_METADATA', undefined)
 // # **************** global state Counters ****************
 
 export class GlobalCounters {
@@ -390,9 +414,10 @@ export const cpuTimeExecution = (cb: () => void, enable: boolean) => {
   cb()
   if (enable) return performance.now() - st
 }
+
 export const cpuObjdump = (lib: bytes, objdumpTool = 'objdump') => {
   const outputFile = temp('temp_output.so')
-  writeFileSync(outputFile, lib)
+  writeFileSync(outputFile, lib.toString())
   try {
     const output = execSync(`${objdumpTool} -d ${outputFile}`, { encoding: 'utf-8' })
     console.log(output)

@@ -26,7 +26,7 @@ export const create_lazybuffer = (device: string, st: ShapeTracker, dtype: DType
     if (rret !== undefined) return rret
   }
 
-  const ret = new LazyBuffer(device, st, dtype, op, arg, srcs, base, _METADATA)
+  const ret = new LazyBuffer(device, st, dtype, op, arg, srcs, base, _METADATA.value)
   if (enable_cache) lazycache.set(cache_key, ret)
   return ret
 }
