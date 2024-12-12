@@ -4,350 +4,204 @@
 // from tinygrad.tensor import Tensor, dtypes
 // from tinygrad.device import is_dtype_supported
 // from tinygrad.helpers import prod, make_tuple, flatten
-// from tinygrad.nn import optim, state, datasets  # noqa: F401
+// from tinygrad.nn import optim, state, datasets  // noqa: F401
 
-// class BatchNorm:
-//   """
-//   Applies Batch Normalization over a 2D or 3D input.
+// class BatchNorm {
+// /**
+//  * Applies Batch Normalization over a 2D || 3D input.
+//  * 
+//  * - Described: https://paperswithcode.com/method/batch-normalization
+//  * - Paper: https://arxiv.org/abs/1502.03167v3
+//  * 
+//  * See: `Tensor.batchnorm`
+//  * 
+//  * ```python exec="true" session="tensor"
+//  * from tinygrad import Tensor, dtypes, nn
+//  * import numpy as np
+//  * np.set_printoptions(precision=4)
+//  * ```
+//  * 
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * norm = nn.BatchNorm(3)
+//  * t = Tensor.rand(2, 3, 4, 4)
+//  * console.log(t.mean().item(), t.std().item())
+//  * ```
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * t = norm(t)
+//  * console.log(t.mean().item(), t.std().item())
+//  * ```
+//  */
+//   const __init__ = (sz:number, eps=1e-5, affine=true, track_running_stats=true, momentum=0.1) => {
+//     this.eps, this.track_running_stats, this.momentum = eps, track_running_stats, momentum
 
-//   - Described: https://paperswithcode.com/method/batch-normalization
-//   - Paper: https://arxiv.org/abs/1502.03167v3
+//     this.weight?: Tensor = Tensor.ones(sz) if affine else undefined
+//     this.bias?: Tensor = Tensor.zeros(sz) if affine else undefined
 
-//   See: `Tensor.batchnorm`
+//     this.num_batches_tracked = Tensor.zeros(1, dtype='long' if is_dtype_supported(dtypes.long) else 'number', requires_grad=false)
+//     if track_running_stats: this.running_mean, this.running_var = Tensor.zeros(sz, requires_grad=false), Tensor.ones(sz, requires_grad=false)
 
-//   ```python exec="true" session="tensor"
-//   from tinygrad import Tensor, dtypes, nn
-//   import numpy as np
-//   np.set_printoptions(precision=4)
-//   ```
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   norm = nn.BatchNorm(3)
-//   t = Tensor.rand(2, 3, 4, 4)
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = norm(t)
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   """
-//   def __init__(self, sz:int, eps=1e-5, affine=True, track_running_stats=True, momentum=0.1):
-//     self.eps, self.track_running_stats, self.momentum = eps, track_running_stats, momentum
-
-//     self.weight: Optional[Tensor] = Tensor.ones(sz) if affine else None
-//     self.bias: Optional[Tensor] = Tensor.zeros(sz) if affine else None
-
-//     self.num_batches_tracked = Tensor.zeros(1, dtype='long' if is_dtype_supported(dtypes.long) else 'int', requires_grad=False)
-//     if track_running_stats: self.running_mean, self.running_var = Tensor.zeros(sz, requires_grad=False), Tensor.ones(sz, requires_grad=False)
-
-//   def calc_stats(self, x:Tensor) -> Tuple[Tensor, Tensor]:
-//     shape_mask: List[int] = [1, -1, *([1]*(x.ndim-2))]
-//     if self.track_running_stats and not Tensor.training: return self.running_mean, self.running_var.reshape(shape=shape_mask).expand(x.shape)
-//     # This requires two full memory accesses to x
-//     # https://github.com/pytorch/pytorch/blob/c618dc13d2aa23625cb0d7ada694137532a4fa33/aten/src/ATen/native/cuda/Normalization.cuh
-//     # There's "online" algorithms that fix this, like https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_Online_algorithm
-//     batch_mean = x.mean(axis=(reduce_axes:=tuple(x for x in range(x.ndim) if x != 1)))
-//     y = (x - batch_mean.detach().reshape(shape=shape_mask))  # d(var)/d(mean) = 0
+//   const calc_stats = (x:Tensor): [Tensor, Tensor] => {
+//     shape_mask: number[] = [1, -1, *([1]*(x.ndim-2))]
+//     if this.track_running_stats && !Tensor.training: return this.running_mean, this.running_var.reshape(shape=shape_mask).expand(x.shape)
+//     // This requires two full memory accesses to x
+//     // https://github.com/pytorch/pytorch/blob/c618dc13d2aa23625cb0d7ada694137532a4fa33/aten/src/ATen/native/cuda/Normalization.cuh
+//     // There's "online" algorithms that fix this, like https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance//Welford's_Online_algorithm
+//     batch_mean = x.mean(axis=(reduce_axes:=tuple(x for x in range(x.ndim) if x !== 1)))
+//     y = (x - batch_mean.detach().reshape(shape=shape_mask))  // d(var)/d(mean) = 0
 //     batch_var = (y*y).mean(axis=reduce_axes)
 //     return batch_mean, batch_var
 
-//   def __call__(self, x:Tensor) -> Tensor:
-//     batch_mean, batch_var = self.calc_stats(x)
-//     # NOTE: wow, this is done all throughout training in most PyTorch models
-//     if self.track_running_stats and Tensor.training:
-//       self.running_mean.assign((1-self.momentum) * self.running_mean + self.momentum * batch_mean.detach())
-//       self.running_var.assign((1-self.momentum) * self.running_var + self.momentum * prod(x.shape)/(prod(x.shape)-x.shape[1]) * batch_var.detach())
-//       self.num_batches_tracked += 1
-//     return x.batchnorm(self.weight, self.bias, batch_mean, batch_var.add(self.eps).rsqrt())
+//   const __call__ = (x:Tensor): Tensor => {
+//     batch_mean, batch_var = this.calc_stats(x)
+//     // NOTE: wow, this === done all throughout training in most PyTorch models
+//     if this.track_running_stats && Tensor.training:
+//       this.running_mean.assign((1-this.momentum) * this.running_mean + this.momentum * batch_mean.detach())
+//       this.running_var.assign((1-this.momentum) * this.running_var + this.momentum * x.numel()/(x.numel()-x.shape[1]) * batch_var.detach())
+//       this.num_batches_tracked += 1
+//     return x.batchnorm(this.weight, this.bias, batch_mean, batch_var.add(this.eps).rsqrt())
 // BatchNorm2d = BatchNorm3d = BatchNorm
 
-// def Conv1d(in_channels:int, out_channels:int, kernel_size:int, stride=1, padding:Union[int, str]=0, dilation=1, groups=1, bias=True) -> Conv2d:
-//   """
-//   Applies a 1D convolution over an input signal composed of several input planes.
-
-//   See: https://pytorch.org/docs/stable/generated/torch.nn.Conv1d
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   conv = nn.Conv1d(1, 1, 3)
-//   t = Tensor.rand(1, 1, 4)
-//   print(t.numpy())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = conv(t)
-//   print(t.numpy())
-//   ```
-//   """
+// const Conv1d = (in_channels:number, out_channels:number, kernel_size:number, stride=1, padding:Union[number, string]=0, dilation=1, groups=1, bias=true): Conv2d => {
+// /**
+//  * Applies a 1D convolution over an input signal composed of several input planes.
+//  * 
+//  * See: https://pytorch.org/docs/stable/generated/torch.nn.Conv1d
+//  * 
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * conv = nn.Conv1d(1, 1, 3)
+//  * t = Tensor.rand(1, 1, 4)
+//  * console.log(t.numpy())
+//  * ```
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * t = conv(t)
+//  * console.log(t.numpy())
+//  * ```
+//  */
 //   return Conv2d(in_channels, out_channels, (kernel_size,), stride, padding, dilation, groups, bias)
 
 // class Conv2d:
-//   """
-//   Applies a 2D convolution over an input signal composed of several input planes.
+// /**
+//  * Applies a 2D convolution over an input signal composed of several input planes.
+//  * 
+//  * See: https://pytorch.org/docs/stable/generated/torch.nn.Conv2d
+//  * 
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * conv = nn.Conv2d(1, 1, 3)
+//  * t = Tensor.rand(1, 1, 4, 4)
+//  * console.log(t.numpy())
+//  * ```
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * t = conv(t)
+//  * console.log(t.numpy())
+//  * ```
+//  */
+//   const __init__ = (in_channels:number, out_channels:number, kernel_size:Union[number, number[]], stride=1, padding:Union[number, number[], string]=0,
+//                dilation=1, groups=1, bias=true):
+//     this.kernel_size = make_tuple(kernel_size, 2)
+//     // TODO: !needed for mnist
+//     // if isinstance(padding, string):
+//     //   if padding.lower() !== 'same': raise ValueError(`Invalid padding string ${padding!r}, only 'same' === supported`)
+//     //   if stride !== 1: raise ValueError("padding='same' !== supported for strided convolutions")
+//     //   pad = [(d*(k-1)//2, d*(k-1) - d*(k-1)//2) for d,k in zip(make_tuple(dilation, len(this.kernel_size)), this.kernel_size[::-1])]
+//     //   padding = tuple(flatten(pad))
+//     this.stride, this.dilation, this.groups, this.padding = stride, dilation, groups, padding
+//     scale = 1 / math.sqrt(in_channels * prod(this.kernel_size))
+//     this.weight = Tensor.uniform(out_channels, in_channels//groups, *this.kernel_size, low=-scale, high=scale)
+//     this.bias?: Tensor = Tensor.uniform(out_channels, low=-scale, high=scale) if bias else undefined
 
-//   See: https://pytorch.org/docs/stable/generated/torch.nn.Conv2d
+//   const __call__ = (x:Tensor): Tensor =>  x.conv2d(this.weight, this.bias, this.groups, this.stride, this.dilation, this.padding)
 
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   conv = nn.Conv2d(1, 1, 3)
-//   t = Tensor.rand(1, 1, 4, 4)
-//   print(t.numpy())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = conv(t)
-//   print(t.numpy())
-//   ```
-//   """
-//   def __init__(self, in_channels:int, out_channels:int, kernel_size:Union[int, Tuple[int, ...]], stride=1, padding:Union[int, Tuple[int, ...], str]=0,
-//                dilation=1, groups=1, bias=True):
-//     self.kernel_size = make_tuple(kernel_size, 2)
-//     if isinstance(padding, str):
-//       if padding.lower() != 'same': raise ValueError(f"Invalid padding string {padding!r}, only 'same' is supported")
-//       if stride != 1: raise ValueError("padding='same' is not supported for strided convolutions")
-//       pad = [(d*(k-1)//2, d*(k-1) - d*(k-1)//2) for d,k in zip(make_tuple(dilation, len(self.kernel_size)), self.kernel_size[::-1])]
-//       padding = tuple(flatten(pad))
-//     self.stride, self.dilation, self.groups, self.padding = stride, dilation, groups, padding
-//     scale = 1 / math.sqrt(in_channels * prod(self.kernel_size))
-//     self.weight = Tensor.uniform(out_channels, in_channels//groups, *self.kernel_size, low=-scale, high=scale)
-//     self.bias: Optional[Tensor] = Tensor.uniform(out_channels, low=-scale, high=scale) if bias else None
 
-//   def __call__(self, x:Tensor) -> Tensor:
-//     return x.conv2d(self.weight, self.bias, padding=self.padding, stride=self.stride, dilation=self.dilation, groups=self.groups)
-
-// def ConvTranspose1d(in_channels:int, out_channels:int, kernel_size:int, stride=1, padding=0, output_padding=0, dilation=1,
-//                       groups=1, bias=True) -> ConvTranspose2d:
-//   """
-//   Applies a 1D transposed convolution operator over an input signal composed of several input planes.
-
-//   See: https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose1d
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   conv = nn.ConvTranspose1d(1, 1, 3)
-//   t = Tensor.rand(1, 1, 4)
-//   print(t.numpy())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = conv(t)
-//   print(t.numpy())
-//   ```
-//   """
-//   return ConvTranspose2d(in_channels, out_channels, (kernel_size,), stride, padding, output_padding, dilation, groups, bias)
-
-// class ConvTranspose2d(Conv2d):
-//   """
-//   Applies a 2D transposed convolution operator over an input image.
-
-//   See: https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   conv = nn.ConvTranspose2d(1, 1, 3)
-//   t = Tensor.rand(1, 1, 4, 4)
-//   print(t.numpy())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = conv(t)
-//   print(t.numpy())
-//   ```
-//   """
-//   def __init__(self, in_channels:int, out_channels:int, kernel_size:Union[int, Tuple[int, ...]], stride=1, padding=0, output_padding=0,
-//                 dilation=1, groups=1, bias=True):
-//     super().__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
-//     scale = 1 / math.sqrt(in_channels * prod(self.kernel_size))
-//     self.weight = Tensor.uniform(in_channels, out_channels//groups, *self.kernel_size, low=-scale, high=scale)
-//     self.output_padding = output_padding
-
-//   def __call__(self, x:Tensor) -> Tensor:
-//     return x.conv_transpose2d(self.weight, self.bias, padding=self.padding, output_padding=self.output_padding, stride=self.stride,
-//                               dilation=self.dilation, groups=self.groups)
 
 // class Linear:
-//   """
-//   Applies a linear transformation to the incoming data.
-
-//   See: https://pytorch.org/docs/stable/generated/torch.nn.Linear
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   lin = nn.Linear(3, 4)
-//   t = Tensor.rand(2, 3)
-//   print(t.numpy())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = lin(t)
-//   print(t.numpy())
-//   ```
-//   """
-//   def __init__(self, in_features:int, out_features:int, bias=True):
+// /**
+//  * Applies a linear transformation to the incoming data.
+//  * 
+//  * See: https://pytorch.org/docs/stable/generated/torch.nn.Linear
+//  * 
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * lin = nn.Linear(3, 4)
+//  * t = Tensor.rand(2, 3)
+//  * console.log(t.numpy())
+//  * ```
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * t = lin(t)
+//  * console.log(t.numpy())
+//  * ```
+//  */
+//   const __init__ = (in_features:number, out_features:number, bias=true) => {
 //     bound = 1 / math.sqrt(in_features)
-//     self.weight = Tensor.uniform(out_features, in_features, low=-bound, high=bound)
-//     self.bias = Tensor.uniform(out_features, low=-bound, high=bound) if bias else None
+//     this.weight = Tensor.uniform(out_features, in_features, low=-bound, high=bound)
+//     this.bias = Tensor.uniform(out_features, low=-bound, high=bound) if bias else undefined
 
-//   def __call__(self, x:Tensor) -> Tensor:
-//     return x.linear(self.weight.transpose(), self.bias)
+//   const __call__ = (x:Tensor): Tensor =>  x.linear(this.weight.transpose(), this.bias)
 
-// class GroupNorm:
-//   """
-//   Applies Group Normalization over a mini-batch of inputs.
-
-//   - Described: https://paperswithcode.com/method/group-normalization
-//   - Paper: https://arxiv.org/abs/1803.08494v3
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   norm = nn.GroupNorm(2, 12)
-//   t = Tensor.rand(2, 12, 4, 4) * 2 + 1
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = norm(t)
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   """
-//   def __init__(self, num_groups:int, num_channels:int, eps=1e-5, affine=True):
-//     self.num_groups, self.num_channels, self.eps = num_groups, num_channels, eps
-//     self.weight: Optional[Tensor] = Tensor.ones(num_channels) if affine else None
-//     self.bias: Optional[Tensor] = Tensor.zeros(num_channels) if affine else None
-
-//   def __call__(self, x:Tensor) -> Tensor:
-//     # reshape for layernorm to work as group norm
-//     # subtract mean and divide stddev
-//     x = x.reshape(x.shape[0], self.num_groups, -1).layernorm(eps=self.eps).reshape(x.shape)
-
-//     if self.weight is None or self.bias is None: return x
-//     # elementwise_affine on channels
-//     return x * self.weight.reshape(1, -1, *[1] * (len(x.shape)-2)) + self.bias.reshape(1, -1, *[1] * (len(x.shape)-2))
-
-// class InstanceNorm:
-//   """
-//   Applies Instance Normalization over a mini-batch of inputs.
-
-//   - Described: https://paperswithcode.com/method/instance-normalization
-//   - Paper: https://arxiv.org/abs/1607.08022v3
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   norm = nn.InstanceNorm(3)
-//   t = Tensor.rand(2, 3, 4, 4) * 2 + 1
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = norm(t)
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   """
-//   def __init__(self, num_features:int, eps=1e-5, affine=True):
-//     self.num_features, self.eps = num_features, eps
-//     self.weight: Optional[Tensor] = Tensor.ones(num_features) if affine else None
-//     self.bias: Optional[Tensor] = Tensor.zeros(num_features) if affine else None
-
-//   def __call__(self, x:Tensor) -> Tensor:
-//     x = x.reshape(x.shape[0], self.num_features, -1).layernorm(eps=self.eps).reshape(x.shape)
-//     if self.weight is None or self.bias is None: return x
-//     return x * self.weight.reshape(1, -1, *[1] * (len(x.shape)-2)) + self.bias.reshape(1, -1, *[1] * (len(x.shape)-2))
 
 // class LayerNorm:
-//   """
-//   Applies Layer Normalization over a mini-batch of inputs.
+// /**
+//  * Applies Layer Normalization over a mini-batch of inputs.
+//  * 
+//  * - Described: https://paperswithcode.com/method/layer-normalization
+//  * - Paper: https://arxiv.org/abs/1607.06450v1
+//  * 
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * norm = nn.LayerNorm(3)
+//  * t = Tensor.rand(2, 5, 3) * 2 + 1
+//  * console.log(t.mean().item(), t.std().item())
+//  * ```
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * t = norm(t)
+//  * console.log(t.mean().item(), t.std().item())
+//  * ```
+//  */
+//   const __init__ = (normalized_shape:Union[number, number[]], eps=1e-5, elementwise_affine=true) => {
+//     this.normalized_shape: number[] = make_tuple(normalized_shape, 1)
+//     this.axis, this.eps, this.elementwise_affine = tuple(-1-i for i in range(len(this.normalized_shape))), eps, elementwise_affine
+//     this.weight?: Tensor = Tensor.ones(*this.normalized_shape) if elementwise_affine else undefined
+//     this.bias?: Tensor = Tensor.zeros(*this.normalized_shape) if elementwise_affine else undefined
 
-//   - Described: https://paperswithcode.com/method/layer-normalization
-//   - Paper: https://arxiv.org/abs/1607.06450v1
+//   const __call__ = (x:Tensor): Tensor => {
+//     assert(this.normalized_shape === x.shape.at(-len(this.normalized_shape):)!, `last dimensions of ${x.shape} must match ${this.normalized_shape}`)
+//     x = x.layernorm(eps=this.eps, axis=this.axis)
+//     if !this.elementwise_affine: return x
+//     return x * this.weight + this.bias
 
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   norm = nn.LayerNorm(3)
-//   t = Tensor.rand(2, 5, 3) * 2 + 1
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = norm(t)
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   """
-//   def __init__(self, normalized_shape:Union[int, Tuple[int, ...]], eps=1e-5, elementwise_affine=True):
-//     self.normalized_shape: Tuple[int, ...] = (normalized_shape,) if isinstance(normalized_shape, int) else tuple(normalized_shape)
-//     self.axis, self.eps, self.elementwise_affine = tuple(-1-i for i in range(len(self.normalized_shape))), eps, elementwise_affine
-//     self.weight, self.bias = (Tensor.ones(*self.normalized_shape), Tensor.zeros(*self.normalized_shape)) if elementwise_affine else (None, None)
-
-//   def __call__(self, x:Tensor) -> Tensor:
-//     assert self.normalized_shape == x.shape[-len(self.normalized_shape):], f"last dimensions of {x.shape} must match {self.normalized_shape}"
-//     x = x.layernorm(eps=self.eps, axis=self.axis)
-//     if not self.elementwise_affine: return x
-//     return x * self.weight + self.bias
-
-// class LayerNorm2d(LayerNorm):
-//   """
-//   Applies Layer Normalization over a mini-batch of 2D inputs.
-
-//   See: `LayerNorm`
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   norm = nn.LayerNorm2d(3)
-//   t = Tensor.rand(2, 3, 4, 4) * 2 + 1
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   t = norm(t)
-//   print(t.mean().item(), t.std().item())
-//   ```
-//   """
-//   def __call__(self, x: Tensor) -> Tensor: return super().__call__(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+// class LayerNorm2d extends LayerNorm {
+// /**
+//  * Applies Layer Normalization over a mini-batch of 2D inputs.
+//  * 
+//  * See: `LayerNorm`
+//  * 
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * norm = nn.LayerNorm2d(3)
+//  * t = Tensor.rand(2, 3, 4, 4) * 2 + 1
+//  * console.log(t.mean().item(), t.std().item())
+//  * ```
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * t = norm(t)
+//  * console.log(t.mean().item(), t.std().item())
+//  * ```
+//  */
+//   const __call__ = (x: Tensor): Tensor =>  super().__call__(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
 // class RMSNorm:
-//   """
-//   Applies Root Mean Square Normalization to input.
+// /**
+//  * Applies Root Mean Square Normalization to input.
+//  * 
+//  * - Described: https://paperswithcode.com/method/rmsnorm
+//  * - Paper: https://arxiv.org/abs/1910.07467
+//  * 
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * norm = nn.RMSNorm(4)
+//  * t = Tensor.arange(12, dtype=dtypes.number).reshape(3, 4)
+//  * console.log(t.numpy())
+//  * ```
+//  * ```python exec="true" source="above" session="tensor" result="python"
+//  * console.log(norm(t).numpy())
+//  * ```
+//  */
+//   const __init__ = (dim:number, eps=1e-6) => { this.eps, this.weight = eps, Tensor.ones(dim)
 
-//   - Described: https://paperswithcode.com/method/rmsnorm
-//   - Paper: https://arxiv.org/abs/1910.07467
+//   const _norm = (x:Tensor): Tensor =>  x * (x.square().mean(-1, keepdim=true) + this.eps).rsqrt()
 
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   norm = nn.RMSNorm(4)
-//   t = Tensor.arange(12, dtype=dtypes.float).reshape(3, 4)
-//   print(t.numpy())
-//   ```
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   print(norm(t).numpy())
-//   ```
-//   """
-//   def __init__(self, dim:int, eps=1e-6): self.eps, self.weight = eps, Tensor.ones(dim)
-
-//   def _norm(self, x:Tensor) -> Tensor: return x * (x.square().mean(-1, keepdim=True) + self.eps).rsqrt()
-
-//   def __call__(self, x:Tensor) -> Tensor: return self._norm(x.float()).cast(x.dtype) * self.weight
-
-// class Embedding:
-//   """
-//   A simple lookup table that stores embeddings of a fixed dictionary and size.
-
-//   See: https://pytorch.org/docs/stable/generated/torch.nn.Embedding
-
-//   ```python exec="true" source="above" session="tensor" result="python"
-//   emb = nn.Embedding(10, 3)
-//   print(emb(Tensor([1, 2, 3, 1])).numpy())
-//   ```
-//   """
-//   def __init__(self, vocab_size:int, embed_size:int):
-//     self.vocab_sz, self.embed_sz, self.weight = vocab_size, embed_size, Tensor.glorot_uniform(vocab_size, embed_size)
-
-//   def __call__(self, idx:Tensor) -> Tensor:
-//     if idx.numel() == 0: return Tensor.empty(idx.shape+(self.embed_sz,), device=self.weight.device)
-//     arange_shp, weight_shp, big_shp = (self.vocab_sz, 1), (self.vocab_sz, self.embed_sz), idx.shape+(self.vocab_sz, self.embed_sz,)
-//     if not hasattr(self, 'arange'): self.arange = Tensor.arange(self.vocab_sz, requires_grad=False, device=self.weight.device).reshape(arange_shp)
-//     arange, idx, vals = self.arange.expand(big_shp), idx.reshape(idx.shape+(1, 1,)).expand(big_shp), self.weight.reshape(weight_shp).expand(big_shp)
-//     return (arange == idx).mul(vals).sum(-2, acc_dtype=vals.dtype)
-
-// class LSTMCell:
-//   """
-//   A long short-term memory (LSTM) cell.
-
-//   Args:
-//     input_size: The number of expected features in the input `x`
-//     hidden_size: The number of features in the hidden state `h`
-//     bias: If ``False``, then the layer does not use bias weights `b_ih` and `b_hh`
-//   """
-//   def __init__(self, input_size:int, hidden_size:int, bias:bool=True):
-//     stdv = 1.0 / math.sqrt(hidden_size)
-//     self.weight_ih = Tensor.uniform(hidden_size*4, input_size, low=-stdv, high=stdv)
-//     self.weight_hh = Tensor.uniform(hidden_size*4, hidden_size, low=-stdv, high=stdv)
-//     self.bias_ih, self.bias_hh = (Tensor.zeros(hidden_size*4), Tensor.zeros(hidden_size*4)) if bias else (None, None)
-
-//   def __call__(self, x:Tensor, hc:Optional[Tuple[Tensor, Tensor]]=None) -> Tuple[Tensor, Tensor]:
-//     if hc is None: hc = (Tensor.zeros(x.size(0), self.weight_hh.size(1), dtype=x.dtype, device=x.device),)*2
-//     gates = x.linear(self.weight_ih.T, self.bias_ih) + hc[0].linear(self.weight_hh.T, self.bias_hh)
-//     i, f, g, o = gates.chunk(4, dim=1)
-//     i, f, g, o = i.sigmoid(), f.sigmoid(), g.tanh(), o.sigmoid()
-//     new_c = f * hc[1] + i * g
-//     new_h = o * new_c.tanh()
-//     return (new_h.contiguous(), new_c.contiguous())
+//   const __call__ = (x:Tensor): Tensor =>  this._norm(x.number()).cast(x.dtype) * this.weight
