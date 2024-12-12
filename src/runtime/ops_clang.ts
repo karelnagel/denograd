@@ -3,7 +3,6 @@ import { type bytes, cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '
 import { execSync } from 'node:child_process'
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { ClangRenderer } from '../renderer/cstyle.ts'
-import { ClangGraph } from './graph/clang.ts'
 
 export class ClangCompiler extends Compiler {
   args
@@ -34,7 +33,7 @@ export class ClangProgram {
     this.lib = lib
     // write to disk so we can load it
     const cachedFile = temp('cachedFile')
-    writeFileSync(cachedFile, lib)
+    writeFileSync(cachedFile, lib.toString())
     this.fxn = ctypes.CDLL(cachedFile).get(name)
   }
   __call__ = (bufs: any[], vals: any[], wait = false) => cpuTimeExecution(() => this.fxn(...bufs, ...vals), wait)
@@ -42,6 +41,6 @@ export class ClangProgram {
 
 export class ClangDevice extends Compiled {
   constructor(device: string) {
-    super(device, MallocAllocator, new ClangRenderer(), new ClangCompiler(), ClangProgram, ClangGraph)
+    super(device, MallocAllocator, new ClangRenderer(), new ClangCompiler(), ClangProgram)
   }
 }
