@@ -1184,6 +1184,7 @@ export type sint = number | UOp
 export const add = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.add(b) : typeof b !== 'number' ? b.add(a, true) : a + b) as A | B
 export const sub = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.sub(b) : typeof b !== 'number' ? b.const_like(a).sub(b) : a - b) as A | B
 export const mul = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.mul(b) : typeof b !== 'number' ? b.mul(a, true) : a * b) as A | B
+export const div = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.div(b) : typeof b !== 'number' ? b.div(a, true) : a / b) as A | B
 export const idiv = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 'number' ? a.idiv(b) : typeof b !== 'number' ? b.idiv(a, true) : Math.floor(a / b)) as A | B
 export const neg = <A extends sint>(a: A) => (typeof a !== 'number' ? a.mul(-1) : a * -1)
 
