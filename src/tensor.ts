@@ -276,6 +276,7 @@ export class Tensor extends SimpleMathTrait {
     run_schedule(this.schedule_with_vars(...(lst || [])), undefined, do_update_stats)
     return this
   }
+  static realize = (lst: Tensor[], do_update_stats = true): Tensor => lst[0].realize(lst.slice(1), do_update_stats)
   /**
    * Replaces the data of this tensor with the data of another tensor. Only the shape of the tensors must match.
    */
