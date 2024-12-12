@@ -1,53 +1,57 @@
-// import process from 'node:process'
-// import * as nn from './src/nn/index.ts'
-// import { type Layer, Tensor } from './src/tensor.ts'
-// import { GlobalCounters } from './src/helpers.ts'
+// model based off https://towardsdatascience.com/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
 
-// export class Model {
-//   layers: Layer[]
-//   constructor() {
-//     // deno-fmt-ignore
-//     this.layers = [
-//       nn.Conv2d(1, 32, 5), Tensor.relu,
-//       nn.Conv2d(32, 32, 5), Tensor.relu,
-//       nn.BatchNorm(32), Tensor.max_pool2d,
-//       nn.Conv2d(32, 64, 3), Tensor.relu,
-//       nn.Conv2d(64, 64, 3), Tensor.relu,
-//       nn.BatchNorm(64), Tensor.max_pool2d,
-//       (x) => x.flatten(), nn.Linear(576, 10),
-//     ]
-//   }
-//   call = (x: Tensor) => x.sequential(this.layers)
-// }
+import { Tensor } from './src/tensor.ts'
+import * as nn from './src/nn/index.ts'
+import { mnist } from './src/nn/datasets.ts'
+import { getEnv, getNumberEnv, GlobalCounters, range } from './src/helpers.ts'
+import { tqdm } from './src/tqdm.ts'
 
-// const [XTrain, YTrain, XTest, YTest] = nn.datasets.mnist(undefined, !!process.env.FASHION)
+class Model {
+  layers: ((x: Tensor) => Tensor)[]
+  constructor() {
+    this.layers = [
+      new nn.Conv2d(1, 32, 5).call,
+      (x) => x.relu(),
+      new nn.Conv2d(32, 32, 5).call,
+      (x) => x.relu(),
+      new nn.BatchNorm(32).call,
+      (x) => x.max_pool2d(),
+      new nn.Conv2d(32, 64, 3).call,
+      (x) => x.relu(),
+      new nn.Conv2d(64, 64, 3).call,
+      (x) => x.relu(),
+      new nn.BatchNorm(64).call,
+      (x) => x.max_pool2d(),
+      (x) => x.flatten(1),
+      new nn.Linear(576, 10).call,
+    ]
+  }
+  call = (x: Tensor): Tensor => x.sequential(this.layers)
+}
 
-// const model = new Model()
-// const opt = new nn.optim.Adam(nn.state.getParameters(model))
+const [X_train, Y_train, X_test, Y_test] = await mnist(undefined, !!getEnv('FASHION'))
 
-// // @TinyJit
-// // @Tensor.train()
-// const trainStep = () => {
-//   opt.zeroGrad()
-//   const samples = Tensor.randint({ shape: [Number(process.env.BS || 512)], high: XTrain.shape[0] })
-//   const loss = model.call(XTrain.slice(samples)).sparseCategoricalCrossentropy(YTrain.slice(samples)).backward()
-//   opt.step()
-//   return loss
-// }
+const model = new Model()
+const opt = nn.optim.Adam(nn.state.get_parameters(model))
 
-// // @TinyJit
-// // @Tensor.test()
-// const getTestAcc = () => model.call(XTest).argmax({ axis: 1 }).equals(YTest).mean().mul(100)
+const train_step = (): Tensor => {
+  opt.zero_grad()
+  const samples = Tensor.randint([getNumberEnv('BS', 512)], undefined, X_train.shape[0] as number)
+  // TODO: this "gather" of samples === very slow. will be under 5s when this === fixed
+  const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
+  opt.step()
+  return loss
+}
 
-// let testAcc = NaN
-// for (let i = 0; i < Number(process.env.STEPS || 70); i++) {
-//   GlobalCounters.reset() // NOTE: this makes it nice for DEBUG=2 timing
-//   const loss = trainStep()
-//   if (i % 10 === 9) testAcc = getTestAcc().item()
-//   console.log(`loss: ${loss.item().toFixed(2)} test_accuracy: ${testAcc.toFixed(2)}%`)
-// }
+const get_test_acc = (): Tensor => (model.call(X_test).argmax(1).eq(Y_test)).mean().mul(100)
 
-// // verify eval acc
-// const target = Number(process.env.TARGET_EVAL_ACC_PCT || 0.0)
-// if (testAcc >= target && testAcc !== 100.0) console.log(`testAcc=${testAcc} >= ${target}`)
-// else throw new Error(`test_acc=${testAcc} < ${target}`)
+let test_acc = NaN
+const t = tqdm(range(getNumberEnv('STEPS', 14)))
+Tensor.training = true
+for await (const i of t) {
+  GlobalCounters.reset() // NOTE: this makes it nice for DEBUG=2 timing
+  const loss = train_step()
+  if (i % 10 === 9) test_acc = get_test_acc().item() as number
+  console.log(`loss: ${loss.item()} test_accuracy: ${test_acc}%`)
+}
+Tensor.training = false
