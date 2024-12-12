@@ -394,7 +394,7 @@ export class Tensor extends SimpleMathTrait {
    * THe `gunzip` flag will gzip extract the resource && return an extracted Tensor.
    */
 
-  static from_url = async (url: string, gunzip = false, opts: TensorOptions): Promise<Tensor> => {
+  static from_url = async (url: string, gunzip = false, opts?: TensorOptions): Promise<Tensor> => {
     let data = await fetch(url).then((data) => data.arrayBuffer())
     if (gunzip) data = await gunzipAsync(data)
     return new Tensor(gunzip, opts)
