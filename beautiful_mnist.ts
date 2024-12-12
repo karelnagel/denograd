@@ -44,7 +44,7 @@ const train_step = (): Tensor => {
 }
 
 const get_test_acc = (): Tensor => (model.call(X_test).argmax(1).eq(Y_test)).mean().mul(100)
-console.log('here')
+
 let test_acc = NaN
 const t = tqdm(range(getNumberEnv('STEPS', 14)))
 Tensor.training = true
