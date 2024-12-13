@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { _substitute, merge_views, Ops, renderer, spec, symbolic_flat, UOp, type UPat, view_left } from '../src/ops.ts'
+import { _substitute, merge_views, Ops, PatternMatcher, renderer, spec, symbolic_flat, UOp, type UPat, view_left } from '../src/ops.ts'
 import { asdict, python, removeKeys, tryCatch } from './helpers.ts'
 import { base_rewrite, extra_pm } from '../src/renderer/cstyle.ts'
 import { entries, zip } from '../src/helpers.ts'
@@ -7,9 +7,13 @@ import { dtypes } from '../src/dtype.ts'
 import { symbolic_simple } from '../src/ops.ts'
 import { symbolic } from '../src/ops.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
+import { make_basic_blocks, pm_block_merge } from '../src/codegen/linearize.ts'
+import { pm_lowerer } from '../src/codegen/lowerer.ts'
+import { devectorize, expander, float4_folding, get_late_rewrite_patterns, load_store_indexing, migrate_indexing, pm_render, sym } from '../src/codegen/uopgraph.ts'
+import { append_bufs, append_load, break_sched, check_preload, do_realize, lazy, multioutput, ops_folding, to_si, view_right } from '../src/engine/schedule.ts'
 
-const ALL_PATTERN_MATCHERS = {
-  'tinygrad.ops.spec': {
+const ALL_PATTERN_MATCHERS: Record<string, { matcher: PatternMatcher<any, any>; uops?: UOp[] }> = {
+  'tiny.ops.spec': {
     matcher: spec,
     uops: [
       new UOp({ op: Ops.DEFINE_GLOBAL }),
@@ -75,7 +79,7 @@ const ALL_PATTERN_MATCHERS = {
     ],
   },
 
-  'tinygrad.ops.symbolic_simple': {
+  'tiny.ops.symbolic_simple': {
     matcher: symbolic_simple,
     uops: [
       UOp.variable('x').add(0),
@@ -109,7 +113,7 @@ const ALL_PATTERN_MATCHERS = {
       new UOp({ op: Ops.CAST, src: [new UOp({ op: Ops.MUL, dtype: dtypes.float })], dtype: dtypes.float }),
     ],
   },
-  'tinygrad.ops.symbolic': {
+  'tiny.ops.symbolic': {
     matcher: symbolic,
     uops: [
       UOp.variable('x').add(UOp.variable('y')).add(UOp.variable('x').mul(UOp.int(5))), // group like
@@ -143,21 +147,21 @@ const ALL_PATTERN_MATCHERS = {
       UOp.variable('x').mod(UOp.int(4)), // x%4 when 0 < 4
     ],
   },
-  'tinygrad.ops.symbolic_flat': {
+  'tiny.ops.symbolic_flat': {
     matcher: symbolic_flat,
     uops: [
       UOp.variable('x').add(UOp.variable('y')).mul(-1),
       UOp.variable('x').add(UOp.variable('y')).mul(UOp.int(3)),
     ],
   },
-  'tinygrad.ops._substitute': {
+  'tiny.ops._substitute': {
     matcher: _substitute,
     uops: [
       new UOp({ op: Ops.ADD }),
       new UOp({ op: Ops.MUL }),
     ],
   },
-  'tinygrad.ops.renderer': {
+  'tiny.ops.renderer': {
     matcher: renderer,
     uops: [
       UOp.variable('x', 0, 9999),
@@ -172,14 +176,14 @@ const ALL_PATTERN_MATCHERS = {
       new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.NOOP, arg: 'a' }), new UOp({ op: Ops.NOOP, arg: 'b' })] }),
     ],
   },
-  'tinygrad.ops.merge_views': {
+  'tiny.ops.merge_views': {
     matcher: merge_views,
     uops: [
       new UOp({ op: Ops.VIEW, src: [UOp.int(20)], arg: new ShapeTracker([]) }),
     ],
   },
   // TODO: not sure if these trigger any patterns at all
-  'tinygrad.ops.view_left': {
+  'tiny.ops.view_left': {
     matcher: view_left,
     uops: [
       new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
@@ -189,38 +193,87 @@ const ALL_PATTERN_MATCHERS = {
       new UOp({ op: Ops.LOAD, src: [new UOp({ op: Ops.VIEW })] }),
     ],
   },
-  'tinygrad.renderer.cstyle.base_rewrite': {
+  'tiny.renderer.cstyle.base_rewrite': {
     matcher: base_rewrite,
-    uops: [
-      // These should be tested with CStyleLanguage.render() instead, cause it needs self.h
-      //   new UOp({ op: Ops.DEFINE_ACC, src: [new UOp({ op: Ops.CONST })] }),
-      //   new UOp({ op: Ops.ASSIGN, src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
-      //   new UOp({ op: Ops.IF, src: [new UOp({ op: Ops.CONST })] }),
-      //   new UOp({ op: Ops.ENDIF }),
-      //   new UOp({ op: Ops.WMMA, arg: ['wmma.load_matrix_sync'], src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
-
-      //   new UOp({ op: Ops.RANGE, dtype: dtypes.int32, src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
-      //   new UOp({ op: Ops.VECTORIZE, dtype: dtypes.float32.vec(4), src: [new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST }), new UOp({ op: Ops.CONST })] }),
-      //   new UOp({ op: Ops.CAST, dtype: dtypes.float32, src: [new UOp({ op: Ops.CONST })] }),
-      //   new UOp({ op: Ops.BITCAST, dtype: dtypes.float32, src: [new UOp({ op: Ops.CONST })] }),
-      //   new UOp({ op: Ops.DEFINE_LOCAL, dtype: dtypes.float32, arg: [0, 128], src: [] }),
-      //   new UOp({ op: Ops.BARRIER }),
-      //   new UOp({ op: Ops.NOOP, src: [new UOp({ op: Ops.CONST })] }),
-      //   new UOp({ op: Ops.SPECIAL, arg: [['workitem', 0], 'comment'], src: [] })
-    ],
   },
-  'tinygrad.renderer.cstyle.extra_pm': {
+  'tiny.renderer.cstyle.extra_pm': {
     matcher: extra_pm,
-    uops: [],
+  },
+  'tiny.codegen.linearize.make_basic_blocks': {
+    matcher: make_basic_blocks,
+  },
+
+  'tiny.codegen.linearize.pm_block_merge': {
+    matcher: pm_block_merge,
+  },
+
+  'tiny.codegen.lowerer.pm_lowerer': {
+    matcher: pm_lowerer,
+  },
+
+  'tiny.codegen.uopgraph.float4_folding': {
+    matcher: float4_folding,
+  },
+
+  'tiny.codegen.uopgraph.get_late_rewrite_patterns((Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC))': {
+    matcher: get_late_rewrite_patterns([Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC]),
+  },
+  'tiny.codegen.uopgraph.sym': {
+    matcher: sym,
+  },
+
+  'tiny.codegen.uopgraph.expander': {
+    matcher: expander,
+  },
+  'tiny.codegen.uopgraph.devectorize': {
+    matcher: devectorize,
+  },
+  'tiny.codegen.uopgraph.load_store_indexing': {
+    matcher: load_store_indexing,
+  },
+  'tiny.codegen.uopgraph.migrate_indexing': {
+    matcher: migrate_indexing,
+  },
+  'tiny.codegen.uopgraph.pm_render': {
+    matcher: pm_render,
+  },
+  'tiny.engine.schedule.view_right': {
+    matcher: view_right,
+  },
+
+  'tiny.engine.schedule.append_bufs': {
+    matcher: append_bufs,
+  },
+  'tiny.engine.schedule.check_preload': {
+    matcher: check_preload,
+  },
+  'tiny.engine.schedule.to_si': {
+    matcher: to_si,
+  },
+  'tiny.engine.schedule.lazy': {
+    matcher: lazy,
+  },
+  'tiny.engine.schedule.multioutput': {
+    matcher: multioutput,
+  },
+  'tiny.engine.schedule.ops_folding': {
+    matcher: ops_folding,
+  },
+  'tiny.engine.schedule.do_realize': {
+    matcher: do_realize,
+  },
+  'tiny.engine.schedule.break_sched': {
+    matcher: break_sched,
   },
 }
+
 for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
   const splits = name.split('.')
-  const pythonImport = `from ${splits.slice(0, -2).join('.')} import ${splits.at(-2)}`
-
+  const pyImport = ``
+  const pyCode = name
   Deno.test(`${name}_patterns`, async (t) => {
     const TSPatterns = matcher.patterns.map((pattern) => pattern[0])
-    const PYPatterns = await python(`${pythonImport}\nout([pattern[0] for pattern in ${splits.slice(-2).join('.')}.patterns])`)
+    const PYPatterns = await python(`${pyImport}\nout([pattern[0] for pattern in ${pyCode}.patterns])`)
     for (const [i, [ts, py]] of zip(TSPatterns, PYPatterns).entries()) {
       await t.step(i.toString(), () => {
         expect(asdict(removeKeys(ts, ['location', 'op']))).toEqual(asdict(removeKeys(py, ['location', 'op'])))
@@ -229,7 +282,7 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
   })
 
   Deno.test(`${name}_pdict`, async (t) => {
-    const PYDict = await python<Record<string, [UPat, undefined, Ops[], boolean][]>>(`${pythonImport}\nout(${splits.slice(-2).join('.')}.pdict)`)
+    const PYDict = await python<Record<string, [UPat, undefined, Ops[], boolean][]>>(`${pyImport}\nout(${pyCode}.pdict)`)
     for (const [key, ts] of matcher.pdict.entries()) {
       const py = PYDict[key]
       for (const [i, [ts1, py1]] of zip(ts as any[], py).entries()) {
@@ -242,10 +295,10 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
     }
   })
 
-  for (const [i, uop] of uops.entries()) {
+  for (const [i, uop] of uops?.entries() || []) {
     Deno.test(`${name}_${i}`, async () => {
       const ts = tryCatch(() => matcher.rewrite(uop, new Map([[uop, 'somectxvalue']])))()
-      const py = await python(`${pythonImport}\nout(${splits.slice(-2).join('.')}.rewrite(data,{data:"somectxvalue"}))`, uop)
+      const py = await python(`${pyImport}\nout(${pyCode}.rewrite(data,{data:"somectxvalue"}))`, uop)
       expect(asdict(ts)).toEqual(asdict(py))
     })
   }

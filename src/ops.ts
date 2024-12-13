@@ -111,7 +111,7 @@ export enum Ops{
     // consts last!
     VCONST, CONST,
 }
-export const OpsAll = Object.values(Ops).filter((value) => typeof value === 'number') as Ops[]
+export const OpsAll = Object.values(Ops).filter((value) => typeof value === 'number' && value !== 0) as Ops[]
 export const opsString = (op: Ops) => {
   for (const key in Ops) if (Ops[key] === op as unknown as keyof Ops) return `Ops.${key}`
   return undefined

@@ -93,6 +93,7 @@ import json
 from dataclasses import asdict
 import itertools
 from tinygrad.renderer import cstyle
+from tinygrad.ops import Ops
 
 def trycatch(fn):
   try: return fn()
