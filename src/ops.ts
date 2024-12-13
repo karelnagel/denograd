@@ -464,13 +464,7 @@ export class UOp extends MathTrait {
 }
 
 export class KernelInfo {
-  local_dims = 0 // number of local dimensions  (this is remapping RANGE to SPECIAL)
-  upcasted = 0 // count that are upcasted     (this is remapping RANGE to EXPAND)
-  dont_use_locals = false // don't use local indexing
-  // deno-fmt-ignore
-  constructor(local_dims = 0, upcasted = 0, dont_use_locals = false) {
-    this.local_dims = local_dims; this.upcasted = upcasted; this.dont_use_locals = dont_use_locals
-  }
+  constructor(public local_dims = 0, public upcasted = 0, public dont_use_locals = false) {}
 }
 
 // # ***** ops in python *****

@@ -4,7 +4,7 @@ import { DType, ImageDType, PtrDType } from '../src/dtype.ts'
 import { isNotNone } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
-import { Ops, opsString, UOp, UPat } from '../src/ops.ts'
+import { KernelInfo, Ops, opsString, UOp, UPat } from '../src/ops.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
 import { View } from '../src/shape/view.ts'
 import { writeFileSync } from 'node:fs'
@@ -60,6 +60,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof ClangRenderer) return `tiny.renderer.cstyle.ClangRenderer()`
   if (o instanceof Opt) return `tiny.codegen.kernel.Opt(${pyStr(o.op)}, ${pyStr(o.axis)}, ${pyStr(o.amt)})`
   if (o instanceof Kernel) return `tiny.codegen.kernel.Kernel(${pyStr(o.ast)}, ${pyStr(o.opts)})`
+  if (o instanceof KernelInfo) return `tiny.ops.KernelInfo(${pyStr(o.local_dims)}, ${pyStr(o.upcasted)}, ${pyStr(o.dont_use_locals)})`
 
   if (typeof o === 'function') return 'lambda x: x'
   if (typeof o === 'object') return `{${Object.entries(o).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
@@ -95,11 +96,8 @@ ${code}
   try {
     return eval(ts)
   } catch (e) {
-    if (e instanceof SyntaxError) {
-      writeFileSync(`invalidcode-${randomUUID()}.ts`, ts)
-      throw new Error(`eval failed, code:"${ts}" error: ${e}`)
-    }
-    throw e
+    writeFileSync(`invalidcode-${randomUUID()}.ts`, ts)
+    throw new Error(`eval failed, code:"${ts}" error: ${e}`)
   }
 }
 

@@ -9,21 +9,108 @@ Deno.test(
   compare(
     [
       // Test case for basic shape with no reduces/upcasts
-      [new UOp({ op: Ops.DEFINE_GLOBAL, dtype: dtypes.float32, src: [], arg: ['buf', 10] }),new ClangRenderer()],
+      [
+        new UOp({
+          op: Ops.SINK,
+          dtype: dtypes.void,
+          src: [
+            new UOp({
+              op: Ops.STORE,
+              dtype: dtypes.void,
+              src: [
+                new UOp({
+                  op: Ops.DEFINE_GLOBAL,
+                  dtype: dtypes.float32,
+                  src: [],
+                  arg: ['buf', [10, 20]], // 2D shape
+                }),
+                UOp.const(dtypes.float32, 1.0),
+              ],
+              arg: undefined,
+            }),
+          ],
+          arg: undefined,
+        }),
+        new ClangRenderer(),
+      ],
 
       // Test case with reduces
-      [new UOp({ op: Ops.REDUCE_AXIS, dtype: dtypes.float32, src: [UOp.int(0)], arg: [Ops.ADD, [1]] }),new ClangRenderer()],
+      [
+        new UOp({
+          op: Ops.REDUCE_AXIS,
+          dtype: dtypes.float32,
+          src: [
+            new UOp({
+              op: Ops.LOAD,
+              dtype: dtypes.float32,
+              src: [
+                new UOp({
+                  op: Ops.DEFINE_GLOBAL,
+                  dtype: dtypes.float32,
+                  src: [],
+                  arg: ['buf', [10, 5]], // Shape with reduce axis
+                }),
+              ],
+              arg: undefined,
+            }),
+          ],
+          arg: [Ops.ADD, [1]], // Reduce along axis 1
+        }),
+        new ClangRenderer(),
+      ],
 
-      // Test case with upcasts
-      [new UOp({ op: Ops.DEFINE_GLOBAL, dtype: dtypes.float32, src: [], arg: ['buf', 10], }),new ClangRenderer()],
-
-      // Test case with local dims
-      [new UOp({ op: Ops.DEFINE_LOCAL, dtype: dtypes.float32, src: [], arg: ['local', 16] }),new ClangRenderer()],
+      // Test case with upcasts and local dims
+      [
+        new UOp({
+          op: Ops.SINK,
+          dtype: dtypes.void,
+          src: [
+            new UOp({
+              op: Ops.STORE,
+              dtype: dtypes.void,
+              src: [
+                new UOp({
+                  op: Ops.DEFINE_LOCAL,
+                  dtype: dtypes.float32,
+                  src: [],
+                  arg: ['local', [16, 4]], // Local dims
+                }),
+                UOp.const(dtypes.float32, 1.0),
+              ],
+              arg: undefined,
+            }),
+          ],
+          arg: undefined, // 2 upcast dimensions
+        }),
+        new ClangRenderer(), // Enable local dims
+      ],
 
       // Test case with grouped reduces
-      [new UOp({ op: Ops.REDUCE_AXIS, dtype: dtypes.float32, src: [UOp.int(0)], arg: [Ops.ADD, [1,2]],  }),new ClangRenderer()]
+      [
+        new UOp({
+          op: Ops.REDUCE_AXIS,
+          dtype: dtypes.float32,
+          src: [
+            new UOp({
+              op: Ops.LOAD,
+              dtype: dtypes.float32,
+              src: [
+                new UOp({
+                  op: Ops.DEFINE_LOCAL,
+                  dtype: dtypes.float32,
+                  src: [],
+                  arg: ['local', [8, 4, 2]], // 3D shape for grouped reduces
+                }),
+              ],
+              arg: undefined,
+            }),
+          ],
+          arg: [Ops.ADD, [1, 2]], // Reduce along axes 1 and 2
+        }),
+        new ClangRenderer(),
+      ],
     ],
-     get_index,
+    get_index,
     'out(tiny.codegen.lowerer.get_index(*data))',
   ),
 )

@@ -56,7 +56,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   for (const a of range(first_reduce, first_reduce + group_for_reduces)) {
     ridxs[a] = new UOp({ op: Ops.RANGE, dtype: dtypes.int, src: [sint_to_uop(0), sint_to_uop(full_shape[a])], arg: 1000 + a })
   }
-  return { idxs, ridxs, acc_num: 0 }
+  return new IndexContext(idxs, ridxs, 0)
 }
 // # ***** lowering (given index) *****
 
