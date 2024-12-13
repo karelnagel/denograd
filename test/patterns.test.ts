@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { _substitute, merge_views, Ops, PatternMatcher, renderer, spec, symbolic_flat, UOp, type UPat, view_left } from '../src/ops.ts'
+import { _substitute, merge_views, Ops, PatternMatcher, renderer, spec, symbolic_flat, UOp, UPat, view_left } from '../src/ops.ts'
 import { asdict, python, removeKeys, tryCatch } from './helpers.ts'
 import { base_rewrite, extra_pm } from '../src/renderer/cstyle.ts'
 import { entries, zip } from '../src/helpers.ts'
@@ -213,6 +213,11 @@ const ALL_PATTERN_MATCHERS: Record<string, { matcher: PatternMatcher<any, any>; 
 
   'tiny.codegen.uopgraph.float4_folding': {
     matcher: float4_folding,
+    uops: [
+      new UOp({ op: Ops.VECTORIZE, src: [new UOp({ op: Ops.LOAD, src: [new UOp({ op: Ops.INDEX, src: [UOp.variable('buf')] })] })] }),
+      new UOp({ op: Ops.VECTORIZE, src: [new UOp({ op: Ops.LOAD, src: [new UOp({ op: Ops.INDEX, src: [UOp.variable('buf',false,true,dtypes.bool)] })] })] }),
+
+    ],
   },
 
   'tiny.codegen.uopgraph.get_late_rewrite_patterns((Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC))': {
