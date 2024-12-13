@@ -19,7 +19,7 @@ export const shl = (x: UOp, y: number): UOp => x.mul(2 ** y)
 /**round d:float to int away from 0*/
 export const rintk = (d: UOp): UOp => {
   const out_dtype = new Map([[dtypes.float64, dtypes.int64], [dtypes.float32, dtypes.int32], [dtypes.float16, dtypes.int16]]).get(d.dtype)!
-  return (d.add(d.lt(0.0)).where(d.const_like(-0.5), d.const_like(0.5))).cast(out_dtype)
+  return (d.add(d.lt(0.0).where(d.const_like(-0.5), d.const_like(0.5)))).cast(out_dtype)
 }
 
 /**cast(2^q, float_dtype) where q is any integer in the range of [-126, 127]*/
