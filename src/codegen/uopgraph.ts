@@ -244,13 +244,16 @@ export const sym = symbolic_flat.add(
       ({ x, y, alu }) => new UOp({ op: Ops.VECTORIZE, dtype: alu.dtype, src: range(alu.dtype.count).map((i) => new UOp({ op: alu.op, dtype: alu.dtype.scalar(), src: [x, y] })) }),
     ],
     //   # VECTORIZE of a single element is just that element
-    [new UPat({ op: Ops.VECTORIZE, src: new UPat({ name: 'x' }) }), ({ x }) => x],
+    [new UPat({ op: Ops.VECTORIZE, src: [new UPat({ name: 'x' })] }), ({ x }) => x],
     //   # VECTORIZE void is SINK
     [new UPat({ op: Ops.VECTORIZE, dtype: dtypes.void, src: new UPat({ op: Ops.BARRIER, name: 'b' }) }), ({ b }) => b],
     [new UPat({ op: Ops.VECTORIZE, dtype: dtypes.void, name: 'x' }), ({ x }) => new UOp({ op: Ops.SINK, dtype: dtypes.void, src: x.src })],
     //   # GEP/VECTORIZE, GEP/GEP, GEP/CONST, GEP/VCONST
     [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.GEP, name: 'g2' })], name: 'g1' }), ({ g1, g2 }) => g2.src[0].gep(range(g1.dtype.count).map((i) => g2.arg[g1.arg[i]]))],
-    [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.VECTORIZE, name: 'vec' })], name: 'gep' }), ({ gep, vec }) => new UOp({ op: Ops.VECTORIZE, dtype: gep.dtype, src: gep.arg.length > 1 ? gep.arg.map((i:number) => vec.src[i]) : vec.src[gep.arg[0]] })],
+    [
+      new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.VECTORIZE, name: 'vec' })], name: 'gep' }),
+      ({ gep, vec }) => new UOp({ op: Ops.VECTORIZE, dtype: gep.dtype, src: gep.arg.length > 1 ? gep.arg.map((i: number) => vec.src[i]) : vec.src[gep.arg[0]] }),
+    ],
     [new UPat({ op: Ops.GEP, src: [UPat.cvar('c', undefined, false)], name: 'gep' }), ({ gep, c }) => gep.const_like(c.arg)],
     [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.VCONST, name: 'c' })], name: 'gep' }), ({ gep, c }) => gep.const_like(gep.arg.map((x: any) => c.arg[x]))],
     //   # push all GEPs through ALUs (fix arange stuff)
@@ -269,17 +272,17 @@ export const sym = symbolic_flat.add(
     [new UPat({ op: Ops.THREEFRY, dtype: dtypes.uint64, src: [UPat.var('x'), UPat.var('key')] }), ({ x, key }) => threefry2x32(x, key)],
     [UPat.var('x', dtypes.uint32).cast(dtypes.uint64).cast(dtypes.uint32), ({ x }) => x], // cast there and back is noop (TODO: genericize)
     [(UPat.var('x', dtypes.uint64).bitwise_and(0xFFFFFFFF)).cast(dtypes.uint32), ({ x }) => x.cast(dtypes.uint32)], // cast does truncation
-    [((UPat.var(undefined, dtypes.uint64).mul(1 << 32)).bitwise_or(UPat.var('y', dtypes.uint32).cast(dtypes.uint64))).cast(dtypes.uint32), ({ y }) => y],
-    [((UPat.var('x', dtypes.uint64).mul(1 << 32)).bitwise_or(UPat.var(undefined, dtypes.uint32).cast(dtypes.uint64))).idiv(1 << 32), ({ x }) => x],
+    [(UPat.var(undefined, dtypes.uint64).mul(2 ** 32).bitwise_or(UPat.var('y', dtypes.uint32).cast(dtypes.uint64))).cast(dtypes.uint32), ({ y }) => y],
+    [((UPat.var('x', dtypes.uint64).mul(2 ** 32)).bitwise_or(UPat.var(undefined, dtypes.uint32).cast(dtypes.uint64))).idiv(2 ** 32), ({ x }) => x],
     //   # hacks for threefry long removal when padded (TODO: genericize)
-    [UPat.var('x', dtypes.uint32).cast(dtypes.uint64).mul(UPat.var('y').where(UPat.const(dtypes.uint64, 1 << 32), UPat.const(dtypes.uint64, 0))), ({ x, y }) => y.where(x, UOp.const(dtypes.uint32, 0)).cast(dtypes.uint64).mul(1 << 32)],
+    [UPat.var('x', dtypes.uint32).cast(dtypes.uint64).mul(UPat.var('y').where(UPat.const(dtypes.uint64, 2 ** 32), UPat.const(dtypes.uint64, 0))), ({ x, y }) => y.where(x, UOp.const(dtypes.uint32, 0)).cast(dtypes.uint64).mul(2 ** 32)],
     [(UPat.var('x', dtypes.uint64).bitwise_and(UPat.var('y').where(UPat.const(dtypes.uint64, 0xFFFFFFFF), UPat.const(dtypes.uint64, 0)))).cast(dtypes.uint32), ({ x, y }) => y.where(x.cast(dtypes.uint32), UOp.const(dtypes.uint32, 0))],
-    //   # arange loop folding
-    [acc_pat.assign(UPat.any([arange_m, arange_m.add(UPat.var('extra'))]).add(acc_pat)), ({ compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul }) => loop_collapse(compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul)],
-    //   # indexing, with cast or where
+    // # arange loop folding
+    // [acc_pat.assign(UPat.any([arange_m, arange_m.add(UPat.var('extra'))]).add(acc_pat)), ({ compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul }) => loop_collapse(compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul)],
+    // # indexing, with cast or where
     [acc_pat.assign(UPat.var('idx').eq(new UPat({ op: Ops.RANGE, name: 'rng' })).cast().mul(index_load).add(acc_pat)), ({ idx, rng, buf, ld, axx, add, mul }) => index_collapse(idx, rng, buf, ld, axx, add, mul)],
     [acc_pat.assign(UPat.var('idx').eq(new UPat({ op: Ops.RANGE, name: 'rng' })).where(index_load, UPat.const(undefined, 0.0)).add(acc_pat)), ({ idx, rng, buf, ld, acc, add, mul }) => index_collapse(idx, rng, buf, ld, acc, add, mul)],
-    //   # parentless reduce  # TODO: add MUL
+    // # parentless reduce  # TODO: add MUL
     [acc_pat.assign(new UPat({ op: [Ops.ADD, Ops.MAX], src: [[acc_pat, UPat.var('ret')]], name: 'alu' })), ({ acc, ret, alu }) => reduce_collapse(acc, ret, alu)],
     //   # ** self folding **
     [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('x')] }), ({ x }) => x], // a DEFINE_ACC without ranges is a CONST
@@ -289,7 +292,7 @@ export const sym = symbolic_flat.add(
     //   # ** load/store folding **
     [new UPat({ op: Ops.INDEX, name: 'index' }).store([new UPat({ op: Ops.INDEX, name: 'index' }).load()]), ({ index }) => new UOp({ op: Ops.NOOP })],
     [new UPat({ op: Ops.INDEX, name: 'index' }).store([UPat.var('gate').where(UPat.var('alt'), new UPat({ op: Ops.INDEX, name: 'index' }).load())]), ({ index, gate, alt }) => index.src[0].index(index.src[1], gate).store([alt])],
-    //   # fold gated LOAD/STORE
+    // # fold gated LOAD/STORE
     [new UPat({}).index(new UPat({}), UPat.const(dtypes.bool, true)).named('idx'), ({ idx }) => idx.replace({ src: idx.src.slice(0, 2) })], // remove True
     [new UPat({}).index(new UPat({}), UPat.const(dtypes.bool, false)).named('idx'), ({ idx }) => idx.const_like(0)], //False -> NULL pointer
     [new UPat({ op: Ops.LOAD, src: [UPat.const(undefined, 0)], allow_any_len: true, name: 'x' }), ({ x }) => x.const_like(0)], // NULL pointer load loads 0
