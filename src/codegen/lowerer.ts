@@ -21,7 +21,7 @@ export type IndexContext = {
   ridxs: UOp[]
   acc_num: number
 }
-const get_index = (ast: UOp, opts: Renderer): IndexContext => {
+export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const ki = isinstance(ast.arg, KernelInfo) ? ast.arg : new KernelInfo()
   // NOTE: assumes the shape is <global dims> <local dims> <group_for_reduces> <reduces> <upcasts/unrolls>
   const full_shape = ast.full_shape
@@ -30,7 +30,7 @@ const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const first_reduce = min([first_upcasted, ...ast.toposort.values().filter((x) => x.op === Ops.REDUCE_AXIS).flatMap((x) => x.axis_arg)])
   const local_loads = ast.toposort.values().filter((x) => x.op === Ops.LOAD && x.src[0].op === Ops.DEFINE_LOCAL)
   // NOTE: sum up the reduced axes looking across all local loads, yields the number of grouped reduces
-  const group_for_reduces = sum(range(first_reduce, first_upcasted).map((i) => Number(local_loads.some((l) => l.st_arg.shape[i] !== ast.src[0].st_arg.shape[i]))))
+  const group_for_reduces = range(first_reduce, first_upcasted).filter((i) => local_loads.some((l) => l.st_arg.shape[i] !== ast.src[0].st_arg.shape[i])).length //TODO not sure
   const global_dims = first_reduce - ki.local_dims
   let idxs
   if (opts.has_local) {
@@ -62,7 +62,7 @@ const get_index = (ast: UOp, opts: Renderer): IndexContext => {
 }
 // # ***** lowering (given index) *****
 
-const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
+export const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   // NOTE: always using ridxs is fine here
   const [reduce_range, reduce_expand] = partition(x.axis_arg.map((i) => ctx.ridxs[i]), (y) => y.op === Ops.RANGE)
   assert(all(reduce_expand.map((x) => x.op === Ops.EXPAND)), `not all EXPANDS in ${reduce_expand} for ${x.axis_arg}`)
@@ -79,7 +79,7 @@ const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   ctx.acc_num += 1
   return acc.assign(acc.alu(alu_op, ret))
 }
-const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {
+export const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {
   let [idx, valid] = x.st_arg.to_indexed_uops(x.op === Ops.LOAD && x.src[0].op === Ops.DEFINE_LOCAL ? ctx.ridxs : ctx.idxs)
   // TODO: check has_valid in UPat, not here
   let has_valid = valid.op !== Ops.CONST || valid.arg !== true

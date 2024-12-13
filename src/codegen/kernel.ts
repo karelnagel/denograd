@@ -1,4 +1,3 @@
-import { group } from 'node:console'
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
 import { all_int, all_same, ansilen, assert, colored, DEBUG, dedup, getEnv, getNumberEnv, isinstance, isNone, isNotNone, range, round_up, to_function_name, USE_TC, zip } from '../helpers.ts'

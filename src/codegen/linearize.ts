@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { assert, dedup, isEq, isinstance, isLessThan, isNotNone, len, min, partition, setDefault, sorted } from '../helpers.ts'
+import { assert, dedup, isEq, isinstance, isLessThan, isNotNone, len, min, partition, setDefault } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, opsString, PatternMatcher, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]

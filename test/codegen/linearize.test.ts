@@ -1,0 +1,43 @@
+import { append_to_block, block_merge, block_reorder, disp, linearize_uop } from '../../src/codegen/linearize.ts'
+import { compare } from '../helpers.ts'
+
+Deno.test(
+  'disp',
+  compare(
+    [],
+    disp,
+    'out(tiny.codegen.linearize.disp(*data))',
+  ),
+)
+Deno.test(
+  'append_to_block',
+  compare(
+    [],
+    append_to_block,
+    'out(tiny.codegen.linearize.append_to_block(*data))',
+  ),
+)
+Deno.test(
+  'block_merge',
+  compare(
+    [],
+    block_merge,
+    'out(tiny.codegen.linearize.block_merge(*data))',
+  ),
+)
+Deno.test(
+  'block_reorder',
+  compare(
+    [],
+    block_reorder,
+    'out(tiny.codegen.linearize.block_reorder(*data))',
+  ),
+)
+Deno.test(
+  'linearize_uop',
+  compare(
+    [],
+    linearize_uop,
+    'out(tiny.codegen.linearize.linearize_uop(*data))',
+  ),
+)
