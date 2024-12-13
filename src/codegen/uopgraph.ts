@@ -8,7 +8,7 @@ import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcend
 
 // # ***** float4/image store handling *****
 
-const fold_expanded = (ex: UOp, buf: UOp) => {
+export const fold_expanded = (ex: UOp, buf: UOp) => {
   if (buf.dtype.base !== dtypes.float && buf.dtype.base !== dtypes.half && !isinstance(buf.dtype, ImageDType)) return undefined
   let new_srcs: (UOp | undefined)[] = dedup([...ex.src])
   const old_new_srcs = [...new_srcs]
@@ -67,6 +67,7 @@ const fold_expanded = (ex: UOp, buf: UOp) => {
   //   # remove Nones for STORE
   return used.size ? new UOp({ op: ex.op, dtype: ex.dtype, src: [...new_srcs.filter((x) => isNotNone(x))], arg: ex.arg }) : undefined
 }
+
 export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {
   const oidx = load.src[0].src[1]
   if (!isinstance(buf.dtype, ImageDType) || oidx.dtype.count === 2) return undefined
@@ -93,7 +94,7 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
   const idx = uop_given_valid(valid, start_idx)
   if (isNone(idx)) return buf.const_like(0)
   if (!isinstance(buf.dtype, ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
-
+  throw new Error('not implemented')
   //   # wait for it to be image indexed before running simplification
   //   # TODO:not needed for mnist
   //   # if start_idx.dtype.count != 2: return None
