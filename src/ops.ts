@@ -308,7 +308,7 @@ export class UOp extends MathTrait {
   //   # *** from LazyBuffer ***
 
   static const_with_shape = (dtype: DType, val: ConstLike, shape: sint[]): UOp => {
-    return new UOp({ op: Ops.VALID, dtype: dtypes.bool, src: [ShapeTracker.from_shape([]).reshape(range(shape.length).map((x) => 1)).expand(shape).to_uop()] }).where(UOp.const(dtype, val), 0)
+    return new UOp({ op: Ops.VALID, dtype: dtypes.bool, src: [ShapeTracker.from_shape([]).reshape(range(shape.length).map(() => 1)).expand(shape).to_uop()] }).where(UOp.const(dtype, val), 0)
   }
   //   # *** uop movement ops ***
   // deno-fmt-ignore
