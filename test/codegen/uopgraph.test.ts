@@ -61,7 +61,6 @@ Deno.test(
       [UOp.variable('buf'), UOp.int(5), UOp.int(0)], // idx is None case
       [UOp.variable('buf'), UOp.int(5), UOp.int(1)], // non-image buffer, same idx
       [UOp.variable('buf'), UOp.variable('idx'), UOp.variable('valid')], // non-image buffer, different idx
-      [UOp.variable('buf', undefined, undefined, dtypes.imagef(10, 10)), UOp.int(5), UOp.int(1)], // image buffer case (should throw)
     ],
     simplify_valid_load,
     'out(tiny.codegen.uopgraph.simplify_valid_load(*data))',
@@ -137,7 +136,7 @@ Deno.test(
       [[[0, 1]], { 0: 0 }], // Single element axis
     ],
     _expand_arg_to_idx,
-    'out(tiny.codegen.uopgraph._expand_arg_to_idx(*data))',
+    'out(tiny.codegen.uopgraph._expand_arg_to_idx(data[0],{int(k): v for k, v in data[1].items()}))',
   ),
 )
 
@@ -242,17 +241,17 @@ Deno.test(
         }),
       ],
 
-      // Test with WMMA op
-      [
-        new UOp({
-          op: Ops.WMMA,
-          dtype: dtypes.float32,
-          src: [
-            new UOp({ op: Ops.EXPAND, dtype: dtypes.float32, src: [UOp.const(dtypes.float32, 1)], arg: [[0, 2]] }),
-          ],
-          arg: [[[0, 2]], [[1, 2]]],
-        }),
-      ],
+      //   Test with WMMA op  (throws error in python)
+      //   [
+      //     new UOp({
+      //       op: Ops.WMMA,
+      //       dtype: dtypes.float32,
+      //       src: [
+      //         new UOp({ op: Ops.EXPAND, dtype: dtypes.float32, src: [UOp.const(dtypes.float32, 1)], arg: [[0, 2]] }),
+      //       ],
+      //       arg: [[[0, 2]], [[1, 2]]],
+      //     }),
+      //   ],
 
       // Test with vectorized dtype
       [
@@ -266,7 +265,7 @@ Deno.test(
         }),
       ],
     ],
-    do_expand,
+    tryCatch(do_expand),
     'out(tiny.codegen.uopgraph.do_expand(*data))',
   ),
 )

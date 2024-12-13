@@ -326,28 +326,28 @@ export const _choices_from_args = (args: [number, number][]): Record<number, num
   return args.reduce((acc, [axis, m]) => acc.flatMap((d) => range(m).map((i) => ({ ...d, [axis]: i }))), [{}]) // TODO: Can likely be wrong
 }
 export const _swizzle_args = (cargs: [number, number][], eargs: [number, number][], exclude_args: number[]): number[] => {
-  return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? Object.fromEntries(exclude_args.map((x) => [x, 0])) : rpk))
+  return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? { ...rpk, ...Object.fromEntries(exclude_args.map((x) => [x, 0])) } : rpk))
 }
 export const do_expand = (root: UOp) => {
   const expands = root.src.filter((x) => x.op === Ops.EXPAND)
   if (expands.length === 0) return undefined
   //   # NOTE: we 0 out the reduce axis for WMMA. in theory they should all be the same, but is this always correct?
-  const exclude_args = root.op === Ops.WMMA ? dedup([...root.arg[-1], ...flatten(root.arg.slice(-2)).map((y: any) => y[0])]) : []
+  const exclude_args = root.op === Ops.WMMA ? dedup([...root.arg.at(-1)!, ...flatten(root.arg.at(-2)).map((y: any) => y[0])]) : []
   const expands_args = expands.map((x) => x.arg)
   let expand_args
   if (all_same(expands_args) && exclude_args.length === 0) {
     //     # if there's only one expand arg, it's okay to use it (optimization)
     expand_args = expands[0].arg
   } // otherwise, we sort them and GEP
-  else expand_args = sorted(dedup(flatten(expands_args)) as any).filter((x) => !exclude_args.includes((x as any)[0]))
-  const expand_sz = prod(exclude_args.map((x) => x[1]))
+  else expand_args = dedup(flatten(expands_args)).toSorted().filter((x) => !exclude_args.includes((x as any)[0]))
+  const expand_sz = prod(expand_args.map((x: number[]) => x[1]))
   const new_srcs = []
   for (const [i, src] of root.src.entries()) {
     if (src.op === Ops.EXPAND) {
       //         # IF means OR on first arg to IF
       if (root.op === Ops.IF && i === 0) new_srcs.push(range(expand_sz).map((i) => src.src[0].gep(i)).reduce((acc, x) => acc.bitwise_or(x)))
       //         # just remove the expand
-      else if (expand_args == src.arg) new_srcs.push(src.src[0])
+      else if (isEq(expand_args, src.arg)) new_srcs.push(src.src[0])
       else {
         let lst = _swizzle_args(expand_args, src.arg, exclude_args)
         //         # if the base dtype is > 1, put those at the end
@@ -356,11 +356,11 @@ export const do_expand = (root: UOp) => {
       }
     } //       # non-EXPAND input
     else {
-      //         # for the first arg of IF, just pass them through ignoring EXPANDS
+      // # for the first arg of IF, just pass them through ignoring EXPANDS
       if (root.op === Ops.IF) new_srcs.push(src)
-      //         # put any input dtype > 1 grouped together
-      else if (src.dtype.count > 1) new_srcs.push(new UOp({ op: Ops.VECTORIZE, dtype: src.dtype.scalar().vec(expand_sz * src.dtype.count), src: range(expand_sz).flatMap(() => range(src.dtype.count).map((i) => src.gep(i))) })) //TODO: this src.mul() might not be right
-      //         # repeat the arg
+      // # put any input dtype > 1 grouped together
+      else if (src.dtype.count > 1) new_srcs.push(new UOp({ op: Ops.VECTORIZE, dtype: src.dtype.scalar().vec(expand_sz * src.dtype.count), src: range(expand_sz).flatMap(() => range(src.dtype.count).map((i) => src.gep(i))) }))
+      // # repeat the arg
       else new_srcs.push(src.broadcast(expand_sz))
     }
   }
