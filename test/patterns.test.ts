@@ -287,9 +287,9 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
   })
 
   Deno.test(`${name}_pdict`, async (t) => {
-    const PYDict = await python<Record<string, [UPat, undefined, Ops[], boolean][]>>(`${pyImport}\nout(${pyCode}.pdict)`)
+    const PYDict = await python<Map<Ops, [UPat, undefined, Ops[], boolean][]>>(`${pyImport}\nout(${pyCode}.pdict)`)
     for (const [key, ts] of matcher.pdict.entries()) {
-      const py = PYDict[key]
+      const py = PYDict.get(key)!
       for (const [i, [ts1, py1]] of zip(ts as any[], py).entries()) {
         await t.step(i.toString(), () => {
           expect(asdict(removeKeys(ts1[0], ['location', 'op']))).toEqual(asdict(removeKeys(py1[0], ['location', 'op']))) //UPat

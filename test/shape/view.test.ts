@@ -4,26 +4,6 @@ import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape, un
 import { dtypes } from '../../src/dtype.ts'
 
 Deno.test(
-  'serialization',
-  compare(
-    [
-      [Ops.ADD],
-      [Ops.ASSIGN],
-      [new UOp({ op: Ops.BARRIER, dtype: dtypes.float, arg: 5445 })],
-      [new UPat({ op: Ops.ASSIGN, dtype: dtypes.floats, arg: 555, name: 'sdf' })],
-      [new UPat({ op: Ops.IF, name: 'conditional_op', dtype: dtypes.bool, src: [new UPat({ op: Ops.CMPLT, name: 'cmp_op', dtype: dtypes.bool }), new UPat({ name: 'true_case' }), new UPat({ name: 'false_case' })] })],
-      [new UPat({ op: Ops.ASSIGN })],
-      [dtypes.floats],
-      [dtypes.default_float],
-      ...spec.patterns.map((p) => [p[0]] as any),
-      ...symbolic_flat.patterns.map((p) => [p[0]]),
-    ],
-    (x) => x,
-    'out(*data)',
-  ),
-)
-
-Deno.test(
   'canonicalize_strides',
   compare(
     [

@@ -67,19 +67,19 @@ Deno.test(
   ),
 )
 
-// Deno.test(
-//   'threefry2x32',
-//   compare(
-//     [
-//       [UOp.int(0x1234567812345678), UOp.int(0x1234567812345678)], // Test with same input and key
-//       [UOp.int(0x0000000000000000), UOp.int(0x0000000000000000)], // Test with zeros
-//       [UOp.int(0xFFFFFFFFFFFFFFFF), UOp.int(0xFFFFFFFFFFFFFFFF)], // Test with all ones
-//       [UOp.int(0x1234567812345678), UOp.int(0x8765432187654321)], // Test with different input and key
-//     ],
-//     threefry2x32,
-//     'out(tiny.codegen.uopgraph.threefry2x32(*data))',
-//   ),
-// )
+Deno.test.ignore(
+  'threefry2x32',
+  compare(
+    [
+      [UOp.int(0x1234567812345678), UOp.int(0x1234567812345678)], // Test with same input and key
+      [UOp.int(0x0000000000000000), UOp.int(0x0000000000000000)], // Test with zeros
+      [UOp.int(0xFFFFFFFFFFFFFFFF), UOp.int(0xFFFFFFFFFFFFFFFF)], // Test with all ones
+      [UOp.int(0x1234567812345678), UOp.int(0x8765432187654321)], // Test with different input and key
+    ],
+    threefry2x32,
+    'out(tiny.codegen.uopgraph.threefry2x32(*data))',
+  ),
+)
 
 Deno.test(
   'loop_collapse',

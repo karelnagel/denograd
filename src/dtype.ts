@@ -135,11 +135,7 @@ export class dtypes {
    */
   static finfo(x: DType): [number, number] {
     assert(dtypes.is_float(x), `${x} is not a floating point type`)
-    if (isEq(x, dtypes.float16)) return [5, 10]
-    if (isEq(x, dtypes.bfloat16)) return [8, 7]
-    if (isEq(x, dtypes.float32)) return [8, 23]
-    if (isEq(x, dtypes.float64)) return [11, 52]
-    throw new Error(`Invalid dtype ${x} for finfo`)
+    return new Map<DType, [number, number]>([[dtypes.float16, [5, 10]], [dtypes.bfloat16, [8, 7]], [dtypes.float32, [8, 23]], [dtypes.float64, [11, 52]]]).get(x)!
   }
   static fields = () => DTYPES_DICT
   static void = DType.new(-1, 0, 'void', undefined)
@@ -233,7 +229,7 @@ export const sum_acc_dtype = (dt: DType) => {
 }
 
 export const truncate = new Map<DType, (x: any) => any>([
-  [dtypes.bool, (x: any) => Boolean(x)],
+  [dtypes.bool, (x: boolean) => Boolean(x)],
   // TODO: bfloat16 (tinygrad)
   [dtypes.float16, (x: number) => new Float16Array([x])[0]],
   [dtypes.float32, (x: number) => new Float32Array([x])[0]],
