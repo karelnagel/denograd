@@ -290,12 +290,7 @@ Deno.test(
           op: Ops.CONTRACT,
           dtype: dtypes.float32.vec(2),
           src: [
-            new UOp({
-              op: Ops.EXPAND,
-              dtype: dtypes.float32,
-              src: [UOp.const(dtypes.float32, 1)],
-              arg: [[0, 2], [1, 3]],
-            }),
+            new UOp({ op: Ops.EXPAND, dtype: dtypes.float32, src: [UOp.const(dtypes.float32, 1)], arg: [[0, 2], [1, 3]] }),
           ],
           arg: [[0, 2]],
         }),
@@ -307,12 +302,7 @@ Deno.test(
           op: Ops.CONTRACT,
           dtype: dtypes.float32.vec(6),
           src: [
-            new UOp({
-              op: Ops.EXPAND,
-              dtype: dtypes.float32,
-              src: [UOp.const(dtypes.float32, 1)],
-              arg: [[0, 2], [1, 3], [2, 4]],
-            }),
+            new UOp({ op: Ops.EXPAND, dtype: dtypes.float32, src: [UOp.const(dtypes.float32, 1)], arg: [[0, 2], [1, 3], [2, 4]] }),
           ],
           arg: [[0, 2], [1, 3]],
         }),
@@ -420,7 +410,7 @@ Deno.test(
         }),
       ],
     ],
-    create_gate,
+    tryCatch(create_gate),
     'out(tiny.codegen.uopgraph.create_gate(*data))',
   ),
 )
@@ -491,8 +481,8 @@ Deno.test(
         }),
       ],
     ],
-    no_vectorized_load_store,
-    'out(tiny.codegen.uopgraph.no_vectorized_load_store(*data))',
+    tryCatch(no_vectorized_load_store),
+    'out(trycatch(lambda:tiny.codegen.uopgraph.no_vectorized_load_store(*data)))',
   ),
 )
 

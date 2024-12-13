@@ -371,7 +371,7 @@ export class Tensor extends SimpleMathTrait {
     this.requires_grad = requires_grad
 
     //     // create a LazyBuffer from the different types of inputs
-    if (isinstance(data, LazyBuffer)) assert(dtype === undefined || dtype == data.dtype, "dtype doesn't match, && casting isn't supported")
+    if (isinstance(data, LazyBuffer)) assert(dtype === undefined || dtype === data.dtype, "dtype doesn't match, && casting isn't supported")
     else if (data === undefined) data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
     else if (isinstance(data, Number) || isinstance(data, Boolean)) data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
     else if (isinstance(data, UOp)) {
@@ -1324,7 +1324,7 @@ export class Tensor extends SimpleMathTrait {
   squeeze = (dim?: number): Tensor => {
     if (dim === undefined) return this.reshape(this.shape.filter((dim) => dim !== 1))
     dim = this._resolve_dim(dim)
-    return !this.ndim || this.shape[dim] != 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
+    return !this.ndim || this.shape[dim] !== 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
   }
 
   /**
@@ -2967,10 +2967,10 @@ export class Tensor extends SimpleMathTrait {
     if (!isinstance(x, Tensor) && !reverse) {
       // simple pow identities
       if (x < 0) return this.reciprocal().pow(-x).cast(this.dtype)
-      if (x == 0) return this.mul(0).add(1, true)
+      if (x === 0) return this.mul(0).add(1, true)
       // rewrite pow 0.5 to sqrt
-      if (Math.floor(x - 0.5) + 0.5 == x) return this.pow(Math.floor(x - 0.5)).mul(this.sqrt())
-      if (Math.floor(x) == x) return this.pow(idiv(x, 2)).square().mul(x % 2 == 0 ? 1 : this)
+      if (Math.floor(x - 0.5) + 0.5 === x) return this.pow(Math.floor(x - 0.5)).mul(this.sqrt())
+      if (Math.floor(x) === x) return this.pow(idiv(x, 2)).square().mul(x % 2 === 0 ? 1 : this)
     }
     // positive const ** self
     if (!isinstance(x, Tensor) && reverse && x > 0) return this.mul(Math.log(x)).exp()

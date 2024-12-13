@@ -73,7 +73,7 @@ function* arrayToIterableIterator<T>(iter: T[]): IterableIterator<T> {
 function isIterableIterator<T>(
   value: IterableIterator<T> | AsyncIterableIterator<T>,
 ): value is IterableIterator<T> {
-  return value != null &&
+  return value !== null &&
     typeof (value as IterableIterator<T>)[Symbol.iterator] === 'function' &&
     typeof value.next === 'function'
 }

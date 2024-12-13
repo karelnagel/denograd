@@ -19,7 +19,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
   for (const [i, s] of new_srcs.entries()) {
     const idx = s!.src[0].src[1]
     let root_src, arg
-    if (s!.dtype.count !== 1 || (is_image && idx.dtype.count == 2)) continue
+    if (s!.dtype.count !== 1 || (is_image && idx.dtype.count === 2)) continue
     if (idx.op === Ops.ADD && idx.src[1].op === Ops.CONST) [root_src, arg] = [idx.src[0], idx.src[1].arg]
     else if (idx.op === Ops.CONST) [root_src, arg] = ['CONST', idx.arg]
     else [root_src, arg] = [idx, 0]
@@ -55,7 +55,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
             for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = new_load.gep(i)
           } else { // vectorize the store
             new_src[1] = new UOp({ op: Ops.VECTORIZE, dtype: new_src[1].dtype.vec(fold_length), src: range(fold_length).map((i) => new_srcs[offsets.get(o + i)!]!.src[1]) })
-            for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = i == 0 ? new UOp({ op: Ops.STORE, dtype: dtypes.void, src: new_src }) : undefined
+            for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = i === 0 ? new UOp({ op: Ops.STORE, dtype: dtypes.void, src: new_src }) : undefined
           }
           used = new Set([...used, ...range(fold_length).map((i) => [rootsrc, o + i as any] as [UOp, UOp])])
         }
@@ -164,7 +164,7 @@ export const threefry2x32 = (x: UOp, key: UOp) => {
   const rotations = [[13, 15, 26, 6], [17, 29, 16, 24]]
   const [key0, key1] = [(key.bitwise_and(0xffffffff)).cast(dtypes.uint32), ((key.idiv(2 ** 32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)]
   const ks = [key1, key0.xor(key1).xor(0x1BD11BDA), key0]
-  let xr = [x0.add(ks[-1]), x1.add(ks[0])]
+  let xr = [x0.add(ks.at(-1)!), x1.add(ks[0])]
   for (const i of range(5)) {
     for (const r of rotations[i % 2]) {
       const x0 = xr[0].add(xr[1])
@@ -376,11 +376,11 @@ export const do_expand = (root: UOp) => {
 export const do_contract = (con: UOp) => {
   const ex = con.src[0]
   //   # CONTRACT without EXPAND repeats the element VECTORIZED
-  if (ex.op !== Ops.EXPAND) return new UOp({ op: Ops.VECTORIZE, dtype: con.dtype, src: range(con.dtype.count).flatMap(() => con.src.map((x) => x.mul(con.dtype.count))) }) // TODO: not sure
+  if (ex.op !== Ops.EXPAND) return new UOp({ op: Ops.VECTORIZE, dtype: con.dtype, src: range(con.dtype.count).flatMap(() => con.src) })
   //   # CONTRACT may remove several axes from EXPAND
   assert(con.dtype.count === prod(con.arg.map((x: any) => x[1])), 'dtype is wrong')
   let idxs: number[] = []
-  const new_ex_args = ex.arg.filter((x: any) => !con.arg.includes(x))
+  const new_ex_args = ex.arg.filter((x: any) => !con.arg.some((arg: any[]) => isEq(arg, x)))
   for (const rpk of _choices_from_args(new_ex_args)) {
     idxs = [...idxs, ..._choices_from_args(con.arg).map((lrpk) => _expand_arg_to_idx(ex.arg, { ...rpk, ...lrpk }))]
   }
@@ -394,7 +394,7 @@ export const no_vectorized_alu = (alu: UOp) => {
 export const create_gate = (root: UOp): undefined | UOp => {
   const _gate_srcs = (u: UOp, gate: UOp): UOp => {
     if (u.op === Ops.BARRIER) return u
-    if (u.op === Ops.LOAD && u.src[-1].op === Ops.BARRIER) return new UOp({ op: u.op, dtype: u.dtype, src: [...u.src.toReversed(), new UOp({ op: Ops.IF, dtype: dtypes.void, src: [gate, u.src.at(-1)!] })], arg: u.arg })
+    if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) return new UOp({ op: u.op, dtype: u.dtype, src: [...u.src.toReversed(), new UOp({ op: Ops.IF, dtype: dtypes.void, src: [gate, u.src.at(-1)!] })], arg: u.arg })
     const replace_source = u.src.map((x) => _gate_srcs(x, gate))
     return isEq(replace_source, u.src) ? u : new UOp({ op: u.op, dtype: u.dtype, src: replace_source, arg: u.arg })
   }

@@ -198,7 +198,7 @@ export class Kernel {
   }
   //   # drops the final dimension
   upcast = () => {
-    check(this.full_shape[-1] !== 1, "can't upcast a dimension with size 1")
+    check(this.full_shape.at(-1)! !== 1, "can't upcast a dimension with size 1")
     this.upcasted += 1
   }
   //   # axis : the axis to pull from
@@ -265,7 +265,7 @@ export class Kernel {
       //       # more can merge than this
       const mergeable = can_merge.every((x) => x) && i !== this.first_reduce
       for (const [j, [s, st]] of zip(shapes, strides).entries()) {
-        if (mergeable) rets[j][-1] = [mul(rets[j][-1][0], s[i]), st[i]]
+        if (mergeable) rets[j][rets[j].length - 1] = [mul(rets[j].at(-1)![0], s[i]), st[i]]
         else rets[j].push([s[i], st[i]])
       }
     }
@@ -500,7 +500,7 @@ export class Kernel {
           !upcasted_axis.has(axis) && isinstance(this.full_shape[axis], Number) && this.full_shape[axis] % upcast_amount === 0 &&
           this.sts.some((st, buf_index) => st.views.at(-1)!.strides[axis] === 0 && !this.upcasted_axis(buf_index).some((x) => x[1] === 0))
         ) {
-          xb_choices.push([this.sts.reduce((acc, st) => acc + Number(st.views[-1].strides[axis] as number > 0), 0), this.sts.reduce((acc, st) => acc + (st.views.at(-1)!.strides[axis] as number), 0), axis, upcast_amount])
+          xb_choices.push([this.sts.reduce((acc, st) => acc + Number(st.views.at(-1)!.strides[axis] as number > 0), 0), this.sts.reduce((acc, st) => acc + (st.views.at(-1)!.strides[axis] as number), 0), axis, upcast_amount])
         }
       }
       if (xb_choices.length) {
@@ -543,7 +543,7 @@ export class Kernel {
       if (getEnv('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) this.apply_opt(new Opt(OptOps.NOLOCALS))
       else {
         //         # prioritize making expand axes local
-        const local_axis_ranking = [range(this.full_shape.slice(0, this.first_reduce).length).map((axis) => [range(this.sts.length).some((buf_index) => this.sts[buf_index].views[-1].strides[axis] === 0), axis] as [boolean, number])]
+        const local_axis_ranking = [range(this.full_shape.slice(0, this.first_reduce).length).map((axis) => [range(this.sts.length).some((buf_index) => this.sts[buf_index].views.at(-1)!.strides[axis] === 0), axis] as [boolean, number])]
         const to_local: [number, number][] = []
         for (const [_, axis] of local_axis_ranking[0].toSorted((a, b) => (b[0] === a[0] ? b[1] - a[1] : Number(b[0]) - Number(a[0])))) {
           const local_size = sint_prod(to_local.map(([_, sz]) => sz))
@@ -643,7 +643,7 @@ export class Kernel {
           const local_shape = [
             ...range(this.global_dims).map((x) => 1),
             ...this.full_shape.slice(this.global_dims, this.global_dims + this.local_dims),
-            ...range(this.first_reduce, this.first_reduce + this.group_for_reduces).map((i) => this.sts[reduce_idx].shape[i] != this.sts[reduce_idx + 1].shape[i] ? this.full_shape[i] : 1),
+            ...range(this.first_reduce, this.first_reduce + this.group_for_reduces).map((i) => this.sts[reduce_idx].shape[i] !== this.sts[reduce_idx + 1].shape[i] ? this.full_shape[i] : 1),
             ...range(this.shape_len - this.upcasted - this.group_for_reduces - this.first_reduce).map((x) => 1),
             ...this.upcasted_axis(0).map((x) => x[0]),
           ]

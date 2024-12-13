@@ -87,7 +87,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
       //       # find the parent block that has the BLOCKSTART in the ctx
       const parent_blocks = x.src.filter((y) => y.op === Ops.BLOCK && y.arg.ctx.includes(new UOp({ op: Ops.BLOCKSTART, src: [x.arg.end] })))
       assert(parent_blocks.length <= 1, 'should never have two parent blocks')
-      if (parent_blocks.length == 1) {
+      if (parent_blocks.length === 1) {
         const parent_block = parent_blocks[0]
         // range needs DEFINE_ACC to be before the range (never in DEFINE_ACC for if)
         const [early_ops, late_ops] = partition(x.arg.lst, (y) => y.op === Ops.DEFINE_ACC && y.src.includes(x.arg.end))
