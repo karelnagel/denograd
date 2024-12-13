@@ -7,13 +7,14 @@ import process from 'node:process'
 import { type Ops, opsString, UOp, UPat } from '../src/ops.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
 import { View } from '../src/shape/view.ts'
+import { writeFileSync } from 'node:fs'
 
 const getPyOpsStr = (op: Ops) => `tiny.ops.${opsString(op)}`
 export const pyStr = (v: any, useList = false): string => {
   if (Array.isArray(v)) return v.length ? (useList ? `[${v.map((x) => pyStr(x)).join(', ')}]` : `(${v.map((x) => pyStr(x)).join(', ')},)`) : '()'
   if (v === null || typeof v === 'undefined') return 'None'
   if (typeof v === 'boolean') return v ? 'True' : 'False'
-  if (typeof v === 'number') return v === Infinity ? 'inf' : v === -Infinity ? '-inf' : Number.isNaN(v) ? 'math.nan' : v.toString()
+  if (typeof v === 'number') return v === Infinity ? 'math.inf' : v === -Infinity ? '-math.inf' : Number.isNaN(v) ? 'math.nan' : v.toString()
   if (typeof v === 'string') return `"${v}"`
 
   if (v instanceof UPat) {
@@ -60,12 +61,14 @@ export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return)
 
 export const deserialize = (data: string): any => {
   data = data.replaceAll('Infinity', '696969696')
+  data = data.replaceAll('NaN', '4040404044040')
   const obj = JSON.parse(data)
 
   const de = (i: any): any => {
     if (i === null) return undefined
     if (i === 696969696) return Infinity
     if (i === -696969696) return -Infinity
+    if (i === 4040404044040) return NaN
     if (!i || typeof i !== 'object') return i
     if (Array.isArray(i)) return i.map(de)
 
@@ -125,12 +128,15 @@ ${code}
   console.log(file)
   await execAsync(`echo ${JSON.stringify(code.trim())} > ${file}`)
   const res = await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)
+  console.log(res.split('<<<<<')[0])
+  const json = res.split('<<<<<')[1]?.split('>>>>>')[0].trim()
   try {
-    console.log(res.split('<<<<<')[0])
-    const json = res.split('<<<<<')[1]?.split('>>>>>')[0].trim()
     return deserialize(json)
   } catch (e) {
-    if (e instanceof SyntaxError) throw new Error(`Parsing "${res.trim()}" failed: ${e}`)
+    if (e instanceof SyntaxError) {
+      writeFileSync(`invalidjson-${randomUUID()}.json`, json)
+      throw new Error(`Parsing "${json}" failed: ${e}`)
+    }
     throw e
   }
 }

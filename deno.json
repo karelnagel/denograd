@@ -28,7 +28,8 @@
   },
   "imports": {
     "expect": "jsr:@std/expect",
-    "assert": "jsr:@std/assert"
+    "assert": "jsr:@std/assert",
+    "json5": "npm:json5@^2.2.3"
   },
   "compilerOptions": {}
 }
