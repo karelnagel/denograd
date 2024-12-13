@@ -704,6 +704,99 @@ Deno.test(
           arg: undefined,
         }),
       ],
+      // Test with float4 folding when supported
+      [
+        new UOp({
+          op: Ops.SINK,
+          dtype: dtypes.void,
+          src: [
+            new UOp({
+              op: Ops.LOAD,
+              dtype: dtypes.float32.vec(4),
+              src: [
+                new UOp({
+                  op: Ops.INDEX,
+                  dtype: dtypes.float32.ptr().vec(4),
+                  src: [UOp.const(dtypes.int32, 0)],
+                  arg: undefined,
+                }),
+              ],
+              arg: undefined,
+            }),
+          ],
+          arg: undefined,
+        }),
+      ],
+
+      // Test with late rewrite patterns
+      [
+        new UOp({
+          op: Ops.SINK,
+          dtype: dtypes.void,
+          src: [
+            new UOp({
+              op: Ops.EXP2,
+              dtype: dtypes.float32,
+              src: [UOp.const(dtypes.float32, 1.0)],
+              arg: undefined,
+            }),
+          ],
+          arg: undefined,
+        }),
+      ],
+
+      // Test with migrate indexing
+      [
+        new UOp({
+          op: Ops.SINK,
+          dtype: dtypes.void,
+          src: [
+            new UOp({
+              op: Ops.STORE,
+              dtype: dtypes.void,
+              src: [
+                new UOp({
+                  op: Ops.INDEX,
+                  dtype: dtypes.float32.ptr(),
+                  src: [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 0)],
+                  arg: undefined,
+                }),
+                UOp.const(dtypes.float32, 1.0),
+              ],
+              arg: undefined,
+            }),
+          ],
+          arg: undefined,
+        }),
+      ],
+
+      // Test with load store indexing
+      [
+        new UOp({
+          op: Ops.SINK,
+          dtype: dtypes.void,
+          src: [
+            new UOp({
+              op: Ops.LOAD,
+              dtype: dtypes.float32,
+              src: [
+                new UOp({
+                  op: Ops.INDEX,
+                  dtype: dtypes.float32.ptr(),
+                  src: [
+                    UOp.const(dtypes.int32, 0),
+                    UOp.const(dtypes.int32, 1),
+                    UOp.const(dtypes.bool, true),
+                  ],
+                  arg: undefined,
+                }),
+              ],
+              arg: undefined,
+            }),
+          ],
+          arg: undefined,
+        }),
+      ],
     ],
     (uop: UOp) => full_graph_rewrite(uop, new ClangRenderer()),
     'out(tiny.codegen.uopgraph.full_graph_rewrite(data[0], tiny.renderer.cstyle.ClangRenderer()))',

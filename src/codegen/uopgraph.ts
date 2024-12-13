@@ -475,7 +475,7 @@ export const move_mask = (x: UOp, buf: UOp, idx: UOp, mask: UOp, cast?: UOp): UO
 const _masked_index = new UPat({ op: Ops.INDEX, src: [new UPat({ name: 'buf' }), new UPat({ name: 'idx' }), new UPat({ name: 'mask' })] })
 export const pm_render = new PatternMatcher([
   //   # for rendering, we use explicit VECTORIZE
-  [new UPat({ op: Ops.CONST, name: 'c' }), ({ c }) => new UOp({ op: Ops.VECTORIZE, dtype: c.dtype, src: c.dtype.vcount > 1 ? range(c.dtype.vcount).map(() => UOp.const(c.dtype.scalar(), c.arg)) : undefined })],
+  [new UPat({ op: Ops.CONST, name: 'c' }), ({ c }) => c.dtype.vcount > 1 ? new UOp({ op: Ops.VECTORIZE, dtype: c.dtype, src: range(c.dtype.vcount).map(() => UOp.const(c.dtype.scalar(), c.arg)) }) : undefined],
   [new UPat({ op: Ops.VCONST, name: 'c' }), ({ c }) => new UOp({ op: Ops.VECTORIZE, dtype: c.dtype, src: c.arg.map((x: number) => UOp.const(c.dtype.scalar(), x)) })],
   [new UPat({ op: Ops.GEP, name: 'gep' }), ({ gep }) => new UOp({ op: Ops.VECTORIZE, dtype: gep.dtype, src: gep.arg.length > 1 ? gep.arg.map((x: number) => gep.src[0].gep(x)) : undefined })],
   [new UPat({ op: Ops.VECTORIZE, src: [new UPat({ name: 'x' })] }), ({ x }) => x],
@@ -500,7 +500,6 @@ export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
 
   //   # initial symbolic + migrate indexing (remove this)
   sink = graph_rewrite(sink, sym.add(migrate_indexing))
-
   //   # expand
   sink = graph_rewrite(sink, sym.add(expander))
 
@@ -508,6 +507,6 @@ export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   sink = graph_rewrite(sink, sym.add(isNotNone(opts) && opts.supports_float4 ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing))
 
   //   # final rules for the renderer (without sym)
-  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops as unknown as Ops[], TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
+  sink = graph_rewrite(sink, pm_render)
   return sink
 }
