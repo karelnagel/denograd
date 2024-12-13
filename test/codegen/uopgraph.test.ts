@@ -693,6 +693,7 @@ Deno.test(
           ],
           arg: undefined,
         }),
+        new ClangRenderer(),
       ],
 
       // Test with symbolic operations
@@ -703,6 +704,7 @@ Deno.test(
           src: [new UOp({ op: Ops.ADD, dtype: dtypes.float32, src: [UOp.const(dtypes.float32, 1.0), UOp.const(dtypes.float32, 2.0)], arg: undefined })],
           arg: undefined,
         }),
+        new ClangRenderer(),
       ],
       // Test with float4 folding when supported
       [
@@ -726,6 +728,7 @@ Deno.test(
           ],
           arg: undefined,
         }),
+        new ClangRenderer(),
       ],
 
       // Test with late rewrite patterns
@@ -768,6 +771,7 @@ Deno.test(
           ],
           arg: undefined,
         }),
+        new ClangRenderer(),
       ],
 
       // Test with load store indexing
@@ -796,9 +800,10 @@ Deno.test(
           ],
           arg: undefined,
         }),
+        new ClangRenderer(),
       ],
     ],
-    (uop: UOp) => full_graph_rewrite(uop, new ClangRenderer()),
-    'out(tiny.codegen.uopgraph.full_graph_rewrite(data[0], tiny.renderer.cstyle.ClangRenderer()))',
+    full_graph_rewrite,
+    'out(tiny.codegen.uopgraph.full_graph_rewrite(*data))',
   ),
 )

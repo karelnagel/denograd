@@ -9,22 +9,22 @@ Deno.test(
   compare(
     [
       // Test case for basic shape with no reduces/upcasts
-      [new UOp({ op: Ops.DEFINE_GLOBAL, dtype: dtypes.float32, src: [], arg: ['buf', 10] })],
+      [new UOp({ op: Ops.DEFINE_GLOBAL, dtype: dtypes.float32, src: [], arg: ['buf', 10] }),new ClangRenderer()],
 
       // Test case with reduces
-      [new UOp({ op: Ops.REDUCE_AXIS, dtype: dtypes.float32, src: [UOp.int(0)], arg: [Ops.ADD, [1]] })],
+      [new UOp({ op: Ops.REDUCE_AXIS, dtype: dtypes.float32, src: [UOp.int(0)], arg: [Ops.ADD, [1]] }),new ClangRenderer()],
 
       // Test case with upcasts
-      [new UOp({ op: Ops.DEFINE_GLOBAL, dtype: dtypes.float32, src: [], arg: ['buf', 10], })],
+      [new UOp({ op: Ops.DEFINE_GLOBAL, dtype: dtypes.float32, src: [], arg: ['buf', 10], }),new ClangRenderer()],
 
       // Test case with local dims
-      [new UOp({ op: Ops.DEFINE_LOCAL, dtype: dtypes.float32, src: [], arg: ['local', 16] })],
+      [new UOp({ op: Ops.DEFINE_LOCAL, dtype: dtypes.float32, src: [], arg: ['local', 16] }),new ClangRenderer()],
 
       // Test case with grouped reduces
-      [new UOp({ op: Ops.REDUCE_AXIS, dtype: dtypes.float32, src: [UOp.int(0)], arg: [Ops.ADD, [1,2]],  })]
+      [new UOp({ op: Ops.REDUCE_AXIS, dtype: dtypes.float32, src: [UOp.int(0)], arg: [Ops.ADD, [1,2]],  }),new ClangRenderer()]
     ],
-    (ast: UOp) => get_index(ast, new ClangRenderer()),
-    'out(tiny.codegen.lowerer.get_index(data[0],tiny.renderer.cstyle.ClangRenderer()))',
+     get_index,
+    'out(tiny.codegen.lowerer.get_index(*data))',
   ),
 )
 

@@ -29,11 +29,7 @@ export const check = (cond: boolean, msg = '') => {
 }
 type TensorCoreOptions = any
 export class Opt {
-  op: OptOps
-  axis?: number
-  amt?: number
-  // deno-fmt-ignore
-  constructor(op:OptOps, axis?:number,amt?:number){ this.op=op; this.axis=axis; this.amt=amt; }
+  constructor(public op: OptOps, public axis?: number, public amt?: number) {}
   toString = () => `Opt(op=${this.op}, axis=${this.axis}, amt=${this.amt})`
   real_axis = (k: Kernel): number => {
     if (isNone(this.axis)) return -1
@@ -731,7 +727,7 @@ export const verify_ast = (ast: UOp): Map<UOp, ShapeTracker> => {
   assert(all_same(ast.src.map((x) => x.st_arg.size)), 'outputs must be exactly the same size')
   const sts = new Map<UOp, ShapeTracker>()
   for (const out of ast.src) _assert_valid_uop(out, out.st_arg, sts)
-  const shape_dims = zip(...sts.values().map((x) => x.shape)).map((dims) => [...new Set(dims)].toSorted())
+  const shape_dims = zip(...sts.values().map((x) => x.shape)).map((dims) => dedup(dims).toSorted())
   assert(shape_dims.every((x) => x.length === 1 || (x.length === 2 && x[0] === 1)), `shapes must have either 1 ||n in each dimension, ${shape_dims}`)
   return sts
 }

@@ -8,6 +8,9 @@ import { Ops, opsString, UOp, UPat } from '../src/ops.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
 import { View } from '../src/shape/view.ts'
 import { writeFileSync } from 'node:fs'
+import { IndexContext } from '../src/codegen/lowerer.ts'
+import { Kernel, Opt } from '../src/codegen/kernel.ts'
+import { ClangRenderer } from '../src/renderer/cstyle.ts'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -31,32 +34,36 @@ export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return)
 }
 
 const getPyOpsStr = (op: Ops) => `tiny.ops.${opsString(op)}`
-export const pyStr = (v: any, useList = false): string => {
-  if (Array.isArray(v)) return v.length ? (useList ? `[${v.map((x) => pyStr(x)).join(', ')}]` : `(${v.map((x) => pyStr(x)).join(', ')},)`) : '()'
-  if (v === null || typeof v === 'undefined') return 'None'
-  if (typeof v === 'boolean') return v ? 'True' : 'False'
-  if (typeof v === 'number' || typeof v === 'bigint') return v === Infinity ? 'math.inf' : v === -Infinity ? '-math.inf' : Number.isNaN(v) ? 'math.nan' : v.toString()
-  if (typeof v === 'string') return `"${v}"`
+export const pyStr = (o: any, useList = false): string => {
+  if (Array.isArray(o)) return o.length ? (useList ? `[${o.map((x) => pyStr(x)).join(', ')}]` : `(${o.map((x) => pyStr(x)).join(', ')},)`) : '()'
+  if (o === null || typeof o === 'undefined') return 'None'
+  if (typeof o === 'boolean') return o ? 'True' : 'False'
+  if (typeof o === 'number' || typeof o === 'bigint') return o === Infinity ? 'math.inf' : o === -Infinity ? '-math.inf' : Number.isNaN(o) ? 'math.nan' : o.toString()
+  if (typeof o === 'string') return `"${o}"`
 
-  if (v instanceof UPat) {
+  if (o instanceof UPat) {
     // if src is UPat[][] we use list, if UPat[] then tuple
-    const src = Array.isArray(v._inSrc) ? (Array.isArray(v._inSrc.at(0)) ? pyStr(v._inSrc.at(0), true) : pyStr(v._inSrc)) : pyStr(v._inSrc)
-    return `tiny.ops.UPat(op=${v.op ? `(${v.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(v.dtype)}, src=${src}, arg=${pyStr(v.arg)}, name=${pyStr(v.name)}, allow_any_len=${pyStr(v.allowed_len === -1)}, location=${
-      pyStr(v.location)
-    }, custom_early_reject=${pyStr(v.custom_early_reject)})`
+    const src = Array.isArray(o._inSrc) ? (Array.isArray(o._inSrc.at(0)) ? pyStr(o._inSrc.at(0), true) : pyStr(o._inSrc)) : pyStr(o._inSrc)
+    return `tiny.ops.UPat(op=${o.op ? `(${o.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(o.dtype)}, src=${src}, arg=${pyStr(o.arg)}, name=${pyStr(o.name)}, allow_any_len=${pyStr(o.allowed_len === -1)}, location=${
+      pyStr(o.location)
+    }, custom_early_reject=${pyStr(o.custom_early_reject)})`
   }
-  if (v instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(v.op)}, dtype=${pyStr(v.dtype)}, src=${pyStr(v.src)}, arg=${pyStr(v.arg)})`
-  if (v instanceof ImageDType) {
-    return `tiny.dtype.ImageDType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)}, ${pyStr(v._base)}, ${pyStr(v.local)}, ${pyStr(v.v)}, ${pyStr(v.shape)})`
+  if (o instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(o.op)}, dtype=${pyStr(o.dtype)}, src=${pyStr(o.src)}, arg=${pyStr(o.arg)})`
+  if (o instanceof ImageDType) {
+    return `tiny.dtype.ImageDType(${pyStr(o.priority)}, ${pyStr(o.itemsize)}, ${pyStr(o.name)}, ${pyStr(o.fmt)}, ${pyStr(o.count)}, ${pyStr(o._scalar)}, ${pyStr(o._base)}, ${pyStr(o.local)}, ${pyStr(o.v)}, ${pyStr(o.shape)})`
   }
-  if (v instanceof PtrDType) return `tiny.dtype.PtrDType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)}, ${pyStr(v._base)}, ${pyStr(v.local)}, ${pyStr(v.v)})`
-  if (v instanceof DType) return `tiny.dtype.DType(${pyStr(v.priority)}, ${pyStr(v.itemsize)}, ${pyStr(v.name)}, ${pyStr(v.fmt)}, ${pyStr(v.count)}, ${pyStr(v._scalar)})`
-  if (v instanceof View) return `tiny.shape.view.View(shape=${pyStr(v.shape)}, strides=${pyStr(v.strides)}, offset=${pyStr(v.offset)}, mask=${pyStr(v.mask)}, contiguous=${pyStr(v.contiguous)})`
-  if (v instanceof ShapeTracker) return `tiny.shape.shapetracker.ShapeTracker(views=${pyStr(v.views)})`
+  if (o instanceof PtrDType) return `tiny.dtype.PtrDType(${pyStr(o.priority)}, ${pyStr(o.itemsize)}, ${pyStr(o.name)}, ${pyStr(o.fmt)}, ${pyStr(o.count)}, ${pyStr(o._scalar)}, ${pyStr(o._base)}, ${pyStr(o.local)}, ${pyStr(o.v)})`
+  if (o instanceof DType) return `tiny.dtype.DType(${pyStr(o.priority)}, ${pyStr(o.itemsize)}, ${pyStr(o.name)}, ${pyStr(o.fmt)}, ${pyStr(o.count)}, ${pyStr(o._scalar)})`
+  if (o instanceof View) return `tiny.shape.view.View(shape=${pyStr(o.shape)}, strides=${pyStr(o.strides)}, offset=${pyStr(o.offset)}, mask=${pyStr(o.mask)}, contiguous=${pyStr(o.contiguous)})`
+  if (o instanceof ShapeTracker) return `tiny.shape.shapetracker.ShapeTracker(views=${pyStr(o.views)})`
+  if (o instanceof IndexContext) return `tiny.codegen.lowerer.IndexContext(${pyStr(o.idxs)}, ${pyStr(o.ridxs)}, ${pyStr(o.acc_num)})`
+  if (o instanceof ClangRenderer) return `tiny.renderer.cstyle.ClangRenderer()`
+  if (o instanceof Opt) return `tiny.codegen.kernel.Opt(${pyStr(o.op)}, ${pyStr(o.axis)}, ${pyStr(o.amt)})`
+  if (o instanceof Kernel) return `tiny.codegen.kernel.Kernel(${pyStr(o.ast)}, ${pyStr(o.opts)})`
 
-  if (typeof v === 'function') return 'lambda x: x'
-  if (typeof v === 'object') return `{${Object.entries(v).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
-  throw new Error(`Invalid value: ${v}`)
+  if (typeof o === 'function') return 'lambda x: x'
+  if (typeof o === 'object') return `{${Object.entries(o).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
+  throw new Error(`Invalid value: ${o}`)
 }
 export const python = async <T = any>(code: string, data?: any): Promise<T> => {
   code = `
