@@ -11,6 +11,7 @@ import { writeFileSync } from 'node:fs'
 import { IndexContext } from '../src/codegen/lowerer.ts'
 import { Kernel, Opt } from '../src/codegen/kernel.ts'
 import { ClangRenderer } from '../src/renderer/cstyle.ts'
+import { BasicBlock } from '../src/codegen/linearize.ts'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -40,6 +41,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (typeof o === 'boolean') return o ? 'True' : 'False'
   if (typeof o === 'number' || typeof o === 'bigint') return o === Infinity ? 'math.inf' : o === -Infinity ? '-math.inf' : Number.isNaN(o) ? 'math.nan' : o.toString()
   if (typeof o === 'string') return `"${o}"`
+  if (o instanceof Map) return `{${[...o.entries()].map(([k, v]) => `${pyStr(k)}:${pyStr(v)}`).join(',')}}`
 
   if (o instanceof UPat) {
     // if src is UPat[][] we use list, if UPat[] then tuple
@@ -61,6 +63,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Opt) return `tiny.codegen.kernel.Opt(${pyStr(o.op)}, ${pyStr(o.axis)}, ${pyStr(o.amt)})`
   if (o instanceof Kernel) return `tiny.codegen.kernel.Kernel(${pyStr(o.ast)}, ${pyStr(o.opts)})`
   if (o instanceof KernelInfo) return `tiny.ops.KernelInfo(${pyStr(o.local_dims)}, ${pyStr(o.upcasted)}, ${pyStr(o.dont_use_locals)})`
+  if (o instanceof BasicBlock) return `tiny.codegen.linearize.BasicBlock(${pyStr(o.ctx)}, ${pyStr(o.lst)}, ${pyStr(o.end)})`
 
   if (typeof o === 'function') return 'lambda x: x'
   if (typeof o === 'object') return `{${Object.entries(o).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
