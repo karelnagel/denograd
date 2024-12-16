@@ -32,7 +32,7 @@ export class Opt {
   constructor(public op: OptOps, public axis?: number, public amt?: number) {}
   toString = () => `Opt(op=${this.op}, axis=${this.axis}, amt=${this.amt})`
   real_axis = (k: Kernel): number => {
-    if (this.axis===undefined) return -1
+    if (this.axis === undefined) return -1
     if (this.op === OptOps.UNROLL) return k.first_reduce + this.axis
     if ([OptOps.GROUP, OptOps.GROUPTOP].includes(this.op)) return k.first_reduce + k.group_for_reduces + this.axis
     return this.axis
@@ -170,7 +170,7 @@ export class Kernel {
     //     # between first_reduce + group_for_reduces && upcasted, they are reduce (red)
     colors = [...colors, ...range(this.first_upcast - (this.first_reduce + this.group_for_reduces)).map((x) => 'red')]
     //     # upcasted dimensions are reduce (magenta) ||normal (yellow)
-    colors = range(this.first_upcast, this.shape_len).map((i) => this.full_shape[i] !== this.sts[0].shape[i] ? 'magneta' : 'yellow')
+    colors = [...colors, ...range(this.first_upcast, this.shape_len).map((i) => this.full_shape[i] !== this.sts[0].shape[i] ? 'magneta' : 'yellow')]
     assert(colors.length === this.shape_len, 'colors size mismatch')
     return colors
   }

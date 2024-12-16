@@ -23,7 +23,12 @@ Deno.test(
     'out(data[0].real_axis(data[1]))',
   ),
 )
-
+const keys = ["ast", "opts", "vars", "bufs", "applied_opts", "group_for_reduces", "upcasted", "local_dims", "tensor_core", "tensor_core_opts", "use_tensor_cores", "bufs_for_tensor_core", "dont_use_locals", "sts", "reduceops", "full_buf_index"]as const
+const tsKernelKeys = (k:Kernel)=>Object.fromEntries(keys.map(key=>[key,k[key]]))
+const pyKernelKeys = `
+keys = [${keys.map(k=>`"${k}"`)}]
+out({key:getattr(k, key) for key in keys})
+`
 Deno.test(
   'Kernel.init',
   compare(
@@ -35,187 +40,159 @@ Deno.test(
       [new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64], strides:[1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64], strides:[0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()],
       [new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10, 576], strides:[576, 1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10, 576], strides:[0, 0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()]
     ],
-    (ast: UOp, opts: Renderer) => {
-      const k = new Kernel(ast, opts)
-      return {
-        ast: k.ast,
-        opts: k.opts,
-        vars: k.vars,
-        bufs: k.bufs,
-        applied_opts: k.applied_opts,
-        group_for_reduces: k.group_for_reduces,
-        upcasted: k.upcasted,
-        local_dims: k.local_dims,
-        tensor_core: k.tensor_core,
-        tensor_core_opts: k.tensor_core_opts,
-        use_tensor_cores: k.use_tensor_cores,
-        bufs_for_tensor_core: k.bufs_for_tensor_core,
-        dont_use_locals: k.dont_use_locals,
-        sts: k.sts,
-        reduceops:k.reduceops,
-        full_buf_index: k.full_buf_index,
-      }
-    },
-  `k = tiny.codegen.kernel.Kernel(*data)
-out({
-    "ast":k.ast,
-    "opts":k.opts,
-    "vars":k.vars,
-    "bufs":k.bufs,
-    "applied_opts":k.applied_opts,
-    "group_for_reduces":k.group_for_reduces,
-    "upcasted":k.upcasted,
-    "local_dims":k.local_dims,
-    "tensor_core":k.tensor_core,
-    "tensor_core_opts":k.tensor_core_opts,
-    "use_tensor_cores":k.use_tensor_cores,
-    "bufs_for_tensor_core":k.bufs_for_tensor_core,
-    "dont_use_locals":k.dont_use_locals,
-    "sts":k.sts,
-    "reduceops":k.reduceops,
-    "full_buf_index":k.full_buf_index,
-})
-`,
+    (ast: UOp, opts: Renderer) => tsKernelKeys(new Kernel(ast, opts)),
+    `k = tiny.codegen.kernel.Kernel(*data)\n${pyKernelKeys}`,
   ),
 )
+const kernels = [
+  new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[1], strides:[0], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[1], strides:[0], offset:0, mask:undefined, contiguous:true })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:1.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()),
+  new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[512, 1], strides:[1, 0], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:22, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:33, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:1 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[512, 10], strides:[10, 1], offset:0, mask:undefined, contiguous:true })]) })], arg:undefined })], arg:[40, [1]] })], arg:undefined })], arg:undefined }), new ClangRenderer()),
+  new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32], strides:[1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32], strides:[0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()),
+  new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10], strides:[1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10], strides:[0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()),
+  new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64], strides:[1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64], strides:[0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()),
+  new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10, 576], strides:[576, 1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10, 576], strides:[0, 0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()),
 
+]
 Deno.test(
   'Kernel.membufs',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.membufs,
+    'out(data[0].membufs)',
   ),
 )
 Deno.test(
   'Kernel.float4_axis',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.flatMap(k=>[0,1].map(i=>[k,i] as [Kernel,number])),
+    (k:Kernel,i:number) => k.float4_axis(i),
+    'out(data[0].float4_axis(data[1]))',
   ),
 )
 Deno.test(
   'Kernel.upcasted_axis',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.flatMap(k=>[0,1].map(i=>[k,i] as [Kernel,number])),
+    (k:Kernel,axis:number) => k.upcasted_axis(axis),
+    'out(data[0].upcasted_axis(data[1]))',
   ),
 )
 Deno.test(
   'Kernel.first_reduce',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.first_reduce,
+    'out(data[0].first_reduce)',
   ),
 )
 Deno.test(
   'Kernel.colors',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.colors(),
+    'out(data[0].colors())',
   ),
 )
-Deno.test(
+Deno.test.ignore(
   'Kernel.colored_shape',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.colored_shape(),
+    'out(data[0].colored_shape())',
   ),
 )
-Deno.test(
-  'Kernel.reshape_and_permute',
-  compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
-  ),
-)
+
 Deno.test(
   'Kernel.shift_to',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
-  ),
-)
-Deno.test(
-  'Kernel.simplify_ones',
-  compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
-  ),
-)
-Deno.test(
-  'Kernel.simplify_merge_adjacent',
-  compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    [
+      [new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[512, 1], strides:[1, 0], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:22, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:33, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:1 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[512, 10], strides:[10, 1], offset:0, mask:undefined, contiguous:true })]) })], arg:undefined })], arg:[40, [1]] })], arg:undefined })], arg:undefined }), new ClangRenderer()), 1, 10, false, undefined],
+      [new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64], strides:[1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64], strides:[0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), 0, 4, false, undefined],
+      [new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32], strides:[1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32], strides:[0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), 0, 4, false, undefined],
+      [new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10, 576], strides:[576, 1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10, 576], strides:[0, 0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), 0, 3, false, undefined],
+      [new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32, 1, 5, 5], strides:[25, 0, 5, 1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32, 1, 5, 5], strides:[0, 0, 0, 0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), 0, 4, false, undefined],
+      [new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64, 64, 3, 3], strides:[576, 9, 3, 1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64, 64, 3, 3], strides:[0, 0, 0, 0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), 0, 3, false, undefined]
+    ],
+    tryCatch((k:Kernel,axis:number,amount:number,top:boolean,insert_before?:number)=>{
+      k.shift_to(axis,amount,top,insert_before)
+      return tsKernelKeys(k)
+    }),
+    `k = data[0]
+k.shift_to(*data[1:])
+${pyKernelKeys}`,
   ),
 )
 Deno.test(
   'Kernel.apply_opt',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    [
+      [new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[512, 1], strides:[1, 0], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:22, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:33, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:1 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[512, 10], strides:[10, 1], offset:0, mask:undefined, contiguous:true })]) })], arg:undefined })], arg:[40, [1]] })], arg:undefined })], arg:undefined }), new ClangRenderer()), new Opt(OptOps.UNROLL, 0, 0), true],
+[new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32], strides:[1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32], strides:[0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), new Opt(OptOps.UPCAST, 0, 4), true],
+[new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64], strides:[1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64], strides:[0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), new Opt(OptOps.UPCAST, 0, 4), true],
+[new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10, 576], strides:[576, 1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[10, 576], strides:[0, 0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), new Opt(OptOps.UPCAST, 0, 3), true],
+[new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32, 1, 5, 5], strides:[25, 0, 5, 1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[32, 1, 5, 5], strides:[0, 0, 0, 0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), new Opt(OptOps.UPCAST, 0, 4), true],
+[new Kernel(new UOp({ op:1, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:34, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[new UOp({ op:14, dtype:new PtrDType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined, _base:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), local:false, v:1 }), src:[], arg:0 }), new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64, 64, 3, 3], strides:[576, 9, 3, 1], offset:0, mask:undefined, contiguous:true })]) }), new UOp({ op:52, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[new UOp({ op:19, dtype:new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), src:[new UOp({ op:13, dtype:new DType({ priority:-1, itemsize:0, name:`void`, fmt:undefined, count:1, _scalar:undefined }), src:[], arg:new ShapeTracker([new View({ shape:[64, 64, 3, 3], strides:[0, 0, 0, 0], offset:0, mask:undefined, contiguous:false })]) })], arg:undefined }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 }), new UOp({ op:62, dtype:new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), src:[], arg:0.0 })], arg:undefined })], arg:undefined })], arg:undefined }), new ClangRenderer()), new Opt(OptOps.UPCAST, 0, 3), true]
+
+    ],
+    tryCatch((k:Kernel,opt:Opt,append_opt:boolean)=>{
+      k.apply_opt(opt,append_opt)
+      return tsKernelKeys(k)
+    },),
+    `k = data[0]
+k.apply_opt(*data[1:])
+${pyKernelKeys}
+`,
   ),
 )
 Deno.test(
   'Kernel.required_optimizations',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.required_optimizations(),
+    `out(data[0].required_optimizations())`
   ),
 )
 Deno.test(
   'Kernel.hand_coded_optimizations',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel)=>k.hand_coded_optimizations(),
+    'out(data[0].hand_coded_optimizations())',
   ),
 )
 Deno.test(
   'Kernel.name',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.name,
+    'out(data[0].name)',
   ),
 )
 
 Deno.test(
   'Kernel.get_optimized_ast',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.get_optimized_ast(),
+    'out(data[0].get_optimized_ast())',
   ),
 )
 
 Deno.test(
   'Kernel.linearize',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.linearize(),
+    'out(data[0].linearize())',
   ),
 )
 
 Deno.test(
   'Kernel.to_program',
   compare(
-    [],
-    () => {},
-    'out(tiny.codegen.kernel.Kernel(*data))',
+    kernels.map(k=>[k] as [Kernel]),
+    (k:Kernel) => k.to_program(),
+    'out(data[0].to_program())',
   ),
 )
 
