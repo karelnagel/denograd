@@ -1,6 +1,6 @@
 import { dtypes, PtrDType } from '../dtype.ts'
 import { all, assert, isinstance, len, min, partition, prod, range, sum, zip } from '../helpers.ts'
-import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, sint, sint_to_uop, UOp, UPat } from '../ops.ts'
+import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 
 // # returns the axes to create new_shape if new_shape can be created by combining axis from old_shape
@@ -15,9 +15,8 @@ export const _limit_dims = (dims: sint[], max_sizes: number[]) => {
 export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[], reverse = false): UOp[] => {
   throw new Error('not implemented')
 }
-//   pass
 export class IndexContext {
-  constructor(public idxs: UOp[], public ridxs: UOp[], public acc_num: number) {}
+  constructor(public idxs: UOp[], public ridxs: UOp[], public acc_num: number=0) {}
 }
 export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const ki = isinstance(ast.arg, KernelInfo) ? ast.arg : new KernelInfo()
@@ -56,7 +55,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   for (const a of range(first_reduce, first_reduce + group_for_reduces)) {
     ridxs[a] = new UOp({ op: Ops.RANGE, dtype: dtypes.int, src: [sint_to_uop(0), sint_to_uop(full_shape[a])], arg: 1000 + a })
   }
-  return new IndexContext(idxs, ridxs, 0)
+  return new IndexContext(idxs, ridxs)
 }
 // # ***** lowering (given index) *****
 
@@ -67,14 +66,14 @@ export const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   const alu_op: Ops = x.arg[0]
   let ret = x.src[0]
   const contract_axis = reduce_expand.flatMap((x) => x.arg)
-  if (len(contract_axis)) {
+  if (contract_axis.length) {
     ret = new UOp({ op: Ops.CONTRACT, dtype: x.dtype.vec(prod(contract_axis.map((x) => x[1]))), src: [ret], arg: contract_axis })
     ret = range(ret.dtype.count).map((i) => ret.gep(i)).reduce((x, y) => x.alu(alu_op, y))
   }
-  if (!len(reduce_range)) return ret
+  if (!reduce_range.length) return ret
   // create ACC and assign
-  const acc = new UOp({ op: Ops.DEFINE_ACC, dtype: x.dtype, src: [x.const_like(identity_element(alu_op, x.dtype.scalar())), ...reduce_range], arg: [ctx.acc_num] })
-  ctx.acc_num += 1
+  const acc = new UOp({ op: Ops.DEFINE_ACC, dtype: x.dtype, src: [x.const_like(identity_element(alu_op, x.dtype.scalar())), ...reduce_range], arg: [ctx.acc_num + 0] })
+  ctx = { ...ctx, acc_num: ctx.acc_num + 1 } // TODO: not sure, ctx.acc_num += 1 makes tests fail
   return acc.assign(acc.alu(alu_op, ret))
 }
 export const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {

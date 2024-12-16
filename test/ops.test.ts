@@ -223,7 +223,7 @@ Deno.test(
 )
 
 Deno.test(
-  'has_st',
+  'UOp.has_st',
   compare(
     [
       [new UOp({ op: Ops.DEFINE_LOCAL })],
@@ -233,6 +233,10 @@ Deno.test(
       [new UOp({ op: Ops.DEFINE_VAR })],
       [new UOp({ op: Ops.ADD })],
       [new UOp({ op: Ops.MUL })],
+      [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })],
+      [new UOp({ op: Ops.ADD, src: [UOp.int(4), UOp.int(5)] })],
+      [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) }), new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })] })],
+      [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })] })],
     ],
     tryCatch((x: UOp) => x.has_st),
     'out(trycatch(lambda: data[0].has_st))',
@@ -246,6 +250,10 @@ Deno.test(
       [new UOp({ op: Ops.DEFINE_LOCAL })],
       [new UOp({ op: Ops.ADD, src: [ShapeTracker.from_shape([2, 2]).to_uop()] })],
       [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([2, 2]) })],
+      [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })],
+      [new UOp({ op: Ops.ADD, src: [UOp.int(4), UOp.int(5)] })],
+      [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) }), new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })] })],
+      [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })] })],
     ],
     tryCatch((x: UOp) => x.st),
     'out(trycatch(lambda: data[0].st))',
@@ -253,11 +261,13 @@ Deno.test(
 )
 
 Deno.test(
-  'full_shape',
+  'UOp.full_shape',
   compare(
     [
-      [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })],
+      // [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })],
       [new UOp({ op: Ops.ADD, src: [UOp.int(4), UOp.int(5)] })],
+      // [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) }), new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })] })],
+      // [new UOp({ op: Ops.ADD, src: [new UOp({ op: Ops.VIEW, arg: ShapeTracker.from_shape([3, 4]) })] })],
     ],
     (x: UOp) => x.full_shape,
     'out(trycatch(lambda: data[0].full_shape))',

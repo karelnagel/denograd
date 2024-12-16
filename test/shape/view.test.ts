@@ -54,6 +54,7 @@ Deno.test(
       [[[UOp.int(2), UOp.int(3)]], [UOp.int(44), UOp.int(44)], [UOp.int(444), UOp.int(44)]],
       [[[UOp.int(2), UOp.int(3)], [UOp.int(5), UOp.int(5)]], [UOp.int(44), UOp.int(44)], [UOp.int(444), UOp.int(44)]],
       [[[2, 3], [UOp.int(5), 44444]], [555, UOp.int(44)], [UOp.int(444), UOp.float(44)]],
+      [[[0, 11], [9, 19]], [11, 19], [209]]
     ],
     _reshape_mask,
     `out(tiny.shape.view._reshape_mask(*data))`,

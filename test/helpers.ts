@@ -75,7 +75,7 @@ from dataclasses import asdict
 import itertools
 from tinygrad.renderer import cstyle
 from tinygrad.ops import Ops
-from to_ts import to_ts
+from tinygrad.to_ts import to_ts
 
 def trycatch(fn):
   try: return fn()

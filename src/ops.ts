@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { all_same, assert, counter, divmod, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
-import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { ShapeTracker } from './shape/shapetracker.ts'
 import { argfix } from './helpers.ts'
@@ -227,7 +226,7 @@ export class UOp extends MathTrait {
     return this.op === Ops.BUFFER ? this.arg[1][1] : this.st!.size
   }
   get full_shape(): sint[] {
-    return this.op === Ops.VIEW ? this.shape : this.src.filter((x) => x.has_st).map((x) => smax(x.full_shape))
+    return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map(x=>smax(x))
   }
   //   # *** uop evaluation ***
 
