@@ -1,6 +1,6 @@
 import { dtypes, PtrDType } from '../dtype.ts'
 import { assert, dedup, isEq, isinstance, isLessThan, isNotNone, len, min, partition, setDefault } from '../helpers.ts'
-import { graph_rewrite, GroupOp, Ops, opsString, PatternMatcher, UOp, UPat } from '../ops.ts'
+import { graph_rewrite, GroupOp, Ops, opsString, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
 
@@ -185,8 +185,8 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
         }
       } else if (s.op === Ops.ASSIGN) {
         //         # flow though assign, but remove the ranges used in the assign
-        //         assert s.src[0].op is Ops.DEFINE_ACC
-        //         this_block_ctx += [x for x in temp_block_ctxs[s.src[1]] if x not in s.src[0].src[1:]]
+        assert(s.src[0].op === Ops.DEFINE_ACC)
+        this_block_ctx = [...this_block_ctx, ...temp_block_ctxs.get(s.src[1])!.filter((x) => !s.src[0].src.slice(1).includes(x))]
       } //         # flow though everything else
 
       else this_block_ctx = [...this_block_ctx, ...temp_block_ctxs.get(s)!]
@@ -196,7 +196,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   //   # make final block_ctxs, add BLOCKSTART to block_ctxs for IF and RANGE
   const block_ctxs = new Map<UOp, UOp[]>()
   for (const u of sink.toposort) {
-    block_ctxs.set(u, [new UOp({ op: Ops.BLOCKSTART, src: [u] }), ...([Ops.IF, Ops.RANGE].includes(u.op) ? temp_block_ctxs.get(u)! : temp_block_ctxs.get(u)!)])
+    block_ctxs.set(u, [Ops.IF, Ops.RANGE].includes(u.op) ? [new UOp({ op: Ops.BLOCKSTART, src: [u] }), ...temp_block_ctxs.get(u)!] : temp_block_ctxs.get(u)!)
   }
 
   //   # TODO: there's probably a clever way to remove this while loop
@@ -242,7 +242,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   _uops = [..._uops, ...sink.arg.lst]
 
   //   # sanity checks (NOTE: these can cause things to be skipped in BEAM)
-  //   if (!skip_check) type_verify(_uops)
+  if (!skip_check) type_verify(_uops)
 
   //   # strip the SINK
   return _uops.slice(0, -1)

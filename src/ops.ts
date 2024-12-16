@@ -226,7 +226,7 @@ export class UOp extends MathTrait {
     return this.op === Ops.BUFFER ? this.arg[1][1] : this.st!.size
   }
   get full_shape(): sint[] {
-    return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map(x=>smax(x))
+    return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map((x) => smax(x))
   }
   //   # *** uop evaluation ***
 
@@ -710,12 +710,13 @@ export class RewriteContext {
   bottom_up_rewrite = (n: UOp): UOp => {
     const rn = this.replace.get(n)
     if (isNotNone(rn)) return rn
-    let new_n = n
-    let last_n: UOp
-    while (isNotNone(new_n));
-    ;[last_n, new_n] = [new_n, this.pm.rewrite(new_n, this.ctx)!]
+    let new_n: UOp | undefined = n
+    let last_n!: UOp
+    while (new_n !== undefined) {
+      ;[last_n, new_n] = [new_n, this.pm.rewrite(new_n, this.ctx)]
+    }
     const new_src = last_n.src.map((x) => this.bottom_up_rewrite(x))
-    const ret = new_src === last_n.src ? last_n : this.bottom_up_rewrite(new UOp({ op: last_n.op, dtype: last_n.dtype, src: new_src, arg: last_n.arg }))
+    const ret = isEq(new_src, last_n.src) ? last_n : this.bottom_up_rewrite(new UOp({ op: last_n.op, dtype: last_n.dtype, src: new_src, arg: last_n.arg }))
     this.replace.set(n, ret)
     return ret
   }
@@ -725,6 +726,11 @@ export const graph_rewrite = (sink: UOp, pm: PatternMatcher<any, any>, ctx?: any
 }
 // # ***** uop type spec *****
 
+
+const isSameConstType = (a: ConstType | ConstType[], b: ConstType | ConstType[]) => {
+  if (typeof a === 'number' && typeof b === 'number') return Number.isInteger(a) === Number.isInteger(b)
+  return typeof a === typeof b
+}
 // # this is the matcher for the final rendered UOps
 // # matcher functions returns True or False (or None to not match)
 export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>([
@@ -740,7 +746,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   [new UPat({ op: Ops.VIEW, dtype: dtypes.void, src: [] }), () => true],
   [new UPat({ op: Ops.VIEW, src: [UPat.var('src')], name: 'x' }), ({ x, src }) => src.op !== Ops.STORE && isEq(x.dtype, src.dtype)],
   [new UPat({ op: Ops.VALID, dtype: dtypes.bool, src: [new UPat({ op: Ops.VIEW })] }), () => true],
-  [new UPat({ op: Ops.CONST, name: 'x' }), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && typeof x.arg === typeof dtypes.as_const(x.arg, x.dtype)],
+  [new UPat({ op: Ops.CONST, name: 'x' }), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && isSameConstType(x.arg, dtypes.as_const(x.arg, x.dtype))],// NOTE: this is slightly different from python, int(1) != float(1) in py but it is the same in TS
 
   //   # early LOAD has a <buf, shapetracker, store?>
   [new UPat({ op: Ops.LOAD, src: [new UPat({ op: [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL] }), new UPat({ op: Ops.VIEW })] }), () => true],
@@ -797,7 +803,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   [new UPat({ op: Ops.BARRIER, dtype: dtypes.void, src: new UPat({ op: Ops.STORE, src: [new UPat({ dtype: dtypes.int64 })], allow_any_len: true }) }), () => true],
 ])
 
-export const typeVerify = (uops: UOp[]) => {
+export const type_verify = (uops: UOp[]) => {
   for (const [i, u] of uops.entries()) {
     if (!spec.rewrite(u)) {
       print_uops(uops)
@@ -1153,8 +1159,7 @@ export const symbolic_flat = symbolic.add(
   ]),
 )
 // TODO: lol there probably is some better way to get these
-const allOps = range(Object.values(Ops).length / 2).filter((x) => x !== 0)
-export const _substitute = new PatternMatcher<any>([[new UPat({ op: allOps, name: 'x' }), ({ ctx, x }) => ctx.get(x, undefined)]])
+export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat({ op: OpsAll, name: 'x' }), ({ ctx, x }) => ctx.get(x)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
