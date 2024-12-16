@@ -14,6 +14,7 @@ Deno.test(
   'serialize',
   compare(
     [
+      [new View({ shape:[10, 576], strides:[576, 1], offset:0, mask:undefined, contiguous:true }),],
       [[4, 4, 'sdf', { sdf: 69 }, [{ df: 44, sdf: 'sdf' }]]],
       [Ops.ADD],
       [Ops.ASSIGN],

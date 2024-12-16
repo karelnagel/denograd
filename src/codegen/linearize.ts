@@ -1,6 +1,6 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { assert, dedup, isEq, isinstance, isLessThan, isNotNone, len, min, partition, setDefault } from '../helpers.ts'
-import { graph_rewrite, GroupOp, Ops, opsString, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
+import { assert, dedup, getEnumString, isEq, isinstance, isLessThan, isNotNone, len, min, partition, setDefault } from '../helpers.ts'
+import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
 
@@ -14,7 +14,7 @@ export const disp = (y: UOp): string => {
 export class BasicBlock {
   constructor(public ctx: UOp[], public lst: UOp[], public end?: UOp) {}
   lt = (o: BasicBlock) => isLessThan([...this.ctx, ...this.lst].map((x) => x.tuplize()), [...o.ctx, ...o.lst].map((x) => x.tuplize()))
-  toString = () => `${isNotNone(this.end) ? (disp(this.end) + ' ') : ''}` + `${this.ctx.map((y) => disp(y))} ${len(this.lst)}` + '\n' + this.lst.map((x) => opsString(x.op)).join('\n')
+  toString = () => `${isNotNone(this.end) ? (disp(this.end) + ' ') : ''}` + `${this.ctx.map((y) => disp(y))} ${len(this.lst)}` + '\n' + this.lst.map((x) => `Ops.${getEnumString(Ops, x.op)}`).join('\n')
 }
 type CTX = [Map<UOp, UOp[]>, Map<UOp, UOp[]>]
 export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {

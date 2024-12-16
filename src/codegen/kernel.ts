@@ -32,7 +32,7 @@ export class Opt {
   constructor(public op: OptOps, public axis?: number, public amt?: number) {}
   toString = () => `Opt(op=${this.op}, axis=${this.axis}, amt=${this.amt})`
   real_axis = (k: Kernel): number => {
-    if (isNone(this.axis)) return -1
+    if (this.axis===undefined) return -1
     if (this.op === OptOps.UNROLL) return k.first_reduce + this.axis
     if ([OptOps.GROUP, OptOps.GROUPTOP].includes(this.op)) return k.first_reduce + k.group_for_reduces + this.axis
     return this.axis
@@ -59,13 +59,13 @@ export class Kernel {
   // the local aliased buffers for A && B
   bufs_for_tensor_core = new Map<UOp, [number, number]>()
   dont_use_locals = false
+  uop_sts_map?: Map<UOp, ShapeTracker>
   constructor(ast: UOp, opts?: Renderer) {
     if (ast.op === Ops.SINK) this.ast = ast
 
-    this.opts = isNotNone(opts) ? opts : Device.get(Device.DEFAULT).renderer
-    let uop_sts_map
+    this.opts = opts !== undefined ? opts : Device.get(Device.DEFAULT).renderer
     try {
-      uop_sts_map = verify_ast(this.ast)
+      this.uop_sts_map = verify_ast(this.ast)
     } catch (e) {
       console.log(`INVALID AST`)
       console.log(this.ast)
@@ -80,7 +80,7 @@ export class Kernel {
 
     //     # get earlybufs, before any reduceops
     const earlybufs: UOp[] = this.reduceops.flatMap((reduceop) => [...reduceop.src[0].toposort].filter((x) => GroupOp.Buffer.includes(x.op)))
-    this.full_buf_index = earlybufs ? this.bufs.indexOf(earlybufs[0]) : 0
+    this.full_buf_index = earlybufs.length ? this.bufs.indexOf(earlybufs[0]) : 0
     //     # NOTE: full_shape can be wrong if there's a tree of reduces
 
     //     # create new shapetrackers inside this kernel, we will permute them
@@ -89,15 +89,13 @@ export class Kernel {
     //     # add the shapetrackers for each reduce
     //     # we use this to track which axes are reduced in each reduce
     for (const x of this.reduceops) {
-      this.sts.push(uop_sts_map.get(x)!)
-      this.sts.push(uop_sts_map.get(x.src[0])!)
+      this.sts.push(this.uop_sts_map.get(x)!)
+      this.sts.push(this.uop_sts_map.get(x.src[0])!)
     }
     //     # move all reduce axes to the end
-    const reduce = zip(this.full_shape, this.output_shape).entries()
+    const reduce = [...zip(this.full_shape, this.output_shape).entries()]
     const permute = [...reduce.filter(([i, [s, n]]) => !resolve(ne(s, n))).map(([i]) => i), ...reduce.filter(([i, [s, n]]) => resolve(ne(s, n))).map(([i]) => i)]
     this.reshape_and_permute(undefined, permute)
-
-    //     # parameters for optimization
 
     //     # group simplifies
     this.simplify_ones()
@@ -188,7 +186,7 @@ export class Kernel {
   //   # apply reshape && permute to all shapetrackers
   reshape_and_permute = (new_shape_fxn?: (a: sint[]) => sint[], axis?: number[]) => {
     const reshape = (st: ShapeTracker) => new_shape_fxn !== undefined ? st.reshape(new_shape_fxn(st.shape)) : st
-    const permute = (st: ShapeTracker) => isNotNone(axis) ? st.permute(axis) : st
+    const permute = (st: ShapeTracker) => axis !== undefined ? st.permute(axis) : st
     this.sts = this.sts.map((st) => permute(reshape(st)))
   }
   //   # drops the final dimension

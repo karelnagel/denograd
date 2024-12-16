@@ -1,7 +1,7 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getEnv, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault, zip } from '../helpers.ts'
-import { can_pad, ge, lt, OpsAll, resolve, sint_prod, sub, UPatInput } from '../ops.ts'
+import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getAllEnums, getEnv, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault, zip } from '../helpers.ts'
+import { can_pad, ge, lt, resolve, sint_prod, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { LazyBuffer } from './lazy.ts'
@@ -190,7 +190,7 @@ export const to_si = new PatternMatcher<Record<string, UOp> & { ctx: ScheduleIte
 // // ** fusion
 
 export const lazy = new PatternMatcher<Record<string, UOp> & { ctx: ScheduleItemContext }, UOp | undefined>([
-  [new UPat({ op: OpsAll, name: 'x' }), ({ ctx, x }) => ctx.ops_metadata.get(x) !== undefined ? void ctx.metadata.add(ctx.ops_metadata.get(x)!) : undefined],
+  [new UPat({ op: getAllEnums(Ops), name: 'x' }), ({ ctx, x }) => ctx.ops_metadata.get(x) !== undefined ? void ctx.metadata.add(ctx.ops_metadata.get(x)!) : undefined],
   [new UPat({ op: Ops.CONTIGUOUS, src: [UPat.var('x')] }), ({ ctx, x }) => x],
 ])
 

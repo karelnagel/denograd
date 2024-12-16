@@ -7,6 +7,11 @@ import { execSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 
 // GENERAL HELPERS
+export const getAllEnums = <T extends object>(e: T) => Object.values(e).filter((value) => typeof value === 'number' && value !== 0) as T[keyof T][]
+export const getEnumString = <T extends object>(e: T, op: T[keyof T]) => {
+  for (const key in e) if (e[key] === op) return key
+  return undefined
+}
 export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
   instance: any,
   classType: T | NumberConstructor | BooleanConstructor | ArrayConstructor | StringConstructor,

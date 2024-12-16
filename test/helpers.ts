@@ -1,15 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
 import { DType, ImageDType, PtrDType } from '../src/dtype.ts'
-import { isNotNone } from '../src/helpers.ts'
+import { getEnumString, isNotNone } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
-import { KernelInfo, Ops, opsString, UOp, UPat } from '../src/ops.ts'
+import { KernelInfo, Ops, UOp, UPat } from '../src/ops.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
 import { View } from '../src/shape/view.ts'
 import { writeFileSync } from 'node:fs'
 import { IndexContext } from '../src/codegen/lowerer.ts'
-import { Kernel, Opt } from '../src/codegen/kernel.ts'
+import { Kernel, Opt, OptOps } from '../src/codegen/kernel.ts'
 import { ClangRenderer } from '../src/renderer/cstyle.ts'
 import { BasicBlock } from '../src/codegen/linearize.ts'
 
@@ -34,7 +34,8 @@ export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return)
   }
 }
 
-const getPyOpsStr = (op: Ops) => `tiny.ops.${opsString(op)}`
+const getPyOpsStr = (op: Ops) => `tiny.ops.Ops.${getEnumString(Ops, op)}`
+const getPyOptOps = (op: OptOps) => `tiny.codegen.kernel.OptOps.${getEnumString(OptOps, op)}`
 export const pyStr = (o: any, useList = false): string => {
   if (Array.isArray(o)) return o.length ? (useList ? `[${o.map((x) => pyStr(x)).join(', ')}]` : `(${o.map((x) => pyStr(x)).join(', ')},)`) : '()'
   if (o === null || typeof o === 'undefined') return 'None'
@@ -60,7 +61,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof ShapeTracker) return `tiny.shape.shapetracker.ShapeTracker(views=${pyStr(o.views)})`
   if (o instanceof IndexContext) return `tiny.codegen.lowerer.IndexContext(${pyStr(o.idxs)}, ${pyStr(o.ridxs)}, ${pyStr(o.acc_num)})`
   if (o instanceof ClangRenderer) return `tiny.renderer.cstyle.ClangRenderer()`
-  if (o instanceof Opt) return `tiny.codegen.kernel.Opt(${pyStr(o.op)}, ${pyStr(o.axis)}, ${pyStr(o.amt)})`
+  if (o instanceof Opt) return `tiny.codegen.kernel.Opt(${getPyOptOps(o.op)}, ${pyStr(o.axis)}, ${pyStr(o.amt)})`
   if (o instanceof Kernel) return `tiny.codegen.kernel.Kernel(${pyStr(o.ast)}, ${pyStr(o.opts)})`
   if (o instanceof KernelInfo) return `tiny.ops.KernelInfo(${pyStr(o.local_dims)}, ${pyStr(o.upcasted)}, ${pyStr(o.dont_use_locals)})`
   if (o instanceof BasicBlock) return `tiny.codegen.linearize.BasicBlock(${pyStr(o.ctx)}, ${pyStr(o.lst)}, ${pyStr(o.end)})`

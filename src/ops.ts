@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { all_same, assert, counter, divmod, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
+import { all_same, assert, counter, divmod, getEnumString, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
 import { readFileSync } from 'node:fs'
 import { ShapeTracker } from './shape/shapetracker.ts'
 import { argfix } from './helpers.ts'
+import { getAllEnums } from './helpers.ts'
 
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
@@ -110,11 +111,7 @@ export enum Ops{
     // consts last!
     VCONST, CONST,
 }
-export const OpsAll = Object.values(Ops).filter((value) => typeof value === 'number' && value !== 0) as Ops[]
-export const opsString = (op: Ops) => {
-  for (const key in Ops) if (Ops[key] === op as unknown as keyof Ops) return `Ops.${key}`
-  return undefined
-}
+
 export class GroupOp {
   static Unary = [Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.SQRT, Ops.RECIP, Ops.NEG]
   static Binary = [Ops.ADD, Ops.MUL, Ops.IDIV, Ops.MAX, Ops.MOD, Ops.CMPLT, Ops.CMPNE, Ops.XOR, Ops.SHL, Ops.SHR, Ops.OR, Ops.AND, Ops.THREEFRY, Ops.SUB, Ops.FDIV]
@@ -183,7 +180,7 @@ export class UOp extends MathTrait {
       super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
       UOp.ucache.set(key,this)
     }
-  override toString = () => `new UOp({op:${opsString(this.op)}, dtype:${this.dtype}, arg:${listStr(this.arg)}, src:${listStr(this.src)}})`
+  override toString = () => `new UOp({op:Ops.${getEnumString(Ops, this.op)}, dtype:${this.dtype}, arg:${listStr(this.arg)}, src:${listStr(this.src)}})`
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => {
     const oldArgs: UOpInput = { dtype: this.dtype, arg: this.arg, op: this.op, src: this.src }
@@ -252,7 +249,7 @@ export class UOp extends MathTrait {
 
   //   # *** uop syntactic sugar ***
   get st_arg(): ShapeTracker {
-    if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on ${opsString(this.op)}`)
+    if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on Ops.${getEnumString(Ops, this.op)}`)
     const ret = this.src[this.op === Ops.VALID ? 0 : 1]
     if (ret.op !== Ops.VIEW) throw new Error(`st_arg trying to return ${ret}`)
     return ret.arg
@@ -622,7 +619,7 @@ export class UPat extends MathTrait {
         try{ return lines(this.location[0])[this.location[1]-1].trim() }
         catch { return "<missing>"}
     }
-  override toString = () => `new UPat({op:${listStr(this.op?.map((o) => opsString(o)))}, arg:${listStr(this.arg)}, name:${this.name}, dtype:${listStr(this.dtype)}, allow_any_len:${this.allowed_len === 0}, src=${listStr(this.src)})`
+  override toString = () => `new UPat({op:${listStr(this.op?.map((o) => `Ops.${getEnumString(Ops, o)}`))}, arg:${listStr(this.arg)}, name:${this.name}, dtype:${listStr(this.dtype)}, allow_any_len:${this.allowed_len === 0}, src=${listStr(this.src)})`
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
@@ -726,7 +723,6 @@ export const graph_rewrite = (sink: UOp, pm: PatternMatcher<any, any>, ctx?: any
 }
 // # ***** uop type spec *****
 
-
 const isSameConstType = (a: ConstType | ConstType[], b: ConstType | ConstType[]) => {
   if (typeof a === 'number' && typeof b === 'number') return Number.isInteger(a) === Number.isInteger(b)
   return typeof a === typeof b
@@ -746,7 +742,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   [new UPat({ op: Ops.VIEW, dtype: dtypes.void, src: [] }), () => true],
   [new UPat({ op: Ops.VIEW, src: [UPat.var('src')], name: 'x' }), ({ x, src }) => src.op !== Ops.STORE && isEq(x.dtype, src.dtype)],
   [new UPat({ op: Ops.VALID, dtype: dtypes.bool, src: [new UPat({ op: Ops.VIEW })] }), () => true],
-  [new UPat({ op: Ops.CONST, name: 'x' }), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && isSameConstType(x.arg, dtypes.as_const(x.arg, x.dtype))],// NOTE: this is slightly different from python, int(1) != float(1) in py but it is the same in TS
+  [new UPat({ op: Ops.CONST, name: 'x' }), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && isSameConstType(x.arg, dtypes.as_const(x.arg, x.dtype))], // NOTE: this is slightly different from python, int(1) != float(1) in py but it is the same in TS
 
   //   # early LOAD has a <buf, shapetracker, store?>
   [new UPat({ op: Ops.LOAD, src: [new UPat({ op: [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL] }), new UPat({ op: Ops.VIEW })] }), () => true],
@@ -1159,7 +1155,7 @@ export const symbolic_flat = symbolic.add(
   ]),
 )
 // TODO: lol there probably is some better way to get these
-export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat({ op: OpsAll, name: 'x' }), ({ ctx, x }) => ctx.get(x)]])
+export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat({ op: getAllEnums(Ops), name: 'x' }), ({ ctx, x }) => ctx.get(x)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
