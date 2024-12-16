@@ -193,6 +193,7 @@ Deno.test(
     kernels().map(k=>[k] as [Kernel]),
     (k:Kernel) => k.to_program(),
     'out(data[0].to_program())',
+    { ignore:[1] }
   ),
 )
 

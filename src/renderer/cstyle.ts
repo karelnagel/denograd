@@ -1,5 +1,5 @@
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, assert, dedup, getEnv, isNone, isNotNone, stripParens } from '../helpers.ts'
+import { AMX, assert, dedup, getEnv, isNone, isNotNone, setDefault, stripParens } from '../helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -10,7 +10,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat({ op: [Ops.ENDIF, Ops.ENDRANGE] }), ({ ctx }) => '}'],
   [new UPat({ op: Ops.WMMA, name: 'x' }), ({ ctx, x }) => `__${x.arg[0]}(${ctx.get(x.src[0])}, ${ctx.get(x.src[1])}, ${ctx.get(x.src[2])})`],
   // r method accesses
-  [new UPat({ op: Ops.RANGE, name: 'x' }), ({ ctx, x }) => `for (${ctx.render_dtype(x.dtype)} ${ctx.get(x)} = ${ctx.get(x.src[0])}; ${ctx.get(x)} < ${ctx.get(x.src[1])}; ${ctx.get(x)}++) {{`],
+  [new UPat({ op: Ops.RANGE, name: 'x' }), ({ ctx, x }) => `for (${ctx.render_dtype(x.dtype)} ${ctx.get(x)} = ${ctx.get(x.src[0])}; ${ctx.get(x)} < ${ctx.get(x.src[1])}; ${ctx.get(x)}++) {`],
   [
     new UPat({ op: Ops.VECTORIZE, name: 'x' }),
     ({ ctx, x }) => `${ctx.float4!.replace('float4', ctx.render_dtype(x.dtype))}` + (ctx.device === 'CLANG' ? `{${x.src.map((y: any) => ctx.get(y)).join(',')}}` : `(${x.src.map((y: any) => ctx.get(y)).join(',')})`),
@@ -40,7 +40,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat({ op: Ops.INDEX, src: [UPat.var('buf'), UPat.var('idx')] }), ({ ctx, buf, idx }) => `(${ctx.get(buf)}+${idx.arg === Ops.ADD ? stripParens(ctx.get(idx)!) : ctx.get(idx)})`],
   [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')] }), ({ ctx, bidx, var1, gate }) => `(${ctx.get(gate)}?*${ctx.get(bidx)}:${ctx.get(var1)})`],
   [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx')], allow_any_len: true }), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
-  [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allow_any_len: true }), ({ ctx, bidx, var1 }) => `*${ctx.get(bidx)} = ${ctx.get(var1)};`],
+  [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allow_any_len: true }), (p) => `*${p.ctx.get(p.bidx)} = ${p.ctx.get(p.var)};`],
   // alu/gep
   [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ ctx, x }) => ctx.code_for_op[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
   [new UPat({ op: Ops.GEP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device === 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
@@ -122,7 +122,7 @@ export class CStyleLanguage extends Renderer {
     const bufs = new Map<UOp, [string, [DType, boolean]]>()
     const kernel = []
     let depth = 1
-    const c: Record<string, number> = {}
+    const c = new Map<string, number>()
     for (const u of uops) {
       if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_VAR].includes(u.op)) {
         r.set(u, u.op === Ops.DEFINE_GLOBAL ? `data${u.arg}` : u.arg[0])
@@ -155,9 +155,10 @@ export class CStyleLanguage extends Renderer {
           [Ops.LOAD]: 'val',
         }
         prefix = prefixes[u.op as keyof typeof prefixes] || 'alu'
-        r.set(u, `${prefix}${c[prefix]}`)
+
+        r.set(u, `${prefix}${setDefault(c, prefix, 0)}`)
       }
-      let l = String(this.string_rewrite.rewrite(u, this))
+      let l = this.string_rewrite.rewrite(u, this)
       assert(isNotNone(l), `failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)
 
       if ([Ops.ENDIF, Ops.ENDRANGE].includes(u.op)) depth -= 1
@@ -170,14 +171,13 @@ export class CStyleLanguage extends Renderer {
           l = `${this.render_dtype(u.dtype)} ${r.get(u)!} = ${l}` + (u.op !== Ops.SPECIAL ? ';' : '')
         }
         kernel.push('  '.repeat(depth) + l)
-        if (prefix) c[prefix] += 1 // if it was used, increment
+        if (prefix) c.set(prefix, (c.get(prefix) || 0) + 1) // if it was used, increment
       }
       if ([Ops.IF, Ops.RANGE].includes(u.op)) depth += 1
     }
     delete this.r
-
     //  NOTE: this relies on bufs dict preserving order
-    return this.render_kernel({ functionName: name, kernel, bufs: bufs.values().toArray(), uops })
+    return this.render_kernel({ functionName: name, kernel, bufs: [...bufs.values()], uops })
   }
 }
 

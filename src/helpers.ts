@@ -229,7 +229,7 @@ export const getChild = (obj: any, key: string): any => key.split('.').reduce((c
 
 export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
-export const to_function_name = (s: string): string => s.split('').map((c) => (c.match(/[a-zA-Z0-9_]/) ? c : c.charCodeAt(0).toString(16))).join('')
+export const to_function_name = (s: string): string => ''.concat(...ansistrip(s).split('').map(c => /[a-zA-Z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).padStart(2, '0')))
 export const getEnv = (key: string, defaultVal = '') => process.env[key] || defaultVal
 export const getNumberEnv = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)

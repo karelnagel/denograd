@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, colored, DEBUG, dedup, getEnv, getNumberEnv, isinstance, isNone, isNotNone, range, round_up, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, colored, DEBUG, dedup, getEnv, getNumberEnv, isinstance, isNone, isNotNone, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, ge, graph_rewrite, GroupOp, gt, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, resolve, sint, sint_prod, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -400,7 +400,7 @@ export class Kernel {
     }
     return this
   }
-  get mulop(){
+  get mulop() {
     return this.reduceop!.src[0]
   }
   hand_coded_optimizations = (): Kernel => {
@@ -677,7 +677,6 @@ export class Kernel {
     const ansiname = name_override !== undefined ? name_override : this.name
     const name = to_function_name(ansiname)
     const src = this.opts.render(name, this.uops!)
-
     // TODO: not needed for mnist
     //     if getenv("RUN_PROCESS_REPLAY"):
     //       from test.external.process_replay.helpers import get_process_replay_ctx
@@ -686,7 +685,7 @@ export class Kernel {
     //     # group non-local bufs by the op type (LOAD ||STORE) && the buffer arg. take the max access of that buffer in bytes
     //     # TODO: these max && min don't work on symbolic, && results are very wrong.
     const groups = new Map<[Ops, any], UOp[]>()
-    for (const x of [...this.ast.toposort].filter((x) => GroupOp.Buffer.includes(x.op) && x.src[0].op === Ops.DEFINE_GLOBAL)) groups.get([x.op, x.src[0].arg])!.push(x)
+    for (const x of [...this.ast.toposort].filter((x) => GroupOp.Buffer.includes(x.op) && x.src[0].op === Ops.DEFINE_GLOBAL)) setDefault(groups,[x.op, x.src[0].arg],[]).push(x)
     const mem_bytes = [...groups.values()].flatMap((group) => Math.max(...group.map((x) => x.src[0].dtype.itemsize * x.st_arg.real_size()))).reduce((acc, x) => acc + x, 0)
     return new ProgramSpec({ name: ansiname, src, device: this.opts.device, uops: this.uops, mem_estimate: mem_bytes, global_size: this.opts.has_local ? [1, 1, 1] : undefined, local_size: this.opts.has_local ? [1, 1, 1] : undefined })
   }
