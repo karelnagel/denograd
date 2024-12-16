@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, DEBUG, dedup, flatten, getEnv, isEq, isinstance, isNone, isNotNone, prod, range, sorted, TRANSCENDENTAL } from '../helpers.ts'
+import { all_same, AMX, assert, DEBUG, dedup, flatten, getEnv, isEq, isinstance, isNone, isNotNone, prod, range, setDefault, sorted, TRANSCENDENTAL } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -25,7 +25,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
     else [root_src, arg] = [idx, 0]
     //     # add gates for gated
     if (s!.src[0].src.length === 3) root_src = [s!.src[0].src[2], root_src]
-    assert(!offsets_rootsrc.get(root_src)!.has(arg), `${offsets_rootsrc.get(root_src)?.get(arg)} != ${i} with ${s?.src.length} sources`)
+    assert(!setDefault(offsets_rootsrc,root_src,new Map()).has(arg), `${offsets_rootsrc.get(root_src)!.get(arg)} != ${i} with ${s?.src.length} sources`)
     offsets_rootsrc.get(root_src)!.set(arg, i)
   }
   //   # then rewrite everything we can
@@ -219,7 +219,7 @@ export const no_vectorized_wmma = (wmma: UOp) => {
   throw new Error()
 }
 export const reduce_collapse = (acc: UOp, ret: UOp, alu: UOp) => {
-  throw new Error()
+  return undefined
 }
 export const [acc_pat, rng_pat] = [new UPat({ op: Ops.DEFINE_ACC, name: 'acc' }), new UPat({ op: Ops.RANGE, name: 'rng' })]
 export const rng_aug = UPat.any([rng_pat, UPat.var('add').add(rng_pat), UPat.var('mul').mul(rng_pat), UPat.var('add').add(UPat.var('mul').mul(rng_pat))])

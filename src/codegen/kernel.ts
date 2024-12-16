@@ -206,6 +206,7 @@ export class Kernel {
       ...x.slice(0, axis),
       ...(gt(x[axis], 1) ? (top ? [amount, idiv(x[axis], amount)] : [idiv(x[axis], amount), amount]) : [1, 1]),
       ...x.slice(axis + 1),
+    ], [
       ...range(insert_before).filter((i) => i !== move_axis),
       move_axis,
       ...range(insert_before, this.shape_len + 1).filter((i) => i !== move_axis),
@@ -399,17 +400,19 @@ export class Kernel {
     }
     return this
   }
+  get mulop(){
+    return this.reduceop!.src[0]
+  }
   hand_coded_optimizations = (): Kernel => {
     this.required_optimizations()
 
     //     # should use matvec - TODO: adjust/tune based on the wide vs tall/large vs small mat
     const [MV_BLOCKSIZE, MV_THREADS_PER_ROW, MV_ROWS_PER_THREAD] = [getNumberEnv('MV_BLOCKSIZE', 4), getNumberEnv('MV_THREADS_PER_ROW', 8), getNumberEnv('MV_ROWS_PER_THREAD', 4)]
-    const mulop = this.reduceop!.src[0]
     if (
       this.opts.has_local && getNumberEnv('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 &&
-      this.opts.has_shared && mulop.op === Ops.MUL && mulop.src[0].op === Ops.LOAD && mulop.src[1].op === Ops.LOAD
+      this.opts.has_shared && this.mulop.op === Ops.MUL && this.mulop.src[0].op === Ops.LOAD && this.mulop.src[1].op === Ops.LOAD
     ) {
-      const [st0, st1] = [this.sts[this.bufs.indexOf(mulop.src[0])], this.sts[this.bufs.indexOf(mulop.src[1])]]
+      const [st0, st1] = [this.sts[this.bufs.indexOf(this.mulop.src[0])], this.sts[this.bufs.indexOf(this.mulop.src[1])]]
       const [strides0, strides1] = [st0.real_strides(), st1.real_strides()]
       const has_expanded_axis = (shape: sint[], strides: sint[]) => zip(shape, strides).some(([s, st]) => resolve(gt(s, 1)) && !resolve(ne(st, 0)))
       if (strides0[this.first_reduce] === 1 && !(has_expanded_axis(st0.shape, strides0 as sint[]) && has_expanded_axis(st1.shape, strides1 as sint[]))) {
@@ -658,7 +661,6 @@ export class Kernel {
   //   @track_rewrites()
   linearize = (): Kernel => {
     const modified_ast = this.get_optimized_ast()
-
     if (DEBUG >= 3) {
       console.log(this.name)
       if (getEnv('RAWAST')) console.log(this.ast)

@@ -201,7 +201,7 @@ export class ClangRenderer extends CStyleLanguage {
   }
   override tensor_cores = !AMX
     ? undefined
-    : [dtypes.float].map((dt) => [dt, Math.floor(64 / dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: [], reduceAxes: [], upcastAxes: [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]], dtypeIn: dt, dtypeOut: dt }))
+    : [dtypes.float].map((dt) => [dt, Math.floor(64 / dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: [], reduce_axes: [], upcast_axes: [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]], dtype_in: dt, dtype_out: dt }))
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 

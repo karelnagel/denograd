@@ -7,24 +7,24 @@ import { flopsMem, Ops, type sint, sym_infer, type UOp, type Variable } from '..
 export type TC = [number, number]
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
   dims: [number, number, number] // N, M, K
-  dtypeIn: DType // dtype for A and B
-  dtypeOut: DType // dtype for C and D
+  dtype_in: DType // dtype for A and B
+  dtype_out: DType // dtype for C and D
   threads: TC[] // list of (TC dim,amt) that construct the warp thread structure
-  reduceAxes: TC[] // list of (TC dim,amt) that constructs the shape of the reduce dim
+  reduce_axes: TC[] // list of (TC dim,amt) that constructs the shape of the reduce dim
 
   // deno-fmt-ignore
-  constructor(p:{dims: [number, number, number], dtypeIn: DType, dtypeOut: DType, threads: TC[], reduceAxes: TC[], upcastAxes:[TC[],TC[],TC[]]}) {
-    this.dims=p.dims; this.dtypeIn=p.dtypeIn; this.dtypeOut=p.dtypeOut; this.threads=p.threads; this.reduceAxes=p.reduceAxes; this.upcastAxes = p.upcastAxes
+  constructor(p:{dims: [number, number, number], dtype_in: DType, dtype_out: DType, threads: TC[], reduce_axes: TC[], upcast_axes:[TC[],TC[],TC[]]}) {
+    this.dims=p.dims; this.dtype_in=p.dtype_in; this.dtype_out=p.dtype_out; this.threads=p.threads; this.reduce_axes=p.reduce_axes; this.upcast_axes = p.upcast_axes
   }
-  earlyUpcastAxes = (): TC[] => { // list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
+  early_upcast_axes = (): TC[] => { // list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
     return range(2).map((dim) => [dim, prod(this.threads.filter(([d]) => d === dim).map(([d, sz]) => sz))]).filter(([d, sz]) => this.dims[d] > sz).map(([d, sz]) => [d, Math.floor(this.dims[d] / sz)])
   }
-  upcastAxes: [TC[], TC[], TC[]] // list of (TC dim,amt) that upcast A, B and C
-  st1Pattern?: TC[][] | TC[] // pattern to fix shapetracker for A
-  st2Pattern?: TC[][] | TC[] // pattern to fix shapetracker for B
-  expandedShape?: number[]
-  optsSeq: [string, string] = ['UP', 'LC'] // upcast input, local the thread pattern
-  toString = () => ['WMMA', ...this.dims.map((d) => d.toString()), this.dtypeIn.name, this.dtypeOut.name].join('_')
+  upcast_axes: [TC[], TC[], TC[]] // list of (TC dim,amt) that upcast A, B and C
+  st1_pattern?: TC[][] | TC[] // pattern to fix shapetracker for A
+  st2_pattern?: TC[][] | TC[] // pattern to fix shapetracker for B
+  expanded_shape?: number[]
+  opts_seq: [string, string] = ['UP', 'LC'] // upcast input, local the thread pattern
+  toString = () => ['WMMA', ...this.dims.map((d) => d.toString()), this.dtype_in.name, this.dtype_out.name].join('_')
 }
 
 type Props = {

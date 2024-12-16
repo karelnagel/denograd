@@ -12,6 +12,8 @@ import { IndexContext } from '../src/codegen/lowerer.ts'
 import { Kernel, Opt, OptOps } from '../src/codegen/kernel.ts'
 import { ClangRenderer } from '../src/renderer/cstyle.ts'
 import { BasicBlock } from '../src/codegen/linearize.ts'
+import { TensorCore } from '../src/renderer/index.ts'
+import { ProgramSpec } from '../src/renderer/index.ts'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -65,6 +67,15 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Kernel) return `tiny.codegen.kernel.Kernel(${pyStr(o.ast)}, ${pyStr(o.opts)})`
   if (o instanceof KernelInfo) return `tiny.ops.KernelInfo(${pyStr(o.local_dims)}, ${pyStr(o.upcasted)}, ${pyStr(o.dont_use_locals)})`
   if (o instanceof BasicBlock) return `tiny.codegen.linearize.BasicBlock(${pyStr(o.ctx)}, ${pyStr(o.lst)}, ${pyStr(o.end)})`
+  if (o instanceof BasicBlock) return `tiny.codegen.linearize.BasicBlock(${pyStr(o.ctx)}, ${pyStr(o.lst)}, ${pyStr(o.end)})`
+  if (o instanceof TensorCore) {
+    return `tiny.renderer.TensorCore(dims=${pyStr(o.dims)}, threads=${pyStr(o.threads)}, reduce_axes=${pyStr(o.reduce_axes)}, upcast_axes=${pyStr(o.upcast_axes)}, dtype_in=${pyStr(o.dtype_in)}, dtype_out=${pyStr(o.dtype_out)})`
+  }
+  if (o instanceof ProgramSpec) {
+    return `tiny.renderer.ProgramSpec(name=${pyStr(o.name)},src=${pyStr(o.src)},device=${pyStr(o.device)},uops=${pyStr(o.uops)},mem_estimate=${pyStr(o.mem_estimate)},global_size=${pyStr(o.global_size)},local_size=${pyStr(o.local_size)},vars=${
+      pyStr(o.vars)
+    },globals=${pyStr(o.globals)},outs=${pyStr(o.outs)},)`
+  }
 
   if (typeof o === 'function') return 'lambda x: x'
   if (typeof o === 'object') return `{${Object.entries(o).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
