@@ -121,17 +121,16 @@ export const block_reorder = (in_block: UOp): UOp => {
   const local_children = new Map<UOp, UOp[]>()
   const in_degree = new Map<UOp, number>()
   const priorities = new Map<UOp, number>()
-
   //   # get local children and assign priorities
   for (const u of in_block.arg.lst.toReversed()) {
     for (const s of u.src) {
-      if (in_this_block.has(u)) {
-        local_children.get(s)!.push(u)
-        in_degree.set(u, in_degree.get(u)! + 1)
+      if (in_this_block.has(s)) {
+        local_children.set(s, [...setDefault(local_children, s, []), u])
+        in_degree.set(u, setDefault(in_degree, u, 0) + 1)
       }
     }
     //     # put loads in the beginning of the block and prevent priority inversion
-    priorities.set(u, min([u.op === Ops.LOAD ? -1000 : 0, ...local_children.get(u)!.map((x) => priorities.get(x)!)]))
+    priorities.set(u, min([u.op === Ops.LOAD ? -1000 : 0, ...(setDefault(local_children, u, []).map((x) => priorities.get(x)!))]))
   }
 
   //   # placement queue
