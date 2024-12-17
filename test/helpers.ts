@@ -45,9 +45,19 @@ export const t = (strings: TemplateStringsArray, ...values: any[]) => {
   for (let i = 0; i < values.length; i++) result += pyStr(values[i]) + strings[i + 1]
   return result
 }
-const getPyOpsStr = (op: Ops) => `tiny.ops.Ops.${getEnumString(Ops, op)}`
-const getPyOptOps = (op: OptOps) => `tiny.codegen.kernel.OptOps.${getEnumString(OptOps, op)}`
+class SkipFormatting {
+  constructor(public value: string) {}
+}
+class PyEnum<T extends object> {
+  constructor(public en: T, public op?: T[keyof T], public prefix = '') {}
+  toString = () => this.op ? `${this.prefix}${getEnumString(this.en, this.op)}` : pyStr(undefined)
+}
+const OpsEnum = (op?: Ops) => new PyEnum(Ops, op, `tiny.ops.Ops.`)
+const OptOpsEnum = (op: OptOps) => new PyEnum(OptOps, op, `tiny.codegen.kernel.OptOps.`)
 export const pyStr = (o: any, useList = false): string => {
+  if (o instanceof SkipFormatting) return o.value
+  if (o instanceof PyEnum) return o.toString()
+
   if (Array.isArray(o)) return o.length ? (useList ? `[${o.map((x) => pyStr(x)).join(', ')}]` : `(${o.map((x) => pyStr(x)).join(', ')},)`) : '()'
   if (o === null || typeof o === 'undefined') return 'None'
   if (typeof o === 'boolean') return o ? 'True' : 'False'
@@ -58,12 +68,10 @@ export const pyStr = (o: any, useList = false): string => {
   // ************ OPS ************
   if (o instanceof UPat) {
     // if src is UPat[][] we use list, if UPat[] then tuple
-    const src = Array.isArray(o._in_src) ? (Array.isArray(o._in_src.at(0)) ? pyStr(o._in_src.at(0), true) : pyStr(o._in_src)) : pyStr(o._in_src)
-    return `tiny.ops.UPat(op=${o.op ? `(${o.op?.map(getPyOpsStr)},)` : 'None'}, dtype=${pyStr(o.dtype)}, src=${src}, arg=${pyStr(o.arg)}, name=${pyStr(o.name)}, allow_any_len=${pyStr(o.allowed_len === -1)}, location=${
-      pyStr(o.location)
-    }, custom_early_reject=${pyStr(o.custom_early_reject)})`
+    const src = Array.isArray(o._in_src) ? (Array.isArray(o._in_src.at(0)) ? new SkipFormatting(pyStr(o._in_src.at(0), true)) : o._in_src) : o._in_src
+    return t`tiny.ops.UPat(op=${o.op?.map(OpsEnum)}, dtype=${o.dtype}, src=${src}, arg=${o.arg}, name=${o.name}, allow_any_len=${o.allowed_len === -1}, location=${o.location}, custom_early_reject=${o.custom_early_reject})`
   }
-  if (o instanceof UOp) return `tiny.ops.UOp(op=${getPyOpsStr(o.op)}, dtype=${pyStr(o.dtype)}, src=${pyStr(o.src)}, arg=${pyStr(o.arg)})`
+  if (o instanceof UOp) return t`tiny.ops.UOp(op=${OpsEnum(o.op)}, dtype=${o.dtype}, src=${o.src}, arg=${o.arg})`
   if (o instanceof KernelInfo) return t`tiny.ops.KernelInfo(${o.local_dims}, ${o.upcasted}, ${o.dont_use_locals})`
 
   // ************ DTYPE ************
@@ -86,7 +94,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof IndexContext) return t`tiny.codegen.lowerer.IndexContext(${o.idxs}, ${o.ridxs}, ${o.acc_num})`
   if (o instanceof Kernel) return t`tiny.codegen.kernel.Kernel(${o.ast}, ${o.opts})`
   if (o instanceof BasicBlock) return t`tiny.codegen.linearize.BasicBlock(${o.ctx}, ${o.lst}, ${o.end})`
-  if (o instanceof Opt) return `tiny.codegen.kernel.Opt(${getPyOptOps(o.op)}, ${pyStr(o.axis)}, ${pyStr(o.amt)})`
+  if (o instanceof Opt) return t`tiny.codegen.kernel.Opt(${OptOpsEnum(o.op)}, ${o.axis}, ${o.amt})`
 
   // ************ DEVICE ************
   if (o instanceof _Device) return t`tiny.device._Device()`
@@ -100,7 +108,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Compiler) return t`tiny.device.Compiler(${o.cachekey})`
 
   // ************ ENGINE ************
-  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${o.op}, ${o.arg}, ${o.srcs}, ${o._base}, ${o.metadata})`
+  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${OpsEnum(o.op)}, ${o.arg}, ${o.srcs}, ${o._base}, ${o.metadata})`
 
   if (o instanceof CompiledRunner) return t`tiny.engine.realize.CompiledRunner()`
   if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.op_estimate}, ${o.mem_estimate}, ${o.lds_estimate})`
@@ -113,7 +121,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Metadata) return t`tiny.helpers.Metadata(${o.name}, ${o.caller}, ${o.backward})`
 
   if (typeof o === 'function') return 'lambda x: x'
-  if (typeof o === 'object') return `{${Object.entries(o).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
+  if (typeof o === 'object') return `{${Object.entries(o).map((entry) => t`${entry[0]}:${entry[1]}`).join(',')}}`
   throw new Error(`Invalid value: ${o}`)
 }
 export const python = async <T = any>(code: string, data?: any): Promise<T> => {
@@ -173,7 +181,7 @@ function calculateSimilarity(str1: string, str2: string): number {
   return 1 - dist / maxLength
 }
 
-export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string, options?: { ignore?: number[]; stringSimilarity?: number }) => {
+export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string | string[], options?: { ignore?: number[]; stringSimilarity?: number }) => {
   return async (t: Deno.TestContext) => {
     for (const [i, input] of inputs.entries()) {
       await t.step({
@@ -181,6 +189,7 @@ export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, c
         ignore: options?.ignore?.includes(i),
         fn: async () => {
           const ts = fn(...input)
+          if (Array.isArray(code)) code = code.join('\n')
           const py = await python(code, input)
 
           if (typeof ts === 'string' && typeof py === 'string') {
