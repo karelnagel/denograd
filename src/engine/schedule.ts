@@ -1,6 +1,6 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getAllEnums, getEnv, isinstance, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
+import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getAllEnums, getEnv, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
 import { can_pad, ge, lt, resolve, sint_prod, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -43,7 +43,7 @@ export class ScheduleContext {
     public realizes = new Map<UOp, UOp>(), // this holds all the BUFFER uops we mutate in this schedule
     public allbufs = new Map<UOp, UOp>(), // this maps BUFFER uops the actual op
     public ops_metadata = new Map<UOp, Metadata>(), // this maps fused ops to Metadata
-    public children = new Map<UOp, Set<UOp>>(),
+    public children = new Map<UOp, Map<UOp, undefined>>(),
   ) {}
 }
 export const is_scheduled = (u: UOp): boolean => u.op === Ops.VIEW && u.src.length === 2
@@ -89,7 +89,7 @@ export const to_uop = (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, 
     ctx.lazybufs.set(ubuf, buf)
     ctx.allbufs.set(ubuf, ret)
     for (const x of op.src) {
-      if (is_scheduled(x.base)) setDefault(ctx.children, x.base.buf_uop, new Set()).add(ubuf)
+      if (is_scheduled(x.base)) setDefault(ctx.children, x.base.buf_uop, new Map()).set(ubuf, undefined)
     }
   }
   return ret
@@ -260,11 +260,11 @@ export const recursive_group = (
   tr: UOp,
   st: ShapeTracker,
   r: UOp,
-  children: Map<UOp, Set<UOp>>,
+  children: Map<UOp, Map<UOp, undefined>>,
   allbufs: Map<UOp, UOp>,
   realizes: Map<UOp, UOp>,
   reduce_for_op: Map<UOp, UOp>,
-  group: Set<UOp>,
+  group: Map<UOp, undefined>,
   cache: Map<[UOp, ShapeTracker], undefined>,
 ): undefined => {
   if (cache.has([tr, st])) return
@@ -273,35 +273,35 @@ export const recursive_group = (
   if (realizes.has(tr) && tr !== r) {
     //     // can only fuse contiguous
     //     // max one reduceop per kernel
-    if (!st.contiguous || st.size !== rsize || reduce_for_op.has(tr)) group.add(r)
-    return void group.add(tr)
+    if (!st.contiguous || st.size !== rsize || reduce_for_op.has(tr)) group.set(r, undefined)
+    return void group.set(tr, undefined)
   }
-  for (const tr_next of children.get(tr)!) {
+  for (const tr_next of children.get(tr)!.keys()) {
     //     // max one reduceop per kernel
     const tr_next_uop = uval(allbufs.get(tr_next)!).base
-    if (tr_next_uop.op === Ops.REDUCE_AXIS) return void group.add(r)
+    if (tr_next_uop.op === Ops.REDUCE_AXIS) return void group.set(r, undefined)
     //     // can only fuse contiguous
     const st_childs = dedup(tr_next_uop.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop === tr).map((x) => x.st!))
-    if (st_childs.length > 1) return void group.add(r)
+    if (st_childs.length > 1) return void group.set(r, undefined)
     recursive_group(tr_next, st.add(st_childs[0]), r, children, allbufs, realizes, reduce_for_op, group, cache)
   }
 }
-export const get_isolated_children = (r: UOp, reduce_for_op: Map<UOp, UOp>, children: Map<UOp, Set<UOp>>, allbufs: Map<UOp, UOp>, realizes: Map<UOp, UOp>, group: Set<UOp>): Set<UOp> => {
-  const [rc_parents, cache] = [new Set(group), new Set()]
+export const get_isolated_children = (r: UOp, reduce_for_op: Map<UOp, UOp>, children: Map<UOp, Map<UOp, undefined>>, allbufs: Map<UOp, UOp>, realizes: Map<UOp, UOp>, group: Map<UOp, undefined>): Map<UOp, undefined> => {
+  const [rc_parents, cache] = [new Map(group), new Set()]
   while (rc_parents.size) {
-    const current = rc_parents.values().next().value!
+    const current = rc_parents.keys().next().value!
     rc_parents.delete(current)
     const p = uval(current)
     if (cache.has(p)) continue
     cache.add(p)
     //     // max one reduceop per kernel
-    if (p.op === Ops.REDUCE_AXIS) return new Set()
-    rc_parents.union(new Set(p.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop !== r).map((x) => x.base.buf_uop)))
+    if (p.op === Ops.REDUCE_AXIS) return new Map()
+    p.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop !== r).map((x) => x.base.buf_uop).forEach((x) => rc_parents.set(x, undefined))
   }
   //   // search descendants of the reduceop that can cleanly group
-  const descendants = new Set<UOp>()
-  for (const tr of group) recursive_group(tr, allbufs.get(tr)!.st!, tr, children, allbufs, realizes, reduce_for_op, descendants, new Map())
-  return merge_sets([group, [...descendants].some((tr) => group.has(tr)) ? new Set() : descendants])
+  const descendants = new Map<UOp, undefined>()
+  for (const tr of group.keys()) recursive_group(tr, allbufs.get(tr)!.st!, tr, children, allbufs, realizes, reduce_for_op, descendants, new Map())
+  return merge_maps([group, [...descendants].some(([tr]) => group.has(tr)) ? new Map() : descendants])
 }
 /**
  * search the big graph for all the reduceops that need to realize, sometimes group/fuse the reduceop
@@ -317,25 +317,25 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
     const x = r_uop.src[0]
     if (FUSE_CONV_BW && uval(x.base).op === r_uop.op && x.base !== x) double_reduces.push(r)
     if (ctx.realizes.has(r)) continue
-    let group = new Set<UOp>()
+    let group = new Map<UOp, undefined>()
     recursive_group(r, r_uop.st!, r, ctx.children, ctx.allbufs, ctx.realizes, reduce_for_op, group, new Map())
     //     // max one reduceop per kernel
-    let can_chase = [...group].every((tr) => !reduce_for_op.has(tr))
+    let can_chase = [...group].every(([tr]) => !reduce_for_op.has(tr))
     //     // TODO: forced_realize exists because the scheduler === incapable of checking for this-contained DAGs
     let forced_realize = group.has(r)
     if (!forced_realize && group.size > 1) group = get_isolated_children(r, reduce_for_op, ctx.children, ctx.allbufs, ctx.realizes, group)
     //     // can only fuse assign if no other assign_target === used in the kernel
-    if (!forced_realize && [...group].some((x) => ctx.assigns.has(x))) {
-      const parents = new Set([r, ...group])
+    if (!forced_realize && [...group].some(([x]) => ctx.assigns.has(x))) {
+      const parents = new Map([[r, undefined], ...group])
       while (parents.size && !forced_realize) {
-        const p = parents.values().next().value!
+        const p = parents.keys().next().value!
         parents.delete(p)
         let p_uop = ctx.allbufs.get(p)
         if (p_uop === undefined) continue
         p_uop = uval(p_uop)
         if (p_uop.op === Ops.ASSIGN && !group.has(p)) [forced_realize, can_chase] = [true, false]
         if (ctx.realizes.has(p)) continue
-        parents.union(new Set(p.src.filter((x) => x.base.op === Ops.VIEW && x.base.src.length !== 0).map((x) => x.base.src[0])))
+        p.src.filter((x) => x.base.op === Ops.VIEW && x.base.src.length !== 0).map((x) => x.base.src[0]).forEach((x) => parents.set(x, undefined))
       }
     }
     if (forced_realize || !group.size) {
@@ -357,10 +357,10 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
         const tr_uop = uval(ctx.allbufs.get(tr)!)
         if (tr_uop.op === Ops.CAST && tr_uop.dtype.base.itemsize > tr_uop.src[0].dtype.base.itemsize) tr = tr_uop.src[0].base.buf_uop
       }
-      group = new Set([tr])
+      group = new Map([[tr,undefined]])
       ctx.realizes.set(tr, tr)
     }
-    group.forEach((tr) => reduce_for_op.set(tr, r))
+    group.keys().forEach((tr) => reduce_for_op.set(tr, r))
     if (FUSE_ARANGE && r_uop.arg[0] === Ops.ADD && uval(r_uop.src[0].base).op === Ops.CONST) reduce_of_const.push(r)
   }
   //   // fuse double reduces with no other child

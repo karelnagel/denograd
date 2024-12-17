@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
 import { DType, ImageDType, PtrDType } from '../src/dtype.ts'
-import { getEnumString, isNotNone } from '../src/helpers.ts'
+import { getEnumString, isNotNone, Metadata } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../src/ops.ts'
@@ -109,6 +109,8 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof ScheduleItem) return t`tiny.engine.schedule.ScheduleItem(${o.ast}, ${o.bufs}, ${o.metadata}, ${o.assign_preloads})`
   if (o instanceof ScheduleContext) return t`tiny.engine.schedule.ScheduleContext(${o.lazybufs}, ${o.var_vals}, ${o.assigns}, ${o.realizes}, ${o.allbufs}, ${o.ops_metadata}, ${o.children})`
   if (o instanceof ScheduleItemContext) return t`tiny.engine.schedule.ScheduleItemContext(${o.lazybufs}, ${o.ops_metadata}, ${o.assigns}, ${o.var_vals}, ${o.sinked}, ${o.sts}, ${o.bufs}, ${o.metadata}, ${o.assign_adj})`
+
+  if (o instanceof Metadata) return t`tiny.helpers.Metadata(${o.name}, ${o.caller}, ${o.backward})`
 
   if (typeof o === 'function') return 'lambda x: x'
   if (typeof o === 'object') return `{${Object.entries(o).map((entry) => `"${entry[0]}":${pyStr(entry[1])}`).join(',')}}`
