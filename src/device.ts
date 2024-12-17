@@ -58,23 +58,17 @@ export const Device = new _Device()
 // **************** Buffer + Allocators ****************
 
 export class BufferSpec {
-  image
-  uncached
-  cpuAccess
-  host
-  nolru
-  externalPtr
   //   # TODO: move device, size, dtype here?
-  constructor(p: { image?: ImageDType; uncached?: boolean; cpuAccess?: boolean; host?: boolean; nolru?: boolean; externalPtr?: number }) {
-    this.image = p.image
-    this.uncached = p.uncached || false
-    this.cpuAccess = p.cpuAccess || false
-    this.host = p.host || false
-    this.nolru = p.nolru || false
-    this.externalPtr = p.externalPtr
-  }
+  constructor(
+    public image?: ImageDType,
+    public uncached = false,
+    public cpu_access = false,
+    public host = false,
+    public nolru = false,
+    public external_ptr?: number,
+  ) {}
 }
-type BufferInput = { device: string; size: number; dtype: DType; opaque?: any; options?: BufferSpec; initialValue?: Uint8Array; lbRefcount?: number; base?: Buffer; offset?: number; preallocate?: boolean }
+type BufferInput = { device: string; size: number; dtype: DType; opaque?: any; options?: BufferSpec; initial_value?: Uint8Array; lb_refcount?: number; base?: Buffer; offset?: number; preallocate?: boolean }
 export class Buffer {
   device: string
   size: number
@@ -83,21 +77,21 @@ export class Buffer {
   offset: number
 
   _base?: Buffer
-  _lbRefcount = 0
+  _lb_refcount = 0
   _buf?: any
   allocator?: Allocator
 
-  constructor({ device, size, dtype, opaque, options, initialValue, lbRefcount = 0, base, offset = 0, preallocate = false }: BufferInput) {
-    if (dtype instanceof ImageDType) options = new BufferSpec({ image: dtype }) // TODO: image hack shouldn't be here. where should it be?
+  constructor({ device, size, dtype, opaque, options, initial_value, lb_refcount = 0, base, offset = 0, preallocate = false }: BufferInput) {
+    if (dtype instanceof ImageDType) options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
     else assert(dtype instanceof DType && !(dtype instanceof PtrDType))
     ;[this.device, this.size, this.dtype, this.options, this.offset] = [device, size, dtype, options, offset]
     if (isNone(base)) {
       assert(offset === 0, "base buffers can't have offset")
-      this._lbRefcount = lbRefcount
+      this._lb_refcount = lb_refcount
       if (isNotNone(opaque)) this.allocate(opaque)
-      if (isNotNone(initialValue)) {
+      if (isNotNone(initial_value)) {
         this.allocate()
-        this.copyin(new DataView(initialValue.buffer))
+        this.copyin(new DataView(initial_value.buffer))
       }
     } else {
       assert(isNone(base._base), "base can't have a base")
@@ -110,16 +104,18 @@ export class Buffer {
     return isNotNone(this._base) ? this._base : this
   }
   get lb_refcount() {
-    return this.base._lbRefcount
+    return this.base._lb_refcount
   }
-  ref = (cnt: number) => this.base._lbRefcount += cnt
+  ref = (cnt: number) => this.base._lb_refcount += cnt
   is_allocated = () => !!this._buf
   ensure_allocated = (): Buffer => !this.is_allocated() ? this.allocate() : this
-  allocate = (opaque?: any, externalPtr?: any): Buffer => {
+  allocate = (opaque?: any, external_ptr?: any): Buffer => {
     assert(!this.is_allocated(), "can't allocate already allocated buffer")
     this.allocator = Device.get(this.device).allocator
-    if (isNotNone(externalPtr)) {
-      this.options = this.options ? new BufferSpec({ ...this.options, externalPtr }) : new BufferSpec({ externalPtr })
+    if (isNotNone(external_ptr)) {
+      this.options = this.options
+        ? new BufferSpec(this.options.image, this.options.uncached, this.options.cpu_access, this.options.host, this.options.nolru, external_ptr)
+        : new BufferSpec(undefined, undefined, undefined, undefined, undefined, external_ptr)
     }
     if (isNotNone(this._base)) {
       this._base.ensure_allocated()
@@ -149,7 +145,7 @@ export class Buffer {
     }
   __del__ = () => {
     if (!this.is_allocated()) return
-    if (isNone(this._base) && (isNone(this.options) || isNone(this.options.externalPtr))) {
+    if (isNone(this._base) && (isNone(this.options) || isNone(this.options.external_ptr))) {
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used -= this.nbytes
       this.allocator?.free(this._buf, this.nbytes, this.options)
     }
@@ -190,9 +186,9 @@ export abstract class Allocator {
 
   alloc = (size: number, options?: BufferSpec) => {
     assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-    return this._alloc(size, isNotNone(options) ? options : new BufferSpec({}))
+    return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
   }
-  free = (opaque: number, size: number, options?: BufferSpec) => this._free(opaque, isNotNone(options) ? options : new BufferSpec({}))
+  free = (opaque: number, size: number, options?: BufferSpec) => this._free(opaque, isNotNone(options) ? options : new BufferSpec())
 
   //   # implemented by the runtime
   abstract _alloc: (size: number, options: BufferSpec) => void
@@ -215,29 +211,29 @@ export abstract class LRUAllocator extends Allocator {
     if (c.length) return c.pop()
     try {
       assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-      return this._alloc(size, isNotNone(options) ? options : new BufferSpec({}))
+      return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
     } catch {
       this.free_cache()
       assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-      return this._alloc(size, isNotNone(options) ? options : new BufferSpec({}))
+      return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
     }
   }
   free_cache = () => {
     for (const [[sz, options], opaques] of this.cache.entries()) {
       for (const opaque of opaques) {
-        this._free(opaque, isNotNone(options) ? options : new BufferSpec({}))
+        this._free(opaque, isNotNone(options) ? options : new BufferSpec())
       }
       opaques.clear()
     }
   }
   override free = (opaque: any, size: number, options?: BufferSpec) => {
     if (getNumberEnv('LRU', 1) && (isNone(options) || !options.nolru)) this.cache.get([size, options]).append(opaque)
-    else this._free(opaque, isNotNone(options) ? options : new BufferSpec({}))
+    else this._free(opaque, isNotNone(options) ? options : new BufferSpec())
   }
 }
 
 export class _MallocAllocator extends LRUAllocator {
-  _alloc = (size: number, options: BufferSpec) => options.externalPtr ? (ctypes.c_uint8.mul(size)).fromAddress(options.externalPtr) : (ctypes.c_uint8.mul(size)).call()
+  _alloc = (size: number, options: BufferSpec) => options.external_ptr ? (ctypes.c_uint8.mul(size)).fromAddress(options.external_ptr) : (ctypes.c_uint8.mul(size)).call()
   _asBuffer = (src: ArrayBuffer): DataView => flat_mv(new DataView(src))
   _copyin = (dest: any, src: DataView) => ctypes.memmove(dest, from_mv(src), src.byteLength)
   _copyout = (dest: DataView, src: any) => ctypes.memmove(from_mv(dest), src, dest.byteLength)
@@ -271,16 +267,14 @@ export class Compiler {
 }
 
 export class Compiled {
-  device: string
-  allocator?: Allocator
-  renderer: Renderer
-  compiler: Compiler
-  runtime: any
-  graph: any
-  // deno-fmt-ignore
-  constructor(device:string,allocator?:Allocator,renderer?:Renderer ,compiler?:Compiler,runtime?:any,graph?:any){
-        this.device=device; this.allocator=allocator; this.renderer=renderer||new Renderer(); this.compiler=compiler || new Compiler(); this.runtime=runtime; this.graph=graph
-    }
+  constructor(
+    public device: string,
+    public allocator?: Allocator,
+    public renderer: Renderer = new Renderer(),
+    public compiler: Compiler = new Compiler(),
+    public runtime?: any,
+    public graph?: any,
+  ) {}
   /**
    * Synchronize all pending operations on the device.
    *

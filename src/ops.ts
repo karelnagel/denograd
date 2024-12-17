@@ -551,7 +551,7 @@ export class UPat extends MathTrait {
   dtype?: DType[]
   arg?: any
   name?: string
-  _inSrc?: UPat | UPat[] | [UPat[]]
+  _in_src?: UPat | UPat[] | [UPat[]]
   custom_early_reject?: Ops[]
   src?: UPat[][]
   allowed_len: number
@@ -565,7 +565,7 @@ export class UPat extends MathTrait {
     this.dtype = Array.isArray(dtype) ? dtype : !isNone(dtype) ? [dtype] : undefined
     this.arg = arg
     this.name = name
-    this._inSrc = src
+    this._in_src = src
     this.custom_early_reject = custom_early_reject
     assert(this.name !== 'ctx', "UPat can't be named ctx")
 
@@ -590,7 +590,7 @@ export class UPat extends MathTrait {
     }
   }
 
-  named = (name: string) => new UPat({ op: this.op, dtype: this.dtype, src: this._inSrc, arg: this.arg, name, allow_any_len: this.allowed_len === -1, custom_early_reject: this.custom_early_reject })
+  named = (name: string) => new UPat({ op: this.op, dtype: this.dtype, src: this._in_src, arg: this.arg, name, allow_any_len: this.allowed_len === -1, custom_early_reject: this.custom_early_reject })
 
   static any = (src: UPatInput['src']) => new UPatAny({ src: src })
 

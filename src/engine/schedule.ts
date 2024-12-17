@@ -15,13 +15,7 @@ const BUF_LIMIT = { 'METAL': 32 }
 
 // @dataclass(frozen=true)
 export class ScheduleItem {
-  ast: UOp
-  bufs: Buffer[]
-  metadata: Metadata[]
-  assign_preloads: Set<UOp>
-  constructor(ast: UOp, bufs: Buffer[], metadata: Metadata[], assign_preloads: Set<UOp>) {
-    this.ast = ast, this.bufs = bufs, this.metadata = metadata, this.assign_preloads = assign_preloads
-  }
+  constructor(public ast: UOp, public bufs: Buffer[], public metadata: Metadata[], public assign_preloads: Set<UOp>) {}
   /**
    * Read/write || write only buffers in the schedule.
    */
@@ -42,13 +36,15 @@ export class ScheduleItem {
 
 // @dataclass(frozen=true)
 export class ScheduleContext {
-  lazybufs = new Map<UOp, LazyBuffer>() // this maps BUFFER uops of this schedule to the underlying lazybuffer
-  var_vals = new Map<Variable, number>() // this maps a BIND's DEFINE_VAR to its value
-  assigns = new Set<UOp>() // this holds all the BUFFER uops we ASSIGN to in this schedule
-  realizes = new Map<UOp, UOp>() // this holds all the BUFFER uops we mutate in this schedule
-  allbufs = new Map<UOp, UOp>() // this maps BUFFER uops the actual op
-  ops_metadata = new Map<UOp, Metadata>() // this maps fused ops to Metadata
-  children = new Map<UOp, Set<UOp>>()
+  constructor(
+    public lazybufs = new Map<UOp, LazyBuffer>(), // this maps BUFFER uops of this schedule to the underlying lazybuffer
+    public var_vals = new Map<Variable, number>(), // this maps a BIND's DEFINE_VAR to its value
+    public assigns = new Set<UOp>(), // this holds all the BUFFER uops we ASSIGN to in this schedule
+    public realizes = new Map<UOp, UOp>(), // this holds all the BUFFER uops we mutate in this schedule
+    public allbufs = new Map<UOp, UOp>(), // this maps BUFFER uops the actual op
+    public ops_metadata = new Map<UOp, Metadata>(), // this maps fused ops to Metadata
+    public children = new Map<UOp, Set<UOp>>(),
+  ) {}
 }
 export const is_scheduled = (u: UOp): boolean => u.op === Ops.VIEW && u.src.length === 2
 
@@ -148,15 +144,17 @@ export const view_right = merge_views.add(
 
 // @dataclass(frozen=true)
 export class ScheduleItemContext {
-  lazybufs = new Map<UOp, LazyBuffer>()
-  ops_metadata = new Map<UOp, Metadata>()
-  assigns = new Set<UOp>()
-  var_vals = new Map<Variable, number>()
-  sinked = new Map<UOp, UOp>()
-  sts = new Set<ShapeTracker>()
-  bufs: UOp[] = []
-  metadata = new Set<Metadata>()
-  assign_adj = new Map<UOp, UOp[]>()
+  constructor(
+    public lazybufs = new Map<UOp, LazyBuffer>(),
+    public ops_metadata = new Map<UOp, Metadata>(),
+    public assigns = new Set<UOp>(),
+    public var_vals = new Map<Variable, number>(),
+    public sinked = new Map<UOp, UOp>(),
+    public sts = new Set<ShapeTracker>(),
+    public bufs: UOp[] = [],
+    public metadata = new Set<Metadata>(),
+    public assign_adj = new Map<UOp, UOp[]>(),
+  ) {}
 }
 export const _append_st_vars = (ctx: ScheduleItemContext, x: UOp): UOp | undefined => {
   if (ctx.sts.has(x.st!)) return undefined
@@ -203,13 +201,16 @@ export const append_load = new PatternMatcher<Record<string, UOp> & { ctx: Sched
 ])
 
 export const full_ast_rewrite = (pre: UOp, ctx: ScheduleContext): [UOp, ScheduleItemContext] => {
-  const si_ctx = new ScheduleItemContext()
-  si_ctx.lazybufs = ctx.lazybufs
-  si_ctx.ops_metadata = ctx.ops_metadata
-  si_ctx.assigns = ctx.assigns
-  si_ctx.var_vals = ctx.var_vals
-  si_ctx.sinked = new Map(pre.src.map((x) => [x.buf_uop, x.src[2]]))
-  si_ctx.metadata = new Set(pre.src.filter((x) => ctx.lazybufs.get(x.buf_uop) !== undefined && ctx.lazybufs.get(x.buf_uop)!.metadata !== undefined).map((x) => ctx.lazybufs.get(x.buf_uop)!.metadata!))
+  const si_ctx = new ScheduleItemContext(
+    ctx.lazybufs,
+    ctx.ops_metadata,
+    ctx.assigns,
+    ctx.var_vals,
+    new Map(pre.src.map((x) => [x.buf_uop, x.src[2]])),
+    undefined,
+    undefined,
+    new Set(pre.src.filter((x) => ctx.lazybufs.get(x.buf_uop) !== undefined && ctx.lazybufs.get(x.buf_uop)!.metadata !== undefined).map((x) => ctx.lazybufs.get(x.buf_uop)!.metadata!)),
+  )
 
   //   // fuse && fold store -> loads
   const ops_folding = si_ctx.sinked.size === 1 ? lazy : lazy.add(multioutput)

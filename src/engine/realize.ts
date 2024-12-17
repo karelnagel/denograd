@@ -33,17 +33,10 @@ export const get_kernel = (renderer: Renderer, ast: UOp): Kernel => {
 }
 // **************** Runners ****************
 
-class Runner {
+export class Runner {
   first_run = true
-  display_name: string
-  device: string
-  op_estimate: sint
-  mem_estimate: sint
-  lds_estimate: sint
 
-  constructor(display_name: string, device: string, op_estimate: sint = 0, mem_estimate: sint = 0, lds_estimate?: sint) {
-    this.display_name = display_name, this.device = device, this.op_estimate = op_estimate, this.mem_estimate = mem_estimate, this.lds_estimate = lds_estimate || mem_estimate
-  }
+  constructor(public display_name: string, public device: string, public op_estimate: sint = 0, public mem_estimate: sint = 0, public lds_estimate: sint = mem_estimate) {}
   get dev() {
     return Device.get(this.device)
   }
@@ -53,13 +46,11 @@ class Runner {
   }
 }
 export class CompiledRunner extends Runner {
-  p: ProgramSpec
   lib: Uint8Array
   _prg: any
-  constructor(p: ProgramSpec, precompiled?: Uint8Array) {
+  constructor(public p: ProgramSpec, precompiled?: Uint8Array) {
     super(p.name, p.device, p.op_estimate, p.mem_estimate, p.lds_estimate)
     if (DEBUG >= 4) console.log(p.src)
-    this.p = p
     this.lib = precompiled !== undefined ? precompiled : Device.get(p.device).compiler.compile_cached(p.src)
     if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(this.lib)
     this._prg = Device.get(p.device).runtime(p.function_name, this.lib)
@@ -167,12 +158,7 @@ export const get_runner = (device: string, ast: UOp): CompiledRunner => {
 
 // @dataclass(frozen=true)
 export class ExecItem {
-  prg: Runner
-  bufs: (Buffer | undefined)[]
-  metadata?: Metadata[]
-  constructor(prg: Runner, bufs: (Buffer | undefined)[], metadata?: Metadata[]) {
-    this.prg = prg, this.bufs = bufs, this.metadata = metadata
-  }
+  constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
   run = (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): number | undefined => {
     const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
     const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())

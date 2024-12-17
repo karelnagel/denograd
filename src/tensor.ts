@@ -528,7 +528,7 @@ export class Tensor extends SimpleMathTrait {
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = this.cast(this.dtype.base).contiguous().to('CLANG').realize()
     const buf = cpu.lazydata!.base.realized
-    if (this.device !== 'CLANG') buf!.options = new BufferSpec({ nolru: true })
+    if (this.device !== 'CLANG') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
     return buf!.as_buffer(this.device !== 'CLANG' ? true : false)
   }
   /**

@@ -33,12 +33,8 @@ export const create_lazybuffer = (device: string, st: ShapeTracker, dtype: DType
 }
 export const view_supported_devices = ['LLVM', 'CLANG', 'CUDA', 'NV', 'AMD', 'METAL', 'QCOM', 'DSP', 'DISK']
 export class LazyBuffer extends MathTrait {
-  device: string
-  st: ShapeTracker
-  dtype: DType
-  shape
-  size
-  metadata?: Metadata
+  shape:sint[]
+  size:number
 
   op?: Ops
   arg?: any
@@ -48,9 +44,9 @@ export class LazyBuffer extends MathTrait {
   contiguous_child?: [WeakRef<LazyBuffer>, ShapeTracker]
   forced_realize?: boolean
   _base?: LazyBuffer
-  constructor(device: string, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, metadata?: Metadata) {
+  constructor(public device: string, public st: ShapeTracker, public dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, public metadata?: Metadata) {
     super()
-    this.device = device, this.st = st, this.dtype = dtype, this.shape = st.shape, this.size = st.size, this.metadata = metadata
+    this.shape = st.shape, this.size = st.size
     if (base === undefined) {
       //       // properties on base
       this.op = op, this.arg = arg, this.srcs = srcs // this === a UOp, except the src === LazyBuffers && !UOps
