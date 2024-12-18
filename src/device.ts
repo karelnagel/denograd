@@ -47,7 +47,7 @@ export class _Device {
     const fromEnv = Object.keys(DEVICES).filter((d) => !['DISK', 'NPY'].includes(d) && getNumberEnv(d) === 1)[0]
     if (fromEnv) return fromEnv
 
-    const device = this.getAvailableDevices().next()
+    const device = this.getAvailableDevices().next().value
     if (!device) throw new Error('no usable devices')
     process.env[device.value] = '1'
     return device.value

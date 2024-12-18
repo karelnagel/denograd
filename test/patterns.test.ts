@@ -215,8 +215,7 @@ const ALL_PATTERN_MATCHERS: Record<string, { matcher: PatternMatcher<any, any>; 
     matcher: float4_folding,
     uops: [
       new UOp({ op: Ops.VECTORIZE, src: [new UOp({ op: Ops.LOAD, src: [new UOp({ op: Ops.INDEX, src: [UOp.variable('buf')] })] })] }),
-      new UOp({ op: Ops.VECTORIZE, src: [new UOp({ op: Ops.LOAD, src: [new UOp({ op: Ops.INDEX, src: [UOp.variable('buf',false,true,dtypes.bool)] })] })] }),
-
+      new UOp({ op: Ops.VECTORIZE, src: [new UOp({ op: Ops.LOAD, src: [new UOp({ op: Ops.INDEX, src: [UOp.variable('buf', false, true, dtypes.bool)] })] })] }),
     ],
   },
 
@@ -281,7 +280,7 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
     const PYPatterns = await python(`${pyImport}\nout([pattern[0] for pattern in ${pyCode}.patterns])`)
     for (const [i, [ts, py]] of zip(TSPatterns, PYPatterns).entries()) {
       await t.step(i.toString(), () => {
-        expect(asdict(removeKeys(ts, ['location', 'op']))).toEqual(asdict(removeKeys(py, ['location', 'op'])))
+        expect(removeKeys(asdict(ts), ['location', 'op'])).toEqual(removeKeys(asdict(py), ['location', 'op']))
       })
     }
   })
@@ -292,9 +291,9 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
       const py = PYDict.get(key)!
       for (const [i, [ts1, py1]] of zip(ts as any[], py).entries()) {
         await t.step(i.toString(), () => {
-          expect(asdict(removeKeys(ts1[0], ['location', 'op']))).toEqual(asdict(removeKeys(py1[0], ['location', 'op']))) //UPat
-          expect([...ts1[2]].toSorted()).toEqual(py1[2].toSorted()) // Ops[]
-          expect(ts1[3]).toEqual(py1[3]) // has ctx?
+          expect(removeKeys(asdict(ts1[0]), ['location', 'op'])).toEqual(removeKeys(asdict(py1[0]), ['location', 'op'])) //UPat
+          expect(asdict(ts1[2]).toSorted()).toEqual(asdict(py1[2]).toSorted()) // Ops[]
+          expect(asdict(ts1[3])).toEqual(asdict(py1[3])) // has ctx?
         })
       }
     }

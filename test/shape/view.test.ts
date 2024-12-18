@@ -54,7 +54,7 @@ Deno.test(
       [[[UOp.int(2), UOp.int(3)]], [UOp.int(44), UOp.int(44)], [UOp.int(444), UOp.int(44)]],
       [[[UOp.int(2), UOp.int(3)], [UOp.int(5), UOp.int(5)]], [UOp.int(44), UOp.int(44)], [UOp.int(444), UOp.int(44)]],
       [[[2, 3], [UOp.int(5), 44444]], [555, UOp.int(44)], [UOp.int(444), UOp.float(44)]],
-      [[[0, 11], [9, 19]], [11, 19], [209]]
+      [[[0, 11], [9, 19]], [11, 19], [209]],
     ],
     _reshape_mask,
     `out(tiny.shape.view._reshape_mask(*data))`,
@@ -189,17 +189,17 @@ Deno.test(
       [view3, [view1]],
       [view3, [view4]],
       [
-        new View({
-          shape: [4, 55],
-          strides: [new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 55, src: [] })] }), 1],
-          offset: 0,
-          mask: undefined,
-          contiguous: false,
-        }),
+        new View(
+          [4, 55],
+          [new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 55, src: [] })] }), 1],
+          0,
+          undefined,
+          false,
+        ),
         [
-          new View({
-            shape: [8, 110, 33],
-            strides: [
+          new View(
+            [8, 110, 33],
+            [
               new UOp({
                 op: Ops.MUL,
                 dtype: dtypes.int,
@@ -212,10 +212,10 @@ Deno.test(
               new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 33, src: [] })] }),
               1,
             ],
-            offset: 0,
-            mask: undefined,
-            contiguous: false,
-          }),
+            0,
+            undefined,
+            false,
+          ),
         ],
       ],
     ],
@@ -357,13 +357,13 @@ Deno.test(
       [view2, [[UOp.int(12), 1, 1, 2, 1, 1, 1]]],
       [view3, [[8, 1, 1, 2, 1, 1, 1]]],
       [
-        new View({
-          shape: [4, 55],
-          strides: [new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 55, src: [] })] }), 1],
-          offset: 0,
-          mask: undefined,
-          contiguous: false,
-        }),
+        new View(
+          [4, 55],
+          [new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 55, src: [] })] }), 1],
+          0,
+          undefined,
+          false,
+        ),
         [[]],
       ],
     ],

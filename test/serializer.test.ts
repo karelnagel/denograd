@@ -14,7 +14,7 @@ Deno.test(
   'serialize',
   compare(
     [
-      [new View({ shape:[10, 576], strides:[576, 1], offset:0, mask:undefined, contiguous:true }),],
+      [new View([10, 576], [576, 1], 0, undefined, true),],
       [[4, 4, 'sdf', { sdf: 69 }, [{ df: 44, sdf: 'sdf' }]]],
       [Ops.ADD],
       [Ops.ASSIGN],
@@ -27,13 +27,13 @@ Deno.test(
       [dtypes.bool.ptr(true)],
       [dtypes.bool.ptr(false)],
       [
-        new View({
-          shape: [4, 55],
-          strides: [new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 55, src: [] })] }), 1],
-          offset: 0,
-          mask: undefined,
-          contiguous: false,
-        }),
+        new View(
+         [4, 55],
+          [new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 55, src: [] })] }), 1],
+           0,
+           undefined,
+           false,
+        ),
       ],
       [ShapeTracker.from_shape([UOp.float(8), UOp.int(110), UOp.int(33)])],
       [new IndexContext([UOp.int(3)], [UOp.bool(true), UOp.float(4.4)], 4)],

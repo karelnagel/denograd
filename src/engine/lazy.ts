@@ -149,7 +149,7 @@ export class LazyBuffer extends MathTrait {
   is_unrealized_unmasked_const = () => this.is_unrealized_const() && this.st.views.every((v) => v.mask === undefined)
 
   _copy = (device: string): LazyBuffer => {
-    assert(this.st.contiguous && this.size === this.base.size, `can only copy contig ${this} ${this.base}`)
+    assert(!!this.st.contiguous && this.size === this.base.size, `can only copy contig ${this} ${this.base}`)
     return create_lazybuffer(device, ShapeTracker.from_shape(this.shape), this.dtype, Ops.COPY, this.buffer?.nbytes, [this], undefined, false)
   }
   copy_to_device = (device: string, force = false, clone = false): LazyBuffer => {

@@ -327,7 +327,7 @@ export class UOp extends MathTrait {
 
   //   # *** uop Buffer stuff ***
   static buffer_num = counter(0)
-  static new_buffer = (device: string, size: number, dtype: DType) => new UOp({ op: Ops.BUFFER, dtype: dtype.ptr(), src: [], arg: [UOp.buffer_num.next(), [device, size, dtype]] })
+  static new_buffer = (device: string, size: number, dtype: DType) => new UOp({ op: Ops.BUFFER, dtype: dtype.ptr(), src: [], arg: [UOp.buffer_num.next().value, [device, size, dtype]] })
   // deno-fmt-ignore
   get device(): string { return this._device! }
   get _device(): string | undefined {

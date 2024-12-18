@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
 import { all_int, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
 import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, smax, smin, sym_infer, type Variable } from '../ops.ts'
@@ -79,21 +80,13 @@ export const un1d = (shape: sint[], offs: sint): sint[] => {
 }
 
 export class View {
-  shape: sint[]
-  strides: sint[]
-  offset: sint
-  mask?: [sint, sint][]
-  contiguous: boolean
-  // deno-fmt-ignore
-  constructor(a: { shape: sint[]; strides: sint[]; offset: sint; mask?: [sint, sint][]; contiguous: boolean }) {
-    this.shape=a.shape; this.strides=a.strides; this.offset=a.offset; this.mask=a.mask; this.contiguous=a.contiguous;
-  }
+  constructor(public shape: sint[], public strides: sint[], public offset: sint, public mask?: [sint, sint][], public contiguous?: boolean) {}
 
   get t() {
     return [...this.shape, ...this.strides, this.offset, ...(isNotNone(this.mask) ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize() : [x])
   }
   lt = (o: View) => isLessThan(this.t, o.t)
-  toString = () => `new View({shape:${listStr(this.shape)},strides:${listStr(this.strides)},offset:${this.offset},mask:${listStr(this.mask)},contiguous:${this.contiguous}})`
+  toString = () => `new View(${listStr(this.shape)}, ${listStr(this.strides)}, ${this.offset}, ${listStr(this.mask)}, ${this.contiguous})`
   to_indexed_uops = (_idxs?: UOp[], vexpr = UOp.const(dtypes.bool, true)): [UOp, UOp] => {
     const idxs = isNone(_idxs) ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
     let iexpr = sint_to_uop(this.offset)
@@ -117,7 +110,7 @@ export class View {
     if (!shape.every((s) => resolve(ge(s, 0)))) throw new Error(`Trying to create View with negative dimension: shape=${shape}`)
     strides = strides ? canonicalize_strides(shape, strides) : strides_for_shape(shape)
     // # canonicalize 0 in shape
-    if (shape.includes(0)) return new View({ shape, strides: range(shape.length).map(() => 0), offset: 0, mask: undefined, contiguous: true })
+    if (shape.includes(0)) return new View(shape, range(shape.length).map(() => 0), 0, undefined, true)
     // # canonicalize empty mask
     if (isNotNone(mask) && zip(mask, shape).every(([m, s]) => isEq(m, [0, s]))) mask = undefined
     // # if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
@@ -137,7 +130,7 @@ export class View {
     // if mask: mask = tuple((s.ssimplify() if isinstance(s, UOp) else s, e.ssimplify() if isinstance(e, UOp) else e) for s,e in mask)
     // """
     const contiguous = offset === 0 && isNone(mask) && isEq(strides, strides_for_shape(shape))
-    return new View({ shape, strides, offset, mask, contiguous })
+    return new View(shape, strides, offset, mask, contiguous)
   }
 
   vars = (): Variable[] => {
@@ -155,7 +148,7 @@ export class View {
     return [View.create(new_shape, new_strides, new_offset, new_mask), Object.fromEntries(var_unboundvar_val.map((x) => x[1]))]
   }
   __add__ = (vm1: View): View | undefined => {
-    const vm2 = new View({ ...this })
+    const vm2 = this
     if (vm2.contiguous) return vm1
     if (vm1.contiguous && isEq(vm1.shape, vm2.shape)) return vm2
     if (vm1.contiguous && vm1.size() === vm2.size()) {
@@ -329,7 +322,7 @@ export class View {
         if (si !== so) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
         //       # all dimensions matched, return the new view directly
       }
-      return new View({ shape: new_shape, strides: this.strides, offset: this.offset, mask: this.mask, contiguous: this.contiguous })
+      return new View(new_shape, this.strides, this.offset, this.mask, this.contiguous)
     }
     let [strides, r_new_shape] = [[] as sint[], new_shape.toReversed()]
     let exitedWithBreak = false

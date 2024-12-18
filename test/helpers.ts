@@ -21,10 +21,14 @@ import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRU
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
-export const asdict = (o: any): object => {
+export const asdict = (o: any): any => {
   if (!o) return o
+  if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
   if (Array.isArray(o)) return o.map(asdict)
-  if (o instanceof Map) return Object.fromEntries([...o.entries()].map(([k, v]) => [k, asdict(v)]))
+  if (o instanceof Map) {
+    const res = [...o.entries().map(([k, v]) => [asdict(k), asdict(v)])]
+    return typeof res.at(0)?.at(0) === 'object' ? res : Object.fromEntries(res) // If it's Map<string,...> then return object, otherwise array
+  }
   if (typeof o === 'object') return Object.fromEntries(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(([k, v]) => [k, asdict(v)]))
   return o
 }
@@ -40,11 +44,6 @@ export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return)
   }
 }
 
-export const t = (strings: TemplateStringsArray, ...values: any[]) => {
-  let result = strings[0]
-  for (let i = 0; i < values.length; i++) result += pyStr(values[i]) + strings[i + 1]
-  return result
-}
 class SkipFormatting {
   constructor(public value: string) {}
 }
@@ -55,6 +54,11 @@ class PyEnum<T extends object> {
 const OpsEnum = (op?: Ops) => new PyEnum(Ops, op, `tiny.ops.Ops.`)
 const OptOpsEnum = (op: OptOps) => new PyEnum(OptOps, op, `tiny.codegen.kernel.OptOps.`)
 export const pyStr = (o: any, useList = false): string => {
+  const t = (strings: TemplateStringsArray, ...values: any[]) => {
+    let result = strings[0]
+    for (let i = 0; i < values.length; i++) result += pyStr(values[i]) + strings[i + 1]
+    return result
+  }
   if (o instanceof SkipFormatting) return o.value
   if (o instanceof PyEnum) return o.toString()
 
@@ -64,48 +68,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (typeof o === 'number' || typeof o === 'bigint') return o === Infinity ? 'math.inf' : o === -Infinity ? '-math.inf' : Number.isNaN(o) ? 'math.nan' : o.toString()
   if (typeof o === 'string') return `"${o}"`
   if (o instanceof Map) return `{${[...o.entries()].map(([k, v]) => `${pyStr(k)}:${pyStr(v)}`).join(',')}}`
-
-  // ************ OPS ************
-  if (o instanceof UPat) {
-    // if src is UPat[][] we use list, if UPat[] then tuple
-    const src = Array.isArray(o._in_src) ? (Array.isArray(o._in_src.at(0)) ? new SkipFormatting(pyStr(o._in_src.at(0), true)) : o._in_src) : o._in_src
-    return t`tiny.ops.UPat(op=${o.op?.map(OpsEnum)}, dtype=${o.dtype}, src=${src}, arg=${o.arg}, name=${o.name}, allow_any_len=${o.allowed_len === -1}, location=${o.location}, custom_early_reject=${o.custom_early_reject})`
-  }
-  if (o instanceof UOp) return t`tiny.ops.UOp(op=${OpsEnum(o.op)}, dtype=${o.dtype}, src=${o.src}, arg=${o.arg})`
-  if (o instanceof KernelInfo) return t`tiny.ops.KernelInfo(${o.local_dims}, ${o.upcasted}, ${o.dont_use_locals})`
-
-  // ************ DTYPE ************
-  if (o instanceof ImageDType) return t`tiny.dtype.ImageDType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar}, ${o._base}, ${o.local}, ${o.v}, ${o.shape})`
-  if (o instanceof PtrDType) return t`tiny.dtype.PtrDType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar}, ${o._base}, ${o.local}, ${o.v})`
-  if (o instanceof DType) return t`tiny.dtype.DType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar})`
-
-  // ************ SHAPE ************
-  if (o instanceof View) return t`tiny.shape.view.View(shape=${o.shape}, strides=${o.strides}, offset=${o.offset}, mask=${o.mask}, contiguous=${o.contiguous})`
-  if (o instanceof ShapeTracker) return t`tiny.shape.shapetracker.ShapeTracker(views=${o.views})`
-
-  // ************ RENDERER ************
-  if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
-  if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, reduce_axes=${o.reduce_axes}, upcast_axes=${o.upcast_axes}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out})`
-  if (o instanceof ProgramSpec) {
-    return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${o.globals},outs=${o.outs},)`
-  }
-
-  // ************ CODEGEN ************
-  if (o instanceof IndexContext) return t`tiny.codegen.lowerer.IndexContext(${o.idxs}, ${o.ridxs}, ${o.acc_num})`
-  if (o instanceof Kernel) return t`tiny.codegen.kernel.Kernel(${o.ast}, ${o.opts})`
-  if (o instanceof BasicBlock) return t`tiny.codegen.linearize.BasicBlock(${o.ctx}, ${o.lst}, ${o.end})`
-  if (o instanceof Opt) return t`tiny.codegen.kernel.Opt(${OptOpsEnum(o.op)}, ${o.axis}, ${o.amt})`
-
-  // ************ DEVICE ************
-  if (o instanceof _Device) return t`tiny.device._Device()`
-  if (o instanceof BufferSpec) return t`tiny.device.BufferSpec(${o.image}, ${o.uncached}, ${o.cpu_access}, ${o.host}, ${o.nolru}, ${o.external_ptr})`
-  if (o instanceof Buffer) {
-    return t`tiny.device.Buffer(device=${o.device}, size=${o.size}, dtype=${o.dtype}, opaque=${o.in_opaque}, options=${o.options}, initial_value=${o.in_initial_value}, lb_refcount=${o.in_lb_refcount}, base=${o.in_base}, offset=${o.offset}, preallocate=${o.in_preallocate})`
-  }
-  if (o instanceof Allocator) return t`tiny.device.Allocator()`
-  if (o instanceof LRUAllocator) return t`tiny.device.LRUAllocator()`
-  if (o instanceof _MallocAllocator) return t`tiny.device._MallocAllocator()`
-  if (o instanceof Compiler) return t`tiny.device.Compiler(${o.cachekey})`
+  if (o instanceof Set) return `set([${[...o].map((o) => pyStr(o)).join(', ')}])`
 
   // ************ ENGINE ************
   if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.in_dtype}, ${OpsEnum(o.in_op)}, ${o.in_arg}, ${o.in_srcs}, ${o.in_base}, ${o.metadata})`
@@ -118,11 +81,54 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof ScheduleContext) return t`tiny.engine.schedule.ScheduleContext(${o.lazybufs}, ${o.var_vals}, ${o.assigns}, ${o.realizes}, ${o.allbufs}, ${o.ops_metadata}, ${o.children})`
   if (o instanceof ScheduleItemContext) return t`tiny.engine.schedule.ScheduleItemContext(${o.lazybufs}, ${o.ops_metadata}, ${o.assigns}, ${o.var_vals}, ${o.sinked}, ${o.sts}, ${o.bufs}, ${o.metadata}, ${o.assign_adj})`
 
+  // ************ DEVICE ************
+  if (o instanceof _Device) return t`tiny.device._Device()`
+  if (o instanceof BufferSpec) return t`tiny.device.BufferSpec(${o.image}, ${o.uncached}, ${o.cpu_access}, ${o.host}, ${o.nolru}, ${o.external_ptr})`
+  if (o instanceof Buffer) {
+    return t`tiny.device.Buffer(device=${o.device}, size=${o.size}, dtype=${o.dtype}, opaque=${o.in_opaque}, options=${o.options}, initial_value=${o.in_initial_value}, lb_refcount=${o.in_lb_refcount}, base=${o.in_base}, offset=${o.offset}, preallocate=${o.in_preallocate})`
+  }
+  if (o instanceof _MallocAllocator) return t`tiny.device._MallocAllocator()`
+  if (o instanceof LRUAllocator) return t`tiny.device.LRUAllocator()`
+  if (o instanceof Allocator) return t`tiny.device.Allocator()`
+  if (o instanceof Compiler) return t`tiny.device.Compiler(${o.cachekey})`
+
+  // ************ CODEGEN ************
+  if (o instanceof IndexContext) return t`tiny.codegen.lowerer.IndexContext(${o.idxs}, ${o.ridxs}, ${o.acc_num})`
+  if (o instanceof Kernel) return t`tiny.codegen.kernel.Kernel(${o.ast}, ${o.opts})`
+  if (o instanceof BasicBlock) return t`tiny.codegen.linearize.BasicBlock(${o.ctx}, ${o.lst}, ${o.end})`
+  if (o instanceof Opt) return t`tiny.codegen.kernel.Opt(${OptOpsEnum(o.op)}, ${o.axis}, ${o.amt})`
+
+  // ************ RENDERER ************
+  if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
+  if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, reduce_axes=${o.reduce_axes}, upcast_axes=${o.upcast_axes}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out})`
+  if (o instanceof ProgramSpec) {
+    return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${o.globals},outs=${o.outs},)`
+  }
+
+  // ************ SHAPE ************
+  if (o instanceof View) return t`tiny.shape.view.View(shape=${o.shape}, strides=${o.strides}, offset=${o.offset}, mask=${o.mask}, contiguous=${o.contiguous})`
+  if (o instanceof ShapeTracker) return t`tiny.shape.shapetracker.ShapeTracker(views=${o.views})`
+
+  // ************ DTYPE ************
+  if (o instanceof ImageDType) return t`tiny.dtype.ImageDType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar}, ${o._base}, ${o.local}, ${o.v}, ${o.shape})`
+  if (o instanceof PtrDType) return t`tiny.dtype.PtrDType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar}, ${o._base}, ${o.local}, ${o.v})`
+  if (o instanceof DType) return t`tiny.dtype.DType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar})`
+
+  // ************ OPS ************
+  if (o instanceof UPat) {
+    // if src is UPat[][] we use list, if UPat[] then tuple
+    const src = Array.isArray(o._in_src) ? (Array.isArray(o._in_src.at(0)) ? new SkipFormatting(pyStr(o._in_src.at(0), true)) : o._in_src) : o._in_src
+    return t`tiny.ops.UPat(op=${o.op?.map((op) => OpsEnum(op))}, dtype=${o.dtype}, src=${src}, arg=${o.arg}, name=${o.name}, allow_any_len=${o.allowed_len === -1}, location=${o.location}, custom_early_reject=${o.custom_early_reject})`
+  }
+  if (o instanceof UOp) return t`tiny.ops.UOp(op=${OpsEnum(o.op)}, dtype=${o.dtype}, src=${o.src}, arg=${o.arg})`
+  if (o instanceof KernelInfo) return t`tiny.ops.KernelInfo(${o.local_dims}, ${o.upcasted}, ${o.dont_use_locals})`
+
+  // ************ HELPERS ************
   if (o instanceof Metadata) return t`tiny.helpers.Metadata(${o.name}, ${o.caller}, ${o.backward})`
 
   if (typeof o === 'function') return 'lambda x: x'
-  if (typeof o === 'object') return `{${Object.entries(o).map((entry) => t`${entry[0]}:${entry[1]}`).join(',')}}`
-  throw new Error(`Invalid value: ${o}`)
+  if (o?.constructor?.name === 'Object') return `{${Object.entries(o).map((entry) => t`${entry[0]}:${entry[1]}`).join(',')}}`
+  throw new Error(`Invalid value: ${o.constructor.name} ${JSON.stringify(o)}`)
 }
 export const python = async <T = any>(code: string, data?: any): Promise<T> => {
   code = `
