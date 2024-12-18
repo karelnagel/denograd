@@ -111,7 +111,7 @@ export const bufs_from_lin = (lin: Kernel, allocate = true): Buffer[] => {
     assert(isinstance(dtype, PtrDType) || isinstance(dtype, ImageDType))
     if (buf_size === 0) buf_size = 1 // create a size 1 buffer if no cell === accessed in kernel. // TODO: remove from kernel input in this case.
     const buf_dtype = isinstance(dtype, ImageDType) ? dtype : dtype.base
-    rawbufs[k] = allocate ? new Buffer({ device: lin.opts.device, size: buf_size, dtype: buf_dtype }).allocate() : new Buffer({ device: lin.opts.device, size: buf_size, dtype: buf_dtype })
+    rawbufs[k] = allocate ? new Buffer(lin.opts.device, buf_size, buf_dtype).allocate() : new Buffer(lin.opts.device, buf_size, buf_dtype)
   }
   assert(rawbufs.every((r) => r !== undefined))
   return rawbufs.map((b) => b!)
@@ -214,7 +214,7 @@ export const beam_search = (lin: Kernel, rawbufs: Buffer[], amt: number, allow_t
   return beam[0][0]
 }
 export const optimize_local_size = (_prg: (x: any) => number, global_size: number[], rawbufs: Buffer[]): number[] => {
-  const test_rawbuffers = rawbufs.slice(1).includes(rawbufs[0]) ? [new Buffer({ device: rawbufs[0].device, size: rawbufs[0].size, dtype: rawbufs[0].dtype }).allocate(), ...rawbufs.slice(1)] : rawbufs
+  const test_rawbuffers = rawbufs.slice(1).includes(rawbufs[0]) ? [new Buffer(rawbufs[0].device, rawbufs[0].size,rawbufs[0].dtype ).allocate(), ...rawbufs.slice(1)] : rawbufs
   const MAX_WORKGROUP = 1024
   const local_dims = global_size.map((sz) => [...new Set([sz, 1, 2, 4, 8, 16, 32, 64, 128, 256, MAX_WORKGROUP])].filter((x) => x <= sz))
   const local_sizes = [...local_dims.reduce((acc, curr) => acc.flatMap((x) => curr.map((y) => [...x, y])), [[]] as number[][])].filter((x) => prod(x) <= MAX_WORKGROUP).flatMap((x) => [x, x]) // try each valid size twice

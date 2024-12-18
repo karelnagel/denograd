@@ -78,17 +78,31 @@ Deno.test(
 Deno.test(
   'LazyBuffer.cast',
   compare(
-    [],
-    () => {},
-    'out(XXX)',
+    [
+      [new LazyBuffer(`CLANG`, new ShapeTracker([new View({ shape:[], strides:[], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), Ops.CONST, 1.0, [], undefined, new Metadata(`uniform`, ``, false)), new DType({ priority:6, itemsize:4, name:`unsigned int`, fmt:`I`, count:1, _scalar:undefined }), true, true],
+    [new LazyBuffer(`CLANG`, new ShapeTracker([new View({ shape:[], strides:[], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:5, itemsize:4, name:`int`, fmt:`i`, count:1, _scalar:undefined }), Ops.CONST, 512, [], undefined, new Metadata(`sparse_categorical_crossentropy`, ``, false)), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), false, true],
+    [new LazyBuffer(`CLANG`, new ShapeTracker([new View({ shape:[512, 64, 6, 6], strides:[0, 0, 0, 0], offset:0, mask:undefined, contiguous:false })]), new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), Ops.CONST, true, [], undefined, new Metadata(`max_pool2d`, ``, false)), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), false, true],
+    [new LazyBuffer(`CLANG`, new ShapeTracker([new View({ shape:[], strides:[], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), Ops.CONST, 512.0, [], undefined, new Metadata(`sparse_categorical_crossentropy`, ``, false)), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), false, true],
+    [new LazyBuffer(`CLANG`, new ShapeTracker([new View({ shape:[512, 32, 20, 20], strides:[0, 0, 0, 0], offset:0, mask:undefined, contiguous:false })]), new DType({ priority:0, itemsize:1, name:`bool`, fmt:`?`, count:1, _scalar:undefined }), Ops.CONST, true, [], undefined, new Metadata(`max_pool2d`, ``, false)), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), false, true],
+    [new LazyBuffer(`CLANG`, new ShapeTracker([new View({ shape:[512], strides:[0], offset:0, mask:undefined, contiguous:false })]), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), Ops.CONST, 1.0, [], undefined, new Metadata(`sparse_categorical_crossentropy`, ``, false)), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), false, true]
+    ],
+    (x:LazyBuffer,dtype:DType,bitcast:any,allow_buffer_view:boolean)=>x.cast(dtype,bitcast,allow_buffer_view),
+    'out(data[0].cast(*data[1:]))',
   ),
 )
 Deno.test(
   'LazyBuffer.copy_to_device',
   compare(
-    [],
-    () => {},
-    'out(XXX)',
+    [
+      [new LazyBuffer(`PYTHON`, new ShapeTracker([new View({ shape:[1], strides:[0], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), Ops.EMPTY, undefined, [], undefined, undefined), `CLANG`, false, false],
+      [new LazyBuffer(`PYTHON`, new ShapeTracker([new View({ shape:[2], strides:[1], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:6, itemsize:4, name:`unsigned int`, fmt:`I`, count:1, _scalar:undefined }), Ops.EMPTY, undefined, [], undefined, new Metadata(`uniform`, ``, false)), `CLANG`, false, false],
+      [new LazyBuffer(`PYTHON`, new ShapeTracker([new View({ shape:[1], strides:[0], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:6, itemsize:4, name:`unsigned int`, fmt:`I`, count:1, _scalar:undefined }), Ops.EMPTY, undefined, [], undefined, new Metadata(`uniform`, ``, false)), `CLANG`, false, false],
+      [new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/684fe191a76d9107981692e6f0d3842f.gunzip`, new ShapeTracker([new View({ shape:[60000], strides:[1], offset:8, mask:undefined, contiguous:false })]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), undefined, undefined, [], new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/684fe191a76d9107981692e6f0d3842f.gunzip`, new ShapeTracker([new View({ shape:[60008], strides:[1], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), Ops.EMPTY, undefined, [], undefined, new Metadata(`from_url`, ``, false)), new Metadata(`__getitem__`, ``, false)), `CLANG`, false, false],
+      [new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/7b1e157ab43d54d0946f76d1bb6df574.gunzip`, new ShapeTracker([new View({ shape:[10000], strides:[1], offset:8, mask:undefined, contiguous:false })]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), undefined, undefined, [], new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/7b1e157ab43d54d0946f76d1bb6df574.gunzip`, new ShapeTracker([new View({ shape:[10008], strides:[1], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), Ops.EMPTY, undefined, [], undefined, new Metadata(`from_url`, ``, false)), new Metadata(`__getitem__`, ``, false)), `CLANG`, false, false],
+      [new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/40a9ec2164c7887e8a5f1225de927907.gunzip`, new ShapeTracker([new View({ shape:[10000, 1, 28, 28], strides:[784, 0, 28, 1], offset:16, mask:undefined, contiguous:false })]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), undefined, undefined, [], new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/40a9ec2164c7887e8a5f1225de927907.gunzip`, new ShapeTracker([new View({ shape:[7840016], strides:[1], offset:0, mask:undefined, contiguous:true })]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), Ops.EMPTY, undefined, [], undefined, new Metadata(`from_url`, ``, false)), new Metadata(`reshape`, ``, false)), `CLANG`, false, false]
+    ],
+    (x:LazyBuffer,device:string,force:boolean,clone:boolean) => x.copy_to_device(device,force,clone),
+    'out(data[0].copy_to_device(*data[1:]))',
   ),
 )
 Deno.test(

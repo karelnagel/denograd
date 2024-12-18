@@ -68,37 +68,40 @@ export class BufferSpec {
     public external_ptr?: number,
   ) {}
 }
-type BufferInput = { device: string; size: number; dtype: DType; opaque?: any; options?: BufferSpec; initial_value?: Uint8Array; lb_refcount?: number; base?: Buffer; offset?: number; preallocate?: boolean }
 export class Buffer {
-  device: string
-  size: number
-  dtype: DType
-  options?: BufferSpec
-  offset: number
-
   _base?: Buffer
   _lb_refcount = 0
   _buf?: any
   allocator?: Allocator
 
-  constructor({ device, size, dtype, opaque, options, initial_value, lb_refcount = 0, base, offset = 0, preallocate = false }: BufferInput) {
-    if (dtype instanceof ImageDType) options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
+  constructor(
+    public device: string,
+    public size: number,
+    public dtype: DType,
+    public in_opaque?: any,
+    public options?: BufferSpec,
+    public in_initial_value?: Uint8Array,
+    public in_lb_refcount = 0,
+    public in_base?: Buffer,
+    public offset = 0,
+    public in_preallocate = false,
+  ) {
+    if (dtype instanceof ImageDType) this.options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
     else assert(dtype instanceof DType && !(dtype instanceof PtrDType))
-    ;[this.device, this.size, this.dtype, this.options, this.offset] = [device, size, dtype, options, offset]
-    if (isNone(base)) {
+    if (isNone(in_base)) {
       assert(offset === 0, "base buffers can't have offset")
-      this._lb_refcount = lb_refcount
-      if (isNotNone(opaque)) this.allocate(opaque)
-      if (isNotNone(initial_value)) {
+      this._lb_refcount = in_lb_refcount
+      if (isNotNone(in_opaque)) this.allocate(in_opaque)
+      if (isNotNone(in_initial_value)) {
         this.allocate()
-        this.copyin(new DataView(initial_value.buffer))
+        this.copyin(new DataView(in_initial_value.buffer))
       }
     } else {
-      assert(isNone(base._base), "base can't have a base")
-      assert(device === base.device, 'base must have the same device')
-      this._base = base
+      assert(isNone(in_base._base), "base can't have a base")
+      assert(device === in_base.device, 'base must have the same device')
+      this._base = in_base
     }
-    if (preallocate) this.allocate()
+    if (in_preallocate) this.allocate()
   }
   get base(): Buffer {
     return isNotNone(this._base) ? this._base : this
@@ -175,8 +178,8 @@ export class Buffer {
   }
   view = (size: number, dtype: DType, offset: number): Buffer => {
     assert(offset < this.nbytes, 'offset must be less than nbytes')
-    if (isNotNone(this._base)) return new Buffer({ device: this.device, size, dtype, base: this._base, offset: this.offset + offset })
-    return new Buffer({ device: this.device, size, dtype, base: this, offset: offset })
+    if (isNotNone(this._base)) return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this._base, this.offset + offset)
+    return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this, offset)
   }
 }
 

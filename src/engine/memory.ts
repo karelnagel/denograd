@@ -28,7 +28,7 @@ const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[],
     free_segs.set(key, [...free_segs.get(key)!, ...(st - 1 >= seg_st ? [[seg_st, st - 1, seg_buf] as Seg] : [])])
     free_segs.set(key, [...free_segs.get(key)!, ...(seg_en >= en + 1 ? [[en + 1, seg_en, seg_buf] as Seg] : [])])
 
-    return seg_buf.nbytes === buf.nbytes ? seg_buf : new Buffer({ device: buf.device, size: buf.size, dtype: buf.dtype, base: seg_buf })
+    return seg_buf.nbytes === buf.nbytes ? seg_buf : new Buffer(buf.device, buf.size, buf.dtype, undefined, undefined, undefined, undefined, seg_buf)
   }
   const buffer_requests = [...first_appearance.keys()].map((buf) => [first_appearance.get(buf), last_appearance.get(buf), buf] as Seg).toSorted((a, b) => -a[2].nbytes + b[2].nbytes)
   const assigned = new Map(buffer_requests.map(([st, en, buf]) => [buf, find_replace_buffer(buf, st, en)]))
@@ -36,7 +36,7 @@ const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[],
   for (const u of buffers) {
     for (const buf of u) {
       if (buf.is_allocated() || buf.lb_refcount > 0 || (noopt_buffers !== undefined && noopt_buffers.includes(buf.base))) continue
-      if (buf._base !== undefined) assigned.set(buf, new Buffer({ device: buf.device, size: buf.size, dtype: buf.dtype, base: (assigned.get(buf.base) || buf.base).base, offset: buf.offset }))
+      if (buf._base !== undefined) assigned.set(buf, new Buffer(buf.device, buf.size, buf.dtype, undefined, undefined, undefined, undefined, (assigned.get(buf.base) || buf.base).base, buf.offset))
       else assigned.set(buf, assigned.get(buf) || buf)
     }
   }

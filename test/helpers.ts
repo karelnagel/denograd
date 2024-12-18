@@ -100,7 +100,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof _Device) return t`tiny.device._Device()`
   if (o instanceof BufferSpec) return t`tiny.device.BufferSpec(${o.image}, ${o.uncached}, ${o.cpu_access}, ${o.host}, ${o.nolru}, ${o.external_ptr})`
   if (o instanceof Buffer) {
-    return t`tiny.device.Buffer(device=${o.device}, size=${o.size}, dtype=${o.dtype}, opaque=${undefined}, options=${o.options}, initial_value=${undefined}, lb_refcount=${o._lb_refcount}, base=${o._base}, offset=${undefined}, preallocate=${undefined})`
+    return t`tiny.device.Buffer(device=${o.device}, size=${o.size}, dtype=${o.dtype}, opaque=${o.in_opaque}, options=${o.options}, initial_value=${o.in_initial_value}, lb_refcount=${o.in_lb_refcount}, base=${o.in_base}, offset=${o.offset}, preallocate=${o.in_preallocate})`
   }
   if (o instanceof Allocator) return t`tiny.device.Allocator()`
   if (o instanceof LRUAllocator) return t`tiny.device.LRUAllocator()`
@@ -108,7 +108,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Compiler) return t`tiny.device.Compiler(${o.cachekey})`
 
   // ************ ENGINE ************
-  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${OpsEnum(o.op)}, ${o.arg}, ${o.srcs}, ${o._base}, ${o.metadata})`
+  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.in_dtype}, ${OpsEnum(o.in_op)}, ${o.in_arg}, ${o.in_srcs}, ${o.in_base}, ${o.metadata})`
 
   if (o instanceof CompiledRunner) return t`tiny.engine.realize.CompiledRunner()`
   if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.op_estimate}, ${o.mem_estimate}, ${o.lds_estimate})`

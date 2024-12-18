@@ -9,7 +9,7 @@
 // from weakref import ref, ReferenceType, WeakValueDictionary
 
 import { Buffer } from '../device.ts'
-import { ConstType, DType, dtypes, ImageDType, to_dtype } from '../dtype.ts'
+import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
 import { _METADATA, all_int, all_same, assert, DEBUG, getNumberEnv, isinstance, LAZYCACHE, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, python_alu, resolve, sint_prod, sub } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
@@ -33,33 +33,43 @@ export const create_lazybuffer = (device: string, st: ShapeTracker, dtype: DType
 }
 export const view_supported_devices = ['LLVM', 'CLANG', 'CUDA', 'NV', 'AMD', 'METAL', 'QCOM', 'DSP', 'DISK']
 export class LazyBuffer extends MathTrait {
-  shape:sint[]
-  size:number
+  shape: sint[]
+  size: number
 
   op?: Ops
   arg?: any
   srcs?: LazyBuffer[]
+  dtype: DType
 
   buffer?: Buffer
   contiguous_child?: [WeakRef<LazyBuffer>, ShapeTracker]
   forced_realize?: boolean
   _base?: LazyBuffer
-  constructor(public device: string, public st: ShapeTracker, public dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, public metadata?: Metadata) {
+  constructor(
+    public device: string,
+    public st: ShapeTracker,
+    public in_dtype: DTypeLike,
+    public in_op?: Ops,
+    public in_arg?: any,
+    public in_srcs: LazyBuffer[] = [],
+    public in_base?: LazyBuffer,
+    public metadata?: Metadata,
+  ) {
     super()
-    this.shape = st.shape, this.size = st.size
-    if (base === undefined) {
+    this.shape = st.shape, this.size = st.size, this.dtype = to_dtype(in_dtype)
+    if (in_base === undefined) {
       //       // properties on base
-      this.op = op, this.arg = arg, this.srcs = srcs // this === a UOp, except the src === LazyBuffers && !UOps
-      assert(this.op !== Ops.ASSIGN || srcs[0].base.realized !== undefined, 'assign target must be realized')
+      this.op = in_op, this.arg = in_arg, this.srcs = in_srcs // this === a UOp, except the src === LazyBuffers && !UOps
+      assert(this.op !== Ops.ASSIGN || in_srcs[0].base.realized !== undefined, 'assign target must be realized')
       assert(all_same(this.srcs.map((x) => x.st.shape)), `src shape mismatch! ${this.srcs}`)
       //         // some LazyBuffers can be processed with only a view, no AST required
-      if (this.op === Ops.BUFFER_VIEW) this.buffer = srcs[0].base.buffer!.view(st.size, this.dtype, (srcs[0].st.views[0].offset as number) * srcs[0].dtype.itemsize)
-      else this.op === Ops.ASSIGN ? this.buffer = srcs[0].base.buffer : new Buffer({ device, size: this.size, dtype: this.dtype })
+      if (this.op === Ops.BUFFER_VIEW) this.buffer = in_srcs[0].base.buffer?.view(st.size, this.dtype, (in_srcs[0].st.views[0].offset as number) * in_srcs[0].dtype.itemsize)
+      else this.buffer = this.op === Ops.ASSIGN ? in_srcs[0].base.buffer : new Buffer(device, this.size, this.dtype)
       this.forced_realize = false
     } else {
       //       // properties on view
-      assert(base.base === base, 'base must be a base itthis')
-      this._base = base
+      assert(in_base.base === in_base, 'base must be a base itthis')
+      this._base = in_base
     }
   }
   __del__ = () => {
@@ -157,7 +167,7 @@ export class LazyBuffer extends MathTrait {
     }
 
     //     // if it's a shrink, do the shrink before the copy with CONTIGUOUS
-    if (sint_prod(this.st.shape) < sint_prod(this.base.st.shape)) return this.contiguous()._copy(device)
+    if (prod(this.st.shape as number[]) < prod(this.base.st.shape as number[])) return this.contiguous()._copy(device)
 
     //     // copy the base && apply the shapetracker on the new device
     return this.base._copy(device)._view(this.st)
