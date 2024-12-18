@@ -209,7 +209,7 @@ export const full_ast_rewrite = (pre: UOp, ctx: ScheduleContext): [UOp, Schedule
     new Map(pre.src.map((x) => [x.buf_uop, x.src[2]])),
     undefined,
     undefined,
-    new Set(pre.src.filter((x) => ctx.lazybufs.get(x.buf_uop) !== undefined && ctx.lazybufs.get(x.buf_uop)!.metadata !== undefined).map((x) => ctx.lazybufs.get(x.buf_uop)!.metadata!)),
+    new Set(pre.src.filter((x) => ctx.lazybufs.get(x.buf_uop)?.metadata !== undefined).map((x) => ctx.lazybufs.get(x.buf_uop)!.metadata!)),
   )
 
   //   // fuse && fold store -> loads

@@ -45,7 +45,7 @@ export const isLessThan = (a: any, b: any): boolean => {
 export const isEq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => isEq(o, two[i]))
   // if (typeof one === 'object' && typeof two === 'object') return JSON.stringify(one) === JSON.stringify(two)//should not be needed after having cahces for classes
-  // deno-lint-ignore eqeqeq 
+  // deno-lint-ignore eqeqeq
   return one == two // this uses == instead of ===, cause in python 0==False, but in js 0!==false, but 0==false
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
@@ -230,7 +230,7 @@ export const getChild = (obj: any, key: string): any => key.split('.').reduce((c
 
 export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
-export const to_function_name = (s: string): string => ''.concat(...ansistrip(s).split('').map(c => /[a-zA-Z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).padStart(2, '0')))
+export const to_function_name = (s: string): string => ''.concat(...ansistrip(s).split('').map((c) => /[a-zA-Z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).padStart(2, '0')))
 export const getEnv = (key: string, defaultVal = '') => process.env[key] || defaultVal
 export const getNumberEnv = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)
@@ -244,11 +244,11 @@ export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [getNumberEnv('SPLIT_RE
 
 // @dataclass(frozen=True)
 export class Metadata {
-  name: string
-  caller: string
-  backward: boolean
-  constructor(name: string, caller: string, backward = false) {
-    this.name = name, this.caller = caller, this.backward = backward
+  static cache: Record<string, Metadata> = {}
+  constructor(public name: string, public caller: string, public backward = false) {
+    const key = JSON.stringify({ name, caller, backward })
+    if (Metadata.cache[key]) return Metadata.cache[key]
+    Metadata.cache[key] = this
   }
   // def __hash__(self): return hash(self.name)
   //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")

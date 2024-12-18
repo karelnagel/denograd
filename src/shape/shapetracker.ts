@@ -45,7 +45,6 @@ export class ShapeTracker {
     const key = JSON.stringify(views)
     if (ShapeTracker.cache[key]) return ShapeTracker.cache[key]
     ShapeTracker.cache[key] = this
-    return this
   }
   add = (st: ShapeTracker): ShapeTracker => {
     let ret = new ShapeTracker(this.views)
