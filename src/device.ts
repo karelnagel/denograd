@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, CI, ctypes, DEBUG, diskcache_get, diskcache_put, flat_mv, from_mv, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, OSX, resolvePromise } from './helpers.ts'
+import { assert, CI, ctypes, DataClass, DEBUG, diskcache_get, diskcache_put, flat_mv, from_mv, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, OSX, resolvePromise } from './helpers.ts'
 import process from 'node:process'
 import { Renderer } from './renderer/index.ts'
 
@@ -56,7 +56,7 @@ export class _Device {
 export const Device = new _Device()
 
 // **************** Buffer + Allocators ****************
-
+@DataClass
 export class BufferSpec {
   //   # TODO: move device, size, dtype here?
   constructor(

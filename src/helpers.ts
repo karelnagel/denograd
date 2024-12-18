@@ -7,6 +7,28 @@ import { execSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 
 // GENERAL HELPERS
+type ClassType<T> = { new (...args: any[]): T }
+
+
+export function DataClass<T extends ClassType<object>>(Cls: T) {
+  const cache: Record<string, T> = {}
+  return class extends Cls {
+    constructor(...args: any[]) {
+      const key = JSON.stringify(args)
+      const res = cache[key]
+      if (res) return res
+      super(...args)
+      cache[key] = this as any
+      Object.freeze(this)
+    }
+  }
+}
+export const checkCached = <T>(key: object, cache: Record<string, T>, self: T): T => {
+  const k = JSON.stringify(key)
+  if (cache[k]) return cache[k]
+  cache[k] = self
+  return self
+}
 export const getAllEnums = <T extends object>(e: T) => Object.values(e).filter((value) => typeof value === 'number' && value !== 0) as T[keyof T][]
 export const getEnumString = <T extends object>(e: T, op: T[keyof T]) => {
   for (const key in e) if (e[key] === op) return key
@@ -242,14 +264,9 @@ export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [getNumberEnv('TC', 1), get
 export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [getNumberEnv('FUSE_ARANGE', 0), getNumberEnv('FUSE_CONV_BW', 0), getNumberEnv('LAZYCACHE', 1)]
 export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [getNumberEnv('SPLIT_REDUCEOP', 1), getNumberEnv('NO_MEMORY_PLANNER', 0), getNumberEnv('RING', 1)]
 
-// @dataclass(frozen=True)
+@DataClass
 export class Metadata {
-  static cache: Record<string, Metadata> = {}
-  constructor(public name: string, public caller: string, public backward = false) {
-    const key = JSON.stringify({ name, caller, backward })
-    if (Metadata.cache[key]) return Metadata.cache[key]
-    Metadata.cache[key] = this
-  }
+  constructor(public name: string, public caller: string, public backward = false) {}
   // def __hash__(self): return hash(self.name)
   //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
   //   def __str__(self): return self.name + (" bw" if self.backward else "")

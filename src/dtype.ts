@@ -1,4 +1,4 @@
-import { assert, getEnv, intersection, isEq, isLessThan, max, sorted } from './helpers.ts'
+import { assert, checkCached, getEnv, intersection, isEq, isLessThan, max, sorted } from './helpers.ts'
 
 export type ConstType<This = never> = number | boolean | This
 export type FmtStr = keyof typeof TYPED_ARRAYS
@@ -19,7 +19,7 @@ export const TYPED_ARRAYS = {
 }
 export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: FmtStr; count: number; _scalar?: DType; kwargs?: any }
 export class DType {
-  static dcache = new Map<string, DType>()
+  static dcache: Record<string, DType> = {}
   priority!: number
   itemsize!: number
   name!: string
@@ -28,10 +28,8 @@ export class DType {
   _scalar?: DType
   // deno-fmt-ignore
   constructor({priority,count,itemsize,name,fmt,_scalar,kwargs}: DTypeArgs) {
-    const key = JSON.stringify({priority,count,itemsize,name,_scalar,fmt,kwargs})
-    if (DType.dcache.has(key)) return DType.dcache.get(key)!
     this.priority=priority; this.itemsize=itemsize; this.name=name; this.fmt=fmt; this.count=count; this._scalar=_scalar
-    DType.dcache.set(key,this)
+    return checkCached({priority,count,itemsize,name,_scalar,fmt,kwargs},DType.dcache,this)
   }
 
   static new = (...[priority, itemsize, name, fmt]: [number, number, string, FmtStr | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, _scalar: undefined })

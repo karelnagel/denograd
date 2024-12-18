@@ -378,7 +378,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   //   //   for (const tr of group){ del ctx.realizes[tr]
   //   // group BUFFER uops into kernels
   const output_groups = new Map<UOp, UOp[]>()
-  for (const ubuf of ctx.realizes.keys()) setDefault(output_groups, reduce_for_op.get(ubuf)!, [])!.push(ubuf)
+  for (const ubuf of ctx.realizes.keys()) setDefault(output_groups, reduce_for_op.get(ubuf) || ubuf, []).push(ubuf)
   return [...output_groups.values()]
 }
 // // **** Schedule creation && BFS toposort
@@ -501,7 +501,7 @@ export const create_schedule_with_vars = (outs: LazyBuffer[]): [ScheduleItem[], 
       prescheduled.push(
         new ScheduleItem(ast, ast_ctx.bufs.filter((u) => u.size !== 0).map((u) => buffers.get(u)!), [...ast_ctx.metadata], new Set(ast_ctx.assign_adj.entries().filter(([ubuf, ops]) => ops.some((x) => x.op === Ops.PRELOAD)).map(([ubuf]) => ubuf))),
       )
-      for (const u of ast_ctx.sinked.keys()) delete ast_ctx.lazybufs.get(u)!.srcs // can only schedule once
+      for (const u of ast_ctx.sinked.keys()) ast_ctx.lazybufs.get(u)!.srcs?.map((s) => s.__del__()) // can only schedule once
     }
   }
   //   // do BFS

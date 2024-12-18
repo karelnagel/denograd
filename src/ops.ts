@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { all_same, assert, counter, divmod, getEnumString, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
+import { all_same, assert, checkCached, counter, DataClass, divmod, getEnumString, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
 import { readFileSync } from 'node:fs'
 import { ShapeTracker } from './shape/shapetracker.ts'
 import { argfix } from './helpers.ts'
@@ -168,17 +168,15 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [Ops, any, DType, UOpTuple[]]
 export class UOp extends MathTrait {
-  static ucache = new Map<string, UOp>()
+  static ucache: Record<string, UOp> = {}
   op!: Ops
   dtype: DType = dtypes.void
   src: UOp[] = []
   arg: any = undefined
   // deno-fmt-ignore
   constructor({ op, dtype=dtypes.void, src=[], arg=undefined}:UOpInput) {
-    const key = JSON.stringify({ op, dtype, src, arg})
-      if (UOp.ucache.has(key)) return UOp.ucache.get(key)!
       super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
-      UOp.ucache.set(key,this)
+      return checkCached({op,dtype,src,arg},UOp.ucache,this)
     }
   override toString = () => `new UOp({op:Ops.${getEnumString(Ops, this.op)}, dtype:${this.dtype}, arg:${listStr(this.arg)}, src:${listStr(this.src)}})`
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
@@ -459,6 +457,7 @@ export class UOp extends MathTrait {
   }
 }
 
+@DataClass
 export class KernelInfo {
   constructor(public local_dims = 0, public upcasted = 0, public dont_use_locals = false) {}
 }

@@ -1,17 +1,6 @@
-// from typing import List, Dict, Optional, cast, Generator, Tuple
-// import time, pprint
-// from dataclasses import dataclass, replace
-// from tinygrad.helpers import colored, getenv, DEBUG, GlobalCounters, ansilen, BEAM, NOOPT, all_int, CAPTURING, Metadata, Context, TRACEMETA
-// from tinygrad.ops import Ops, UOp, Variable, sym_infer, sint
-// from tinygrad.dtype import dtypes
-// from tinygrad.device import Device, Buffer
-// from tinygrad.renderer import Renderer, ProgramSpec
-// from tinygrad.codegen.kernel import Kernel
-// from tinygrad.engine.schedule import ScheduleItem
-
 import { Kernel } from '../codegen/kernel.ts'
 import { Buffer, Device } from '../device.ts'
-import { all_int, assert, BEAM, CAPTURING, colored, DEBUG, getEnv, getNumberEnv, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
+import { all_int, assert, BEAM, CAPTURING, colored, DataClass, DEBUG, getEnv, getNumberEnv, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
 import { idiv, Ops, sint, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec, Renderer } from '../renderer/index.ts'
 import { ScheduleItem } from './schedule.ts'
@@ -154,9 +143,10 @@ export const get_runner = (device: string, ast: UOp): CompiledRunner => {
   }
   return ret
 }
+
 // // **************** lowering functions ****************
 
-// @dataclass(frozen=true)
+@DataClass
 export class ExecItem {
   constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
   run = (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): number | undefined => {
