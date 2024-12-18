@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, DataClass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
 import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, smax, smin, sym_infer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sint_to_uop, sub, UOp } from '../ops.ts'
 
@@ -79,6 +79,7 @@ export const un1d = (shape: sint[], offs: sint): sint[] => {
   return result
 }
 
+@DataClass
 export class View {
   constructor(public shape: sint[], public strides: sint[], public offset: sint, public mask?: [sint, sint][], public contiguous?: boolean) {}
 

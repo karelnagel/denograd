@@ -1,6 +1,6 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getAllEnums, getEnv, isEq, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
+import { all_int, all_same, assert, colored, DataClass, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getAllEnums, getEnv, isEq, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
 import { can_pad, ge, lt, resolve, sint_prod, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -13,7 +13,7 @@ const BUF_LIMIT = { 'METAL': 32 }
 
 // **** ScheduleItem return type
 
-// @dataclass(frozen=true)
+@DataClass
 export class ScheduleItem {
   constructor(public ast: UOp, public bufs: Buffer[], public metadata: Metadata[], public assign_preloads: Set<UOp>) {}
   /**
@@ -34,7 +34,7 @@ export class ScheduleItem {
 }
 // // **** Schedule context && big graph
 
-// @dataclass(frozen=true)
+@DataClass
 export class ScheduleContext {
   constructor(
     public lazybufs = new Map<UOp, LazyBuffer>(), // this maps BUFFER uops of this schedule to the underlying lazybuffer
@@ -142,7 +142,7 @@ export const view_right = merge_views.add(
 
 // // ** ScheduleItem context builder
 
-// @dataclass(frozen=true)
+// @DataClass // for some reason causes issues, but should be here
 export class ScheduleItemContext {
   constructor(
     public lazybufs = new Map<UOp, LazyBuffer>(),

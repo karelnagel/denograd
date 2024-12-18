@@ -169,15 +169,10 @@ type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [Ops, any, DType, UOpTuple[]]
 export class UOp extends MathTrait {
   static ucache: Record<string, UOp> = {}
-  op!: Ops
-  dtype: DType = dtypes.void
-  src: UOp[] = []
-  arg: any = undefined
-  // deno-fmt-ignore
-  constructor({ op, dtype=dtypes.void, src=[], arg=undefined}:UOpInput) {
-      super(); this.op = op; this.dtype = dtype; this.src = src; this.arg = arg;
-      return checkCached({op,dtype,src,arg},UOp.ucache,this)
-    }
+  constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
+    super()
+    return checkCached({ op, dtype, src, arg }, UOp.ucache, this)
+  }
   override toString = () => `new UOp({op:Ops.${getEnumString(Ops, this.op)}, dtype:${this.dtype}, arg:${listStr(this.arg)}, src:${listStr(this.src)}})`
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => {
