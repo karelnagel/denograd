@@ -22,6 +22,9 @@
       "include": [
         "prefer-const",
         "ban-types",
+        "eqeqeq",
+        "no-class-assign",
+        "no-compare-neg-zero",
         "no-inferrable-types"
       ]
     }
@@ -31,5 +34,8 @@
     "assert": "jsr:@std/assert",
     "json5": "npm:json5@^2.2.3"
   },
+  "exclude": [
+    "./tinygrad"
+  ],
   "compilerOptions": {}
 }
