@@ -3,7 +3,7 @@ import { Buffer } from '../../src/device.ts'
 import { DType, PtrDType } from '../../src/dtype.ts'
 import { LazyBuffer } from '../../src/engine/lazy.ts'
 import { create_schedule_with_vars, init_big_graph, realize_view, ScheduleContext, to_uop } from '../../src/engine/schedule.ts'
-import { Metadata } from '../../src/helpers.ts'
+import { counter, Metadata } from '../../src/helpers.ts'
 import { Ops, UOp } from '../../src/ops.ts'
 import { ShapeTracker } from '../../src/shape/shapetracker.ts'
 import { View } from '../../src/shape/view.ts'
@@ -20,7 +20,10 @@ Deno.test(
         [new LazyBuffer(`CLANG`, new ShapeTracker([new View([32], [1], 0, undefined, true)]), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), Ops.COPY, 128, [new LazyBuffer(`DISK:/Users/karel/Documents/denograd/tinygrad/model.safetensors`, new ShapeTracker([new View([32], [1], 0, undefined, true)]), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), Ops.BUFFER_VIEW, undefined, [new LazyBuffer(`DISK:/Users/karel/Documents/denograd/tinygrad/model.safetensors`, new ShapeTracker([new View([128], [1], 107488, undefined, false)]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), undefined, undefined, [], new LazyBuffer(`DISK:/Users/karel/Documents/denograd/tinygrad/model.safetensors`, new ShapeTracker([new View([353816], [1], 0, undefined, true)]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), Ops.EMPTY, undefined, [], undefined, undefined), new Metadata(`__getitem__`, ``, false))], undefined, new Metadata(`bitcast`, ``, false))], undefined, new Metadata(`to`, ``, false)), new ScheduleContext(new Map([]), new Map([]), new Set([]), new Map([]), new Map([]), new Map([]), new Map([])), new Map<UOp,Buffer>([]), new Map<LazyBuffer,UOp>([])],
         [new LazyBuffer(`CLANG`, new ShapeTracker([new View([32], [1], 0, undefined, true)]), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), Ops.COPY, 128, [new LazyBuffer(`DISK:/Users/karel/Documents/denograd/tinygrad/model.safetensors`, new ShapeTracker([new View([32], [1], 0, undefined, true)]), new DType({ priority:11, itemsize:4, name:`float`, fmt:`f`, count:1, _scalar:undefined }), Ops.BUFFER_VIEW, undefined, [new LazyBuffer(`DISK:/Users/karel/Documents/denograd/tinygrad/model.safetensors`, new ShapeTracker([new View([128], [1], 107616, undefined, false)]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), undefined, undefined, [], new LazyBuffer(`DISK:/Users/karel/Documents/denograd/tinygrad/model.safetensors`, new ShapeTracker([new View([353816], [1], 0, undefined, true)]), new DType({ priority:2, itemsize:1, name:`unsigned char`, fmt:`B`, count:1, _scalar:undefined }), Ops.EMPTY, undefined, [], undefined, undefined), new Metadata(`__getitem__`, ``, false))], undefined, new Metadata(`bitcast`, ``, false))], undefined, new Metadata(`to`, ``, false)), new ScheduleContext(new Map([]), new Map([]), new Set([]), new Map([]), new Map([]), new Map([]), new Map([])), new Map<UOp,Buffer>([]), new Map<LazyBuffer,UOp>([])]
     ],
-    tryCatch(to_uop),
+    (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, Buffer>, cache: Map<LazyBuffer, UOp>)=>{
+        UOp.buffer_num = counter(0) //resetting counter
+        return to_uop(buf,ctx,buffers,cache)
+    },
     'out(tiny.engine.schedule.to_uop(*data))',
   ),
 )
