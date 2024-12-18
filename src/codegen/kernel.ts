@@ -685,9 +685,9 @@ export class Kernel {
     //     # group non-local bufs by the op type (LOAD ||STORE) && the buffer arg. take the max access of that buffer in bytes
     //     # TODO: these max && min don't work on symbolic, && results are very wrong.
     const groups = new Map<[Ops, any], UOp[]>()
-    for (const x of [...this.ast.toposort].filter((x) => GroupOp.Buffer.includes(x.op) && x.src[0].op === Ops.DEFINE_GLOBAL)) setDefault(groups,[x.op, x.src[0].arg],[]).push(x)
+    for (const x of [...this.ast.toposort].filter((x) => GroupOp.Buffer.includes(x.op) && x.src[0].op === Ops.DEFINE_GLOBAL)) setDefault(groups, [x.op, x.src[0].arg], []).push(x)
     const mem_bytes = [...groups.values()].flatMap((group) => Math.max(...group.map((x) => x.src[0].dtype.itemsize * x.st_arg.real_size()))).reduce((acc, x) => acc + x, 0)
-    return new ProgramSpec({ name: ansiname, src, device: this.opts.device, uops: this.uops, mem_estimate: mem_bytes, global_size: this.opts.has_local ? [1, 1, 1] : undefined, local_size: this.opts.has_local ? [1, 1, 1] : undefined })
+    return new ProgramSpec(ansiname, src, this.opts.device, this.uops, mem_bytes, this.opts.has_local ? [1, 1, 1] : undefined, this.opts.has_local ? [1, 1, 1] : undefined)
   }
 }
 // # the living definition of intermediate UOps

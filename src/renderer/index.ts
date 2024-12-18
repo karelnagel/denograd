@@ -6,20 +6,17 @@ import { flopsMem, Ops, type sint, sym_infer, type UOp, type Variable } from '..
 
 export type TC = [number, number]
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
-  dims: [number, number, number] // N, M, K
-  dtype_in: DType // dtype for A and B
-  dtype_out: DType // dtype for C and D
-  threads: TC[] // list of (TC dim,amt) that construct the warp thread structure
-  reduce_axes: TC[] // list of (TC dim,amt) that constructs the shape of the reduce dim
-
-  // deno-fmt-ignore
-  constructor(p:{dims: [number, number, number], dtype_in: DType, dtype_out: DType, threads: TC[], reduce_axes: TC[], upcast_axes:[TC[],TC[],TC[]]}) {
-    this.dims=p.dims; this.dtype_in=p.dtype_in; this.dtype_out=p.dtype_out; this.threads=p.threads; this.reduce_axes=p.reduce_axes; this.upcast_axes = p.upcast_axes
-  }
+  constructor(
+    public dims: [number, number, number],
+    public dtype_in: DType,
+    public dtype_out: DType,
+    public threads: TC[],
+    public reduce_axes: TC[],
+    public upcast_axes: [TC[], TC[], TC[]],
+  ) {}
   early_upcast_axes = (): TC[] => { // list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
     return range(2).map((dim) => [dim, prod(this.threads.filter(([d]) => d === dim).map(([d, sz]) => sz))]).filter(([d, sz]) => this.dims[d] > sz).map(([d, sz]) => [d, Math.floor(this.dims[d] / sz)])
   }
-  upcast_axes: [TC[], TC[], TC[]] // list of (TC dim,amt) that upcast A, B and C
   st1_pattern?: TC[][] | TC[] // pattern to fix shapetracker for A
   st2_pattern?: TC[][] | TC[] // pattern to fix shapetracker for B
   expanded_shape?: number[]
@@ -27,43 +24,21 @@ export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D 
   toString = () => ['WMMA', ...this.dims.map((d) => d.toString()), this.dtype_in.name, this.dtype_out.name].join('_')
 }
 
-type Props = {
-  name: string
-  src: string
-  device: string
-  uops?: UOp[]
-  mem_estimate?: sint
-  global_size?: number[]
-  local_size?: number[]
-  vars?: Variable[]
-  globals?: number[]
-  outs?: number[]
-}
 export class ProgramSpec {
-  name: string
-  src: string
-  device: string
-  uops?: UOp[]
-  mem_estimate: sint // TODO: get this from the load/store uops once min/max are good
-  constructor(p: Props) {
-    this.name = p.name
-    this.src = p.src
-    this.device = p.device
-    this.uops = p.uops
-    this.mem_estimate = p.mem_estimate || 0
-    this.global_size = p.global_size
-    this.local_size = p.local_size
-    this.vars = p.vars || []
-    this.globals = p.globals || [0] // NOTE: these [0], make the tests pass, but seem weird
-    this.outs = p.outs || [0]
-  }
+  constructor(
+    public name: string,
+    public src: string,
+    public device: string,
+    public uops?: UOp[],
+    public mem_estimate = 0,
+    public global_size?: number[],
+    public local_size?: number[],
+    public vars: Variable[] = [],
+    public globals = [0],
+    public outs = [0],
+  ) {}
 
   // filled in from uops (if we have uops)
-  global_size?: number[]
-  local_size?: number[]
-  vars?: Variable[] = []
-  globals: number[] = []
-  outs: number[] = []
   _ran_post_nit = false // NOTE: this is needed if you call replace on the Program
 
   __post_init__ = () => {
