@@ -48,28 +48,28 @@ export class LazyBuffer extends MathTrait {
   constructor(
     public device: string,
     public st: ShapeTracker,
-    public in_dtype: DTypeLike,
-    public in_op?: Ops,
-    public in_arg?: any,
-    public in_srcs: LazyBuffer[] = [],
-    public in_base?: LazyBuffer,
+    dtype: DTypeLike,
+    op?: Ops,
+    arg?: any,
+    srcs: LazyBuffer[] = [],
+    base?: LazyBuffer,
     public metadata?: Metadata,
   ) {
     super()
-    this.shape = st.shape, this.size = st.size, this.dtype = to_dtype(in_dtype)
-    if (in_base === undefined) {
+    this.shape = st.shape, this.size = st.size, this.dtype = to_dtype(dtype)
+    if (base === undefined) {
       //       // properties on base
-      this.op = in_op, this.arg = in_arg, this.srcs = in_srcs // this === a UOp, except the src === LazyBuffers && !UOps
-      assert(this.op !== Ops.ASSIGN || in_srcs[0].base.realized !== undefined, 'assign target must be realized')
+      this.op = op, this.arg = arg, this.srcs = srcs // this === a UOp, except the src === LazyBuffers && !UOps
+      assert(this.op !== Ops.ASSIGN || srcs[0].base.realized !== undefined, 'assign target must be realized')
       assert(all_same(this.srcs.map((x) => x.st.shape)), `src shape mismatch! ${this.srcs}`)
       //         // some LazyBuffers can be processed with only a view, no AST required
-      if (this.op === Ops.BUFFER_VIEW) this.buffer = in_srcs[0].base.buffer?.view(st.size, this.dtype, (in_srcs[0].st.views[0].offset as number) * in_srcs[0].dtype.itemsize)
-      else this.buffer = this.op === Ops.ASSIGN ? in_srcs[0].base.buffer : new Buffer(device, this.size, this.dtype)
+      if (this.op === Ops.BUFFER_VIEW) this.buffer = srcs[0].base.buffer?.view(st.size, this.dtype, (srcs[0].st.views[0].offset as number) * srcs[0].dtype.itemsize)
+      else this.buffer = this.op === Ops.ASSIGN ? srcs[0].base.buffer : new Buffer(device, this.size, this.dtype)
       this.forced_realize = false
     } else {
       //       // properties on view
-      assert(in_base.base === in_base, 'base must be a base itthis')
-      this._base = in_base
+      assert(base.base === base, 'base must be a base itself')
+      this._base = base
     }
   }
   __del__ = () => {

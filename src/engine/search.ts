@@ -214,7 +214,7 @@ export const timeout_handler = (signum: any, frame: any) => {
 //   return beam[0][0]
 // }
 export const optimize_local_size = (_prg: (x: any) => number, global_size: number[], rawbufs: Buffer[]): number[] => {
-  const test_rawbuffers = rawbufs.slice(1).includes(rawbufs[0]) ? [new Buffer(rawbufs[0].device, rawbufs[0].size,rawbufs[0].dtype ).allocate(), ...rawbufs.slice(1)] : rawbufs
+  const test_rawbuffers = rawbufs.slice(1).includes(rawbufs[0]) ? [new Buffer(rawbufs[0].device, rawbufs[0].size, rawbufs[0].dtype).allocate(), ...rawbufs.slice(1)] : rawbufs
   const MAX_WORKGROUP = 1024
   const local_dims = global_size.map((sz) => [...new Set([sz, 1, 2, 4, 8, 16, 32, 64, 128, 256, MAX_WORKGROUP])].filter((x) => x <= sz))
   const local_sizes = [...local_dims.reduce((acc, curr) => acc.flatMap((x) => curr.map((y) => [...x, y])), [[]] as number[][])].filter((x) => prod(x) <= MAX_WORKGROUP).flatMap((x) => [x, x]) // try each valid size twice

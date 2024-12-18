@@ -1,6 +1,6 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getAllEnums, getEnv, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
+import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getAllEnums, getEnv, isEq, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
 import { can_pad, ge, lt, resolve, sint_prod, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -46,7 +46,7 @@ export class ScheduleContext {
     public children = new Map<UOp, Map<UOp, undefined>>(),
   ) {}
 }
-export const is_scheduled = (u: UOp): boolean => u.op === Ops.VIEW && u.src.length === 2
+export const is_scheduled = (u: UOp): boolean => u?.op === Ops.VIEW && u?.src.length === 2
 
 export const to_uop = (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, Buffer>, cache: Map<LazyBuffer, UOp>): UOp => {
   const r = cache.get(buf)
@@ -269,20 +269,20 @@ export const recursive_group = (
 ): undefined => {
   if (cache.has([tr, st])) return
   cache.set([tr, st], undefined)
-  const rsize = allbufs.get(r)!.st!.size
+  const rsize = allbufs.get(r)!.st?.size
   if (realizes.has(tr) && tr !== r) {
     //     // can only fuse contiguous
     //     // max one reduceop per kernel
-    if (!st.contiguous || st.size !== rsize || reduce_for_op.has(tr)) group.set(r, undefined)
-    return void group.set(tr, undefined)
+    if (!st.contiguous || st.size !== rsize || reduce_for_op.has(tr)) setDefault(group, r, undefined)
+    return setDefault(group, tr, undefined)
   }
   for (const tr_next of children.get(tr)!.keys()) {
     //     // max one reduceop per kernel
     const tr_next_uop = uval(allbufs.get(tr_next)!).base
-    if (tr_next_uop.op === Ops.REDUCE_AXIS) return void group.set(r, undefined)
+    if (tr_next_uop.op === Ops.REDUCE_AXIS) return setDefault(group, r, undefined)
     //     // can only fuse contiguous
     const st_childs = dedup(tr_next_uop.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop === tr).map((x) => x.st!))
-    if (st_childs.length > 1) return void group.set(r, undefined)
+    if (st_childs.length > 1) return setDefault(group, r, undefined)
     recursive_group(tr_next, st.add(st_childs[0]), r, children, allbufs, realizes, reduce_for_op, group, cache)
   }
 }
@@ -296,7 +296,7 @@ export const get_isolated_children = (r: UOp, reduce_for_op: Map<UOp, UOp>, chil
     cache.add(p)
     //     // max one reduceop per kernel
     if (p.op === Ops.REDUCE_AXIS) return new Map()
-    p.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop !== r).map((x) => x.base.buf_uop).forEach((x) => rc_parents.set(x, undefined))
+    p.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop !== r).forEach((x) => rc_parents.set(x.base.buf_uop, undefined))
   }
   //   // search descendants of the reduceop that can cleanly group
   const descendants = new Map<UOp, undefined>()
@@ -335,7 +335,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
         p_uop = uval(p_uop)
         if (p_uop.op === Ops.ASSIGN && !group.has(p)) [forced_realize, can_chase] = [true, false]
         if (ctx.realizes.has(p)) continue
-        p.src.filter((x) => x.base.op === Ops.VIEW && x.base.src.length !== 0).map((x) => x.base.src[0]).forEach((x) => parents.set(x, undefined))
+        p_uop.src.filter((x) => x.base.op === Ops.VIEW && x.base.src.length !== 0).forEach((x) => parents.set(x.base.src[0], undefined))
       }
     }
     if (forced_realize || !group.size) {
@@ -378,7 +378,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   //   //   for (const tr of group){ del ctx.realizes[tr]
   //   // group BUFFER uops into kernels
   const output_groups = new Map<UOp, UOp[]>()
-  for (const ubuf of ctx.realizes.keys()) output_groups.get(reduce_for_op.get(ubuf)!)!.push(ubuf)
+  for (const ubuf of ctx.realizes.keys()) setDefault(output_groups, reduce_for_op.get(ubuf)!, [])!.push(ubuf)
   return [...output_groups.values()]
 }
 // // **** Schedule creation && BFS toposort
@@ -434,7 +434,7 @@ export const fold_img_cast = (ctx: Map<UOp, UOp>, xb: UOp, view: UOp, b: UOp, to
 }
 export const init_big_graph = (ctx: Map<UOp, UOp>, sink: UOp): UOp | undefined => {
   const new_src = sink.src.filter((x) => is_scheduled(x.base) && uval(x.base).op !== Ops.CONST).map((x) => x.base)
-  return new_src === sink.src ? undefined : new_src.length === 0 ? new UOp({ op: Ops.NOOP }) : UOp.sink(...new_src)
+  return isEq(new_src, sink.src) ? undefined : new_src.length === 0 ? new UOp({ op: Ops.NOOP }) : UOp.sink(...new_src)
 }
 export const do_realize = new PatternMatcher<Record<string, UOp> & { ctx: Map<UOp, UOp> }, UOp | undefined>([
   //   // always realize sinked ops
@@ -512,13 +512,13 @@ export const create_schedule_with_vars = (outs: LazyBuffer[]): [ScheduleItem[], 
     //     // realize outputs before a parent === assigned to
     const parents_assigns = dedup([...si.assign_preloads].map((x) => schedule_targets.get(buffers.get(x)!)!).filter((xsi) => xsi && xsi !== si))
     for (const assign of parents_assigns) {
-      graph.get(si)!.push(assign)
+      setDefault(graph, si, []).push(assign)
       in_degree.set(assign, in_degree.get(assign)! + 1)
     }
     //     // realize outputs after all parents are realized
     const scheduled_parents = dedup(si.inputs.map((x) => schedule_targets.get(x)!).filter((xsi) => xsi !== undefined && !parents_assigns.includes(xsi)))
     for (const x of scheduled_parents) {
-      graph.get(x)!.push(si)
+      setDefault(graph, x, []).push(si)
       in_degree.set(si, in_degree.get(si)! + 1)
     }
   }
@@ -527,7 +527,7 @@ export const create_schedule_with_vars = (outs: LazyBuffer[]): [ScheduleItem[], 
   while (queue.length) {
     const si = queue.shift()
     schedule.push(si!)
-    for (const x of graph.get(si!)!) {
+    for (const x of setDefault(graph, si!, [])) {
       in_degree.set(x, in_degree.get(x)! - 1)
       if (in_degree.get(x) === 0) queue.push(x)
     }

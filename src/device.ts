@@ -70,7 +70,7 @@ export class BufferSpec {
 }
 export class Buffer {
   _base?: Buffer
-  _lb_refcount = 0
+  _lb_refcount?: number
   _buf?: any
   allocator?: Allocator
 
@@ -81,25 +81,25 @@ export class Buffer {
     public in_opaque?: any,
     public options?: BufferSpec,
     public in_initial_value?: Uint8Array,
-    public in_lb_refcount = 0,
-    public in_base?: Buffer,
+    lb_refcount = 0,
+    base?: Buffer,
     public offset = 0,
     public in_preallocate = false,
   ) {
     if (dtype instanceof ImageDType) this.options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
     else assert(dtype instanceof DType && !(dtype instanceof PtrDType))
-    if (isNone(in_base)) {
+    if (isNone(base)) {
       assert(offset === 0, "base buffers can't have offset")
-      this._lb_refcount = in_lb_refcount
+      this._lb_refcount = lb_refcount
       if (isNotNone(in_opaque)) this.allocate(in_opaque)
       if (isNotNone(in_initial_value)) {
         this.allocate()
         this.copyin(new DataView(in_initial_value.buffer))
       }
     } else {
-      assert(isNone(in_base._base), "base can't have a base")
-      assert(device === in_base.device, 'base must have the same device')
-      this._base = in_base
+      assert(isNone(base._base), "base can't have a base")
+      assert(device === base.device, 'base must have the same device')
+      this._base = base
     }
     if (in_preallocate) this.allocate()
   }
@@ -107,9 +107,9 @@ export class Buffer {
     return isNotNone(this._base) ? this._base : this
   }
   get lb_refcount() {
-    return this.base._lb_refcount
+    return this.base._lb_refcount!
   }
-  ref = (cnt: number) => this.base._lb_refcount += cnt
+  ref = (cnt: number) => this.base._lb_refcount! += cnt
   is_allocated = () => !!this._buf
   ensure_allocated = (): Buffer => !this.is_allocated() ? this.allocate() : this
   allocate = (opaque?: any, external_ptr?: any): Buffer => {
