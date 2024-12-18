@@ -670,7 +670,7 @@ export class Tensor extends SimpleMathTrait {
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     let had_counter
-    if (device! in Tensor._device_seeds) {
+    if (Tensor._device_seeds.keys().some((x) => x === device)) {
       const new_device_seeds = new Tensor([BigInt('0x' + crypto.createHash('sha256').update(NodeBuffer.alloc(4).writeUInt32BE(42, 0).toString()).digest('hex')), BigInt(123456)], { device: device, dtype: dtypes.uint32, requires_grad: false })
       Tensor._device_seeds.set(device, new_device_seeds)
       Tensor._device_rng_counters.set(device, new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false }))

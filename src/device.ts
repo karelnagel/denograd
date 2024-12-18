@@ -35,7 +35,7 @@ export class _Device {
   }
   default = (): Compiled => this.get(this.DEFAULT)
   public *getAvailableDevices(): Generator<string> {
-    for (const device in DEVICES) {
+    for (const device of Object.keys(DEVICES)) {
       try {
         yield this.get(device).device
       } catch {

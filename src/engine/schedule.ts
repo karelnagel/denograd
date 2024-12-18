@@ -357,7 +357,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
         const tr_uop = uval(ctx.allbufs.get(tr)!)
         if (tr_uop.op === Ops.CAST && tr_uop.dtype.base.itemsize > tr_uop.src[0].dtype.base.itemsize) tr = tr_uop.src[0].base.buf_uop
       }
-      group = new Map([[tr,undefined]])
+      group = new Map([[tr, undefined]])
       ctx.realizes.set(tr, tr)
     }
     group.keys().forEach((tr) => reduce_for_op.set(tr, r))
@@ -428,7 +428,7 @@ export const realize_view = (ctx: Map<UOp, UOp>, base: UOp, view: UOp, to_store:
   return st.views.every((v) => v.mask === undefined) || can_pad(base, ctx, new Set()) ? undefined : realize(ctx, b, to_store, base)
 }
 export const fold_img_cast = (ctx: Map<UOp, UOp>, xb: UOp, view: UOp, b: UOp, to_cast: UOp, kwargs?: Record<string, any>): UOp | undefined => {
-  if (!isinstance(xb.dtype, ImageDType) || !ctx.has(b) || !ctx.has(xb) || uval(to_cast).op in GroupOp.Meta) return undefined
+  if (!isinstance(xb.dtype, ImageDType) || !ctx.has(b) || !ctx.has(xb) || GroupOp.Meta.includes(uval(to_cast).op)) return undefined
   ctx.delete(b)
   return to_cast.view(view.st!)
 }
