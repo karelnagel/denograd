@@ -10,7 +10,7 @@
 
 import { Buffer } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
-import { _METADATA, all_int, all_same, assert, DEBUG, getNumberEnv, isinstance, LAZYCACHE, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, getNumberEnv, isEq, isinstance, LAZYCACHE, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, python_alu, resolve, sint_prod, sub } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
@@ -113,7 +113,7 @@ export class LazyBuffer extends MathTrait {
     return LazyBuffer.metaop(Ops.ASSIGN, this.shape, this.dtype, this.device, this.st.contiguous ? undefined : this.st, [this, x], true) // NOTE: assign to VIEW === fine
   }
   can_view = () => {
-    return (this.st.consecutive && !this.is_unrealized_const() && !isinstance(this.dtype, ImageDType) && this.device.split(':')[0] in view_supported_devices)
+    return (this.st.consecutive && !this.is_unrealized_const() && !isinstance(this.dtype, ImageDType) && view_supported_devices.includes(this.device.split(':')[0]))
   }
   contiguous = (allow_buffer_view = true) => {
     if (!this.st.contiguous || this.size !== this.base.size || this.is_unrealized_const()) {
@@ -177,7 +177,7 @@ export class LazyBuffer extends MathTrait {
   override alu = (op: Ops, ...in_srcs: typeof this[]): typeof this => {
     const srcs: LazyBuffer[] = []
     for (const s of [this, ...in_srcs]) {
-      if (s === s.base && s.base.contiguous_child) {
+      if (isEq(s, s.base) && s.base.contiguous_child) {
         const root = s.base.contiguous_child[0].deref()
         if (root !== undefined) srcs.push(root._view(s.base.contiguous_child[1]))
       } else {
@@ -248,10 +248,10 @@ export class LazyBuffer extends MathTrait {
   //   // *** movement ops ***
 
   _view = (new_st: ShapeTracker): LazyBuffer => {
-    if (this.st.size === 0 || (new_st.views.at(-1)!.mask !== undefined && new_st.views.at(-1)!.mask!.some((x) => sub(x[1], x[0]) === 0))) {
+    if (this.st.size === 0 || (new_st.views.at(-1)!.mask !== undefined && new_st.views.at(-1)!.mask!.some((x) => (x[1] as number) - (x[0] as number) === 0))) {
       return this.const_with_shape(0, new_st.shape)
     }
-    if (new_st.contiguous && this.base.shape === new_st.shape) return this.base
+    if (new_st.contiguous && isEq(this.base.shape, new_st.shape)) return this.base
     return create_lazybuffer(this.device, new_st, this.dtype, undefined, undefined, undefined, this.base)
   }
   reshape = (arg: sint[]) => this._view(this.st.reshape(arg))
