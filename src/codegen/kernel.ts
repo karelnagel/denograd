@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, getEnv, getNumberEnv, isinstance, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, getEnv, getNumberEnv, isinstance, range, round_up, setDefault, sum, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, ge, graph_rewrite, GroupOp, gt, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, resolve, sint, sint_prod, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -488,17 +488,22 @@ export class Kernel {
     for (const axis of to_upcast.toReversed()) this.apply_opt(new Opt(OptOps.UPCAST, axis, 0))
 
     //     # potentially do more upcasts of non reduce axes based on a heuristic
-    const upcasted_axis = new Set()
+    const upcasted_axis = new Set<number>()
     while (resolve(ge(sint_prod(this.sts[0].shape.slice(0, this.first_reduce)), 1024))) {
-      let xb_choices = []
+      let xb_choices: [number, number, number, number][] = []
 
       for (const [axis, upcast_amount] of range(this.first_reduce).flatMap((a) => [3, 4].map((b) => [a, b]))) { // consider all the non reduce axes, && a 3 ||4 reduce
         //         # if we haven't upcasted it, it's not symbolic, it mods, && buffer has stride 0 on axis while having no stride 0 in the upcasted axis already
         if (
-          !upcasted_axis.has(axis) && isinstance(this.full_shape[axis], Number) && this.full_shape[axis] % upcast_amount === 0 &&
-          this.sts.some((st, buf_index) => st.views.at(-1)!.strides[axis] === 0 && !this.upcasted_axis(buf_index).some((x) => x[1] === 0))
+          !upcasted_axis.has(axis) && typeof this.full_shape[axis] === 'number' && this.full_shape[axis] % upcast_amount === 0 &&
+          this.sts.entries().some(([buf_index, st]) => st.views.at(-1)!.strides[axis] === 0 && !this.upcasted_axis(buf_index).some((x) => x[1] === 0))
         ) {
-          xb_choices.push([this.sts.reduce((acc, st) => acc + Number(st.views.at(-1)!.strides[axis] as number > 0), 0), this.sts.reduce((acc, st) => acc + (st.views.at(-1)!.strides[axis] as number), 0), axis, upcast_amount])
+          xb_choices.push([
+            sum(this.sts.map((st) => Number(st.views.at(-1)!.strides[axis] as number > 0))),
+            sum(this.sts.map((st) => st.views.at(-1)!.strides[axis] as number)),
+            axis,
+            upcast_amount,
+          ])
         }
       }
       if (xb_choices.length) {
@@ -533,13 +538,16 @@ export class Kernel {
     //     # if nothing at all===upcasted && it's easy to, do an upcast
     //     # TODO: this===breaking the tests
     for (const splits of [4]) {
-      if (this.upcasted === 0 && this.full_unupcasted_shape && (this.full_unupcasted_shape.at(-1)! as number) % splits === 0) this.apply_opt(new Opt(OptOps.UPCAST, this.full_unupcasted_shape.length - 1, splits))
+      if (this.upcasted === 0 && this.full_unupcasted_shape && (this.full_unupcasted_shape.at(-1)! as number) % splits === 0) {
+        this.apply_opt(new Opt(OptOps.UPCAST, this.full_unupcasted_shape.length - 1, splits))
+      }
     }
     //     # **** local groups ****
 
     if (this.opts.has_local) {
-      if (getEnv('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) this.apply_opt(new Opt(OptOps.NOLOCALS))
-      else {
+      if (getEnv('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) {
+        this.apply_opt(new Opt(OptOps.NOLOCALS))
+      } else {
         //         # prioritize making expand axes local
         const local_axis_ranking = [range(this.full_shape.slice(0, this.first_reduce).length).map((axis) => [range(this.sts.length).some((buf_index) => this.sts[buf_index].views.at(-1)!.strides[axis] === 0), axis] as [boolean, number])]
         const to_local: [number, number][] = []

@@ -1,6 +1,6 @@
 import { Kernel } from '../codegen/kernel.ts'
 import { Buffer, Device } from '../device.ts'
-import { all_int, assert, BEAM, CAPTURING, colored, DataClass, DEBUG, getEnv, getNumberEnv, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
+import { all_int, assert, BEAM, CAPTURING, colored, DataClass, DEBUG, getNumberEnv, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
 import { idiv, Ops, sint, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec, Renderer } from '../renderer/index.ts'
 import { ScheduleItem } from './schedule.ts'
