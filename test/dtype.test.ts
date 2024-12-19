@@ -1,5 +1,5 @@
 import * as dt from '../src/dtype.ts'
-import { dtypes, promoLattice } from '../src/dtype.ts'
+import { DType, dtypes, promoLattice } from '../src/dtype.ts'
 import { sorted } from '../src/helpers.ts'
 import { compare, tryCatch } from './helpers.ts'
 // TODO check if only created once
@@ -8,12 +8,12 @@ Deno.test(
   'DType.init',
   compare(
     [
-      [{ priority: 1, itemsize: 1, name: 'bool', fmt: 'f', count: 1, _scalar: undefined }],
-      [{ priority: 2, itemsize: 1, name: 'void', fmt: 'e', count: 1, _scalar: undefined }],
-      [{ priority: 2, itemsize: 1, name: 'unsigned short', fmt: 'e', count: 2, _scalar: new dt.DType({ count: 1, itemsize: 4, name: 'void', priority: 4 }) }],
+      [1, 1, 'bool', 'f', 1, undefined],
+      [2, 1, 'void', 'e', 1, undefined],
+      [2, 1, 'unsigned short', 'e', 2, new DType(4, 4, 'void', undefined, 1)],
     ],
-    (args: dt.DTypeArgs) => new dt.DType(args),
-    'out(tiny.dtype.DType(*(data[0][key] for key in data[0])))',
+    (priority: number, itemsize: number, name: string, fmt: undefined | dt.FmtStr, count: number, _scalar?: DType) => new DType(priority, itemsize, name, fmt, count, _scalar),
+    'out(tiny.dtype.DType(*data))',
   ),
 )
 Deno.test(

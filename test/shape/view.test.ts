@@ -191,7 +191,7 @@ Deno.test(
       [
         new View(
           [4, 55],
-          [new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 55, src: [] })] }), 1],
+          [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 55)], undefined), 1],
           0,
           undefined,
           false,
@@ -200,16 +200,11 @@ Deno.test(
           new View(
             [8, 110, 33],
             [
-              new UOp({
-                op: Ops.MUL,
-                dtype: dtypes.int,
-                arg: undefined,
-                src: [
-                  new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 33, src: [] })] }),
-                  new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 110, src: [] }),
-                ],
-              }),
-              new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 33, src: [] })] }),
+              new UOp(Ops.MUL, dtypes.int, [
+                  new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined),
+                  new UOp(Ops.CONST, dtypes.int, [], 110),
+                ], undefined),
+              new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined),
               1,
             ],
             0,
@@ -359,7 +354,7 @@ Deno.test(
       [
         new View(
           [4, 55],
-          [new UOp({ op: Ops.MUL, dtype: dtypes.int, arg: undefined, src: [new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 1, src: [] }), new UOp({ op: Ops.CONST, dtype: dtypes.int, arg: 55, src: [] })] }), 1],
+          [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 55)], undefined), 1],
           0,
           undefined,
           false,

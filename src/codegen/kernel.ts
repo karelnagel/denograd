@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, getEnv, getNumberEnv, isinstance, isNone, isNotNone, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, getEnv, getNumberEnv, isinstance, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, ge, graph_rewrite, GroupOp, gt, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, resolve, sint, sint_prod, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -96,7 +96,7 @@ export class Kernel {
     }
     //     # move all reduce axes to the end
     const reduce = [...zip(this.full_shape, this.output_shape).entries()]
-    const permute = [...reduce.filter(([i, [s, n]]) => !resolve(ne(s, n))).map(([i]) => i), ...reduce.filter(([i, [s, n]]) => resolve(ne(s, n))).map(([i]) => i)]
+    const permute = [...reduce.filter(([_, [s, n]]) => !resolve(ne(s, n))).map(([i]) => i), ...reduce.filter(([_, [s, n]]) => resolve(ne(s, n))).map(([i]) => i)]
     this.reshape_and_permute(undefined, permute)
 
     //     # group simplifies
@@ -164,13 +164,13 @@ export class Kernel {
   //   # yellow -- normal upcasted dimensions
   colors = (): string[] => {
     //     # first non local non reduce dims are global (blue)
-    let colors: string[] = range(this.global_dims).map((x) => !this.dont_use_locals ? 'blue' : 'BLUE')
+    let colors: string[] = range(this.global_dims).map(() => !this.dont_use_locals ? 'blue' : 'BLUE')
     //     # after global are local_dims; warp ones used in tensor cores must be closest to first_reduce (cyan)
-    colors = [...colors, ...range(this.local_dims).map((x) => 'cyan')]
+    colors = [...colors, ...range(this.local_dims).map(() => 'cyan')]
     //     # between first_reduce && first_reduce + group_for_reduces, they are either upcast mid reduce (white), ||late upcasted (green)
     colors = [...colors, ...range(this.first_reduce, this.first_reduce + this.group_for_reduces).map((i) => this.upcast_in_mid_reduce_axes.includes(i) ? 'white' : 'green')]
     //     # between first_reduce + group_for_reduces && upcasted, they are reduce (red)
-    colors = [...colors, ...range(this.first_upcast - (this.first_reduce + this.group_for_reduces)).map((x) => 'red')]
+    colors = [...colors, ...range(this.first_upcast - (this.first_reduce + this.group_for_reduces)).map(() => 'red')]
     //     # upcasted dimensions are reduce (magenta) ||normal (yellow)
     colors = [...colors, ...range(this.first_upcast, this.shape_len).map((i) => this.full_shape[i] !== this.sts[0].shape[i] ? 'magneta' : 'yellow')]
     assert(colors.length === this.shape_len, 'colors size mismatch')
@@ -223,7 +223,7 @@ export class Kernel {
     const all_ones = this.full_shape.map((s) => s === 1)
     this.local_dims = this.local_dims - all_ones.slice(this.first_reduce - this.local_dims, this.first_reduce).reduce((acc, x) => acc + Number(x), 0)
     this.upcasted = this.upcasted - all_ones.slice(this.first_upcast).reduce((acc, x) => acc + Number(x), 0) // TODO: no necessary since upcasted axis can't be un-upcasted
-    this.reshape_and_permute((shape) => shape.filter((x, i) => !all_ones[i]), undefined)
+    this.reshape_and_permute((shape) => shape.filter((_, i) => !all_ones[i]), undefined)
     return all_ones.some((x) => x)
   }
   simplify_merge_adjacent = () => {
@@ -285,11 +285,11 @@ export class Kernel {
    * 1: allows kernels with multiple reduce axes && also multiplication of UOps.CAST'd buffers
    * 2: allows kernels with M, N, K axes that are not multiples of the tensor core dimensions by applying padding those axes as needed
    */
-  _apply_tc_opt = (use_tensor_cores: number, axis: number, opt_level: number): boolean => {
+  _apply_tc_opt = (_use_tensor_cores: number, _axis: number, _opt_level: number): boolean => {
     throw new Error('not implemented')
   }
 
-  apply_tensor_cores = (use_tensor_cores = 1, extra_opts?: Opt[], axis = 0, tc_opt?: number): boolean => {
+  apply_tensor_cores = (_use_tensor_cores = 1, _extra_opts?: Opt[], _axis = 0, _tc_opt?: number): boolean => {
     return false
   }
   apply_opt = (opt: Opt, append_opt = true) => {
@@ -315,7 +315,7 @@ export class Kernel {
 
     if (this.reduceop !== undefined && ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op) || (this.group_for_reduces && ![OptOps.NOLOCALS, OptOps.PADTO].includes(opt.op)))) {
       const acc_sz = this.reduceop.dtype.itemsize
-      const upcast_sz = sint_prod(zip(this.full_shape.slice(this.first_upcast), this.sts[0].shape.slice(this.first_upcast)).filter(([a, b]) => a === b).map(([a, b]) => a))
+      const upcast_sz = sint_prod(zip(this.full_shape.slice(this.first_upcast), this.sts[0].shape.slice(this.first_upcast)).filter(([a, b]) => a === b).map(([a, _]) => a))
       const local_sz = sint_prod(this.full_shape.slice(this.first_reduce - this.local_dims, this.first_reduce + this.group_for_reduces))
       const smem_sz = mul(mul(mul(amt, acc_sz), upcast_sz), local_sz)
       check(!!le(smem_sz, this.opts.shared_max), `exceeds maximum shared memory size: needs ${smem_sz}, max ${this.opts.shared_max}`)
@@ -380,7 +380,7 @@ export class Kernel {
         const ru = round_up(s, amt) - s
         if (ru) {
           //           # pad right seems to be faster
-          this.sts[i] = st.pad([...range(axis).map((x) => [0, 0] as [number, number]), [0, ru], ...range(st.shape.length - axis - 1).map((x) => [0, 0] as [number, number])])
+          this.sts[i] = st.pad([...range(axis).map(() => [0, 0] as [number, number]), [0, ru], ...range(st.shape.length - axis - 1).map((x) => [0, 0] as [number, number])])
           padded = true
         }
       }
@@ -639,19 +639,19 @@ export class Kernel {
         ret = ret.replace({ arg: [op.arg[0], axes] })
         if (this.group_for_reduces && grouped_axes) {
           const local_shape = [
-            ...range(this.global_dims).map((x) => 1),
+            ...range(this.global_dims).map(() => 1),
             ...this.full_shape.slice(this.global_dims, this.global_dims + this.local_dims),
             ...range(this.first_reduce, this.first_reduce + this.group_for_reduces).map((i) => this.sts[reduce_idx].shape[i] !== this.sts[reduce_idx + 1].shape[i] ? this.full_shape[i] : 1),
-            ...range(this.shape_len - this.upcasted - this.group_for_reduces - this.first_reduce).map((x) => 1),
+            ...range(this.shape_len - this.upcasted - this.group_for_reduces - this.first_reduce).map(() => 1),
             ...this.upcasted_axis(0).map((x) => x[0]),
           ]
           let st_uop = ShapeTracker.from_shape(local_shape).to_uop()
-          const local_buffer = new UOp({ op: Ops.DEFINE_LOCAL, dtype: op.dtype.ptr(true), src: [], arg: [`temp${this.reduceops.indexOf(op) + 1}`, st_uop.arg.real_size()] })
-          const local_load = new UOp({ op: Ops.LOAD, dtype: op.dtype, src: [local_buffer, st_uop, local_buffer.store([st_uop, ret])] })
-          const grouped_reduce = new UOp({ op: Ops.REDUCE_AXIS, dtype: op.dtype, src: [local_load], arg: [op.arg[0], grouped_axes] })
+          const local_buffer = new UOp(Ops.DEFINE_LOCAL, op.dtype.ptr(true), [], [`temp${this.reduceops.indexOf(op) + 1}`, st_uop.arg.real_size()])
+          const local_load = new UOp(Ops.LOAD, op.dtype, [local_buffer, st_uop, local_buffer.store([st_uop, ret])])
+          const grouped_reduce = new UOp(Ops.REDUCE_AXIS, op.dtype, [local_load], [op.arg[0], grouped_axes])
           if (op === this.reduceops.at(-1)) return grouped_reduce
           st_uop = ShapeTracker.from_shape(local_shape.map((a, i) => grouped_axes.includes(i) ? 1 : a)).to_uop()
-          return new UOp({ op: Ops.LOAD, dtype: op.dtype, src: [local_buffer, st_uop, local_buffer.store([st_uop, grouped_reduce])] })
+          return new UOp(Ops.LOAD, op.dtype, [local_buffer, st_uop, local_buffer.store([st_uop, grouped_reduce])])
         }
       }
       return ret

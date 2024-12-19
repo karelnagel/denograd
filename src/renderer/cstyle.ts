@@ -4,53 +4,53 @@ import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
 export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<string, UOp>, string | undefined>([
-  [new UPat({ op: Ops.DEFINE_ACC, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0])],
-  [new UPat({ op: Ops.ASSIGN, name: 'x' }), ({ ctx, x }) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
-  [new UPat({ op: Ops.IF, name: 'x' }), ({ ctx, x }) => `if (${ctx.get(x.src[0])}) {`],
-  [new UPat({ op: [Ops.ENDIF, Ops.ENDRANGE] }), ({ ctx }) => '}'],
-  [new UPat({ op: Ops.WMMA, name: 'x' }), ({ ctx, x }) => `__${x.arg[0]}(${ctx.get(x.src[0])}, ${ctx.get(x.src[1])}, ${ctx.get(x.src[2])})`],
+  [new UPat(Ops.DEFINE_ACC, undefined, undefined, undefined, 'x'), ({ ctx, x }) => ctx.get(x.src[0])],
+  [new UPat(Ops.ASSIGN, undefined, undefined, undefined, 'x'), ({ ctx, x }) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
+  [new UPat(Ops.IF, undefined, undefined, undefined, 'x'), ({ ctx, x }) => `if (${ctx.get(x.src[0])}) {`],
+  [new UPat([Ops.ENDIF, Ops.ENDRANGE]), ({ ctx }) => '}'],
+  [new UPat(Ops.WMMA, undefined, undefined, undefined, 'x'), ({ ctx, x }) => `__${x.arg[0]}(${ctx.get(x.src[0])}, ${ctx.get(x.src[1])}, ${ctx.get(x.src[2])})`],
   // r method accesses
-  [new UPat({ op: Ops.RANGE, name: 'x' }), ({ ctx, x }) => `for (${ctx.render_dtype(x.dtype)} ${ctx.get(x)} = ${ctx.get(x.src[0])}; ${ctx.get(x)} < ${ctx.get(x.src[1])}; ${ctx.get(x)}++) {`],
+  [new UPat(Ops.RANGE, undefined, undefined, undefined, 'x'), ({ ctx, x }) => `for (${ctx.render_dtype(x.dtype)} ${ctx.get(x)} = ${ctx.get(x.src[0])}; ${ctx.get(x)} < ${ctx.get(x.src[1])}; ${ctx.get(x)}++) {`],
   [
-    new UPat({ op: Ops.VECTORIZE, name: 'x' }),
+    new UPat(Ops.VECTORIZE, undefined, undefined, undefined, 'x'),
     ({ ctx, x }) => `${ctx.float4!.replace('float4', ctx.render_dtype(x.dtype))}` + (ctx.device === 'CLANG' ? `{${x.src.map((y: any) => ctx.get(y)).join(',')}}` : `(${x.src.map((y: any) => ctx.get(y)).join(',')})`),
   ],
-  [new UPat({ op: Ops.CAST, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.get(x.src[0])!)})`],
-  [new UPat({ op: Ops.BITCAST, name: 'x' }), ({ ctx, x }) => `(*((${ctx.buffer_prefix}${ctx.render_dtype(x.dtype)}*)&${ctx.get(x.src[0])}))`],
-  [new UPat({ op: Ops.DEFINE_LOCAL, name: 'x' }), ({ ctx, x }) => `${ctx.smem_align}${ctx.smem_prefix}${ctx.render_dtype(x.dtype.base)} ${ctx.get(x)}[${x.arg[1]}];`],
-  [new UPat({ op: Ops.BARRIER }), ({ ctx }) => ctx.barrier],
-  [new UPat({ op: Ops.NOOP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0])],
-  [new UPat({ op: Ops.SPECIAL, name: 'x' }), ({ ctx, x }) => `${ctx.code_for_workitem[x.arg[0][0] as keyof typeof ctx.code_for_workitem]?.(x.arg[0].at(-1)!)}; /* ${x.arg[1]} */`],
+  [new UPat(Ops.CAST, undefined, undefined, undefined, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.get(x.src[0])!)})`],
+  [new UPat(Ops.BITCAST, undefined, undefined, undefined, 'x'), ({ ctx, x }) => `(*((${ctx.buffer_prefix}${ctx.render_dtype(x.dtype)}*)&${ctx.get(x.src[0])}))`],
+  [new UPat(Ops.DEFINE_LOCAL, undefined, undefined, undefined, 'x'), ({ ctx, x }) => `${ctx.smem_align}${ctx.smem_prefix}${ctx.render_dtype(x.dtype.base)} ${ctx.get(x)}[${x.arg[1]}];`],
+  [new UPat(Ops.BARRIER), ({ ctx }) => ctx.barrier],
+  [new UPat(Ops.NOOP, undefined, undefined, undefined, 'x'), ({ ctx, x }) => ctx.get(x.src[0])],
+  [new UPat(Ops.SPECIAL, undefined, undefined, undefined, 'x'), ({ ctx, x }) => `${ctx.code_for_workitem[x.arg[0][0] as keyof typeof ctx.code_for_workitem]?.(x.arg[0].at(-1)!)}; /* ${x.arg[1]} */`],
   // const
-  [new UPat({ op: Ops.CONST, arg: Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`],
-  [new UPat({ op: Ops.CONST, arg: -Infinity, name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`],
-  [new UPat({ op: Ops.CONST, dtype: dtypes.floats, name: 'x' }), ({ ctx, x }) => !isFinite(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined],
-  [new UPat({ op: Ops.CONST, dtype: dtypes.float, name: 'x' }), ({ ctx, x }) => `${x.arg}f`],
-  [new UPat({ op: Ops.CONST, dtype: dtypes.int64, name: 'x' }), ({ ctx, x }) => `${x.arg}ll`],
-  [new UPat({ op: Ops.CONST, dtype: dtypes.uint64, name: 'x' }), ({ ctx, x }) => `${x.arg}ull`],
-  [new UPat({ op: Ops.CONST, dtype: dtypes.uint32, name: 'x' }), ({ ctx, x }) => `${x.arg}u`],
-  [new UPat({ op: Ops.CONST, dtype: dtypes.bool, name: 'x' }), ({ ctx, x }) => x.arg ? '1' : '0'],
+  [new UPat(Ops.CONST, undefined, undefined, Infinity, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`],
+  [new UPat(Ops.CONST, undefined, undefined, -Infinity, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`],
+  [new UPat(Ops.CONST, dtypes.floats, undefined, undefined, 'x'), ({ ctx, x }) => !isFinite(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined],
+  [new UPat(Ops.CONST, dtypes.float, undefined, undefined, 'x'), ({ ctx, x }) => `${x.arg}f`],
+  [new UPat(Ops.CONST, dtypes.int64, undefined, undefined, 'x'), ({ ctx, x }) => `${x.arg}ll`],
+  [new UPat(Ops.CONST, dtypes.uint64, undefined, undefined, 'x'), ({ ctx, x }) => `${x.arg}ull`],
+  [new UPat(Ops.CONST, dtypes.uint32, undefined, undefined, 'x'), ({ ctx, x }) => `${x.arg}u`],
+  [new UPat(Ops.CONST, dtypes.bool, undefined, undefined, 'x'), ({ ctx, x }) => x.arg ? '1' : '0'],
   // consts are rendered to larger type and casted
-  [new UPat({ op: Ops.CONST, dtype: [dtypes.bfloat16, dtypes.half], name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}f`)})`],
-  [new UPat({ op: Ops.CONST, dtype: [dtypes.uint8, dtypes.uint16], name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}u`)})`],
-  [new UPat({ op: Ops.CONST, dtype: [dtypes.int8, dtypes.int16], name: 'x' }), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, x.arg)})`],
+  [new UPat(Ops.CONST, [dtypes.bfloat16, dtypes.half], undefined, undefined, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}f`)})`],
+  [new UPat(Ops.CONST, [dtypes.uint8, dtypes.uint16], undefined, undefined, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}u`)})`],
+  [new UPat(Ops.CONST, [dtypes.int8, dtypes.int16], undefined, undefined, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, x.arg)})`],
   // default const render
-  [new UPat({ op: Ops.CONST, name: 'x' }), ({ ctx, x }) => x.arg.toString()],
+  [new UPat(Ops.CONST, undefined, undefined, undefined, 'x'), ({ ctx, x }) => x.arg.toString()],
   // new load/store
-  [new UPat({ op: Ops.INDEX, src: [UPat.var('buf'), UPat.var('idx')] }), ({ ctx, buf, idx }) => `(${ctx.get(buf)}+${idx.arg === Ops.ADD ? stripParens(ctx.get(idx)!) : ctx.get(idx)})`],
-  [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')] }), ({ ctx, bidx, var1, gate }) => `(${ctx.get(gate)}?*${ctx.get(bidx)}:${ctx.get(var1)})`],
-  [new UPat({ op: Ops.LOAD, src: [UPat.var('bidx')], allow_any_len: true }), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
-  [new UPat({ op: Ops.STORE, src: [UPat.var('bidx'), UPat.var('var')], allow_any_len: true }), (p) => `*${p.ctx.get(p.bidx)} = ${p.ctx.get(p.var)};`],
+  [new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]), ({ ctx, buf, idx }) => `(${ctx.get(buf)}+${idx.arg === Ops.ADD ? stripParens(ctx.get(idx)!) : ctx.get(idx)})`],
+  [new UPat(Ops.LOAD, undefined, [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')]), ({ ctx, bidx, var1, gate }) => `(${ctx.get(gate)}?*${ctx.get(bidx)}:${ctx.get(var1)})`],
+  [new UPat(Ops.LOAD, undefined, [UPat.var('bidx')], undefined, undefined, true), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
+  [new UPat(Ops.STORE, undefined, [UPat.var('bidx'), UPat.var('var')], undefined, undefined, true), (p) => `*${p.ctx.get(p.bidx)} = ${p.ctx.get(p.var)};`],
   // alu/gep
-  [new UPat({ op: GroupOp.ALU, name: 'x' }), ({ ctx, x }) => ctx.code_for_op[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
-  [new UPat({ op: Ops.GEP, name: 'x' }), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device === 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
+  [new UPat(GroupOp.ALU, undefined, undefined, undefined, 'x'), ({ ctx, x }) => ctx.code_for_op[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? stripParens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
+  [new UPat(Ops.GEP, undefined, undefined, undefined, 'x'), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device === 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
 ])
 
 export const extra_pm = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
   // insert a NOOP before BITCAST to force it to be rendered. not needed on all backends?
-  [new UPat({ op: Ops.BITCAST, name: 'x' }), ({ x }) => x.src[0].op !== Ops.NOOP ? new UOp({ op: Ops.BITCAST, dtype: x.dtype, src: [new UOp({ op: Ops.NOOP, dtype: x.src[0].dtype, src: x.src })] }) : undefined],
+  [new UPat(Ops.BITCAST, undefined, undefined, undefined, 'x'), ({ x }) => x.src[0].op !== Ops.NOOP ? new UOp(Ops.BITCAST, x.dtype, [new UOp(Ops.NOOP, x.src[0].dtype, x.src)]) : undefined],
   // rewrite MAX to CMPLT + WHERE (max function is annoying on many cstyle backends)
-  [new UPat({ op: Ops.MAX, name: 'm' }), ({ m }) => (m.src[0].lt(m.src[1])).where(m.src[1], m.src[0])],
+  [new UPat(Ops.MAX, undefined, undefined, undefined, 'm'), ({ m }) => (m.src[0].lt(m.src[1])).where(m.src[1], m.src[0])],
 ])
 
 export const uops_to_dtypes = (uops: UOp[]): DType[] => dedup(uops.filter((u) => !(u.dtype instanceof ImageDType || u.dtype instanceof PtrDType)).map((u) => u.dtype))

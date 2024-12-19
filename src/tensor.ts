@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { Buffer as NodeBuffer } from 'node:buffer'
-import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate, TYPED_ARRAYS, TypedArrays } from './dtype.ts'
+import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate, TYPED_ARRAYS } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
 import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
 import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
@@ -32,10 +32,10 @@ export class Function {
     if (this.requires_grad) this.parents = tensors
     this.metadata = metadata
   }
-  forward = (...args: any[]): any => {
+  forward = (..._args: any[]): any => {
     throw new Error(`forward !implemented for ${this}`)
   }
-  backward = (grad_output: LazyBuffer): any => {
+  backward = (_grad_output: LazyBuffer): any => {
     throw new Error(`backward !implemented for ${this}`)
   }
 
@@ -141,11 +141,11 @@ export class Sign extends Function {
 
 export class Less extends Function {
   override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.lt(y)
-  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
+  override backward = (_grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
 }
 export class Neq extends Function {
   override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.ne(y)
-  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
+  override backward = (_grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
 }
 export class Xor extends Function {
   override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.xor(y)
@@ -303,7 +303,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
 const _align_left = (...shapes: sint[][]): sint[][] => {
   //   // unsqueeze left to make every shape same length
   const max_dim = max(shapes.map((shape) => shape.length))
-  return shapes.map((shape) => range(max_dim - shape.length).map((x) => 1))
+  return shapes.map((shape) => range(max_dim - shape.length).map(() => 1))
 }
 export const _broadcast_shape = (shapes: sint[][]): sint[] => {
   return zip(..._align_left(...shapes)).map((nth_dim_sizes) => nth_dim_sizes.includes(0) ? 0 : smax(nth_dim_sizes))
@@ -417,7 +417,7 @@ export class Tensor extends SimpleMathTrait {
     enter = () => {
       this.prev = Tensor.training, Tensor.training = this.mode
     }
-    exit = (exc_type: any, exc_value: any, traceback: any) => {
+    exit = (_exc_type: any, _exc_value: any, _traceback: any) => {
       Tensor.training = this.prev
     }
   }
@@ -430,7 +430,7 @@ export class Tensor extends SimpleMathTrait {
     enter = () => {
       this.prev = Tensor.no_grad, Tensor.no_grad = this.mode
     }
-    exit = (exc_type: any, exc_value: any, traceback: any) => {
+    exit = (_exc_type: any, _exc_value: any, _traceback: any) => {
       Tensor.no_grad = this.prev
     }
   }
@@ -1144,7 +1144,7 @@ export class Tensor extends SimpleMathTrait {
     indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) : i)
 
     // filter ellipsis && fill with slice(undefined) || fill rest of indices with slice(undefined)
-    const ellipsis_idx = indices.filter((i) => i === '...').map((i, dim) => dim)
+    const ellipsis_idx = indices.filter((i) => i === '...').map((_, dim) => dim)
     if (ellipsis_idx.length > 1) throw new Error('indices can only have a single ellipsis')
     const fill_idx = ellipsis_idx.length ? ellipsis_idx[0] : indices.length
     const num_indices = indices.length - ellipsis_idx.length - indices.filter((i) => i === undefined).length
@@ -1184,7 +1184,7 @@ export class Tensor extends SimpleMathTrait {
     if (mops.length) {
       //   // flip negative strides
       let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)]
-      x = x.shrink(shrinks).flip([...strides.entries().filter(([st, i]) => st < 0).map(([st, i]) => i)])
+      x = x.shrink(shrinks).flip([...strides.entries().filter(([st, _]) => st < 0).map(([_, i]) => i)])
       //   // handle stride !== 1 || -1
       if (strides.some((st) => Math.abs(st) !== 1)) {
         strides = strides.map((s) => Math.abs(s))
@@ -1199,7 +1199,7 @@ export class Tensor extends SimpleMathTrait {
     x = x.reshape(indices_parsed.filter((index) => !Number.isInteger(index.index)).map((index) => index.size))
 
     // // tensor indexing
-    const tops = [...indices_parsed.filter((_i) => !Number.isInteger(_i.index)).entries().filter(([d, i]) => i.index instanceof Tensor).map(([d, i]) => [d, i] as const)]
+    const tops = [...indices_parsed.filter((_i) => !Number.isInteger(_i.index)).entries().filter(([_, i]) => i.index instanceof Tensor).map(([d, i]) => [d, i] as const)]
     if (tops.length) {
       //   // unload the tensor object into actual tensors
       const [dims, tensors, masks] = [tops.map(([d]) => d), tops.map(([_, i]) => i.index as Tensor), [] as Tensor[]]
@@ -1219,7 +1219,7 @@ export class Tensor extends SimpleMathTrait {
       const mask: Tensor = masks.reduce((acc, x) => acc.mul(x))
 
       // inject 1's for the extra dims added in create masks
-      const reshape_arg = [...x.shape.slice(0, dims[0]), ...range(big_shape.length).map((x) => 1), ...x.shape.slice(dims[0])]
+      const reshape_arg = [...x.shape.slice(0, dims[0]), ...range(big_shape.length).map(() => 1), ...x.shape.slice(dims[0])]
       // sum reduce the extra dims introduced in create masks
       const sum_axis = dims.map((d) => d + big_shape.length)
       x = x.reshape(reshape_arg).mul(mask).sum(sum_axis, undefined, x.dtype)
@@ -1255,14 +1255,14 @@ export class Tensor extends SimpleMathTrait {
    */
   cat = (args: Tensor[], dim = 0): Tensor => {
     dim = this._resolve_dim(dim)
-    for (const arg of args) assert(arg.ndim === this.ndim && zip(this.shape, arg.shape).entries().filter(([i]) => i !== dim).every(([i, [ti, ai]]) => ti === ai))
+    for (const arg of args) assert(arg.ndim === this.ndim && zip(this.shape, arg.shape).entries().filter(([i]) => i !== dim).every(([_, [ti, ai]]) => ti === ai))
     const tensors = [this, ...args]
 
     const dim_cumsum = tensors.map((t) => t.shape[dim] as number).reduce((acc, curr, idx) => [...acc, (acc[idx] || 0) + curr], [0])
     for (const [i, t] of tensors.entries()) tensors[i] = t.pad(range(t.ndim).map((j) => j === dim ? [dim_cumsum[i], dim_cumsum.at(-1)! - dim_cumsum[i + 1]] as [sint, sint] : undefined))
     return tensors.reduce((acc, x) => acc.add(x))
   }
-  static cat = (tensors: Tensor[], dim = 0): Tensor => tensors[0].cat(tensors.slice(1))
+  static cat = (tensors: Tensor[], dim = 0): Tensor => tensors[0].cat(tensors.slice(1), dim)
 
   /**
    * Concatenates self with other `Tensor` in `args` along a new dimension specified by `dim`.
@@ -1279,7 +1279,7 @@ export class Tensor extends SimpleMathTrait {
     // checks for shapes and number of dimensions delegated to cat
     return this.unsqueeze(dim).cat(args.map((t) => t.unsqueeze(dim)), dim)
   }
-  static stack = (tensors: Tensor[], dim = 0): Tensor => tensors[0].stack(tensors.slice(1))
+  static stack = (tensors: Tensor[], dim = 0): Tensor => tensors[0].stack(tensors.slice(1), dim)
 
   /**
    * Repeats tensor number of times along each dimension specified by `repeats`.
@@ -1409,7 +1409,7 @@ export class Tensor extends SimpleMathTrait {
     axis = (axis === undefined ? range(this.ndim) : make_tuple(axis, 1)).map((x) => this._resolve_dim(x))
     if (this.ndim === 0) axis = []
     const ret = fxn.apply(this, axis)
-    return keepdim ? ret : ret.reshape([...this.shape.entries().filter(([i, s]) => !axis.includes(i)).map(([i, s]) => s)])
+    return keepdim ? ret : ret.reshape([...this.shape.entries().filter(([i, _]) => !axis.includes(i)).map(([_, s]) => s)])
   }
   /**
    * Returns the sum of the elements of the tensor along the specified axis || axes.
@@ -1582,7 +1582,7 @@ export class Tensor extends SimpleMathTrait {
   mean = (axis?: number | number[], keepdim = false) => {
     const output_dtype = dtypes.is_float(this.dtype) ? this.dtype : dtypes.float32
     const numerator = this.cast(sum_acc_dtype(this.dtype)).sum(axis, keepdim)
-    return numerator.div(sint_prod(zip(this.shape, this.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si, so]) => si)) as number).cast(output_dtype)
+    return numerator.div(sint_prod(zip(this.shape, this.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si)) as number).cast(output_dtype)
   }
   /**
    * Returns the variance of the tensor along the specified axis or axes.
@@ -1607,7 +1607,7 @@ export class Tensor extends SimpleMathTrait {
    */
   var = (axis?: number | number[], keepdim = false, correction = 1) => {
     const squares = ((this as Tensor).sub(this.mean(axis, true))).square()
-    const n = sint_prod(zip(this.shape, squares.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si, so]) => si))
+    const n = sint_prod(zip(this.shape, squares.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si))
     return squares.sum(axis, keepdim).div(smax([0, sub(n, correction)]))
   }
   /**
@@ -1784,7 +1784,7 @@ export class Tensor extends SimpleMathTrait {
     if (axis === undefined) return this.flatten().argmax(0)
     axis = this._resolve_dim(axis)
     const m = this === this.max(axis, true)
-    const idx = Tensor.arange(this.shape[axis] as number, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape[axis], ...range(this.ndim - axis - 1).map((x) => 1)]).mul(m, true)
+    const idx = Tensor.arange(this.shape[axis] as number, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape[axis], ...range(this.ndim - axis - 1).map(() => 1)]).mul(m, true)
     return (idx.max(axis, keepdim).sub(this.shape[axis] as number, true)).cast(dtypes.int32)
   }
 
@@ -1818,14 +1818,14 @@ export class Tensor extends SimpleMathTrait {
     assert(this.shape.length >= k_.length, `can't pool ${this.shape} with ${k_}`)
     const [s_, d_] = [make_tuple(stride, k_.length), make_tuple(dilation, k_.length)]
     assert(k_.length === s_.length && s_.length === d_.length, `stride/dilation mismatch kernel:${k_} stride:${s_} dilation:${d_}`)
-    const [noop, i_] = [range(this.ndim - k_.length).map((x) => undefined), this.shape.slice(-k_.length)]
+    const [noop, i_] = [range(this.ndim - k_.length).map(() => undefined), this.shape.slice(-k_.length)]
     assert(zip(k_, d_, i_).every(([k, d, i]) => resolve(le(add(mul(d, sub(k, 1)), 1), i))), 'kernel size can!be greater than actual input size')
     const o_ = zip(i_, d_, k_, s_).map(([i, d, k, s]) => sint_ceildiv(sub(i, mul(d, sub(k, 1))), s))
     if (zip(k_, s_).some(([k, s]) => resolve(gt(k, s))) || d_.some((d) => d !== 1)) {
       // input size scaling factor to make sure shrink for stride === possible
       const f_ = zip(o_, s_, i_, d_).map(([o, s, i, d]) => 1 + Number(resolve(gt(mul(o, s), add(i, d)))))
       // repeats such that we don't need padding
-      let x = this.repeat([...range(noop.length).map((x) => 1), ...zip(k_, i_, d_, f_).map(([k, i, d, f]) => sint_ceildiv(mul(k, add(mul(i, f), d)), i))])
+      let x = this.repeat([...range(noop.length).map(() => 1), ...zip(k_, i_, d_, f_).map(([k, i, d, f]) => sint_ceildiv(mul(k, add(mul(i, f), d)), i))])
       // handle dilation
       x = x.shrink([...noop, ...zip(k_, i_, d_, f_).map(([k, i, d, f]) => [0, mul(k, add(mul(i, f), d))] as [sint, sint])]).reshape([...noop, ...zip(k_, i_, d_, f_).flatMap(([k, i, d, f]) => [k, add(mul(i, f), d)])])
       // handle stride
@@ -1841,7 +1841,7 @@ export class Tensor extends SimpleMathTrait {
     return x.permute([...range(noop.length), ...range(i_.length).map((i) => noop.length = i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1)])
   }
   _padding2d = (padding: number | number[], dims: number): number[] => {
-    return !Array.isArray(padding) ? range(2 * dims).map((x) => padding) : (padding.length === 2 * dims ? padding : padding.flatMap((p) => range(2).map((i) => p)).toReversed())
+    return !Array.isArray(padding) ? range(2 * dims).map(() => padding) : (padding.length === 2 * dims ? padding : padding.flatMap((p) => range(2).map(() => p)).toReversed())
   }
 
   /**
@@ -1895,8 +1895,8 @@ export class Tensor extends SimpleMathTrait {
       x = x.reshape([bs, groups, cin, 1, ...oyx, ...HW]).expand([bs, groups, cin, rcout, ...oyx, ...HW]).permute([0, 1, 3, ...range(oyx.length).map((i) => 4 + i), 2, ...range(HW.length).map((i) => 4 + oyx.length + i)])
 
       // conv! broadcasted to (bs, groups, rcout, *oyx, cin, *HW)
-      const ret = (x.mul(weight.reshape([1, groups, rcout, ...range(oyx.length).map((x) => 1), cin, ...HW]))).sum(range(1 + oyx.length).map((i) => -1 - i), true, acc_dtype).reshape([bs, cout, ...oyx])
-      return bias === undefined ? ret : ret.add(bias.reshape([1, -1, ...range(HW.length).map((i) => 1)]))
+      const ret = (x.mul(weight.reshape([1, groups, rcout, ...range(oyx.length).map(() => 1), cin, ...HW]))).sum(range(1 + oyx.length).map((i) => -1 - i), true, acc_dtype).reshape([bs, cout, ...oyx])
+      return bias === undefined ? ret : ret.add(bias.reshape([1, -1, ...range(HW.length).map(() => 1)]))
     }
     throw new Error('Not needed for mnist')
     // TODO: not needed for mnist
@@ -1958,8 +1958,8 @@ export class Tensor extends SimpleMathTrait {
     if (!(dx > 0 && dw > 0)) throw new Error(`both tensors need to be at least 1D, got ${dx}D && ${dw}D`)
     const axis_w = -Math.min(w.ndim, 2)
     if (x.shape.at(-1)! !== w.shape[axis_w]) throw new Error(`can not dot ${x.shape} && ${w.shape}`)
-    x = x.reshape([...x.shape.slice(0, -1), ...range(Math.min(dx - 1, dw - 1, 1)).map((i) => 1), x.shape.at(-1)!])
-    w = w.reshape([...w.shape.slice(0, -2), ...range(Math.min(dx - 1, dw - 1, 1)).map((i) => 1), ...w.shape.slice(axis_w)]).transpose(-1, axis_w)
+    x = x.reshape([...x.shape.slice(0, -1), ...range(Math.min(dx - 1, dw - 1, 1)).map(() => 1), x.shape.at(-1)!])
+    w = w.reshape([...w.shape.slice(0, -2), ...range(Math.min(dx - 1, dw - 1, 1)).map(() => 1), ...w.shape.slice(axis_w)]).transpose(-1, axis_w)
     return (x.mul(w)).sum(-1, undefined, acc_dtype).cast(acc_dtype === undefined ? least_upper_dtype(x.dtype, w.dtype) : acc_dtype)
   }
   /**

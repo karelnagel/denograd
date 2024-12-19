@@ -72,7 +72,7 @@ export class ShapeTracker {
 
   reduce = (axis: number[]) => this.shape.map((s, i) => axis.includes(i) ? 1 : s)
 
-  to_uop = () => new UOp({ op: Ops.VIEW, dtype: dtypes.void, src: [], arg: this })
+  to_uop = () => new UOp(Ops.VIEW, dtypes.void, [], this)
 
   to_indexed_uops = (_idxs?: UOp[]): [UOp, UOp] => views_to_indexed_uops(this.views, isNotNone(_idxs) ? _idxs : undefined)
 

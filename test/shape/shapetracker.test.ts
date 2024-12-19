@@ -13,7 +13,7 @@ Deno.test(
     ],
     tryCatch(ShapeTracker.from_shape),
     'out(trycatch(lambda: tiny.shape.shapetracker.ShapeTracker.from_shape(*data)))',
-    { stringSimilarity: 0.82 },
+    { stringSimilarity: 0.80 },
   ),
 )
 

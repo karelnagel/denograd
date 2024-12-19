@@ -17,22 +17,13 @@ export const TYPED_ARRAYS = {
   'f': Float32Array, // Single precision float
   'd': Float64Array, // Double precision float
 }
-export type DTypeArgs = { priority: number; itemsize: number; name: string; fmt?: FmtStr; count: number; _scalar?: DType; kwargs?: any }
 export class DType {
   static dcache: Record<string, DType> = {}
-  priority!: number
-  itemsize!: number
-  name!: string
-  fmt?: FmtStr
-  count!: number
-  _scalar?: DType
-  // deno-fmt-ignore
-  constructor({priority,count,itemsize,name,fmt,_scalar,kwargs}: DTypeArgs) {
-    this.priority=priority; this.itemsize=itemsize; this.name=name; this.fmt=fmt; this.count=count; this._scalar=_scalar
-    return checkCached({priority,count,itemsize,name,_scalar,fmt,kwargs},DType.dcache,this)
+  constructor(public priority: number, public itemsize: number, public name: string, public fmt: undefined | FmtStr, public count: number, public _scalar?: DType, kwargs?: any) {
+    return checkCached({ priority, count, itemsize, name, _scalar, fmt, kwargs }, DType.dcache, this)
   }
 
-  static new = (...[priority, itemsize, name, fmt]: [number, number, string, FmtStr | undefined]) => new DType({ priority, itemsize, name, fmt, count: 1, _scalar: undefined })
+  static new = (...[priority, itemsize, name, fmt]: [number, number, string, FmtStr | undefined]) => new DType(priority, itemsize, name, fmt, 1, undefined)
   reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
   toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
   lt = (o: DType) => isLessThan(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]) as [number[], number[]])
@@ -45,19 +36,26 @@ export class DType {
   vec(sz: number) {
     assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
     if (sz === 1 || isEq(this, dtypes.void)) return this // void doesn't vectorize, and sz=1 is scalar
-    return new DType({ priority: this.priority, itemsize: this.itemsize * sz, name: `${INVERSE_DTYPES_DICT[this.name]}${sz}`, fmt: undefined, count: sz, _scalar: this })
+    return new DType(this.priority, this.itemsize * sz, `${INVERSE_DTYPES_DICT[this.name]}${sz}`, undefined, sz, this)
   }
-  ptr = (local = false) => new PtrDType({ ...this, _scalar: undefined, _base: this, local, v: 1 })
+  ptr = (local = false) => new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, undefined, this, local, 1)
   scalar = () => this._scalar || this
 }
-export type PtrDTypeArgs = DTypeArgs & { _base: DType; local: boolean; v: number }
 
 export class PtrDType extends DType {
-  _base: DType
-  local: boolean
-  v: number
-  constructor({ _base, local, v, ...args }: PtrDTypeArgs) {
-    super({ ...args, kwargs: { _base, local, v } })
+  constructor(
+    priority: number,
+    itemsize: number,
+    name: string,
+    fmt: undefined | FmtStr,
+    count: number,
+    _scalar: undefined | DType,
+    public _base: DType,
+    public local: boolean,
+    public v: number,
+    kwargs?: any,
+  ) {
+    super(priority, itemsize, name, fmt, count, _scalar, { _base, local, v, ...kwargs })
     this._base = _base
     this.local = local
     this.v = v
@@ -68,7 +66,7 @@ export class PtrDType extends DType {
   override vec(sz: number): PtrDType {
     assert(this.v === 1, `can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
-    return new PtrDType({ priority: this.priority, itemsize: this.itemsize, name: this.name, fmt: this.fmt, count: this.count, _scalar: this, _base: this.base, local: this.local, v: sz })
+    return new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz)
   }
   override ptr = (local = false): PtrDType => {
     throw new Error("can't make a pointer from a pointer")
@@ -80,10 +78,19 @@ export class PtrDType extends DType {
 }
 
 export class ImageDType extends PtrDType {
-  shape: number[]
-  constructor({ shape, ...args }: PtrDTypeArgs & { shape: number[] }) {
-    super({ ...args, kwargs: { shape } })
-    this.shape = shape
+  constructor(
+    priority: number,
+    itemsize: number,
+    name: string,
+    fmt: undefined | FmtStr,
+    count: number,
+    _scalar: undefined | DType,
+    _base: DType,
+    local: boolean,
+    v: number,
+    public shape: number[],
+  ) {
+    super(priority, itemsize, name, fmt, count, _scalar, _base, local, v, { shape })
   }
   override ptr = (local = false) => {
     assert(!local, "images can't be local")
@@ -92,7 +99,7 @@ export class ImageDType extends PtrDType {
   override vec(sz: number): ImageDType {
     assert(this.v === 1, `can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
-    return new ImageDType({ ...this, v: sz, _scalar: this, _base: this.base, local: this.local })
+    return new ImageDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz, this.shape)
   }
   override toString = () => `dtypes.${this.name}((${this.shape.join(', ')}))${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
@@ -166,8 +173,8 @@ export class dtypes {
   static long = dtypes.int64
 
   // NOTE: these are image dtypes
-  static imageh = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 2, name: 'imageh', fmt: 'e', count: 1, _scalar: undefined, _base: dtypes.float32, local: false, v: 1, shape: shp })
-  static imagef = (...shp: number[]) => new ImageDType({ priority: 100, itemsize: 4, name: 'imagef', fmt: 'f', count: 1, _scalar: undefined, _base: dtypes.float32, local: false, v: 1, shape: shp })
+  static imageh = (...shp: number[]) => new ImageDType(100, 1, 'imageh', 'e', 2, undefined, dtypes.float32, false, 1, shp)
+  static imagef = (...shp: number[]) => new ImageDType(100, 4, 'imagef', 'f', 1, undefined, dtypes.float32, false, 1, shp)
 
   static default_float = dtypes.float32
   static default_int = dtypes.int32

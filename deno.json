@@ -8,7 +8,7 @@
     "lint": "deno lint"
   },
   "fmt": {
-    "lineWidth": 250,
+    "lineWidth": 10000,
     "semiColons": false,
     "singleQuote": true
   },

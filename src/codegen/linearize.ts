@@ -56,21 +56,21 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
       srcs = [...srcs, ...old_block.src]
       lst = [...lst, old_block.arg.lst]
     }
-    let new_block = new UOp({ op: Ops.BLOCK, dtype: dtypes.void, src: dedup(srcs), arg: new BasicBlock(rng, lst) })
+    let new_block = new UOp(Ops.BLOCK, dtypes.void, dedup(srcs), new BasicBlock(rng, lst))
     let lrng = rng
     for (const r of rng.toReversed()) {
       if (!x.arg.ctx.includes(r) && r.op !== Ops.BLOCKSTART) {
         lrng = lrng.filter((x) => x !== r)
-        new_block = new UOp({ op: Ops.BLOCKEND, src: [new_block], arg: new BasicBlock(lrng, [new UOp({ op: r.op === Ops.IF ? Ops.ENDIF : Ops.ENDRANGE, src: [r] })], r) })
+        new_block = new UOp(Ops.BLOCKEND, undefined, [new_block], new BasicBlock(lrng, [new UOp(r.op === Ops.IF ? Ops.ENDIF : Ops.ENDRANGE, undefined, [r])], r))
       }
     }
     new_srcs.push(new_block)
   }
-  return new UOp({ op: Ops.BLOCK, dtype: dtypes.void, src: dedup([...old_blocks.values(), ...new_srcs]), arg: new BasicBlock(x.arg.ctx, [...to_append, ...x.arg.lst]) })
+  return new UOp(Ops.BLOCK, dtypes.void, dedup([...old_blocks.values(), ...new_srcs]), new BasicBlock(x.arg.ctx, [...to_append, ...x.arg.lst]))
 }
 export const make_basic_blocks = new PatternMatcher<Record<string, UOp> & { ctx: CTX }, UOp | undefined>([
-  [new UPat({ op: Ops.SINK, name: 'x' }), ({ x }) => new UOp({ op: Ops.BLOCK, src: x.src, arg: new BasicBlock([], [x]) })],
-  [new UPat({ op: Ops.BLOCK, name: 'x' }), ({ ctx, x }) => append_to_block(ctx, x)],
+  [new UPat(Ops.SINK, undefined, undefined, undefined, 'x'), ({ x }) => new UOp(Ops.BLOCK, undefined, x.src, new BasicBlock([], [x]))],
+  [new UPat(Ops.BLOCK, undefined, undefined, undefined, 'x'), ({ ctx, x }) => append_to_block(ctx, x)],
 ])
 
 export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
@@ -81,13 +81,13 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
     const in_this_block = new Set(x.arg.lst)
     if (ctx.get(x.arg.end!)!.filter((y) => !in_this_block.has(y)).length === 0) {
       //       # find the parent block that has the BLOCKSTART in the ctx
-      const parent_blocks = x.src.filter((y) => y.op === Ops.BLOCK && y.arg.ctx.includes(new UOp({ op: Ops.BLOCKSTART, src: [x.arg.end] })))
+      const parent_blocks = x.src.filter((y) => y.op === Ops.BLOCK && y.arg.ctx.includes(new UOp(Ops.BLOCKSTART, undefined, [x.arg.end])))
       assert(parent_blocks.length <= 1, 'should never have two parent blocks')
       if (parent_blocks.length === 1) {
         const parent_block = parent_blocks[0]
         // range needs DEFINE_ACC to be before the range (never in DEFINE_ACC for if)
         const [early_ops, late_ops] = partition(x.arg.lst, (y) => y.op === Ops.DEFINE_ACC && y.src.includes(x.arg.end))
-        return new UOp({ op: Ops.BLOCK, dtype: dtypes.void, src: [...x.src.filter((y) => y !== parent_block), ...parent_block.src], arg: new BasicBlock(x.arg.ctx.filter((y) => y !== x.arg.end), [...early_ops, ...parent_block.arg.lst, ...late_ops]) })
+        return new UOp(Ops.BLOCK, dtypes.void, [...x.src.filter((y) => y !== parent_block), ...parent_block.src], new BasicBlock(x.arg.ctx.filter((y) => y !== x.arg.end), [...early_ops, ...parent_block.arg.lst, ...late_ops]))
       }
     }
   }
@@ -112,9 +112,9 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
     }
   }
   if (to_append.length === 0 && placed.size === 0) return undefined
-  return new UOp({ op: x.op, dtype: dtypes.void, src: new_srcs, arg: new BasicBlock(new_ctx.toSorted((a, b) => isLessThan(a.tuplize(), b.tuplize()) ? -1 : 1), /**TODO:not sure about sort */ [...to_append, ...x.arg.lst], x.arg.end) })
+  return new UOp(x.op, dtypes.void, new_srcs, new BasicBlock(new_ctx.toSorted((a, b) => isLessThan(a.tuplize(), b.tuplize()) ? -1 : 1), /**TODO:not sure about sort */ [...to_append, ...x.arg.lst], x.arg.end))
 }
-export const pm_block_merge = new PatternMatcher<{ ctx: Map<UOp, UOp[]>; x: UOp }>([[new UPat({ op: [Ops.BLOCKEND, Ops.BLOCK], name: 'x' }), ({ ctx, x }) => block_merge(ctx, x)]])
+export const pm_block_merge = new PatternMatcher<{ ctx: Map<UOp, UOp[]>; x: UOp }>([[new UPat([Ops.BLOCKEND, Ops.BLOCK], undefined, undefined, undefined, 'x'), ({ ctx, x }) => block_merge(ctx, x)]])
 
 // # NOTE: any toposort should be valid here, unlike last time this isn't required, it's just for speed
 export const block_reorder = (in_block: UOp): UOp => {
@@ -197,7 +197,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   //   # make final block_ctxs, add BLOCKSTART to block_ctxs for IF and RANGE
   const block_ctxs = new Map<UOp, UOp[]>()
   for (const u of sink.toposort) {
-    block_ctxs.set(u, [Ops.IF, Ops.RANGE].includes(u.op) ? [new UOp({ op: Ops.BLOCKSTART, src: [u] }), ...temp_block_ctxs.get(u)!] : temp_block_ctxs.get(u)!)
+    block_ctxs.set(u, [Ops.IF, Ops.RANGE].includes(u.op) ? [new UOp(Ops.BLOCKSTART, undefined, [u]), ...temp_block_ctxs.get(u)!] : temp_block_ctxs.get(u)!)
   }
 
   //   # TODO: there's probably a clever way to remove this while loop
@@ -212,7 +212,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
     const non_block_parents = new Set([...sink.toposort].filter((x) => x.op !== Ops.BLOCK).flatMap((x) => x.src))
     const forks = new Map<UOp, UOp>(
       block_parent_count.entries().filter(([u, child_count]) => !DONT_PLACE_IN_BLOCK.includes(u.op) && child_count > 1 && !non_block_parents.has(u))
-        .map(([u, child_count]) => [u, new UOp({ op: Ops.BLOCKFORK, src: [new UOp({ op: Ops.BLOCK, src: u.src, arg: new BasicBlock(block_ctxs.get(u)!, [u]) })], arg: child_count })]),
+        .map(([u, child_count]) => [u, new UOp(Ops.BLOCKFORK, undefined, [new UOp(Ops.BLOCK, undefined, u.src, new BasicBlock(block_ctxs.get(u)!, [u]))], child_count)]),
     )
     if (!forks.size) break
     sink = sink.substitute(forks)
@@ -224,7 +224,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   for (const [k, v] of blockends_to_arg.entries()) {
     //     # NOTE: if any BLOCKEND is the parent of any other with the same arg, this algo fails
     if (v.length > 1) {
-      const out = new UOp({ op: Ops.BLOCKFORK, src: [new UOp({ op: Ops.BLOCKEND, src: v.flatMap((x) => x.src), arg: new BasicBlock(dedup(v.flatMap((y) => y.arg.ctx)), v[0].arg.lst, k) })], arg: v.length })
+      const out = new UOp(Ops.BLOCKFORK, undefined, [new UOp(Ops.BLOCKEND, undefined, v.flatMap((x) => x.src), new BasicBlock(dedup(v.flatMap((y) => y.arg.ctx)), v[0].arg.lst, k))], v.length)
       for (const u of v) new_forks.set(u, out)
     }
   }

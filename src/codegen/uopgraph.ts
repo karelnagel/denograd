@@ -42,7 +42,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
           if (is_image) {
             //             # for images, we rewrite the index. it must evenly divide 4 from the above check
             new_src[0] = buf.index(
-              new UOp({ op: Ops.VECTORIZE, dtype: dtypes.int.vec(2), src: [oidx.idiv(4).mod((buf.dtype as ImageDType).shape[1]), oidx.idiv(4 * (buf.dtype as ImageDType).shape[1])] }),
+              new UOp(Ops.VECTORIZE, dtypes.int.vec(2), [oidx.idiv(4).mod((buf.dtype as ImageDType).shape[1]), oidx.idiv(4 * (buf.dtype as ImageDType).shape[1])]),
               isinstance(rootsrc, Array) ? rootsrc[0] as UOp : undefined,
             )
           } else {
@@ -51,11 +51,11 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
           }
           //           # generate the folded new_srcs
           if (is_load) {
-            const new_load = new UOp({ op: Ops.LOAD, dtype: load_1!.dtype.vec(fold_length), src: new_src })
+            const new_load = new UOp(Ops.LOAD, load_1!.dtype.vec(fold_length), new_src)
             for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = new_load.gep(i)
           } else { // vectorize the store
-            new_src[1] = new UOp({ op: Ops.VECTORIZE, dtype: new_src[1].dtype.vec(fold_length), src: range(fold_length).map((i) => new_srcs[offsets.get(o + i)!]!.src[1]) })
-            for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = i === 0 ? new UOp({ op: Ops.STORE, dtype: dtypes.void, src: new_src }) : undefined
+            new_src[1] = new UOp(Ops.VECTORIZE, new_src[1].dtype.vec(fold_length), range(fold_length).map((i) => new_srcs[offsets.get(o + i)!]!.src[1]))
+            for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = i === 0 ? new UOp(Ops.STORE, dtypes.void, new_src) : undefined
           }
           used = new Set([...used, ...range(fold_length).map((i) => [rootsrc, o + i as any] as [UOp, UOp])])
         }
@@ -65,7 +65,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
   //   # dedup expand for LOAD
   if (is_load && old_new_srcs.length !== ex.src.length) new_srcs = ex.src.map((s) => new_srcs[old_new_srcs.indexOf(s)])
   //   # remove Nones for STORE
-  return used.size ? new UOp({ op: ex.op, dtype: ex.dtype, src: [...new_srcs.filter((x) => isNotNone(x))], arg: ex.arg }) : undefined
+  return used.size ? new UOp(ex.op, ex.dtype, [...new_srcs.filter((x) => isNotNone(x))], ex.arg) : undefined
 }
 
 export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {
@@ -75,17 +75,17 @@ export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {
   const new_src = [...load.src]
   //   # TODO: copied logic from above
   new_src[0] = load.src[0].src[0].index(
-    new UOp({ op: Ops.VECTORIZE, dtype: dtypes.int.vec(2), src: [(oidx.idiv(4)).mod(buf.dtype.shape[1]), oidx.idiv(4 * buf.dtype.shape[1])] }),
+    new UOp(Ops.VECTORIZE, dtypes.int.vec(2), [(oidx.idiv(4)).mod(buf.dtype.shape[1]), oidx.idiv(4 * buf.dtype.shape[1])]),
     load.src[0].src.length === 3 ? load.src[0].src[2] : undefined,
   )
-  const vec_load = new UOp({ op: Ops.LOAD, dtype: load.dtype.vec(4), src: [...new_src] })
+  const vec_load = new UOp(Ops.LOAD, load.dtype.vec(4), [...new_src])
   return range(4).reduce((ret, i) => id4.ne(i).where(ret, vec_load.gep(i)), load.const_like(NaN))
 }
 
-export const buf_idx_pat = new UPat({ op: Ops.INDEX, src: [UPat.var('buf')], allow_any_len: true })
+export const buf_idx_pat = new UPat(Ops.INDEX, undefined, [UPat.var('buf')], undefined, undefined, true)
 export const float4_folding = new PatternMatcher([
-  [new UPat({ op: Ops.VECTORIZE, src: new UPat({ op: Ops.LOAD, src: [buf_idx_pat], allow_any_len: true }), name: 'ex' }), ({ ex, buf }) => fold_expanded(ex, buf)],
-  [new UPat({ op: [Ops.BARRIER, Ops.SINK], src: new UPat({ op: Ops.STORE, src: [buf_idx_pat], allow_any_len: true }), name: 'ex' }), ({ ex, buf }) => fold_expanded(ex, buf)],
+  [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.LOAD, undefined, [buf_idx_pat], undefined, undefined, true), undefined, 'ex'), ({ ex, buf }) => fold_expanded(ex, buf)],
+  [new UPat([Ops.BARRIER, Ops.SINK], undefined, new UPat(Ops.STORE, undefined, [buf_idx_pat], undefined, undefined, true), undefined, 'ex'), ({ ex, buf }) => fold_expanded(ex, buf)],
 ])
 
 // # ***** image load valid simplification *****
@@ -133,17 +133,17 @@ const powers_of_two = Object.fromEntries(range(64).map((i) => [2 ** i, i]))
 type Pat = [UPat, (a: Record<'d' | 'base' | 'const' | 'div' | 'mul' | 'x' | 'y' | 'a' | 'b' | 'c', UOp>) => UOp | undefined]
 export const get_late_rewrite_patterns = (ops: Ops[], force_transcendental = false) => {
   let pat: Pat[] = ([[Ops.EXP2, xexp2], [Ops.LOG2, xlog2], [Ops.SIN, xsin]] as const).filter(([op, f]) => !ops.includes(op) || force_transcendental)
-    .map(([op, f]) => [new UPat({ op, dtype: TRANSCENDENTAL_SUPPORTED_DTYPES, src: [UPat.var('d')] }), f] as const)
+    .map(([op, f]) => [new UPat(op, TRANSCENDENTAL_SUPPORTED_DTYPES, [UPat.var('d')]), f] as const)
   //   # rewrite MOD to AND (which should always be supported, but not for generic in tests)
   if (ops.includes(Ops.AND)) {
-    pat = [...pat, [new UPat({ op: Ops.MOD, src: [UPat.var('base'), UPat.cvar('const')] }), (args: { base: UOp; const: UOp }) => powers_of_two[args.const.arg] ? args.base.bitwise_and(args.const.arg - 1) : undefined]]
+    pat = [...pat, [new UPat(Ops.MOD, undefined, [UPat.var('base'), UPat.cvar('const')]), (args: { base: UOp; const: UOp }) => powers_of_two[args.const.arg] ? args.base.bitwise_and(args.const.arg - 1) : undefined]]
   }
   //   # rewrite MUL/IDIV to SHL+SHR
   if (ops.includes(Ops.SHL) && ops.includes(Ops.SHR)) {
     pat = [
       ...pat,
-      [new UPat({ op: Ops.MUL, dtype: dtypes.ints, src: [[UPat.cvar('const'), UPat.var('mul')]] }), (a) => powers_of_two[a.const.arg] ? a.mul.lshift(powers_of_two[a.const.arg]) : undefined], // (x  * (2**y)) -> shl(x,y)
-      [new UPat({ op: Ops.IDIV, src: [UPat.var('div'), UPat.cvar('const')] }), (a) => powers_of_two[a.const.arg] ? a.div.rshift(powers_of_two[a.const.arg]) : undefined], // (x // (2**y)) -> shr(x,y)
+      [new UPat(Ops.MUL, dtypes.ints, [[UPat.cvar('const'), UPat.var('mul')]]), (a) => powers_of_two[a.const.arg] ? a.mul.lshift(powers_of_two[a.const.arg]) : undefined], // (x  * (2**y)) -> shl(x,y)
+      [new UPat(Ops.IDIV, undefined, [UPat.var('div'), UPat.cvar('const')]), (a) => powers_of_two[a.const.arg] ? a.div.rshift(powers_of_two[a.const.arg]) : undefined], // (x // (2**y)) -> shr(x,y)
     ]
   }
   if (ops.includes(Ops.NEG)) {
@@ -190,7 +190,7 @@ export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, 
     //     # add, mul, loop_start, loop_end
     const dvec = (x: UOp) => {
       if (x.op === Ops.CONST) return UOp.const(x.dtype.vec(vec.dtype.count), x.arg)
-      return new UOp({ op: Ops.VECTORIZE, dtype: x.dtype.vec(vec.dtype.count), src: range(vec.dtype.count).map(() => x) })
+      return new UOp(Ops.VECTORIZE, x.dtype.vec(vec.dtype.count), range(vec.dtype.count).map(() => x))
     }
     ;[add, mul, loop_start, loop_end] = [dvec(add), dvec(mul), dvec(loop_start), dvec(loop_end)]
   }
@@ -221,56 +221,56 @@ export const no_vectorized_wmma = (wmma: UOp) => {
 export const reduce_collapse = (acc: UOp, ret: UOp, alu: UOp) => {
   return undefined
 }
-export const [acc_pat, rng_pat] = [new UPat({ op: Ops.DEFINE_ACC, name: 'acc' }), new UPat({ op: Ops.RANGE, name: 'rng' })]
+export const [acc_pat, rng_pat] = [new UPat(Ops.DEFINE_ACC, undefined, undefined, undefined, 'acc'), new UPat(Ops.RANGE, undefined, undefined, undefined, 'rng')]
 export const rng_aug = UPat.any([rng_pat, UPat.var('add').add(rng_pat), UPat.var('mul').mul(rng_pat), UPat.var('add').add(UPat.var('mul').mul(rng_pat))])
 
 export const index_load = UPat.var('buf').index(rng_aug).load(undefined, { name: 'ld' })
 
-export const arange_augrng = UPat.any([rng_aug, rng_aug.add(UPat.var('idx2')), rng_aug.add(UPat.var('idx2')).add(UPat.var('idx3')), new UPat({ op: Ops.VECTORIZE, name: 'vec', src: rng_aug })])
-export const arange_m = ((arange_augrng.lt(UPat.cvar('compval'))).ne(new UPat({ op: Ops.CONST, name: 'ne', arg: true }))).where(UPat.cvar('multconst'), UPat.const(undefined, 0))
+export const arange_augrng = UPat.any([rng_aug, rng_aug.add(UPat.var('idx2')), rng_aug.add(UPat.var('idx2')).add(UPat.var('idx3')), new UPat(Ops.VECTORIZE, undefined, rng_aug, undefined, 'vec')])
+export const arange_m = ((arange_augrng.lt(UPat.cvar('compval'))).ne(new UPat(Ops.CONST, undefined, undefined, true, 'ne'))).where(UPat.cvar('multconst'), UPat.const(undefined, 0))
 
 // # this is symbolic 2.0
 export const sym = symbolic_flat.add(
   new PatternMatcher([
     //   # self ASSIGN is just self
-    [new UPat({ op: Ops.ASSIGN, src: [UPat.var('x'), UPat.var('x')] }), ({ x }) => x],
+    [new UPat(Ops.ASSIGN, undefined, [UPat.var('x'), UPat.var('x')]), ({ x }) => x],
     //   # ASSIGN to global is just self
-    [new UPat({ op: Ops.ASSIGN, src: [new UPat({ op: Ops.DEFINE_GLOBAL }), UPat.var('x')] }), ({ x }) => x],
+    [new UPat(Ops.ASSIGN, undefined, [new UPat(Ops.DEFINE_GLOBAL), UPat.var('x')]), ({ x }) => x],
     //   # VECTORIZE/CONST, VECTORIZE/GEP
-    [new UPat({ op: Ops.VECTORIZE, src: new UPat({ op: Ops.CONST }), name: 'vec' }), ({ vec }) => UOp.const(vec.dtype, vec.src.map((x) => x.arg))],
-    [new UPat({ op: Ops.VECTORIZE, src: new UPat({ op: Ops.GEP, src: [new UPat({ name: 'x' })] }), name: 'vec' }), ({ vec, x }) => x.gep(vec.src.map((y) => y.arg[0]))],
+    [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.CONST), undefined, 'vec'), ({ vec }) => UOp.const(vec.dtype, vec.src.map((x) => x.arg))],
+    [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.GEP, undefined, [new UPat(undefined, undefined, undefined, undefined, 'x')]), undefined, 'vec'), ({ vec, x }) => x.gep(vec.src.map((y) => y.arg[0]))],
     //   # reorder ALU/VECTORIZE
     [
-      new UPat({ op: GroupOp.ALU, src: [new UPat({ op: Ops.VECTORIZE, src: new UPat({ name: 'x' }) }), new UPat({ op: Ops.VECTORIZE, src: new UPat({ name: 'y' }) })], name: 'alu' }),
-      ({ x, y, alu }) => new UOp({ op: Ops.VECTORIZE, dtype: alu.dtype, src: range(alu.dtype.count).map((i) => new UOp({ op: alu.op, dtype: alu.dtype.scalar(), src: [x, y] })) }),
+      new UPat(GroupOp.ALU, undefined, [new UPat(Ops.VECTORIZE, undefined, new UPat(undefined, undefined, undefined, undefined, 'x')), new UPat(Ops.VECTORIZE, undefined, new UPat(undefined, undefined, undefined, undefined, 'y'))], undefined, 'alu'),
+      ({ x, y, alu }) => new UOp(Ops.VECTORIZE, alu.dtype, range(alu.dtype.count).map((i) => new UOp(alu.op, alu.dtype.scalar(), [x, y]))),
     ],
     //   # VECTORIZE of a single element is just that element
-    [new UPat({ op: Ops.VECTORIZE, src: [new UPat({ name: 'x' })] }), ({ x }) => x],
+    [new UPat(Ops.VECTORIZE, undefined, [new UPat(undefined, undefined, undefined, undefined, 'x')]), ({ x }) => x],
     //   # VECTORIZE void is SINK
-    [new UPat({ op: Ops.VECTORIZE, dtype: dtypes.void, src: new UPat({ op: Ops.BARRIER, name: 'b' }) }), ({ b }) => b],
-    [new UPat({ op: Ops.VECTORIZE, dtype: dtypes.void, name: 'x' }), ({ x }) => new UOp({ op: Ops.SINK, dtype: dtypes.void, src: x.src })],
+    [new UPat(Ops.VECTORIZE, dtypes.void, new UPat(Ops.BARRIER, undefined, undefined, undefined, 'b')), ({ b }) => b],
+    [new UPat(Ops.VECTORIZE, dtypes.void, undefined, undefined, 'x'), ({ x }) => new UOp(Ops.SINK, dtypes.void, x.src)],
     //   # GEP/VECTORIZE, GEP/GEP, GEP/CONST, GEP/VCONST
-    [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.GEP, name: 'g2' })], name: 'g1' }), ({ g1, g2 }) => g2.src[0].gep(range(g1.dtype.count).map((i) => g2.arg[g1.arg[i]]))],
+    [new UPat(Ops.GEP, undefined, [new UPat(Ops.GEP, undefined, undefined, undefined, 'g2')], undefined, 'g1'), ({ g1, g2 }) => g2.src[0].gep(range(g1.dtype.count).map((i) => g2.arg[g1.arg[i]]))],
     [
-      new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.VECTORIZE, name: 'vec' })], name: 'gep' }),
-      ({ gep, vec }) => new UOp({ op: Ops.VECTORIZE, dtype: gep.dtype, src: gep.arg.length > 1 ? gep.arg.map((i: number) => vec.src[i]) : vec.src[gep.arg[0]] }),
+      new UPat(Ops.GEP, undefined, [new UPat(Ops.VECTORIZE, undefined, undefined, undefined, 'vec')], undefined, 'gep'),
+      ({ gep, vec }) => new UOp(Ops.VECTORIZE, gep.dtype, gep.arg.length > 1 ? gep.arg.map((i: number) => vec.src[i]) : vec.src[gep.arg[0]]),
     ],
-    [new UPat({ op: Ops.GEP, src: [UPat.cvar('c', undefined, false)], name: 'gep' }), ({ gep, c }) => gep.const_like(c.arg)],
-    [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.VCONST, name: 'c' })], name: 'gep' }), ({ gep, c }) => gep.const_like(gep.arg.map((x: any) => c.arg[x]))],
+    [new UPat(Ops.GEP, undefined, [UPat.cvar('c', undefined, false)], undefined, 'gep'), ({ gep, c }) => gep.const_like(c.arg)],
+    [new UPat(Ops.GEP, undefined, [new UPat(Ops.VCONST, undefined, undefined, undefined, 'c')], undefined, 'gep'), ({ gep, c }) => gep.const_like(gep.arg.map((x: any) => c.arg[x]))],
     //   # push all GEPs through ALUs (fix arange stuff)
     [
-      new UPat({ op: Ops.GEP, src: [new UPat({ op: [...GroupOp.ALU, Ops.CAST, Ops.BITCAST], name: 'alu' })], name: 'gep' }),
-      ({ gep, alu }) => new UOp({ op: alu.op, dtype: alu.dtype.scalar().vec(gep.dtype.count), src: alu.src.map((x) => x.gep(gep.arg)), arg: alu.arg }),
+      new UPat(Ops.GEP, undefined, [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST], undefined, undefined, undefined, 'alu')], undefined, 'gep'),
+      ({ gep, alu }) => new UOp(alu.op, alu.dtype.scalar().vec(gep.dtype.count), alu.src.map((x) => x.gep(gep.arg)), alu.arg),
     ],
     //   # push some GEPs through WMMAs
-    [new UPat({ op: Ops.GEP, src: [new UPat({ op: Ops.WMMA, name: 'wmma' })], name: 'gep' }), ({ wmma, gep }) => gep_through_wmma(gep, wmma)],
+    [new UPat(Ops.GEP, undefined, [new UPat(Ops.WMMA, undefined, undefined, undefined, 'wmma')], undefined, 'gep'), ({ wmma, gep }) => gep_through_wmma(gep, wmma)],
     //   # tensor core with a 0 input is acc
-    [new UPat({ op: Ops.WMMA, src: [UPat.const(undefined, 0.0), UPat.var(), UPat.var('acc')] }), ({ acc }) => acc],
-    [new UPat({ op: Ops.WMMA, src: [UPat.var(), UPat.const(undefined, 0.0), UPat.var('acc')] }), ({ acc }) => acc],
+    [new UPat(Ops.WMMA, undefined, [UPat.const(undefined, 0.0), UPat.var(), UPat.var('acc')]), ({ acc }) => acc],
+    [new UPat(Ops.WMMA, undefined, [UPat.var(), UPat.const(undefined, 0.0), UPat.var('acc')]), ({ acc }) => acc],
     //   # tensor core cleanups
-    [UPat.var('add').add(new UPat({ op: Ops.WMMA, name: 'wmma' })), ({ add, wmma }) => new UOp({ op: wmma.op, dtype: wmma.dtype, src: [wmma.src[0], wmma.src[1], wmma.src[2].add(add)], arg: wmma.arg })],
+    [UPat.var('add').add(new UPat(Ops.WMMA, undefined, undefined, undefined, 'wmma')), ({ add, wmma }) => new UOp(wmma.op, wmma.dtype, [wmma.src[0], wmma.src[1], wmma.src[2].add(add)], wmma.arg)],
     //   # threefry + remove longs
-    [new UPat({ op: Ops.THREEFRY, dtype: dtypes.uint64, src: [UPat.var('x'), UPat.var('key')] }), ({ x, key }) => threefry2x32(x, key)],
+    [new UPat(Ops.THREEFRY, dtypes.uint64, [UPat.var('x'), UPat.var('key')]), ({ x, key }) => threefry2x32(x, key)],
     [UPat.var('x', dtypes.uint32).cast(dtypes.uint64).cast(dtypes.uint32), ({ x }) => x], // cast there and back is noop (TODO: genericize)
     [(UPat.var('x', dtypes.uint64).bitwise_and(0xFFFFFFFF)).cast(dtypes.uint32), ({ x }) => x.cast(dtypes.uint32)], // cast does truncation
     [(UPat.var(undefined, dtypes.uint64).mul(2 ** 32).bitwise_or(UPat.var('y', dtypes.uint32).cast(dtypes.uint64))).cast(dtypes.uint32), ({ y }) => y],
@@ -281,33 +281,33 @@ export const sym = symbolic_flat.add(
     // # arange loop folding
     // [acc_pat.assign(UPat.any([arange_m, arange_m.add(UPat.var('extra'))]).add(acc_pat)), ({ compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul }) => loop_collapse(compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul)],
     // # indexing, with cast or where
-    [acc_pat.assign(UPat.var('idx').eq(new UPat({ op: Ops.RANGE, name: 'rng' })).cast().mul(index_load).add(acc_pat)), ({ idx, rng, buf, ld, axx, add, mul }) => index_collapse(idx, rng, buf, ld, axx, add, mul)],
-    [acc_pat.assign(UPat.var('idx').eq(new UPat({ op: Ops.RANGE, name: 'rng' })).where(index_load, UPat.const(undefined, 0.0)).add(acc_pat)), ({ idx, rng, buf, ld, acc, add, mul }) => index_collapse(idx, rng, buf, ld, acc, add, mul)],
+    [acc_pat.assign(UPat.var('idx').eq(new UPat(Ops.RANGE, undefined, undefined, undefined, 'rng')).cast().mul(index_load).add(acc_pat)), ({ idx, rng, buf, ld, axx, add, mul }) => index_collapse(idx, rng, buf, ld, axx, add, mul)],
+    [acc_pat.assign(UPat.var('idx').eq(new UPat(Ops.RANGE, undefined, undefined, undefined, 'rng')).where(index_load, UPat.const(undefined, 0.0)).add(acc_pat)), ({ idx, rng, buf, ld, acc, add, mul }) => index_collapse(idx, rng, buf, ld, acc, add, mul)],
     // # parentless reduce  # TODO: add MUL
-    [acc_pat.assign(new UPat({ op: [Ops.ADD, Ops.MAX], src: [[acc_pat, UPat.var('ret')]], name: 'alu' })), ({ acc, ret, alu }) => reduce_collapse(acc, ret, alu)],
+    [acc_pat.assign(new UPat([Ops.ADD, Ops.MAX], undefined, [[acc_pat, UPat.var('ret')]], undefined, 'alu')), ({ acc, ret, alu }) => reduce_collapse(acc, ret, alu)],
     //   # ** self folding **
-    [new UPat({ op: Ops.DEFINE_ACC, src: [UPat.var('x')] }), ({ x }) => x], // a DEFINE_ACC without ranges is a CONST
-    [new UPat({ op: Ops.ASSIGN, src: [UPat.cvar(), UPat.var('x')] }), ({ x }) => x], // an ASSIGN to a const is a NOOP
+    [new UPat(Ops.DEFINE_ACC, undefined, [UPat.var('x')]), ({ x }) => x], // a DEFINE_ACC without ranges is a CONST
+    [new UPat(Ops.ASSIGN, undefined, [UPat.cvar(), UPat.var('x')]), ({ x }) => x], // an ASSIGN to a const is a NOOP
     // # x!=0 -> (bool)x
     [UPat.var('x').ne(0), ({ x }) => x.cast(dtypes.bool.vec(x.dtype.count))],
     //   # ** load/store folding **
-    [new UPat({ op: Ops.INDEX, name: 'index' }).store([new UPat({ op: Ops.INDEX, name: 'index' }).load()]), ({ index }) => new UOp({ op: Ops.NOOP })],
-    [new UPat({ op: Ops.INDEX, name: 'index' }).store([UPat.var('gate').where(UPat.var('alt'), new UPat({ op: Ops.INDEX, name: 'index' }).load())]), ({ index, gate, alt }) => index.src[0].index(index.src[1], gate).store([alt])],
+    [new UPat(Ops.INDEX, undefined, undefined, undefined, 'index').store([new UPat(Ops.INDEX, undefined, undefined, undefined, 'index').load()]), ({ index }) => new UOp(Ops.NOOP)],
+    [new UPat(Ops.INDEX, undefined, undefined, undefined, 'index').store([UPat.var('gate').where(UPat.var('alt'), new UPat(Ops.INDEX, undefined, undefined, undefined, 'index').load())]), ({ index, gate, alt }) => index.src[0].index(index.src[1], gate).store([alt])],
     // # fold gated LOAD/STORE
-    [new UPat({}).index(new UPat({}), UPat.const(dtypes.bool, true)).named('idx'), ({ idx }) => idx.replace({ src: idx.src.slice(0, 2) })], // remove True
-    [new UPat({}).index(new UPat({}), UPat.const(dtypes.bool, false)).named('idx'), ({ idx }) => idx.const_like(0)], //False -> NULL pointer
-    [new UPat({ op: Ops.LOAD, src: [UPat.const(undefined, 0)], allow_any_len: true, name: 'x' }), ({ x }) => x.const_like(0)], // NULL pointer load loads 0
-    [new UPat({ op: Ops.STORE, src: [UPat.const(undefined, 0)], allow_any_len: true }), () => new UOp({ op: Ops.NOOP })], // NULL pointer store does nothing
+    [new UPat().index(new UPat(), UPat.const(dtypes.bool, true)).named('idx'), ({ idx }) => idx.replace({ src: idx.src.slice(0, 2) })], // remove True
+    [new UPat().index(new UPat(), UPat.const(dtypes.bool, false)).named('idx'), ({ idx }) => idx.const_like(0)], //False -> NULL pointer
+    [new UPat(Ops.LOAD, undefined, [UPat.const(undefined, 0)], undefined, 'x', true), ({ x }) => x.const_like(0)], // NULL pointer load loads 0
+    [new UPat(Ops.STORE, undefined, [UPat.const(undefined, 0)], undefined, undefined, true), () => new UOp(Ops.NOOP)], // NULL pointer store does nothing
     //   # remove NOOPs from SINK
-    [new UPat({ op: Ops.SINK, name: 'root' }), ({ root }) => {
+    [new UPat(Ops.SINK, undefined, undefined, undefined, 'root'), ({ root }) => {
       const a = root.src.filter((x) => x.op !== Ops.NOOP)
-      return a.length !== root.src.length ? new UOp({ op: Ops.SINK, dtype: root.dtype, src: a, arg: root.arg }) : undefined
+      return a.length !== root.src.length ? new UOp(Ops.SINK, root.dtype, a, root.arg) : undefined
     }],
     //   # remove EXPANDs from SINK/BARRIER
-    [new UPat({ op: Ops.BARRIER, src: [new UPat({ op: [Ops.VECTORIZE, Ops.SINK], name: 'sink' })] }), ({ sink }) => new UOp({ op: Ops.BARRIER, dtype: dtypes.void, src: sink.src })],
+    [new UPat(Ops.BARRIER, undefined, [new UPat([Ops.VECTORIZE, Ops.SINK], undefined, undefined, undefined, 'sink')]), ({ sink }) => new UOp(Ops.BARRIER, dtypes.void, sink.src)],
     [
-      new UPat({ op: Ops.SINK, name: 'root' }),
-      ({ root }) => root.src.every((x) => [Ops.SINK, Ops.EXPAND].includes(x.op)) ? new UOp({ op: Ops.SINK, dtype: root.dtype, src: root.src.flatMap((x) => [Ops.SINK, Ops.EXPAND].includes(x.op) ? x.src : [x]), arg: root.arg }) : undefined,
+      new UPat(Ops.SINK, undefined, undefined, undefined, 'root'),
+      ({ root }) => root.src.every((x) => [Ops.SINK, Ops.EXPAND].includes(x.op)) ? new UOp(Ops.SINK, root.dtype, root.src.flatMap((x) => [Ops.SINK, Ops.EXPAND].includes(x.op) ? x.src : [x]), root.arg) : undefined,
     ],
   ]),
 )
@@ -359,7 +359,7 @@ export const do_expand = (root: UOp) => {
       // # for the first arg of IF, just pass them through ignoring EXPANDS
       if (root.op === Ops.IF) new_srcs.push(src)
       // # put any input dtype > 1 grouped together
-      else if (src.dtype.count > 1) new_srcs.push(new UOp({ op: Ops.VECTORIZE, dtype: src.dtype.scalar().vec(expand_sz * src.dtype.count), src: range(expand_sz).flatMap(() => range(src.dtype.count).map((i) => src.gep(i))) }))
+      else if (src.dtype.count > 1) new_srcs.push(new UOp(Ops.VECTORIZE, src.dtype.scalar().vec(expand_sz * src.dtype.count), range(expand_sz).flatMap(() => range(src.dtype.count).map((i) => src.gep(i)))))
       // # repeat the arg
       else new_srcs.push(src.broadcast(expand_sz))
     }
@@ -370,13 +370,13 @@ export const do_expand = (root: UOp) => {
     //     # is this right?
     new_arg = range(root.arg[0], new_srcs[0].dtype.count, idiv(new_srcs[0].dtype.count, expand_sz))
   }
-  const nsrc = new UOp({ op: root.op, dtype: root.dtype.scalar().vec(root.dtype.count * expand_sz), src: new_srcs, arg: new_arg })
-  return new UOp({ op: Ops.EXPAND, dtype: root.dtype, src: [nsrc], arg: expand_args })
+  const nsrc = new UOp(root.op, root.dtype.scalar().vec(root.dtype.count * expand_sz), new_srcs, new_arg)
+  return new UOp(Ops.EXPAND, root.dtype, [nsrc], expand_args)
 }
 export const do_contract = (con: UOp) => {
   const ex = con.src[0]
   //   # CONTRACT without EXPAND repeats the element VECTORIZED
-  if (ex.op !== Ops.EXPAND) return new UOp({ op: Ops.VECTORIZE, dtype: con.dtype, src: range(con.dtype.count).flatMap(() => con.src) })
+  if (ex.op !== Ops.EXPAND) return new UOp(Ops.VECTORIZE, con.dtype, range(con.dtype.count).flatMap(() => con.src))
   //   # CONTRACT may remove several axes from EXPAND
   assert(con.dtype.count === prod(con.arg.map((x: any) => x[1])), 'dtype is wrong')
   let idxs: number[] = []
@@ -384,19 +384,19 @@ export const do_contract = (con: UOp) => {
   for (const rpk of _choices_from_args(new_ex_args)) {
     idxs = [...idxs, ..._choices_from_args(con.arg).map((lrpk) => _expand_arg_to_idx(ex.arg, { ...rpk, ...lrpk }))]
   }
-  return new UOp({ op: Ops.EXPAND, dtype: con.dtype, src: [ex.src[0].gep([...idxs])], arg: new_ex_args })
+  return new UOp(Ops.EXPAND, con.dtype, [ex.src[0].gep([...idxs])], new_ex_args)
 }
 export const no_vectorized_alu = (alu: UOp) => {
   if (alu.dtype.vcount === 1) return undefined
-  const alus = range(alu.dtype.vcount).map((i) => new UOp({ op: alu.op, dtype: alu.dtype.scalar(), src: alu.src.map((s) => s.gep(i)), arg: alu.arg }))
-  return new UOp({ op: Ops.VECTORIZE, dtype: alu.dtype, src: alus })
+  const alus = range(alu.dtype.vcount).map((i) => new UOp(alu.op, alu.dtype.scalar(), alu.src.map((s) => s.gep(i)), alu.arg))
+  return new UOp(Ops.VECTORIZE, alu.dtype, alus)
 }
 export const create_gate = (root: UOp): undefined | UOp => {
   const _gate_srcs = (u: UOp, gate: UOp): UOp => {
     if (u.op === Ops.BARRIER) return u
-    if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) return new UOp({ op: u.op, dtype: u.dtype, src: [...u.src.toReversed(), new UOp({ op: Ops.IF, dtype: dtypes.void, src: [gate, u.src.at(-1)!] })], arg: u.arg })
+    if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) return new UOp(u.op, u.dtype, [...u.src.toReversed(), new UOp(Ops.IF, dtypes.void, [gate, u.src.at(-1)!])], u.arg)
     const replace_source = u.src.map((x) => _gate_srcs(x, gate))
-    return isEq(replace_source, u.src) ? u : new UOp({ op: u.op, dtype: u.dtype, src: replace_source, arg: u.arg })
+    return isEq(replace_source, u.src) ? u : new UOp(u.op, u.dtype, replace_source, u.arg)
   }
   let idx = root.src[0]
   if (idx.op === Ops.CAST) idx = idx.src[0]
@@ -405,23 +405,23 @@ export const create_gate = (root: UOp): undefined | UOp => {
 }
 export const expander = new PatternMatcher([
   //   # double expand
-  [new UPat({ op: Ops.EXPAND, name: 'outer', src: [new UPat({ op: Ops.EXPAND, name: 'inner' })] }), ({ outer, inner }) => new UOp({ op: Ops.EXPAND, dtype: outer.dtype, src: [inner.src[0]], arg: inner.arg + outer.arg })],
+  [new UPat(Ops.EXPAND, undefined, [new UPat(Ops.EXPAND, undefined, undefined, undefined, 'inner')], undefined, 'outer'), ({ outer, inner }) => new UOp(Ops.EXPAND, outer.dtype, [inner.src[0]], inner.arg + outer.arg)],
   //   # do expansion
-  [new UPat({ op: [...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.GEP, Ops.WMMA, Ops.LOAD, Ops.STORE, Ops.INDEX, Ops.ASSIGN, Ops.VECTORIZE, Ops.IF], name: 'root', custom_early_reject: [Ops.EXPAND] }), ({ root }) => do_expand(root)],
-  [new UPat({ op: Ops.CONTRACT, name: 'con' }), ({ con }) => do_contract(con)],
+  [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.GEP, Ops.WMMA, Ops.LOAD, Ops.STORE, Ops.INDEX, Ops.ASSIGN, Ops.VECTORIZE, Ops.IF], undefined, undefined, undefined, 'root', undefined, undefined, [Ops.EXPAND]), ({ root }) => do_expand(root)],
+  [new UPat(Ops.CONTRACT, undefined, undefined, undefined, 'con'), ({ con }) => do_contract(con)],
   //   # vectorize DEFINE_ACC
-  [new UPat({ op: Ops.VECTORIZE, src: new UPat({ op: Ops.DEFINE_ACC, name: 'acc' }), name: 'v' }), ({ acc, v }) => acc.replace({ dtype: v.dtype })],
+  [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.DEFINE_ACC, undefined, undefined, undefined, 'acc'), undefined, 'v'), ({ acc, v }) => acc.replace({ dtype: v.dtype })],
   //   # BARRIERs aren't actually expanded
   [
-    new UPat({ op: Ops.BARRIER, src: [new UPat({ op: Ops.EXPAND, name: 'ex' })] }),
-    ({ ex }) => new UOp({ op: Ops.EXPAND, dtype: dtypes.void, src: range(ex.src.length).map((x) => new UOp({ op: Ops.BARRIER, dtype: dtypes.void, src: ex.src })), arg: ex.arg }),
+    new UPat(Ops.BARRIER, undefined, [new UPat(Ops.EXPAND, undefined, undefined, undefined, 'ex')]),
+    ({ ex }) => new UOp(Ops.EXPAND, dtypes.void, range(ex.src.length).map((x) => new UOp(Ops.BARRIER, dtypes.void, ex.src)), ex.arg),
   ],
   //   # empty EXPAND is NOOP
-  [new UPat({ op: Ops.EXPAND, src: [UPat.var('x')], arg: [] }), ({ x }) => x],
+  [new UPat(Ops.EXPAND, undefined, [UPat.var('x')], []), ({ x }) => x],
   //   # EXPAND GEP (needed for WMMA, generalize this) -> vectorized ALU
   [
-    new UPat({ op: Ops.EXPAND, name: 'ex', src: range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i))) }),
-    ({ ex, x, y }) => new UOp({ op: Ops.EXPAND, dtype: ex.dtype, src: range(AMX ? 256 : 8).map((i) => x.add(y).gep(i)), arg: ex.arg }),
+    new UPat(Ops.EXPAND, undefined, range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i))), undefined, 'ex'),
+    ({ ex, x, y }) => new UOp(Ops.EXPAND, ex.dtype, range(AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
   ],
 ])
 
@@ -429,20 +429,20 @@ export const no_vectorized_load_store = (ls: UOp) => {
   const idx = ls.src[0]
   if (!isinstance(idx.dtype, PtrDType)) throw new Error()
   if (idx.dtype.v === 1) return undefined
-  const tv = range(idx.dtype.v).map((i) => new UOp({ op: ls.op, dtype: ls.dtype.scalar(), src: ls.src.map((j) => j.gep(i)) }))
-  return new UOp({ op: Ops.VECTORIZE, dtype: ls.dtype, src: tv })
+  const tv = range(idx.dtype.v).map((i) => new UOp(ls.op, ls.dtype.scalar(), ls.src.map((j) => j.gep(i))))
+  return new UOp(Ops.VECTORIZE, ls.dtype, tv)
 }
 export const no_vectorized_acc = (acc: UOp) => {
   if (acc.dtype.count === 1) return undefined
-  const alus = [new UOp({ op: acc.op, dtype: acc.dtype.scalar(), src: range(acc.dtype.count).flatMap((i) => [...acc.src.entries()].map(([j, s]) => j === 0 ? s.gep(i) : s)) })]
-  return new UOp({ op: Ops.VECTORIZE, dtype: acc.dtype, src: alus })
+  const alus = [new UOp(acc.op, acc.dtype.scalar(), range(acc.dtype.count).flatMap((i) => [...acc.src.entries()].map(([j, s]) => j === 0 ? s.gep(i) : s)))]
+  return new UOp(Ops.VECTORIZE, acc.dtype, alus)
 }
 export const devectorize = new PatternMatcher([
   //   # no ALU on vectorized dtypes
-  [new UPat({ op: [...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN, Ops.INDEX], name: 'alu' }), ({ alu }) => no_vectorized_alu(alu)],
-  [new UPat({ op: Ops.WMMA, name: 'wmma' }), ({ wmma }) => no_vectorized_wmma(wmma)],
-  [new UPat({ op: Ops.DEFINE_ACC, name: 'acc' }), ({ acc }) => no_vectorized_acc(acc)],
-  [new UPat({ op: [Ops.LOAD, Ops.STORE], name: 'ls' }), ({ ls }) => no_vectorized_load_store(ls)],
+  [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN, Ops.INDEX], undefined, undefined, undefined, 'alu'), ({ alu }) => no_vectorized_alu(alu)],
+  [new UPat(Ops.WMMA, undefined, undefined, undefined, 'wmma'), ({ wmma }) => no_vectorized_wmma(wmma)],
+  [new UPat(Ops.DEFINE_ACC, undefined, undefined, undefined, 'acc'), ({ acc }) => no_vectorized_acc(acc)],
+  [new UPat([Ops.LOAD, Ops.STORE], undefined, undefined, undefined, 'ls'), ({ ls }) => no_vectorized_load_store(ls)],
 ])
 
 export const delete_redundant_gates = (buf: UOp, idx: UOp, val: UOp, store_gate: UOp, cast?: UOp): undefined | UOp => {
@@ -453,18 +453,18 @@ export const delete_redundant_gates = (buf: UOp, idx: UOp, val: UOp, store_gate:
 const _stidx = UPat.var('buf').index(UPat.var('idx'), UPat.var('store_gate'))
 export const load_store_indexing = new PatternMatcher([
   //   # late fixup of unfoldable image loads
-  [new UPat({ op: Ops.LOAD, src: [UPat.var('buf'), new UPat({})], allow_any_len: true, name: 'load' }), ({ load, buf }) => fix_unfoldable_image_load(load, buf)],
+  [new UPat(Ops.LOAD, undefined, [UPat.var('buf'), new UPat()], undefined, 'load', true), ({ load, buf }) => fix_unfoldable_image_load(load, buf)],
   //   # simplify valid
-  [new UPat({ op: Ops.AND, name: 'valid' }), ({ valid }) => simplify_valid(valid)],
+  [new UPat(Ops.AND, undefined, undefined, undefined, 'valid'), ({ valid }) => simplify_valid(valid)],
   //   # image load valid idx simplification
-  [new UPat({ op: Ops.INDEX, src: [UPat.var('buf'), UPat.var('start_idx'), UPat.var('valid')] }), ({ buf, start_idx, valid }) => simplify_valid_load(buf, start_idx, valid)],
+  [new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('start_idx'), UPat.var('valid')]), ({ buf, start_idx, valid }) => simplify_valid_load(buf, start_idx, valid)],
   //   # delete_redundant_gates (after expand)
-  [new UPat({ op: Ops.STORE, src: [UPat.any([_stidx, _stidx.cast(undefined).named('cast')]), UPat.var('val')] }), ({ buf, idx, val, store_gate, cast }) => delete_redundant_gates(buf, idx, val, store_gate, cast)],
+  [new UPat(Ops.STORE, undefined, [UPat.any([_stidx, _stidx.cast(undefined).named('cast')]), UPat.var('val')]), ({ buf, idx, val, store_gate, cast }) => delete_redundant_gates(buf, idx, val, store_gate, cast)],
 ])
 
 export const migrate_indexing = new PatternMatcher([
   //   # create gate MUST BE BEFORE expander
-  [new UPat({ op: Ops.STORE, name: 'root' }), ({ root }) => create_gate(root)],
+  [new UPat(Ops.STORE, undefined, undefined, undefined, 'root'), ({ root }) => create_gate(root)],
 ])
 
 export const move_mask = (x: UOp, buf: UOp, idx: UOp, mask: UOp, cast?: UOp): UOp => {
@@ -472,22 +472,22 @@ export const move_mask = (x: UOp, buf: UOp, idx: UOp, mask: UOp, cast?: UOp): UO
   const nidx = isNotNone(cast) ? buf.index(idx).cast(cast.dtype) : buf.index(idx)
   return x.op === Ops.LOAD ? nidx.load([x.const_like(0), mask, ...x.src.slice(1)], { dtype: x.dtype }) : nidx.store([x.src[1], mask, ...x.src.slice(2)])
 }
-const _masked_index = new UPat({ op: Ops.INDEX, src: [new UPat({ name: 'buf' }), new UPat({ name: 'idx' }), new UPat({ name: 'mask' })] })
+const _masked_index = new UPat(Ops.INDEX, undefined, [new UPat(undefined, undefined, undefined, undefined, 'buf'), new UPat(undefined, undefined, undefined, undefined, 'idx'), new UPat(undefined, undefined, undefined, undefined, 'mask')])
 export const pm_render = new PatternMatcher([
   //   # for rendering, we use explicit VECTORIZE
-  [new UPat({ op: Ops.CONST, name: 'c' }), ({ c }) => c.dtype.vcount > 1 ? new UOp({ op: Ops.VECTORIZE, dtype: c.dtype, src: range(c.dtype.vcount).map(() => UOp.const(c.dtype.scalar(), c.arg)) }) : undefined],
-  [new UPat({ op: Ops.VCONST, name: 'c' }), ({ c }) => new UOp({ op: Ops.VECTORIZE, dtype: c.dtype, src: c.arg.map((x: number) => UOp.const(c.dtype.scalar(), x)) })],
-  [new UPat({ op: Ops.GEP, name: 'gep' }), ({ gep }) => new UOp({ op: Ops.VECTORIZE, dtype: gep.dtype, src: gep.arg.length > 1 ? gep.arg.map((x: number) => gep.src[0].gep(x)) : undefined })],
-  [new UPat({ op: Ops.VECTORIZE, src: [new UPat({ name: 'x' })] }), ({ x }) => x],
+  [new UPat(Ops.CONST, undefined, undefined, undefined, 'c'), ({ c }) => c.dtype.vcount > 1 ? new UOp(Ops.VECTORIZE, c.dtype, range(c.dtype.vcount).map(() => UOp.const(c.dtype.scalar(), c.arg))) : undefined],
+  [new UPat(Ops.VCONST, undefined, undefined, undefined, 'c'), ({ c }) => new UOp(Ops.VECTORIZE, c.dtype, c.arg.map((x: number) => UOp.const(c.dtype.scalar(), x)))],
+  [new UPat(Ops.GEP, undefined, undefined, undefined, 'gep'), ({ gep }) => new UOp(Ops.VECTORIZE, gep.dtype, gep.arg.length > 1 ? gep.arg.map((x: number) => gep.src[0].gep(x)) : undefined)],
+  [new UPat(Ops.VECTORIZE, undefined, [new UPat(undefined, undefined, undefined, undefined, 'x')]), ({ x }) => x],
   //   # move masks of loads/stores
   [
-    new UPat({ op: [Ops.LOAD, Ops.STORE], src: [UPat.any([_masked_index, _masked_index.cast(undefined).named('cast')])], allow_any_len: true, name: 'x' }),
+    new UPat([Ops.LOAD, Ops.STORE], undefined, [UPat.any([_masked_index, _masked_index.cast(undefined).named('cast')])], undefined, 'x', true),
     ({ x, buf, idx, mask, cast }) => move_mask(x, buf, idx, mask, cast),
   ],
   //   # gate any stores that aren't gated with ifs
   [
-    new UPat({ op: Ops.STORE, dtype: dtypes.void, src: [new UPat({}), new UPat({}), new UPat({ dtype: dtypes.bool })], name: 'store' }),
-    ({ store }) => new UOp({ op: Ops.STORE, src: [...store.src.slice(0, 2), new UOp({ op: Ops.IF, src: [store.src[2]] })] }),
+    new UPat(Ops.STORE, dtypes.void, [new UPat(), new UPat(), new UPat(undefined, dtypes.bool)], undefined, 'store'),
+    ({ store }) => new UOp(Ops.STORE, undefined, [...store.src.slice(0, 2), new UOp(Ops.IF, undefined, [store.src[2]])]),
   ],
 ])
 
@@ -495,6 +495,7 @@ export const pm_render = new PatternMatcher([
 
 export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   assert(sink.op === Ops.SINK, `sink isn't sink, it's ${sink.op}`)
+  // TODO: why these aren't used?
   const supported_ops = isNotNone(opts) ? Object.keys(opts?.code_for_op) : []
   const extra_matcher = isNotNone(opts) && isNotNone(opts.extra_matcher) ? opts.extra_matcher : new PatternMatcher([])
 

@@ -40,20 +40,20 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
     }
   } else {
     //     # all loops are RANGES
-    idxs = full_shape.slice(0, first_reduce).map((g, i) => new UOp({ op: Ops.RANGE, dtype: dtypes.int, src: [sint_to_uop(0), sint_to_uop(g)], arg: i }))
+    idxs = full_shape.slice(0, first_reduce).map((g, i) => new UOp(Ops.RANGE, dtypes.int, [sint_to_uop(0), sint_to_uop(g)], i))
   }
   // reduce loops
-  idxs = [...idxs, ...full_shape.slice(first_reduce + group_for_reduces, first_upcasted).map((g, i) => new UOp({ op: Ops.RANGE, dtype: dtypes.int, src: [sint_to_uop(0), sint_to_uop(g)], arg: i + first_reduce + group_for_reduces }))]
+  idxs = [...idxs, ...full_shape.slice(first_reduce + group_for_reduces, first_upcasted).map((g, i) => new UOp(Ops.RANGE, dtypes.int, [sint_to_uop(0), sint_to_uop(g)], i + first_reduce + group_for_reduces))]
 
   // upcast loops
   for (const [i, g] of full_shape.slice(first_upcasted).entries()) {
     assert(isinstance(g, Number), 'needs to be int to upcast/unroll')
-    idxs.push(new UOp({ op: Ops.EXPAND, dtype: dtypes.int, src: [UOp.const(dtypes.int.vec(g as number), range(g as number))], arg: [[i + first_upcasted, g]] })) // TODO: not sure about g, but it is also sint in tiny
+    idxs.push(new UOp(Ops.EXPAND, dtypes.int, [UOp.const(dtypes.int.vec(g as number), range(g as number))], [[i + first_upcasted, g]])) // TODO: not sure about g, but it is also sint in tiny
   }
   // late indexes (group for reduce)
   const ridxs = [...idxs]
   for (const a of range(first_reduce, first_reduce + group_for_reduces)) {
-    ridxs[a] = new UOp({ op: Ops.RANGE, dtype: dtypes.int, src: [sint_to_uop(0), sint_to_uop(full_shape[a])], arg: 1000 + a })
+    ridxs[a] = new UOp(Ops.RANGE, dtypes.int, [sint_to_uop(0), sint_to_uop(full_shape[a])], 1000 + a)
   }
   return new IndexContext(idxs, ridxs)
 }
@@ -67,12 +67,12 @@ export const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   let ret = x.src[0]
   const contract_axis = reduce_expand.flatMap((x) => x.arg)
   if (contract_axis.length) {
-    ret = new UOp({ op: Ops.CONTRACT, dtype: x.dtype.vec(prod(contract_axis.map((x) => x[1]))), src: [ret], arg: contract_axis })
+    ret = new UOp(Ops.CONTRACT, x.dtype.vec(prod(contract_axis.map((x) => x[1]))), [ret], contract_axis)
     ret = range(ret.dtype.count).map((i) => ret.gep(i)).reduce((x, y) => x.alu(alu_op, y))
   }
   if (!reduce_range.length) return ret
   // create ACC and assign
-  const acc = new UOp({ op: Ops.DEFINE_ACC, dtype: x.dtype, src: [x.const_like(identity_element(alu_op, x.dtype.scalar())), ...reduce_range], arg: [ctx.acc_num + 0] })
+  const acc = new UOp(Ops.DEFINE_ACC, x.dtype, [x.const_like(identity_element(alu_op, x.dtype.scalar())), ...reduce_range], [ctx.acc_num + 0])
   ctx = { ...ctx, acc_num: ctx.acc_num + 1 } // TODO: not sure, ctx.acc_num += 1 makes tests fail
   return acc.assign(acc.alu(alu_op, ret))
 }
@@ -82,8 +82,8 @@ export const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {
   let has_valid = valid.op !== Ops.CONST || valid.arg !== true
   const buf = x.src[0]
   if (x.op === Ops.LOAD) {
-    const barrier = x.src[0].op === Ops.DEFINE_LOCAL ? [new UOp({ op: Ops.BARRIER, dtype: dtypes.void, src: [x.src[2]] })] : []
-    return new UOp({ op: Ops.LOAD, dtype: x.dtype, src: [buf.index(idx, has_valid ? valid : undefined), ...barrier] })
+    const barrier = x.src[0].op === Ops.DEFINE_LOCAL ? [new UOp(Ops.BARRIER, dtypes.void, [x.src[2]])] : []
+    return new UOp(Ops.LOAD, x.dtype, [buf.index(idx, has_valid ? valid : undefined), ...barrier])
   }
   // NOTE: only store the local reduceop in the threads that are actually doing the reduce
   let store_back
@@ -99,13 +99,13 @@ export const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {
     }
     has_valid = valid.op !== Ops.CONST || valid.arg !== true
   }
-  return new UOp({ op: Ops.STORE, dtype: dtypes.void, src: [buf.index(idx, has_valid ? valid : undefined), x.src[2]] })
+  return new UOp(Ops.STORE, dtypes.void, [buf.index(idx, has_valid ? valid : undefined), x.src[2]])
 }
 export const pm_lowerer = new PatternMatcher<Record<string, UOp> & { ctx: IndexContext }, UOp>([
-  [new UPat({ op: Ops.REDUCE_AXIS, name: 'x' }), ({ ctx, x }) => lower_reduce_axis(ctx, x)],
-  [new UPat({ op: Ops.VALID, src: [new UPat({ op: Ops.VIEW })], name: 'x' }), ({ ctx, x }) => x.st_arg.to_indexed_uops(ctx.idxs)[1]],
+  [new UPat(Ops.REDUCE_AXIS, undefined, undefined, undefined, 'x'), ({ ctx, x }) => lower_reduce_axis(ctx, x)],
+  [new UPat(Ops.VALID, undefined, [new UPat(Ops.VIEW)], undefined, 'x'), ({ ctx, x }) => x.st_arg.to_indexed_uops(ctx.idxs)[1]],
   // rewrite LOAD/STORE VIEW to LOAD/STORE with indexed
-  [new UPat({ op: [Ops.LOAD, Ops.STORE], src: [new UPat({}), new UPat({ op: Ops.VIEW })], allow_any_len: true, name: 'x' }), ({ ctx, x }) => lower_load_store(ctx, x)],
+  [new UPat([Ops.LOAD, Ops.STORE], undefined, [new UPat(), new UPat(Ops.VIEW)], undefined, 'x', true), ({ ctx, x }) => lower_load_store(ctx, x)],
 ])
 
 export const rewrite_shapetracker_with_index = (ast: UOp, opts: Renderer) => graph_rewrite(ast, pm_lowerer, get_index(ast, opts))
