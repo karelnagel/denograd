@@ -35,7 +35,7 @@ export class ScheduleItem {
 
 // // **** Schedule context && big graph
 
-@DataClass
+// @DataClass // maybe needed
 export class ScheduleContext {
   constructor(
     public lazybufs = new Map<UOp, LazyBuffer>(), // this maps BUFFER uops of this schedule to the underlying lazybuffer
@@ -514,16 +514,16 @@ export const create_schedule_with_vars = (outs: LazyBuffer[]): [ScheduleItem[], 
     const parents_assigns = dedup([...si.assign_preloads].map((x) => schedule_targets.get(buffers.get(x)!)!).filter((xsi) => xsi && xsi !== si))
     for (const assign of parents_assigns) {
       setDefault(graph, si, []).push(assign)
-      in_degree.set(assign, in_degree.get(assign)! + 1)
+      in_degree.set(assign, setDefault(in_degree, assign, 0) + 1)
     }
     //     // realize outputs after all parents are realized
     const scheduled_parents = dedup(si.inputs.map((x) => schedule_targets.get(x)!).filter((xsi) => xsi !== undefined && !parents_assigns.includes(xsi)))
     for (const x of scheduled_parents) {
       setDefault(graph, x, []).push(si)
-      in_degree.set(si, in_degree.get(si)! + 1)
+      in_degree.set(si, setDefault(in_degree, si, 0) + 1)
     }
   }
-  const queue = prescheduled.filter((si) => in_degree.get(si) !== 0)
+  const queue = prescheduled.filter((si) => setDefault(in_degree, si, 0) === 0)
   const schedule: ScheduleItem[] = []
   while (queue.length) {
     const si = queue.shift()

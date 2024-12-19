@@ -187,12 +187,16 @@ function calculateSimilarity(str1: string, str2: string): number {
   return 1 - dist / maxLength
 }
 
-export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string | string[], options?: { ignore?: number[]; stringSimilarity?: number }) => {
+export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string | string[], options: {
+  ignore?: number[]
+  ignoreKeys?: string[]
+  stringSimilarity?: number
+} = {}) => {
   return async (t: Deno.TestContext) => {
     for (const [i, input] of inputs.entries()) {
       await t.step({
         name: i.toString(),
-        ignore: options?.ignore?.includes(i),
+        ignore: options.ignore?.includes(i),
         fn: async () => {
           const ts = fn(...input)
           if (Array.isArray(code)) code = code.join('\n')
@@ -204,7 +208,7 @@ export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, c
               expect(`${ts}\n\nsimilarity:${similarity}`).toEqual(`${py}\n\nsimilarity:${similarity}`)
             }
           } else {
-            expect(asdict(ts)).toEqual(asdict(py))
+            expect(removeKeys(asdict(ts), options.ignoreKeys)).toEqual(removeKeys(asdict(py), options.ignoreKeys))
           }
         },
       })
@@ -212,7 +216,8 @@ export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, c
   }
 }
 
-export const removeKeys = (obj: any, keys: string[]): any => {
+export const removeKeys = (obj: any, keys?: string[]): any => {
+  if (!keys?.length) return obj
   if (!obj || typeof obj !== 'object') return obj
   if (Array.isArray(obj)) return obj.map((x) => removeKeys(x, keys))
   const ret = { ...obj }
