@@ -59,16 +59,19 @@ export class ShapeTracker {
   }
   static from_shape = (shape: sint[]) => new ShapeTracker([View.create(shape)])
 
-  // deno-fmt-ignore
-  get contiguous() {return this.views.length === 1 && this.views[0].contiguous}
+  get contiguous() {
+    return this.views.length === 1 && this.views[0].contiguous
+  }
   get consecutive() {
     const v = this.views[0]
     return this.views.length === 1 && isNone(v.mask) && isEq(v.strides, strides_for_shape(v.shape))
   }
-  // deno-fmt-ignore
-  get shape() {return this.views.at(-1)!.shape}
-  // deno-fmt-ignore
-  get size() {return this.views.at(-1)!.size()}
+  get shape() {
+    return this.views.at(-1)!.shape
+  }
+  get size() {
+    return this.views.at(-1)!.size()
+  }
 
   reduce = (axis: number[]) => this.shape.map((s, i) => axis.includes(i) ? 1 : s)
 

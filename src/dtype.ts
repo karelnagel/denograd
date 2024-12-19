@@ -195,11 +195,10 @@ export const to_dtype = (x: DTypeLike): DType => (x instanceof DType) ? x : dtyp
 
 // https://jax.readthedocs.io/en/latest/jep/9407-type-promotion.html
 // we don't support weak type and complex type
-// deno-fmt-ignore
 export const promoLattice = new Map<DType, DType[]>([
   [dtypes.bool, [dtypes.int8, dtypes.uint8]],
   [dtypes.int8, [dtypes.int16]],
-  [dtypes.int16, [dtypes.int32]], 
+  [dtypes.int16, [dtypes.int32]],
   [dtypes.int32, [dtypes.int64]],
   [dtypes.int64, [dtypes.float16, dtypes.bfloat16]],
   [dtypes.uint8, [dtypes.int16, dtypes.uint16]],
@@ -207,8 +206,8 @@ export const promoLattice = new Map<DType, DType[]>([
   [dtypes.uint32, [dtypes.int64, dtypes.uint64]],
   [dtypes.uint64, [dtypes.float16, dtypes.bfloat16]],
   [dtypes.float16, [dtypes.float32]],
-  [dtypes.bfloat16, [dtypes.float32]], 
-  [dtypes.float32, [dtypes.float64]]
+  [dtypes.bfloat16, [dtypes.float32]],
+  [dtypes.float32, [dtypes.float64]],
 ])
 export const _getRecursiveParents = (dtype: DType): DType[] => {
   if (isEq(dtype, dtypes.float64)) return [dtypes.float64]

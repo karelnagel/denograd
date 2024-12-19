@@ -140,10 +140,9 @@ export class Buffer {
     }
     return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lb_refcount]]
   }
-  // deno-fmt-ignore
   get nbytes() {
-        return this.size * this.dtype.itemsize
-    }
+    return this.size * this.dtype.itemsize
+  }
   __del__ = () => {
     if (!this.is_allocated()) return
     if (isNone(this._base) && (isNone(this.options) || isNone(this.options.external_ptr))) {

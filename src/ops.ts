@@ -192,8 +192,9 @@ export class UOp extends MathTrait {
   tuplize = (): UOpTuple => [this.op, this.arg, this.dtype, this.src.map((x) => x.tuplize())]
 
   //   # *** uop shape stuff ***
-  // deno-fmt-ignore
-  get has_st() {return ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)}
+  get has_st() {
+    return ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)
+  }
 
   get st(): undefined | ShapeTracker {
     if (this.op === Ops.VIEW) return this.arg
@@ -206,8 +207,9 @@ export class UOp extends MathTrait {
     // all other ops have a contiguous shapetracker
     return ShapeTracker.from_shape([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op) ? src_sts[0].reduce(this.axis_arg) : src_sts[0].shape)
   }
-  // deno-fmt-ignore
-  get shape() { return this.st!.shape}
+  get shape() {
+    return this.st!.shape
+  }
   get size() {
     return this.op === Ops.BUFFER ? this.arg[1][1] : this.st!.size
   }
@@ -296,8 +298,9 @@ export class UOp extends MathTrait {
     return new UOp(Ops.VALID, dtypes.bool, [ShapeTracker.from_shape([]).reshape(range(shape.length).map(() => 1)).expand(shape).to_uop()]).where(UOp.const(dtype, val), 0)
   }
   //   # *** uop movement ops ***
-  // deno-fmt-ignore
-  get base(): UOp { return this.op === Ops.VIEW && this.src.length === 1 && this.src[0].op !== Ops.BUFFER ?  this.src[0] : this}
+  get base(): UOp {
+    return this.op === Ops.VIEW && this.src.length === 1 && this.src[0].op !== Ops.BUFFER ? this.src[0] : this
+  }
 
   view = (new_st: ShapeTracker): UOp => {
     assert(isNotNone(this.st) && isNotNone(this.base.st), `must have shape ${this}`)
@@ -317,8 +320,9 @@ export class UOp extends MathTrait {
   //   # *** uop Buffer stuff ***
   static buffer_num = counter(0)
   static new_buffer = (device: string, size: number, dtype: DType) => new UOp(Ops.BUFFER, dtype.ptr(), [], [UOp.buffer_num.next().value, [device, size, dtype]])
-  // deno-fmt-ignore
-  get device(): string { return this._device! }
+  get device(): string {
+    return this._device!
+  }
   get _device(): string | undefined {
     const dsrcs = this.src.filter((x) => isNotNone(x._device))
     return this.op === Ops.BUFFER ? this.arg[1][0] : dsrcs.length !== 0 ? dsrcs[0]._device : undefined
@@ -385,10 +389,12 @@ export class UOp extends MathTrait {
     }
     return undefined // generic None if we aren't sure
   }
-  // deno-fmt-ignore
-  get vmin () {return this._minMax()[0]}
-  // deno-fmt-ignore
-  get vmax() {return this._minMax()[1]}
+  get vmin() {
+    return this._minMax()[0]
+  }
+  get vmax() {
+    return this._minMax()[1]
+  }
   // Actually can return boolean as well, but types don't like it
   _minMax = (): [number, number] => {
     if (GroupOp.Binary.includes(this.op) && !dtypes.is_float(this.dtype)) {
@@ -597,11 +603,13 @@ export class UPat extends MathTrait {
     return new UPat(op, [Ops.CMPLT, Ops.CMPNE].includes(op) ? dtypes.bool : asrc.at(-1)?.dtype, GroupOp.Commutative.includes(op) ? [asrc] : asrc) as typeof this
   }
 
-  // deno-fmt-ignore
-  printable = ():string => {
-        try{ return lines(this.location[0])[this.location[1]-1].trim() }
-        catch { return "<missing>"}
+  printable = (): string => {
+    try {
+      return lines(this.location[0])[this.location[1] - 1].trim()
+    } catch {
+      return '<missing>'
     }
+  }
   override toString = () => `new UPat(${listStr(this.op?.map((o) => `Ops.${getEnumString(Ops, o)}`))}, ${listStr(this.dtype)}, ${listStr(this.src)}, ${listStr(this.arg)}, ${this.name}, ${this.allowed_len === 0})`
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
