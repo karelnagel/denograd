@@ -102,7 +102,7 @@ export const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {
   return new UOp(Ops.STORE, dtypes.void, [buf.index(idx, has_valid ? valid : undefined), x.src[2]])
 }
 export const pm_lowerer = new PatternMatcher<Record<string, UOp> & { ctx: IndexContext }, UOp>([
-  [new UPat(Ops.REDUCE_AXIS, undefined, undefined, undefined, 'x'), ({ ctx, x }) => lower_reduce_axis(ctx, x)],
+  [new UPat(Ops.REDUCE_AXIS).named('x'), ({ ctx, x }) => lower_reduce_axis(ctx, x)],
   [new UPat(Ops.VALID, undefined, [new UPat(Ops.VIEW)], undefined, 'x'), ({ ctx, x }) => x.st_arg.to_indexed_uops(ctx.idxs)[1]],
   // rewrite LOAD/STORE VIEW to LOAD/STORE with indexed
   [new UPat([Ops.LOAD, Ops.STORE], undefined, [new UPat(), new UPat(Ops.VIEW)], undefined, 'x', true), ({ ctx, x }) => lower_load_store(ctx, x)],

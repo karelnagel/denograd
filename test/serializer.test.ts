@@ -18,7 +18,7 @@ Deno.test(
       [Ops.ASSIGN],
       [new UOp(Ops.BARRIER, dtypes.float, undefined, 5445)],
       [new UPat(Ops.ASSIGN, dtypes.floats, undefined, 555, 'sdf')],
-      [new UPat(Ops.IF, dtypes.bool, [new UPat(Ops.CMPLT, dtypes.bool, undefined, undefined, 'cmp_op'), new UPat(undefined, undefined, undefined, undefined, 'true_case'), new UPat(undefined, undefined, undefined, undefined, 'false_case')], undefined, 'conditional_op')],
+      [new UPat(Ops.IF, dtypes.bool, [new UPat(Ops.CMPLT, dtypes.bool).named('cmp_op'), new UPat(undefined).named('true_case'), new UPat(undefined).named('false_case')], undefined, 'conditional_op')],
       [dtypes.floats],
       [dtypes.default_int],
       [dtypes.imagef(2, 44, 42)],

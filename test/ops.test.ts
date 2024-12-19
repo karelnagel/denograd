@@ -49,23 +49,23 @@ Deno.test(
   compare(
     [
       [
-        new UPat(Ops.ADD, dtypes.int, undefined, undefined, 'add_op'),
+        new UPat(Ops.ADD, dtypes.int).named('add_op'),
         new UOp(Ops.ADD, dtypes.int, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 3)]),
       ],
       [
-        new UPat(Ops.MUL, dtypes.float, undefined, undefined, 'mul_op'),
+        new UPat(Ops.MUL, dtypes.float).named('mul_op'),
         new UOp(Ops.MUL, dtypes.float, [UOp.const(dtypes.float, 2.5), UOp.const(dtypes.float, 4.0)]),
       ],
       [
-        new UPat(Ops.SUB, dtypes.int, undefined, undefined, 'sub_op'),
+        new UPat(Ops.SUB, dtypes.int).named('sub_op'),
         new UOp(Ops.SUB, dtypes.int, [UOp.const(dtypes.int, 10), UOp.const(dtypes.int, 4)]),
       ],
       [
-        new UPat(Ops.ADD, dtypes.float, undefined, undefined, 'complex_add'),
+        new UPat(Ops.ADD, dtypes.float).named('complex_add'),
         new UOp(Ops.ADD, dtypes.float, [UOp.const(dtypes.float, 1.5), UOp.const(dtypes.float, 2.5), UOp.const(dtypes.float, 3.0)]),
       ],
       [
-        new UPat(Ops.IF, dtypes.bool, [new UPat(Ops.CMPLT, dtypes.bool, undefined, undefined, 'cmp_op'), new UPat(undefined, undefined, undefined, undefined, 'true_case'), new UPat(undefined, undefined, undefined, undefined, 'false_case')], undefined, 'conditional_op'),
+        new UPat(Ops.IF, dtypes.bool, [new UPat(Ops.CMPLT, dtypes.bool).named('cmp_op'), new UPat(undefined).named('true_case'), new UPat(undefined).named('false_case')], undefined, 'conditional_op'),
         new UOp(Ops.IF, dtypes.bool, [new UOp(Ops.CMPLT, dtypes.bool, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)]), UOp.const(dtypes.float, 1.0), UOp.const(dtypes.float, 0.0)]),
       ],
     ],

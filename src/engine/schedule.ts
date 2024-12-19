@@ -130,14 +130,14 @@ export const merge_double_reduce = (root: UOp, first_reduce: UOp): UOp => {
 export const view_right = merge_views.add(
   new PatternMatcher<Record<string, UOp>, UOp | undefined>([
     //   // ASSIGN with offset swizzles STORE
-    [new UPat(Ops.STORE, undefined, [UPat.var('b'), UPat.var('st'), new UPat(Ops.ASSIGN, undefined, undefined, undefined, 'a')]), ({ a, b, st }) => a.arg === undefined ? undefined : apply_swizzle(b.store([st, a.replace({ arg: undefined })]), a.arg)],
+    [new UPat(Ops.STORE, undefined, [UPat.var('b'), UPat.var('st'), new UPat(Ops.ASSIGN).named('a')]), ({ a, b, st }) => a.arg === undefined ? undefined : apply_swizzle(b.store([st, a.replace({ arg: undefined })]), a.arg)],
     //   // non contiguous VIEW on a reduce creates a new VIEW
     [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('src')], undefined, 'r').view(undefined, { name: 'v' }), ({ v, r, src }) => v.st?.contiguous ? undefined : swizzle_r(r, src, v.st!)],
     //   // push a VIEW down to STORE, through a reduce (ONLY reshapes)
     [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('src').view(undefined, { name: 'v' })], undefined, 'r'), ({ r, v, src }) => push_swizzle_down_through_reduce(r, v, src)],
     //   // push VIEW(s) down to STORE, through an elementwise op (ONLY reshapes)
-    [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN, Ops.CONTIGUOUS, Ops.STORE], undefined, undefined, undefined, 'root'), ({ root }) => push_swizzle_down_through_elementwise(root)],
-    [new UPat(Ops.REDUCE_AXIS, undefined, [new UPat(Ops.REDUCE_AXIS, undefined, undefined, undefined, 'first_reduce')], undefined, 'root'), ({ root, first_reduce }) => merge_double_reduce(root, first_reduce)],
+    [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN, Ops.CONTIGUOUS, Ops.STORE]).named('root'), ({ root }) => push_swizzle_down_through_elementwise(root)],
+    [new UPat(Ops.REDUCE_AXIS, undefined, [new UPat(Ops.REDUCE_AXIS).named('first_reduce')], undefined, 'root'), ({ root, first_reduce }) => merge_double_reduce(root, first_reduce)],
   ]),
 )
 
@@ -169,7 +169,7 @@ export const _append_buf = (ctx: ScheduleItemContext, x: UOp): UOp => {
   return new UOp(Ops.DEFINE_GLOBAL, x.dtype, [], ctx.bufs.length - 1)
 }
 export const append_bufs = new PatternMatcher<Record<string, UOp> & { ctx: ScheduleItemContext }, UOp | undefined>([
-  [new UPat(Ops.BUFFER, undefined, undefined, undefined, 'x'), ({ ctx, x }) => _append_buf(ctx, x)],
+  [new UPat(Ops.BUFFER).named('x'), ({ ctx, x }) => _append_buf(ctx, x)],
 ])
 export const _append_preload = (ctx: ScheduleItemContext, x: UOp, b: UOp): UOp => {
   const adj_loads = setDefault(ctx.assign_adj, b, [])
@@ -182,14 +182,14 @@ export const check_preload = new PatternMatcher<Record<string, UOp> & { ctx: Sch
 ])
 
 export const to_si = new PatternMatcher<Record<string, UOp> & { ctx: ScheduleItemContext }, UOp | undefined>([
-  [new UPat(Ops.VIEW, undefined, undefined, undefined, 'x'), ({ ctx, x }) => _append_st_vars(ctx, x)],
-  [new UPat(Ops.SINK, undefined, [UPat.var('b').store([new UPat(), new UPat(GroupOp.Meta, undefined, undefined, undefined, 'x')])]), ({ ctx, b, x }) => x.replace({ src: [b, ...x.src] })],
+  [new UPat(Ops.VIEW).named('x'), ({ ctx, x }) => _append_st_vars(ctx, x)],
+  [new UPat(Ops.SINK, undefined, [UPat.var('b').store([new UPat(), new UPat(GroupOp.Meta).named('x')])]), ({ ctx, b, x }) => x.replace({ src: [b, ...x.src] })],
 ])
 
 // // ** fusion
 
 export const lazy = new PatternMatcher<Record<string, UOp> & { ctx: ScheduleItemContext }, UOp | undefined>([
-  [new UPat(getAllEnums(Ops), undefined, undefined, undefined, 'x'), ({ ctx, x }) => ctx.ops_metadata.get(x) !== undefined ? void ctx.metadata.add(ctx.ops_metadata.get(x)!) : undefined],
+  [new UPat(getAllEnums(Ops)).named('x'), ({ ctx, x }) => ctx.ops_metadata.get(x) !== undefined ? void ctx.metadata.add(ctx.ops_metadata.get(x)!) : undefined],
   [new UPat(Ops.CONTIGUOUS, undefined, [UPat.var('x')]), ({ ctx, x }) => x],
 ])
 
@@ -388,12 +388,12 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
 
 export class UPatRealized extends UPat {
   constructor() {
-    super(Ops.VIEW, undefined, [new UPat(Ops.BUFFER, undefined, undefined, undefined, 'b')], undefined, 'base')
+    super(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b')], undefined, 'base')
   }
 }
 export class UPatScheduled extends UPat {
   constructor(args: Partial<UPatInput> = {}) {
-    super(Ops.VIEW, undefined, [new UPat(Ops.BUFFER, undefined, undefined, undefined, 'b'), new UPat(args.op, args.dtype, args.src, args.arg, args.name || 'to_store', args.allow_any_len, args.location, args.custom_early_reject)], undefined, 'base')
+    super(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), new UPat(args.op, args.dtype, args.src, args.arg, args.name || 'to_store', args.allow_any_len, args.location, args.custom_early_reject)], undefined, 'base')
   }
 }
 // // ** this === schedule level const folding
@@ -439,7 +439,7 @@ export const init_big_graph = (ctx: Map<UOp, UOp>, sink: UOp): UOp | undefined =
 }
 export const do_realize = new PatternMatcher<Record<string, UOp> & { ctx: Map<UOp, UOp> }, UOp | undefined>([
   //   // always realize sinked ops
-  [new UPat(Ops.SINK, undefined, undefined, undefined, 'sink'), ({ sink, ctx }) => init_big_graph(ctx, sink)],
+  [new UPat(Ops.SINK).named('sink'), ({ sink, ctx }) => init_big_graph(ctx, sink)],
   //   // always realize meta ops
   [new UPatScheduled({ op: [Ops.ASSIGN, Ops.CONTIGUOUS, ...GroupOp.Meta] }), ({ ctx, b, to_store, base }) => realize(ctx, b, to_store, base)],
   //   // realize before expand || unsafe pad ops

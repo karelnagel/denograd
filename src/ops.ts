@@ -721,13 +721,13 @@ const isSameConstType = (a: ConstType | ConstType[], b: ConstType | ConstType[])
 // # this is the matcher for the final rendered UOps
 // # matcher functions returns True or False (or None to not match)
 export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>([
-  [new UPat(Ops.DEFINE_GLOBAL, undefined, undefined, undefined, 'x'), ({ x }) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
-  [new UPat(Ops.DEFINE_LOCAL, undefined, undefined, undefined, 'x'), ({ x }) => x.dtype instanceof PtrDType && x.dtype.local],
+  [new UPat(Ops.DEFINE_GLOBAL).named('x'), ({ x }) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
+  [new UPat(Ops.DEFINE_LOCAL).named('x'), ({ x }) => x.dtype instanceof PtrDType && x.dtype.local],
   [new UPat(Ops.DEFINE_ACC, undefined, [UPat.var('c')], undefined, 'x', true), ({ x, c }) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && isEq(c.dtype, x.dtype)],
   [new UPat(Ops.DEFINE_VAR, undefined, [], undefined, 'x'), ({ x }) => typeof x.arg[1] === 'number' && typeof x.arg[2] === 'number'],
 
   [
-    new UPat(Ops.RANGE, undefined, [new UPat(undefined, undefined, undefined, undefined, 'x'), new UPat(undefined, undefined, undefined, undefined, 'y')], undefined, 'rng'),
+    new UPat(Ops.RANGE, undefined, [new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'rng'),
     ({ rng, x, y }) => isEq(rng.dtype, x.dtype) && isEq(x.dtype, y.dtype) && typeof rng.arg === 'number',
   ],
   [new UPat(Ops.SPECIAL, undefined, []), () => true],
@@ -736,7 +736,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   [new UPat(Ops.VIEW, dtypes.void, []), () => true],
   [new UPat(Ops.VIEW, undefined, [UPat.var('src')], undefined, 'x'), ({ x, src }) => src.op !== Ops.STORE && isEq(x.dtype, src.dtype)],
   [new UPat(Ops.VALID, dtypes.bool, [new UPat(Ops.VIEW)]), () => true],
-  [new UPat(Ops.CONST, undefined, undefined, undefined, 'x'), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && isSameConstType(x.arg, dtypes.as_const(x.arg, x.dtype))], // NOTE: this is slightly different from python, int(1) != float(1) in py but it is the same in TS
+  [new UPat(Ops.CONST).named('x'), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && isSameConstType(x.arg, dtypes.as_const(x.arg, x.dtype))], // NOTE: this is slightly different from python, int(1) != float(1) in py but it is the same in TS
 
   //   # early LOAD has a <buf, shapetracker, store?>
   [new UPat(Ops.LOAD, undefined, [new UPat([Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL]), new UPat(Ops.VIEW)]), () => true],
@@ -750,7 +750,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   //   # LOAD takes a <bufidx, alt?, gate?, barrier?>
   [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST])]), () => true],
   [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat([Ops.IF, Ops.BARRIER])]), () => true],
-  [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat(undefined, undefined, undefined, undefined, 'alt'), new UPat(undefined, dtypes.bool)], undefined, 'ld'), ({ ld, alt }) => isEq(ld.dtype, alt.dtype)],
+  [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat(undefined).named('alt'), new UPat(undefined, dtypes.bool)], undefined, 'ld'), ({ ld, alt }) => isEq(ld.dtype, alt.dtype)],
 
   //   # STORE takes a <bufidx, val, gate?>
   [new UPat(Ops.STORE, dtypes.void, [new UPat([Ops.INDEX, Ops.CAST]), new UPat()]), () => true],
@@ -759,34 +759,34 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
 
   //   # most ALUs have all matching dtypes, except CMPLT, CMPNE, and WHERE
   [
-    new UPat(Ops.WHERE, undefined, [new UPat(undefined, dtypes.bool), new UPat(undefined, undefined, undefined, undefined, 'x'), new UPat(undefined, undefined, undefined, undefined, 'y')], undefined, 'w'),
+    new UPat(Ops.WHERE, undefined, [new UPat(undefined, dtypes.bool), new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'w'),
     ({ w, x, y }) => isEq(w.dtype, x.dtype) && isEq(x.dtype, y.dtype),
   ],
-  [new UPat([Ops.CMPLT, Ops.CMPNE], dtypes.bool, [new UPat(undefined, undefined, undefined, undefined, 'x'), new UPat(undefined, undefined, undefined, undefined, 'y')]), ({ x, y }) => isEq(x.dtype, y.dtype)],
+  [new UPat([Ops.CMPLT, Ops.CMPNE], dtypes.bool, [new UPat(undefined).named('x'), new UPat(undefined).named('y')]), ({ x, y }) => isEq(x.dtype, y.dtype)],
 
   //   # and SHL/SHR, the shift distance can be an int
   [
-    new UPat([Ops.SHL, Ops.SHR], undefined, [new UPat(undefined, undefined, undefined, undefined, 'x'), new UPat(undefined, undefined, undefined, undefined, 'y')], undefined, 'a'),
+    new UPat([Ops.SHL, Ops.SHR], undefined, [new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'a'),
     ({ a, x, y }) => isEq(a.dtype, x.dtype) && [x.dtype, dtypes.uint].includes(y.dtype),
   ],
-  [new UPat(Ops.IDIV, undefined, undefined, undefined, 'x'), ({ x }) => dtypes.is_int(x.dtype) ? undefined : false],
-  [new UPat(GroupOp.ALU, undefined, undefined, undefined, 'x'), ({ x }) => x.src!.every((y) => isEq(x.dtype, y.dtype))],
+  [new UPat(Ops.IDIV).named('x'), ({ x }) => dtypes.is_int(x.dtype) ? undefined : false],
+  [new UPat(GroupOp.ALU).named('x'), ({ x }) => x.src!.every((y) => isEq(x.dtype, y.dtype))],
   [new UPat(Ops.ASSIGN, undefined, [new UPat([Ops.DEFINE_ACC, Ops.DEFINE_GLOBAL]), new UPat()]), () => true],
   [new UPat(Ops.ENDRANGE, dtypes.void, [new UPat(Ops.RANGE)]), () => true],
 
   //   # all WMMA has 3 args, <x, w, acc>
   [new UPat(Ops.WMMA, undefined, [new UPat(), new UPat(), new UPat()]), () => true],
-  [new UPat(Ops.CONTRACT, undefined, undefined, undefined, 'x'), ({ x }) => x.dtype.count === prod(x.arg.map((y: any) => y[1]))],
-  [new UPat(Ops.EXPAND, undefined, undefined, undefined, 'x'), ({ x }) => x.src![0].dtype.count === prod(x.arg.map((y: any) => y[1]))],
+  [new UPat(Ops.CONTRACT).named('x'), ({ x }) => x.dtype.count === prod(x.arg.map((y: any) => y[1]))],
+  [new UPat(Ops.EXPAND).named('x'), ({ x }) => x.src![0].dtype.count === prod(x.arg.map((y: any) => y[1]))],
 
   //   # if has a <gate, barrier?>
 
   [new UPat(Ops.IF, dtypes.void, [new UPat()]), () => true],
   [new UPat(Ops.IF, dtypes.void, [new UPat(), new UPat(Ops.BARRIER)]), () => true],
   [new UPat(Ops.ENDIF, dtypes.void, [new UPat(Ops.IF)]), () => true],
-  [new UPat(Ops.REDUCE_AXIS, undefined, undefined, undefined, 'x'), ({ x }) => Array.isArray(x.arg) && x.arg.length === 2 && [Ops.ADD, Ops.MUL, Ops.MAX].includes(x.arg[0])],
-  [new UPat(Ops.GEP, undefined, [new UPat(undefined, undefined, undefined, undefined, 'src')], undefined, 'gep'), ({ gep, src }) => isEq(gep.dtype, src.dtype.scalar())],
-  [new UPat(Ops.VECTORIZE, undefined, undefined, undefined, 'x'), ({ x }) => x.src!.length > 1 && x.src!.length === x.dtype.count && x.src!.every((y) => isEq(x.dtype, y.dtype.vec(x.src?.length)))],
+  [new UPat(Ops.REDUCE_AXIS).named('x'), ({ x }) => Array.isArray(x.arg) && x.arg.length === 2 && [Ops.ADD, Ops.MUL, Ops.MAX].includes(x.arg[0])],
+  [new UPat(Ops.GEP, undefined, [new UPat(undefined).named('src')], undefined, 'gep'), ({ gep, src }) => isEq(gep.dtype, src.dtype.scalar())],
+  [new UPat(Ops.VECTORIZE).named('x'), ({ x }) => x.src!.length > 1 && x.src!.length === x.dtype.count && x.src!.every((y) => isEq(x.dtype, y.dtype.vec(x.src?.length)))],
   [new UPat([Ops.BITCAST, Ops.CAST], undefined, [new UPat()], undefined, 'x'), ({ x }) => isNone(x.arg)],
   [new UPat(Ops.BARRIER, dtypes.void, new UPat(Ops.STORE, undefined, undefined, undefined, undefined, true)), () => true], // NOTE: all pointers must be local
   //   # NOTE: for testing, we let sinks be anything
@@ -1077,13 +1077,13 @@ export const symbolic_simple = new PatternMatcher([
   [UPat.var('x', dtypes.bool).maximum(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_or(y)],
   //   // *** cast ***
   [new UPat(Ops.CAST, undefined, UPat.cvar('c'), undefined, 'root'), ({ root, c }) => root.const_like(c.arg)],
-  [new UPat(Ops.CAST, undefined, undefined, undefined, 'root'), ({ root }) => isEq(root.dtype, root.src![0].dtype) ? root.src![0] : undefined], //24
+  [new UPat(Ops.CAST).named('root'), ({ root }) => isEq(root.dtype, root.src![0].dtype) ? root.src![0] : undefined], //24
 ])
 
 export const symbolic = symbolic_simple.add(
   new PatternMatcher([
     // ** COMMUTATIVE flipping **
-    [new UPat(GroupOp.Commutative, undefined, undefined, undefined, 'x'), ({ x }) => isLessThan(x.src[1].tuplize(), x.src[0].tuplize()) ? x.replace({ src: x.src.toReversed() }) : undefined],
+    [new UPat(GroupOp.Commutative).named('x'), ({ x }) => isLessThan(x.src[1].tuplize(), x.src[0].tuplize()) ? x.replace({ src: x.src.toReversed() }) : undefined],
     //   // group like
     [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, y, c }) => (x.add(x.mul(c))).add(y)],
     //   // ** boolean algebra **
@@ -1103,7 +1103,7 @@ export const symbolic = symbolic_simple.add(
       ({ alu, c, t, tt, f, ff }) => (t.op === tt.op && tt.op === Ops.CONST) || (f.op === ff.op && ff.op === Ops.CONST) ? c.where(t.alu(alu.op, tt), f.alu(alu.op, ff)) : undefined,
     ],
     // ALU min==max -> CONST (slow!)
-    [new UPat(GroupOp.ALU, undefined, undefined, undefined, 'x'), ({ x }) => x.vmin === x.vmax ? x.const_like(x.vmin) : undefined],
+    [new UPat(GroupOp.ALU).named('x'), ({ x }) => x.vmin === x.vmax ? x.const_like(x.vmin) : undefined],
     // max folding
     [UPat.var('x').maximum(UPat.var('y')), ({ x, y }) => x.vmax <= y.vmin ? x.vmin >= y.vmax ? x : y : undefined],
     // TODO: why does this rule break beautiful_mnist?
@@ -1155,15 +1155,15 @@ export const symbolic_flat = symbolic.add(
   ]),
 )
 // TODO: lol there probably is some better way to get these
-export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat(getAllEnums(Ops), undefined, undefined, undefined, 'x'), ({ ctx, x }) => ctx.get(x)]])
+export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat(getAllEnums(Ops)).named('x'), ({ ctx, x }) => ctx.get(x)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
 // TODO: probably all these should be JS specific
 export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
-  [new UPat([Ops.DEFINE_VAR, Ops.SPECIAL], undefined, undefined, undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg[0])],
-  [new UPat(Ops.RANGE, undefined, undefined, undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `ridx(${x.arg},)`)],
-  [new UPat(Ops.CONST, undefined, undefined, undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg.toString())],
+  [new UPat([Ops.DEFINE_VAR, Ops.SPECIAL]).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg[0])],
+  [new UPat(Ops.RANGE).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `ridx(${x.arg},)`)],
+  [new UPat(Ops.CONST).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg.toString())],
   [new UPat(Ops.BIND, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => x.src[0]],
   [new UPat(Ops.NEG, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `(-${x.src[0].arg})`)],
   [new UPat(Ops.MAX, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `max(${x.src[0].arg}, ${x.src[1].arg})`)],
@@ -1203,17 +1203,17 @@ export const sint_ceildiv = (num: sint, amt: sint): sint => neg(idiv(num, neg(am
 
 // *** uop swizzling ***
 
-export const merge_views = new PatternMatcher<Record<string, UOp>, UOp>([[new UPat(Ops.VIEW, undefined, undefined, undefined, 's0').view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st?.add(s1.st!) })]])
+export const merge_views = new PatternMatcher<Record<string, UOp>, UOp>([[new UPat(Ops.VIEW).named('s0').view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st?.add(s1.st!) })]])
 
 // push VIEW to loads
 export const view_left = merge_views.add(
   new PatternMatcher<Record<string, UOp>, UOp>([
     // VIEW before elementwise ops
     [
-      new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN], undefined, undefined, undefined, 'e').view(undefined, { name: 'v' }),
+      new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN]).named('e').view(undefined, { name: 'v' }),
       ({ e, v }) => e.replace({ src: e.src.map((s) => !s.has_st ? s : s === s.base ? s.view(v.st!) : s.base.view(s.st!.add(v.st!))) }),
     ],
     // early merge VIEW buffer ops
-    [new UPat(GroupOp.Buffer, undefined, undefined, undefined, 'b').view(undefined, { name: 'v' }), ({ b, v }) => b.replace({ src: b.src.map((s) => s.op === Ops.VIEW ? (s.st!.add(v.st!)).to_uop() : s) })],
+    [new UPat(GroupOp.Buffer).named('b').view(undefined, { name: 'v' }), ({ b, v }) => b.replace({ src: b.src.map((s) => s.op === Ops.VIEW ? (s.st!.add(v.st!)).to_uop() : s) })],
   ]),
 )

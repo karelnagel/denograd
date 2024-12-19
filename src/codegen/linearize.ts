@@ -69,8 +69,8 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   return new UOp(Ops.BLOCK, dtypes.void, dedup([...old_blocks.values(), ...new_srcs]), new BasicBlock(x.arg.ctx, [...to_append, ...x.arg.lst]))
 }
 export const make_basic_blocks = new PatternMatcher<Record<string, UOp> & { ctx: CTX }, UOp | undefined>([
-  [new UPat(Ops.SINK, undefined, undefined, undefined, 'x'), ({ x }) => new UOp(Ops.BLOCK, undefined, x.src, new BasicBlock([], [x]))],
-  [new UPat(Ops.BLOCK, undefined, undefined, undefined, 'x'), ({ ctx, x }) => append_to_block(ctx, x)],
+  [new UPat(Ops.SINK).named('x'), ({ x }) => new UOp(Ops.BLOCK, undefined, x.src, new BasicBlock([], [x]))],
+  [new UPat(Ops.BLOCK).named('x'), ({ ctx, x }) => append_to_block(ctx, x)],
 ])
 
 export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
@@ -114,7 +114,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
   if (to_append.length === 0 && placed.size === 0) return undefined
   return new UOp(x.op, dtypes.void, new_srcs, new BasicBlock(new_ctx.toSorted((a, b) => isLessThan(a.tuplize(), b.tuplize()) ? -1 : 1), /**TODO:not sure about sort */ [...to_append, ...x.arg.lst], x.arg.end))
 }
-export const pm_block_merge = new PatternMatcher<{ ctx: Map<UOp, UOp[]>; x: UOp }>([[new UPat([Ops.BLOCKEND, Ops.BLOCK], undefined, undefined, undefined, 'x'), ({ ctx, x }) => block_merge(ctx, x)]])
+export const pm_block_merge = new PatternMatcher<{ ctx: Map<UOp, UOp[]>; x: UOp }>([[new UPat([Ops.BLOCKEND, Ops.BLOCK]).named('x'), ({ ctx, x }) => block_merge(ctx, x)]])
 
 // # NOTE: any toposort should be valid here, unlike last time this isn't required, it's just for speed
 export const block_reorder = (in_block: UOp): UOp => {
