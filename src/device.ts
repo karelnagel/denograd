@@ -116,9 +116,7 @@ export class Buffer {
     assert(!this.is_allocated(), "can't allocate already allocated buffer")
     this.allocator = Device.get(this.device).allocator
     if (isNotNone(external_ptr)) {
-      this.options = this.options
-        ? new BufferSpec(this.options.image, this.options.uncached, this.options.cpu_access, this.options.host, this.options.nolru, external_ptr)
-        : new BufferSpec(undefined, undefined, undefined, undefined, undefined, external_ptr)
+      this.options = this.options ? new BufferSpec(this.options.image, this.options.uncached, this.options.cpu_access, this.options.host, this.options.nolru, external_ptr) : new BufferSpec(undefined, undefined, undefined, undefined, undefined, external_ptr)
     }
     if (isNotNone(this._base)) {
       this._base.ensure_allocated()

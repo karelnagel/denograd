@@ -82,5 +82,5 @@ const run = (file: string) => {
 }
 
 for await (const dirEntry of walk('.')) {
-  if (dirEntry.isFile && dirEntry.path.endsWith(".ts")) run(dirEntry.path)
+  if (dirEntry.isFile && dirEntry.path.endsWith('.ts')) run(dirEntry.path)
 }

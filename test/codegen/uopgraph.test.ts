@@ -1,21 +1,4 @@
-import {
-  _choices_from_args,
-  _expand_arg_to_idx,
-  _swizzle_args,
-  create_gate,
-  delete_redundant_gates,
-  do_contract,
-  do_expand,
-  fix_unfoldable_image_load,
-  fold_expanded,
-  full_graph_rewrite,
-  loop_collapse,
-  move_mask,
-  no_vectorized_alu,
-  no_vectorized_load_store,
-  simplify_valid_load,
-  threefry2x32,
-} from '../../src/codegen/uopgraph.ts'
+import { _choices_from_args, _expand_arg_to_idx, _swizzle_args, create_gate, delete_redundant_gates, do_contract, do_expand, fix_unfoldable_image_load, fold_expanded, full_graph_rewrite, loop_collapse, move_mask, no_vectorized_alu, no_vectorized_load_store, simplify_valid_load, threefry2x32 } from '../../src/codegen/uopgraph.ts'
 import { dtypes } from '../../src/dtype.ts'
 import { Ops, UOp } from '../../src/ops.ts'
 import { ClangRenderer } from '../../src/renderer/cstyle.ts'
@@ -208,33 +191,33 @@ Deno.test(
       // Basic expand test
       [
         new UOp(Ops.ADD, dtypes.float32, [
-            new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2]]),
-            UOp.const(dtypes.float32, 2),
-          ]),
+          new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2]]),
+          UOp.const(dtypes.float32, 2),
+        ]),
       ],
 
       // Multiple expands with same args
       [
         new UOp(Ops.ADD, dtypes.float32, [
-            new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2]]),
-            new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 2)], [[0, 2]]),
-          ]),
+          new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2]]),
+          new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 2)], [[0, 2]]),
+        ]),
       ],
 
       // Multiple expands with different args
       [
         new UOp(Ops.ADD, dtypes.float32, [
-            new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2]]),
-            new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 2)], [[1, 3]]),
-          ]),
+          new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2]]),
+          new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 2)], [[1, 3]]),
+        ]),
       ],
 
       // Test with vectorized dtype
       [
         new UOp(Ops.ADD, dtypes.float32.vec(2), [
-            new UOp(Ops.EXPAND, dtypes.float32.vec(2), [UOp.const(dtypes.float32.vec(2), [1, 2])], [[0, 2]]),
-            UOp.const(dtypes.float32.vec(2), [3, 4]),
-          ]),
+          new UOp(Ops.EXPAND, dtypes.float32.vec(2), [UOp.const(dtypes.float32.vec(2), [1, 2])], [[0, 2]]),
+          UOp.const(dtypes.float32.vec(2), [3, 4]),
+        ]),
       ],
     ],
     tryCatch(do_expand),
@@ -254,15 +237,15 @@ Deno.test(
       // CONTRACT with EXPAND - removing one axis
       [
         new UOp(Ops.CONTRACT, dtypes.float32.vec(2), [
-            new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2], [1, 3]]),
-          ], [[0, 2]]),
+          new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2], [1, 3]]),
+        ], [[0, 2]]),
       ],
 
       // CONTRACT with EXPAND - removing multiple axes
       [
         new UOp(Ops.CONTRACT, dtypes.float32.vec(6), [
-            new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2], [1, 3], [2, 4]]),
-          ], [[0, 2], [1, 3]]),
+          new UOp(Ops.EXPAND, dtypes.float32, [UOp.const(dtypes.float32, 1)], [[0, 2], [1, 3], [2, 4]]),
+        ], [[0, 2], [1, 3]]),
       ],
     ],
     do_contract,
@@ -282,17 +265,17 @@ Deno.test(
       // Vectorized ALU gets split into scalar ops
       [
         new UOp(Ops.ADD, dtypes.float32.vec(2), [
-            UOp.const(dtypes.float32.vec(2), [1, 2]),
-            UOp.const(dtypes.float32.vec(2), [3, 4]),
-          ], undefined),
+          UOp.const(dtypes.float32.vec(2), [1, 2]),
+          UOp.const(dtypes.float32.vec(2), [3, 4]),
+        ], undefined),
       ],
 
       // Larger vector size
       [
         new UOp(Ops.MUL, dtypes.float32.vec(4), [
-            UOp.const(dtypes.float32.vec(4), [1, 2, 3, 4]),
-            UOp.const(dtypes.float32.vec(4), [5, 6, 7, 8]),
-          ], undefined),
+          UOp.const(dtypes.float32.vec(4), [1, 2, 3, 4]),
+          UOp.const(dtypes.float32.vec(4), [5, 6, 7, 8]),
+        ], undefined),
       ],
     ],
     no_vectorized_alu,
@@ -312,19 +295,19 @@ Deno.test(
       // No change when INDEX has only 2 sources
       [
         new UOp(Ops.LOAD, dtypes.float32, [
-            new UOp(Ops.INDEX, dtypes.int32, [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 1)], undefined),
-          ], undefined),
+          new UOp(Ops.INDEX, dtypes.int32, [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 1)], undefined),
+        ], undefined),
       ],
 
       // Gates loads after an INDEX with barrier
       [
         new UOp(Ops.LOAD, dtypes.float32, [
-            new UOp(Ops.INDEX, dtypes.int32, [
-                UOp.const(dtypes.int32, 0),
-                UOp.const(dtypes.int32, 1),
-                new UOp(Ops.BARRIER, dtypes.void, [], undefined),
-              ], undefined),
+          new UOp(Ops.INDEX, dtypes.int32, [
+            UOp.const(dtypes.int32, 0),
+            UOp.const(dtypes.int32, 1),
+            new UOp(Ops.BARRIER, dtypes.void, [], undefined),
           ], undefined),
+        ], undefined),
       ],
     ],
     tryCatch(create_gate),
@@ -344,23 +327,23 @@ Deno.test(
       // No change for vector size 1
       [
         new UOp(Ops.LOAD, dtypes.float32, [
-            new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0)], undefined),
-          ], undefined),
+          new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0)], undefined),
+        ], undefined),
       ],
 
       // Devectorizes load with vector size > 1
       [
         new UOp(Ops.LOAD, dtypes.float32, [
-            new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0)], undefined),
-          ], undefined),
+          new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0)], undefined),
+        ], undefined),
       ],
 
       // Devectorizes store with vector size > 1
       [
         new UOp(Ops.STORE, dtypes.float32, [
-            new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0)], undefined),
-            UOp.const(dtypes.float32, 1),
-          ], undefined),
+          new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0)], undefined),
+          UOp.const(dtypes.float32, 1),
+        ], undefined),
       ],
     ],
     tryCatch(no_vectorized_load_store),
@@ -418,8 +401,8 @@ Deno.test(
       // Case 1: Load with mask
       [
         new UOp(Ops.LOAD, dtypes.float32, [
-            new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 1), UOp.const(dtypes.bool, true)], undefined),
-          ], undefined),
+          new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 1), UOp.const(dtypes.bool, true)], undefined),
+        ], undefined),
         UOp.const(dtypes.int32, 0),
         UOp.const(dtypes.int32, 1),
         UOp.const(dtypes.bool, true),
@@ -428,9 +411,9 @@ Deno.test(
       // Case 2: Store with mask
       [
         new UOp(Ops.STORE, dtypes.void, [
-            new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 1), UOp.const(dtypes.bool, true)], undefined),
-            UOp.const(dtypes.float32, 1.0),
-          ], undefined),
+          new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 1), UOp.const(dtypes.bool, true)], undefined),
+          UOp.const(dtypes.float32, 1.0),
+        ], undefined),
         UOp.const(dtypes.int32, 0),
         UOp.const(dtypes.int32, 1),
         UOp.const(dtypes.bool, true),
@@ -439,10 +422,10 @@ Deno.test(
       // Case 3: Load with mask and cast
       [
         new UOp(Ops.LOAD, dtypes.float32, [
-            new UOp(Ops.CAST, dtypes.float32.ptr(), [
-                new UOp(Ops.INDEX, dtypes.int32.ptr(), [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 1), UOp.const(dtypes.bool, true)], undefined),
-              ], undefined),
+          new UOp(Ops.CAST, dtypes.float32.ptr(), [
+            new UOp(Ops.INDEX, dtypes.int32.ptr(), [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 1), UOp.const(dtypes.bool, true)], undefined),
           ], undefined),
+        ], undefined),
         UOp.const(dtypes.int32, 0),
         UOp.const(dtypes.int32, 1),
         UOp.const(dtypes.bool, true),
@@ -463,8 +446,8 @@ Deno.test(
       // Test with vectorized load that should be devectorized
       [
         new UOp(Ops.SINK, dtypes.void, [
-            new UOp(Ops.LOAD, dtypes.float32.vec(4), [new UOp(Ops.INDEX, dtypes.float32.ptr().vec(4), [UOp.const(dtypes.int32, 0)], undefined)], undefined),
-          ], undefined),
+          new UOp(Ops.LOAD, dtypes.float32.vec(4), [new UOp(Ops.INDEX, dtypes.float32.ptr().vec(4), [UOp.const(dtypes.int32, 0)], undefined)], undefined),
+        ], undefined),
         new ClangRenderer(),
       ],
 
@@ -476,42 +459,42 @@ Deno.test(
       // Test with float4 folding when supported
       [
         new UOp(Ops.SINK, dtypes.void, [
-            new UOp(Ops.LOAD, dtypes.float32.vec(4), [
-                new UOp(Ops.INDEX, dtypes.float32.ptr().vec(4), [UOp.const(dtypes.int32, 0)], undefined),
-              ], undefined),
+          new UOp(Ops.LOAD, dtypes.float32.vec(4), [
+            new UOp(Ops.INDEX, dtypes.float32.ptr().vec(4), [UOp.const(dtypes.int32, 0)], undefined),
           ], undefined),
+        ], undefined),
         new ClangRenderer(),
       ],
 
       // Test with late rewrite patterns
       [
         new UOp(Ops.SINK, dtypes.void, [
-            new UOp(Ops.EXP2, dtypes.float32, [UOp.const(dtypes.float32, 1.0)], undefined),
-          ], undefined),
+          new UOp(Ops.EXP2, dtypes.float32, [UOp.const(dtypes.float32, 1.0)], undefined),
+        ], undefined),
       ],
 
       // Test with migrate indexing
       [
         new UOp(Ops.SINK, dtypes.void, [
-            new UOp(Ops.STORE, dtypes.void, [
-                new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 0)], undefined),
-                UOp.const(dtypes.float32, 1.0),
-              ], undefined),
+          new UOp(Ops.STORE, dtypes.void, [
+            new UOp(Ops.INDEX, dtypes.float32.ptr(), [UOp.const(dtypes.int32, 0), UOp.const(dtypes.int32, 0)], undefined),
+            UOp.const(dtypes.float32, 1.0),
           ], undefined),
+        ], undefined),
         new ClangRenderer(),
       ],
 
       // Test with load store indexing
       [
         new UOp(Ops.SINK, dtypes.void, [
-            new UOp(Ops.LOAD, dtypes.float32, [
-                new UOp(Ops.INDEX, dtypes.float32.ptr(), [
-                    UOp.const(dtypes.int32, 0),
-                    UOp.const(dtypes.int32, 1),
-                    UOp.const(dtypes.bool, true),
-                  ], undefined),
-              ], undefined),
+          new UOp(Ops.LOAD, dtypes.float32, [
+            new UOp(Ops.INDEX, dtypes.float32.ptr(), [
+              UOp.const(dtypes.int32, 0),
+              UOp.const(dtypes.int32, 1),
+              UOp.const(dtypes.bool, true),
+            ], undefined),
           ], undefined),
+        ], undefined),
         new ClangRenderer(),
       ],
     ],

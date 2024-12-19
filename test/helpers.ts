@@ -71,7 +71,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Set) return `set([${[...o].map((o) => pyStr(o)).join(', ')}])`
 
   // ************ ENGINE ************
-  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${OpsEnum(o.op)}, ${o.arg}, ${o.srcs||[]}, ${o._base}, ${o.metadata})`
+  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${OpsEnum(o.op)}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`
 
   if (o instanceof CompiledRunner) return t`tiny.engine.realize.CompiledRunner()`
   if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.op_estimate}, ${o.mem_estimate}, ${o.lds_estimate})`

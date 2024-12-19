@@ -9,7 +9,6 @@ import { randomUUID } from 'node:crypto'
 // GENERAL HELPERS
 type ClassType<T> = { new (...args: any[]): T }
 
-
 export function DataClass<T extends ClassType<object>>(Cls: T) {
   const cache: Record<string, T> = {}
   return class extends Cls {

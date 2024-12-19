@@ -25,7 +25,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
     else [root_src, arg] = [idx, 0]
     //     # add gates for gated
     if (s!.src[0].src.length === 3) root_src = [s!.src[0].src[2], root_src]
-    assert(!setDefault(offsets_rootsrc,root_src,new Map()).has(arg), `${offsets_rootsrc.get(root_src)!.get(arg)} != ${i} with ${s?.src.length} sources`)
+    assert(!setDefault(offsets_rootsrc, root_src, new Map()).has(arg), `${offsets_rootsrc.get(root_src)!.get(arg)} != ${i} with ${s?.src.length} sources`)
     offsets_rootsrc.get(root_src)!.set(arg, i)
   }
   //   # then rewrite everything we can

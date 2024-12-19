@@ -186,17 +186,17 @@ Deno.test(
   'xexp2',
   compare(
     [
-      [{d: UOp.float(0.0)}], // exp2(0) = 1
-      [{d: UOp.float(1.0)}], // exp2(1) = 2
-      [{d: UOp.float(2.0)}], // exp2(2) = 4
-      [{d: UOp.float(3.0)}], // exp2(3) = 8
-      [{d: UOp.float(-1.0)}], // exp2(-1) = 0.5
-      [{d: UOp.float(-2.0)}], // exp2(-2) = 0.25
-      [{d: UOp.float(0.5)}], // exp2(0.5) ≈ 1.414
-      [{d: UOp.float(-0.5)}], // exp2(-0.5) ≈ 0.707
-      [{d: UOp.float(1024)}], // exp2(1024) = +inf (float64 overflow)
-      [{d: UOp.float(-2000)}], // exp2(-2000) = 0 (float64 underflow)
-      [{d: UOp.float(NaN)}], // exp2(NaN) = NaN
+      [{ d: UOp.float(0.0) }], // exp2(0) = 1
+      [{ d: UOp.float(1.0) }], // exp2(1) = 2
+      [{ d: UOp.float(2.0) }], // exp2(2) = 4
+      [{ d: UOp.float(3.0) }], // exp2(3) = 8
+      [{ d: UOp.float(-1.0) }], // exp2(-1) = 0.5
+      [{ d: UOp.float(-2.0) }], // exp2(-2) = 0.25
+      [{ d: UOp.float(0.5) }], // exp2(0.5) ≈ 1.414
+      [{ d: UOp.float(-0.5) }], // exp2(-0.5) ≈ 0.707
+      [{ d: UOp.float(1024) }], // exp2(1024) = +inf (float64 overflow)
+      [{ d: UOp.float(-2000) }], // exp2(-2000) = 0 (float64 underflow)
+      [{ d: UOp.float(NaN) }], // exp2(NaN) = NaN
     ],
     xexp2,
     'out(tiny.codegen.transcendental.xexp2(data[0]["d"]))',

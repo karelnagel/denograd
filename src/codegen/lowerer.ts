@@ -16,7 +16,7 @@ export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[]
   throw new Error('not implemented')
 }
 export class IndexContext {
-  constructor(public idxs: UOp[], public ridxs: UOp[], public acc_num: number=0) {}
+  constructor(public idxs: UOp[], public ridxs: UOp[], public acc_num: number = 0) {}
 }
 export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const ki = isinstance(ast.arg, KernelInfo) ? ast.arg : new KernelInfo()

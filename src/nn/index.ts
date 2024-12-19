@@ -2,8 +2,8 @@ import { dtypes } from '../dtype.ts'
 import { assert, make_tuple, prod, range, zip } from '../helpers.ts'
 import { div, idiv, mul, sub } from '../ops.ts'
 import { Tensor } from '../tensor.ts'
-export * as optim from "./optim.ts"
-export *  as state from "./state.ts"
+export * as optim from './optim.ts'
+export * as state from './state.ts'
 /**
  * Applies Batch Normalization over a 2D || 3D input.
  *

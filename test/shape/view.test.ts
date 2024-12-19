@@ -201,9 +201,9 @@ Deno.test(
             [8, 110, 33],
             [
               new UOp(Ops.MUL, dtypes.int, [
-                  new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined),
-                  new UOp(Ops.CONST, dtypes.int, [], 110),
-                ], undefined),
+                new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined),
+                new UOp(Ops.CONST, dtypes.int, [], 110),
+              ], undefined),
               new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined),
               1,
             ],
