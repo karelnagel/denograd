@@ -1,20 +1,57 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { all, assert, isinstance, len, min, partition, prod, range, sum, zip } from '../helpers.ts'
-import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
+import { all, all_int, assert, isinstance, len, min, partition, prod, range, sum, zip } from '../helpers.ts'
+import { graph_rewrite, identity_element, idiv, KernelInfo, Ops, PatternMatcher, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 
 // # returns the axes to create new_shape if new_shape can be created by combining axis from old_shape
 export const get_contraction = (old_shape: sint[], new_shape: sint[]): number[][] | undefined => {
-  throw new Error('not implemented')
+  const acc_old = old_shape.reduce((acc, val, i) => [...acc, (val as number) * (acc[i - 1] ?? 1)], [] as number[])
+  const acc_new = new_shape.reduce((acc, val, i) => [...acc, (val as number) * (acc[i - 1] ?? 1)], [] as number[])
+  try {
+    const split = acc_new.map((acc) => acc !== 1 ? acc_old.indexOf(acc) : 0)
+    return zip([0, ...split.slice(0, -1)], [...split.slice(0, -1), old_shape.length]).map(([st, ed]) => range(st, ed))
+  } catch {
+    return undefined
+  }
 }
 // # ***** indexing *****
 
 export const _limit_dims = (dims: sint[], max_sizes: number[]) => {
-  throw new Error('not implemented')
+  // TODO: symbolic shape
+  if (!all_int(dims)) return dims
+  while (dims.length > max_sizes.length || zip(dims, max_sizes).some(([d, m]) => (d as number) > m)) {
+    let found = false
+    for (const [i, m] of max_sizes.entries()) {
+      if ((dims[i] as number) * (dims[i + 1] as number) <= m) {
+        dims = [...dims.slice(0, i), (dims[i] as number) * (dims[i + 1] as number), ...dims.slice(i + 2)]
+        found = true
+        break
+      }
+      if (!found) throw new Error(`can!limit dim dims=${dims}, max_size=${max_sizes}`)
+    }
+  }
+  return dims
 }
 export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[], reverse = false): UOp[] => {
-  throw new Error('not implemented')
+  if (reverse) dims = dims.toReversed()
+  const limited = max_sizes !== undefined ? _limit_dims(dims, max_sizes) : dims
+  const raw_idxs = limited.map((s, i) => new UOp(Ops.SPECIAL, dtypes.int, [], [`${prefix}${i}`, s]))
+  let ret = raw_idxs
+  if (limited !== dims) {
+    ret = []
+    const contraction = get_contraction(dims, limited)
+    if (contraction === undefined) throw new Error(`get_contraction should !be undefined dims=${dims} limited=${limited}`)
+    for (let [idx, contraction_group] of zip(raw_idxs, contraction)) {
+      for (const c of contraction_group.slice(0, -1)) {
+        ret.push(idx.mod(dims[c]))
+        idx = idx.idiv(dims[c])
+      }
+      ret.push(idx)
+    }
+  }
+  return reverse ? ret.toReversed() : ret
 }
+
 export class IndexContext {
   constructor(public idxs: UOp[], public ridxs: UOp[], public acc_num: number = 0) {}
 }
