@@ -9,6 +9,17 @@ import { randomUUID } from 'node:crypto'
 // GENERAL HELPERS
 type ClassType<T> = { new (...args: any[]): T }
 
+export function product<T>(...arrays: T[][]): T[][] {
+  if (arrays.length === 0) return [[]]
+
+  return arrays.reduce<T[][]>((acc, arr) => {
+    const result: T[][] = []
+    for (const a of acc) {
+      for (const b of arr) result.push([...a, b])
+    }
+    return result
+  }, [[]])
+}
 export function DataClass<T extends ClassType<object>>(Cls: T) {
   const cache: Record<string, T> = {}
   return class extends Cls {

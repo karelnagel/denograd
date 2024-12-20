@@ -17,6 +17,12 @@ export const TYPED_ARRAYS = {
   'f': Float32Array, // Single precision float
   'd': Float64Array, // Double precision float
 }
+
+export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, destFmt: FmtStr) => {
+  const src = new TYPED_ARRAYS[srcFmt](data as any)
+  return [...new TYPED_ARRAYS[destFmt](src.buffer)]
+}
+
 export class DType {
   static dcache: Record<string, DType> = {}
   constructor(public priority: number, public itemsize: number, public name: string, public fmt: undefined | FmtStr, public count: number, public _scalar?: DType, kwargs?: any) {

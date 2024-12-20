@@ -1,8 +1,27 @@
-import * as dt from '../src/dtype.ts'
-import { DType, dtypes, promoLattice } from '../src/dtype.ts'
+import { _getRecursiveParents, bitcast, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
 import { sorted } from '../src/helpers.ts'
 import { compare, tryCatch } from './helpers.ts'
 // TODO check if only created once
+
+Deno.test(
+  'dtype.bitcast',
+  compare(
+    [
+      [[4, 4, 55, 23.34, 54], 'f', 'i'],
+      [[4, 4, 55, 23, 54], 'i', 'f'],
+      [[4, 4, 55, 23, 54], 'i', 'B'],
+      [[127, 0, 255], 'B', 'b'], // Test unsigned to signed byte conversion
+      [[65535, 0, 32768], 'H', 'h'], // Test unsigned to signed short
+      [[2147483647, 0, -2147483648], 'i', 'I'], // Test signed to unsigned int
+      [[true, false, true], '?', 'B'], // Test boolean to byte
+    ],
+    bitcast,
+    [
+      'import struct',
+      `out(list(struct.unpack(f"{len(data[0])}{data[2]}", struct.pack(f"{len(data[0])}{data[1]}", *data[0]))))`,
+    ],
+  ),
+)
 
 Deno.test(
   'DType.init',
@@ -12,7 +31,7 @@ Deno.test(
       [2, 1, 'void', 'e', 1, undefined],
       [2, 1, 'unsigned short', 'e', 2, new DType(4, 4, 'void', undefined, 1)],
     ],
-    (priority: number, itemsize: number, name: string, fmt: undefined | dt.FmtStr, count: number, _scalar?: DType) => new DType(priority, itemsize, name, fmt, count, _scalar),
+    (priority: number, itemsize: number, name: string, fmt: undefined | FmtStr, count: number, _scalar?: DType) => new DType(priority, itemsize, name, fmt, count, _scalar),
     'out(tiny.dtype.DType(*data))',
   ),
 )
@@ -25,7 +44,7 @@ Deno.test(
       [dtypes.float, 6],
       [dtypes.bool, 6],
     ],
-    (d: dt.DType, sz: number) => d.vec(sz),
+    (d: DType, sz: number) => d.vec(sz),
     'out(data[0].vec(data[1]))',
   ),
 )
@@ -38,7 +57,7 @@ Deno.test(
       [dtypes.float, true],
       [dtypes.bool, false],
     ],
-    (d: dt.DType, local: boolean) => d.ptr(local),
+    (d: DType, local: boolean) => d.ptr(local),
     'out(data[0].ptr(data[1]))',
   ),
 )
@@ -104,7 +123,7 @@ Deno.test(
       [[false, 4]],
       [[3.3, 5]],
     ],
-    dt.dtypes.from_js,
+    dtypes.from_js,
     'out(tiny.dtype.dtypes.from_py(*data))',
   ),
 )
@@ -121,7 +140,7 @@ Deno.test(
       [[true, 4, 4.4], dtypes.float.vec(3)],
       [[true], dtypes.float.vec(3)],
     ],
-    tryCatch(dt.dtypes.as_const),
+    tryCatch(dtypes.as_const),
     'out(trycatch(lambda:tiny.dtype.dtypes.as_const(*data)))',
   ),
 )
@@ -131,7 +150,7 @@ Deno.test(
   '_getRecursiveParents',
   compare(
     [['float64'], ['float32'], ['float16'], ['half'], ['bool'], ['int'], ['uint']] as const,
-    (type) => sorted(dt._getRecursiveParents(dtypes[type])),
+    (type) => sorted(_getRecursiveParents(dtypes[type])),
     'out(sorted(tiny.dtype._get_recursive_parents(tiny.dtype.DTYPES_DICT[data[0]])))',
   ),
 )
@@ -155,7 +174,7 @@ Deno.test(
       ['half', 'int'],
       ['half', 'float'],
     ] as const,
-    (...inputs) => dt.least_upper_dtype(...inputs.map((i) => dtypes[i])),
+    (...inputs) => least_upper_dtype(...inputs.map((i) => dtypes[i])),
     'out(tiny.dtype.least_upper_dtype(*[tiny.dtype.DTYPES_DICT[key] for key in data]))',
   ),
 )
@@ -171,7 +190,7 @@ Deno.test(
       ['int'],
       ['uint'],
     ] as const,
-    (input) => dt.sum_acc_dtype(dtypes[input]),
+    (input) => sum_acc_dtype(dtypes[input]),
     'out(tiny.dtype.sum_acc_dtype(tiny.dtype.DTYPES_DICT[data[0]]))',
   ),
 )
@@ -194,7 +213,7 @@ Deno.test(
       [dtypes.int32, 4],
       [dtypes.int64, 4n],
     ],
-    (d: dt.DType, x: any) => dt.truncate.get(d)!(x),
+    (d: DType, x: any) => truncate.get(d)!(x),
     'out(tiny.dtype.truncate[data[0]](data[1]))',
     { ignore: [8, 12] },
   ),
