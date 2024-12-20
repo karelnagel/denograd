@@ -61,13 +61,13 @@ export class Kernel {
   // the local aliased buffers for A && B
   bufs_for_tensor_core = new Map<UOp, [number, number]>()
   dont_use_locals = false
-  uop_sts_map?: Map<UOp, ShapeTracker>
   constructor(ast: UOp, opts?: Renderer) {
     if (ast.op === Ops.SINK) this.ast = ast
 
     this.opts = opts !== undefined ? opts : Device.get(Device.DEFAULT).renderer
+    let uop_sts_map
     try {
-      this.uop_sts_map = verify_ast(this.ast)
+      uop_sts_map = verify_ast(this.ast)
     } catch (e) {
       console.log(`INVALID AST`)
       console.log(this.ast)
@@ -91,8 +91,8 @@ export class Kernel {
     //     # add the shapetrackers for each reduce
     //     # we use this to track which axes are reduced in each reduce
     for (const x of this.reduceops) {
-      this.sts.push(this.uop_sts_map.get(x)!)
-      this.sts.push(this.uop_sts_map.get(x.src[0])!)
+      this.sts.push(uop_sts_map.get(x)!)
+      this.sts.push(uop_sts_map.get(x.src[0])!)
     }
     //     # move all reduce axes to the end
     const reduce = [...zip(this.full_shape, this.output_shape).entries()]
@@ -320,6 +320,7 @@ export class Kernel {
       const smem_sz = mul(mul(mul(amt, acc_sz), upcast_sz), local_sz)
       check(!!le(smem_sz, this.opts.shared_max), `exceeds maximum shared memory size: needs ${smem_sz}, max ${this.opts.shared_max}`)
     }
+
     if (opt.op === OptOps.LOCAL) { // cyan
       check(this.opts.has_local, 'target does not support local')
       check(axis < this.global_dims, 'local===for globals')
@@ -448,7 +449,9 @@ export class Kernel {
       if (this.bufs[0].src[0].dtype.name.startsWith('image') && !this.float4_axis(0) && this.group_for_reduces && this.first_reduce <= 2 && sint_prod(this.sts[0].shape) as number > 1) {
         const axes = this.sts[0].unit_stride_axes()
         assert(axes.length === 1, `wrong number of stride 1 axis : ${axes}`)
-        if (this.sts[0].shape[axes[0]] as number % 4 === 0) this.apply_opt(new Opt(OptOps.UPCASTMID, axes[0], 4))
+        if (this.sts[0].shape[axes[0]] as number % 4 === 0) {
+          this.apply_opt(new Opt(OptOps.UPCASTMID, axes[0], 4))
+        }
       }
     }
     //     # upcast float4 images
@@ -457,8 +460,11 @@ export class Kernel {
       if (isinstance(buf.src[0].dtype, ImageDType)) {
         //         #assert len(unit_stride_axes_mul_4) >= 1, f"needs a unit stride axis in {this.bufs[buf_index]}"
         if (unit_stride_axes_mul_4.length && unit_stride_axes_mul_4.every((x) => x < this.first_upcast) && !this.upcast_in_mid_reduce_axes.includes(unit_stride_axes_mul_4[0])) {
-          if (unit_stride_axes_mul_4[0] < this.first_reduce) this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
-          else this.apply_opt(new Opt(OptOps.UNROLL, unit_stride_axes_mul_4[0] - this.first_reduce, 4))
+          if (unit_stride_axes_mul_4[0] < this.first_reduce) {
+            this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
+          } else {
+            this.apply_opt(new Opt(OptOps.UNROLL, unit_stride_axes_mul_4[0] - this.first_reduce, 4))
+          }
         }
       }
     }
@@ -485,7 +491,9 @@ export class Kernel {
         to_upcast.push(axis)
       }
     }
-    for (const axis of to_upcast.toReversed()) this.apply_opt(new Opt(OptOps.UPCAST, axis, 0))
+    for (const axis of to_upcast.toReversed()) {
+      this.apply_opt(new Opt(OptOps.UPCAST, axis, 0))
+    }
 
     //     # potentially do more upcasts of non reduce axes based on a heuristic
     const upcasted_axis = new Set<number>()
