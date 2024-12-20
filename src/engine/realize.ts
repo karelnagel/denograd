@@ -43,7 +43,7 @@ export class CompiledRunner extends Runner {
     this.lib = precompiled !== undefined ? precompiled : Device.get(p.device).compiler.compile_cached(p.src)
     if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(this.lib)
     // TODO
-    this._prg = Device.get(p.device).runtime(p.function_name, this.lib)
+    // this._prg = Device.get(p.device).runtime(p.function_name, this.lib)
   }
   __reduce__ = () => [this.p, this.lib]
 
