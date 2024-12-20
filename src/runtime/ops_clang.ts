@@ -1,8 +1,9 @@
-import { Compiled, Compiler, DeviceType, MallocAllocator } from '../device.ts'
+import { Compiled, Compiler, MallocAllocator } from './allocator.ts'
 import { cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '../helpers.ts'
 import { execSync } from 'node:child_process'
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { ClangRenderer } from '../renderer/cstyle.ts'
+import type { DeviceType } from '../device.ts'
 
 export class ClangCompiler extends Compiler {
   args

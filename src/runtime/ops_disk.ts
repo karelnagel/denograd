@@ -7,10 +7,10 @@
 //   import _posixshmem
 //   from tinygrad.runtime.autogen import io_uring, libc
 
-import { Allocator, Compiled, DeviceType } from '../device.ts'
+import { Allocator, Compiled } from './allocator.ts'
 import { assert, OSX } from '../helpers.ts'
 import process from 'node:process'
-import os from 'node:os'
+import type { DeviceType } from '../device.ts'
 
 export class DiskBuffer {
   device: DiskDevice

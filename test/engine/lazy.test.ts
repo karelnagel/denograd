@@ -1,3 +1,4 @@
+import { DeviceType } from '../../src/device.ts'
 import { DType } from '../../src/dtype.ts'
 import { create_lazybuffer, LazyBuffer } from '../../src/engine/lazy.ts'
 import { Metadata } from '../../src/helpers.ts'
@@ -32,7 +33,7 @@ Deno.test(
       [`CLANG`, new ShapeTracker([new View([], [], 0, undefined, true)]), new DType(5, 4, `int`, `i`, 1, undefined), 62, 1, [], undefined, new Metadata(`__getitem__`, ``, false)],
       [`CLANG`, new ShapeTracker([new View([], [], 0, undefined, true)]), new DType(5, 4, `int`, `i`, 1, undefined), 62, 0, [], undefined, new Metadata(`__getitem__`, ``, false)],
     ],
-    tryCatch((device: string, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, metadata?: Metadata) => new LazyBuffer(device, st, dtype, op, arg, srcs, base, metadata)),
+    tryCatch((device: DeviceType, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, metadata?: Metadata) => new LazyBuffer(device, st, dtype, op, arg, srcs, base, metadata)),
     'out(tiny.engine.lazy.LazyBuffer(*data))',
   ),
 )
@@ -102,7 +103,7 @@ Deno.test(
       [new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/7b1e157ab43d54d0946f76d1bb6df574.gunzip`, new ShapeTracker([new View([10000], [1], 8, undefined, false)]), new DType(2, 1, `unsigned char`, `B`, 1, undefined), undefined, undefined, [], new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/7b1e157ab43d54d0946f76d1bb6df574.gunzip`, new ShapeTracker([new View([10008], [1], 0, undefined, true)]), new DType(2, 1, `unsigned char`, `B`, 1, undefined), Ops.EMPTY, undefined, [], undefined, new Metadata(`from_url`, ``, false)), new Metadata(`__getitem__`, ``, false)), `CLANG`, false, false],
       [new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/40a9ec2164c7887e8a5f1225de927907.gunzip`, new ShapeTracker([new View([10000, 1, 28, 28], [784, 0, 28, 1], 16, undefined, false)]), new DType(2, 1, `unsigned char`, `B`, 1, undefined), undefined, undefined, [], new LazyBuffer(`DISK:/Users/karel/Library/Caches/tinygrad/downloads/40a9ec2164c7887e8a5f1225de927907.gunzip`, new ShapeTracker([new View([7840016], [1], 0, undefined, true)]), new DType(2, 1, `unsigned char`, `B`, 1, undefined), Ops.EMPTY, undefined, [], undefined, new Metadata(`from_url`, ``, false)), new Metadata(`reshape`, ``, false)), `CLANG`, false, false],
     ],
-    (x: LazyBuffer, device: string, force: boolean, clone: boolean) => x.copy_to_device(device, force, clone),
+    (x: LazyBuffer, device: DeviceType, force: boolean, clone: boolean) => x.copy_to_device(device, force, clone),
     'out(data[0].copy_to_device(*data[1:]))',
   ),
 )

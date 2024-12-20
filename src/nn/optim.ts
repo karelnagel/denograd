@@ -4,13 +4,14 @@
 // from tinygrad.tensor import Tensor
 // from tinygrad.dtype import dtypes, least_upper_dtype
 
+import { DeviceType } from '../device.ts'
 import { dtypes, least_upper_dtype } from '../dtype.ts'
 import { assert, dedup, getEnv } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export class Optimizer {
   params: Tensor[]
-  device: string | string[]
+  device: DeviceType | DeviceType[]
   buffers: Tensor[]
   lr: Tensor
   constructor(params: Tensor[], lr: number) {

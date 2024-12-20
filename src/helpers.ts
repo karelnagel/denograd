@@ -147,14 +147,6 @@ export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
   })
   return result
 }
-export const resolvePromise = <T>(promise: Promise<T>): T => {
-  let result
-  promise.then((x) => result = x)
-  while (result === undefined) {
-    // Wait for promise to resolve
-  }
-  return result
-}
 
 export function isSubset<T>(main: Set<T>, subset: Set<T>): boolean {
   for (const elem of subset) if (!main.has(elem)) return false

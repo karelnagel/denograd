@@ -2,8 +2,9 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 import { all_same, assert, flatten, getEnv, isinstance, product, range, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, idiv, Ops, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
-import { Allocator, BufferSpec, Compiled, Compiler, DeviceType } from '../device.ts'
+import { Allocator, BufferSpec, Compiled, Compiler } from './allocator.ts'
 import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate, TYPED_ARRAYS } from '../dtype.ts'
+import type { DeviceType } from '../device.ts'
 
 const _load = (m: any[], i?: number) => {
   if (i === undefined) return 0.0
