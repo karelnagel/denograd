@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, DEBUG, dedup, flatten, getEnv, isEq, isinstance, isNone, isNotNone, prod, range, setDefault, sorted, TRANSCENDENTAL } from '../helpers.ts'
+import { all_same, AMX, assert, DEBUG, dedup, flatten, getEnv, isEq, isinstance, isNone, isNotNone, prod, product, range, setDefault, sorted, TRANSCENDENTAL, zip } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -32,7 +32,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
   const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && getEnv('ALLOW_HALF8') ? [8, 4, 2] : (AMX ? [16, 8, 4, 2] : [4, 2]))
   let used = new Set<[UOp, UOp]>()
   for (const [rootsrc, offsets] of offsets_rootsrc.entries()) {
-    for (const o of offsets.keys()) { //TODO:????
+    for (const o of offsets.keys()) {
       for (const fold_length of lengths) {
         if (range(fold_length).every((i) => !used.has([rootsrc, o + i as any]) && offsets.has(o + i))) {
           const load_1 = new_srcs[offsets.get(o)!]
@@ -96,7 +96,7 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
   if (!isinstance(buf.dtype, ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
   throw new Error('not implemented')
   //   # wait for it to be image indexed before running simplification
-  //   # TODO:not needed for mnist
+  // KAREL: not needed for mnist
   //   # if start_idx.dtype.count != 2: return None
 
   //   # # can drop valid if idx is out of bound when valid is False
@@ -323,7 +323,7 @@ export const _expand_arg_to_idx = (args: [number, number][], rpk: Record<number,
   return idx
 }
 export const _choices_from_args = (args: [number, number][]): Record<number, number>[] => {
-  return args.reduce((acc, [axis, m]) => acc.flatMap((d) => range(m).map((i) => ({ ...d, [axis]: i }))), [{}]) // TODO: Can likely be wrong
+  return args.reduce((acc, [axis, m]) => acc.flatMap((d) => range(m).map((i) => ({ ...d, [axis]: i }))), [{}]) // KAREL: Can likely be wrong
 }
 export const _swizzle_args = (cargs: [number, number][], eargs: [number, number][], exclude_args: number[]): number[] => {
   return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? { ...rpk, ...Object.fromEntries(exclude_args.map((x) => [x, 0])) } : rpk))
@@ -508,6 +508,6 @@ export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   sink = graph_rewrite(sink, sym.add(isNotNone(opts) && opts.supports_float4 ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing))
 
   //   # final rules for the renderer (without sym)
-  sink = graph_rewrite(sink, pm_render)
+  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops as any as Ops[], TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
   return sink
 }

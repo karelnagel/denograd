@@ -42,7 +42,7 @@ export class CompiledRunner extends Runner {
     if (DEBUG >= 4) console.log(p.src)
     this.lib = precompiled !== undefined ? precompiled : Device.get(p.device).compiler.compile_cached(p.src)
     if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(this.lib)
-    // TODO
+    // KAREL:
     // this._prg = Device.get(p.device).runtime(p.function_name, this.lib)
   }
   __reduce__ = () => [this.p, this.lib]
@@ -91,9 +91,9 @@ export class BufferCopy extends Runner {
     super(colored(name, 'yellow'), dest_device, 0, total_sz)
   }
   copy = (dest: Buffer, src: Buffer) => {
-    const disk_supports_fast_copyout = src.device.startsWith('DISK') //TODO: && 'io_uring' in src.allocator!.dev && src.allocator!.dev.fd !== undefined
+    const disk_supports_fast_copyout = src.device.startsWith('DISK') && 'io_uring' in (src.allocator as any).dev && (src.allocator as any).dev.fd !== undefined
     if (src.device.startsWith('DISK') && 'copy_from_disk' in dest.allocator! && disk_supports_fast_copyout && src.nbytes >= 4096) {
-      throw new Error('TODO implement copy_from_disk')
+      throw new Error('KAREL: implement copy_from_disk')
       // dest.allocator.copy_from_disk(dest._buf, src._buf, src.nbytes)
     } else if (src.device.startsWith('DISK') && '_as_buffer' in dest.allocator!) {
       //       // fast(ish) path, uses readinto in diskbuffers
@@ -115,7 +115,7 @@ export class BufferCopy extends Runner {
 }
 class BufferXfer extends BufferCopy {
   override copy = (dest: Buffer, src: Buffer) => {
-    throw new Error('TODO implement _transfer')
+    throw new Error('KAREL: implement _transfer')
     // return dest.allocator._transfer(dest._buf, src._buf, dest.nbytes, src_dev = src.allocator.dev, dest_dev = dest.allocator.dev)
   }
 }
@@ -165,7 +165,7 @@ export class ExecItem {
         const lds_est = sym_infer(this.prg.lds_estimate, var_vals)
         mem_est = Math.min(mem_est, lds_est) // there can't be more memory accessed than loads/stores. remove this when symbolic === fixed
         const ptm = et !== undefined ? (et > 0.01 ? colored(`${(et * 1e3).toFixed(2)}ms`, 'yellow') : `${(et * 1e6).toFixed(2)}us`) : ''
-        // TODO: Fucking hell, skipping this for now
+        // KAREL: Fucking hell, skipping this for now
         //         console.log(`${colored(f'*** {this.prg.device[:7]:7s} ${GlobalCounters.kernel_count:4d}', 'magenta' if (jit else ('green' if this.prg.first_run else undefined))} ${this.prg.display_name+' '*(41-ansithis.prg.display_name.length)} arg ${bufs.length:2d} mem ${GlobalCounters.mem_used/1e9:5.2f} GB ` +  // noqa) E501
         //               (string() if (et === undefined else `tm ${ptm}/${GlobalCounters.time_sum_s*1e3:9.2f}ms (${op_est/((et || 1e-20)*1e9):9.2f} GFLOPS ${mem_est/((et || 1e-20)*1e9):6.1f}|${lds_est/((et || 1e-20)*1e9):<7.1f} GB/s)` +  // noqa) E501
         //                ` ${[repr(m) if TRACEMETA >= 2 else string(m) for m in this.metadata] if this.metadata else ''}`))

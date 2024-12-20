@@ -23,7 +23,7 @@ const _store = (m: any[], i: number, v: any) => {
 export class PythonProgram {
   uops: [Ops, DType | undefined, number[], any][]
   constructor(name: string, lib: Uint8Array) {
-    this.uops = JSON.parse(lib as any) // TODO this is wrong
+    this.uops = JSON.parse(lib as any) // KAREL this is wrong
   }
   call = (bufs: DataView[], global_size: [number, number, number] = [1, 1, 1], local_size: [number, number, number] = [1, 1, 1], vals: number[] = [], wait = false) => {
     const st = performance.now()

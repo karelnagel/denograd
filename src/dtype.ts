@@ -127,8 +127,8 @@ export class dtypes {
       return val.map((x) => dtypes.as_const(x, dtype) as ConstType)
     }
 
-    // TODO: should truncate here (tinygrad)
-    if (dtypes.is_int(dtype)) return Math.floor(Number(val)) //TODO: floor????? - seems ok
+    // TODO: should truncate here
+    if (dtypes.is_int(dtype)) return Math.floor(Number(val))
     else if (dtypes.is_float(dtype)) return Number(val)
     else if (Number.isNaN(val)) return true //python bool(math.nan) returns True
     else return Boolean(val)

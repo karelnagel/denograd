@@ -118,7 +118,7 @@ export class CStyleLanguage extends Renderer {
     const r = new Map<UOp, string>()
     this.r = r
 
-    // TODO: it didn't seem to do anything
+    // KAREL: it didn't seem to do anything
     // const child_count = Counter(uops.flatMap((ru) => ru.src.map((v) => v)))
     const bufs = new Map<UOp, [string, [DType, boolean]]>()
     const kernel = []

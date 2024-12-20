@@ -41,7 +41,7 @@ export class DiskAllocator extends Allocator {
   override _free = (opaque: any, options: any) => this.dev._might_close()
   _as_buffer = (src: DiskBuffer) => src._buf()
   override _copyin = (dest: DiskBuffer, src: DataView) => {
-    // TODO:
+    // KAREL: todo
     // dest._buf() = src
   }
   override _copyout = (dest: DataView, src: DiskBuffer) => {

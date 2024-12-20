@@ -12,12 +12,13 @@ const DEVICES = {
   // CUDA: () => import('./runtime/ops_cuda.ts').then((o) => o.CUDADevice),
   // QCOM: () => import('./runtime/ops_qcom.ts').then((o) => o.QCOMDevice),
   // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
-  CLANG: await import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
   DISK: await import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
   PYTHON: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
+  // CLANG: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
-export type AllDevices = keyof typeof DEVICES
+// KAREL: enable clang
+export type AllDevices = keyof typeof DEVICES | "CLANG"
 export type DeviceType = AllDevices | `${AllDevices}:${string}`
 
 export class _Device {
@@ -29,8 +30,7 @@ export class _Device {
   canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
   get = (device: DeviceType): Compiled => {
     const ix = this.canonicalize(device)
-    // TODO take this progremmatically
-    const ret = DEVICES[ix.split(':')[0].toUpperCase() as AllDevices]
+    const ret = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
     return new ret(ix)
   }

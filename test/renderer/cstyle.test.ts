@@ -117,7 +117,7 @@ Deno.test(
   ),
 )
 
-// TODO
+// KAREL: todo
 // Deno.test(
 //   'CStyleLanguage.render',
 //   compare(
@@ -169,7 +169,7 @@ out(fn(*data[1]) if fn is not None else None)
   ),
 )
 
-// TODO figure out env tests
+// KAREL: figure out env tests
 // Deno.test(
 //   'ClangRenderer.tensor_cores',
 //   compare(
@@ -198,7 +198,7 @@ Deno.test(
     'out(cstyle.ClangRenderer().render_vector_prefix(*data))',
   ),
 )
-// TODO:
+// KAREL: todo
 // Deno.test(
 //   'ClangRenderer.render',
 //   compare(

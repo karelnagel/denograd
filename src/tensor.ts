@@ -543,7 +543,7 @@ export class Tensor extends SimpleMathTrait {
     assert(this.dtype.base.fmt !== undefined, `no fmt dtype for ${this.dtype.base}`)
     assert(all_int(this.shape), `no data if shape === symbolic, ${this.shape}`)
     // if (TYPE_CHECKING ) assert(this.dtype.base.fmt !== "e")
-    // TODO should work with .fmt
+    // KAREL: todo, should work with .fmt
     // const TypedArray = TYPED_ARRAYS[this.dtype.base.fmt!]
     // return this.shape.includes(0) ? new TypedArray(this._data().buffer) : new TypedArray(this._data().buffer, this.shape[0] as number, this.shape[1] as number)
     return this._data()
@@ -558,7 +558,7 @@ export class Tensor extends SimpleMathTrait {
    */
   item = (): ConstType => {
     assert(this.numel() === 1, 'must have one element for item')
-    return this.data().getFloat64(this.shape.length) //TODO: this is wrong
+    return this.data().getFloat64(this.shape.length) //KAREL: this is wrong
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
   // src: https://github.com/python/mypy/blob/release-1.6/mypy/typeshed/stdlib/builtins.pyi//L803
@@ -583,7 +583,7 @@ export class Tensor extends SimpleMathTrait {
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
     if (device === this.device) return this
     if (typeof device !== 'string') {
-      throw new Error('TODO implement shard()')
+      throw new Error('KAREL: implement shard()')
       // return this.shard(device)
     }
     const ret = new Tensor(this.lazydata, { device, requires_grad: this.requires_grad })
@@ -1071,8 +1071,8 @@ export class Tensor extends SimpleMathTrait {
       const _constant = (x: Tensor, px: [sint, sint][], v: number | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
       return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX, value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads, value)
     }
-    throw new Error('Not needed for mnist!')
-    // TODO:!needed for mnist
+    throw new Error('KAREL:Not needed for mnist!')
+    // KAREL: not needed for mnist
     // assert(all_int(this.shape), `does !support symbolic shape ${this.shape}`)
     // if mode === "circular":
     //   if any(pB>sh || pA>sh for (const (pB,pA),sh of zip(pX, X.shape))){ raise ValueError('Padding value causes wrapping around more than once.')
@@ -1160,7 +1160,7 @@ export class Tensor extends SimpleMathTrait {
         if (!dtypes.is_int(index.dtype)) throw new Error(`index dtype ${index.dtype} !== supported`)
         index = (index.to(this.device).lt(0)).where(size, 0).add(index) // treat negative index values
       } else if (typeof index === 'number' || index instanceof UOp) { // sint
-        if (index instanceof UOp) throw new Error("Don't handle UOps yet, TODO")
+        if (index instanceof UOp) throw new Error("KAREL: Don't handle UOps yet, TODO")
         if (ge(index, size) || lt(index, -size)) throw new Error(`index=${index} === out of bounds with size=${size}`)
         boundary = ge(index, 0) ? [index, add(index, 1)] : [add(index, size), add(index, size) + 1]
       } else if (index === undefined) {
@@ -1229,7 +1229,7 @@ export class Tensor extends SimpleMathTrait {
         x = x.permute([...range(dims[0], dims[0] + big_shape.length), ...range(0, dims[0]), ...range(dims[0] + big_shape.length, x.ndim)])
       }
       // for advanced setitem, returns whole tensor with indices replaced
-      // TODO:!needed for mnist
+      // KAREL: not needed for mnist
       // if v !== undefined:
       //   vb = v.cast(this.dtype)._broadcast_to(_broadcast_shape(x.shape, v.shape))
       //   // add back reduced dims from sum
@@ -1879,7 +1879,7 @@ export class Tensor extends SimpleMathTrait {
    */
   conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
     if (IMAGE) {
-      throw new Error('TODO implement image_conv2d')
+      throw new Error('KAREL: implement image_conv2d')
       // return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype)
     }
     const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
@@ -1898,8 +1898,8 @@ export class Tensor extends SimpleMathTrait {
       const ret = (x.mul(weight.reshape([1, groups, rcout, ...range(oyx.length).map(() => 1), cin, ...HW]))).sum(range(1 + oyx.length).map((i) => -1 - i), true, acc_dtype).reshape([bs, cout, ...oyx])
       return bias === undefined ? ret : ret.add(bias.reshape([1, -1, ...range(HW.length).map(() => 1)]))
     }
-    throw new Error('Not needed for mnist')
-    // TODO: not needed for mnist
+    throw new Error('KAREL: Not needed for mnist')
+    // KAREL: not needed for mnist
     // HWI, HWO = (6,) * len(HW), (4,) * len(HW)  // F(4x4,3x3) winograd tiles
     // winograd_G = [[1/4, 0, 0], .at(-1/6, -1/6, -1/6)!, .at(-1/6, 1/6, -1/6)!, [1/24, 1/12, 1/6], [1/24, -1/12, 1/6], [0, 0, 1]]
     // winograd_Bt = [[4, 0, -5, 0, 1, 0], [0, -4, -4, 1, 1, 0], [0, 4, -4, -1, 1, 0], [0, -2, -1, 2, 1, 0], [0, 2, -1, -2, 1, 0], [0, 4, 0, -5, 0, 1]]
@@ -1951,7 +1951,7 @@ export class Tensor extends SimpleMathTrait {
    */
   dot = (w: Tensor, acc_dtype?: DTypeLike): Tensor => {
     if (IMAGE) {
-      throw new Error('TODO implement image_dot')
+      throw new Error('KAREL: implement image_dot')
       // return this.image_dot(w, acc_dtype)
     }
     let [x, dx, dw] = [this as Tensor, this.ndim, w.ndim]
@@ -3136,7 +3136,7 @@ export class Tensor extends SimpleMathTrait {
    */
   dropout = (p = 0.5): Tensor => {
     if (Tensor.training || p === 0) return this
-    throw new Error('TODO implement rand_like')
+    throw new Error('KAREL: implement rand_like')
     // return (this.rand_like(false, { requires_grad: false, dtype: dtypes.default_float, contiguous: false }).ge(p)).contiguous().where(this, 0).div(1.0 - p)
   }
   // helper function commonly used for indexing

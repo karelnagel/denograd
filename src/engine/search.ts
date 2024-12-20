@@ -230,7 +230,7 @@ export const optimize_local_size = (_prg: (x: any) => number, global_size: numbe
       return Infinity
     }
   }
-  const ret = local_sizes.map((local_size) => [try_exec(local_size), local_size] as [number, number[]])[0] // TODO: randomise local_sizes, and instead of [0] use min()
+  const ret = local_sizes.map((local_size) => [try_exec(local_size), local_size] as [number, number[]])[0] // KAREL: randomise local_sizes, and instead of [0] use min()
   assert(isFinite(ret[0]), 'all optimize_local_size exec failed')
   return ret[1]
 }

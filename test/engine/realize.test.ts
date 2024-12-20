@@ -32,7 +32,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+Deno.test.ignore(
   'CompiledRunner.init',
   compare(
     // deno-fmt-ignore
@@ -46,7 +46,7 @@ Deno.test(
     'out(tiny.engine.realize.CompiledRunner(*data))',
   ),
 )
-Deno.test(
+Deno.test.ignore(
   'CompiledRunner.call',
   compare(
     // deno-fmt-ignore

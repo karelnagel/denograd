@@ -607,7 +607,7 @@ export class Kernel {
         const reduced_axes = (start: number, stop: number) => range(start, stop).filter((i) => resolve(ne(this.sts[reduce_idx].shape[i], this.sts[reduce_idx + 1].shape[i])))
         const axes = reduced_axes(this.first_reduce + this.group_for_reduces, this.shape_len)
         const grouped_axes = reduced_axes(this.first_reduce, this.first_reduce + this.group_for_reduces)
-        //       # TODO not needed for mnist
+        //       # KAREL: not needed for mnist
         //         # if (tc := this.tensor_core) && (this.use_tensor_cores === 1 ||this.use_tensor_cores === 3):
         //         #   def fix_st(st: ShapeTracker, wd_pattern, tcd_pattern):
         //         #     st = ShapeTracker.from_shape(st.shape) # st needs to be contiguous
@@ -695,7 +695,7 @@ export class Kernel {
     const ansiname = name_override !== undefined ? name_override : this.name
     const name = to_function_name(ansiname)
     const src = this.opts.render(name, this.uops!)
-    // TODO: not needed for mnist
+    // KAREL: not needed for mnist
     //     if getenv("RUN_PROCESS_REPLAY"):
     //       from test.external.process_replay.helpers import get_process_replay_ctx
     //       diskcache_put("kernel_process_replay", str(id(this)), (this.ast, this.opts, this.applied_opts, name, *get_process_replay_ctx(), src))

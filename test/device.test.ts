@@ -6,7 +6,7 @@ Deno.test(
   compare(
     [
       ['PYTHON'],
-      ['CLANG'],
+    //   ['CLANG'],
       ['DISK'],
     ],
     (device: DeviceType) => Device.get(device).device,

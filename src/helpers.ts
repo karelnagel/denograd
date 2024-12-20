@@ -214,7 +214,6 @@ export const fullyFlatten = <T>(l: any): T[] => {
   return [l]
 }
 
-// TODO
 // def fromimport(mod, frm): return getattr(__import__(mod, fromlist=[frm]), frm)
 export const stripParens = (s: string) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
 export const ceildiv = (num: number, amt: number): number => {

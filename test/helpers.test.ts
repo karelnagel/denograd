@@ -29,8 +29,6 @@ Deno.test('flatten', compare([[[[1, 2], [3, 4]]], [[[1, 2, 3, 4]]], [[[1, 2, 3, 
 
 Deno.test('fully_flatten', compare([[[1, 2, 3]], [[1, 2, 3, 4, 5]], [[[1, 2], [3, 4], [5]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]], helpers.fullyFlatten, 'out(tiny.helpers.fully_flatten(*data))'))
 
-// // TODO: fromimport
-
 Deno.test('stripParens', compare([['sdfsdf'], ['(sdfsdf'], ['(sdfsdf)']], helpers.stripParens, 'out(tiny.helpers.strip_parens(*data))'))
 
 Deno.test('ceildiv', compare([[180, 3], [-10, 3], [10.5, 3], [-10.5, 3]], helpers.ceildiv, 'out(tiny.helpers.ceildiv(*data))'))

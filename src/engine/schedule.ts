@@ -370,7 +370,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
     if (ctx.children.get(top_reduce)!.size === 1) ctx.realizes.delete(top_reduce)
   }
   //   // maybe fuse arange with its children
-  //   // TODO:not needed for mnist
+  //   // KAREL: not needed for mnist
   //   // for (const rbuf of reduce_of_const){
   //   //   group = {tr:undefined for tr,rop in reduce_for_op.items() if rop === rbuf}
   //   //   if any(ctx.lazybufs[tr].forced_realize for (const tr of group)){ continue

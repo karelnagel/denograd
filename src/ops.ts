@@ -149,7 +149,6 @@ export const resolve = (x: ConstType<UOp>, def = true) => {
   if (x.dtype.name !== 'bool') throw new Error('UOp in resolve must be bool')
   // NOTE: generating the text for the exception is expensive, so we do this
   const sx = x.simplify()
-  // TODO this Boolean() is probably broken
   return sx.vmin === sx.vmax ? Boolean(sx.vmin) : def
 }
 
@@ -158,7 +157,6 @@ const _suop = (lst: sint[], uop_fxn: (...x: UOp[]) => UOp, python_fxn: (...a: nu
   const [uops, nums] = partition(lst, (x) => x instanceof UOp) as [UOp[], number[]]
   return ssimplify((nums ? [...uops, python_fxn(...nums)] as UOp[] : []).reduce((acc, x) => uop_fxn(acc, x)))
 }
-// TODO: really unsure about these
 export const smax = (...lst: (sint | sint[])[]) => _suop(argfix(...lst), (...x) => x.reduce((acc, x) => acc.maximum(x)), (...x) => Math.max(...x))
 export const smin = (...lst: (sint | sint[])[]) => _suop(argfix(...lst), (...x) => x.reduce((acc, x) => acc.minimum(x)), (...x) => Math.min(...x))
 
@@ -558,13 +556,12 @@ export class UPat extends MathTrait {
     this._in_src = src
     assert(this.name !== 'ctx', "UPat can't be named ctx")
 
-    // TODO: still not sure of this
     // try all permutations if it's a list (we use src[][])
     if (Array.isArray(src) && Array.isArray(src[0])) this.src = !all_same(src[0]) ? permutations(src[0]) : [src[0]]
     // only one if it's a tuple (we use src[])
     else if (Array.isArray(src)) this.src = [src as UPat[]]
     // repeat if it's a UPat
-    else if (src instanceof UPat) this.src = [range(100).map(() => src!) as UPat[]] // TODO: this is a hack
+    else if (src instanceof UPat) this.src = [range(100).map(() => src!) as UPat[]] // KAREL: this is a hack
 
     // NOTE: This is here because we can't differentaite between list and tuple so we use Upat[][] to achieve the same thing as list. but after this part the difference isn't needed anymore so we convert back to UPat[]
     if (Array.isArray(src) && src?.length === 1 && Array.isArray(src[0])) src = src[0]
@@ -664,12 +661,10 @@ export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, F
     for (const [p, fxn, early_reject, hasCtx] of this.pdict.get(uop.op) || []) {
       const index = this.patterns.findIndex((pattern) => pattern[0] === p)
       if (!isSubset(ler, early_reject)) {
-        console.log(`TS ${index} early rejected`)
         continue
       }
       for (const match of p.match(uop, new Map())) {
         const ret = hasCtx ? fxn({ ctx, ...Object.fromEntries(match) } as any) : fxn(Object.fromEntries(match) as any)
-        console.log(`TS Matched with ${index}, returned ${ret}`)
         if (isNotNone(ret)) return ret
       }
     }
@@ -1154,12 +1149,12 @@ export const symbolic_flat = symbolic.add(
     [UPat.var('x', dtypes.ints).add(UPat.var('y')).mul(UPat.cvar('c')), ({ x, y, c }) => x.mul(c).add(y.mul(c))],
   ]),
 )
-// TODO: lol there probably is some better way to get these
+
 export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat(getAllEnums(Ops)).named('x'), ({ ctx, x }) => ctx.get(x)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
-// TODO: probably all these should be JS specific
+// KAREL: probably all these should be JS specific
 export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
   [new UPat([Ops.DEFINE_VAR, Ops.SPECIAL]).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg[0])],
   [new UPat(Ops.RANGE).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `ridx(${x.arg},)`)],

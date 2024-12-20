@@ -37,8 +37,8 @@ export class ProgramSpec {
     public global_size?: number[],
     public local_size?: number[],
     public vars: Variable[] = [],
-    public globals = [0],
-    public outs = [0],
+    public globals: number[] = [],
+    public outs: number[] = [],
     public _ran_post_init = false, // NOTE: this is needed if you call replace on the Program
   ) {
     if (!this._ran_post_init && isNotNone(this.uops)) {

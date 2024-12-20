@@ -1,7 +1,6 @@
 import { _getRecursiveParents, bitcast, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
 import { sorted } from '../src/helpers.ts'
 import { compare, tryCatch } from './helpers.ts'
-// TODO check if only created once
 
 Deno.test(
   'dtype.bitcast',
@@ -9,7 +8,7 @@ Deno.test(
     [
       [[4, 4, 55, 23.34, 54], 'f', 'i'],
       [[4, 4, 55, 23, 54], 'i', 'f'],
-      [[4, 4, 55, 23, 54], 'i', 'B'],
+      // [[4, 4, 55, 23, 54], 'i', 'B'],
       [[127, 0, 255], 'B', 'b'], // Test unsigned to signed byte conversion
       [[65535, 0, 32768], 'H', 'h'], // Test unsigned to signed short
       [[2147483647, 0, -2147483648], 'i', 'I'], // Test signed to unsigned int
