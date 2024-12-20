@@ -38,13 +38,9 @@ export class ProgramSpec {
     public vars: Variable[] = [],
     public globals = [0],
     public outs = [0],
-  ) {}
-
-  // filled in from uops (if we have uops)
-  _ran_post_nit = false // NOTE: this is needed if you call replace on the Program
-
-  __post_init__ = () => {
-    if (!this._ran_post_nit && isNotNone(this.uops)) {
+    public _ran_post_init=false // NOTE: this is needed if you call replace on the Program
+  ) {
+    if (!this._ran_post_init && isNotNone(this.uops)) {
       // single pass through the uops
       for (const u of this.uops) {
         if (u.op === Ops.DEFINE_VAR) this.vars?.push(u)
@@ -60,7 +56,7 @@ export class ProgramSpec {
       }
       this.vars = this.vars?.toSorted((a, b) => b.arg - a.arg)
       this.outs = [...new Set(this.outs)].toSorted()
-      this._ran_post_nit = true
+      this._ran_post_init = true
     }
   }
   get op_estimate() {

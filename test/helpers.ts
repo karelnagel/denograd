@@ -66,14 +66,14 @@ export const pyStr = (o: any, useList = false): string => {
   if (o === null || typeof o === 'undefined') return 'None'
   if (typeof o === 'boolean') return o ? 'True' : 'False'
   if (typeof o === 'number' || typeof o === 'bigint') return o === Infinity ? 'math.inf' : o === -Infinity ? '-math.inf' : Number.isNaN(o) ? 'math.nan' : o.toString()
-  if (typeof o === 'string') return `"${o}"`
+  if (typeof o === 'string') return `"${o.replaceAll('\n', '\\\n')}"`
   if (o instanceof Map) return `{${[...o.entries()].map(([k, v]) => `${pyStr(k)}:${pyStr(v)}`).join(',')}}`
   if (o instanceof Set) return `set([${[...o].map((o) => pyStr(o)).join(', ')}])`
 
   // ************ ENGINE ************
   if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${OpsEnum(o.op)}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`
 
-  if (o instanceof CompiledRunner) return t`tiny.engine.realize.CompiledRunner()`
+  if (o instanceof CompiledRunner) return t`tiny.engine.realize.CompiledRunner(${o.p}, ${o.lib})`
   if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.op_estimate}, ${o.mem_estimate}, ${o.lds_estimate})`
   if (o instanceof ExecItem) return t`tiny.engine.realize.ExecItem(${o.prg}, ${o.bufs}, ${o.metadata})`
 
@@ -102,7 +102,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
   if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, reduce_axes=${o.reduce_axes}, upcast_axes=${o.upcast_axes}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out})`
   if (o instanceof ProgramSpec) {
-    return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${o.globals},outs=${o.outs},)`
+    return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${new SkipFormatting(pyStr(o.globals, true))},outs=${new SkipFormatting(pyStr(o.outs, true))}, _ran_post_init=${o._ran_post_init})`
   }
 
   // ************ SHAPE ************
@@ -125,6 +125,8 @@ export const pyStr = (o: any, useList = false): string => {
 
   // ************ HELPERS ************
   if (o instanceof Metadata) return t`tiny.helpers.Metadata(${o.name}, ${o.caller}, ${o.backward})`
+
+  if (o instanceof Uint8Array) return t`bytes(${Array.from(o)})`
 
   if (typeof o === 'function') return 'lambda x: x'
   if (o?.constructor?.name === 'Object') return `{${Object.entries(o).map((entry) => t`${entry[0]}:${entry[1]}`).join(',')}}`
