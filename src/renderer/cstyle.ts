@@ -1,3 +1,4 @@
+import { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
 import { AMX, assert, dedup, getEnv, isNone, isNotNone, setDefault, stripParens } from '../helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
@@ -182,7 +183,7 @@ export class CStyleLanguage extends Renderer {
 }
 
 export class ClangRenderer extends CStyleLanguage {
-  override device = 'CLANG'
+  override device: DeviceType = 'CLANG'
   override float4 = '(float4)'
   override has_local = false
   override global_max = undefined

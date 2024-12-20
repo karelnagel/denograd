@@ -1,3 +1,4 @@
+import { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
 import { DataClass, raise, to_function_name } from '../helpers.ts'
 import { isNone } from '../helpers.ts'
@@ -30,7 +31,7 @@ export class ProgramSpec {
   constructor(
     public name: string,
     public src: string,
-    public device: string,
+    public device: DeviceType,
     public uops?: UOp[],
     public mem_estimate = 0,
     public global_size?: number[],
@@ -38,7 +39,7 @@ export class ProgramSpec {
     public vars: Variable[] = [],
     public globals = [0],
     public outs = [0],
-    public _ran_post_init=false // NOTE: this is needed if you call replace on the Program
+    public _ran_post_init = false, // NOTE: this is needed if you call replace on the Program
   ) {
     if (!this._ran_post_init && isNotNone(this.uops)) {
       // single pass through the uops
@@ -79,7 +80,7 @@ export class ProgramSpec {
 }
 
 export class Renderer {
-  device = ''
+  device!: DeviceType
   suffix = ''
   // TODO: make this generic with a list of supported types
   supports_float4 = true

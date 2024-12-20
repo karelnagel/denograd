@@ -2,7 +2,7 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 import { all_same, assert, flatten, getEnv, isinstance, product, range, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, idiv, Ops, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
-import { Allocator, BufferSpec, Compiled, Compiler } from '../device.ts'
+import { Allocator, BufferSpec, Compiled, Compiler, DeviceType } from '../device.ts'
 import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate, TYPED_ARRAYS } from '../dtype.ts'
 
 const _load = (m: any[], i?: number) => {
@@ -196,7 +196,7 @@ export class PythonProgram {
 }
 
 export class PythonRenderer extends Renderer {
-  override device = 'PYTHON'
+  override device: DeviceType = 'PYTHON'
   constructor() {
     //     // if getenv("EMULATE_METAL"): this.device, this.tensor_cores = "METAL", MetalRenderer.tensor_cores
     //     // if getenv("EMULATE_AMD"): this.device, this.tensor_cores = "AMD", AMDRenderer.tensor_cores
@@ -223,7 +223,7 @@ export class PythonAllocator extends Allocator {
 }
 
 export class PythonDevice extends Compiled {
-  constructor(device: string) {
+  constructor(device: DeviceType) {
     super(device, new PythonAllocator(), new PythonRenderer(), new PythonCompiler(), PythonProgram)
   }
 }

@@ -7,7 +7,7 @@
 //   import _posixshmem
 //   from tinygrad.runtime.autogen import io_uring, libc
 
-import { Allocator, Compiled } from '../device.ts'
+import { Allocator, Compiled, DeviceType } from '../device.ts'
 import { assert, OSX } from '../helpers.ts'
 import process from 'node:process'
 import os from 'node:os'
@@ -62,7 +62,7 @@ export class DiskDevice extends Compiled {
   fd?: number
   count = 0
   mem!: ArrayBuffer
-  constructor(device: string) {
+  constructor(device: DeviceType) {
     super(device, undefined, undefined, undefined, undefined)
     this.allocator = new DiskAllocator(this)
     if (!DiskDevice._tried_io_uring_init) this._iouring_setup()

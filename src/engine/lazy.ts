@@ -8,7 +8,7 @@
 // from tinygrad.device import Buffer
 // from weakref import ref, ReferenceType, WeakValueDictionary
 
-import { Buffer } from '../device.ts'
+import { Buffer, DeviceType } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
 import { _METADATA, all_int, all_same, assert, DEBUG, getNumberEnv, isEq, isinstance, LAZYCACHE, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, python_alu, resolve, sint_prod, sub } from '../ops.ts'
@@ -17,7 +17,7 @@ import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 
 const lazycache = new Map<any, LazyBuffer>()
-export const create_lazybuffer = (device: string, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, enable_cache = Boolean(LAZYCACHE)) => {
+export const create_lazybuffer = (device: DeviceType, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, enable_cache = Boolean(LAZYCACHE)) => {
   dtype = to_dtype(dtype)
   if (op === Ops.CONST) [arg, enable_cache] = [!isinstance(arg, UOp) ? dtypes.as_const(arg, dtype) : arg, true]
 
@@ -46,7 +46,7 @@ export class LazyBuffer extends MathTrait {
   forced_realize?: boolean
   _base?: LazyBuffer
   constructor(
-    public device: string,
+    public device: DeviceType,
     public st: ShapeTracker,
     dtype: DTypeLike,
     op?: Ops,
@@ -93,7 +93,7 @@ export class LazyBuffer extends MathTrait {
     return [this]
   }
 
-  static metaop = (op: Ops, shape: sint[], dtype: DType, device: string, arg?: any, src: LazyBuffer[] = [], enable_cache = false): LazyBuffer => {
+  static metaop = (op: Ops, shape: sint[], dtype: DType, device: DeviceType, arg?: any, src: LazyBuffer[] = [], enable_cache = false): LazyBuffer => {
     assert(isinstance(src, Array))
     return create_lazybuffer(device, ShapeTracker.from_shape(shape), dtype, op, arg, src, undefined, enable_cache)
   }
@@ -148,11 +148,11 @@ export class LazyBuffer extends MathTrait {
   is_unrealized_const = () => this.base.realized === undefined && this.base.op === Ops.CONST && !isinstance(this.base.arg, UOp)
   is_unrealized_unmasked_const = () => this.is_unrealized_const() && this.st.views.every((v) => v.mask === undefined)
 
-  _copy = (device: string): LazyBuffer => {
+  _copy = (device: DeviceType): LazyBuffer => {
     assert(!!this.st.contiguous && this.size === this.base.size, `can only copy contig ${this} ${this.base}`)
     return create_lazybuffer(device, ShapeTracker.from_shape(this.shape), this.dtype, Ops.COPY, this.buffer?.nbytes, [this], undefined, false)
   }
-  copy_to_device = (device: string, force = false, clone = false): LazyBuffer => {
+  copy_to_device = (device: DeviceType, force = false, clone = false): LazyBuffer => {
     //     // no COPY
     if (this.device === device && !clone) return this
 

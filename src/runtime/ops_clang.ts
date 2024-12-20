@@ -1,4 +1,4 @@
-import { Compiled, Compiler, MallocAllocator } from '../device.ts'
+import { Compiled, Compiler, DeviceType, MallocAllocator } from '../device.ts'
 import { cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '../helpers.ts'
 import { execSync } from 'node:child_process'
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -40,7 +40,7 @@ export class ClangProgram {
 }
 
 export class ClangDevice extends Compiled {
-  constructor(device: string) {
+  constructor(device: DeviceType) {
     super(device, MallocAllocator, new ClangRenderer(), new ClangCompiler(), ClangProgram)
   }
 }

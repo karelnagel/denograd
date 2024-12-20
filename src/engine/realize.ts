@@ -1,5 +1,5 @@
 import { Kernel } from '../codegen/kernel.ts'
-import { Buffer, Device } from '../device.ts'
+import { Buffer, Device, DeviceType } from '../device.ts'
 import { all_int, assert, BEAM, CAPTURING, colored, DataClass, DEBUG, getNumberEnv, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
 import { idiv, Ops, sint, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec, Renderer } from '../renderer/index.ts'
@@ -25,7 +25,7 @@ export const get_kernel = (renderer: Renderer, ast: UOp): Kernel => {
 export class Runner {
   first_run = true
 
-  constructor(public display_name: string, public device: string, public op_estimate: sint = 0, public mem_estimate: sint = 0, public lds_estimate: sint = mem_estimate) {}
+  constructor(public display_name: string, public device: DeviceType, public op_estimate: sint = 0, public mem_estimate: sint = 0, public lds_estimate: sint = mem_estimate) {}
   get dev() {
     return Device.get(this.device)
   }
@@ -85,7 +85,7 @@ export class ViewOp extends Runner {
   }
 }
 export class BufferCopy extends Runner {
-  constructor(total_sz: number, dest_device: string, src_device: string) {
+  constructor(total_sz: number, dest_device: DeviceType, src_device: DeviceType) {
     if (total_sz >= 1e6) name = `copy ${(total_sz / 1e6).toFixed(2)}M, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
     else name = `copy ${total_sz.toFixed(0).padStart(8)}, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
     super(colored(name, 'yellow'), dest_device, 0, total_sz)
@@ -123,7 +123,7 @@ class BufferXfer extends BufferCopy {
 
 type Key = [string, string, number, number, boolean]
 const method_cache = new Map<Key, CompiledRunner>()
-export const get_runner = (device: string, ast: UOp): CompiledRunner => {
+export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {
   const ckey = [device, ast.key, BEAM, NOOPT, false] as Key
   const cret = method_cache.get(ckey)
   if (cret) return cret

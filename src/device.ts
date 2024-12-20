@@ -15,37 +15,40 @@ const DEVICES = {
   CLANG: () => import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
   DISK: () => import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
+  PYTHON: () => import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
+type AllDevices = keyof typeof DEVICES
+export type DeviceType = AllDevices | `${AllDevices}:${string}`
 
 export class _Device {
-  _canonicalize = (device: string): string => {
+  _canonicalize = (device: DeviceType): DeviceType => {
     const d = device.split(':', 1)[0].toUpperCase()
-    return d + device.slice(d.length).replace(':0', '')
+    return d + device.slice(d.length).replace(':0', '') as DeviceType
   }
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
-  canonicalize = (device?: string): string => isNotNone(device) ? this._canonicalize(device) : Device.DEFAULT
-  get = (ix: string): Compiled => this.__getCanonicalizedItem(this.canonicalize(ix))
-  __getCanonicalizedItem = (ix: string): Compiled => {
+  canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
+  get = (device: DeviceType): Compiled => this.__getCanonicalizedItem(this.canonicalize(device))
+  __getCanonicalizedItem = (ix: DeviceType): Compiled => {
     // TODO take this progremmatically
     const cpn = 'MainProcess' //multiprocessing.current_process().name
-    assert(cpn === 'MainProcess' || ['DISK', 'NPY', 'PYTHON'].includes(ix.split(':')[0]), `can only open device ${ix} from parent, not ${cpn}`)
+    assert(cpn === 'MainProcess' || ['DISK', 'PYTHON'].includes(ix.split(':')[0]), `can only open device ${ix} from parent, not ${cpn}`)
     const ret = resolvePromise(DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]())
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
     return new ret(ix)
   }
   default = (): Compiled => this.get(this.DEFAULT)
-  public *getAvailableDevices(): Generator<string> {
+  public *getAvailableDevices(): Generator<DeviceType> {
     for (const device of Object.keys(DEVICES)) {
       try {
-        yield this.get(device).device
+        yield this.get(device as DeviceType).device
       } catch {
         continue
       }
     }
   }
-  get DEFAULT(): string {
+  get DEFAULT(): DeviceType {
     const fromEnv = Object.keys(DEVICES).filter((d) => !['DISK', 'NPY'].includes(d) && getNumberEnv(d) === 1)[0]
-    if (fromEnv) return fromEnv
+    if (fromEnv) return fromEnv as DeviceType
 
     const device = this.getAvailableDevices().next().value
     if (!device) throw new Error('no usable devices')
@@ -75,7 +78,7 @@ export class Buffer {
   allocator?: Allocator
 
   constructor(
-    public device: string,
+    public device: DeviceType,
     public size: number,
     public dtype: DType,
     public in_opaque?: any,
@@ -133,7 +136,6 @@ export class Buffer {
     if (isNotNone(this._base)) {
       return [Buffer, [this.device, this.size, this.dtype, undefined, undefined, undefined, 0, this.base, this.offset, this.is_allocated()]]
     }
-    if (this.device === 'NPY') return [Buffer, [this.device, this.size, this.dtype, this._buf, this.options, undefined, this.lb_refcount]]
     if (this.is_allocated()) {
       buf = new Uint8Array(this.nbytes)
       this.copyout(new DataView(buf.buffer))
@@ -268,7 +270,7 @@ export class Compiler {
 
 export class Compiled {
   constructor(
-    public device: string,
+    public device: DeviceType,
     public allocator?: Allocator,
     public renderer: Renderer = new Renderer(),
     public compiler: Compiler = new Compiler(),

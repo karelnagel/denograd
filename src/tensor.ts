@@ -4,7 +4,7 @@ import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, lea
 import { LazyBuffer } from './engine/lazy.ts'
 import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
 import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
-import { BufferSpec, Device } from './device.ts'
+import { BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
 import { statSync } from 'node:fs'
 import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
@@ -275,7 +275,7 @@ export class Flip extends Function {
 
 // ************* function.py end *************
 
-export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: string | string[], arg?: any, src: LazyBuffer[] = []) => {
+export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: DeviceType | DeviceType[], arg?: any, src: LazyBuffer[] = []) => {
   if (isinstance(device, String)) return LazyBuffer.metaop(op, shape, dtype, device, arg, src)
   throw new Error('MultiLazyBuffer')
 }
@@ -310,7 +310,7 @@ export const _broadcast_shape = (shapes: sint[][]): sint[] => {
 }
 type ReductionStr = 'mean' | 'sum' | 'none'
 
-type TensorOptions = { device?: string | string[]; dtype?: DType; requires_grad?: boolean }
+type TensorOptions = { device?: DeviceType | DeviceType[]; dtype?: DType; requires_grad?: boolean }
 type TensorSlice = { start?: number; stop?: number; step?: number }
 const sliceGetIndices = (index: TensorSlice, size: number): [number, number, number] => {
   let start = index.start ?? 0
@@ -447,7 +447,7 @@ export class Tensor extends SimpleMathTrait {
     if (!this.shape) throw new Error('len() of a 0-d tensor')
     return this.shape[0]
   }
-  get device(): string | string[] {
+  get device(): DeviceType | DeviceType[] {
     return this.lazydata.device
   }
   get shape(): sint[] {
@@ -579,7 +579,7 @@ export class Tensor extends SimpleMathTrait {
   /**
    * Moves the tensor to the given device.
    */
-  to = (device?: string | string[]): Tensor => {
+  to = (device?: DeviceType | DeviceType[]): Tensor => {
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
     if (device === this.device) return this
     if (typeof device !== 'string') {
@@ -3262,11 +3262,11 @@ export class Tensor extends SimpleMathTrait {
   }
   // ***** cast ops *****
 
-  llvm_bf16_cast = (dtype: DTypeLike) => {
-    // hack for devices that don't support bfloat16
-    assert(this.dtype === dtypes.bfloat16)
-    return this.to('LLVM').bitcast(dtypes.uint16).cast(dtypes.uint32).mul(1 << 16).bitcast(dtypes.float32).cast(dtype)
-  }
+  // llvm_bf16_cast = (dtype: DTypeLike) => {
+  //   // hack for devices that don't support bfloat16
+  //   assert(this.dtype === dtypes.bfloat16)
+  //   return this.to('LLVM').bitcast(dtypes.uint16).cast(dtypes.uint32).mul(1 << 16).bitcast(dtypes.float32).cast(dtype)
+  // }
 
   /**
    * Casts `this` to the given `dtype`.
