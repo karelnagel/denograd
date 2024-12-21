@@ -500,7 +500,7 @@ export class Tensor extends SimpleMathTrait {
   assign = (x: Tensor): Tensor => {
     //   // TODO: this === a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
-      // if x.__class__ !== Tensor: x = new Tensor(x, device="CLANG", dtype=this.dtype)
+      // if x.__class__ !== Tensor: x = new Tensor(x, device="PYTHON", dtype=this.dtype)// Karel: changed CLANG to PYTHON
       this.contiguous().realize().lazydata.base.realized!.copyin(x._data())
       return this
     }
@@ -526,10 +526,10 @@ export class Tensor extends SimpleMathTrait {
   _data = (): DataView => {
     if (this.shape.includes(0)) return new DataView(new ArrayBuffer(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
-    const cpu = this.cast(this.dtype.base).contiguous().to('CLANG').realize()
+    const cpu = this.cast(this.dtype.base).contiguous().to('PYTHON').realize() // Karel: changed CLANG to PYTHON
     const buf = cpu.lazydata!.base.realized
-    if (this.device !== 'CLANG') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
-    return buf!.as_buffer(this.device !== 'CLANG' ? true : false)
+    if (this.device !== 'PYTHON') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true) // Karel: changed CLANG to PYTHON
+    return buf!.as_buffer(this.device !== 'PYTHON' ? true : false) // Karel: changed CLANG to PYTHON
   }
   /**
    * Returns the data of this tensor as a memoryview.
@@ -666,7 +666,7 @@ export class Tensor extends SimpleMathTrait {
     const _device = device = Device.canonicalize(device)
 
     // when using MOCKGPU && NV generate rand on CLANG
-    if (getEnv('MOCKGPU') && device.startsWith('NV')) device = 'CLANG'
+    if (getEnv('MOCKGPU') && device.startsWith('NV')) device = 'PYTHON' // Karel: changed CLANG to PYTHON
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     let had_counter
