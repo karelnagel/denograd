@@ -18,6 +18,7 @@ import { LazyBuffer } from '../src/engine/lazy.ts'
 import { CompiledRunner, ExecItem, Runner } from '../src/engine/realize.ts'
 import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../src/engine/schedule.ts'
 import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRUAllocator } from '../src/device.ts'
+import { PythonRenderer } from '../src/runtime/ops_python.ts'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -100,6 +101,7 @@ export const pyStr = (o: any, useList = false): string => {
 
   // ************ RENDERER ************
   if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
+  if (o instanceof PythonRenderer) return t`PythonRenderer()`
   if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, reduce_axes=${o.reduce_axes}, upcast_axes=${o.upcast_axes}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out})`
   if (o instanceof ProgramSpec) {
     return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${new SkipFormatting(pyStr(o.globals, true))},outs=${new SkipFormatting(pyStr(o.outs, true))}, _ran_post_init=${o._ran_post_init})`
@@ -142,6 +144,7 @@ import itertools
 from tinygrad.renderer import cstyle
 from tinygrad.ops import Ops
 from tinygrad.to_ts import to_ts
+from tinygrad.runtime.ops_python import PythonRenderer
 
 def trycatch(fn):
   try: return fn()

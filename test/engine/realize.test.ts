@@ -32,7 +32,7 @@ Deno.test(
   ),
 )
 
-Deno.test.ignore(
+Deno.test(
   'CompiledRunner.init',
   compare(
     // deno-fmt-ignore
