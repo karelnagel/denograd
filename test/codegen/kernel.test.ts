@@ -195,6 +195,7 @@ Deno.test(
       `k = data[0].linearize()`,
       pyKeys,
     ],
+    { ignore: [7] }, // possibly bug in tinygrad
   ),
 )
 
@@ -204,7 +205,10 @@ Deno.test(
     kernels(),
     (k: Kernel) => k.to_program(),
     'out(data[0].to_program())',
-    { ignore: [] },
+    {
+      ignore: [7], // possibly bug in tinygrad(fails in python not in TS)
+      // ignoreKeys: ['src'], // PythonRenderer generates other b64
+    },
   ),
 )
 
