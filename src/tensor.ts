@@ -40,10 +40,16 @@ export class Function {
   }
 
   static apply(...args: any[]): Tensor {
-    const x = args.filter((x) => x instanceof Tensor)!
+    assert(args.length > 0, 'No args')
+
+    const x = args.filter((x) => x instanceof Tensor)
     const ctx = new this(x[0].device, x, _METADATA.value)
-    const ret = new Tensor()
-    ;[ret.lazydata, ret.requires_grad, ret.grad] = [ctx.forward(args.map((v) => v instanceof Tensor ? v.lazydata : v)), ctx.requires_grad, undefined]
+
+    const ret = new Tensor(undefined, undefined, true)
+    ret.lazydata = ctx.forward(...args.map((v) => v instanceof Tensor ? v.lazydata : v))
+    ret.requires_grad = ctx.requires_grad
+    ret.grad = undefined
+
     ret._ctx = ctx.requires_grad && !Tensor.no_grad ? ctx : undefined // used by autograd engine
     return ret
   }
@@ -349,7 +355,7 @@ type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | Tensor
  * ```
  */
 export class Tensor extends SimpleMathTrait {
-  lazydata: LazyBuffer
+  lazydata!: LazyBuffer
   requires_grad?: boolean
   // tensors can have gradients if you have called .backward
   grad?: Tensor
@@ -359,8 +365,9 @@ export class Tensor extends SimpleMathTrait {
   static training = false
   static no_grad = false
 
-  constructor(data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}) {
+  constructor(data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, no_constructor = false) {
     super()
+    if (no_constructor) return
     if (dtype !== undefined) dtype = to_dtype(dtype)
     assert(dtype === undefined || isinstance(dtype, DType), `invalid dtype ${dtype}`)
     if (device === undefined && typeof data === 'string' && path.isAbsolute(data)) device = `DISK:${data}` // keep it on the disk if device === undefined

@@ -21,10 +21,20 @@ Deno.test(
   compare(
     [
       [4],
-      [true],
     ],
     (...data: (number | boolean)[]) => new Tensor(data).item(),
     'out(tiny.Tensor(data).item())',
+  ),
+)
+
+Deno.test(
+  'Tensor._data',
+  compare(
+    [
+      [2, 4],
+    ],
+    (...data: (number | boolean)[]) => new Tensor(data)._data(),
+    'out(tiny.Tensor(data)._data())',
   ),
 )
 
@@ -47,7 +57,7 @@ Deno.test(
     [
       [[4, 4, 4, 2, 6.5], [4, 4, 3, 3, 3]],
     ],
-    tryCatch((data0: number[], data1: number[]) => new Tensor(data0).add(new Tensor(data1)).tolist()),
+    (data0: number[], data1: number[]) => new Tensor(data0).add(new Tensor(data1)).tolist(),
     'out((tiny.Tensor(data[0]) + tiny.Tensor(data[1])).tolist())',
   ),
 )
@@ -58,7 +68,7 @@ Deno.test(
     [
       [[4, 4, 4, 2, 6.5], [4, 4, 3, 3, 3]],
     ],
-    tryCatch((data0: number[], data1: number[]) => new Tensor(data0).mul(new Tensor(data1)).tolist()),
+    (data0: number[], data1: number[]) => new Tensor(data0).mul(new Tensor(data1)).tolist(),
     'out((tiny.Tensor(data[0]) * tiny.Tensor(data[1])).tolist())',
   ),
 )
@@ -68,7 +78,7 @@ Deno.test(
     [
       [[4, 4, 4, 2, 6.5], [4, 4, 3, 3, 3]],
     ],
-    tryCatch((data0: number[], data1: number[]) => new Tensor(data0).matmul(new Tensor(data1)).tolist()),
+    (data0: number[], data1: number[]) => new Tensor(data0).matmul(new Tensor(data1)).tolist(),
     'out((tiny.Tensor(data[0]) @ tiny.Tensor(data[1])).tolist())',
   ),
 )

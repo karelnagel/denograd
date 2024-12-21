@@ -24,6 +24,7 @@ export class PythonProgram extends Program {
   uops: [Ops, DType | undefined, number[], any][]
   constructor(name: string, lib: Uint8Array) {
     super(name, lib)
+    throw new Error('reached PythonProgram')
     this.uops = JSON.parse(lib as any) // KAREL this is wrong
   }
   override call = (bufs: DataView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
@@ -218,9 +219,18 @@ export class PythonCompiler extends Compiler {
 }
 
 export class PythonAllocator extends Allocator {
-  _alloc = (size: number, options: BufferSpec) => new Uint8Array(size)
-  _copyin = (dest: Uint8Array, src: DataView) => dest.set(new Uint8Array(src.buffer, src.byteOffset, src.byteLength))
-  _copyout = (dest: DataView, src: Uint8Array) => new Uint8Array(dest.buffer, dest.byteOffset, dest.byteLength).set(src)
+  _alloc = (size: number, options: BufferSpec) => {
+    console.log("_alloc",size)
+    new Uint8Array(size)
+  }
+  _copyin = (dest: Uint8Array, src: DataView) => {
+    console.log('_copyin', dest, src)
+    return dest.set(new Uint8Array(src.buffer, src.byteOffset, src.byteLength))
+  }
+  _copyout = (dest: DataView, src: Uint8Array) => {
+    console.log('_copyout', Array.from(new Uint8Array(dest.buffer)), Array.from(src))
+    return new Uint8Array(dest.buffer, dest.byteOffset, dest.byteLength).set(src)
+  }
   _free = (opaque: number, options: BufferSpec) => {}
 }
 

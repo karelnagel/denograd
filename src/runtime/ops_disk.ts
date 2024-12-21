@@ -13,12 +13,8 @@ import process from 'node:process'
 import type { DeviceType } from '../device.ts'
 
 export class DiskBuffer {
-  device: DiskDevice
-  size: number
-  offset: number
-
-  constructor(device: DiskDevice, size: number, offset = 0) {
-    this.device = device, this.size = size, this.offset = offset
+  constructor(public device: DiskDevice, public size: number, public offset = 0) {
+    throw new Error('DiskBuffer')
   }
   toString = () => `<DiskBuffer size=${this.size} offset=${this.offset}>`
   _buf = (): DataView => {
@@ -29,12 +25,11 @@ export class DiskBuffer {
 // const [MAP_LOCKED, MAP_POPULATE] = [OSX ? 0 : 0x2000, mmap.MAP_POPULATE || (OSX ? 0 : 0x008000)]
 
 export class DiskAllocator extends Allocator {
-  dev: DiskDevice
-  constructor(dev: DiskDevice) {
+  constructor(public dev: DiskDevice) {
     super()
-    this.dev = dev
   }
   override _alloc = (size: number, options: any) => {
+    throw new Error('DiskAllocator')
     this.dev._might_open(size)
     return new DiskBuffer(this.dev, size)
   }
@@ -64,6 +59,7 @@ export class DiskDevice extends Compiled {
   mem!: ArrayBuffer
   constructor(device: DeviceType) {
     super(device, undefined, undefined, undefined, undefined)
+    throw new Error('DiskDevice')
     this.allocator = new DiskAllocator(this)
     if (!DiskDevice._tried_io_uring_init) this._iouring_setup()
   }
