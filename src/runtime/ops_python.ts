@@ -2,9 +2,9 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 import { all_same, assert, flatten, getEnv, isinstance, product, range, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, idiv, Ops, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
-import { Allocator, BufferSpec, Compiled, Compiler } from './allocator.ts'
+import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
 import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate, TYPED_ARRAYS } from '../dtype.ts'
-import type { DeviceType } from '../device.ts'
+import type { DeviceType, ProgramCallInput } from '../device.ts'
 
 const _load = (m: any[], i?: number) => {
   if (i === undefined) return 0.0
@@ -20,12 +20,13 @@ const _store = (m: any[], i: number, v: any) => {
   m[i] = v
 }
 
-export class PythonProgram {
+export class PythonProgram extends Program {
   uops: [Ops, DType | undefined, number[], any][]
   constructor(name: string, lib: Uint8Array) {
+    super(name, lib)
     this.uops = JSON.parse(lib as any) // KAREL this is wrong
   }
-  call = (bufs: DataView[], global_size: [number, number, number] = [1, 1, 1], local_size: [number, number, number] = [1, 1, 1], vals: number[] = [], wait = false) => {
+  override call = (bufs: DataView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
     const st = performance.now()
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length

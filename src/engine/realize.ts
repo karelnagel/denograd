@@ -1,5 +1,5 @@
 import { Kernel } from '../codegen/kernel.ts'
-import { Buffer, Device, DeviceType } from '../device.ts'
+import { Buffer, Device, DeviceType, Program } from '../device.ts'
 import { all_int, assert, BEAM, CAPTURING, colored, DataClass, DEBUG, getNumberEnv, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
 import { idiv, Ops, sint, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec, Renderer } from '../renderer/index.ts'
@@ -34,41 +34,41 @@ export class Runner {
     throw new Error('override this')
   }
 }
+
 export class CompiledRunner extends Runner {
-  lib: Uint8Array
-  _prg: any
-  constructor(public p: ProgramSpec, precompiled?: Uint8Array) {
+  _prg: Program
+  constructor(public p: ProgramSpec, public lib?: Uint8Array) {
     super(p.name, p.device, p.op_estimate, p.mem_estimate, p.lds_estimate)
     if (DEBUG >= 4) console.log(p.src)
-    this.lib = precompiled !== undefined ? precompiled : Device.get(p.device).compiler.compile_cached(p.src)
+    if (!this.lib) this.lib = Device.get(p.device).compiler.compile_cached(p.src)
     if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(this.lib)
     // KAREL:
-    // this._prg = Device.get(p.device).runtime(p.function_name, this.lib)
+    const Prg = Device.get(p.device).runtime!
+    this._prg = new Prg(p.function_name, this.lib)
   }
   __reduce__ = () => [this.p, this.lib]
 
   override call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): number | undefined => {
     let [global_size, local_size] = this.p.launch_dims(var_vals)
     if (global_size !== undefined && local_size === undefined && all_int(this.p.global_size!)) {
-      // TODO: this === copied from get_program
-      // from tinygrad.engine.search import optimize_local_size
       local_size = optimize_local_size(this._prg, global_size, rawbufs)
       global_size = zip(global_size, local_size!).map(([g, l]) => g % l === 0 ? idiv(g, l) : g / l)
       this.p.global_size = global_size
       this.p.global_size = local_size
     }
     const lra: Record<string, any> = {}
-    if (global_size) {
+    if (global_size?.length) {
       lra['global_size'] = global_size
       assert(global_size.length === 3, 'global size must have len 3')
     }
-    if (local_size) {
+    if (local_size?.length) {
       lra['local_size'] = local_size
       assert(local_size.length === 3, 'local size must have len 3')
     }
-    return this._prg(rawbufs.map((x) => x._buf), { ...lra, vals: this.p.vars?.map((k) => var_vals.get(k)), wait })
+    return this._prg.call(rawbufs.map((x) => x._buf), { ...lra, vals: this.p.vars?.map((k) => var_vals.get(k)!) }, wait)
   }
 }
+
 export class EmptyOp extends Runner {
   constructor(buf: Buffer) {
     super(colored(`empty ${buf.size.toString().padStart(10)} ${buf.dtype}`, 'yellow'), buf.device)
@@ -121,18 +121,17 @@ class BufferXfer extends BufferCopy {
 }
 // // **************** method cache ****************
 
-type Key = [string, string, number, number, boolean]
-const method_cache = new Map<Key, CompiledRunner>()
+const method_cache: Record<string, CompiledRunner> = {}
 export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {
-  const ckey = [device, ast.key, BEAM, NOOPT, false] as Key
-  const cret = method_cache.get(ckey)
+  const ckey = JSON.stringify([device, ast.key, BEAM, NOOPT, false])
+  const cret = method_cache[ckey]
   if (cret) return cret
-  const bkey = [device.split(':')[0], ast.key, BEAM, NOOPT, true] as Key
+  const bkey = JSON.stringify([device.split(':')[0], ast.key, BEAM, NOOPT, true])
   let ret
-  const bret = method_cache.get(bkey)
+  const bret = method_cache[bkey]
   if (bret) {
     ret = new CompiledRunner(replace(bret.p, { device: device }), bret.lib)
-    method_cache.set(ckey, ret)
+    method_cache[ckey] = ret
   } else {
     const prg: ProgramSpec = get_kernel(Device.get(device).renderer, ast).to_program()
     // if (getEnv('FUZZ_UOPS')) {
@@ -140,14 +139,15 @@ export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {
     //       return UOpsFuzzerRunner(replace(prg, device=device))
     // }
     ret = new CompiledRunner(replace(prg, { device: device }))
-    method_cache.set(ckey, ret), method_cache.set(bkey, ret)
+    method_cache[ckey] = ret
+    method_cache[bkey] = ret
   }
   return ret
 }
 
 // // **************** lowering functions ****************
 
-@DataClass
+// @DataClass
 export class ExecItem {
   constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
   run = (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): number | undefined => {

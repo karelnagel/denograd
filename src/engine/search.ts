@@ -1,5 +1,5 @@
 import { Kernel, Opt, OptOps } from '../codegen/kernel.ts'
-import { Buffer, Compiler, Device } from '../device.ts'
+import { Buffer, Compiler, Device, Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
 import { assert, CACHELEVEL, DEBUG, diskcache_get, diskcache_put, getEnv, getNumberEnv, isinstance, min, prod, range, to_function_name, zip } from '../helpers.ts'
 import { idiv, mul, Ops, sym_infer, UOp, Variable } from '../ops.ts'
@@ -213,19 +213,17 @@ export const timeout_handler = (signum: any, frame: any) => {
 //   //   if BEAM_DEBUG: console.log(`BEAM_SEARCH: final tm=${beam[0][1]*1e6:0.2f} us, applied_opts=${beam[0][0].applied_opts}`)
 //   return beam[0][0]
 // }
-export const optimize_local_size = (_prg: (x: any) => number, global_size: number[], rawbufs: Buffer[]): number[] => {
+export const optimize_local_size = (_prg: Program, global_size: number[], rawbufs: Buffer[]): number[] => {
   const test_rawbuffers = rawbufs.slice(1).includes(rawbufs[0]) ? [new Buffer(rawbufs[0].device, rawbufs[0].size, rawbufs[0].dtype).allocate(), ...rawbufs.slice(1)] : rawbufs
   const MAX_WORKGROUP = 1024
   const local_dims = global_size.map((sz) => [...new Set([sz, 1, 2, 4, 8, 16, 32, 64, 128, 256, MAX_WORKGROUP])].filter((x) => x <= sz))
   const local_sizes = [...local_dims.reduce((acc, curr) => acc.flatMap((x) => curr.map((y) => [...x, y])), [[]] as number[][])].filter((x) => prod(x) <= MAX_WORKGROUP).flatMap((x) => [x, x]) // try each valid size twice
   const try_exec = (local_size: number[]): number => {
     try {
-      return _prg({
-        idk: test_rawbuffers.map((x) => x._buf),
+      return _prg.call(test_rawbuffers.map((x) => x._buf), {
         global_size: zip(global_size, local_size).map(([g, l]) => g % l === 0 ? idiv(g, l) : g / l),
         local_size,
-        wait: true,
-      })
+      }, true)
     } catch {
       return Infinity
     }

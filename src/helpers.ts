@@ -434,10 +434,9 @@ export const diskcache = (func: any) => {
 // # *** Exec helpers
 
 export const cpuTimeExecution = (cb: () => void, enable: boolean) => {
-  let st = 0
-  if (enable) st = performance.now()
+  const st = performance.now()
   cb()
-  if (enable) return performance.now() - st
+  return performance.now() - st
 }
 
 export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {

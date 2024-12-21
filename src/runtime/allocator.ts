@@ -109,7 +109,7 @@ export class Compiled {
     public allocator?: Allocator,
     public renderer: Renderer = new Renderer(),
     public compiler: Compiler = new Compiler(),
-    public runtime?: any,
+    public runtime?: typeof Program,
     public graph?: any,
   ) {}
   /**
@@ -119,5 +119,14 @@ export class Compiled {
    */
   synchronize = () => {
     //     # override this in your device implementation
+  }
+}
+
+export type ProgramCallInput = { global_size?: number[]; local_size?: number[]; vals?: number[] }
+export class Program {
+  constructor(public name: string, public lib: Uint8Array) {
+  }
+  call = (bufs: any[], vals: ProgramCallInput, wait: boolean): number => {
+    throw new Error('not implemented')
   }
 }
