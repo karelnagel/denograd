@@ -19,6 +19,7 @@ import { CompiledRunner, ExecItem, Runner } from '../src/engine/realize.ts'
 import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../src/engine/schedule.ts'
 import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRUAllocator } from '../src/device.ts'
 import { PythonRenderer } from '../src/runtime/ops_python.ts'
+import { MemoryView } from '../src/memoryview.ts'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -130,6 +131,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Metadata) return t`tiny.helpers.Metadata(${o.name}, ${o.caller}, ${o.backward})`
 
   if (o instanceof Uint8Array) return t`bytes(${Array.from(o)})`
+  if (o instanceof MemoryView) return t`memoryview(bytes(${Array.from(o.toBytes())}))`
 
   if (typeof o === 'function') return 'lambda x: x'
   if (o?.constructor?.name === 'Object') return `{${Object.entries(o).map((entry) => t`${entry[0]}:${entry[1]}`).join(',')}}`

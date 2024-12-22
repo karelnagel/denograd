@@ -1,26 +1,13 @@
 import { assert, checkCached, getEnv, intersection, isEq, isLessThan, max, sorted } from './helpers.ts'
+import { FmtStr, MemoryView } from './memoryview.ts'
+export type { FmtStr } from './memoryview.ts'
 
 export type ConstType<This = never> = number | boolean | This
-export type FmtStr = keyof typeof TYPED_ARRAYS
 export type TypedArrays = Uint8Array | Int8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | BigInt64Array | BigUint64Array | Float32Array | Float64Array
-export const TYPED_ARRAYS = {
-  '?': Uint8Array, // Boolean as byte (no direct boolean typed array)
-  'b': Int8Array, // Signed char
-  'B': Uint8Array, // Unsigned char
-  'h': Int16Array, // Signed short
-  'H': Uint16Array, // Unsigned short
-  'i': Int32Array, // Signed int
-  'I': Uint32Array, // Unsigned int
-  'q': BigInt64Array, // Signed 64-bit (BigInt)
-  'Q': BigUint64Array, // Unsigned 64-bit (BigInt)
-  'e': Uint16Array, // Half precision float (no direct typed array, store raw 16-bit)
-  'f': Float32Array, // Single precision float
-  'd': Float64Array, // Double precision float
-}
 
 export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, destFmt: FmtStr) => {
-  const src = new TYPED_ARRAYS[srcFmt](data as any)
-  return [...new TYPED_ARRAYS[destFmt](src.buffer)]
+  const src = new MemoryView.ARRAYS[srcFmt](data as any)
+  return [...new MemoryView.ARRAYS[destFmt](src.buffer)]
 }
 
 export class DType {

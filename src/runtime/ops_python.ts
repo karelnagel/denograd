@@ -3,8 +3,9 @@ import { all_same, assert, flatten, getEnv, isinstance, product, range, sum, zip
 import { exec_alu, GroupOp, idiv, Ops, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
-import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate, TYPED_ARRAYS } from '../dtype.ts'
+import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate, TypedArrays } from '../dtype.ts'
 import type { DeviceType, ProgramCallInput } from '../device.ts'
+import { MemoryView } from '../memoryview.ts'
 
 const _load = (m: any[], i?: number) => {
   if (i === undefined) return 0.0
@@ -20,14 +21,22 @@ const _store = (m: any[], i: number, v: any) => {
   m[i] = v
 }
 
+type PyUOp = [Ops, DType | undefined, number[], any]
+const serialize = (data: PyUOp[]): Uint8Array => {
+  return new TextEncoder().encode(JSON.stringify(data.map(([ops, dtype, src, arg]) => [ops, dtype?.toString(), src, arg])))
+}
+const deserialize = (data: Uint8Array): PyUOp[] => {
+  const res = JSON.parse(new TextDecoder().decode(data))
+  return res.map(([ops, dtype, src, arg]: any) => [ops, eval(dtype), src, arg])
+}
+
 export class PythonProgram extends Program {
-  uops: [Ops, DType | undefined, number[], any][]
+  uops: PyUOp[]
   constructor(name: string, lib: Uint8Array) {
     super(name, lib)
-    throw new Error('reached PythonProgram')
-    this.uops = JSON.parse(lib as any) // KAREL this is wrong
+    this.uops = deserialize(lib)
   }
-  override call = (bufs: DataView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
+  override call = (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
     const st = performance.now()
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length
@@ -76,8 +85,8 @@ export class PythonProgram extends Program {
         if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL].includes(uop)) {
           assert(dtype.fmt !== undefined)
           //   if (TYPE_CHECKING) assert(dtype.fmt !== "e")
-          const buf = uop === Ops.DEFINE_LOCAL ? new DataView(new ArrayBuffer(arg[1] * dtype.itemsize)) : pbufs.shift()!
-          ul.set(i, range(warp_size).map(() => new TYPED_ARRAYS[dtype.fmt!](buf.buffer)))
+          const buf = uop === Ops.DEFINE_LOCAL ? new MemoryView(new Uint8Array(arg[1] * dtype.itemsize)) : pbufs.shift()!
+          ul.set(i, range(warp_size).map(() => buf.cast(dtype.fmt!)))
         } else if (uop === Ops.DEFINE_VAR) {
           ul.set(i, range(warp_size).map(() => pvals.shift()))
         } else if (uop === Ops.SPECIAL) {
@@ -209,8 +218,8 @@ export class PythonRenderer extends Renderer {
     super()
   }
   override render = (name: string, uops: UOp[]): string => {
-    const lops = uops.map((u) => [u.op, u.dtype, u.src.map((v) => uops.indexOf(v)), u.arg])
-    return NodeBuffer.from(JSON.stringify(lops)).toString('base64')
+    const lops = uops.map((u) => [u.op, u.dtype, u.src.map((v) => uops.indexOf(v)), u.arg] as PyUOp)
+    return NodeBuffer.from(serialize(lops)).toString('base64')
   }
 }
 
@@ -219,19 +228,21 @@ export class PythonCompiler extends Compiler {
 }
 
 export class PythonAllocator extends Allocator {
-  _alloc = (size: number, options: BufferSpec) => {
-    console.log("_alloc",size)
-    new Uint8Array(size)
+  _alloc = (size: number, options: BufferSpec): MemoryView => {
+    console.log('_alloc', size)
+    return new MemoryView(new Uint8Array(size))
   }
-  _copyin = (dest: Uint8Array, src: DataView) => {
+  _copyin = (dest: MemoryView, src: MemoryView): MemoryView => {
     console.log('_copyin', dest, src)
-    return dest.set(new Uint8Array(src.buffer, src.byteOffset, src.byteLength))
+    return dest.set(src)
   }
-  _copyout = (dest: DataView, src: Uint8Array) => {
-    console.log('_copyout', Array.from(new Uint8Array(dest.buffer)), Array.from(src))
-    return new Uint8Array(dest.buffer, dest.byteOffset, dest.byteLength).set(src)
+  _copyout = (dest: MemoryView, src: MemoryView): MemoryView => {
+    console.log('_copyout', dest.constructor.name, src.constructor.name)
+    return dest.set(src)
   }
-  _free = (opaque: number, options: BufferSpec) => {}
+  _free = (opaque: number, options: BufferSpec) => {
+    throw new Error("PYTHON doesn't have _free")
+  }
 }
 
 export class PythonDevice extends Compiled {

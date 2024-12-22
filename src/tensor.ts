@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { Buffer as NodeBuffer } from 'node:buffer'
-import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate, TYPED_ARRAYS } from './dtype.ts'
+import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
 import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
 import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
@@ -18,6 +18,7 @@ import { sint_polyN } from './ops.ts'
 import { ceildiv, make_tuple, round_up } from './helpers.ts'
 import crypto from 'node:crypto'
 import { argsort } from './helpers.ts'
+import { MemoryView } from './memoryview.ts'
 
 export class Function {
   device: string | string[]
@@ -302,7 +303,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
     data = new Uint8Array(ret.size).map((_, i) => truncate_function(x.flat()[i]))
   }
   //   // fake realize
-  ret.buffer!.allocate(new DataView(Device.DEFAULT !== 'PYTHON' ? data.buffer : new Uint8Array(data).buffer))
+  ret.buffer!.allocate(new MemoryView(Device.DEFAULT !== 'PYTHON' ? data : new Uint8Array(data)))
   delete ret.srcs
   return ret
 }
@@ -530,8 +531,8 @@ export class Tensor extends SimpleMathTrait {
   detach = (): Tensor => {
     return new Tensor(this.lazydata, { device: this.device, requires_grad: false })
   }
-  _data = (): DataView => {
-    if (this.shape.includes(0)) return new DataView(new ArrayBuffer(0))
+  _data = (): MemoryView => {
+    if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = this.cast(this.dtype.base).contiguous().to('PYTHON').realize() // Karel: changed CLANG to PYTHON
     const buf = cpu.lazydata!.base.realized
@@ -546,14 +547,11 @@ export class Tensor extends SimpleMathTrait {
    * console.log(np.frombuffer(t.data(), dtype=np.int32))
    * ```
    */
-  data = (): DataView => {
+  data = (): MemoryView<any> => {
     assert(this.dtype.base.fmt !== undefined, `no fmt dtype for ${this.dtype.base}`)
     assert(all_int(this.shape), `no data if shape === symbolic, ${this.shape}`)
     // if (TYPE_CHECKING ) assert(this.dtype.base.fmt !== "e")
-    // KAREL: todo, should work with .fmt
-    // const TypedArray = TYPED_ARRAYS[this.dtype.base.fmt!]
-    // return this.shape.includes(0) ? new TypedArray(this._data().buffer) : new TypedArray(this._data().buffer, this.shape[0] as number, this.shape[1] as number)
-    return this._data()
+    return this.shape.includes(0) ? this._data().cast(this.dtype.base.fmt!) : this._data().cast(this.dtype.base.fmt!, this.shape as number[])
   }
   /**
    * Returns the value of this tensor as a standard Python number.
@@ -565,7 +563,7 @@ export class Tensor extends SimpleMathTrait {
    */
   item = (): ConstType => {
     assert(this.numel() === 1, 'must have one element for item')
-    return this.data().getFloat64(this.shape.length) //KAREL: this is wrong
+    return this.data().getValue(...range(this.shape.length).map(() => 0)) as number
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
   // src: https://github.com/python/mypy/blob/release-1.6/mypy/typeshed/stdlib/builtins.pyi//L803
@@ -578,10 +576,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   tolist = (): ConstType[] | ConstType => {
-    const data = this.data()
-    const TypedArray = TYPED_ARRAYS[this.dtype.base.fmt!]
-    const arr = new TypedArray(data.buffer)
-    return Array.from(arr as Uint8Array) // TOOD: probably wrong
+    return this.data().toList() as number[]
   }
   /**
    * Moves the tensor to the given device.

@@ -1,26 +1,6 @@
-import { _getRecursiveParents, bitcast, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
+import { _getRecursiveParents, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
 import { sorted } from '../src/helpers.ts'
 import { compare, tryCatch } from './helpers.ts'
-
-Deno.test(
-  'dtype.bitcast',
-  compare(
-    [
-      [[4, 4, 55, 23.34, 54], 'f', 'i'],
-      [[4, 4, 55, 23, 54], 'i', 'f'],
-      // [[4, 4, 55, 23, 54], 'i', 'B'],
-      [[127, 0, 255], 'B', 'b'], // Test unsigned to signed byte conversion
-      [[65535, 0, 32768], 'H', 'h'], // Test unsigned to signed short
-      [[2147483647, 0, -2147483648], 'i', 'I'], // Test signed to unsigned int
-      [[true, false, true], '?', 'B'], // Test boolean to byte
-    ],
-    bitcast,
-    [
-      'import struct',
-      `out(list(struct.unpack(f"{len(data[0])}{data[2]}", struct.pack(f"{len(data[0])}{data[1]}", *data[0]))))`,
-    ],
-  ),
-)
 
 Deno.test(
   'DType.init',

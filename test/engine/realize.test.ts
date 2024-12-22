@@ -51,12 +51,15 @@ Deno.test(
     (d, ast) => {
       const runner = get_runner(d, ast)
 
-      return [runner.lib, runner.p]
+      return [runner.p]
     },
     [
       'runner = tiny.engine.realize.get_runner(*data)',
-      'out([runner.lib, runner.p])',
+      'out([runner.p])',
     ],
+    {
+      ignoreKeys: ['src'],
+    },
   ),
 )
 

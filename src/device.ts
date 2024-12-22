@@ -1,8 +1,9 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, CI, DEBUG, flat_mv, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, OSX } from './helpers.ts'
+import { assert, CI, DEBUG, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, OSX } from './helpers.ts'
 import process from 'node:process'
 import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
-export * from "./runtime/allocator.ts"
+import { MemoryView } from './memoryview.ts'
+export * from './runtime/allocator.ts'
 // # **************** Device ****************
 
 const DEVICES = {
@@ -18,7 +19,7 @@ const DEVICES = {
   // CLANG: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
 // KAREL: enable clang
-export type AllDevices = keyof typeof DEVICES | "CLANG"
+export type AllDevices = keyof typeof DEVICES | 'CLANG'
 export type DeviceType = AllDevices | `${AllDevices}:${string}`
 
 export class _Device {
@@ -85,7 +86,7 @@ export class Buffer {
       if (isNotNone(in_opaque)) this.allocate(in_opaque)
       if (isNotNone(in_initial_value)) {
         this.allocate()
-        this.copyin(new DataView(in_initial_value.buffer))
+        this.copyin(new MemoryView(in_initial_value))
       }
     } else {
       assert(isNone(base._base), "base can't have a base")
@@ -126,7 +127,7 @@ export class Buffer {
     }
     if (this.is_allocated()) {
       buf = new Uint8Array(this.nbytes)
-      this.copyout(new DataView(buf.buffer))
+      this.copyout(new MemoryView(buf))
     }
     return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lb_refcount]]
   }
@@ -143,21 +144,21 @@ export class Buffer {
   __repr__ = () => {
     return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}` + (this.base ? ` offset:${this.offset}` : '') + (isNotNone(this.options) ? ` ${this.options}` : '') + '>'
   }
-  as_buffer = (allowZeroCopy = false, forceZeroCopy = false) => {
+  as_buffer = (allowZeroCopy = false, forceZeroCopy = false): MemoryView => {
     // zero copy with as_buffer (disabled by default due to use after free)
     if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (isNone(this.options) || isNone(this.options.image))) return (this.allocator._asBuffer as any)(this._buf)
     assert(!forceZeroCopy, 'force zero copy was passed, but copy is required')
-    return this.copyout(new DataView(new Uint8Array(this.nbytes).buffer))
+    return this.copyout(new MemoryView(new Uint8Array(this.nbytes)))
   }
-  copyin = (mv: DataView): Buffer => {
-    mv = flat_mv(mv)
+  copyin = (mv: MemoryView): Buffer => {
+    mv = mv.flat()
     assert(mv.byteLength === this.nbytes, `size mismatch, ${mv.byteLength} != ${this.dtype} ${this.size}`)
     assert(this.is_allocated(), "can't copyin to unallocated buffer")
     this.allocator?._copyin(this._buf, mv)
     return this
   }
-  copyout = (mv: DataView): DataView => {
-    mv = flat_mv(mv)
+  copyout = (mv: MemoryView): MemoryView => {
+    mv = mv.flat()
     assert(mv.byteLength === this.nbytes, `size mismatch, {len(mv)=} != {this.dtype=} ${this.size}`)
     assert(this.is_allocated(), "can't copyout unallocated buffer")
     this.allocator?._copyout(mv, this._buf)

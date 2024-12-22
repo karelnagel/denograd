@@ -22,7 +22,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
   // Just like your code; constructor with shape support added at the end:
   constructor(input: number, opts?: MemoryViewOptions<F>)
   constructor(input: Const<F>[], opts?: MemoryViewOptions<F>)
-  constructor(input: ArrayBufferView)
+  constructor(input: Arr<F>)
   constructor(input: ArrayBuffer, opts?: MemoryViewOptions<F>)
   constructor(input: number | Const<F>[] | ArrayBuffer | ArrayBufferView, opts: MemoryViewOptions<F> = {}) {
     // Searching ARRAYS if input is some of those, else setting options or UInt8Byte

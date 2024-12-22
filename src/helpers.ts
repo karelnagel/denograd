@@ -5,6 +5,7 @@ import os from 'node:os'
 import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
 type ClassType<T> = { new (...args: any[]): T }
@@ -454,7 +455,7 @@ export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {
 }
 // # *** ctypes helpers
 export class c_char {
-  from_buffer = (mv: DataView) => {}
+  from_buffer = (mv: MemoryView) => {}
   mul = (other: number) => new c_char()
   call = () => {}
 }
@@ -483,10 +484,9 @@ export class ctypes {
 }
 
 // # TODO: make this work with read only memoryviews (if possible)
-export const from_mv = (mv: DataView, to_type = ctypes.c_char): c_char[] => {
+export const from_mv = (mv: MemoryView, to_type = ctypes.c_char): c_char[] => {
   throw new Error('not implemented')
 }
-export const flat_mv = (mv: DataView): DataView => mv.byteLength === 0 ? mv : new DataView(mv.buffer, mv.byteOffset, mv.byteLength)
 
 // # *** universal support for code object pickling
 

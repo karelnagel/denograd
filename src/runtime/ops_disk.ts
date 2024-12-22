@@ -1,25 +1,16 @@
-// from __future__ import annotations
-// import os, sys, mmap, io, ctypes, ctypes.util, contextlib
-// from typing import Optional, Generator, Tuple, Callable, List
-// from tinygrad.helpers import OSX, round_up
-// from tinygrad.device import Compiled, Allocator
-// with contextlib.suppress(ImportError):
-//   import _posixshmem
-//   from tinygrad.runtime.autogen import io_uring, libc
-
 import { Allocator, Compiled } from './allocator.ts'
-import { assert, OSX } from '../helpers.ts'
+import { assert } from '../helpers.ts'
 import process from 'node:process'
 import type { DeviceType } from '../device.ts'
+import { MemoryView } from '../memoryview.ts'
 
 export class DiskBuffer {
   constructor(public device: DiskDevice, public size: number, public offset = 0) {
-    throw new Error('DiskBuffer')
   }
   toString = () => `<DiskBuffer size=${this.size} offset=${this.offset}>`
-  _buf = (): DataView => {
+  _buf = (): MemoryView => {
     assert(this.device.mem !== undefined, "DiskBuffer wasn't opened")
-    return new DataView(this.device.mem, this.offset, this.offset + this.size)
+    return new MemoryView(this.device.mem).slice(this.offset, this.offset + this.size)
   }
 }
 // const [MAP_LOCKED, MAP_POPULATE] = [OSX ? 0 : 0x2000, mmap.MAP_POPULATE || (OSX ? 0 : 0x008000)]
@@ -29,25 +20,21 @@ export class DiskAllocator extends Allocator {
     super()
   }
   override _alloc = (size: number, options: any) => {
-    throw new Error('DiskAllocator')
     this.dev._might_open(size)
     return new DiskBuffer(this.dev, size)
   }
   override _free = (opaque: any, options: any) => this.dev._might_close()
   _as_buffer = (src: DiskBuffer) => src._buf()
-  override _copyin = (dest: DiskBuffer, src: DataView) => {
-    // KAREL: todo
-    // dest._buf() = src
-  }
-  override _copyout = (dest: DataView, src: DiskBuffer) => {
-    if (OSX && this.dev.fd !== undefined) {
-      //       // OSX doesn't seem great at mmap, this === faster
-      // with io.FileIO(this.dev.fd, "a+b", closefd=false) as fo:
-      //         fo.seek(src.offset)
-      //         fo.readinto(dest)
-    } else {
-      dest = src._buf()
-    }
+  override _copyin = (dest: DiskBuffer, src: MemoryView) => void dest._buf().set(src)
+  override _copyout = (dest: MemoryView, src: DiskBuffer) => {
+    // if (OSX && this.dev.fd !== undefined) {
+    //       // OSX doesn't seem great at mmap, this === faster
+    // with io.FileIO(this.dev.fd, "a+b", closefd=false) as fo:
+    //         fo.seek(src.offset)
+    //         fo.readinto(dest)
+    // } else {
+    dest.set(src._buf())
+    // }
   }
   _offset = (buf: DiskBuffer, size: number, offset: number) => new DiskBuffer(buf.device, size, offset)
 }
@@ -59,9 +46,8 @@ export class DiskDevice extends Compiled {
   mem!: ArrayBuffer
   constructor(device: DeviceType) {
     super(device, undefined, undefined, undefined, undefined)
-    throw new Error('DiskDevice')
-    this.allocator = new DiskAllocator(this)
     if (!DiskDevice._tried_io_uring_init) this._iouring_setup()
+    this.allocator = new DiskAllocator(this)
   }
   _might_open = (size: number) => {
     this.count += 1
@@ -70,6 +56,7 @@ export class DiskDevice extends Compiled {
     const filename = this.device.slice('disk:'.length)
     this.size = size
 
+    throw new Error('Not implemented')
     if (process.platform !== 'win32' && filename.startsWith('shm:')) {
       //       fd = _posixshmem.shm_open("/"+filename[4:].lstrip("/"), os.O_RDWR, 0o600)
       //       this.mem = mmap.mmap(fd, this.size, mmap.MAP_SHARED | MAP_POPULATE | MAP_LOCKED)

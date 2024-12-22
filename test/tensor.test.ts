@@ -21,6 +21,7 @@ Deno.test(
   compare(
     [
       [4],
+      [4, 4, 3, 66],
     ],
     (...data: (number | boolean)[]) => new Tensor(data).item(),
     'out(tiny.Tensor(data).item())',
@@ -44,6 +45,7 @@ Deno.test(
     [
       [4, 4, 4, 2, 6.5],
       [4],
+      [4, 5],
       [true, false],
     ],
     (...data: (number | boolean)[]) => new Tensor(data).tolist(),
