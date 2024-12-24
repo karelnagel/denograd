@@ -84,8 +84,8 @@ export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {
 
 export const buf_idx_pat = new UPat(Ops.INDEX, undefined, [UPat.var('buf')], undefined, undefined, true)
 export const float4_folding = new PatternMatcher([
-  [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.LOAD, undefined, [buf_idx_pat], undefined, undefined, true), undefined, 'ex'), ({ ex, buf }) => fold_expanded(ex, buf)],
-  [new UPat([Ops.BARRIER, Ops.SINK], undefined, new UPat(Ops.STORE, undefined, [buf_idx_pat], undefined, undefined, true), undefined, 'ex'), ({ ex, buf }) => fold_expanded(ex, buf)],
+  [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.LOAD, undefined, [buf_idx_pat], undefined, undefined, true)).named('ex'), ({ ex, buf }) => fold_expanded(ex, buf)],
+  [new UPat([Ops.BARRIER, Ops.SINK], undefined, new UPat(Ops.STORE, undefined, [buf_idx_pat], undefined, undefined, true)).named('ex'), ({ ex, buf }) => fold_expanded(ex, buf)],
 ])
 
 // # ***** image load valid simplification *****
