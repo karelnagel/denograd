@@ -1,10 +1,10 @@
-import { all_int } from './helpers.ts'
+import { all_int, listStr } from './helpers.ts'
 
 export type FmtStr = keyof typeof MemoryView.ARRAYS
 
 type MemoryViewOptions<F extends FmtStr> = {
   byteOffset?: number
-  length?: number
+  byteLength?: number
   fmt?: FmtStr
   shape?: number[]
 }
@@ -18,32 +18,37 @@ export class MemoryView<F extends FmtStr = 'B'> {
 
   // New fields for multi-dimensional logic:
   shape: number[] = []
-
+  toString = () => `new MemoryView(new ${this.asTypedArray.constructor.name}(${listStr(this.toList())}), {byteOffset:${this.byteOffset}, byteLength:${this.byteLength}, fmt:'${this.format}', shape:${listStr(this.shape)}})`
   // Just like your code; constructor with shape support added at the end:
+  constructor(input: MemoryView<F>, opts?: MemoryViewOptions<F>)
   constructor(input: number, opts?: MemoryViewOptions<F>)
   constructor(input: Const<F>[], opts?: MemoryViewOptions<F>)
-  constructor(input: Arr<F>)
+  constructor(input: Arr<F>, opts?: MemoryViewOptions<F>)
   constructor(input: ArrayBuffer, opts?: MemoryViewOptions<F>)
-  constructor(input: number | Const<F>[] | ArrayBuffer | ArrayBufferView, opts: MemoryViewOptions<F> = {}) {
-    // Searching ARRAYS if input is some of those, else setting options or UInt8Byte
-    this.format = (Object.entries(MemoryView.ARRAYS).find(([k, v]) => input instanceof v)?.[0] || opts.fmt || 'B') as F
-    if (typeof input === 'number') {
+  constructor(input: number | Const<F>[] | ArrayBuffer | ArrayBufferView | MemoryView<F>, opts: MemoryViewOptions<F> = {}) {
+    // using opt.fmt over
+    this.format = (opts.fmt || (input instanceof MemoryView && input.format) || Object.entries(MemoryView.ARRAYS).find(([k, v]) => input instanceof v)?.[0] || 'B') as F
+    if (input instanceof MemoryView) {
+      this.buffer = input.buffer
+      this.byteOffset = opts.byteOffset || input.byteOffset
+      this.byteLength = opts.byteLength || input.byteLength
+    } else if (typeof input === 'number') {
       this.buffer = new ArrayBuffer(input)
-      this.byteOffset = 0
-      this.byteLength = input
+      this.byteOffset = opts.byteOffset || 0
+      this.byteLength = opts.byteLength || input
     } else if (Array.isArray(input)) {
       const typed = new MemoryView.ARRAYS[this.format](input as any)
       this.buffer = typed.buffer
-      this.byteOffset = typed.byteOffset
-      this.byteLength = typed.byteLength
+      this.byteOffset = opts.byteOffset || typed.byteOffset
+      this.byteLength = opts.byteLength || typed.byteLength
     } else if (input instanceof ArrayBuffer) {
       this.buffer = input
       this.byteOffset = opts.byteOffset || opts.byteOffset || 0
-      this.byteLength = opts.length ?? (input.byteLength - this.byteOffset)
+      this.byteLength = opts.byteLength || (input.byteLength - this.byteOffset)
     } else {
       this.buffer = input.buffer
-      this.byteOffset = input.byteOffset
-      this.byteLength = input.byteLength
+      this.byteOffset = opts.byteOffset || input.byteOffset
+      this.byteLength = opts.byteLength || input.byteLength
     }
     this.setShape(opts.shape)
   }
@@ -151,7 +156,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
     const itemEnd = end !== undefined ? end * this.BYTES_PER_ELEMENT : this.byteLength
     const newByteOffset = this.byteOffset + itemBegin
     const newByteLength = itemEnd - itemBegin
-    return new MemoryView(this.buffer, { byteOffset: newByteOffset, length: newByteLength / this.BYTES_PER_ELEMENT }).cast(this.format)
+    return new MemoryView(this.buffer, { byteOffset: newByteOffset, byteLength: newByteLength / this.BYTES_PER_ELEMENT }).cast(this.format)
   }
 
   /**

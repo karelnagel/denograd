@@ -299,11 +299,10 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
   else {
     ret = LazyBuffer.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
     assert(dtype.fmt !== undefined, `${dtype} has undefined fmt`)
-    const truncate_function = truncate.get(dtype)!
-    data = new Uint8Array(ret.size).map((_, i) => truncate_function(x.flat()[i]))
+    data = new MemoryView(x.flat(), { fmt: dtype.fmt }) //KAREL: not that sure
   }
   //   // fake realize
-  ret.buffer!.allocate(new MemoryView(Device.DEFAULT !== 'PYTHON' ? data : new Uint8Array(data)))
+  ret.buffer!.allocate(Device.DEFAULT !== 'PYTHON' ? data : new MemoryView(data as Uint8Array, { fmt: 'B' }))
   delete ret.srcs
   return ret
 }
@@ -317,7 +316,7 @@ export const _broadcast_shape = (shapes: sint[][]): sint[] => {
 }
 type ReductionStr = 'mean' | 'sum' | 'none'
 
-type TensorOptions = { device?: DeviceType | DeviceType[]; dtype?: DType; requires_grad?: boolean }
+export type TensorOptions = { device?: DeviceType | DeviceType[]; dtype?: DType; requires_grad?: boolean }
 type TensorSlice = { start?: number; stop?: number; step?: number }
 const sliceGetIndices = (index: TensorSlice, size: number): [number, number, number] => {
   let start = index.start ?? 0
@@ -366,9 +365,10 @@ export class Tensor extends SimpleMathTrait {
   static training = false
   static no_grad = false
 
-  constructor(data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, no_constructor = false) {
+  constructor(data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
     super()
-    if (no_constructor) return
+    if (skip_constructor) return
+
     if (dtype !== undefined) dtype = to_dtype(dtype)
     assert(dtype === undefined || isinstance(dtype, DType), `invalid dtype ${dtype}`)
     if (device === undefined && typeof data === 'string' && path.isAbsolute(data)) device = `DISK:${data}` // keep it on the disk if device === undefined
@@ -381,16 +381,17 @@ export class Tensor extends SimpleMathTrait {
     //     // create a LazyBuffer from the different types of inputs
     if (isinstance(data, LazyBuffer)) assert(dtype === undefined || dtype === data.dtype, "dtype doesn't match, && casting isn't supported")
     else if (data === undefined) data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
-    else if (isinstance(data, Number) || isinstance(data, Boolean)) data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
-    else if (isinstance(data, UOp)) {
+    else if (typeof data === 'number' || typeof data === 'boolean') {
+      data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
+    } else if (isinstance(data, UOp)) {
       assert(data.op === Ops.BIND && data.src[0].op === Ops.DEFINE_VAR && data.src[1].op === Ops.CONST, `can't create tensor from UOp ${data}`)
       data = _metaop(Ops.CONST, [], dtype || data.dtype, device, data)
-    } else if (isinstance(data, Uint8Array)) data = _frompy(data, dtype === undefined ? dtypes.uint8 : dtype)
+    } else if (isinstance(data, Uint8Array)) data = _frompy(data, dtype || dtypes.uint8)
     else if (Array.isArray(data)) {
       if (dtype === undefined) {
-        const d = (data as any[]).flat()
-        if (d.length && d.every((s) => s instanceof Boolean)) dtype = dtypes.bool
-        else dtype = d && all_int(d) ? dtypes.default_int : dtypes.default_float
+        const d = data.flat()
+        if (d.length && d.every((s) => typeof s === 'boolean')) dtype = dtypes.bool
+        else dtype = d.length && all_int(d) ? dtypes.default_int : dtypes.default_float
       }
       if (dtype === dtypes.bfloat16) data = new Tensor(_frompy(data, dtypes.float32), { device }).cast(dtypes.bfloat16).lazydata
       else data = _frompy(data, dtype)
@@ -399,6 +400,7 @@ export class Tensor extends SimpleMathTrait {
     //     //   assert(isinstance(data, np.ndarray), `expected np.ndarray, got ${data}`)
     //     //   if data.shape === (): data = _metaop(Ops.CONST, tuple(), dtype || _from_np_dtype(data.dtype), device, data.item())
     //     //   else: data = _fromnp(data.astype(npdtype) if dtype !== undefined && (npdtype:=_to_np_dtype(dtype)) !== undefined else data)  // type: ignore [name-defined]
+    // Using string as path
     else if (typeof data === 'string') {
       dtype = dtype || dtypes.uint8
       data = _metaop(Ops.EMPTY, [idiv(statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)

@@ -229,15 +229,12 @@ export class PythonCompiler extends Compiler {
 
 export class PythonAllocator extends Allocator {
   _alloc = (size: number, options: BufferSpec): MemoryView => {
-    console.log('_alloc', size)
     return new MemoryView(new Uint8Array(size))
   }
   _copyin = (dest: MemoryView, src: MemoryView): MemoryView => {
-    console.log('_copyin', dest, src)
     return dest.set(src)
   }
   _copyout = (dest: MemoryView, src: MemoryView): MemoryView => {
-    console.log('_copyout', dest.constructor.name, src.constructor.name)
     return dest.set(src)
   }
   _free = (opaque: number, options: BufferSpec) => {

@@ -1,4 +1,7 @@
-import { Tensor } from '../src/tensor.ts'
+import { ConstType, dtypes } from '../src/dtype.ts'
+import { LazyBuffer } from '../src/engine/lazy.ts'
+import { UOp } from '../src/ops.ts'
+import { Tensor, TensorOptions } from '../src/tensor.ts'
 import { compare, tryCatch } from './helpers.ts'
 import process from 'node:process'
 
@@ -29,27 +32,32 @@ Deno.test(
 )
 
 Deno.test(
-  'Tensor._data',
-  compare(
-    [
-      [2, 4],
-    ],
-    (...data: (number | boolean)[]) => new Tensor(data)._data(),
-    'out(tiny.Tensor(data)._data())',
-  ),
-)
-
-Deno.test(
   'Tensor.tolist',
   compare(
     [
-      [4, 4, 4, 2, 6.5],
-      [4],
-      [4, 5],
-      [true, false],
+      [[4, 4, 4, 2, 6.5], { dtype: dtypes.half }],
+      [[], {}],
+      [[4], {}],
+      [[555], {}],
+      [[-1], {}],
+      [[255], {}],
+      [1.2, {}],
+      [255, {}],
+      [[256], {}],
+      [[257], {}],
+      [[4, 5], {}],
+      [[4, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER], {}],
+      [[true, false], {}],
+      [new Uint8Array([2, 3]), {}],
     ],
-    (...data: (number | boolean)[]) => new Tensor(data).tolist(),
-    'out(tiny.Tensor(data).tolist())',
+    tryCatch((data: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, opts: TensorOptions) => {
+      const t = new Tensor(data, opts)
+      return [t.tolist(), t.dtype]
+    }),
+    [
+      't = tiny.Tensor(data[0], dtype=data[1].get("dtype"))',
+      'out([t.tolist(), t.dtype])',
+    ],
   ),
 )
 
