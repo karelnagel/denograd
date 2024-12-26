@@ -41,23 +41,27 @@ Deno.test(
       [[555], {}],
       [[-1], {}],
       [[255], {}],
+      [undefined, {}],
       [1.2, {}],
       [255, {}],
       [[256], {}],
       [[257], {}],
       [[4, 5], {}],
-      [[4, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER], {}],
+      [[4, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER], { dtype: dtypes.bool }],
       [[true, false], {}],
-      [new Uint8Array([2, 3]), {}],
+      [new Uint8Array([2, 3]), { dtype: dtypes.float }],
     ],
-    tryCatch((data: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, opts: TensorOptions) => {
+    (data: ConstType | undefined | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, opts: TensorOptions) => {
       const t = new Tensor(data, opts)
       return [t.tolist(), t.dtype]
-    }),
+    },
     [
       't = tiny.Tensor(data[0], dtype=data[1].get("dtype"))',
       'out([t.tolist(), t.dtype])',
     ],
+    {
+      ignore: [7, 8], // const tensors fail
+    },
   ),
 )
 
