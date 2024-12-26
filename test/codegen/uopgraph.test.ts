@@ -1,6 +1,6 @@
 import { _choices_from_args, _expand_arg_to_idx, _swizzle_args, create_gate, delete_redundant_gates, do_contract, do_expand, fix_unfoldable_image_load, fold_expanded, full_graph_rewrite, loop_collapse, move_mask, no_vectorized_alu, no_vectorized_load_store, simplify_valid_load, threefry2x32 } from '../../src/codegen/uopgraph.ts'
-import { DType, dtypes } from '../../src/dtype.ts'
-import { Ops, UOp } from '../../src/ops.ts'
+import { DType, dtypes, PtrDType } from '../../src/dtype.ts'
+import { KernelInfo, Ops, UOp } from '../../src/ops.ts'
 import { ClangRenderer } from '../../src/renderer/cstyle.ts'
 import { compare, tryCatch } from '../helpers.ts'
 
@@ -13,7 +13,8 @@ Deno.test(
       [new UOp(Ops.VECTORIZE, undefined, [new UOp(Ops.LOAD, undefined, [new UOp(Ops.INDEX, undefined, [UOp.variable('buf')], 0)])]), UOp.variable('buf')],
       [new UOp(Ops.VECTORIZE, undefined, [new UOp(Ops.LOAD, undefined, [new UOp(Ops.ADD, undefined, [UOp.variable('idx'), UOp.int(1)])])]), UOp.variable('buf')],
       [new UOp(Ops.VECTORIZE, undefined, [new UOp(Ops.LOAD, undefined, [new UOp(Ops.INDEX, undefined, [UOp.variable('buf'), UOp.variable('gate')])])]), UOp.variable('buf')],
-      [new UOp(Ops.VECTORIZE, new DType(-1, 0, `void`, undefined, 1, undefined), [new UOp(Ops.LOAD, new DType(-1, 0, `void`, undefined, 1, undefined), [new UOp(Ops.INDEX, new DType(-1, 0, `void`, undefined, 1, undefined), [new UOp(Ops.DEFINE_VAR, new DType(0, 1, `bool`, `?`, 1, undefined), [], [`buf`, false, true])], undefined)], undefined)], undefined), new UOp(Ops.DEFINE_VAR, new DType(0, 1, `bool`, `?`, 1, undefined), [], [`buf`, false, true])]
+      [new UOp(Ops.VECTORIZE, new DType(-1, 0, `void`, undefined, 1, undefined), [new UOp(Ops.LOAD, new DType(-1, 0, `void`, undefined, 1, undefined), [new UOp(Ops.INDEX, new DType(-1, 0, `void`, undefined, 1, undefined), [new UOp(Ops.DEFINE_VAR, new DType(0, 1, `bool`, `?`, 1, undefined), [], [`buf`, false, true])], undefined)], undefined)], undefined), new UOp(Ops.DEFINE_VAR, new DType(0, 1, `bool`, `?`, 1, undefined), [], [`buf`, false, true])],
+      [new UOp(Ops.SINK, new DType(-1, 0, `void`, undefined, 1, undefined), [new UOp(Ops.STORE, new DType(-1, 0, `void`, undefined, 1, undefined), [new UOp(Ops.INDEX, new PtrDType(11, 4, `float`, `f`, 1, undefined, new DType(11, 4, `float`, `f`, 1, undefined), false, 1), [new UOp(Ops.DEFINE_GLOBAL, new PtrDType(11, 4, `float`, `f`, 1, undefined, new DType(11, 4, `float`, `f`, 1, undefined), false, 1), [], 0), new UOp(Ops.ADD, new DType(5, 4, `int`, `i`, 1, undefined), [new UOp(Ops.SPECIAL, new DType(5, 4, `int`, `i`, 1, undefined), [], [`lidx0`, 2]), new UOp(Ops.MUL, new DType(5, 4, `int`, `i`, 1, undefined), [new UOp(Ops.SPECIAL, new DType(5, 4, `int`, `i`, 1, undefined), [], [`gidx0`, 5]), new UOp(Ops.CONST, new DType(5, 4, `int`, `i`, 1, undefined), [], 2)], undefined)], undefined)], undefined), new UOp(Ops.CONST, new DType(11, 4, `float`, `f`, 1, undefined), [], 0)], undefined)], new KernelInfo(1, 0, false)), new UOp(Ops.DEFINE_GLOBAL, new PtrDType(11, 4, `float`, `f`, 1, undefined, new DType(11, 4, `float`, `f`, 1, undefined), false, 1), [], 0)]
     ],
     tryCatch(fold_expanded),
     'out(tiny.codegen.uopgraph.fold_expanded(*data))',
