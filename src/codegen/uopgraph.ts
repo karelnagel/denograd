@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, DEBUG, dedup, flatten, getEnv, isEq, isinstance, isNone, isNotNone, prod, product, range, setDefault, sorted, TRANSCENDENTAL, zip } from '../helpers.ts'
+import { all_same, AMX, assert, DEBUG, dedup, flatten, get_env, isEq, isinstance, isNone, isNotNone, prod, product, range, setDefault, sorted, TRANSCENDENTAL, zip } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -29,7 +29,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
     offsets_rootsrc.get(root_src)!.set(arg, i)
   }
   //   # then rewrite everything we can
-  const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && getEnv('ALLOW_HALF8') ? [8, 4, 2] : (AMX ? [16, 8, 4, 2] : [4, 2]))
+  const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && get_env('ALLOW_HALF8') ? [8, 4, 2] : (AMX ? [16, 8, 4, 2] : [4, 2]))
   let used = new Set<[UOp, UOp]>()
   for (const [rootsrc, offsets] of offsets_rootsrc.entries()) {
     for (const o of offsets.keys()) {
@@ -177,7 +177,7 @@ export const threefry2x32 = (x: UOp, key: UOp) => {
 // # ***** main rewriter *****
 
 export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, idx2?: any, idx3?: any, extra?: any, vec?: any, ne?: any, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
-  if (getEnv('DISABLE_LOOP_COLLAPSE') || !acc.src.includes(rng)) return undefined // must be the right REDUCE
+  if (get_env('DISABLE_LOOP_COLLAPSE') || !acc.src.includes(rng)) return undefined // must be the right REDUCE
   let [loop_start, loop_end] = rng.src
   if (loop_start.arg !== 0) {
     //     # TODO: support and test this with other mul and loop_starts

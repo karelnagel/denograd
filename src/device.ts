@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, CI, DEBUG, getEnv, getNumberEnv, GlobalCounters, isNone, isNotNone, OSX } from './helpers.ts'
+import { assert, CI, DEBUG, get_env, get_number_env, GlobalCounters, isNone, isNotNone, OSX } from './helpers.ts'
 import process from 'node:process'
 import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
@@ -49,7 +49,7 @@ export class _Device {
     return res
   }
   get DEFAULT(): DeviceType {
-    const fromEnv = Object.keys(DEVICES).filter((d) => !['DISK'].includes(d) && getNumberEnv(d) === 1)[0]
+    const fromEnv = Object.keys(DEVICES).filter((d) => !['DISK'].includes(d) && get_number_env(d) === 1)[0]
     if (fromEnv) return fromEnv as DeviceType
 
     const device = this.get_available_devices()[0]
@@ -176,7 +176,7 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   if (isNone(device)) device = Device.DEFAULT
   if (dtype === dtypes.bfloat16) {
     // NOTE: this requires bf16 buffer support
-    return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !CI && !getEnv('PTX')
+    return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !CI && !get_env('PTX')
   }
   if (device === 'WEBGPU') return [dtypes.bool, dtypes.char, dtypes.uchar, dtypes.short, dtypes.ushort, dtypes.float, dtypes.int32, dtypes.uint32].includes(dtype)
   // for CI GPU and OSX, cl_khr_fp16 isn't supported

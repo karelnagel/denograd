@@ -8,6 +8,26 @@ type MemoryViewOptions<F extends FmtStr> = {
   fmt?: FmtStr
   shape?: number[]
 }
+function reshape1DToMultiD<T>(array: T[], shape: number[]): any {
+  if (shape.length === 0) return array
+  if (shape.length === 1) {
+    if (array.length !== shape[0]) throw new Error(`reshape1DToMultiD: shape mismatch. Expected length=${shape[0]}, got ${array.length}`)
+    return array
+  }
+
+  const [head, ...tail] = shape
+  const chunkSize = tail.reduce((acc, dim) => acc * dim, 1)
+  const result = []
+  let offset = 0
+  for (let i = 0; i < head; i++) {
+    const chunk = array.slice(offset, offset + chunkSize)
+    offset += chunkSize
+    // Recursively reshape the chunk
+    result.push(reshape1DToMultiD(chunk, tail))
+  }
+  return result
+}
+
 type Arr<T extends FmtStr> = InstanceType<typeof MemoryView.ARRAYS[T]>
 type Const<T extends FmtStr> = T extends 'q' | 'Q' ? bigint : T extends '?' ? boolean : number
 export class MemoryView<F extends FmtStr = 'B'> {
@@ -18,7 +38,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
 
   // New fields for multi-dimensional logic:
   shape: number[] = []
-  toString = () => `new MemoryView(new ${this.asTypedArray.constructor.name}(${listStr(this.toList())}), {byteOffset:${this.byteOffset}, byteLength:${this.byteLength}, fmt:'${this.format}', shape:${listStr(this.shape)}})`
+  toString = () => `new MemoryView(new ${this.asTypedArray.constructor.name}(${listStr(this.to1DList())}), {byteOffset:${this.byteOffset}, byteLength:${this.byteLength}, fmt:'${this.format}', shape:${listStr(this.shape)}})`
   // Just like your code; constructor with shape support added at the end:
   constructor(input: MemoryView<F>, opts?: MemoryViewOptions<F>)
   constructor(input: number, opts?: MemoryViewOptions<F>)
@@ -182,9 +202,12 @@ export class MemoryView<F extends FmtStr = 'B'> {
   /**
    * Convert to a list of JS numbers (1D). Throws if the format is one of the bigint types.
    */
-  toList = (): Const<F>[] => {
+  to1DList = (): Const<F>[] => {
     if (this.isBoolean) return Array.from(this.asTypedArray as Uint8Array, (x) => Boolean(x)) as Const<F>[]
     return Array.from(this.asTypedArray as Uint8Array) as Const<F>[]
+  }
+  toList = (): Const<F>[] => {
+    return reshape1DToMultiD(this.to1DList(), this.shape)
   }
 
   // All typed array constructors mapped to "format" keys.

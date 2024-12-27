@@ -1,7 +1,7 @@
 import { Kernel, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, Compiler, Device, Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
-import { assert, CACHELEVEL, DEBUG, diskcache_get, diskcache_put, getEnv, getNumberEnv, isinstance, min, prod, range, to_function_name, zip } from '../helpers.ts'
+import { assert, CACHELEVEL, DEBUG, diskcache_get, diskcache_put, get_env, get_number_env, isinstance, min, prod, range, to_function_name, zip } from '../helpers.ts'
 import { idiv, mul, Ops, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'

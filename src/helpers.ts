@@ -200,14 +200,14 @@ export const ansistrip = (s: string) => s.replace(/\x1b\[(K|.*?m)/g, '')
 export const ansilen = (s: string) => ansistrip(s).length
 export const make_tuple = (x: number | number[], cnt: number): number[] => Array.isArray(x) ? [...x] : Array(cnt).fill(x)
 export const flatten = <T>(l: T[][]): T[] => l.flat()
-export const fullyFlatten = <T>(l: any): T[] => {
+export const fully_flatten = (l: any): any[] => {
   if (Array.isArray(l) || (l && typeof l === 'object' && 'length' in l && !('length' in String.prototype))) {
-    const flattened: T[] = []
+    const flattened: any[] = []
     if ('shape' in l && l.shape?.length === 0) {
       flattened.push(l[0])
     } else {
       for (let i = 0; i < l.length; i++) {
-        flattened.push(...fullyFlatten(l[i]) as any)
+        flattened.push(...fully_flatten(l[i]) as any)
       }
     }
     return flattened
@@ -216,7 +216,7 @@ export const fullyFlatten = <T>(l: any): T[] => {
 }
 
 // def fromimport(mod, frm): return getattr(__import__(mod, fromlist=[frm]), frm)
-export const stripParens = (s: string) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
+export const strip_parens = (s: string) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
 export const ceildiv = (num: number, amt: number): number => {
   const ret = -(Math.floor(-num / amt))
   return Number.isInteger(ret) ? ret : Math.floor(ret)
@@ -252,19 +252,19 @@ export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr
 export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
-export const wordWrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + wordWrap(x.slice(wrap), wrap)
+export const word_wrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + word_wrap(x.slice(wrap), wrap)
 export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
 export const to_function_name = (s: string): string => ''.concat(...ansistrip(s).split('').map((c) => /[a-zA-Z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).padStart(2, '0')))
-export const getEnv = (key: string, defaultVal = '') => process.env[key] || defaultVal
-export const getNumberEnv = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
+export const get_env = (key: string, defaultVal = '') => process.env[key] || defaultVal
+export const get_number_env = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)
 
-export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [getNumberEnv('DEBUG', 0), getNumberEnv('IMAGE', 0), getNumberEnv('BEAM', 0), getNumberEnv('NOOPT', 0), getNumberEnv('JIT', 1)]
-export const [WINO, CAPTURING, TRACEMETA] = [getNumberEnv('WINO', 0), getNumberEnv('CAPTURING', 1), getNumberEnv('TRACEMETA', 1)]
-export const [PROFILE, PROFILEPATH] = [getNumberEnv('PROFILE', 0), getEnv('PROFILEPATH', temp('tinygrad_profile.json'))]
-export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [getNumberEnv('TC', 1), getNumberEnv('TC_OPT', 0), getNumberEnv('AMX', 0), getNumberEnv('TRANSCENDENTAL', 1)]
-export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [getNumberEnv('FUSE_ARANGE', 0), getNumberEnv('FUSE_CONV_BW', 0), getNumberEnv('LAZYCACHE', 1)]
-export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [getNumberEnv('SPLIT_REDUCEOP', 1), getNumberEnv('NO_MEMORY_PLANNER', 0), getNumberEnv('RING', 1)]
+export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [get_number_env('DEBUG', 0), get_number_env('IMAGE', 0), get_number_env('BEAM', 0), get_number_env('NOOPT', 0), get_number_env('JIT', 1)]
+export const [WINO, CAPTURING, TRACEMETA] = [get_number_env('WINO', 0), get_number_env('CAPTURING', 1), get_number_env('TRACEMETA', 1)]
+export const [PROFILE, PROFILEPATH] = [get_number_env('PROFILE', 0), get_env('PROFILEPATH', temp('tinygrad_profile.json'))]
+export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [get_number_env('TC', 1), get_number_env('TC_OPT', 0), get_number_env('AMX', 0), get_number_env('TRANSCENDENTAL', 1)]
+export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [get_number_env('FUSE_ARANGE', 0), get_number_env('FUSE_CONV_BW', 0), get_number_env('LAZYCACHE', 1)]
+export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [get_number_env('SPLIT_REDUCEOP', 1), get_number_env('NO_MEMORY_PLANNER', 0), get_number_env('RING', 1)]
 
 @DataClass
 export class Metadata {
@@ -340,9 +340,9 @@ export class GlobalCounters {
 
 // # *** universal database cache ***
 
-const cacheDir = getEnv('XDG_CACHE_HOME', path.resolve(OSX ? path.join(os.homedir(), 'Library', 'Caches') : path.join(os.homedir(), '.cache')))
-export const CACHEDB = getEnv('CACHEDB', path.resolve(path.join(cacheDir, 'tinygrad', 'cache.db')))
-export const CACHELEVEL = getNumberEnv('CACHELEVEL', 2)
+const cacheDir = get_env('XDG_CACHE_HOME', path.resolve(OSX ? path.join(os.homedir(), 'Library', 'Caches') : path.join(os.homedir(), '.cache')))
+export const CACHEDB = get_env('CACHEDB', path.resolve(path.join(cacheDir, 'tinygrad', 'cache.db')))
+export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
 
 // VERSION = 16
 // _db_connection = None

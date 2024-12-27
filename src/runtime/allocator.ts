@@ -1,5 +1,5 @@
 import { ImageDType } from '../dtype.ts'
-import { assert, ctypes, DataClass, diskcache_get, diskcache_put, from_mv, getEnv, getNumberEnv, isNone, isNotNone } from '../helpers.ts'
+import { assert, ctypes, DataClass, diskcache_get, diskcache_put, from_mv, get_env, get_number_env, isNone, isNotNone } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -65,7 +65,7 @@ export abstract class LRUAllocator extends Allocator {
     }
   }
   override free = (opaque: any, size: number, options?: BufferSpec) => {
-    if (getNumberEnv('LRU', 1) && (isNone(options) || !options.nolru)) this.cache.get([size, options]).append(opaque)
+    if (get_number_env('LRU', 1) && (isNone(options) || !options.nolru)) this.cache.get([size, options]).append(opaque)
     else this._free(opaque, isNotNone(options) ? options : new BufferSpec())
   }
 }
@@ -89,13 +89,13 @@ export class CompileError extends Error {}
 export class Compiler {
   cachekey?: string
   constructor(cachekey?: string) {
-    this.cachekey = getEnv('DISABLE_COMPILER_CACHE') ? undefined : cachekey
+    this.cachekey = get_env('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
   compile = (src: string): Uint8Array => new TextEncoder().encode(src) // NOTE: empty compiler is the default
   compile_cached = (src: string): Uint8Array => {
     let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
     if (isNone(lib)) {
-      assert(!getEnv('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
+      assert(!get_env('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
       lib = this.compile(src)
       if (isNotNone(this.cachekey)) diskcache_put(this.cachekey, src, lib)
     }

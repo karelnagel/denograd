@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, getEnv, getNumberEnv, isinstance, range, round_up, setDefault, sum, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, get_env, get_number_env, isinstance, range, round_up, setDefault, sum, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, ge, graph_rewrite, GroupOp, gt, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, resolve, sint, sint_prod, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -410,9 +410,9 @@ export class Kernel {
     this.required_optimizations()
 
     //     # should use matvec - TODO: adjust/tune based on the wide vs tall/large vs small mat
-    const [MV_BLOCKSIZE, MV_THREADS_PER_ROW, MV_ROWS_PER_THREAD] = [getNumberEnv('MV_BLOCKSIZE', 4), getNumberEnv('MV_THREADS_PER_ROW', 8), getNumberEnv('MV_ROWS_PER_THREAD', 4)]
+    const [MV_BLOCKSIZE, MV_THREADS_PER_ROW, MV_ROWS_PER_THREAD] = [get_number_env('MV_BLOCKSIZE', 4), get_number_env('MV_THREADS_PER_ROW', 8), get_number_env('MV_ROWS_PER_THREAD', 4)]
     if (
-      this.opts.has_local && getNumberEnv('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 &&
+      this.opts.has_local && get_number_env('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 &&
       this.opts.has_shared && this.mulop.op === Ops.MUL && this.mulop.src[0].op === Ops.LOAD && this.mulop.src[1].op === Ops.LOAD
     ) {
       const [st0, st1] = [this.sts[this.bufs.indexOf(this.mulop.src[0])], this.sts[this.bufs.indexOf(this.mulop.src[1])]]
@@ -553,7 +553,7 @@ export class Kernel {
     //     # **** local groups ****
 
     if (this.opts.has_local) {
-      if (getEnv('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) {
+      if (get_env('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) {
         this.apply_opt(new Opt(OptOps.NOLOCALS))
       } else {
         //         # prioritize making expand axes local
@@ -681,7 +681,7 @@ export class Kernel {
     const modified_ast = this.get_optimized_ast()
     if (DEBUG >= 3) {
       console.log(this.name)
-      if (getEnv('RAWAST')) console.log(this.ast)
+      if (get_env('RAWAST')) console.log(this.ast)
       console.log(modified_ast)
       console.log(this.applied_opts)
       verify_ast(modified_ast)

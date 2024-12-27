@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { assert, DataClass, isEq, range } from '../helpers.ts'
-import { getNumberEnv, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
+import { get_number_env, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
 
@@ -155,7 +155,7 @@ export class ShapeTracker {
 
   reshape = (new_shape: sint[]): ShapeTracker => {
     const new_view = this.views.at(-1)?.reshape(new_shape)
-    if (getNumberEnv('MERGE_VIEW', 1) && isNotNone(new_view)) return new ShapeTracker([...this.views.slice(0, -1), new_view])
+    if (get_number_env('MERGE_VIEW', 1) && isNotNone(new_view)) return new ShapeTracker([...this.views.slice(0, -1), new_view])
     return new ShapeTracker([...this.views, View.create(new_shape)])
   }
 }

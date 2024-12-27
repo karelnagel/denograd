@@ -1,4 +1,4 @@
-import { assert, checkCached, getEnv, intersection, isEq, isLessThan, max, sorted } from './helpers.ts'
+import { assert, checkCached, get_env, intersection, isEq, isLessThan, max, sorted } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -177,7 +177,7 @@ export class dtypes {
   static sints = [dtypes.int8, dtypes.int16, dtypes.int32, dtypes.int64]
   static ints = [...dtypes.uints, ...dtypes.sints]
 }
-const envDefaultFloat = getEnv('DEFAULT_FLOAT', '')
+const envDefaultFloat = get_env('DEFAULT_FLOAT', '')
 if (envDefaultFloat) {
   dtypes.default_float = dtypes[envDefaultFloat as keyof dtypes]
   assert(dtypes.is_float(dtypes.default_float), `${envDefaultFloat} is not a float dtype`)

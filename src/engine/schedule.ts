@@ -1,6 +1,6 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, colored, DataClass, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, getAllEnums, getEnv, isEq, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
+import { all_int, all_same, assert, colored, DataClass, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, getAllEnums, isEq, isinstance, merge_maps, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
 import { can_pad, ge, lt, resolve, sint_prod, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -238,7 +238,7 @@ export const full_ast_rewrite = (pre: UOp, ctx: ScheduleContext): [UOp, Schedule
       throw new Error('this operand of augmented assign must be contiguous.\nhelp: consider using .contiguous():\n' + colored('   - a += a.T\n', 'red') + colored('   + a += a.T.contiguous()', 'green'))
     }
   }
-  if (getEnv('RUN_PROCESS_REPLAY')) PROCESS_REPLAY_CAPTURE.push([[pre, ctx.assigns], sink])
+  if (get_env('RUN_PROCESS_REPLAY')) PROCESS_REPLAY_CAPTURE.push([[pre, ctx.assigns], sink])
   return [sink, si_ctx]
 }
 export const PROCESS_REPLAY_CAPTURE: [[UOp, Set<UOp>], UOp][] = []

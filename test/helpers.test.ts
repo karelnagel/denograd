@@ -27,9 +27,9 @@ Deno.test('makeTuple', compare([[[1, 2, 3], 3], [[1, 2, 3], 2], [[1, 2, 3], 1], 
 
 Deno.test('flatten', compare([[[[1, 2], [3, 4]]], [[[1, 2, 3, 4]]], [[[1, 2, 3, [4, 5], 6]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]] as any, helpers.flatten, 'out(tiny.helpers.flatten(*data))'))
 
-Deno.test('fully_flatten', compare([[[1, 2, 3]], [[1, 2, 3, 4, 5]], [[[1, 2], [3, 4], [5]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]], helpers.fullyFlatten, 'out(tiny.helpers.fully_flatten(*data))'))
+Deno.test('fully_flatten', compare([[[1, 2, 3]], [[1, 2, 3, 4, 5]], [[[1, 2], [3, 4], [5]]], [[[1, 2, 3, 4, 5, 6, 7, 8]]]], helpers.fully_flatten, 'out(tiny.helpers.fully_flatten(*data))'))
 
-Deno.test('stripParens', compare([['sdfsdf'], ['(sdfsdf'], ['(sdfsdf)']], helpers.stripParens, 'out(tiny.helpers.strip_parens(*data))'))
+Deno.test('stripParens', compare([['sdfsdf'], ['(sdfsdf'], ['(sdfsdf)']], helpers.strip_parens, 'out(tiny.helpers.strip_parens(*data))'))
 
 Deno.test('ceildiv', compare([[180, 3], [-10, 3], [10.5, 3], [-10.5, 3]], helpers.ceildiv, 'out(tiny.helpers.ceildiv(*data))'))
 
@@ -49,12 +49,12 @@ Deno.test('unwrap', compare([[1], [2], ['sdf']], helpers.unwrap, 'out(tiny.helpe
 
 Deno.test('get_child', compare([[{ a: 1, b: { c: 2 } }, 'b.c'], [{ a: { x: [33, 54] }, b: { c: 2 } }, 'a.x.0'], [[3, { a: { v: 'true' } }], '1.a.v']], helpers.getChild, 'out(tiny.helpers.get_child(*data))'))
 
-Deno.test('word_wrap', compare([['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.wordWrap, 'out(tiny.helpers.word_wrap(*data))'))
+Deno.test('word_wrap', compare([['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.word_wrap, 'out(tiny.helpers.word_wrap(*data))'))
 
 Deno.test('polyN', compare([[2, [1, 2, 3]], [2, [1, 2, 3]]], helpers.polyN, 'out(tiny.helpers.polyN(*data))'))
 
 Deno.test('to_function_name', compare([['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.to_function_name, `out(tiny.helpers.to_function_name(*data))`))
 
-Deno.test('getenv', compare([['key', 'value']], helpers.getEnv, 'out(tiny.helpers.getenv(*data))'))
+Deno.test('getenv', compare([['key', 'value']], helpers.get_env, 'out(tiny.helpers.getenv(*data))'))
 
 Deno.test('temp', compare([['file.txt']], helpers.temp, 'out(tiny.helpers.temp(*data))'))

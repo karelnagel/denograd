@@ -48,17 +48,19 @@ Deno.test(
       [[256], {}],
       [[257], {}],
       [[4, 5], {}],
+      [[[4, 5]], {}],
+      [[[[4, 5]]], {}],
       [[4, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER], { dtype: dtypes.bool }],
       [[true, false], {}],
       [new Uint8Array([2, 3]), { dtype: dtypes.float }],
     ],
     (data: ConstType | undefined | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, opts: TensorOptions) => {
       const t = new Tensor(data, opts)
-      return [t.tolist(), t.dtype]
+      return [t.tolist(), t.dtype,t.shape]
     },
     [
       't = tiny.Tensor(data[0], dtype=data[1].get("dtype"))',
-      'out([t.tolist(), t.dtype])',
+      'out([t.tolist(), t.dtype, t.shape])',
     ],
     {
       ignore: [7, 8], // const tensors fail
@@ -73,9 +75,16 @@ Deno.test(
       [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [10]],
       [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [1, 10]],
       [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [1, 1, 10]],
+      [[[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5]], [2, 1, 5]],
     ],
-    tryCatch((data: number[], shape: number[]) => new Tensor(data).reshape(shape).tolist()),
-    'out(tiny.Tensor(data[0]).reshape(data[1]).tolist())',
+    tryCatch((data: any[], shape: number[]) => {
+      const t = new Tensor(data).reshape(shape)
+      return [t.tolist(), t.shape]
+    }),
+    [
+      't = tiny.Tensor(data[0]).reshape(data[1])',
+      'out([t.tolist(), t.shape])',
+    ],
   ),
 )
 

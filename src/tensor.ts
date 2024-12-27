@@ -2,7 +2,7 @@
 import { Buffer as NodeBuffer } from 'node:buffer'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
 import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
@@ -299,7 +299,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
   else {
     ret = LazyBuffer.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
     assert(dtype.fmt !== undefined, `${dtype} has undefined fmt`)
-    data = new MemoryView(x.flat(), { fmt: dtype.fmt }) //KAREL: not that sure
+    data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt }) //KAREL: not that sure
   }
   //   // fake realize
   ret.buffer!.allocate(Device.DEFAULT !== 'PYTHON' ? data : new MemoryView(data as Uint8Array, { fmt: 'B' }))
@@ -390,7 +390,7 @@ export class Tensor extends SimpleMathTrait {
     } else if (isinstance(data, Uint8Array)) data = _frompy(data, dtype || dtypes.uint8)
     else if (Array.isArray(data)) {
       if (dtype === undefined) {
-        const d = data.flat()
+        const d = fully_flatten(data)
         if (d.length && d.every((s) => typeof s === 'boolean')) dtype = dtypes.bool
         else dtype = d.length && all_int(d) ? dtypes.default_int : dtypes.default_float
       }
@@ -671,7 +671,7 @@ export class Tensor extends SimpleMathTrait {
     const _device = device = Device.canonicalize(device)
 
     // when using MOCKGPU && NV generate rand on CLANG
-    if (getEnv('MOCKGPU') && device.startsWith('NV')) device = 'PYTHON' // Karel: changed CLANG to PYTHON
+    if (get_env('MOCKGPU') && device.startsWith('NV')) device = 'PYTHON' // Karel: changed CLANG to PYTHON
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     let had_counter
@@ -706,7 +706,7 @@ export class Tensor extends SimpleMathTrait {
     let out = bits.bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
 
     // move back to the original device if we were using MOCKGPU
-    if (getEnv('MOCKGPU') && _device) out = out.to(_device)
+    if (get_env('MOCKGPU') && _device) out = out.to(_device)
 
     out.requires_grad = opts.requires_grad
     return contiguous ? out.contiguous() : out

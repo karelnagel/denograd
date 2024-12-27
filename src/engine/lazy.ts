@@ -10,7 +10,7 @@
 
 import { Buffer, DeviceType } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
-import { _METADATA, all_int, all_same, assert, DEBUG, getNumberEnv, isEq, isinstance, LAZYCACHE, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, isEq, isinstance, LAZYCACHE, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, python_alu, resolve, sint_prod, sub } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
@@ -138,7 +138,7 @@ export class LazyBuffer extends MathTrait {
       //       // https://pytorch.org/docs/stable/generated/torch.Tensor.view.html
       if ((new_shape.at(-1)! * this.dtype.itemsize) % dtype.itemsize !== 0) throw new Error('unsupported size in bitcast')
       new_shape = [...new_shape.slice(0, -1), idiv(new_shape.at(-1)! * this.dtype.itemsize, dtype.itemsize)]
-    } else if (getNumberEnv('CAST_BEFORE_VIEW', 1) && dtype.itemsize <= this.dtype.itemsize && this !== this.base) {
+    } else if (get_number_env('CAST_BEFORE_VIEW', 1) && dtype.itemsize <= this.dtype.itemsize && this !== this.base) {
       //       // TODO: applying this makes gpt2 slower
       return this.base.cast(dtype, bitcast)._view(this.st)
     }
@@ -228,7 +228,7 @@ export class LazyBuffer extends MathTrait {
       if (op === Ops.MAX) return this.const_with_shape(this.base.arg, new_shape)
     }
     //     // TODO: can we split symbolic shape if the reduce axis !== symbolic?
-    if (!SPLIT_REDUCEOP || !all_int(this.shape) || (this.shape.includes(0)) || idiv(prod(this.shape), prod(new_shape as number[])) < getNumberEnv('REDUCEOP_SPLIT_THRESHOLD', 32768)) return this._reduce_op(op, axis)
+    if (!SPLIT_REDUCEOP || !all_int(this.shape) || (this.shape.includes(0)) || idiv(prod(this.shape), prod(new_shape as number[])) < get_number_env('REDUCEOP_SPLIT_THRESHOLD', 32768)) return this._reduce_op(op, axis)
 
     //     // if there are few globals, make some reduces into globals by splitting into two kernels
     //     // cap output buffer to 2**22: heuristic number of global outputs to achieve max occupancy with enough locals+upcasts for gemm
@@ -236,7 +236,7 @@ export class LazyBuffer extends MathTrait {
     //     // 256 split maximum should be "negligible reduce" for low prod(new_shape), 8 split minimum.
     //     // split === moved to the end to provide maximum locality for the second phase reduce.
     const this_real_strides = this.st.real_strides(true)
-    const split_candidates = range(Math.min(256, idiv(2 ** getNumberEnv('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape as number[]))), 8 - 1, -1).flatMap((x) => axis.map((i) => [i, x]))
+    const split_candidates = range(Math.min(256, idiv(2 ** get_number_env('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape as number[]))), 8 - 1, -1).flatMap((x) => axis.map((i) => [i, x]))
       .filter(([i, x]) => mod(this.shape[i], x) as number === 0 && this_real_strides[i] !== 0)
     if (!split_candidates) return this._reduce_op(op, axis)
     const [dim_to_split, divisor] = split_candidates[0]

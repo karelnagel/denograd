@@ -1,5 +1,5 @@
 import { Buffer as NodeBuffer } from 'node:buffer'
-import { all_same, assert, flatten, getEnv, isinstance, product, range, sum, zip } from '../helpers.ts'
+import { all_same, assert, flatten, get_env, isinstance, product, range, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, idiv, Ops, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
@@ -53,7 +53,7 @@ export class PythonProgram extends Program {
         if (uop === Ops.DEFINE_ACC) idp = [idp[0]]
         const inp = idp.filter((v) => !void_ops.includes(this.uops[v][0])).map((v) => ul.get(v)!)
         const dtp = idp.filter((v) => !void_ops.includes(this.uops[v][0])).map((v) => dl.get(v)!)
-        if (getEnv('TRACE')) console.log(i, uop, dtype, arg, inp, dtp)
+        if (get_env('TRACE')) console.log(i, uop, dtype, arg, inp, dtp)
         if (uop === Ops.STORE) {
           if (inp.length === 2) inp.push(range(inp[0].length).map(() => true)) // set the gate to true
           if (dtp[1]!.count > 1) {
