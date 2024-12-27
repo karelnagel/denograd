@@ -304,6 +304,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
   //   // fake realize
   ret.buffer!.allocate(Device.DEFAULT !== 'PYTHON' ? data : new MemoryView(data as Uint8Array, { fmt: 'B' }))
   ret.srcs?.forEach((x) => x.__del__())
+  delete ret.srcs
   return ret
 }
 const _align_left = (...shapes: sint[][]): sint[][] => {
