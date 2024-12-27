@@ -9,7 +9,7 @@ type MemoryViewOptions<F extends FmtStr> = {
   shape?: number[]
 }
 function reshape1DToMultiD<T>(array: T[], shape: number[]): any {
-  if (shape.length === 0) return array
+  if (shape.length === 0) return array[0]
   if (shape.length === 1) {
     if (array.length !== shape[0]) throw new Error(`reshape1DToMultiD: shape mismatch. Expected length=${shape[0]}, got ${array.length}`)
     return array
@@ -77,7 +77,8 @@ export class MemoryView<F extends FmtStr = 'B'> {
       if (!all_int(shape)) throw new Error(`Shape can only have ints: [${shape}]`)
       if (shape.reduce((acc, dim) => acc * dim, 1) !== this.length) throw new Error(`Provided shape [${shape}] does not match total elements = ${this.length}`)
       this.shape = shape.slice()
-    } else this.shape = [this.length]
+    } else if (this.length === 1) this.shape = []
+    else this.shape = [this.length]
   }
   get strides(): number[] {
     const strides = new Array(this.shape.length)

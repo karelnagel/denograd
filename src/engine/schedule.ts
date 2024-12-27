@@ -502,7 +502,10 @@ export const create_schedule_with_vars = (outs: LazyBuffer[]): [ScheduleItem[], 
       prescheduled.push(
         new ScheduleItem(ast, ast_ctx.bufs.filter((u) => u.size !== 0).map((u) => buffers.get(u)!), [...ast_ctx.metadata], new Set(ast_ctx.assign_adj.entries().filter(([_, ops]) => ops.some((x) => x.op === Ops.PRELOAD)).map(([ubuf]) => ubuf))),
       )
-      for (const u of ast_ctx.sinked.keys()) ast_ctx.lazybufs.get(u)!.srcs?.map((s) => s.__del__()) // can only schedule once
+      for (const u of ast_ctx.sinked.keys()) {
+        ast_ctx.lazybufs.get(u)!.srcs?.map((s) => s.__del__()) // can only schedule once
+        delete ast_ctx.lazybufs.get(u)!.srcs
+      }
     }
   }
   //   // do BFS
