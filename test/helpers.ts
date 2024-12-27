@@ -28,7 +28,7 @@ export const asdict = (o: any): any => {
   if (!o) return o
   if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
   if (o instanceof DataView) return [...new Uint8Array(o.buffer)].map((v) => asdict(v))
-  if (o instanceof MemoryView) return o.toList()
+  if (o instanceof MemoryView) return o.toString()
   if (Array.isArray(o)) return o.map(asdict)
   if (o instanceof Map) {
     const res = [...o.entries().map(([k, v]) => [asdict(k), asdict(v)])]
