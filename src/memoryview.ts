@@ -119,9 +119,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
 
   /** Access multi-dimensional elements by index. */
   getValue(...indices: number[]): Const<F> {
-    if (indices.length !== this.shape.length) {
-      throw new Error(`Expected ${this.shape.length} indices; got ${indices.length}`)
-    }
+    if (indices.length !== this.shape.length) throw new Error(`Expected ${this.shape.length} indices; got ${indices.length}`)
     let offset = 0
     for (let i = 0; i < indices.length; i++) {
       if (indices[i] < 0 || indices[i] >= this.shape[i]) {
@@ -135,7 +133,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
 
   /** Set multi-dimensional element. */
   setValue(value: Const<F>, ...indices: number[]) {
-    if (indices.length !== this.shape.length) throw new Error(`Expected ${this.shape.length} indices; got ${indices.length}`)
+    if (indices.length !== this.shape.length) throw new Error(`Expected shape=${listStr(this.shape)} indices; got ${listStr(indices)}`)
     let offset = 0
     for (let i = 0; i < indices.length; i++) {
       if (indices[i] < 0 || indices[i] >= this.shape[i]) throw new RangeError(`Index ${i} = ${indices[i]} is out of bounds for dimension size ${this.shape[i]}`)
