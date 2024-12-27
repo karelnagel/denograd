@@ -1,16 +1,6 @@
-// from __future__ import annotations
-// from typing import Optional, Any, Tuple, List, get_args
-// from tinygrad.dtype import dtypes, DType, ConstType, to_dtype, ImageDType
-// from tinygrad.helpers import prod, getenv, all_int, all_same, DEBUG, _METADATA, Metadata, SPLIT_REDUCEOP, LAZYCACHE
-// from tinygrad.ops import exec_alu, python_alu
-// from tinygrad.ops import identity_element, MathTrait, resolve, UOp, sint, GroupOp, Ops
-// from tinygrad.shape.shapetracker import ShapeTracker
-// from tinygrad.device import Buffer
-// from weakref import ref, ReferenceType, WeakValueDictionary
-
 import { Buffer, DeviceType } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
-import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, isEq, isinstance, LAZYCACHE, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, isEq, isinstance, LAZYCACHE, listStr, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, python_alu, resolve, sint_prod, sub } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
@@ -75,8 +65,8 @@ export class LazyBuffer extends MathTrait {
   __del__ = () => {
     if (this.buffer) this.buffer.ref(-1)
   }
-  __repr__ = (): string => {
-    return `<LB ${this.device} ${this.shape} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st : (this.op, this.realized)}>`
+  override toString = (): string => {
+    return `<LB ${this.device} ${listStr(this.shape)} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st.toString() : `(${this.op}, ${this.realized})`}>`
   }
   get realized(): undefined | Buffer {
     // NOTE: we check for a lack of srcs instead of an allocated buffer to make unrealized assigns return undefined here
@@ -177,7 +167,7 @@ export class LazyBuffer extends MathTrait {
   override alu = (op: Ops, ...in_srcs: typeof this[]): typeof this => {
     const srcs: LazyBuffer[] = []
     for (const s of [this, ...in_srcs]) {
-      if (isEq(s, s.base) && s.base.contiguous_child) {
+      if (isEq(s, s.base) && s.base.contiguous_child) { // KAREL: idk maybe it's never true
         const root = s.base.contiguous_child[0].deref()
         if (root !== undefined) srcs.push(root._view(s.base.contiguous_child[1]))
       } else {

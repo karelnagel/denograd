@@ -141,8 +141,8 @@ export class Buffer {
       this.allocator?.free(this._buf, this.nbytes, this.options)
     }
   }
-  __repr__ = () => {
-    return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}` + (this.base ? ` offset:${this.offset}` : '') + (isNotNone(this.options) ? ` ${this.options}` : '') + '>'
+  toString = () => {
+    return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}${this.base ? ` offset:${this.offset}` : ''}${isNotNone(this.options) ? ` ${this.options}` : ''}>`
   }
   as_buffer = (allowZeroCopy = false, forceZeroCopy = false): MemoryView => {
     // zero copy with as_buffer (disabled by default due to use after free)

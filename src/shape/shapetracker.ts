@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { assert, DataClass, isEq, range } from '../helpers.ts'
+import { assert, DataClass, isEq, listStr, range } from '../helpers.ts'
 import { get_number_env, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
@@ -48,6 +48,7 @@ export class ShapeTracker {
     for (const v of st.views) ret = new ShapeTracker([...ret.views, v]).simplify() // one view at a time = better simplification
     return ret
   }
+  toString = () => `new ShapeTracker(${listStr(this.views.map((v) => v.toString()))})`
   invert = (out_shape: sint[]): undefined | ShapeTracker => {
     const inverted_views: View[] = []
     for (const [v, s] of zip(this.views.toReversed(), [...this.views.toReversed().slice(1).map((x) => x.shape), out_shape])) {

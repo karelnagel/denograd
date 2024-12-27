@@ -2,7 +2,7 @@
 import { Buffer as NodeBuffer } from 'node:buffer'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, sum, WINO, zip } from './helpers.ts'
 import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
@@ -1143,18 +1143,19 @@ export class Tensor extends SimpleMathTrait {
    */
   get = (...indices: TensorIndice[]): Tensor => {
     // wrap single index into a list
-    if ((Array.isArray(indices) && all_int(indices)) || !Array.isArray(indices)) indices = [indices]
+    // KAREL: this shouldn't be needed since it's always an array in TS
+    // if ((Array.isArray(indices) && all_int(indices)) || !Array.isArray(indices)) indices = [indices]
     // turn scalar Tensors into const val for number indexing if possible
     let x = this as Tensor
     indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) : i)
 
     // filter ellipsis && fill with slice(undefined) || fill rest of indices with slice(undefined)
-    const ellipsis_idx = indices.filter((i) => i === '...').map((_, dim) => dim)
+    const ellipsis_idx = [...indices.entries().filter(([dim, i]) => i === '...').map(([dim, i]) => dim)]
     if (ellipsis_idx.length > 1) throw new Error('indices can only have a single ellipsis')
     const fill_idx = ellipsis_idx.length ? ellipsis_idx[0] : indices.length
     const num_indices = indices.length - ellipsis_idx.length - indices.filter((i) => i === undefined).length
     if (num_indices > this.ndim) throw new Error(`too many ${num_indices} for ${this.ndim}`)
-    indices.splice(fill_idx, 1, ...Array(this.ndim - num_indices).fill({} as TensorSlice))
+    indices.splice(fill_idx, 1, ...Array(this.ndim - num_indices).fill({} as TensorSlice)) //KAREL: not sure about 1
 
     let [indices_parsed, dim] = [[] as { index: TensorIndice; size: number; boundary: [number, number]; stride: number }[], 0]
     for (let index of indices) {
@@ -1165,14 +1166,15 @@ export class Tensor extends SimpleMathTrait {
         if (!dtypes.is_int(index.dtype)) throw new Error(`index dtype ${index.dtype} !== supported`)
         index = (index.to(this.device).lt(0)).where(size, 0).add(index) // treat negative index values
       } else if (typeof index === 'number' || index instanceof UOp) { // sint
-        if (index instanceof UOp) throw new Error("KAREL: Don't handle UOps yet, TODO")
-        if (ge(index, size) || lt(index, -size)) throw new Error(`index=${index} === out of bounds with size=${size}`)
-        boundary = ge(index, 0) ? [index, add(index, 1)] : [add(index, size), add(index, size) + 1]
+        if (index instanceof UOp) throw new Error('KAREL: UOp not supported yet')
+        if (index >= size || index < -size) throw new Error(`index=${index} === out of bounds with size=${size}`)
+        boundary = index >= 0 ? [index, add(index, 1)] : [add(index, size), add(index, size) + 1]
       } else if (index === undefined) {
         // do nothing
       } else if (typeof index === 'object') {
         if (index.step === 0) throw new Error(`index=${index} can not have 0 as step`)
-        if (![index.start, index.stop, index.step].every((s) => Number.isInteger(s) || s === undefined)) throw new Error('only number slicing === supported') //       // handle number slicing
+        if (![index.start, index.stop, index.step].every((s) => Number.isInteger(s) || s === undefined)) throw new Error('only number slicing === supported')
+        //       // handle int slicing
         const res = sliceGetIndices(index, size)
         ;[boundary, stride] = [[res[0], res[1]], res[2]]
         if (stride * (boundary[1] - boundary[0]) < 0) boundary = [0, 0]
@@ -1181,15 +1183,15 @@ export class Tensor extends SimpleMathTrait {
         size = ceildiv(boundary[1] - boundary[0], Math.abs(stride))
       } else throw new Error(`${index} indexing is not supported`)
 
-      indices_parsed.push({ 'index': index, 'size': size, 'boundary': boundary, 'stride': stride })
+      indices_parsed.push({ index, size, boundary, stride })
       if (index !== undefined) dim += 1
     }
     // movement op indexing
     const mops = indices_parsed.filter((i) => i.index !== undefined)
     if (mops.length) {
       //   // flip negative strides
-      let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)]
-      x = x.shrink(shrinks).flip([...strides.entries().filter(([st, _]) => st < 0).map(([_, i]) => i)])
+      let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)] // KAREL: not sure
+      x = x.shrink(shrinks).flip([...strides.entries().filter(([i, st]) => st < 0).map(([i, st]) => i)])
       //   // handle stride !== 1 || -1
       if (strides.some((st) => Math.abs(st) !== 1)) {
         strides = strides.map((s) => Math.abs(s))
@@ -1204,17 +1206,17 @@ export class Tensor extends SimpleMathTrait {
     x = x.reshape(indices_parsed.filter((index) => !Number.isInteger(index.index)).map((index) => index.size))
 
     // // tensor indexing
-    const tops = [...indices_parsed.filter((_i) => !Number.isInteger(_i.index)).entries().filter(([_, i]) => i.index instanceof Tensor).map(([d, i]) => [d, i] as const)]
+    const tops = [...indices_parsed.filter((_i) => !Number.isInteger(_i.index)).entries().filter(([_, i]) => i.index instanceof Tensor)]
     if (tops.length) {
       //   // unload the tensor object into actual tensors
       const [dims, tensors, masks] = [tops.map(([d]) => d), tops.map(([_, i]) => i.index as Tensor), [] as Tensor[]]
       const big_shape = _broadcast_shape(tensors.map((t) => t.shape))
-      const pre_reduce_shape = [...x.shape.slice(0, dims[0]), big_shape, ...x.shape.slice(dims[0])]
+      const pre_reduce_shape = [...x.shape.slice(0, dims[0]), ...big_shape, ...x.shape.slice(dims[0])]
 
       //   // create index masks
       for (const [dim, tensor] of zip(dims, tensors)) {
         try {
-          const i = tensor.reshape([...(tensor.shape as number[]), ...range(x.ndim - dims[0]).map((x) => x)]).expand(pre_reduce_shape as number[])
+          const i = tensor.reshape([...(tensor.shape as number[]), ...range(x.ndim - dims[0]).map(() => 1)]).expand(pre_reduce_shape as number[])
           masks.push(i._one_hot_along_dim(x.shape[dim] as number, dim - x.ndim))
         } catch (e) {
           throw new Error(`Can not broadcast indices: ${e}`)
