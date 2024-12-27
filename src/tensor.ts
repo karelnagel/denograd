@@ -988,8 +988,8 @@ export class Tensor extends SimpleMathTrait {
    */
   permute = (order: number[]): Tensor => {
     const order_arg = argfix(order).map((x) => this._resolve_dim(x))
-    if (isEq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
-    return Permute.apply(this, order = order_arg)
+    if (!isEq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
+    return Permute.apply(this, order_arg)
   }
   /**
    * Returns a tensor that reverses the order of the original tensor along given `axis`.
@@ -1964,7 +1964,7 @@ export class Tensor extends SimpleMathTrait {
     let [x, dx, dw] = [this as Tensor, this.ndim, w.ndim]
     if (!(dx > 0 && dw > 0)) throw new Error(`both tensors need to be at least 1D, got ${dx}D && ${dw}D`)
     const axis_w = -Math.min(w.ndim, 2)
-    if (x.shape.at(-1)! !== w.shape[axis_w]) throw new Error(`can not dot ${x.shape} && ${w.shape}`)
+    if (x.shape.at(-1) !== w.shape.at(axis_w)) throw new Error(`can not dot ${listStr(x.shape)} && ${listStr(w.shape)}, axis_w=${axis_w}`)
     x = x.reshape([...x.shape.slice(0, -1), ...range(Math.min(dx - 1, dw - 1, 1)).map(() => 1), x.shape.at(-1)!])
     w = w.reshape([...w.shape.slice(0, -2), ...range(Math.min(dx - 1, dw - 1, 1)).map(() => 1), ...w.shape.slice(axis_w)]).transpose(-1, axis_w)
     return (x.mul(w)).sum(-1, undefined, acc_dtype).cast(acc_dtype === undefined ? least_upper_dtype(x.dtype, w.dtype) : acc_dtype)
