@@ -305,7 +305,7 @@ export class UOp extends MathTrait {
     const ret = new UOp(Ops.VIEW, this.dtype, [this.base], new_st)
     // instant folding rules
     if (this.st?.size === 0 || (isNotNone(new_st.views.at(-1)!.mask) && new_st.views.at(-1)!.mask?.some((x) => sub(x[1], x[0]) === 0))) return ret.const_like(0)
-    if (new_st.contiguous && this.base.st?.shape === new_st.shape) return this.base
+    if (new_st.contiguous && isEq(this.base.st?.shape, new_st.shape)) return this.base
     return ret
   }
   reshape = (arg: sint[]) => this.view(this.st!.reshape(arg))

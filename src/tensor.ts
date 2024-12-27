@@ -503,7 +503,7 @@ export class Tensor extends SimpleMathTrait {
   replace = (x: Tensor): Tensor => {
     // used for replacing a Tensor with a new version of it (potentially with a different device && dtype)
     assert(!x.requires_grad && this._ctx === undefined)
-    assert(this.shape === x.shape, `replace shape mismatch ${this.shape} !== ${x.shape}`)
+    assert(isEq(this.shape, x.shape), `replace shape mismatch ${this.shape} !== ${x.shape}`)
     this.lazydata = x.lazydata
     return this
   }
@@ -519,7 +519,7 @@ export class Tensor extends SimpleMathTrait {
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign
-    assert(this.shape === x.shape, `assign shape mismatch ${this.shape} !== ${x.shape}`)
+    assert(isEq(this.shape, x.shape), `assign shape mismatch ${this.shape} !== ${x.shape}`)
     assert(this.device === x.device, `assign device mismatch ${this.device} !== ${x.device}`)
     assert(this.dtype === x.dtype, `assign dtype mismatch ${this.dtype} !== ${x.dtype}`)
     // assert(!isinstance(this.lazydata, MultiLazyBuffer) || this.lazydata.axis === x.lazydata.axis, "axis must match on MultiLazyBuffer")
@@ -911,7 +911,7 @@ export class Tensor extends SimpleMathTrait {
       // this === "implicit gradient creation"
       gradient = new Tensor(1.0, { dtype: this.dtype, device: this.device, requires_grad: false })
     }
-    assert(this.shape === gradient.shape, `grad shape must match tensor shape, ${gradient.shape} !== ${this.shape}`)
+    assert(isEq(this.shape, gradient.shape), `grad shape must match tensor shape, ${gradient.shape} !== ${this.shape}`)
     this.grad = gradient
     for (const t0 of toposorted.toReversed()) {
       if (t0.grad === undefined) throw new Error(`tensor ${t0} has no grad`)
@@ -922,7 +922,7 @@ export class Tensor extends SimpleMathTrait {
       grads = (t0._ctx?.parents?.length === 1 ? [grads] : grads).map((g) => g !== undefined ? new Tensor(g as Tensor, { device: this.device, requires_grad: false }) : undefined)
       for (const [t, g] of zip(t0._ctx!.parents! as Tensor[], grads)) {
         if (g !== undefined && t.requires_grad) {
-          assert(g.shape === t.shape, `grad shape must match tensor shape, ${g.shape} !== ${t.shape}`)
+          assert(isEq(g.shape, t.shape), `grad shape must match tensor shape, ${g.shape} !== ${t.shape}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
         }
       }
@@ -955,7 +955,7 @@ export class Tensor extends SimpleMathTrait {
     const c = new_shape.filter((x) => x === -1).length
     if (c > 1) throw new Error(`only one dimension can be inferred using -1, getting ${new_shape}`)
     if (c) new_shape = new_shape.map((s) => s === -1 ? idiv(-prod(this.shape as number[]), prod(new_shape)) : s)
-    return new_shape !== this.shape ? Reshape.apply(this, shape = new_shape) : this
+    return !isEq(new_shape, this.shape) ? Reshape.apply(this, shape = new_shape) : this
   }
   /**
    * Returns a tensor that === expanded to the shape that === specified.
@@ -2730,12 +2730,12 @@ export class Tensor extends SimpleMathTrait {
 
   // ***** broadcasted elementwise ops *****
   _broadcast_to = (new_shape: sint[]): Tensor => {
-    if (this.shape === new_shape) return this
+    if (isEq(this.shape, new_shape)) return this
     if (this.ndim > new_shape.length) throw new Error(`can not broadcast tensor to fewer dimensions. shape=${listStr(this.shape)} to new_shape=${listStr(new_shape)}`)
     // first unsqueeze left with 1s https://data-apis.org/array-api/latest/API_specification/broadcasting.html
     const [shape, _] = _align_left(this.shape, new_shape)
     // for each dimension, check either dim === 1, || it does !change
-    if (zip(shape, new_shape).every(([s, ns]) => resolve(eq(s, ns)) || resolve(eq(s, 1)))) throw new Error(`can not broadcast ${this.shape} to ${new_shape}`)
+    // if (zip(shape, new_shape).every(([s, ns]) => resolve(eq(s, ns)) || resolve(eq(s, 1)))) throw new Error(`can not broadcast ${listStr(this.shape)} to ${listStr(new_shape)}`)
     return Expand.apply(this.reshape(shape), new_shape)
   }
   _broadcasted = (y: ConstType<Tensor | UOp>, reverse = false, match_dtype = true): [Tensor, Tensor] => {
@@ -2762,7 +2762,7 @@ export class Tensor extends SimpleMathTrait {
   }
 
   _to_const_val = (x: ConstType<Tensor>): ConstType<Tensor> => {
-    return isinstance(x, Tensor) && isinstance(x.lazydata, LazyBuffer) && x.lazydata.is_unrealized_unmasked_const() && !x.requires_grad && this._broadcasted(x)[0].shape === this.shape ? x.lazydata.base.arg : x
+    return isinstance(x, Tensor) && isinstance(x.lazydata, LazyBuffer) && x.lazydata.is_unrealized_unmasked_const() && !x.requires_grad && isEq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.base.arg : x
   }
   /**
    * Adds `this` && `x`.

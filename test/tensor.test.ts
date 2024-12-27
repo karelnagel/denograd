@@ -67,14 +67,58 @@ Deno.test(
 )
 
 Deno.test(
+  'Tensor.reshape',
+  compare(
+    [
+      [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [10]],
+      [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [1, 10]],
+      [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [1, 1, 10]],
+    ],
+    tryCatch((data: number[], shape: number[]) => new Tensor(data).reshape(shape).tolist()),
+    'out(tiny.Tensor(data[0]).reshape(data[1]).tolist())',
+  ),
+)
+
+Deno.test(
+  'Tensor._broadcast_to',
+  compare(
+    [
+      [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [1, 10]],
+      [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [1, 1, 10]],
+    ],
+    tryCatch((data: number[], shape: number[]) => new Tensor(data)._broadcast_to(shape)),
+    'out(tiny.Tensor(data[0])._broadcast_to(data[1]).tolist())',
+  ),
+)
+
+Deno.test(
   'Tensor.get',
   compare(
     [
-      [[4, 4, 4, 2, 6.5]],
-      [[4, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, 44]],
+      [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5]],
     ],
-    (data: number[]) => new Tensor(data).tolist(),
-    'out(tiny.Tensor(data[0])[0:2].tolist())',
+    (data: number[]) => {
+      const t = new Tensor(data)
+      return [
+        t.get(undefined).tolist(),
+        t.get(0).tolist(),
+        t.get({ start: 0, stop: 2 }).tolist(),
+        t.get('...').tolist(),
+        t.reshape([5, 2]).tolist(),
+        t.reshape([5, 2]).get({ start: 1, stop: 3 }).tolist(),
+      ]
+    },
+    [
+      't = tiny.Tensor(data[0])',
+      'out([',
+      '   t[None].tolist(),',
+      '   t[0].tolist(),',
+      '   t[0:2].tolist(),',
+      '   t[...].tolist(),',
+      '   t.reshape(5,2).tolist(),',
+      '   t.reshape(5,2)[1:3].tolist(),',
+      '])',
+    ],
   ),
 )
 
