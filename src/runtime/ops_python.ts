@@ -41,18 +41,18 @@ export class PythonProgram extends Program {
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length
     for (const idxs of product(...global_size.toReversed().map((x) => range(x)))) {
-      const ul = new Map<number, any[]>()
-      const dl = new Map<number, DType>()
+      const ul: Record<number, any[]> = {}
+      const dl: Record<number, DType> = {}
       const pbufs = [...bufs]
       const pvals = [...vals]
       let i = 0
-      const loop_ends = new Map<number, number>()
+      const loop_ends: Record<number, number> = {}
       while (i < this.uops.length) {
         let [uop, dtype, idp, arg] = this.uops[i]
         const void_ops = [Ops.STORE, Ops.ENDRANGE, Ops.BARRIER, Ops.IF, Ops.ENDIF]
         if (uop === Ops.DEFINE_ACC) idp = [idp[0]]
-        const inp = idp.filter((v) => !void_ops.includes(this.uops[v][0])).map((v) => ul.get(v)!)
-        const dtp = idp.filter((v) => !void_ops.includes(this.uops[v][0])).map((v) => dl.get(v)!)
+        const inp = idp.filter((v) => !void_ops.includes(this.uops[v][0])).map((v) => ul[v])
+        const dtp = idp.filter((v) => !void_ops.includes(this.uops[v][0])).map((v) => dl[v])
         if (get_env('TRACE')) console.log(i, uop, dtype, arg, inp, dtp)
         if (uop === Ops.STORE) {
           if (inp.length === 2) inp.push(range(inp[0].length).map(() => true)) // set the gate to true
@@ -71,7 +71,7 @@ export class PythonProgram extends Program {
           continue
         }
         if (uop === Ops.ENDRANGE) {
-          loop_ends.set(idp[0], i)
+          loop_ends[idp[0]] = i
           i = idp[0]
           continue
         }
@@ -81,20 +81,20 @@ export class PythonProgram extends Program {
           continue
         }
         if (dtype === undefined) throw new Error(`${uop} === missing a dtype`)
-        dl.set(i, dtype)
+        dl[i] = dtype
         if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL].includes(uop)) {
           assert(dtype.fmt !== undefined)
           //   if (TYPE_CHECKING) assert(dtype.fmt !== "e")
           const buf = uop === Ops.DEFINE_LOCAL ? new MemoryView(new Uint8Array(arg[1] * dtype.itemsize)) : pbufs.shift()!
-          ul.set(i, range(warp_size).map(() => buf.cast(dtype.fmt!)))
+          ul[i] = range(warp_size).map(() => buf.cast(dtype.fmt!))
         } else if (uop === Ops.DEFINE_VAR) {
-          ul.set(i, range(warp_size).map(() => pvals.shift()))
+          ul[i] = range(warp_size).map(() => pvals.shift())
         } else if (uop === Ops.SPECIAL) {
-          if (arg[0][0] === 'g') ul.set(i, range(warp_size).map(() => idxs[2 - Number(arg[0].at(-1)!)]))
-          else if (arg[0][0] === 'l') ul.set(i, warp.map((x) => x[2 - Number(arg[0].at(-1)!)]))
-        } else if (uop === Ops.CONST) ul.set(i, range(warp_size).map(() => arg))
+          if (arg[0][0] === 'g') ul[i] = range(warp_size).map(() => idxs[2 - Number(arg[0].at(-1)!)])
+          else if (arg[0][0] === 'l') ul[i] = warp.map((x) => x[2 - Number(arg[0].at(-1)!)])
+        } else if (uop === Ops.CONST) ul[i] = range(warp_size).map(() => arg)
         else if (uop === Ops.DEFINE_ACC) {
-          ul.set(i, dtype.count > 1 ? range(dtype.count).flatMap((_) => range(warp_size).map(() => inp[0][0][0])) : range(warp_size).map(() => inp[0][0]))
+          ul[i] = dtype.count > 1 ? range(dtype.count).flatMap((_) => range(warp_size).map(() => inp[0][0][0])) : range(warp_size).map(() => inp[0][0])
         } else if (uop === Ops.INDEX) {
           const ret = []
           if (isinstance(dtp[0], ImageDType)) {
@@ -105,35 +105,35 @@ export class PythonProgram extends Program {
           } else {
             for (const [m, o] of zip(inp[0], inp[1])) ret.push([m, o])
           }
-          ul.set(i, ret)
+          ul[i] = ret
         } else if (uop === Ops.CAST && isinstance(dtype, PtrDType)) {
-          ul.set(i, inp[0])
+          ul[i] = inp[0]
         } else if (uop === Ops.RANGE) {
-          if (!ul.has(i)) ul.set(i, range(warp_size).map(() => inp[0][0]))
+          if (ul[i] === undefined) ul[i] = range(warp_size).map(() => inp[0][0])
           else {
-            for (const j of range(ul.get(i)!.length)) ul.get(i)![j] += 1
-            if (ul.get(i)![0] === inp[1][0]) {
-              ul.delete(i)
-              i = loop_ends.get(i)! + 1
+            for (const j of range(ul[i].length)) ul[i][j] += 1
+            if (ul[i][0] === inp[1][0]) {
+              delete ul[i]
+              i = loop_ends[i] + 1
               continue
             }
           }
-        } else if (uop === Ops.VECTORIZE) ul.set(i, inp)
+        } else if (uop === Ops.VECTORIZE) ul[i] = inp
         else if ([Ops.CAST, Ops.BITCAST].includes(uop)) {
           assert(!!dtp[0].fmt && !!dtype.fmt)
           if (uop === Ops.BITCAST) {
-            ul.set(i, bitcast(inp[0], dtp[0].fmt!, dtype.fmt!))
-          } else ul.set(i, inp[0].map((x) => (truncate.get(dtype) || ((dt: any) => dt))(dtypes.as_const(x, dtype))))
+            ul[i] = bitcast(inp[0], dtp[0].fmt!, dtype.fmt!)
+          } else ul[i] = inp[0].map((x) => (truncate.get(dtype) || ((dt: any) => dt))(dtypes.as_const(x, dtype)))
         } else if (uop === Ops.LOAD) {
           if (dtype.count > 1) {
-            ul.set(i, range(dtype.count).map((j) => load(range(inp.length).map((i) => i !== 0 && dtp[i].count > 1 ? inp[i][j] : inp[i]), j)))
-          } else ul.set(i, load(inp))
+            ul[i] = range(dtype.count).map((j) => load(range(inp.length).map((i) => i !== 0 && dtp[i].count > 1 ? inp[i][j] : inp[i]), j))
+          } else ul[i] = load(inp)
         } else if (uop === Ops.ASSIGN) {
           for (const j of range(inp[0].length)) inp[0][j] = inp[1][j]
-          ul.set(i, inp[0])
+          ul[i] = inp[0]
         } else if (uop === Ops.GEP) {
           assert(arg.length === 1)
-          ul.set(i, inp[0][arg[0]])
+          ul[i] = inp[0][arg[0]]
         } else if (uop === Ops.WMMA) {
           // here are the models for the WMMA instruction on the different hardware
           type Fn = (...a: [any[], number, number, number]) => number
@@ -162,7 +162,7 @@ export class PythonProgram extends Program {
             const a_b_elem: Fn = (x, i, j, goff) => x[i % 2][goff + idiv(i, 2) % 2 + (j % 4) * 2 + idiv(i, 4) * 8 + idiv(j, 4) * 16]
             // (i, j), C, D (2 elements on 32 threads): row major same as A/B
             const c_map: Fn2 = (lane, elem) => [elem + ((lane % 2) * 2) + (idiv(lane, 8) % 2) * 4, (idiv(lane, 2) % 4) + idiv(lane, 16) * 4]
-            ul.set(i, wmma_helper(32, 8, 2, 2, 2, a_b_elem, a_b_elem, c_map))
+            ul[i] = wmma_helper(32, 8, 2, 2, 2, a_b_elem, a_b_elem, c_map)
           } else if (arg[4] === 'AMD') {
             // A (16 elements on 32 threads): col major, lane 16-32 === lane 0-15
             const a_elem: Fn = (x, i, j, goff) => {
@@ -172,7 +172,7 @@ export class PythonProgram extends Program {
             // B (16 elements on 32 threads): row major, lane 16-32 === lane 0-15
             const b_elem: Fn = (x, i, j, goff) => a_elem(x, j, i, goff)
             const c_map: Fn2 = (lane, elem) => [lane % 16, idiv(lane, 16) + elem * 2] // (i, j), C, D (8 elements on 32 threads): row major
-            ul.set(i, wmma_helper(32, 16, 16, 16, 8, a_elem, b_elem, c_map))
+            ul[i] = wmma_helper(32, 16, 16, 16, 8, a_elem, b_elem, c_map)
           } else if (arg[4] === 'CUDA') {
             // A (8 elements on 32 threads)
             const a_elem: Fn = (x, i, j, goff) => x[(i % 2) + idiv(j, 8) * 2 + idiv(i, 8) * 4][goff + (idiv(i, 2) % 4) + (j % 8) * 4]
@@ -180,7 +180,7 @@ export class PythonProgram extends Program {
             const b_elem: Fn = (x, i, j, goff) => x[(j % 2) + idiv(j, 8) * 2][goff + idiv(j, 2) % 4 + i * 4]
             // (i, j), C, D (4 elements on 32 threads)
             const c_map: Fn2 = (lane, elem) => [(elem % 2) + (lane % 4) * 2, idiv(lane, 4) + idiv(elem, 2) * 8]
-            ul.set(i, wmma_helper(32, 16, 8, 4, 4, a_elem, b_elem, c_map))
+            ul[i] = wmma_helper(32, 16, 8, 4, 4, a_elem, b_elem, c_map)
           } else if (arg[4] === 'INTEL') {
             // A (16 elements on 8 threads)
             const a_elem: Fn = (x, i, j, goff) => x[i % 2 + j * 2][goff + idiv(i, 2)]
@@ -188,18 +188,18 @@ export class PythonProgram extends Program {
             const b_elem: Fn = (x, i, j, goff) => x[j][goff + i]
             // C, D (8 elements on 8 threads)
             const c_map: Fn2 = (lane, elem) => [lane, elem]
-            ul.set(i, wmma_helper(8, 16, 16, 16, 8, a_elem, b_elem, c_map))
+            ul[i] = wmma_helper(8, 16, 16, 16, 8, a_elem, b_elem, c_map)
           } else if (arg[4] === 'CLANG') {
             const elem: Fn = (x, i, j, _) => x[i + j][0]
             const c_map: Fn2 = (_, elem) => [elem % 16, idiv(elem, 16)]
-            ul.set(i, wmma_helper(1, 1, 16, 16, 256, elem, elem, c_map))
+            ul[i] = wmma_helper(1, 1, 16, 16, 256, elem, elem, c_map)
           } else throw new Error(`unimplemented tensor core ${arg}`)
         } else if (GroupOp.ALU.includes(uop)) {
           assert(all_same(inp.map((x) => x.length)), `${inp.map((x) => x.length)} doesn't match on ${uop}`)
           assert(all_same([dtype, ...dtp]) || [Ops.CMPNE, Ops.CMPLT, Ops.WHERE].includes(uop), `dtype mismatch on ${uop}`)
-          ul.set(i, zip(...inp).map((p) => exec_alu(uop, dtype, p)))
+          ul[i] = zip(...inp).map((p) => exec_alu(uop, dtype, p))
         }
-        assert(ul.has(i), `${{ uop, dtype, idp, arg }}`)
+        assert(!!ul[i], `${{ uop, dtype, idp, arg }}`)
         i += 1
       }
     }
