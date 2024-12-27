@@ -310,7 +310,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
 const _align_left = (...shapes: sint[][]): sint[][] => {
   //   // unsqueeze left to make every shape same length
   const max_dim = max(shapes.map((shape) => shape.length))
-  return shapes.map((shape) => range(max_dim - shape.length).map(() => 1))
+  return shapes.map((shape) => [...range(max_dim - shape.length).map(() => 1), ...shape])
 }
 export const _broadcast_shape = (shapes: sint[][]): sint[] => {
   return zip(..._align_left(...shapes)).map((nth_dim_sizes) => nth_dim_sizes.includes(0) ? 0 : smax(nth_dim_sizes))

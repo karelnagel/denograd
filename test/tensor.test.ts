@@ -95,7 +95,7 @@ Deno.test(
       [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [1, 10]],
       [[4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5], [1, 1, 10]],
     ],
-    tryCatch((data: number[], shape: number[]) => new Tensor(data)._broadcast_to(shape)),
+    tryCatch((data: number[], shape: number[]) => new Tensor(data)._broadcast_to(shape).tolist()),
     'out(tiny.Tensor(data[0])._broadcast_to(data[1]).tolist())',
   ),
 )
