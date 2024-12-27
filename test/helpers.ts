@@ -20,6 +20,7 @@ import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../src/engin
 import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRUAllocator } from '../src/device.ts'
 import { PythonRenderer } from '../src/runtime/ops_python.ts'
 import { MemoryView } from '../src/memoryview.ts'
+import { Tensor } from '../src/tensor.ts'
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
@@ -73,6 +74,9 @@ export const pyStr = (o: any, useList = false): string => {
   if (typeof o === 'string') return `"${o.replaceAll('\n', '\\\n')}"`
   if (o instanceof Map) return `{${[...o.entries()].map(([k, v]) => `${pyStr(k)}:${pyStr(v)}`).join(',')}}`
   if (o instanceof Set) return `set([${[...o].map((o) => pyStr(o)).join(', ')}])`
+
+  // ************ TENSOR ************
+  if (o instanceof Tensor) return t`tiny.tensor.Tensor(${o.lazydata}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
 
   // ************ ENGINE ************
   if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${OpsEnum(o.op)}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`

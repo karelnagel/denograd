@@ -20,6 +20,9 @@ export const safe_dtypes = {
 }
 export const inverse_safe_dtypes = new Map(Object.entries(safe_dtypes).map(([k, v]) => [v, k]))
 
+/**
+ * Loads a .safetensor file from disk, returning the data, metadata length, and metadata.
+ */
 export const safe_load_metadata = (t: Tensor): [Tensor, number, Record<string, any>] => {
   throw new Error()
 }

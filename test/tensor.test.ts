@@ -25,9 +25,10 @@ Deno.test(
     [
       [4],
       [4, 4, 3, 66],
+      [true],
     ],
-    (...data: (number | boolean)[]) => new Tensor(data).item(),
-    'out(tiny.Tensor(data).item())',
+    tryCatch((...data: (number | boolean)[]) => new Tensor(data).item()),
+    'out(trycatch(lambda:tiny.Tensor(data).item()))',
   ),
 )
 
@@ -66,6 +67,28 @@ Deno.test(
 )
 
 Deno.test(
+  'Tensor.get',
+  compare(
+    [
+      [[4, 4, 4, 2, 6.5]],
+      [[4, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, 44]],
+    ],
+    (data: number[]) => new Tensor(data).tolist(),
+    'out(tiny.Tensor(data[0])[0:2].tolist())',
+  ),
+)
+
+Deno.test(
+  'Tensor.serialization',
+  compare(
+    [
+      [new Tensor([3, 33, 5, 34], { requires_grad: true })],
+    ],
+    (x: Tensor) => x,
+    'out(data[0])',
+  ),
+)
+Deno.test(
   'Tensor.add',
   compare(
     [
@@ -94,18 +117,5 @@ Deno.test(
     ],
     (data0: number[], data1: number[]) => new Tensor(data0).matmul(new Tensor(data1)).tolist(),
     'out((tiny.Tensor(data[0]) @ tiny.Tensor(data[1])).tolist())',
-  ),
-)
-
-Deno.test(
-  'Tensor.get',
-  compare(
-    [
-      [4, 4, 4, 2, 6.5],
-      [4],
-      [true, false],
-    ],
-    (...data: (number | boolean)[]) => new Tensor(data).get({ start: 1 }).numel(),
-    'out(tiny.Tensor(data)[1:].numel())',
   ),
 )

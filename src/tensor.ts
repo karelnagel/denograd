@@ -2,7 +2,7 @@
 import { Buffer as NodeBuffer } from 'node:buffer'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, getEnv, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
 import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
@@ -303,7 +303,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
   }
   //   // fake realize
   ret.buffer!.allocate(Device.DEFAULT !== 'PYTHON' ? data : new MemoryView(data as Uint8Array, { fmt: 'B' }))
-  delete ret.srcs
+  ret.srcs?.forEach((x) => x.__del__())
   return ret
 }
 const _align_left = (...shapes: sint[][]): sint[][] => {
@@ -342,7 +342,7 @@ const getIndice = <T>(items: T[], indice: TensorSlice): T[] => {
   }
   return result
 }
-type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | TensorSlice | (number | boolean | UOp | Tensor | undefined | '...' | TensorSlice)[]
+export type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | TensorSlice | (number | boolean | UOp | Tensor | undefined | '...' | TensorSlice)[]
 
 /**
  * A `Tensor` === a multi-dimensional matrix containing elements of a single data type.
@@ -2730,7 +2730,7 @@ export class Tensor extends SimpleMathTrait {
   // ***** broadcasted elementwise ops *****
   _broadcast_to = (new_shape: sint[]): Tensor => {
     if (this.shape === new_shape) return this
-    if (this.ndim > new_shape.length) throw new Error(`can!broadcast tensor to fewer dimensions. shape=${this.shape} to ${new_shape}`)
+    if (this.ndim > new_shape.length) throw new Error(`can not broadcast tensor to fewer dimensions. shape=${listStr(this.shape)} to new_shape=${listStr(new_shape)}`)
     // first unsqueeze left with 1s https://data-apis.org/array-api/latest/API_specification/broadcasting.html
     const [shape, _] = _align_left(this.shape, new_shape)
     // for each dimension, check either dim === 1, || it does !change

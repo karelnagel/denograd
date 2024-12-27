@@ -108,6 +108,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
       }
       offset += indices[i] * this.strides[i]
     }
+    if (this.isBoolean) return Boolean(this.asTypedArray[offset]) as Const<F>
     return this.asTypedArray[offset] as Const<F>
   }
 
@@ -182,7 +183,6 @@ export class MemoryView<F extends FmtStr = 'B'> {
    * Convert to a list of JS numbers (1D). Throws if the format is one of the bigint types.
    */
   toList = (): Const<F>[] => {
-    if (this.isBigInt) return Array.from(this.asTypedArray as BigInt64Array | BigUint64Array) as Const<F>[]
     if (this.isBoolean) return Array.from(this.asTypedArray as Uint8Array, (x) => Boolean(x)) as Const<F>[]
     return Array.from(this.asTypedArray as Uint8Array) as Const<F>[]
   }
