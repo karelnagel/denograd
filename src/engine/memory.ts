@@ -18,22 +18,23 @@ const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[],
   //   // Sort buffers by size in descending order, prioritizing largest buffers for allocation first.
   //   // Track free segments, each containing (start, stop, && buffer that could be reused on this segment).
   type Seg = [number, number, Buffer]
-  const free_segs = new Map<any[], Seg[]>() // Map<buffer key, [start, end, buffer to reuse on the seg>]
+  const free_segs = new Map<string, Seg[]>() // Map<buffer key, [start, end, buffer to reuse on the seg>]
   const find_replace_buffer = (buf: Buffer, st: number, en: number) => {
-    const key = [buf.device, buf.dtype, buf.options, ...(!('offset' in Device.get(buf.device).allocator!) ? [buf.nbytes] : [])]
+    const key = JSON.stringify([buf.device, buf.dtype, buf.options, ...(!('offset' in Device.get(buf.device).allocator!) ? [buf.nbytes] : [])])
 
     const default_buf: Seg = [0, buffers.length - 1, buf] // will return the buffer itthis if the replace one !== found.
-    const [seg_st, seg_en, seg_buf] = [...free_segs.get(key)!.filter(([sst, sen], i) => sst <= st && en <= sen).map((_, i) => free_segs.get(key)!.pop()!), default_buf][0] //it had pop(i) + using next() to get the next one
+    const next = free_segs.get(key)?.entries()?.filter(([i, [sst, sen]]) => sst <= st && en <= sen).next().value
+    const [seg_st, seg_en, seg_buf] = next ? free_segs.get(key)!.splice(next[0], 1)[0] : default_buf
 
-    free_segs.set(key, [...free_segs.get(key)!, ...(st - 1 >= seg_st ? [[seg_st, st - 1, seg_buf] as Seg] : [])])
-    free_segs.set(key, [...free_segs.get(key)!, ...(seg_en >= en + 1 ? [[en + 1, seg_en, seg_buf] as Seg] : [])])
+    free_segs.set(key, [...free_segs.get(key) || [], ...(st - 1 >= seg_st ? [[seg_st, st - 1, seg_buf] as Seg] : [])])
+    free_segs.set(key, [...free_segs.get(key) || [], ...(seg_en >= en + 1 ? [[en + 1, seg_en, seg_buf] as Seg] : [])])
 
     return seg_buf.nbytes === buf.nbytes ? seg_buf : new Buffer(buf.device, buf.size, buf.dtype, undefined, undefined, undefined, undefined, seg_buf)
   }
-  const buffer_requests = [...first_appearance.keys()].map((buf) => [first_appearance.get(buf), last_appearance.get(buf), buf] as Seg).toSorted((a, b) => -a[2].nbytes + b[2].nbytes)
+  const buffer_requests = [...first_appearance.keys()].map((buf) => [first_appearance.get(buf), last_appearance.get(buf), buf] as Seg).toSorted((a, b) => b[2].nbytes - a[2].nbytes)
   const assigned = new Map(buffer_requests.map(([st, en, buf]) => [buf, find_replace_buffer(buf, st, en)]))
 
-  for (const u of buffers) {
+  for (const [i, u] of buffers.entries()) {
     for (const buf of u) {
       if (buf.is_allocated() || buf.lb_refcount > 0 || (noopt_buffers !== undefined && noopt_buffers.includes(buf.base))) continue
       if (buf._base !== undefined) assigned.set(buf, new Buffer(buf.device, buf.size, buf.dtype, undefined, undefined, undefined, undefined, (assigned.get(buf.base) || buf.base).base, buf.offset))
@@ -48,6 +49,9 @@ const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[],
 
 export const memory_planner = (schedule: ScheduleItem[]): ScheduleItem[] => {
   //   // Exclude buffers involved in load ops (e.g transfers) to preserve parallelism in graphs.
-  const assigned = _internal_memory_planner(schedule.map((si) => si.bufs), schedule.filter((si) => si.ast.op !== Ops.SINK).flatMap((si) => si.bufs))
+  const assigned = _internal_memory_planner(
+    schedule.map((si) => si.bufs),
+    schedule.filter((si) => si.ast.op !== Ops.SINK).flatMap((si) => si.bufs),
+  )
   return schedule.map((si) => new ScheduleItem(si.ast, si.bufs.map((x) => assigned.get(x) || x), si.metadata, si.assign_preloads))
 }
