@@ -7,6 +7,8 @@ import { ClangRenderer } from '../src/renderer/cstyle.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
 import { View } from '../src/shape/view.ts'
 import { compare } from './helpers.ts'
+import { LazyBuffer } from '../src/engine/lazy.ts'
+import { Metadata } from '../src/helpers.ts'
 
 Deno.test(
   'serialize',
@@ -33,10 +35,13 @@ Deno.test(
           false,
         ),
       ],
+
       [ShapeTracker.from_shape([UOp.float(8), UOp.int(110), UOp.int(33)])],
       [new IndexContext([UOp.int(3)], [UOp.bool(true), UOp.float(4.4)], 4)],
       [new ClangRenderer()],
       [new Opt(OptOps.PADTO, 5, 666)],
+      [[new LazyBuffer(`PYTHON`, new ShapeTracker([new View([10], [1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, undefined, undefined, undefined)]],
+      [[new LazyBuffer(`PYTHON`, new ShapeTracker([new View([5, 2], [2, 1], 0, undefined, true)]), dtypes.int, undefined, undefined, undefined, new LazyBuffer(`PYTHON`, new ShapeTracker([new View([10], [1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, undefined, undefined, undefined), new Metadata(`reshape`, ``, false))]],
       // [new Kernel(new UOp(Ops.SINK), new ClangRenderer())],
       // [new Kernel(new UOp(Ops.SINK))],
       ...spec.patterns.map((p) => [p[0]] as any),

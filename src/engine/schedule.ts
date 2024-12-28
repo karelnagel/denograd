@@ -13,7 +13,7 @@ const BUF_LIMIT = { 'METAL': 32 }
 
 // **** ScheduleItem return type
 
-@DataClass
+// @DataClass //KAREL: not sure
 export class ScheduleItem {
   constructor(public ast: UOp, public bufs: Buffer[], public metadata: Metadata[], public assign_preloads: Set<UOp>) {}
   /**

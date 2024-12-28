@@ -214,9 +214,10 @@ export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, c
         name: i.toString(),
         ignore: options.ignore?.includes(i),
         fn: async () => {
-          const ts = fn(...input)
           if (Array.isArray(code)) code = code.join('\n')
           const py = await python(code, input)
+        
+          const ts = fn(...input)
 
           if (typeof ts === 'string' && typeof py === 'string') {
             const similarity = calculateSimilarity(ts, py)
