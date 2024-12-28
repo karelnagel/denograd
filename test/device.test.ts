@@ -18,7 +18,7 @@ Deno.test(
   'Device.get_available_devices',
   compare(
     [[]],
-    () => Device.get_available_devices().filter((x) => x !== 'PYTHON'),
+    () => Device.get_available_devices(),
     'out([*tiny.device.Device.get_available_devices()])',
   ),
 )

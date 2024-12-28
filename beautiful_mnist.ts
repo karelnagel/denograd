@@ -6,7 +6,7 @@ import { mnist } from './src/nn/datasets.ts'
 import { get_env, get_number_env, GlobalCounters, range } from './src/helpers.ts'
 import { tqdm } from './src/tqdm.ts'
 
-class Model {
+export class MNIST {
   layers: ((x: Tensor) => Tensor)[]
   constructor() {
     this.layers = [
@@ -31,7 +31,7 @@ class Model {
 
 const [X_train, Y_train, X_test, Y_test] = await mnist(undefined, !!get_env('FASHION'))
 
-const model = new Model()
+const model = new MNIST()
 const opt = nn.optim.Adam(nn.state.get_parameters(model))
 
 const train_step = (): Tensor => {

@@ -508,14 +508,14 @@ export class Tensor extends SimpleMathTrait {
     return this
   }
 
-  assign = (x: Tensor): Tensor => {
+  assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
     //   // TODO: this === a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
       // if x.__class__ !== Tensor: x = new Tensor(x, device="PYTHON", dtype=this.dtype)// Karel: changed CLANG to PYTHON
-      this.contiguous().realize().lazydata.base.realized!.copyin(x._data())
+      this.contiguous().realize().lazydata.base.realized!.copyin((x as Tensor)._data())
       return this
     }
-    // if x.__class__ !== Tensor: x = new Tensor(x, device=this.device, dtype=this.dtype)
+    if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign
@@ -605,6 +605,26 @@ export class Tensor extends SimpleMathTrait {
     if (y.op === Ops.MAX) return Tensor.from_uop(y.src[0]).maximum(Tensor.from_uop(y.src[1]))
     throw new Error(`unhandled UOp {y}`)
   }
+
+  static _metaop = (op: any, shape: number[], opts: TensorOptions = {}, arg?: any) => {
+    const dtype = opts.dtype !== undefined ? to_dtype(opts.dtype) : dtypes.default_float
+    return new Tensor(LazyBuffer.metaop(op, shape, dtype, Device.canonicalize(opts.device as DeviceType), arg), { ...opts, dtype })
+  }
+
+  /**
+   * Creates an empty tensor with the given shape.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.empty(2, 3)
+   * print(t.shape)
+   * ```
+   * """
+   */
+  static empty = (shape: number[], opts: TensorOptions = {}) => Tensor._metaop(Ops.EMPTY, argfix(shape), opts)
+
   /**
    * Create a Tensor from a URL.
    *

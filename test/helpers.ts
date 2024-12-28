@@ -145,7 +145,8 @@ export const pyStr = (o: any, useList = false): string => {
   if (o?.constructor?.name === 'Object') return `{${Object.entries(o).map((entry) => t`${entry[0]}:${entry[1]}`).join(',')}}`
   throw new Error(`Invalid value: ${o.constructor.name} ${JSON.stringify(o)}`)
 }
-export const python = async <T = any>(code: string, data?: any): Promise<T> => {
+export const python = async <T = any>(code: string | string[], data?: any): Promise<T> => {
+  if (Array.isArray(code)) code = code.join('\n')
   code = `
 import tinygrad as tiny
 import math
@@ -214,9 +215,7 @@ export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, c
         name: i.toString(),
         ignore: options.ignore?.includes(i),
         fn: async () => {
-          if (Array.isArray(code)) code = code.join('\n')
           const py = await python(code, input)
-        
           const ts = fn(...input)
 
           if (typeof ts === 'string' && typeof py === 'string') {
