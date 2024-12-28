@@ -40,13 +40,13 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
           const oidx = new_src[0].src[1]
           if (isNone(oidx.divides(fold_length))) continue
           if (is_image) {
-            //             # for images, we rewrite the index. it must evenly divide 4 from the above check
+            // for images, we rewrite the index. it must evenly divide 4 from the above check
             new_src[0] = buf.index(
               new UOp(Ops.VECTORIZE, dtypes.int.vec(2), [oidx.idiv(4).mod((buf.dtype as ImageDType).shape[1]), oidx.idiv(4 * (buf.dtype as ImageDType).shape[1])]),
               isinstance(rootsrc, Array) ? rootsrc[0] as UOp : undefined,
             )
           } else {
-            //             # for non image, we upcast the index pointer
+            // for non image, we upcast the index pointer
             new_src[0] = new_src[0].cast(new_src[0].dtype.base.vec(fold_length).ptr((new_src[0].dtype as PtrDType).local))
           }
           //           # generate the folded new_srcs
