@@ -7,18 +7,19 @@ import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate, TypedArrays } f
 import type { DeviceType, ProgramCallInput } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 
-const _load = (m: any[], i?: number) => {
+const _load = (m: MemoryView, i?: number) => {
   if (i === undefined) return 0.0
   if (i < 0 || i >= m.length) throw new Error(`load out of bounds, size === ${m.length} && access === ${i}`)
-  return m[i]
+  return m.getValue(i)
 }
-const load = (inp: any[], j = 0) => {
-  if (inp.length === 3) return zip(...inp).map(([[m, x], def, gate]: any) => gate ? _load(m, x !== undefined ? x + j : undefined) : def)
-  return inp[0].map(([m, x]: any) => _load(m, x !== undefined ? x + j : undefined))
+type Inp = [[MemoryView, number ][], number[][]] | [[MemoryView, number][], number[][], boolean[]]
+const load = (inp: Inp, j = 0) => {
+  if (inp.length === 3) return zip(...inp).map(([[m, x], def, gate]) => gate ? _load(m, x !== undefined ? x + j : undefined) : def)
+  return inp[0].map(([m, x]) => _load(m, x !== undefined ? x + j : undefined))
 }
-const _store = (m: any[], i: number, v: any) => {
+const _store = (m: MemoryView, i: number, v: any) => {
   if (i < 0 || i >= m.length) throw new Error(`store out of bounds, size === ${m.length}, access === ${i}, value === ${v}`)
-  m[i] = v
+  m.setValue(v, i)
 }
 
 type PyUOp = [Ops, DType | undefined, number[], any]
@@ -126,8 +127,8 @@ export class PythonProgram extends Program {
           } else ul[i] = inp[0].map((x) => (truncate.get(dtype) || ((dt: any) => dt))(dtypes.as_const(x, dtype)))
         } else if (uop === Ops.LOAD) {
           if (dtype.count > 1) {
-            ul[i] = range(dtype.count).map((j) => load(range(inp.length).map((i) => i !== 0 && dtp[i].count > 1 ? inp[i][j] : inp[i]), j))
-          } else ul[i] = load(inp)
+            ul[i] = range(dtype.count).map((j) => load(range(inp.length).map((i) => i !== 0 && dtp[i].count > 1 ? inp[i][j] : inp[i]) as any, j))
+          } else ul[i] = load(inp as any)
         } else if (uop === Ops.ASSIGN) {
           for (const j of range(inp[0].length)) inp[0][j] = inp[1][j]
           ul[i] = inp[0]

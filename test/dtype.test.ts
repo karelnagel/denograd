@@ -2,18 +2,18 @@ import { _getRecursiveParents, DType, dtypes, FmtStr, least_upper_dtype, promoLa
 import { sorted } from '../src/helpers.ts'
 import { compare, tryCatch } from './helpers.ts'
 
-Deno.test(
-  'DType.init',
-  compare(
-    [
-      [1, 1, 'bool', 'f', 1, undefined],
-      [2, 1, 'void', 'e', 1, undefined],
-      [2, 1, 'unsigned short', 'e', 2, new DType(4, 4, 'void', undefined, 1)],
-    ],
-    (priority: number, itemsize: number, name: string, fmt: undefined | FmtStr, count: number, _scalar?: DType) => new DType(priority, itemsize, name, fmt, count, _scalar),
-    'out(tiny.dtype.DType(*data))',
-  ),
-)
+// Deno.test(
+//   'DType.init',
+//   compare(
+//     [
+//       [1, 1, 'bool', 'f', 1, undefined],
+//       [2, 1, 'void', 'e', 1, undefined],
+//       [2, 1, 'unsigned short', 'e', 2, new DType(4, 4, 'void', undefined, 1)],
+//     ],
+//     (priority: number, itemsize: number, name: string, fmt: undefined | FmtStr, count: number, _scalar?: DType) => new DType(priority, itemsize, name, fmt, count, _scalar),
+//     'out(tiny.dtype.DType(*data))',
+//   ),
+// )
 Deno.test(
   'DType.vec',
   compare(

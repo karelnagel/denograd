@@ -67,7 +67,7 @@ export class PtrDType extends DType {
   override get vcount() {
     return this.v
   }
-  override toString = () => `${this.base.toString()}.ptr(${this.local ? 'local=True' : ''})${this.v !== 1 ? `.vec(${this.v})` : ''}`
+  override toString = () => `${this.base.toString()}.ptr(${this.local ? 'true' : ''})${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
 
 export class ImageDType extends PtrDType {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
-import { DType, ImageDType, PtrDType } from '../src/dtype.ts'
+import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../src/dtype.ts'
 import { getEnumString, isNotNone, Metadata } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
@@ -22,12 +22,15 @@ import { PythonRenderer } from '../src/runtime/ops_python.ts'
 import { MemoryView } from '../src/memoryview.ts'
 import { Tensor } from '../src/tensor.ts'
 
+dtypes // needed to force the import
+
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
 export const asdict = (o: any): any => {
   if (!o) return o
   if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
   if (o instanceof DataView) return [...new Uint8Array(o.buffer)].map((v) => asdict(v))
+  if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
   if (Array.isArray(o)) return o.map(asdict)
   if (o instanceof Map) {
@@ -119,9 +122,9 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof ShapeTracker) return t`tiny.shape.shapetracker.ShapeTracker(views=${o.views})`
 
   // ************ DTYPE ************
-  if (o instanceof ImageDType) return t`tiny.dtype.ImageDType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar}, ${o._base}, ${o.local}, ${o.v}, ${o.shape})`
-  if (o instanceof PtrDType) return t`tiny.dtype.PtrDType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar}, ${o._base}, ${o.local}, ${o.v})`
-  if (o instanceof DType) return t`tiny.dtype.DType(${o.priority}, ${o.itemsize}, ${o.name}, ${o.fmt}, ${o.count}, ${o._scalar})`
+  if (o instanceof ImageDType) return `tiny.dtype.dtypes.${o.name}(${pyStr(o.shape)})${o.v !== 1 ? `.vec(${o.v})` : ''}`
+  if (o instanceof PtrDType) return `${pyStr(o.base)}.ptr(${o.local ? 'local=True' : ''})${o.v !== 1 ? `.vec(${o.v})` : ''}`
+  if (o instanceof DType) return `tiny.dtype.dtypes.${INVERSE_DTYPES_DICT[o.scalar().name]}${o.count > 1 ? `.vec(${o.count})` : ''}`
 
   // ************ OPS ************
   if (o instanceof UPat) {

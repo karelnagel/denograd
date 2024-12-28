@@ -38,7 +38,7 @@ Deno.test(
       [[2, 4, 4, 4], 'B', 'f'],
     ],
     (data: number[], from: FmtStr, to: FmtStr) => {
-      return new MemoryView(data, { fmt: from }).cast(to).slice(1,-1).toList()
+      return new MemoryView(data, { fmt: from }).cast(to).slice(1,-1).to1DList()
     },
     [
       'from array import array',

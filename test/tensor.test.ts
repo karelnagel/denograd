@@ -104,9 +104,9 @@ Deno.test(
   'Tensor.get',
   compare(
     [
-      [[4, 11, 441, 2, 65, 1, 24, 3, 4, 5]],
+      [[4, 11, 255, 2, 65, 1, 24, 3, 1, 5]],
     ],
-    tryCatch((data: number[]) => {
+    ((data: number[]) => {
       const t = new Tensor(data)
       return [
         t.get(undefined).data(),
@@ -114,10 +114,15 @@ Deno.test(
         t.reshape([5, 2]).data(),
         t.get(0).data(),
         t.get(9).data(),
-        t.reshape([2, 5]).get(0, 1).data(),
+        t.get({ start: 2, stop: 2 }).data(),
+        t.reshape([2, 5]).get(0, 4).data(),
+
+        // not working
+        t.get({ start: 2, stop: 6 }).data(),
+        t.reshape([2, 5]).get(1).data(),
         t.get({ start: 0, stop: 2 }).data(),
         t.reshape([5, 2]).get({ start: 1, stop: 2 }).data(),
-        // t.reshape([5, 2]).get({ start: 1, stop: 3 }).tolist(),// fails
+        t.reshape([5, 2]).get({ start: 1, stop: 3 }).data(),
       ]
     }),
     [
@@ -128,9 +133,15 @@ Deno.test(
       '   t.reshape((5,2)).data(),',
       '   t[0].data(),',
       '   t[9].data(),',
-      '   t.reshape((2,5))[0, 2].data(),',
+      '   t[2:2].data(),',
+      '   t.reshape((2,5))[0, 4].data(),',
+
+      // not working
+      '   t[2:6].data(),',
+      '   t.reshape((2,5))[1].data(),',
       '   t[0:2].data(),',
       '   t.reshape((5,2))[1:2].data(),',
+      '   t.reshape((5,2))[1:3].data(),',
       '])',
     ],
   ),

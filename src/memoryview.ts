@@ -77,7 +77,8 @@ export class MemoryView<F extends FmtStr = 'B'> {
       if (!all_int(shape)) throw new Error(`Shape can only have ints: [${shape}]`)
       if (shape.reduce((acc, dim) => acc * dim, 1) !== this.length) throw new Error(`Provided shape [${shape}] does not match total elements = ${this.length}`)
       this.shape = shape.slice()
-    } else if (this.length === 1) this.shape = []
+    } 
+    // else if (this.length === 1) this.shape = []//KAREL: todo breaks Tensor.tolist()
     else this.shape = [this.length]
   }
   get strides(): number[] {
