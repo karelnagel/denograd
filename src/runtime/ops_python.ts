@@ -12,7 +12,7 @@ const _load = (m: MemoryView, i?: number) => {
   if (i < 0 || i >= m.length) throw new Error(`load out of bounds, size === ${m.length} && access === ${i}`)
   return m.getValue(i)
 }
-type Inp = [[MemoryView, number ][], number[][]] | [[MemoryView, number][], number[][], boolean[]]
+type Inp = [[MemoryView, number][], number[][]] | [[MemoryView, number][], number[][], boolean[]]
 const load = (inp: Inp, j = 0) => {
   if (inp.length === 3) return zip(...inp).map(([[m, x], def, gate]) => gate ? _load(m, x !== undefined ? x + j : undefined) : def)
   return inp[0].map(([m, x]) => _load(m, x !== undefined ? x + j : undefined))
@@ -28,7 +28,8 @@ const serialize = (data: PyUOp[]): Uint8Array => {
 }
 const deserialize = (data: Uint8Array): PyUOp[] => {
   const res = JSON.parse(new TextDecoder().decode(data))
-  return res.map(([ops, dtype, src, arg]: any) => [ops, eval(dtype), src, arg])
+  // replacing nulls with undefines
+  return res.map((x: any) => x.map((y: any) => y !== null ? y : undefined)).map(([ops, dtype, src, arg]: any) => [ops, eval(dtype), src, arg])
 }
 
 export class PythonProgram extends Program {
