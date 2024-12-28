@@ -5,7 +5,7 @@ export type FmtStr = keyof typeof MemoryView.ARRAYS
 type MemoryViewOptions<F extends FmtStr> = {
   byteOffset?: number
   byteLength?: number
-  fmt?: FmtStr
+  fmt?: F
   shape?: number[]
 }
 function reshape1DToMultiD<T>(array: T[], shape: number[]): any {
@@ -35,6 +35,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
   byteOffset: number
   byteLength: number
   format: F = 'B' as F
+  _is_scalar = false
 
   // New fields for multi-dimensional logic:
   shape: number[] = []
@@ -73,13 +74,14 @@ export class MemoryView<F extends FmtStr = 'B'> {
     this.setShape(opts.shape)
   }
   private setShape = (shape?: number[]) => {
+    this._is_scalar = !shape?.length && this.length === 1
     if (shape?.length) {
       if (!all_int(shape)) throw new Error(`Shape can only have ints: [${shape}]`)
       if (shape.reduce((acc, dim) => acc * dim, 1) !== this.length) throw new Error(`Provided shape [${shape}] does not match total elements = ${this.length}`)
       this.shape = shape.slice()
-    } 
-    // else if (this.length === 1) this.shape = []//KAREL: todo breaks Tensor.tolist()
-    else this.shape = [this.length]
+    } else {
+      this.shape = [this.length]
+    }
   }
   get strides(): number[] {
     const strides = new Array(this.shape.length)
@@ -93,9 +95,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
 
   /** Reinterpret the underlying type. */
   cast = <NewF extends FmtStr>(fmt: NewF, shape?: number[]): MemoryView<NewF> => {
-    this.format = fmt as any
-    this.setShape(shape)
-    return this as any
+    return new MemoryView<NewF>(this as any, { shape, fmt }) as any
   }
 
   /** The number of typed elements (1D) in this MemoryView. */
@@ -207,7 +207,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
     return Array.from(this.asTypedArray as Uint8Array) as Const<F>[]
   }
   toList = (): Const<F>[] => {
-    return reshape1DToMultiD(this.to1DList(), this.shape)
+    return reshape1DToMultiD(this.to1DList(), this._is_scalar ? [] : this.shape)
   }
 
   // All typed array constructors mapped to "format" keys.

@@ -101,7 +101,7 @@ Deno.test(
 )
 
 Deno.test(
-  'Tensor.get',
+  'Tensor.data',
   compare(
     [
       [[4, 11, 255, 2, 65, 1, 24, 3, 1, 5]],
@@ -116,8 +116,6 @@ Deno.test(
         t.get(9).data(),
         t.get({ start: 2, stop: 2 }).data(),
         t.reshape([2, 5]).get(0, 4).data(),
-
-        // not working
         t.get({ start: 2, stop: 6 }).data(),
         t.reshape([2, 5]).get(1).data(),
         t.get({ start: 0, stop: 2 }).data(),
@@ -135,13 +133,54 @@ Deno.test(
       '   t[9].data(),',
       '   t[2:2].data(),',
       '   t.reshape((2,5))[0, 4].data(),',
-
-      // not working
       '   t[2:6].data(),',
       '   t.reshape((2,5))[1].data(),',
       '   t[0:2].data(),',
       '   t.reshape((5,2))[1:2].data(),',
       '   t.reshape((5,2))[1:3].data(),',
+      '])',
+    ],
+  ),
+)
+
+Deno.test(
+  'Tensor.tolist',
+  compare(
+    [
+      [[4, 11, 255, 2, 65, 1, 24, 3, 1, 5]],
+    ],
+    ((data: number[]) => {
+      const t = new Tensor(data)
+      return [
+        t.get(undefined).tolist(),
+        t.get('...').tolist(),
+        t.reshape([5, 2]).tolist(),
+        t.get(0).tolist(),
+        t.get(9).tolist(),
+        t.get({ start: 2, stop: 2 }).tolist(),
+        t.reshape([2, 5]).get(0, 4).tolist(),
+        t.get({ start: 2, stop: 6 }).tolist(),
+        t.reshape([2, 5]).get(1).tolist(),
+        t.get({ start: 0, stop: 2 }).tolist(),
+        t.reshape([5, 2]).get({ start: 1, stop: 2 }).tolist(),
+        t.reshape([5, 2]).get({ start: 1, stop: 3 }).tolist(),
+      ]
+    }),
+    [
+      't = tiny.Tensor(data[0])',
+      'out([',
+      '   t[None].tolist(),',
+      '   t[...].tolist(),',
+      '   t.reshape((5,2)).tolist(),',
+      '   t[0].tolist(),',
+      '   t[9].tolist(),',
+      '   t[2:2].tolist(),',
+      '   t.reshape((2,5))[0, 4].tolist(),',
+      '   t[2:6].tolist(),',
+      '   t.reshape((2,5))[1].tolist(),',
+      '   t[0:2].tolist(),',
+      '   t.reshape((5,2))[1:2].tolist(),',
+      '   t.reshape((5,2))[1:3].tolist(),',
       '])',
     ],
   ),

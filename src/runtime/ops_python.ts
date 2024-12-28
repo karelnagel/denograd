@@ -94,8 +94,9 @@ export class PythonProgram extends Program {
         } else if (uop === Ops.SPECIAL) {
           if (arg[0][0] === 'g') ul[i] = range(warp_size).map(() => idxs[2 - Number(arg[0].at(-1)!)])
           else if (arg[0][0] === 'l') ul[i] = warp.map((x) => x[2 - Number(arg[0].at(-1)!)])
-        } else if (uop === Ops.CONST) ul[i] = range(warp_size).map(() => arg)
-        else if (uop === Ops.DEFINE_ACC) {
+        } else if (uop === Ops.CONST) {
+          ul[i] = range(warp_size).map(() => arg)
+        } else if (uop === Ops.DEFINE_ACC) {
           ul[i] = dtype.count > 1 ? range(dtype.count).flatMap((_) => range(warp_size).map(() => inp[0][0][0])) : range(warp_size).map(() => inp[0][0])
         } else if (uop === Ops.INDEX) {
           const ret = []
@@ -120,8 +121,9 @@ export class PythonProgram extends Program {
               continue
             }
           }
-        } else if (uop === Ops.VECTORIZE) ul[i] = inp
-        else if ([Ops.CAST, Ops.BITCAST].includes(uop)) {
+        } else if (uop === Ops.VECTORIZE) {
+          ul[i] = inp
+        } else if ([Ops.CAST, Ops.BITCAST].includes(uop)) {
           assert(!!dtp[0].fmt && !!dtype.fmt)
           if (uop === Ops.BITCAST) {
             ul[i] = bitcast(inp[0], dtp[0].fmt!, dtype.fmt!)
