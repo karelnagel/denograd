@@ -15,10 +15,10 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
   const [is_load, is_image] = [new_srcs[0]?.op === Ops.LOAD, isinstance(buf.dtype, ImageDType)]
 
   //   # first, extract all the relevant offsets
-  const offsets_rootsrc = new Map<any, Map<string, number>>()
+  const offsets_rootsrc = new Map<UOp, Map<string, number>>()
   for (const [i, s] of new_srcs.entries()) {
     const idx = s!.src[0].src[1]
-    let root_src, arg
+    let root_src: any, arg
     if (s!.dtype.count !== 1 || (is_image && idx.dtype.count === 2)) continue
     if (idx.op === Ops.ADD && idx.src[1].op === Ops.CONST) [root_src, arg] = [idx.src[0], idx.src[1].arg]
     else if (idx.op === Ops.CONST) [root_src, arg] = ['CONST', idx.arg]
@@ -30,13 +30,13 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
   }
   //   # then rewrite everything we can
   const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && get_env('ALLOW_HALF8') ? [8, 4, 2] : (AMX ? [16, 8, 4, 2] : [4, 2]))
-  let used = new Set<[UOp, UOp]>()
+  let used: [UOp, any][] = []
   for (const [rootsrc, offsets] of offsets_rootsrc.entries()) {
     for (const o of offsets.keys()) {
       for (const fold_length of lengths) {
-        if (range(fold_length).every((i) => !used.has([rootsrc, o + i as any]) && offsets.has(o + i))) {
-          const load_1 = new_srcs[offsets.get(o)!]
-          const new_src = [...load_1!.src]
+        if (range(fold_length).every((i) => !used.some(([a, b]) => a === rootsrc && b === (o + i)) && offsets.has(o + i))) {
+          const load_1 = new_srcs[offsets.get(o)!]!
+          const new_src = [...load_1.src]
           const oidx = new_src[0].src[1]
           if (isNone(oidx.divides(fold_length))) continue
           if (is_image) {
@@ -57,7 +57,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
             new_src[1] = new UOp(Ops.VECTORIZE, new_src[1].dtype.vec(fold_length), range(fold_length).map((i) => new_srcs[offsets.get(o + i)!]!.src[1]))
             for (const i of range(fold_length)) new_srcs[offsets.get(o + i)!] = i === 0 ? new UOp(Ops.STORE, dtypes.void, new_src) : undefined
           }
-          used = new Set([...used, ...range(fold_length).map((i) => [rootsrc, o + i as any] as [UOp, UOp])])
+          used = [...used, ...range(fold_length).map((i) => [rootsrc, o + i as any] as [UOp, UOp])]
         }
       }
     }
@@ -65,7 +65,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
   //   # dedup expand for LOAD
   if (is_load && old_new_srcs.length !== ex.src.length) new_srcs = ex.src.map((s) => new_srcs[old_new_srcs.indexOf(s)])
   //   # remove Nones for STORE
-  return used.size ? new UOp(ex.op, ex.dtype, [...new_srcs.filter((x) => isNotNone(x))], ex.arg) : undefined
+  return used.length ? new UOp(ex.op, ex.dtype, [...new_srcs.filter((x) => isNotNone(x))], ex.arg) : undefined
 }
 
 export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {

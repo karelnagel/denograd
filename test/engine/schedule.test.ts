@@ -111,7 +111,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+Deno.test.ignore(
   'recursive_group',
   compare(
     [

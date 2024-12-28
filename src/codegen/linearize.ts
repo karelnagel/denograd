@@ -144,7 +144,8 @@ export const block_reorder = (in_block: UOp): UOp => {
       if (priA !== priB) return priA - priB
       // Compare tuplize as secondary sort key
       // Assuming tuplize comparison works similar to Python
-      return JSON.stringify(a.tuplize) < JSON.stringify(b.tuplize) ? -1 : 1
+      // KAREL: probably doesn't work every time correctly
+      return JSON.stringify(a.tuplize()) < JSON.stringify(b.tuplize()) ? -1 : 1
     })
   }
 

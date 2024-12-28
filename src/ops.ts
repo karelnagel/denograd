@@ -375,15 +375,19 @@ export class UOp extends MathTrait {
   }
   divides = (v: number): UOp | undefined => {
     if (v === 1) return this
-    if (this.op === Ops.CONST) return this.arg % v === 0 ? this.const_like(Math.floor(this.arg / v)) : undefined
+    if (this.op === Ops.CONST) return this.arg % v === 0 ? this.const_like(idiv(this.arg, v)) : undefined
     if (this.op === Ops.VCONST) return this.arg.every((x: number) => x % v === 0) ? this.const_like(this.arg.map((x: number) => Math.floor(x / v))) : undefined
 
-    const d0 = this.src[0].divides(v)
-    const d1 = this.src[1].divides(v)
-    if (this.op === Ops.ADD) return isNotNone(d0) && isNotNone(d1) ? d0.add(d1) : undefined
+    if (this.op === Ops.ADD) {
+      const d0 = this.src[0].divides(v)
+      const d1 = this.src[1].divides(v)
+      return d0 !== undefined && d1 !== undefined ? d0.add(d1) : undefined
+    }
     if (this.op === Ops.MUL) {
-      if (isNotNone(d0)) return d0.mul(this.src[1])
-      if (isNotNone(d1)) return this.src[0].mul(d1)
+      const d0 = this.src[0].divides(v)
+      const d1 = this.src[1].divides(v)
+      if (d0 !== undefined) return d0.mul(this.src[1])
+      if (d1 !== undefined) return this.src[0].mul(d1)
     }
     return undefined // generic None if we aren't sure
   }

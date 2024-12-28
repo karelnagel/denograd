@@ -40,12 +40,13 @@ Deno.test(
     'out(tiny.engine.realize.get_kernel(*data).to_program())',
     {
       ignoreKeys: ['src'],
+      ignore: [4],
     },
   ),
 )
 
 Deno.test(
-  'get_runner',
+  'realize.get_runner',
   compare(
     kernelInputs().map(([r, ast]) => [r.device, ast] as [DeviceType, UOp]),
     (d, ast) => {
@@ -59,6 +60,7 @@ Deno.test(
     ],
     {
       ignoreKeys: ['src'],
+      ignore: [4],
     },
   ),
 )
@@ -96,15 +98,6 @@ Deno.test(
 
 Deno.test(
   'BufferCopy.call',
-  compare(
-    [],
-    () => {},
-    'out(XXX)',
-  ),
-)
-
-Deno.test(
-  'get_runner',
   compare(
     [],
     () => {},

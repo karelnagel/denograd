@@ -481,7 +481,7 @@ export const break_sched = new PatternMatcher<Record<string, UOp> & { ctx: Sched
 
 // @track_rewrites(named=true)
 export const create_schedule_with_vars = (outs: LazyBuffer[]): [ScheduleItem[], Map<Variable, number>] => {
-  outs = dedup(outs.filter((x) => x.base.realized === undefined && x.base.op !== Ops.CONST))
+  outs = dedup(outs.filter((x) => x.base.realized === undefined && x.base.op !== Ops.CONST).map((x) => x.base))
   if (outs.length === 0) return [[], new Map()]
   //   // create the big graph
   const ctx = new ScheduleContext()
