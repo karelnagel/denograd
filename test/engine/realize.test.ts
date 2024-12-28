@@ -36,19 +36,19 @@ Deno.test(
       pyKernel,
     ],
     {
-      ignore: [1, 2], // TS has one more view in sts
+      // ignore: [1, 2], // TS has one more view in sts
     },
   ),
 )
 Deno.test(
-  'realize.get_kernel.to_program',
+  'realize.to_program',
   compare(
     kernelInputs(),
     (renderer, ast) => get_kernel(renderer, ast).to_program(),
     'out(tiny.engine.realize.get_kernel(*data).to_program())',
     {
       ignoreKeys: ['src'],
-      ignore: [4],
+      // ignore: [4],
     },
   ),
 )

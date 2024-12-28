@@ -172,7 +172,7 @@ export class Kernel {
     //     # between first_reduce + group_for_reduces && upcasted, they are reduce (red)
     colors = [...colors, ...range(this.first_upcast - (this.first_reduce + this.group_for_reduces)).map(() => 'red')]
     //     # upcasted dimensions are reduce (magenta) ||normal (yellow)
-    colors = [...colors, ...range(this.first_upcast, this.shape_len).map((i) => this.full_shape[i] !== this.sts[0].shape[i] ? 'magneta' : 'yellow')]
+    colors = [...colors, ...range(this.first_upcast, this.shape_len).map((i) => this.full_shape[i] !== this.sts[0].shape[i] ? 'magenta' : 'yellow')]
     assert(colors.length === this.shape_len, 'colors size mismatch')
     return colors
   }
@@ -234,7 +234,7 @@ export class Kernel {
     if (isinstance(this.membufs[0].dtype, ImageDType)) {
       const base_shape = this.membufs[0].dtype.shape
       const shape_idx_groups = get_contraction(this.output_shape, base_shape)
-      if (shape_idx_groups) {
+      if (shape_idx_groups?.length) {
         let special_strides: sint[] = []
         for (const [i, g] of shape_idx_groups.entries()) {
           const shape_piece = g.map((x) => this.output_shape[x])
@@ -310,7 +310,7 @@ export class Kernel {
     else if (opt.amt !== undefined) {
       amt = opt.amt !== 0 ? opt.amt : (this.full_shape[axis] as number)
       check(isinstance(amt, Number) && amt !== 1, 'shift/padto of amt 1 ||Node===meaningless')
-      if (opt.op !== OptOps.PADTO) check(mod(this.full_shape[axis], amt) === 0, 'no longer valid shift')
+      if (opt.op !== OptOps.PADTO) check((this.full_shape[axis] as number) % amt === 0, 'no longer valid shift')
     } else amt = -1
 
     if (this.reduceop !== undefined && ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op) || (this.group_for_reduces && ![OptOps.NOLOCALS, OptOps.PADTO].includes(opt.op)))) {
