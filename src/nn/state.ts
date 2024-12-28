@@ -27,7 +27,7 @@ export const inverse_safe_dtypes = new Map(Object.entries(safe_dtypes).map(([k, 
 export const safe_load_metadata = (t: Tensor | string): [Tensor, number, Record<string, any>] => {
   if (typeof t === 'string') t = new Tensor(t)
   const data_start = t.get({ start: 0, stop: 8 }).data().cast('b').getValue(0) + 8
-  return [t, data_start, JSON.parse(t.get({ start: 8, stop: data_start }).data().toBytes().toString())]
+  return [t, data_start, JSON.parse(new TextDecoder().decode(t.get({ start: 8, stop: data_start }).data().toBytes()))]
 }
 /**
  * Loads a .safetensor file from disk, returning the state_dict.

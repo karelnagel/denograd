@@ -41,7 +41,7 @@ export class DiskAllocator extends Allocator {
 export class DiskDevice extends Compiled {
   static _tried_io_uring_init = false
   size?: number
-  fd?: number
+  // fd?: number
   count = 0
   mem!: ArrayBuffer
   constructor(device: DeviceType) {
@@ -53,19 +53,20 @@ export class DiskDevice extends Compiled {
     this.count += 1
     assert(this.size === undefined || size <= this.size, `can't reopen Disk tensor with larger size, opened with ${this.size}, tried to open with ${size}`)
     if (this.size !== undefined) return
-    const filename = this.device.slice('disk:'.length)
+    const filename = this.device.slice('DISK:'.length)
     this.size = size
 
-    throw new Error('Not implemented')
     if (process.platform !== 'win32' && filename.startsWith('shm:')) {
-      //       fd = _posixshmem.shm_open("/"+filename[4:].lstrip("/"), os.O_RDWR, 0o600)
-      //       this.mem = mmap.mmap(fd, this.size, mmap.MAP_SHARED | MAP_POPULATE | MAP_LOCKED)
-      //       os.close(fd)
+      throw new Error('Not implemented')
     } else {
-      //       try: this.fd = os.open(filename, os.O_RDWR|os.O_CREAT|getattr(os, "O_DIRECT", 0))
-      //       except OSError: this.fd = os.open(filename, os.O_RDWR|os.O_CREAT)
-      //       if os.fstat(this.fd).st_size < this.size: os.ftruncate(this.fd, this.size)
-      //       this.mem = mmap.mmap(this.fd, this.size)
+      try {
+        this.mem = Deno.readFileSync(filename)
+      } catch {
+        Deno.writeFileSync(filename, new Uint8Array(this.size))
+        this.mem = Deno.readFileSync(filename)
+      }
+      const stat = Deno.statSync(filename)
+      if (stat.size < this.size) Deno.truncateSync(filename, this.size)
     }
     // const hp = mmap.MADV_HUGEPAGE || undefined
     // if (hasattr(this.mem, 'madvise') && hp !== undefined) this.mem.madvise(hp)

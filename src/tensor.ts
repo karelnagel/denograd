@@ -509,13 +509,13 @@ export class Tensor extends SimpleMathTrait {
   }
 
   assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
+    if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     //   // TODO: this === a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
       // if x.__class__ !== Tensor: x = new Tensor(x, device="PYTHON", dtype=this.dtype)// Karel: changed CLANG to PYTHON
       this.contiguous().realize().lazydata.base.realized!.copyin((x as Tensor)._data())
       return this
     }
-    if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign

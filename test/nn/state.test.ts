@@ -40,8 +40,8 @@ Deno.test('get_state_dict', () => {
 
 Deno.test('safe_save', async () => {
   const dict = {
-    idk: new Tensor([3, 3, 4], { dtype: dtypes.int }),
-    shaped: new Tensor([3, 3, 4, 2], { dtype: dtypes.int }).reshape([2, 2]),
+    idk: new Tensor([3, 3, 4]),
+    shaped: new Tensor([3, 3, 4, 2]).reshape([2, 2]),
   }
   const path = '/tmp/safe_save_test.safetensor'
   // Saving in TS
@@ -73,6 +73,6 @@ Deno.test('safe_load', async () => {
   const res = safe_load(path)
   for (const [entry, expected] of zip(Object.entries(res), Object.entries(dict))) {
     expect(entry[0]).toBe(expected[0])
-    expect(entry[1].tolist()).toBe(expected[1])
+    expect(entry[1].tolist()).toEqual(expected[1])
   }
 })
