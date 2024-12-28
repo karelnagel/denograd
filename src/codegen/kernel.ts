@@ -206,7 +206,7 @@ export class Kernel {
     if (move_axis < insert_before) insert_before += 1
     this.reshape_and_permute((x) => [
       ...x.slice(0, axis),
-      ...(gt(x[axis], 1) ? (top ? [amount, idiv(x[axis], amount)] : [idiv(x[axis], amount), amount]) : [1, 1]),
+      ...((x[axis] as number) > 1 ? (top ? [amount, idiv(x[axis], amount)] : [idiv(x[axis], amount), amount]) : [1, 1]),
       ...x.slice(axis + 1),
     ], [
       ...range(insert_before).filter((i) => i !== move_axis),
@@ -220,9 +220,9 @@ export class Kernel {
     //     # remove places where the shape===all ones
     //     # TODO: this should be factored in to multi shape stride
     if (this.shape_len === 0) return false
-    const all_ones = this.full_shape.map((s) => s === 1)
-    this.local_dims = this.local_dims - all_ones.slice(this.first_reduce - this.local_dims, this.first_reduce).reduce((acc, x) => acc + Number(x), 0)
-    this.upcasted = this.upcasted - all_ones.slice(this.first_upcast).reduce((acc, x) => acc + Number(x), 0) // TODO: no necessary since upcasted axis can't be un-upcasted
+    const all_ones = this.full_shape.map((s) => Number(s === 1))
+    this.local_dims = this.local_dims - all_ones.slice(this.first_reduce - this.local_dims, this.first_reduce).reduce((acc, x) => acc + x, 0)
+    this.upcasted = this.upcasted - all_ones.slice(this.first_upcast).reduce((acc, x) => acc + x, 0) // TODO: no necessary since upcasted axis can't be un-upcasted
     this.reshape_and_permute((shape) => shape.filter((_, i) => !all_ones[i]), undefined)
     return all_ones.some((x) => x)
   }
@@ -365,7 +365,7 @@ export class Kernel {
     } else if (opt.op === OptOps.SWAP) {
       check(axis < amt && amt < this.global_dims, `swap===only for globals with axis < amt, getting amt=${amt}, axis=${axis}, this.global_dims=${this.global_dims}`)
       const permute = range(this.shape_len)
-      ;[permute[axis], permute[amt as number]] = [permute[amt as number], permute[axis]]
+      ;[permute[axis], permute[amt]] = [permute[amt], permute[axis]]
       this.reshape_and_permute(undefined, permute)
     } else if (opt.op === OptOps.PADTO) {
       check(!this.vars, 'does not work with symbolic shape')
