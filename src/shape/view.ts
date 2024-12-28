@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
 import { all_int, argsort, assert, DataClass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
-import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, smax, smin, sym_infer, type Variable } from '../ops.ts'
+import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, sint_sum, smax, smin, sym_infer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sint_to_uop, sub, UOp } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
@@ -283,7 +283,7 @@ export class View {
 
   permute = (axis: number[]): View => {
     assert(isEq(sint_sorted(axis), range(this.shape.length)), `invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
-    return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, isNotNone(this.mask) ? axis.map((a) => this.mask![a]) : undefined)
+    return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, this.mask !== undefined ? axis.map((a) => this.mask![a]) : undefined)
   }
   stride = (multi: number[]): View => {
     //     # except for the negative case, you can build this from the others. invertible in the negative case
@@ -310,7 +310,7 @@ export class View {
       assert(new_shape.every((s) => s instanceof UOp || typeof s === 'number'), `${listStr(this.shape)} -> ${listStr(new_shape)} contains non (int, Variable) dim`)
       if (resolve(ne(sint_prod(this.shape), sint_prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${listStr(this.shape)} -> new_shape=${listStr(new_shape)}`)
     }
-    if (new_shape.length === 0 && this.mask && this.mask.some(([mx, my]) => mx === my)) return undefined
+    if (new_shape.length === 0 && this.mask?.length && this.mask.some(([mx, my]) => mx === my)) return undefined
 
     //     # after the asserts, it's okay to check contiguous
     if (this.contiguous) return View.create(new_shape)
@@ -319,44 +319,32 @@ export class View {
     if (self_all_int && !all_int(new_shape)) {
       if (this.shape.length !== new_shape.length) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
       for (let [si, so] of zip(this.shape, new_shape)) {
-        if (typeof so !== 'number') so = sym_infer(so, new Map([...so.vars()].map((v) => v.unbind())))
+        if (typeof so !== 'number') so = sym_infer(so, new Map(so.vars().map((v) => v.unbind())))
         if (si !== so) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
         //       # all dimensions matched, return the new view directly
       }
       return new View(new_shape, this.strides, this.offset, this.mask, this.contiguous)
     }
-    let [strides, r_new_shape] = [[] as sint[], new_shape.toReversed()]
-    let exitedWithBreak = false
+
+    const [strides, r_new_shape] = [[] as sint[], new_shape.toReversed()]
     for (let [merged_dim, new_stride, real_dim] of _merge_dims(this.shape, this.strides, this.mask).toReversed()) {
       let acc = 1 as sint
-      //       # TODO: third resolve shouldn't be needed
-      for (const new_dim of r_new_shape) {
-        if (!(resolve(le(acc, merged_dim)) && resolve(ne(acc, merged_dim)) && resolve(ge(new_dim, 0)))) {
-          exitedWithBreak = true
-          break
-        }
+      let new_dim: sint
+      while (resolve(le(acc, merged_dim)) && resolve(ne(acc, merged_dim)) && resolve(gt(new_dim = r_new_shape.shift() || 0, 0))) {
         strides.push(new_stride)
-        if (resolve(ne(new_dim, 1))) {
-          acc = mul(acc, new_dim)
-          new_stride = mul(new_stride, resolve(lt(acc, real_dim)) ? new_dim : 0)
-        }
+        if (resolve(ne(new_dim, 1))) new_stride = mul(new_stride, resolve(acc = mul(acc, new_dim)) ? new_dim : 0)
       }
-      if (resolve(ne(acc, merged_dim))) {
-        exitedWithBreak = true
-        break
-      }
+      if (resolve(ne(acc, merged_dim))) return undefined
     }
-    if (!exitedWithBreak) {
-      strides = [...strides, ...range(new_shape.length - strides.length).map((x) => 0)]
-      const new_mask = _reshape_mask(this.mask, this.shape, new_shape)
-      if (isNotNone(new_mask)) {
-        const new_strides = canonicalize_strides(new_mask.map(([b, e]) => sub(e, b)), strides.toReversed())
-        const extra_offset = sub(
-          this.mask ? zip(this.mask, this.strides).reduce((acc, [m, s]) => add(acc, mul(m[0], s)), 0 as sint) : 0,
-          zip(new_mask, new_strides).reduce((acc, [m, s]) => add(acc, mul(m[0], s)), 0 as sint),
-        )
-        return View.create(new_shape, new_strides, add(this.offset, extra_offset), new_mask)
-      }
+
+    const new_mask = _reshape_mask(this.mask, this.shape, new_shape)
+    if (new_mask !== undefined) {
+      const new_strides = [...range(new_shape.length - strides.length).map(() => 0), ...strides.toReversed()]
+      const extra_offset = sub(
+        this.mask ? sint_sum(zip(this.mask, this.strides).map(([m, s]) => mul(m[0], s))) : 0,
+        sint_sum(zip(new_mask, new_strides).map(([m, s]) => mul(m[0], s))),
+      )
+      return View.create(new_shape, new_strides, add(this.offset, extra_offset), new_mask)
     }
     return undefined
   }

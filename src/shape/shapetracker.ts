@@ -155,8 +155,10 @@ export class ShapeTracker {
   stride = (multi: number[]) => new ShapeTracker([...this.views.slice(0, -1), this.views.at(-1)!.stride(multi)])
 
   reshape = (new_shape: sint[]): ShapeTracker => {
-    const new_view = this.views.at(-1)?.reshape(new_shape)
-    if (get_number_env('MERGE_VIEW', 1) && isNotNone(new_view)) return new ShapeTracker([...this.views.slice(0, -1), new_view])
+    if (get_number_env('MERGE_VIEW', 1)) {
+      const new_view = this.views.at(-1)?.reshape(new_shape)
+      if (new_view !== undefined) return new ShapeTracker([...this.views.slice(0, -1), new_view])
+    }
     return new ShapeTracker([...this.views, View.create(new_shape)])
   }
 }

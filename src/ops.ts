@@ -1196,6 +1196,7 @@ export const or = <A extends sint, B extends sint>(a: A, b: B) => (typeof a !== 
 export const sint_polyN = <A extends sint>(x: A, p: number[]): A => p.reduce((acc, c) => add(mul(acc, x), c), 0 as sint) as A
 
 export const sint_prod = (x: sint[]) => x.reduce((acc, curr) => mul(acc, curr), 1)
+export const sint_sum = (x: sint[]) => x.reduce((acc, curr) => add(acc, curr), 0)
 export const sint_sorted = (items: sint[], reverse = false) => items.toSorted((a, b) => lt(a, b) ? (!reverse ? -1 : 1) : (!reverse ? 1 : -1))
 
 export const sint_ceildiv = (num: sint, amt: sint): sint => neg(idiv(num, neg(amt)))
