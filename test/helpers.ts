@@ -33,7 +33,11 @@ export const asdict = (o: any): any => {
   if (o instanceof DataView) return [...new Uint8Array(o.buffer)].map((v) => asdict(v))
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
-  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: o.tolist() }
+  if (o instanceof Tensor) {
+    let data = o.tolist()
+    if (dtypes.is_float(o.dtype) && Array.isArray(data)) data = data.map((x) => (x as number).toFixed?.(4)) as any
+    return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data }
+  }
   if (Array.isArray(o)) return o.map(asdict)
   if (o instanceof Map) {
     const res = [...o.entries().map(([k, v]) => [asdict(k), asdict(v)])]

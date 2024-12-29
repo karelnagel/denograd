@@ -8,6 +8,10 @@ import { randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 type ClassType<T> = { new (...args: any[]): T }
 
 export function product<T>(...arrays: T[][]): T[][] {

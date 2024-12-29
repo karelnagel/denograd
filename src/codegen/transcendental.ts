@@ -1,5 +1,5 @@
 import { DType, dtypes } from '../dtype.ts'
-import { assert } from '../helpers.ts'
+import { assert, range } from '../helpers.ts'
 import { sint_polyN, UOp } from '../ops.ts'
 
 export const TRANSCENDENTAL_SUPPORTED_DTYPES = [dtypes.float16, dtypes.float32, dtypes.float64]
@@ -47,17 +47,106 @@ export const ldexp2k = (d: UOp, e: UOp): UOp => {
   assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(d.dtype) && [dtypes.int16, dtypes.int32, dtypes.int64].includes(e.dtype))
   return (d.mul(pow2if(shr(e, 1), d.dtype))).mul(pow2if(e.sub(shr(e, 1)), d.dtype))
 }
+/** frexp(v) -> (mantissa, exponent) assuming v != 0 */
 export const frexp = (v: UOp): [UOp, UOp] => {
-  throw new Error()
+  assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(v.dtype))
+  // m1 = masks for mantissa, m2 = masks to normalize the mantissa.
+  const m1 = new Map([[dtypes.float64, 0x000FFFFFFFFFFFFF], [dtypes.float32, 0x807FFFFF], [dtypes.float16, 0x83FF]]).get(v.dtype)!
+  const m2 = new Map([[dtypes.float64, 0x3FE0000000000000], [dtypes.float32, 0x3F000000], [dtypes.float16, 0x3800]]).get(v.dtype)!
+  const bits = v.bitcast(new Map([[dtypes.float64, dtypes.uint64], [dtypes.float32, dtypes.uint32], [dtypes.float16, dtypes.uint16]]).get(v.dtype)!)
+  const exponent = shr(bits, mantissa_bits(v.dtype)).bitwise_and(exponent_mask(v.dtype))
+  // Set the exponent bits appropriately to normalize the mantissa into the range of [0.5, 1.0).
+  const mantissa = ((bits.bitwise_and(m1)).bitwise_or(m2)).bitcast(v.dtype)
+  const exp = exponent.sub(exponent_bias(v.dtype)).add(1)
+  return [mantissa, exp]
 }
 
 // *** reduction algorithms for sine ***
+/**
+ * Performs Payne-Hanek Reduction: computes the remainder of `d` modulo pi/2 for the values `d` where 39800.0 <= d <= +Inf
+ * Returns a tuple of `(r, q)`:
+ * - `r`[d.dtype] is the reminder value corresponding to `round_to_nearest(x % pi/2)`.
+ * - `q`[int32] is an integer, and q % 4 is corresponding to the quadrant of the original angle `d`.
+ */
 export const payne_hanek_reduction = (d: UOp): [UOp, UOp] => {
-  throw new Error()
+  assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(d.dtype))
+  // https://stackoverflow.com/questions/30463616/payne-hanek-algorithm-implementation-in-c/30465751#30465751
+  // 190 bits of 2/pi for Payne-Hanek style argument reduction
+  const two_over_pi_f = [0x00000000, 0x28be60db, 0x9391054a, 0x7f09d5f4, 0x7d4d3770, 0x36d8a566, 0x4f10e410]
+
+  const intermediate_dtype = d.dtype === dtypes.float16 ? dtypes.float32 : d.dtype
+
+  let [f, e] = frexp(d)
+  const ia = (f.cast(intermediate_dtype).mul(4.294967296e9)).cast(dtypes.uint64)
+  // extract 96 relevant bits of 2/pi based on magnitude of argument
+  const i = shr(e.cast(dtypes.uint64), 5)
+  e = e.cast(dtypes.int32).bitwise_and(31)
+  const offset = e.sub(32, true)
+
+  /** an = two_over_pi_f[i+offset] */
+  const _take = (an: UOp, offset: number, count = 0): UOp => {
+    if (count + offset < two_over_pi_f.length - 1) {
+      an = i.ne(count).where(_take(an, offset, count + 1), an.const_like(two_over_pi_f[count + offset]))
+    }
+    return an
+  }
+  const _shl_lazy = (x: UOp, y: UOp) => (x.cast(dtypes.uint64).mul(pow2if(y, d.dtype).cast(dtypes.uint64))).cast(dtypes.uint32)
+  const _shr_lazy = (x: UOp, y: UOp) => (x.cast(dtypes.uint64).idiv(pow2if(y, d.dtype).cast(dtypes.uint64))).cast(dtypes.uint32)
+
+  const a = range(4).map((i) => _take(UOp.const(dtypes.uint32, 0), i))
+  //  (two_over_pi_f[Int(i) + n] << e) | (two_over_pi_f[Int(i) + n+1] >> (nbits - e))
+  // Note: e >= 1 for all numbers d >= 1.0. assume e != 0
+  const hi = _shl_lazy(a[0], e).bitwise_or(_shr_lazy(a[1], offset))
+  const mi = _shl_lazy(a[1], e).bitwise_or(_shr_lazy(a[2], offset))
+  const lo = _shl_lazy(a[2], e).bitwise_or(_shr_lazy(a[3], offset))
+
+  const _hp_mul = (x: UOp, y: UOp) => x.cast(dtypes.uint64).mul(y.cast(dtypes.uint64))
+  // compute x * 2/pi
+  let p = shl(_hp_mul(ia, hi), 32).add(_hp_mul(ia, mi)).add(shr(_hp_mul(ia, lo), 32))
+
+  // round quotient to nearest
+  const q = shr(p, 62).cast(dtypes.int32)
+  // KAREL: todo: too large value
+  p = p.bitwise_and(0x3fffffffffffffff)
+  const r = (p.cast(intermediate_dtype).mul(3.4061215800865545e-19)).cast(d.dtype)
+
+  // if fraction >= 0.5, r -= pi/2, q += 1
+  return [(f.lt(0.5)).where(r, r.sub(Math.PI / 2)), (f.lt(0.5)).where(q, q.add(1))]
 }
 
+/**
+ * Performs Cody-Waite Reduction: computes the reminder of `d` modulo pi/2 for the values `d` where 0 <= abs(d) <= 39800.0
+ * Returns a tuple of `(r, q)`, where the output format is the same as that of `payne_hanek_reduction`.
+ */
 export const cody_waite_reduction = (d: UOp): [UOp, UOp] => {
-  throw new Error()
+  const m_1_pi = 0.318309886183790671537767526745028724
+  const qdh = (d.mul(m_1_pi / 2.0 ** 24)).cast(dtypes.int64).cast(d.dtype).mul(2.0 ** 24)
+  const _reduce_d = (x: UOp, q: UOp) => {
+    // https://github.com/shibatch/sleef/blob/4e08851f59fc2b545f9c393c6a23dfd311a26308/src/libm/sleefdp.c#L789-L823
+    if (x.dtype === dtypes.float64) {
+      // https://github.com/shibatch/sleef/blob/f6d8a841fbfddd26ce712834d4da220cd76048fb/src/common/misc.h#L77
+      const [PI_A, PI_B, PI_C, PI_D] = [3.1415926218032836914, 3.1786509424591713469e-08, 1.2246467864107188502e-16, 1.2736634327021899816e-24]
+      d = qdh.sub(PI_A).add(x)
+      d = q.mul(-PI_A).add(d)
+      d = qdh.mul(-PI_B).add(d)
+      d = q.mul(-PI_B).add(d)
+      d = qdh.mul(-PI_C).add(d)
+      d = q.mul(-PI_C).add(d)
+      d = (qdh.add(q)).mul(-PI_D).add(d)
+    } else if (x.dtype === dtypes.float16) {
+      // [FIXME] when reducing `d`, FP16 needs FP32 precision to achieve 1.0 ULP precision.
+      d = _reduce_d(x.cast(dtypes.float32), q.cast(dtypes.float32)).cast(dtypes.float16)
+    } else {
+      // https://github.com/shibatch/sleef/blob/4e08851f59fc2b545f9c393c6a23dfd311a26308/src/libm/sleefsp.c#L464-L503
+      d = q.mul(-3.1414794921875).add(x)
+      d = q.mul(-0.00011315941810607910156).add(d)
+      d = q.mul(-1.9841872589410058936e-09).add(d)
+      d = q.mul(-1.2154201256553420762e-10).add(d)
+    }
+    return d
+  }
+  const quadrant = d.dtype === dtypes.float64 ? rintk(d.mul(m_1_pi).sub(qdh)) : rintk(d.mul(m_1_pi))
+  return [_reduce_d(d, quadrant.cast(d.dtype)), quadrant.cast(dtypes.int32)]
 }
 // *** approximate sine on small angle. ***
 export const trig_poly = (d: UOp, coeff32: number[], coeff64: number[]) => d.mul(d.dtype === dtypes.float64 ? sint_polyN(d.mul(d), coeff64) : sint_polyN(d.mul(d), coeff32))
@@ -73,24 +162,46 @@ export const sin_poly = (d: UOp): UOp => {
 const _ifand = (q: UOp, n: number) => (q.bitwise_and(n)).ne(0)
 
 export const sin_poly_small = (d: UOp, q: UOp): UOp => {
-  throw new Error()
+  const r = sin_poly(d)
+  return r.mul(_ifand(q, 1).where(r.const_like(-1), r.const_like(1)))
 }
 
 export const sin_poly_large = (d: UOp, q: UOp): UOp => {
-  throw new Error()
+  const r = sin_poly(d.add(_ifand(q, 1).where(d.const_like(Math.PI / 2), d.const_like(0))))
+  return r.mul(_ifand(q, 2).where(r.const_like(-1), r.const_like(1)))
 }
 
 // *** toplevel functions for xsin/xlog2/xexp2 ***
-
+/**
+ * Implements a 1.0 ULP approximation for Ops.SIN.
+ * - fast=True assumes x <= switch_over.
+ * - switch_over is the threshold for switching to payne_hanek_reduction.
+ */
 export const xsin = ({ d, fast = false, switch_over = 30.0 }: { d: UOp; fast?: boolean; switch_over?: number }) => {
-  throw new Error()
+  assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(d.dtype))
+  //  mask +-inf/nan as zero
+  const x = _lazy_map_numbers(d, d.const_like(0.0), d.const_like(0.0), d.const_like(0.0), d)
+  //  x_sign = sign(x)
+  const x_sign = x.ne(0).where((x.lt(0)).where(x.const_like(-1), x.const_like(1)), x.const_like(0))
+  const x_abs = x.mul(x_sign)
+  const [r, q] = (fast ? cody_waite_reduction : payne_hanek_reduction)(x_abs)
+  let result
+  if (fast) result = sin_poly_small(r, q)
+  else {
+    // Payne Hanek Reduction assumes abs(x) >= pi/4, so for smaller values, use cody_waite_reduction.
+    const [r_small, q_small] = cody_waite_reduction(x_abs)
+    result = (x_abs.lt(switch_over)).where(sin_poly_small(r_small, q_small), sin_poly_large(r, q))
+  }
+  // adjusts the sign for abs(x)
+  result = result.mul(x_sign)
+  // sin(Inf) = NaN, sin(-Inf) = NaN, sin(NaN) = NaN
+  return _lazy_map_numbers(d, d.const_like(NaN), d.const_like(NaN), d.const_like(NaN), result)
 }
 
 /**
  * Implements a 1.0 ULP approximation for Ops.EXP2
  * Paper: https://arxiv.org/pdf/2001.09258
  */
-
 export const xexp2 = ({ d }: { d: UOp }): UOp => {
   assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(d.dtype))
   //   # mask +=inf/nan as zero.

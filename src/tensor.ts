@@ -3,7 +3,7 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
 import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
-import { add,  ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
+import { add, ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
 import { statSync } from 'node:fs'
@@ -138,6 +138,14 @@ export class Sqrt extends Function {
 // // https://towardsdatascience.com/derivative-of-the-sigmoid-function-536880cf918e
 // // TODO: have the backend automatically find this
 export class Sigmoid extends Function {
+  ret!: LazyBuffer
+  override forward = (x: LazyBuffer) => {
+    this.ret = ((x.mul(-1 / Math.log(2))).exp2().add(1, true)).reciprocal()
+    return this.ret
+  }
+  override backward = (grad_output: LazyBuffer) => {
+    return (this.ret.mul(this.ret.sub(1, true))).mul(grad_output)
+  }
 }
 export class Sign extends Function {
   override forward = (x: LazyBuffer): LazyBuffer => x.ne(0).where((x.lt(0)).where(x.const_like(-1), x.const_like(1)), x.const_like(0))
