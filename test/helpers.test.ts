@@ -58,3 +58,19 @@ Deno.test('to_function_name', compare([['test'], ['not sure how this should work
 Deno.test('getenv', compare([['key', 'value']], helpers.get_env, 'out(tiny.helpers.getenv(*data))'))
 
 Deno.test('temp', compare([['file.txt']], helpers.temp, 'out(tiny.helpers.temp(*data))'))
+
+Deno.test(
+  'slice',
+  compare(
+    [
+      [[1, 2, 3, 4], -2, undefined, -2],
+      [[1, 2, 3, 4, 5], 1, 4, 2],
+      [[1, 2, 3, 4, 5], undefined, undefined, -1], 
+      [[1, 2, 3, 4, 5], 0, 5, 1],
+      [[1, 2, 3, 4, 5], -3, -1, 1],
+      [[1, 2, 3, 4, 5], 0, -2, 2],
+    ],
+    (arr: number[], start?: number, stop?: number, step?: number) => helpers.slice(arr, { start, stop, step }),
+    'out(data[0][data[1]:data[2]:data[3]])',
+  ),
+)

@@ -505,3 +505,75 @@ export const from_mv = (mv: MemoryView, to_type = ctypes.c_char): c_char[] => {
 
 // def _serialize_module(module:types.ModuleType): return importlib.import_module, (module.__name__,)
 // copyreg.pickle(types.ModuleType, _serialize_module)
+
+export type Slice = { start?: number; stop?: number; step?: number }
+/**
+ * A Python-like slice function for arrays in TypeScript.
+ * @param arr - The array you want to slice
+ * @param options - An object containing start, stop, and step
+ *   - start?: number (defaults to 0 if step > 0, or last index if step < 0)
+ *   - stop?: number (defaults to arr.length if step > 0, or -arr.length - 1 if step < 0)
+ *   - step?: number (defaults to 1)
+ * @returns A new array sliced according to the options
+ */
+export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
+  const len = arr.length
+
+  // 1) Default step is 1 if not provided
+  step ??= 1
+
+  // 2) Zero step is invalid
+  if (step === 0) {
+    throw new Error('slice step cannot be 0')
+  }
+
+  // 3) Derive default "start" and "stop" based on sign of step
+  if (step > 0) {
+    // Forward slicing
+    if (start === undefined) start = 0
+    if (stop === undefined) stop = len // up to the end
+  } else {
+    // Negative step => backward slicing
+    if (start === undefined) start = len - 1
+    if (stop === undefined) {
+      /**
+       * In Python, if stop is omitted with a negative step (e.g. arr[-2::-2]),
+       * it effectively means "keep going until index < 0" in normal terms,
+       * so we can pick a 'virtual' negative stop that becomes -1 after conversion.
+       *
+       * Example: If array length = 4, then -4 - 1 = -5
+       * later we do (arr.length + -5) = -1
+       */
+      stop = -len - 1
+    }
+  }
+
+  // 4) Convert negative start/stop to positive indices
+  //    i.e. -1 => arr.length - 1
+  if (start < 0) start = len + start
+  if (stop < 0) stop = len + stop
+
+  const result: T[] = []
+
+  // 5) Collect values
+  if (step > 0) {
+    // forward
+    for (let i = start; i < stop && i < len; i += step) {
+      // i >= 0 check can be omitted if you want to allow e.g. i < 0
+      if (i >= 0) {
+        result.push(arr[i])
+      }
+    }
+  } else {
+    // backward
+    for (let i = start; i > stop && i >= 0; i += step) {
+      // i < len check can be omitted if you want to be safe,
+      // but typically i won't exceed len in normal usage
+      if (i < len) {
+        result.push(arr[i])
+      }
+    }
+  }
+
+  return result
+}

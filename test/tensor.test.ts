@@ -273,6 +273,9 @@ Deno.test.ignore(
 )
 
 const ops: [Tensor, keyof Tensor, string?][] = [
+  [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'relu'],
+  [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), 'max_pool2d'],
+  [new Tensor([[1, 2], [3, 4], [5, 6]]), 'flatten'],
   [new Tensor([2.4, 5.5, 7.7]), 'round'],
   [new Tensor([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5]), 'round'],
   [new Tensor([1.4, 1.5, 1.6, 2.4, 2.5, 2.6]), 'round'],
@@ -339,7 +342,7 @@ const ops: [Tensor, keyof Tensor, string?][] = [
 
 for (const [i, [tensor, op, ignore]] of ops.entries()) {
   Deno.test({
-    name: `Tensor.ops_${op}_${i}`,
+    name: `Tensor.ops.${op}.${i}`,
     ignore: !!ignore,
     fn: compare(
       [[tensor, op]],

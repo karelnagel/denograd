@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, sha256, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
 import { add, ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
@@ -323,8 +323,7 @@ export const _broadcast_shape = (shapes: sint[][]): sint[] => {
 type ReductionStr = 'mean' | 'sum' | 'none'
 
 export type TensorOptions = { device?: DeviceType | DeviceType[]; dtype?: DType; requires_grad?: boolean }
-type TensorSlice = { start?: number; stop?: number; step?: number }
-const sliceGetIndices = (index: TensorSlice, size: number): [number, number, number] => {
+const sliceGetIndices = (index: Slice, size: number): [number, number, number] => {
   let start = index.start ?? 0
   let stop = index.stop ?? size
   const step = index.step ?? 1
@@ -334,21 +333,7 @@ const sliceGetIndices = (index: TensorSlice, size: number): [number, number, num
   stop = Math.max(step < 0 ? -1 : 0, Math.min(size, stop))
   return [start, stop, step]
 }
-const getIndice = <T>(items: T[], indice: TensorSlice): T[] => {
-  const [start, stop, step] = sliceGetIndices(indice, items.length)
-  const result: T[] = []
-  if (step > 0) {
-    for (let i = start; i < stop; i += step) {
-      result.push(items[i])
-    }
-  } else {
-    for (let i = start; i > stop; i += step) {
-      result.push(items[i])
-    }
-  }
-  return result
-}
-export type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | TensorSlice | (number | boolean | UOp | Tensor | undefined | '...' | TensorSlice)[]
+export type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | Slice | (number | boolean | UOp | Tensor | undefined | '...' | Slice)[]
 
 /**
  * A `Tensor` === a multi-dimensional matrix containing elements of a single data type.
@@ -1095,8 +1080,8 @@ export class Tensor extends SimpleMathTrait {
     const flat = padding.every((p) => Number.isInteger(p) || p instanceof UOp)
     if (flat && padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
     // turn flat padding into group padding
-    let pX = flat ? [...range(this.ndim - idiv(padding.length, 2)).map(() => [0, 0] as [sint, sint]), ...zip(getIndice(padding as number[], { start: -2, step: -2 }), getIndice(padding as number[], { step: -2 }))] : padding as [sint, sint][]
-    if (pX.length !== this.ndim) throw new Error(`padding length === improper, ${padding} ${this.ndim}`)
+    let pX = flat ? [...range(this.ndim - idiv(padding.length, 2)).map(() => [0, 0] as [sint, sint]), ...zip(slice(padding as number[], { start: -2, step: -2 }), slice(padding as number[], { step: -2 }))] : padding as [sint, sint][]
+    if (pX.length !== this.ndim) throw new Error(`padding length is improper, ${listStr(padding)} ${this.ndim}`)
     const X = this
     pX = pX.map((p) => p || [0, 0] as [sint, sint])
     const pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
@@ -1183,7 +1168,7 @@ export class Tensor extends SimpleMathTrait {
     const fill_idx = ellipsis_idx.length ? ellipsis_idx[0] : indices.length
     const num_indices = indices.length - ellipsis_idx.length - indices.filter((i) => i === undefined).length
     if (num_indices > this.ndim) throw new Error(`too many ${num_indices} for ${this.ndim}`)
-    indices.splice(fill_idx, 1, ...Array(this.ndim - num_indices).fill({} as TensorSlice)) //KAREL: not sure about 1
+    indices.splice(fill_idx, 1, ...Array(this.ndim - num_indices).fill({} as Slice)) //KAREL: not sure about 1
 
     let [indices_parsed, dim] = [[] as { index: TensorIndice; size: number; boundary: [number, number]; stride: number }[], 0]
     for (let index of indices) {
