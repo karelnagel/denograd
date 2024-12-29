@@ -28,10 +28,12 @@ export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, r
 
 export const asdict = (o: any): any => {
   if (!o) return o
+  if (typeof o === 'bigint') return Number(o)
   if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
   if (o instanceof DataView) return [...new Uint8Array(o.buffer)].map((v) => asdict(v))
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
+  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: o.tolist() }
   if (Array.isArray(o)) return o.map(asdict)
   if (o instanceof Map) {
     const res = [...o.entries().map(([k, v]) => [asdict(k), asdict(v)])]
@@ -79,7 +81,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Set) return `set([${[...o].map((o) => pyStr(o)).join(', ')}])`
 
   // ************ TENSOR ************
-  if (o instanceof Tensor) return t`tiny.tensor.Tensor(${o.lazydata}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
+  if (o instanceof Tensor) return t`tiny.tensor.Tensor(${o.tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
 
   // ************ ENGINE ************
   if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${OpsEnum(o.op)}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`

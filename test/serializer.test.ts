@@ -9,6 +9,7 @@ import { View } from '../src/shape/view.ts'
 import { compare } from './helpers.ts'
 import { LazyBuffer } from '../src/engine/lazy.ts'
 import { Metadata } from '../src/helpers.ts'
+import { Tensor } from '../src/tensor.ts'
 
 Deno.test(
   'serialize',
@@ -42,6 +43,7 @@ Deno.test(
       [new Opt(OptOps.PADTO, 5, 666)],
       [[new LazyBuffer(`PYTHON`, new ShapeTracker([new View([10], [1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, undefined, undefined, undefined)]],
       [[new LazyBuffer(`PYTHON`, new ShapeTracker([new View([5, 2], [2, 1], 0, undefined, true)]), dtypes.int, undefined, undefined, undefined, new LazyBuffer(`PYTHON`, new ShapeTracker([new View([10], [1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, undefined, undefined, undefined), new Metadata(`reshape`, ``, false))]],
+      [new Tensor([[3, 3, 3], [5, 5, 5]])],
       // [new Kernel(new UOp(Ops.SINK), new ClangRenderer())],
       // [new Kernel(new UOp(Ops.SINK))],
       ...spec.patterns.map((p) => [p[0]] as any),

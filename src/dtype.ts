@@ -100,6 +100,7 @@ export class ImageDType extends PtrDType {
 export class dtypes {
   static is_float = (x: DType) => dtypes.floats.includes(x.scalar()) || x instanceof ImageDType
   static is_int = (x: DType) => dtypes.ints.includes(x.scalar())
+  static is_big_int = (x: DType) => dtypes.bigints.includes(x.scalar())
   static is_unsigned = (x: DType) => dtypes.uints.includes(x.scalar())
   static from_js = (x: number | boolean | (number | boolean)[]): DType => {
     if (typeof x === 'number') return Number.isInteger(x) ? dtypes.default_int : dtypes.default_float
@@ -108,6 +109,12 @@ export class dtypes {
     if (Array.isArray(x)) return x ? max(x.map((x) => dtypes.from_js(x))) : dtypes.default_float
     throw new Error(`Could not infer dtype of ${x} with type ${typeof x}`)
   }
+  static verify = (val: ConstType, dtype: DType) => {
+    if (dtypes.is_big_int(dtype)) return typeof val === 'bigint'
+    if (dtypes.is_int(dtype)) return Number.isInteger(val)
+    if (dtypes.is_float(dtype)) return typeof val === 'number'
+    return typeof val === 'boolean'
+  }
   static as_const(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
     if (Array.isArray(val)) {
       assert(val.length === dtype.count, `mismatch (${val.map((val) => typeof val === 'boolean' ? (val ? 'True' : 'False') : val)},) ${dtype.toString()}`)
@@ -115,6 +122,7 @@ export class dtypes {
     }
 
     // TODO: should truncate here
+    if (dtypes.is_big_int(dtype)) return BigInt(val) as any
     if (dtypes.is_int(dtype)) return Math.floor(Number(val))
     else if (dtypes.is_float(dtype)) return Number(val)
     else if (Number.isNaN(val)) return true //python bool(math.nan) returns True
@@ -176,6 +184,7 @@ export class dtypes {
   static uints = [dtypes.uint8, dtypes.uint16, dtypes.uint32, dtypes.uint64]
   static sints = [dtypes.int8, dtypes.int16, dtypes.int32, dtypes.int64]
   static ints = [...dtypes.uints, ...dtypes.sints]
+  static bigints = [dtypes.uint64, dtypes.int64]
 }
 const envDefaultFloat = get_env('DEFAULT_FLOAT', '')
 if (envDefaultFloat) {

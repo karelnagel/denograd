@@ -566,7 +566,7 @@ export class Tensor extends SimpleMathTrait {
    */
   item = (): ConstType => {
     assert(this.numel() === 1, 'must have one element for item')
-    return this.data().getValue(...range(this.shape.length).map(() => 0)) as number
+    return this.data().getValue(...range(this.shape.length || 1).map(() => 0)) as number
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
   // src: https://github.com/python/mypy/blob/release-1.6/mypy/typeshed/stdlib/builtins.pyi//L803

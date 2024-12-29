@@ -713,29 +713,25 @@ export const graph_rewrite = (sink: UOp, pm: PatternMatcher<any, any>, ctx?: any
 }
 // # ***** uop type spec *****
 
-const isSameConstType = (a: ConstType | ConstType[], b: ConstType | ConstType[]) => {
-  if (typeof a === 'number' && typeof b === 'number') return Number.isInteger(a) === Number.isInteger(b)
-  return typeof a === typeof b
-}
 // # this is the matcher for the final rendered UOps
 // # matcher functions returns True or False (or None to not match)
 export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>([
   [new UPat(Ops.DEFINE_GLOBAL).named('x'), ({ x }) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
   [new UPat(Ops.DEFINE_LOCAL).named('x'), ({ x }) => x.dtype instanceof PtrDType && x.dtype.local],
-  [new UPat(Ops.DEFINE_ACC, undefined, [UPat.var('c')], undefined, 'x', true), ({ x, c }) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && isEq(c.dtype, x.dtype)],
+  [new UPat(Ops.DEFINE_ACC, undefined, [UPat.var('c')], undefined, 'x', true), ({ x, c }) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && c.dtype === x.dtype],
   [new UPat(Ops.DEFINE_VAR, undefined, [], undefined, 'x'), ({ x }) => typeof x.arg[1] === 'number' && typeof x.arg[2] === 'number'],
 
   [
     new UPat(Ops.RANGE, undefined, [new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'rng'),
-    ({ rng, x, y }) => isEq(rng.dtype, x.dtype) && isEq(x.dtype, y.dtype) && typeof rng.arg === 'number',
+    ({ rng, x, y }) => rng.dtype === x.dtype && x.dtype === y.dtype && typeof rng.arg === 'number',
   ],
   [new UPat(Ops.SPECIAL, undefined, []), () => true],
 
   //   # TODO: confirm the args of both of these are shapetrackers
   [new UPat(Ops.VIEW, dtypes.void, []), () => true],
-  [new UPat(Ops.VIEW, undefined, [UPat.var('src')], undefined, 'x'), ({ x, src }) => src.op !== Ops.STORE && isEq(x.dtype, src.dtype)],
+  [new UPat(Ops.VIEW, undefined, [UPat.var('src')], undefined, 'x'), ({ x, src }) => src.op !== Ops.STORE && x.dtype === src.dtype],
   [new UPat(Ops.VALID, dtypes.bool, [new UPat(Ops.VIEW)]), () => true],
-  [new UPat(Ops.CONST).named('x'), ({ x }) => isEq(x.dtype, x.dtype.scalar()) && isSameConstType(x.arg, dtypes.as_const(x.arg, x.dtype))], // NOTE: this is slightly different from python, int(1) != float(1) in py but it is the same in TS
+  [new UPat(Ops.CONST).named('x'), ({ x }) => x.dtype === x.dtype.scalar() && dtypes.verify(x.arg, x.dtype)], // NOTE: this is slightly different from python, int(1) != float(1) in py but it is the same in TS
 
   //   # early LOAD has a <buf, shapetracker, store?>
   [new UPat(Ops.LOAD, undefined, [new UPat([Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL]), new UPat(Ops.VIEW)]), () => true],
@@ -749,7 +745,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   //   # LOAD takes a <bufidx, alt?, gate?, barrier?>
   [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST])]), () => true],
   [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat([Ops.IF, Ops.BARRIER])]), () => true],
-  [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat(undefined).named('alt'), new UPat(undefined, dtypes.bool)], undefined, 'ld'), ({ ld, alt }) => isEq(ld.dtype, alt.dtype)],
+  [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat(undefined).named('alt'), new UPat(undefined, dtypes.bool)], undefined, 'ld'), ({ ld, alt }) => ld.dtype === alt.dtype],
 
   //   # STORE takes a <bufidx, val, gate?>
   [new UPat(Ops.STORE, dtypes.void, [new UPat([Ops.INDEX, Ops.CAST]), new UPat()]), () => true],
@@ -759,17 +755,17 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   //   # most ALUs have all matching dtypes, except CMPLT, CMPNE, and WHERE
   [
     new UPat(Ops.WHERE, undefined, [new UPat(undefined, dtypes.bool), new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'w'),
-    ({ w, x, y }) => isEq(w.dtype, x.dtype) && isEq(x.dtype, y.dtype),
+    ({ w, x, y }) => w.dtype === x.dtype && x.dtype === y.dtype,
   ],
-  [new UPat([Ops.CMPLT, Ops.CMPNE], dtypes.bool, [new UPat(undefined).named('x'), new UPat(undefined).named('y')]), ({ x, y }) => isEq(x.dtype, y.dtype)],
+  [new UPat([Ops.CMPLT, Ops.CMPNE], dtypes.bool, [new UPat(undefined).named('x'), new UPat(undefined).named('y')]), ({ x, y }) => x.dtype === y.dtype],
 
   //   # and SHL/SHR, the shift distance can be an int
   [
     new UPat([Ops.SHL, Ops.SHR], undefined, [new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'a'),
-    ({ a, x, y }) => isEq(a.dtype, x.dtype) && [x.dtype, dtypes.uint].includes(y.dtype),
+    ({ a, x, y }) => a.dtype === x.dtype && [x.dtype, dtypes.uint].includes(y.dtype),
   ],
   [new UPat(Ops.IDIV).named('x'), ({ x }) => dtypes.is_int(x.dtype) ? undefined : false],
-  [new UPat(GroupOp.ALU).named('x'), ({ x }) => x.src!.every((y) => isEq(x.dtype, y.dtype))],
+  [new UPat(GroupOp.ALU).named('x'), ({ x }) => x.src!.every((y) => x.dtype === y.dtype)],
   [new UPat(Ops.ASSIGN, undefined, [new UPat([Ops.DEFINE_ACC, Ops.DEFINE_GLOBAL]), new UPat()]), () => true],
   [new UPat(Ops.ENDRANGE, dtypes.void, [new UPat(Ops.RANGE)]), () => true],
 
@@ -784,8 +780,8 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   [new UPat(Ops.IF, dtypes.void, [new UPat(), new UPat(Ops.BARRIER)]), () => true],
   [new UPat(Ops.ENDIF, dtypes.void, [new UPat(Ops.IF)]), () => true],
   [new UPat(Ops.REDUCE_AXIS).named('x'), ({ x }) => Array.isArray(x.arg) && x.arg.length === 2 && [Ops.ADD, Ops.MUL, Ops.MAX].includes(x.arg[0])],
-  [new UPat(Ops.GEP, undefined, [new UPat(undefined).named('src')], undefined, 'gep'), ({ gep, src }) => isEq(gep.dtype, src.dtype.scalar())],
-  [new UPat(Ops.VECTORIZE).named('x'), ({ x }) => x.src!.length > 1 && x.src!.length === x.dtype.count && x.src!.every((y) => isEq(x.dtype, y.dtype.vec(x.src?.length)))],
+  [new UPat(Ops.GEP, undefined, [new UPat(undefined).named('src')], undefined, 'gep'), ({ gep, src }) => gep.dtype === src.dtype.scalar()],
+  [new UPat(Ops.VECTORIZE).named('x'), ({ x }) => x.src?.length > 1 && x.src?.length === x.dtype.count && x.src!.every((y) => x.dtype === y.dtype.vec(x.src?.length))],
   [new UPat([Ops.BITCAST, Ops.CAST], undefined, [new UPat()], undefined, 'x'), ({ x }) => isNone(x.arg)],
   [new UPat(Ops.BARRIER, dtypes.void, new UPat(Ops.STORE, undefined, undefined, undefined, undefined, true)), () => true], // NOTE: all pointers must be local
   //   # NOTE: for testing, we let sinks be anything
@@ -802,7 +798,7 @@ export const type_verify = (uops: UOp[]) => {
   for (const [i, u] of uops.entries()) {
     if (!spec.rewrite(u)) {
       print_uops(uops)
-      throw new Error(`UOp verification failed at ${i} on ${u.op} ${u.dtype} ${u.src.length} ${u.src.map((x) => x.op)} ${u.arg}`)
+      throw new Error(`UOp verification failed at ${i} on ${getEnumString(Ops, u.op)} ${u.dtype} ${u.src.length} ${u.src.map((x) => x.op)} ${u.arg}`)
     }
   }
 }
