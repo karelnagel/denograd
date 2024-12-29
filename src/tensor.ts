@@ -987,9 +987,9 @@ export class Tensor extends SimpleMathTrait {
   }
 
   /**
-   * Returns a tensor that === a permutation of the original tensor.
+   * Returns a tensor that is a permutation of the original tensor.
    * The new tensor has the same data as the original tensor but with the dimensions permuted according to the order specified.
-   * `order` can be passed as a tuple || as separate arguments.
+   * `order` can be passed as a tuple or as separate arguments.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
    * t = Tensor.arange(6).reshape(2, 3)
@@ -999,8 +999,8 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.permute(1, 0).numpy())
    * ```
    */
-  permute = (order: number[]): Tensor => {
-    const order_arg = argfix(order).map((x) => this._resolve_dim(x))
+  permute = (...[order, ...args]: number[]): Tensor => {
+    const order_arg = argfix(order, ...args).map((x) => this._resolve_dim(x))
     if (!isEq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
     return Permute.apply(this, order_arg)
   }
@@ -1246,7 +1246,7 @@ export class Tensor extends SimpleMathTrait {
 
       // special permute case
       if (dims[0] !== 0 && dims.length !== 1 && !isEq(dims, range(dims[0], dims.at(-1)! + 1))) {
-        x = x.permute([...range(dims[0], dims[0] + big_shape.length), ...range(0, dims[0]), ...range(dims[0] + big_shape.length, x.ndim)])
+        x = x.permute(...range(dims[0], dims[0] + big_shape.length), ...range(0, dims[0]), ...range(dims[0] + big_shape.length, x.ndim))
       }
       // for advanced setitem, returns whole tensor with indices replaced
       // KAREL: not needed for mnist
@@ -1385,7 +1385,7 @@ export class Tensor extends SimpleMathTrait {
   transpose = (dim0 = 1, dim1 = 0): Tensor => {
     const order = range(this.ndim)
     ;[order[dim0], order[dim1]] = [order[dim1], order[dim0]]
-    return this.permute(order)
+    return this.permute(...order)
   }
 
   /**
@@ -1852,13 +1852,13 @@ export class Tensor extends SimpleMathTrait {
       x = x.shrink([...noop, ...zip(k_, o_, s_).flatMap(([k, o, s]) => [[0, k], [0, mul(o, s)]] as [sint, sint][])]).reshape([...noop, ...zip(k_, o_, s_).flat()])
       x = x.shrink([...noop, ...zip(k_, o_).flatMap(([k, o]) => [[0, k], [0, o], [0, 1]] as [sint, sint][])]).reshape([...noop, ...zip(k_, o_).flat()])
       //   // permute to move reduce to the end
-      return x.permute([...range(noop.length), ...range(i_.length).map((i) => noop.length + i * 2 + 1), ...range(i_.length).map((i) => noop.length + i * 2)])
+      return x.permute(...range(noop.length), ...range(i_.length).map((i) => noop.length + i * 2 + 1), ...range(i_.length).map((i) => noop.length + i * 2))
     }
     // // TODO: once the shapetracker can optimize well, remove this alternative implementation
     let x = this.pad([...noop, ...zip(i_, o_, s_).map(([i, o, s]) => [0, max([0, sub(mul(o, s), i) as number])] as [sint, sint])]).shrink([...noop, ...zip(o_, s_).map(([o, s]) => [0, mul(o, s)] as [sint, sint])])
     x = x.reshape([...noop, ...zip(o_, s_).flat()])
     x = x.shrink([...noop, ...zip(o_, k_).flatMap(([o, k]) => [[0, o], [0, k]] as [sint, sint][])])
-    return x.permute([...range(noop.length), ...range(i_.length).map((i) => noop.length = i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1)])
+    return x.permute(...range(noop.length), ...range(i_.length).map((i) => noop.length = i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1))
   }
   _padding2d = (padding: number | number[], dims: number): number[] => {
     return !Array.isArray(padding) ? range(2 * dims).map(() => padding) : (padding.length === 2 * dims ? padding : padding.flatMap((p) => range(2).map(() => p)).toReversed())
@@ -1912,7 +1912,7 @@ export class Tensor extends SimpleMathTrait {
     const [rcout, oyx] = [idiv(cout, groups), x.shape.slice(2, -HW.length)]
     if (!HW.every((x) => x === 3) || stride !== 1 || dilation !== 1 || !WINO) {
       // normal conv
-      x = x.reshape([bs, groups, cin, 1, ...oyx, ...HW]).expand([bs, groups, cin, rcout, ...oyx, ...HW]).permute([0, 1, 3, ...range(oyx.length).map((i) => 4 + i), 2, ...range(HW.length).map((i) => 4 + oyx.length + i)])
+      x = x.reshape([bs, groups, cin, 1, ...oyx, ...HW]).expand([bs, groups, cin, rcout, ...oyx, ...HW]).permute(0, 1, 3, ...range(oyx.length).map((i) => 4 + i), 2, ...range(HW.length).map((i) => 4 + oyx.length + i))
 
       // conv! broadcasted to (bs, groups, rcout, *oyx, cin, *HW)
       const ret = (x.mul(weight.reshape([1, groups, rcout, ...range(oyx.length).map(() => 1), cin, ...HW]))).sum(range(1 + oyx.length).map((i) => -1 - i), true, acc_dtype).reshape([bs, cout, ...oyx])
