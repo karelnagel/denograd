@@ -43,7 +43,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat(Ops.LOAD, undefined, [UPat.var('bidx')], undefined, undefined, true), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
   [new UPat(Ops.STORE, undefined, [UPat.var('bidx'), UPat.var('var')], undefined, undefined, true), (p) => `*${p.ctx.get(p.bidx)} = ${p.ctx.get(p.var)};`],
   // alu/gep
-  [new UPat(GroupOp.ALU).named('x'), ({ ctx, x }) => ctx.code_for_op[x.op]!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? strip_parens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
+  [new UPat(GroupOp.ALU).named('x'), ({ ctx, x }) => ctx.code_for_op.get(x.op)!(...x.src.map((v) => v.op === x.op && [Ops.ADD, Ops.MUL, Ops.XOR].includes(x.op) ? strip_parens(ctx.get(v)!) : ctx.get(v)!), x.dtype)],
   [new UPat(Ops.GEP).named('x'), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device === 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
 ])
 
@@ -80,27 +80,27 @@ export class CStyleLanguage extends Renderer {
   infinity = 'INFINITY'
   nan = 'NAN'
   r?: Map<UOp, string>
-  override code_for_op: { [key in Ops]?: (...args: (string | DType)[]) => string } = {
-    [Ops.SQRT]: (x, dtype) => `sqrt(${x})`,
-    [Ops.RECIP]: (x, dtype) => `(1/${x})`,
-    [Ops.NEG]: (x, dtype) => `-${x}`,
-    [Ops.EXP2]: (x, dtype) => `exp2(${x})`,
-    [Ops.LOG2]: (x, dtype) => `log2(${x})`,
-    [Ops.SIN]: (x, dtype) => `sin(${x})`,
-    [Ops.AND]: (a, b, dtype) => `(${a}&${b})`,
-    [Ops.XOR]: (a, b, dtype) => `(${a}^${b})`,
-    [Ops.OR]: (a, b, dtype) => `(${a}|${b})`,
-    [Ops.ADD]: (a, b, dtype) => `(${a}+${b})`,
-    [Ops.SUB]: (a, b, dtype) => `(${a}-${b})`,
-    [Ops.MUL]: (a, b, dtype) => `(${a}*${b})`,
-    [Ops.MOD]: (a, b, dtype) => `(${a}%${b})`,
-    [Ops.IDIV]: (a, b, dtype) => `(${a}/${b})`,
-    [Ops.CMPNE]: (a, b, dtype) => `(${a}!=${b})`,
-    [Ops.SHR]: (a, b, dtype) => `(${a}>>${b})`,
-    [Ops.SHL]: (a, b, dtype) => `(${a}<<${b})`,
-    [Ops.CMPLT]: (a, b, dtype) => `(${a}<${b})`,
-    [Ops.WHERE]: (a, b, c, dtype) => `(${a}?${b}:${c})`,
-  }
+  override code_for_op = new Map<Ops, (...a: (string | DType)[]) => string>([
+    [Ops.SQRT, (x, dtype) => `sqrt(${x})`],
+    [Ops.RECIP, (x, dtype) => `(1/${x})`],
+    [Ops.NEG, (x, dtype) => `-${x}`],
+    [Ops.EXP2, (x, dtype) => `exp2(${x})`],
+    [Ops.LOG2, (x, dtype) => `log2(${x})`],
+    [Ops.SIN, (x, dtype) => `sin(${x})`],
+    [Ops.AND, (a, b, dtype) => `(${a}&${b})`],
+    [Ops.XOR, (a, b, dtype) => `(${a}^${b})`],
+    [Ops.OR, (a, b, dtype) => `(${a}|${b})`],
+    [Ops.ADD, (a, b, dtype) => `(${a}+${b})`],
+    [Ops.SUB, (a, b, dtype) => `(${a}-${b})`],
+    [Ops.MUL, (a, b, dtype) => `(${a}*${b})`],
+    [Ops.MOD, (a, b, dtype) => `(${a}%${b})`],
+    [Ops.IDIV, (a, b, dtype) => `(${a}/${b})`],
+    [Ops.CMPNE, (a, b, dtype) => `(${a}!=${b})`],
+    [Ops.SHR, (a, b, dtype) => `(${a}>>${b})`],
+    [Ops.SHL, (a, b, dtype) => `(${a}<<${b})`],
+    [Ops.CMPLT, (a, b, dtype) => `(${a}<${b})`],
+    [Ops.WHERE, (a, b, c, dtype) => `(${a}?${b}:${c})`],
+  ])
   string_rewrite = base_rewrite
   override extra_matcher = extra_pm
 
@@ -141,21 +141,21 @@ export class CStyleLanguage extends Renderer {
       let prefix
       if (u.op === Ops.SPECIAL) r.set(u, u.arg[0])
       else {
-        const prefixes = {
-          [Ops.RANGE]: 'ridx',
-          [Ops.WMMA]: 'wmma',
-          [Ops.DEFINE_LOCAL]: 'temp',
-          [Ops.CONST]: 'const',
-          [Ops.CAST]: 'cast',
-          [Ops.BITCAST]: 'cast',
-          [Ops.GEP]: 'gep',
-          [Ops.VECTORIZE]: 'cast',
-          [Ops.NOOP]: 'precast',
-          [Ops.INDEX]: 'bidx',
-          [Ops.DEFINE_ACC]: 'acc',
-          [Ops.LOAD]: 'val',
-        }
-        prefix = prefixes[u.op as keyof typeof prefixes] || 'alu'
+        const prefixes = new Map([
+          [Ops.RANGE, 'ridx'],
+          [Ops.WMMA, 'wmma'],
+          [Ops.DEFINE_LOCAL, 'temp'],
+          [Ops.CONST, 'const'],
+          [Ops.CAST, 'cast'],
+          [Ops.BITCAST, 'cast'],
+          [Ops.GEP, 'gep'],
+          [Ops.VECTORIZE, 'cast'],
+          [Ops.NOOP, 'precast'],
+          [Ops.INDEX, 'bidx'],
+          [Ops.DEFINE_ACC, 'acc'],
+          [Ops.LOAD, 'val'],
+        ])
+        prefix = prefixes.get(u.op) || 'alu'
 
         r.set(u, `${prefix}${setDefault(c, prefix, 0)}`)
       }
@@ -193,13 +193,10 @@ export class ClangRenderer extends CStyleLanguage {
   // language options
   override buffer_suffix = ' restrict'
   override type_map = new Map([[dtypes.bool, '_Bool'], [dtypes.half, '__fp16']])
-  override code_for_op: { [key in Ops]?: ((...args: (string | DType)[]) => string) } = {
-    ...new CStyleLanguage().code_for_op,
-    [Ops.EXP2]: undefined,
-    [Ops.SIN]: undefined,
-    [Ops.LOG2]: undefined,
-    [Ops.SQRT]: (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`,
-  }
+  override code_for_op = new Map<Ops, (...args: (string | DType)[]) => string>([
+    ...new CStyleLanguage().code_for_op.entries().filter(([k, v]) => ![Ops.EXP2, Ops.SIN, Ops.LOG2].includes(k)),
+    [Ops.SQRT, (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`],
+  ])
   override tensor_cores = !AMX ? undefined : [dtypes.float].map((dt) => [dt, Math.floor(64 / dt.itemsize)] as const).map(([dt, sz]) => new TensorCore([sz, sz, 1], dt, dt, [], [], [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]]))
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`

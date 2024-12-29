@@ -92,7 +92,7 @@ export class Renderer {
   shared_max = 32768
   tensor_cores: TensorCore[] | undefined = []
   extra_matcher?: any
-  code_for_op: { [key in Ops]?: (...a: string[]) => string } = {}
+  code_for_op = new Map<Ops, (...a: string[]) => string>()
 
   render = (name: string, uops: UOp[]): string => raise('needs a renderer')
 }

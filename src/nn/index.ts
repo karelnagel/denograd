@@ -209,7 +209,7 @@ export class LayerNorm {
  */
 export class LayerNorm2d extends LayerNorm {
   override call(x: Tensor): Tensor {
-    return super.call(x.permute([0, 2, 3, 1])).permute([0, 3, 1, 2])
+    return super.call(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
   }
 }
 

@@ -182,7 +182,7 @@ export class LazyBuffer extends MathTrait {
     const out_dtype = [Ops.CMPLT, Ops.CMPNE].includes(op) ? dtypes.bool : srcs.at(-1)!.dtype
 
     //     // const folding
-    if (python_alu[op] && srcs.every((s) => s.is_unrealized_unmasked_const())) return this.cast(out_dtype).const_like(exec_alu(op, out_dtype, srcs.map((s) => s.base.arg))) as typeof this
+    if (python_alu.has(op) && srcs.every((s) => s.is_unrealized_unmasked_const())) return this.cast(out_dtype).const_like(exec_alu(op, out_dtype, srcs.map((s) => s.base.arg))) as typeof this
     if (GroupOp.Binary.includes(op)) {
       const [x, y] = [this, in_srcs[0]]
       if (op === Ops.ADD) {

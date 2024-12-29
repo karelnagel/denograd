@@ -7,6 +7,19 @@ import { BinaryLike, createHash, randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
+export abstract class Enum {
+  constructor(public readonly name: string, public readonly value: number) {}
+  toString = () => `${this.constructor.name}.${this.name}`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return `${this.constructor.name}.${this.name}`
+  }
+
+  [Symbol.toPrimitive](hint: 'string' | 'number' | 'default') {
+    if (hint === 'number') return this.value
+    if (hint === 'string') return this.name
+    return this.value
+  }
+}
 export const randomId = () => randomUUID().toString()
 export const sha256 = (x: BinaryLike): Uint8Array => createHash('sha256').update(x).digest()
 export const stringToBytes = (text: string) => new TextEncoder().encode(text)
@@ -46,11 +59,6 @@ export const checkCached = <T>(key: object, cache: Record<string, T>, self: T): 
   if (cache[k]) return cache[k]
   cache[k] = self
   return self
-}
-export const getAllEnums = <T extends object>(e: T) => Object.values(e).filter((value) => typeof value === 'number' && value !== 0) as T[keyof T][]
-export const getEnumString = <T extends object>(e: T, op: T[keyof T]) => {
-  for (const key in e) if (e[key] === op) return key
-  return undefined
 }
 export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
   instance: any,

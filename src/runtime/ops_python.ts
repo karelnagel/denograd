@@ -23,12 +23,12 @@ const _store = (m: MemoryView, i: number, v: any) => {
 
 type PyUOp = [Ops, DType | undefined, number[], any]
 const serialize = (data: PyUOp[]): Uint8Array => {
-  return stringToBytes(JSON.stringify(data.map(([ops, dtype, src, arg]) => [ops, dtype?.toString(), src, arg])))
+  return stringToBytes(JSON.stringify(data.map(([ops, dtype, src, arg]) => [ops.toString(), dtype?.toString(), src, arg])))
 }
 const deserialize = (data: Uint8Array): PyUOp[] => {
   const res = JSON.parse(bytesToString(data))
   // replacing nulls with undefines
-  return res.map((x: any) => x.map((y: any) => y !== null ? y : undefined)).map(([ops, dtype, src, arg]: any) => [ops, eval(dtype), src, arg])
+  return res.map((x: any) => x.map((y: any) => y !== null ? y : undefined)).map(([ops, dtype, src, arg]: any) => [eval(ops), eval(dtype), src, arg])
 }
 
 export class PythonProgram extends Program {
@@ -202,7 +202,7 @@ export class PythonProgram extends Program {
           assert(all_same([dtype, ...dtp]) || [Ops.CMPNE, Ops.CMPLT, Ops.WHERE].includes(uop), `dtype mismatch on ${uop}`)
           ul[i] = zip(...inp).map((p) => exec_alu(uop, dtype, p))
         }
-        assert(!!ul[i], `${{ uop, dtype, idp, arg }}`)
+        assert(!!ul[i], `${uop}, ${dtype}, ${idp}, ${arg}`)
         i += 1
       }
     }

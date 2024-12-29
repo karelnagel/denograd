@@ -1,6 +1,6 @@
 import { exec } from 'node:child_process'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../src/dtype.ts'
-import { getEnumString, isNotNone, Metadata, randomId } from '../src/helpers.ts'
+import { Enum, isNotNone, Metadata, randomId } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../src/ops.ts'
@@ -25,8 +25,10 @@ dtypes // needed to force the import
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
 export const asdict = (o: any): any => {
+  if (typeof o === 'function') return undefined
   if (o === undefined || o === null) return o
   if (typeof o === 'bigint') return Number(o)
+  if (o instanceof Enum) return o.toString()
   if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
@@ -58,12 +60,6 @@ export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return)
 class SkipFormatting {
   constructor(public value: string) {}
 }
-class PyEnum<T extends object> {
-  constructor(public en: T, public op?: T[keyof T], public prefix = '') {}
-  toString = () => this.op ? `${this.prefix}${getEnumString(this.en, this.op)}` : pyStr(undefined)
-}
-const OpsEnum = (op?: Ops) => new PyEnum(Ops, op, `tiny.ops.Ops.`)
-const OptOpsEnum = (op: OptOps) => new PyEnum(OptOps, op, `tiny.codegen.kernel.OptOps.`)
 export const pyStr = (o: any, useList = false): string => {
   const t = (strings: TemplateStringsArray, ...values: any[]) => {
     let result = strings[0]
@@ -71,7 +67,8 @@ export const pyStr = (o: any, useList = false): string => {
     return result
   }
   if (o instanceof SkipFormatting) return o.value
-  if (o instanceof PyEnum) return o.toString()
+  if (o instanceof Ops) return `tiny.ops.${o.toString()}`
+  if (o instanceof OptOps) return `tiny.codegen.kernel.${o.toString()}`
 
   if (Array.isArray(o)) return o.length ? (useList ? `[${o.map((x) => pyStr(x)).join(', ')}]` : `(${o.map((x) => pyStr(x)).join(', ')},)`) : '()'
   if (o === null || typeof o === 'undefined') return 'None'
@@ -85,7 +82,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Tensor) return t`tiny.tensor.Tensor(${o.tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
 
   // ************ ENGINE ************
-  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${OpsEnum(o.op)}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`
+  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${o.op}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`
 
   if (o instanceof CompiledRunner) return t`tiny.engine.realize.CompiledRunner(${o.p}, ${o.lib})`
   if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.op_estimate}, ${o.mem_estimate}, ${o.lds_estimate})`
@@ -110,7 +107,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof IndexContext) return t`tiny.codegen.lowerer.IndexContext(${o.idxs}, ${o.ridxs}, ${o.acc_num})`
   if (o instanceof Kernel) return t`tiny.codegen.kernel.Kernel(${o.ast}, ${o.opts})`
   if (o instanceof BasicBlock) return t`tiny.codegen.linearize.BasicBlock(${o.ctx}, ${o.lst}, ${o.end})`
-  if (o instanceof Opt) return t`tiny.codegen.kernel.Opt(${OptOpsEnum(o.op)}, ${o.axis}, ${o.amt})`
+  if (o instanceof Opt) return t`tiny.codegen.kernel.Opt(${o.op}, ${o.axis}, ${o.amt})`
 
   // ************ RENDERER ************
   if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
@@ -133,9 +130,9 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof UPat) {
     // if src is UPat[][] we use list, if UPat[] then tuple
     const src = Array.isArray(o._in_src) ? (Array.isArray(o._in_src.at(0)) ? new SkipFormatting(pyStr(o._in_src.at(0), true)) : o._in_src) : o._in_src
-    return t`tiny.ops.UPat(op=${o.op?.map((op) => OpsEnum(op))}, dtype=${o.dtype}, src=${src}, arg=${o.arg}, name=${o.name}, allow_any_len=${o.allowed_len === -1}, location=${o.location}, custom_early_reject=${o.custom_early_reject})`
+    return t`tiny.ops.UPat(op=${o.op}, dtype=${o.dtype}, src=${src}, arg=${o.arg}, name=${o.name}, allow_any_len=${o.allowed_len === -1}, location=${o.location}, custom_early_reject=${o.custom_early_reject})`
   }
-  if (o instanceof UOp) return t`tiny.ops.UOp(op=${OpsEnum(o.op)}, dtype=${o.dtype}, src=${o.src}, arg=${o.arg})`
+  if (o instanceof UOp) return t`tiny.ops.UOp(op=${o.op}, dtype=${o.dtype}, src=${o.src}, arg=${o.arg})`
   if (o instanceof KernelInfo) return t`tiny.ops.KernelInfo(${o.local_dims}, ${o.upcasted}, ${o.dont_use_locals})`
 
   // ************ HELPERS ************

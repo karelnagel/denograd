@@ -1,8 +1,7 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { all_same, assert, bytesToString, checkCached, counter, DataClass, divmod, getEnumString, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sha256, sum, zip } from './helpers.ts'
+import { all_same, assert, bytesToString, checkCached, counter, DataClass, divmod, Enum, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sha256, sum, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 import { argfix } from './helpers.ts'
-import { getAllEnums } from './helpers.ts'
 
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
@@ -57,57 +56,105 @@ export class MathTrait extends SimpleMathTrait {
 }
 
 // # the order of these Ops controls the order of the toposort
-// deno-fmt-ignore
-export enum Ops{
-    DUMMY_VALUE_TO_MAKE_IT_COUNT_FROM_1_LIKE_IN_PYTHON,
-    // uops that aren't rendered
-    SINK, CONTIGUOUS, PRELOAD,
+export class Ops<Name extends string = string, Value extends number = number> extends Enum {
+  private static VALUES: Ops[] = []
+  static values = () => [...Ops.VALUES]
+  constructor(name: Name, value: Value) {
+    super(name, value)
+    Ops.VALUES.push(this)
+    assert(value === Ops.VALUES.length)
+  }
+  // uops that aren't rendered
+  static readonly SINK = new Ops('SINK', 1)
+  static readonly CONTIGUOUS = new Ops('CONTIGUOUS', 2)
+  static readonly PRELOAD = new Ops('PRELOAD', 3)
 
-    // MetaOps
-    COPY, EMPTY, BUFFER_VIEW,
-  
-    // blocks in linearizer
-    BLOCK, BLOCKSTART, BLOCKFORK, BLOCKEND,
-  
-    // misc ops
-    EXPAND, CONTRACT,
-    VIEW, DEFINE_GLOBAL, BUFFER,
-    DEFINE_VAR, DEFINE_LOCAL, DEFINE_ACC,
-    VALID, SPECIAL, NOOP,
-  
-    // reduce
-    REDUCE_AXIS,
-  
-    // helper ops
-    GEP, VECTORIZE,
-  
-    // UnaryOps
-    CAST, BITCAST, EXP2, LOG2, SIN, SQRT, RECIP, NEG,
-  
-    // load/store before math
-    LOAD, STORE,
-  
-    // early INDEX
-    INDEX,
-  
-    // math ops
-    WMMA,
-  
-    // BinaryOps
-    ADD, MUL, IDIV, MAX, MOD, CMPLT, CMPNE, XOR,
-    SHL, SHR, OR, AND, THREEFRY, SUB, FDIV,
-  
-    // TernaryOps
-    WHERE, MULACC,
-  
-    // assignment ops
-    ASSIGN, BIND,
-  
-    // control flow ops
-    BARRIER, RANGE, IF, ENDRANGE, ENDIF,
-  
-    // consts last!
-    VCONST, CONST,
+  // MetaOps
+  static readonly COPY = new Ops('COPY', 4)
+  static readonly EMPTY = new Ops('EMPTY', 5)
+  static readonly BUFFER_VIEW = new Ops('BUFFER_VIEW', 6)
+
+  // blocks in linearizer
+  static readonly BLOCK = new Ops('BLOCK', 7)
+  static readonly BLOCKSTART = new Ops('BLOCKSTART', 8)
+  static readonly BLOCKFORK = new Ops('BLOCKFORK', 9)
+  static readonly BLOCKEND = new Ops('BLOCKEND', 10)
+
+  // misc ops
+  static readonly EXPAND = new Ops('EXPAND', 11)
+  static readonly CONTRACT = new Ops('CONTRACT', 12)
+  static readonly VIEW = new Ops('VIEW', 13)
+  static readonly DEFINE_GLOBAL = new Ops('DEFINE_GLOBAL', 14)
+  static readonly BUFFER = new Ops('BUFFER', 15)
+  static readonly DEFINE_VAR = new Ops('DEFINE_VAR', 16)
+  static readonly DEFINE_LOCAL = new Ops('DEFINE_LOCAL', 17)
+  static readonly DEFINE_ACC = new Ops('DEFINE_ACC', 18)
+  static readonly VALID = new Ops('VALID', 19)
+  static readonly SPECIAL = new Ops('SPECIAL', 20)
+  static readonly NOOP = new Ops('NOOP', 21)
+
+  // reduce
+  static readonly REDUCE_AXIS = new Ops('REDUCE_AXIS', 22)
+
+  // helper ops
+  static readonly GEP = new Ops('GEP', 23)
+  static readonly VECTORIZE = new Ops('VECTORIZE', 24)
+
+  // UnaryOps
+  static readonly CAST = new Ops('CAST', 25)
+  static readonly BITCAST = new Ops('BITCAST', 26)
+  static readonly EXP2 = new Ops('EXP2', 27)
+  static readonly LOG2 = new Ops('LOG2', 28)
+  static readonly SIN = new Ops('SIN', 29)
+  static readonly SQRT = new Ops('SQRT', 30)
+  static readonly RECIP = new Ops('RECIP', 31)
+  static readonly NEG = new Ops('NEG', 32)
+
+  // load/store before math
+  static readonly LOAD = new Ops('LOAD', 33)
+  static readonly STORE = new Ops('STORE', 34)
+
+  // early INDEX
+  static readonly INDEX = new Ops('INDEX', 35)
+
+  // math ops
+  static readonly WMMA = new Ops('WMMA', 36)
+
+  // BinaryOps
+  static readonly ADD = new Ops('ADD', 37)
+  static readonly MUL = new Ops('MUL', 38)
+  static readonly IDIV = new Ops('IDIV', 39)
+  static readonly MAX = new Ops('MAX', 40)
+  static readonly MOD = new Ops('MOD', 41)
+  static readonly CMPLT = new Ops('CMPLT', 42)
+  static readonly CMPNE = new Ops('CMPNE', 43)
+  static readonly XOR = new Ops('XOR', 44)
+  static readonly SHL = new Ops('SHL', 45)
+  static readonly SHR = new Ops('SHR', 46)
+  static readonly OR = new Ops('OR', 47)
+  static readonly AND = new Ops('AND', 48)
+  static readonly THREEFRY = new Ops('THREEFRY', 49)
+  static readonly SUB = new Ops('SUB', 50)
+  static readonly FDIV = new Ops('FDIV', 51)
+
+  // TernaryOps
+  static readonly WHERE = new Ops('WHERE', 52)
+  static readonly MULACC = new Ops('MULACC', 53)
+
+  // assignment ops
+  static readonly ASSIGN = new Ops('ASSIGN', 54)
+  static readonly BIND = new Ops('BIND', 55)
+
+  // control flow ops
+  static readonly BARRIER = new Ops('BARRIER', 56)
+  static readonly RANGE = new Ops('RANGE', 57)
+  static readonly IF = new Ops('IF', 58)
+  static readonly ENDRANGE = new Ops('ENDRANGE', 59)
+  static readonly ENDIF = new Ops('ENDIF', 60)
+
+  // consts last!
+  static readonly VCONST = new Ops('VCONST', 61)
+  static readonly CONST = new Ops('CONST', 62)
 }
 
 export class GroupOp {
@@ -131,7 +178,7 @@ export class GroupOp {
 }
 
 // # https://en.wikipedia.org/wiki/Identity_element
-export const identity_element = (op: Ops, dt: DType) => dtypes.as_const({ [Ops.ADD]: 0, [Ops.MUL]: 1, [Ops.MAX]: dtypes.min(dt) }[op as 37], dt)
+export const identity_element = (op: Ops, dt: DType) => dtypes.as_const(new Map([[Ops.ADD, 0], [Ops.MUL, 1], [Ops.MAX, dtypes.min(dt)]]).get(op)!, dt)
 
 export const can_pad = (u: UOp, edges: Map<UOp, UOp>, visisted: Set<UOp>): boolean => {
   if (GroupOp.UnsafePad.includes(u.op)) return false
@@ -162,14 +209,16 @@ export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uo
 export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.symInfer(varVals) : uop
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
-type UOpTuple = [Ops, any, DType, UOpTuple[]]
+type UOpTuple = [number, any, DType, UOpTuple[]]
 export class UOp extends MathTrait {
   static ucache: Record<string, UOp> = {}
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
+    // KAREL: this is a hack, for some reason sometime it sends in int
+    if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op as any)!
     return checkCached({ op, dtype, src, arg }, UOp.ucache, this)
   }
-  override toString = () => `new UOp(Ops.${getEnumString(Ops, this.op)}, ${this.dtype}, ${listStr(this.src)}, ${listStr(this.arg)})`
+  override toString = () => `new UOp(${this.op.toString()}, ${this.dtype}, ${listStr(this.src)}, ${listStr(this.arg)})`
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => new UOp(args.op || this.op, args.dtype || this.dtype, args.src || this.src, args.arg || this.arg)
   get key(): string {
@@ -184,7 +233,7 @@ export class UOp extends MathTrait {
     nodes.add(this)
     return nodes
   }
-  tuplize = (): UOpTuple => [this.op, this.arg, this.dtype, this.src.map((x) => x.tuplize())]
+  tuplize = (): UOpTuple => [this.op.value, this.arg, this.dtype, this.src.map((x) => x.tuplize())]
 
   //   # *** uop shape stuff ***
   get has_st() {
@@ -235,7 +284,7 @@ export class UOp extends MathTrait {
 
   //   # *** uop syntactic sugar ***
   get st_arg(): ShapeTracker {
-    if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on Ops.${getEnumString(Ops, this.op)}`)
+    if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on ${this.op.toString()}`)
     const ret = this.src[this.op === Ops.VALID ? 0 : 1]
     if (ret.op !== Ops.VIEW) throw new Error(`st_arg trying to return ${ret}`)
     return ret.arg
@@ -466,33 +515,33 @@ const safe_exp2 = (x: number) => {
     return Infinity
   }
 }
-export const python_alu: { [key in Ops]?: (...x: number[]) => number } = {
-  [Ops.LOG2]: (x) => x === 0 ? x > 0 ? Math.log2(2) : -Infinity : NaN,
-  [Ops.EXP2]: safe_exp2,
-  [Ops.SQRT]: (x) => x >= 0 ? Math.sqrt(x) : NaN,
-  [Ops.RECIP]: (x) => x !== 0 ? 1 / x : x >= 0 ? Infinity : -Infinity,
-  [Ops.SIN]: (x) => isFinite(x) ? Math.sin(x) : NaN,
-  [Ops.NEG]: (x) => -x,
-  [Ops.ADD]: (x, y) => x + y,
-  [Ops.SUB]: (x, y) => x - y,
-  [Ops.MUL]: (x, y) => x * y,
-  [Ops.CMPNE]: (x, y) => Number(x !== y),
-  [Ops.CMPLT]: (x, y) => Number(x < y),
-  [Ops.XOR]: (x, y) => x ^ y,
-  [Ops.OR]: (x, y) => x | y,
-  [Ops.AND]: (x, y) => x & y,
-  [Ops.SHR]: (x, y) => x >> y,
-  [Ops.SHL]: (x, y) => x << y,
-  [Ops.MAX]: (...args) => Math.max(...args),
-  [Ops.MOD]: (x, y) => Math.abs(Math.floor(x)) % Math.abs(Math.floor(y)) * (x < 0 ? -1 : 1),
-  [Ops.IDIV]: (x, y) => y !== 0 ? Math.floor(Math.abs(x) / Math.abs(y)) * ((x * y < 0) ? -1 : 1) : x * Infinity,
-  [Ops.MULACC]: (x, y, z) => (x * y) + z,
-  [Ops.WHERE]: (x, y, z) => x ? y : z,
-}
+export const python_alu = new Map<Ops, (...x: number[]) => number>([
+  [Ops.LOG2, (x) => x === 0 ? x > 0 ? Math.log2(2) : -Infinity : NaN],
+  [Ops.EXP2, safe_exp2],
+  [Ops.SQRT, (x) => x >= 0 ? Math.sqrt(x) : NaN],
+  [Ops.RECIP, (x) => x !== 0 ? 1 / x : x >= 0 ? Infinity : -Infinity],
+  [Ops.SIN, (x) => isFinite(x) ? Math.sin(x) : NaN],
+  [Ops.NEG, (x) => -x],
+  [Ops.ADD, (x, y) => x + y],
+  [Ops.SUB, (x, y) => x - y],
+  [Ops.MUL, (x, y) => x * y],
+  [Ops.CMPNE, (x, y) => Number(x !== y)],
+  [Ops.CMPLT, (x, y) => Number(x < y)],
+  [Ops.XOR, (x, y) => x ^ y],
+  [Ops.OR, (x, y) => x | y],
+  [Ops.AND, (x, y) => x & y],
+  [Ops.SHR, (x, y) => x >> y],
+  [Ops.SHL, (x, y) => x << y],
+  [Ops.MAX, (...args) => Math.max(...args)],
+  [Ops.MOD, (x, y) => Math.abs(Math.floor(x)) % Math.abs(Math.floor(y)) * (x < 0 ? -1 : 1)],
+  [Ops.IDIV, (x, y) => y !== 0 ? Math.floor(Math.abs(x) / Math.abs(y)) * ((x * y < 0) ? -1 : 1) : x * Infinity],
+  [Ops.MULACC, (x, y, z) => (x * y) + z],
+  [Ops.WHERE, (x, y, z) => x ? y : z],
+])
 
 export const exec_alu = (op: Ops, dtype: DType, operands: number[], truncateOutput = true): any => {
   if (dtype.count > 1) return range(dtype.count).map((i) => exec_alu(op, dtype.scalar(), operands.map((x) => Array.isArray(x) ? x[i] : x)))
-  const alu = python_alu[op]!(...operands)
+  const alu = python_alu.get(op)!(...operands)
   return truncateOutput ? truncate.get(dtype)!(alu) : alu
 }
 // # ***** uop helpers *****
@@ -608,7 +657,7 @@ export class UPat extends MathTrait {
       return '<missing>'
     }
   }
-  override toString = () => `new UPat(${listStr(this.op?.map((o) => `Ops.${getEnumString(Ops, o)}`))}, ${listStr(this.dtype)}, ${listStr(this.src)}, ${listStr(this.arg)}, ${this.name}, ${this.allowed_len === 0})`
+  override toString = () => `new UPat(${listStr(this.op?.map((o) => o.toString()))}, ${listStr(this.dtype)}, ${listStr(this.src)}, ${listStr(this.arg)}, ${this.name}, ${this.allowed_len === 0})`
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
@@ -814,7 +863,7 @@ export function* splitUOp(x: UOp, sep: Ops): Generator<UOp> {
   else yield x
 }
 
-export const div_and_mod_folding = (x: UOp, c: number, which: Ops.MOD | Ops.IDIV, split_rem = false): undefined | UOp => {
+export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | typeof Ops.IDIV, split_rem = false): undefined | UOp => {
   // simplify x // c or x % c, None means no change, c must be > 0
   assert(c > 0)
   if (x.dtype.count > 1) return undefined
@@ -1146,7 +1195,7 @@ export const symbolic_flat = symbolic.add(
   ]),
 )
 
-export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat(getAllEnums(Ops)).named('x'), ({ ctx, x }) => ctx.get(x)]])
+export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat(Ops.values()).named('x'), ({ ctx, x }) => ctx.get(x)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])

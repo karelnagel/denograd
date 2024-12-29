@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, get_env, get_number_env, isinstance, range, round_up, setDefault, sum, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, Enum, get_env, get_number_env, isinstance, range, round_up, setDefault, sum, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, ge, graph_rewrite, GroupOp, gt, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, resolve, sint, sint_prod, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -9,18 +9,25 @@ import { linearize_uop } from './linearize.ts'
 import { get_contraction, rewrite_shapetracker_with_index } from './lowerer.ts'
 import { full_graph_rewrite } from './uopgraph.ts'
 
-export enum OptOps {
-  DUMMY_VALUE_FOR_0,
-  TC,
-  UPCAST,
-  UPCASTMID,
-  UNROLL,
-  LOCAL,
-  GROUP,
-  GROUPTOP,
-  NOLOCALS,
-  PADTO,
-  SWAP,
+export class OptOps<Name extends string = string, Value extends number = number> extends Enum {
+  private static VALUES: OptOps[] = []
+  static values = () => [...OptOps.VALUES]
+  constructor(name: Name, value: Value) {
+    super(name, value)
+    OptOps.VALUES.push(this)
+    assert(value === OptOps.VALUES.length)
+  }
+
+  static readonly TC = new OptOps('TC', 1)
+  static readonly UPCAST = new OptOps('UPCAST', 2)
+  static readonly UPCASTMID = new OptOps('UPCASTMID', 3)
+  static readonly UNROLL = new OptOps('UNROLL', 4)
+  static readonly LOCAL = new OptOps('LOCAL', 5)
+  static readonly GROUP = new OptOps('GROUP', 6)
+  static readonly GROUPTOP = new OptOps('GROUPTOP', 7)
+  static readonly NOLOCALS = new OptOps('NOLOCALS', 8)
+  static readonly PADTO = new OptOps('PADTO', 9)
+  static readonly SWAP = new OptOps('SWAP', 10)
 }
 export class KernelOptError extends Error {}
 

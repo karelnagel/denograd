@@ -16,7 +16,7 @@ export class DType {
     return checkCached({ priority, count, itemsize, name, _scalar, fmt, kwargs }, DType.dcache, this)
   }
 
-  static new = (...[priority, itemsize, name, fmt]: [number, number, string, FmtStr | undefined]) => new DType(priority, itemsize, name, fmt, 1, undefined)
+  static new = (priority: number, itemsize: number, name: string, fmt?: FmtStr) => new DType(priority, itemsize, name, fmt, 1, undefined)
   reduce = (): [typeof DType, any[]] => [DType, Object.entries(this).filter((x) => typeof x[1] !== 'function').map((x) => x[1])]
   toString = () => `dtypes.${INVERSE_DTYPES_DICT[this.scalar().name]}${this.count > 1 ? `.vec(${this.count})` : ''}`
   lt = (o: DType) => isLessThan(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]) as [number[], number[]])
