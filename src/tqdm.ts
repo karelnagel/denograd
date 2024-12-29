@@ -1,5 +1,7 @@
 // https://github.com/thesephist/tsqdm/blob/main/src/tqdm.ts
 
+import { stringToBytes } from './helpers.ts'
+
 type RenderBarOptions = {
   i: number
   label?: string
@@ -105,9 +107,8 @@ export async function* tqdm<T>(
   }
 
   const start = Date.now()
-  const encoder = new TextEncoder()
   async function print(s: string): Promise<void> {
-    await Deno.stdout.write(encoder.encode(s))
+    await Deno.stdout.write(stringToBytes(s))
   }
   let i = 1
   for await (const it of iter) {

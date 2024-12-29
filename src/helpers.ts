@@ -2,15 +2,18 @@
 import path from 'node:path'
 import process from 'node:process'
 import os from 'node:os'
-import { unlinkSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { BinaryLike, createHash, randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
-(BigInt.prototype as any).toJSON = function () {
-  return this.toString();
-};
+export const randomId = () => randomUUID().toString()
+export const sha256 = (x: BinaryLike): Uint8Array => createHash('sha256').update(x).digest()
+export const stringToBytes = (text: string) => new TextEncoder().encode(text)
+export const bytesToString = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
+;(BigInt.prototype as any).toJSON = function () {
+  return this.toString()
+}
 
 type ClassType<T> = { new (...args: any[]): T }
 
@@ -446,12 +449,12 @@ export const cpuTimeExecution = (cb: () => void, enable: boolean) => {
 
 export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
   const outputFile = temp('temp_output.so')
-  writeFileSync(outputFile, lib)
+  Deno.writeFileSync(outputFile, lib)
   try {
     const output = execSync(`${objdumpTool} -d ${outputFile}`, { encoding: 'utf-8' })
     console.log(output)
   } finally {
-    unlinkSync(outputFile)
+    Deno.removeSync(outputFile)
   }
 }
 export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {

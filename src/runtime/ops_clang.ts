@@ -1,9 +1,8 @@
 import { Compiled, Compiler, MallocAllocator, Program } from './allocator.ts'
 import { cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '../helpers.ts'
 import { execSync } from 'node:child_process'
-import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { ClangRenderer } from '../renderer/cstyle.ts'
-import type { Buffer, DeviceType } from '../device.ts'
+import type { DeviceType } from '../device.ts'
 
 export class ClangCompiler extends Compiler {
   args
@@ -19,8 +18,8 @@ export class ClangCompiler extends Compiler {
     const outputFile = temp('temp_output.so')
     const args = ['clang', '-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', '-', '-o', outputFile]
     execSync(args.join(' '), { input: src, stdio: 'pipe' })
-    const data = readFileSync(outputFile)
-    unlinkSync(outputFile)
+    const data = Deno.readFileSync(outputFile)
+    Deno.removeSync(outputFile)
     return data
   }
   override disassemble = (lib: Uint8Array) => cpuObjdump(lib, this.objdumpTool)
@@ -32,7 +31,7 @@ export class ClangProgram extends Program {
     super(name, lib)
     // write to disk so we can load it
     const cachedFile = temp('cachedFile')
-    writeFileSync(cachedFile, lib.toString())
+    Deno.writeTextFileSync(cachedFile, lib.toString())
     this.fxn = ctypes.CDLL(cachedFile).get(name)
   }
   override call = (bufs: any[], vals: any, wait = false) => cpuTimeExecution(() => this.fxn(...bufs, ...vals), wait)

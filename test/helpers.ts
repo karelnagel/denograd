@@ -1,13 +1,11 @@
-import { randomUUID } from 'node:crypto'
 import { exec } from 'node:child_process'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../src/dtype.ts'
-import { getEnumString, isNotNone, Metadata } from '../src/helpers.ts'
+import { getEnumString, isNotNone, Metadata, randomId } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../src/ops.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
 import { View } from '../src/shape/view.ts'
-import { writeFileSync } from 'node:fs'
 import { IndexContext } from '../src/codegen/lowerer.ts'
 import { Kernel, Opt, OptOps } from '../src/codegen/kernel.ts'
 import { ClangRenderer } from '../src/renderer/cstyle.ts'
@@ -173,7 +171,7 @@ def out(o):
 
 ${code}
 `
-  const file = `/tmp/tiny_${randomUUID()}.py`
+  const file = `/tmp/tiny_${randomId()}.py`
   console.log(file)
   await execAsync(`echo ${JSON.stringify(code.trim())} > ${file}`)
   const res = await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)
@@ -182,7 +180,7 @@ ${code}
   try {
     return eval(ts)
   } catch (e) {
-    writeFileSync(`invalidcode-${randomUUID()}.ts`, ts)
+    Deno.writeTextFileSync(`invalidcode-${randomId()}.ts`, ts)
     throw new Error(`eval failed, code:"${ts}" error: ${e}`)
   }
 }

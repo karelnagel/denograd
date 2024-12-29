@@ -1,7 +1,5 @@
-import { createHash } from 'node:crypto'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { all_same, assert, checkCached, counter, DataClass, divmod, getEnumString, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sum, zip } from './helpers.ts'
-import { readFileSync } from 'node:fs'
+import { all_same, assert, bytesToString, checkCached, counter, DataClass, divmod, getEnumString, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sha256, sum, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 import { argfix } from './helpers.ts'
 import { getAllEnums } from './helpers.ts'
@@ -175,10 +173,9 @@ export class UOp extends MathTrait {
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => new UOp(args.op || this.op, args.dtype || this.dtype, args.src || this.src, args.arg || this.arg)
   get key(): string {
-    const hash = createHash('sha256')
-    hash.update(JSON.stringify([this.op, this.dtype, this.arg]))
-    for (const s of this.src) hash.update(s.key)
-    return hash.digest().toString()
+    let data = JSON.stringify([this.op, this.dtype, this.arg])
+    for (const s of this.src) data += s.key
+    return bytesToString(sha256(data))
   }
   get toposort(): Set<UOp> {
     let nodes = new Set<UOp>()
@@ -540,7 +537,7 @@ function getLocation(): [string, number] {
   return [file, Number(line)]
 }
 const lines = (fn: string): string[] => {
-  return readFileSync(fn).toString().split('\n')
+  return Deno.readFileSync(fn).toString().split('\n')
 }
 
 export type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allow_any_len?: boolean; location?: any; custom_early_reject?: Ops[] }

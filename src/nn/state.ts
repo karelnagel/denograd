@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { DEBUG, isinstance } from '../helpers.ts'
+import { bytesToString, DEBUG, isinstance, stringToBytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 import { tqdm } from '../tqdm.ts'
 
@@ -27,7 +27,7 @@ export const inverse_safe_dtypes = new Map(Object.entries(safe_dtypes).map(([k, 
 export const safe_load_metadata = (t: Tensor | string): [Tensor, number, Record<string, any>] => {
   if (typeof t === 'string') t = new Tensor(t)
   const data_start = t.get({ start: 0, stop: 8 }).data().cast('b').getValue(0) + 8
-  return [t, data_start, JSON.parse(new TextDecoder().decode(t.get({ start: 8, stop: data_start }).data().toBytes()))]
+  return [t, data_start, JSON.parse(bytesToString(t.get({ start: 8, stop: data_start }).data().toBytes()))]
 }
 /**
  * Loads a .safetensor file from disk, returning the state_dict.
@@ -66,7 +66,7 @@ export const safe_save = (tensors: Record<string, Tensor>, fn: string, metadata?
   // pathlib.Path(fn).unlink(missing_ok=true)
   const t = Tensor.empty([8 + j.length + offset], { dtype: dtypes.uint8, device: `DISK:${fn}` })
   t.get({ start: 0, stop: 8 }).bitcast(dtypes.int64).assign([j.length])
-  t.get({ start: 8, stop: 8 + j.length }).assign(new TextEncoder().encode(j))
+  t.get({ start: 8, stop: 8 + j.length }).assign(stringToBytes(j))
   for (const [k, v] of Object.entries(safe_load(t))) v.assign(tensors[k])
 }
 // state dict

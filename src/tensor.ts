@@ -1,12 +1,10 @@
 // deno-lint-ignore-file no-this-alias
-import { Buffer as NodeBuffer } from 'node:buffer'
-import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
+import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, sha256, WINO, zip } from './helpers.ts'
 import { add, ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
-import { statSync } from 'node:fs'
 import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
@@ -16,7 +14,6 @@ import { promisify } from 'node:util'
 const gunzipAsync = promisify(gunzip)
 import { sint_polyN } from './ops.ts'
 import { ceildiv, make_tuple, round_up } from './helpers.ts'
-import crypto from 'node:crypto'
 import { argsort } from './helpers.ts'
 import { MemoryView } from './memoryview.ts'
 
@@ -412,7 +409,7 @@ export class Tensor extends SimpleMathTrait {
     // Using string as path
     else if (typeof data === 'string') {
       dtype = dtype || dtypes.uint8
-      data = _metaop(Ops.EMPTY, [idiv(statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
+      data = _metaop(Ops.EMPTY, [idiv(Deno.statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
     }
 
     //     // by this point, it has to be a LazyBuffer
@@ -704,7 +701,10 @@ export class Tensor extends SimpleMathTrait {
     // generate per device seeds && rng counter if we haven't seen this device yet
     let had_counter
     if (Tensor._device_seeds.keys().some((x) => x === device)) {
-      const new_device_seeds = new Tensor([BigInt('0x' + crypto.createHash('sha256').update(NodeBuffer.alloc(4).writeUInt32BE(42, 0).toString()).digest('hex')), BigInt(123456)], { device: device, dtype: dtypes.uint32, requires_grad: false })
+      const new_device_seeds = new Tensor([
+        new MemoryView(sha256(new Uint32Array([Tensor._device_seeds.size]))).cast('i').getValue(0),
+        Tensor._seed,
+      ], { device: device, dtype: dtypes.uint32, requires_grad: false })
       Tensor._device_seeds.set(device, new_device_seeds)
       Tensor._device_rng_counters.set(device, new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false }))
       had_counter = false

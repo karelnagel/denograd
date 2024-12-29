@@ -1,12 +1,11 @@
 import { argv } from 'node:process'
-import { readFile, writeFile } from 'node:fs/promises'
 
 export const main = async () => {
   const inputFile = argv[2]
   const ouptutFile = argv[3]
   if (!inputFile || !ouptutFile) throw new Error('Input or output file missing!')
 
-  let code = (await readFile(inputFile)).toString()
+  let code = await Deno.readTextFile(inputFile)
 
   code = code.replace(/def (.*?)\(self,? ?/g, 'def $1(')
 
@@ -98,7 +97,7 @@ export const main = async () => {
   code = code.replaceAll('print(', 'console.log(')
   code = code.replaceAll('#', '//')
 
-  await writeFile(ouptutFile, code)
+  await Deno.writeTextFile(ouptutFile, code)
 }
 
 main()

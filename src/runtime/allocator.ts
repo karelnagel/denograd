@@ -1,5 +1,5 @@
 import { ImageDType } from '../dtype.ts'
-import { assert, ctypes, DataClass, diskcache_get, diskcache_put, from_mv, get_env, get_number_env, isNone, isNotNone } from '../helpers.ts'
+import { assert, ctypes, DataClass, diskcache_get, diskcache_put, from_mv, get_env, get_number_env, isNone, isNotNone, stringToBytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -91,7 +91,7 @@ export class Compiler {
   constructor(cachekey?: string) {
     this.cachekey = get_env('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
-  compile = (src: string): Uint8Array => new TextEncoder().encode(src) // NOTE: empty compiler is the default
+  compile = (src: string): Uint8Array => stringToBytes(src) // NOTE: empty compiler is the default
   compile_cached = (src: string): Uint8Array => {
     let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
     if (isNone(lib)) {

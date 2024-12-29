@@ -1,5 +1,4 @@
-import { Buffer as NodeBuffer } from 'node:buffer'
-import { all_same, assert, flatten, get_env, isinstance, product, range, sum, zip } from '../helpers.ts'
+import { all_same, assert, bytesToString, flatten, get_env, isinstance, product, range, stringToBytes, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, idiv, Ops, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
@@ -24,10 +23,10 @@ const _store = (m: MemoryView, i: number, v: any) => {
 
 type PyUOp = [Ops, DType | undefined, number[], any]
 const serialize = (data: PyUOp[]): Uint8Array => {
-  return new TextEncoder().encode(JSON.stringify(data.map(([ops, dtype, src, arg]) => [ops, dtype?.toString(), src, arg])))
+  return stringToBytes(JSON.stringify(data.map(([ops, dtype, src, arg]) => [ops, dtype?.toString(), src, arg])))
 }
 const deserialize = (data: Uint8Array): PyUOp[] => {
-  const res = JSON.parse(new TextDecoder().decode(data))
+  const res = JSON.parse(bytesToString(data))
   // replacing nulls with undefines
   return res.map((x: any) => x.map((y: any) => y !== null ? y : undefined)).map(([ops, dtype, src, arg]: any) => [ops, eval(dtype), src, arg])
 }
@@ -223,12 +222,12 @@ export class PythonRenderer extends Renderer {
   }
   override render = (name: string, uops: UOp[]): string => {
     const lops = uops.map((u) => [u.op, u.dtype, u.src.map((v) => uops.indexOf(v)), u.arg] as PyUOp)
-    return NodeBuffer.from(serialize(lops)).toString('base64')
+    return btoa(bytesToString(serialize(lops)))
   }
 }
 
 export class PythonCompiler extends Compiler {
-  override compile = (src: string): Uint8Array => NodeBuffer.from(src, 'base64')
+  override compile = (src: string): Uint8Array => stringToBytes(atob(src))
 }
 
 export class PythonAllocator extends Allocator {
