@@ -431,7 +431,7 @@ export class UOp extends MathTrait {
     // TODO: UOps.SPECIAL is UOps.DEFINE_VAR
     if (this.op === Ops.SPECIAL) return [0, typeof this.arg[1] === 'number' ? (this.arg[1] - 1) : Number(dtypes.max(this.dtype))]
     if (this.op === Ops.CONST) return [this.arg, this.arg]
-    if (this.op === Ops.VCONST) return [Math.min(this.arg), Math.max(this.arg)]
+    if (this.op === Ops.VCONST) return [Math.min(...this.arg), Math.max(...this.arg)]
     return [Number(dtypes.min(this.dtype)), Number(dtypes.max(this.dtype))]
   }
 
