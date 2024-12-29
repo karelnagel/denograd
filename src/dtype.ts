@@ -122,7 +122,7 @@ export class dtypes {
     }
 
     // TODO: should truncate here
-    if (dtypes.is_big_int(dtype)) return BigInt(val) as any
+    if (dtypes.is_big_int(dtype)) return BigInt(Math.floor(Number(val))) as any
     if (dtypes.is_int(dtype)) return Math.floor(Number(val))
     else if (dtypes.is_float(dtype)) return Number(val)
     else if (Number.isNaN(val)) return true //python bool(math.nan) returns True

@@ -798,7 +798,7 @@ export const type_verify = (uops: UOp[]) => {
   for (const [i, u] of uops.entries()) {
     if (!spec.rewrite(u)) {
       print_uops(uops)
-      throw new Error(`UOp verification failed at ${i} on ${getEnumString(Ops, u.op)} ${u.dtype} ${u.src.length} ${u.src.map((x) => x.op)} ${u.arg}`)
+      throw new Error(`UOp verification failed at ${i} on ${u}`)
     }
   }
 }

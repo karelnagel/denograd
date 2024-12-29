@@ -1,4 +1,4 @@
-import { ConstType, dtypes } from '../src/dtype.ts'
+import { ConstType, DType, dtypes } from '../src/dtype.ts'
 import { LazyBuffer } from '../src/engine/lazy.ts'
 import { UOp } from '../src/ops.ts'
 import { Tensor, TensorOptions } from '../src/tensor.ts'
@@ -218,6 +218,46 @@ Deno.test(
     ],
     (t1: Tensor, t2: Tensor) => t1.idiv(t2),
     'out(data[0] // data[1])',
+  ),
+)
+Deno.test(
+  'Tensor.cast',
+  compare(
+    [
+      [new Tensor([4, 4, 4, 2, 6]), dtypes.bool],
+      [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([1, 1, 6]), dtypes.float],
+      [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([1, 1, 6]), dtypes.half],
+      [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([1, 1, 6]), dtypes.int],
+      [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([1, 1, 6]), dtypes.int64],
+      [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([2, 3]), dtypes.double],
+      [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([2, 3]), dtypes.bool],
+    ],
+    (t1: Tensor, dtype: DType) => t1.cast(dtype),
+    'out(data[0].cast(data[1]))',
+  ),
+)
+Deno.test(
+  'Tensor.maximum',
+  compare(
+    [
+      [new Tensor([4, 4, 4, 2, 6]), new Tensor([4, 4, 3, 3, 3])],
+      [new Tensor([4, 4, 4, 2, 6, 5]).reshape([1, 1, 6]), new Tensor([4, 4, 3, 3, 3, 6])],
+      [new Tensor([4, 4, 4, 2, 6, 5]).reshape([2, 3]), new Tensor([4, 4, 3, 3, 3, 6]).reshape([2, 3])],
+    ],
+    (t1: Tensor, t2: Tensor) => t1.maximum(t2),
+    'out(data[0].maximum(data[1]))',
+  ),
+)
+Deno.test(
+  'Tensor.minimum',
+  compare(
+    [
+      [new Tensor([4, 4, 4, 2, 6]), new Tensor([4, 4, 3, 3, 3])],
+      [new Tensor([4, 4, 4, 2, 6, 5]).reshape([1, 1, 6]), new Tensor([4, 4, 3, 3, 3, 6])],
+      [new Tensor([4, 4, 4, 2, 6, 5]).reshape([2, 3]), new Tensor([4, 4, 3, 3, 3, 6]).reshape([2, 3])],
+    ],
+    (t1: Tensor, t2: Tensor) => t1.minimum(t2),
+    'out(data[0].minimum(data[1]))',
   ),
 )
 

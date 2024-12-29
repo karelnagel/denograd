@@ -1475,7 +1475,7 @@ export class Tensor extends SimpleMathTrait {
    * If !specified, the accumulation data type === chosen based on the input tensor's data type.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * t = new Tensor(.at(-1, -2, -3, 1, 2, 3)!).reshape(2, 3)
+   * t = new Tensor([-1, -2, -3, 1, 2, 3])).reshape(2, 3)
    * console.log(t.numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
@@ -2129,7 +2129,7 @@ export class Tensor extends SimpleMathTrait {
    * Negates the tensor element-wise.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).neg().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).neg().numpy())
    * ```
    */
   override neg = () => {
@@ -2201,7 +2201,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://paperswithcode.com/method/relu
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).relu().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).relu().numpy())
    * ```
    */
   relu = () => {
@@ -2213,7 +2213,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://en.wikipedia.org/wiki/Sigmoid_function
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).sigmoid().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).sigmoid().numpy())
    * ```
    */
   sigmoid = () => {
@@ -2227,7 +2227,7 @@ export class Tensor extends SimpleMathTrait {
    * - See: https://pytorch.org/docs/stable/generated/torch.nn.functional.hardsigmoid.html
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).hardsigmoid().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).hardsigmoid().numpy())
    * ```
    */
   hardsigmoid = (alpha: number = 1 / 6, beta = 0.5) => {
@@ -2289,7 +2289,7 @@ export class Tensor extends SimpleMathTrait {
    * Computes the inverse sine (arcsine) of the tensor element-wise.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-0.9, -0.6, -0.3, 0., 0.3, 0.6, 0.9)!).asin().numpy())
+   * console.log(Tensor([-0.9, -0.6, -0.3, 0., 0.3, 0.6, 0.9])).asin().numpy())
    * ```
    */
   asin = () => {
@@ -2302,7 +2302,7 @@ export class Tensor extends SimpleMathTrait {
    * Computes the inverse cosine (arccosine) of the tensor element-wise.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-0.9, -0.6, -0.3, 0., 0.3, 0.6, 0.9)!).acos().numpy())
+   * console.log(Tensor([-0.9, -0.6, -0.3, 0., 0.3, 0.6, 0.9])).acos().numpy())
    * ```
    */
   acos = () => {
@@ -2313,7 +2313,7 @@ export class Tensor extends SimpleMathTrait {
    * Computes the inverse tangent (arctan) of the tensor element-wise.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).atan().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).atan().numpy())
    * ```
    */
   atan = () => {
@@ -2326,7 +2326,7 @@ export class Tensor extends SimpleMathTrait {
    * Truncates the tensor element-wise.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5)!).trunc().numpy())
+   * console.log(Tensor([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5])).trunc().numpy())
    * ```
    */
   trunc = (): Tensor => {
@@ -2336,7 +2336,7 @@ export class Tensor extends SimpleMathTrait {
    * Rounds the tensor element-wise towards positive infinity.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5)!).ceil().numpy())
+   * console.log(Tensor([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5])).ceil().numpy())
    * ```
    */
   ceil = (): Tensor => {
@@ -2347,7 +2347,7 @@ export class Tensor extends SimpleMathTrait {
    * Rounds the tensor element-wise towards negative infinity.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5)!).floor().numpy())
+   * console.log(Tensor([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5])).floor().numpy())
    * ```
    */
   floor = (): Tensor => {
@@ -2358,7 +2358,7 @@ export class Tensor extends SimpleMathTrait {
    * Rounds the tensor element-wise with rounding half to even.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5)!).round().numpy())
+   * console.log(Tensor([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5])).round().numpy())
    * ```
    */
   round = (): Tensor => {
@@ -2408,7 +2408,7 @@ export class Tensor extends SimpleMathTrait {
    * Equivalent to `this*this`.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).square().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).square().numpy())
    * ```
    */
   square = () => {
@@ -2419,7 +2419,7 @@ export class Tensor extends SimpleMathTrait {
    * If `min_` === `undefined`, there === no lower bound. If `max_` === undefined, there === no upper bound.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).clip(-1, 1).numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).clip(-1, 1).numpy())
    * ```
    */
   clamp = (min_?: number, max_?: number) => {
@@ -2437,7 +2437,7 @@ export class Tensor extends SimpleMathTrait {
    * Returns the sign of the tensor element-wise.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).sign().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).sign().numpy())
    * ```
    */
   sign = () => {
@@ -2447,7 +2447,7 @@ export class Tensor extends SimpleMathTrait {
    * Computes the absolute value of the tensor element-wise.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).abs().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).abs().numpy())
    * ```
    */
   abs = () => {
@@ -2473,7 +2473,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1511.07289v5
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).elu().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).elu().numpy())
    * ```
    */
   elu = (alpha = 1.0) => {
@@ -2487,7 +2487,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1704.07483
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).celu().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).celu().numpy())
    * ```
    */
   celu = (alpha = 1.0) => {
@@ -2501,7 +2501,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1706.02515v5
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).selu().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).selu().numpy())
    * ```
    */
   selu = (alpha = 1.67326, gamma = 1.0507) => {
@@ -2514,7 +2514,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1710.05941v1
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).swish().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).swish().numpy())
    * ```
    */
   swish = () => {
@@ -2528,7 +2528,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1606.08415
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).silu().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).silu().numpy())
    * ```
    */
   silu = () => {
@@ -2542,7 +2542,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1704.04861v1
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-9., -6., -3., 0., 3., 6., 9.)!).relu6().numpy())
+   * console.log(Tensor([-9., -6., -3., 0., 3., 6., 9.])).relu6().numpy())
    * ```
    */
   relu6 = () => {
@@ -2556,7 +2556,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1905.02244v5
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).hardswish().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).hardswish().numpy())
    * ```
    */
   hardswish = () => {
@@ -2569,7 +2569,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://en.wikipedia.org/wiki/Hyperbolic_functions//Tanh
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).tanh().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).tanh().numpy())
    * ```
    */
   tanh = () => {
@@ -2582,7 +2582,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://en.wikipedia.org/wiki/Hyperbolic_functions//Sinh
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).sinh().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).sinh().numpy())
    * ```
    */
   sinh = () => {
@@ -2594,7 +2594,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://en.wikipedia.org/wiki/Hyperbolic_functions//Cosh
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).cosh().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).cosh().numpy())
    * ```
    */
   cosh = () => {
@@ -2607,7 +2607,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions//atanh
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-0.9, -0.6, -0.3, 0., 0.3, 0.6, 0.9)!).atanh().numpy())
+   * console.log(Tensor([-0.9, -0.6, -0.3, 0., 0.3, 0.6, 0.9])).atanh().numpy())
    * ```
    */
   atanh = () => {
@@ -2620,7 +2620,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions//asinh
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).asinh().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).asinh().numpy())
    * ```
    */
   asinh = () => {
@@ -2632,7 +2632,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://en.wikipedia.org/wiki/Inverse_hyperbolic_functions//acosh
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).acosh().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).acosh().numpy())
    * ```
    */
   acosh = () => {
@@ -2645,7 +2645,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://paperswithcode.com/method/hardtanh-activation
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-1.5, -1.0, -0.5, 0., 0.5, 1.0, 1.5)!).hardtanh().numpy())
+   * console.log(Tensor([-1.5, -1.0, -0.5, 0., 0.5, 1.0, 1.5])).hardtanh().numpy())
    * ```
    */
   hardtanh = (min_val = -1, max_val = 1) => {
@@ -2658,7 +2658,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://en.wikipedia.org/wiki/Error_function
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-1.5, -1.0, -0.5, 0., 0.5, 1.0, 1.5)!).erf().numpy())
+   * console.log(Tensor([-1.5, -1.0, -0.5, 0., 0.5, 1.0, 1.5])).erf().numpy())
    * ```
    */
   erf = () => {
@@ -2674,7 +2674,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1606.08415v5
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).gelu().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).gelu().numpy())
    * ```
    */
   gelu = () => {
@@ -2687,7 +2687,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://paperswithcode.com/method/gelu
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).quick_gelu().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).quick_gelu().numpy())
    * ```
    */
   quick_gelu = () => {
@@ -2700,10 +2700,10 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://paperswithcode.com/method/leaky-relu
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).leakyrelu().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).leakyrelu().numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).leakyrelu(neg_slope=0.42).numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).leakyrelu(neg_slope=0.42).numpy())
    * ```
    */
   leakyrelu = (neg_slope = 0.01) => {
@@ -2717,7 +2717,7 @@ export class Tensor extends SimpleMathTrait {
    * - Paper: https://arxiv.org/abs/1908.08681v3
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).mish().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).mish().numpy())
    * ```
    */
   mish = () => {
@@ -2730,7 +2730,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://paperswithcode.com/method/softplus
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).softplus().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).softplus().numpy())
    * ```
    */
   softplus = (beta = 1) => {
@@ -2743,7 +2743,7 @@ export class Tensor extends SimpleMathTrait {
    * - Described: https://paperswithcode.com/method/softsign
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-3., -2., -1., 0., 1., 2., 3.)!).softsign().numpy())
+   * console.log(Tensor([-3., -2., -1., 0., 1., 2., 3.])).softsign().numpy())
    * ```
    */
   softsign = () => {
@@ -2892,7 +2892,7 @@ export class Tensor extends SimpleMathTrait {
    * Supports broadcasting to a common shape, type promotion, && integer, boolean inputs.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-1, -2, 3)!).xor(Tensor([1, 0, 3])).numpy())
+   * console.log(Tensor([-1, -2, 3])).xor(Tensor([1, 0, 3])).numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
    * console.log(Tensor([true, true, false, false]).xor(Tensor([true, false, true, false])).numpy())
@@ -3019,10 +3019,10 @@ export class Tensor extends SimpleMathTrait {
    * Computes element-wise maximum of `this` && `x`.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-1, 2, 3)!).maximum(1).numpy())
+   * console.log(Tensor([-1, 2, 3])).maximum(1).numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-1, 2, 3)!).maximum(Tensor(.at(-4, -2, 9)!)).numpy())
+   * console.log(Tensor([-1, 2, 3]).maximum(Tensor([-4, -2, 9])).numpy())
    * ```
    */
   maximum = (x: ConstType<Tensor>): Tensor => {
@@ -3033,10 +3033,10 @@ export class Tensor extends SimpleMathTrait {
    * Computes element-wise minimum of `this` && `x`.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-1, 2, 3)!).minimum(1).numpy())
+   * console.log(Tensor([-1, 2, 3])).minimum(1).numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor(.at(-1, 2, 3)!).minimum(Tensor(.at(-4, -2, 9)!)).numpy())
+   * console.log(Tensor([-1, 2, 3])).minimum(Tensor([-4, -2, 9]))).numpy())
    * ```
    */
   minimum = (x: ConstType<Tensor>): Tensor => {
@@ -3299,7 +3299,7 @@ export class Tensor extends SimpleMathTrait {
    * Casts `this` to the given `dtype`.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * t = new Tensor(.at(-1, 2.5, 3)!, dtype=dtypes.number)
+   * t = new Tensor([-1, 2.5, 3]), dtype=dtypes.number)
    * console.log(t.dtype, t.numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
@@ -3317,7 +3317,7 @@ export class Tensor extends SimpleMathTrait {
    * `this` must !require a gradient.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * t = new Tensor(.at(-1, 2, 3)!, dtype=dtypes.int32)
+   * t = new Tensor([-1, 2, 3]), dtype=dtypes.int32)
    * console.log(t.dtype, t.numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
@@ -3342,7 +3342,7 @@ export class Tensor extends SimpleMathTrait {
    * Convenience method to cast `this` to a `float32` Tensor.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * t = new Tensor(.at(-1, 2, 3)!, dtype=dtypes.int32)
+   * t = new Tensor([-1, 2, 3]), dtype=dtypes.int32)
    * console.log(t.dtype, t.numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
@@ -3357,7 +3357,7 @@ export class Tensor extends SimpleMathTrait {
    * Convenience method to cast `this` to a `float16` Tensor.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * t = new Tensor(.at(-1, 2, 3)!, dtype=dtypes.int32)
+   * t = new Tensor([-1, 2, 3]), dtype=dtypes.int32)
    * console.log(t.dtype, t.numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
@@ -3372,7 +3372,7 @@ export class Tensor extends SimpleMathTrait {
    * Convenience method to cast `this` to a `int32` Tensor.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * t = new Tensor(.at(-1.5, -0.5, 0.0, 0.5, 1.5)!)
+   * t = new Tensor([-1.5, -0.5, 0.0, 0.5, 1.5]))
    * console.log(t.dtype, t.numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
@@ -3387,7 +3387,7 @@ export class Tensor extends SimpleMathTrait {
    * Convenience method to cast `this` to a `boolean` Tensor.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * t = new Tensor(.at(-1, 0, 1)!)
+   * t = new Tensor([-1, 0, 1]))
    * console.log(t.dtype, t.numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
