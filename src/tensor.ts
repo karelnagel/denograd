@@ -2,8 +2,8 @@
 import { Buffer as NodeBuffer } from 'node:buffer'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype, truncate } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, sum, WINO, zip } from './helpers.ts'
-import { add, eq, ge, gt, identity_element, idiv, le, lt, mul, ne, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
+import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, WINO, zip } from './helpers.ts'
+import { add,  ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
 import { statSync } from 'node:fs'
@@ -3026,7 +3026,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   maximum = (x: ConstType<Tensor>): Tensor => {
-    return ((this as Tensor).lt(x)).detach().where(x, ((this as Tensor).eq(x)).detach().where((this.mul(0.5).add(mul(x as any, 0.5) as number)).cast(this.dtype), this))
+    return ((this as Tensor).lt(x)).detach().where(x, (this as Tensor).eq(x).detach().where((this.mul(0.5).add(mul(x as any, 0.5) as number)).cast(this.dtype), this))
   }
 
   /**
@@ -3040,7 +3040,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   minimum = (x: ConstType<Tensor>): Tensor => {
-    return ((this.neg()).maximum(-x)).neg()
+    return ((this.neg()).maximum(neg(x as number) as number)).neg()
   }
 
   /**
