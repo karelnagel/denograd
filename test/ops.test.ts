@@ -1,4 +1,4 @@
-import { can_pad, Ops, resolve, smax, smin, UOp, UPat } from '../src/ops.ts'
+import { can_pad, div_and_mod_folding, Ops, resolve, smax, smin, UOp, UPat } from '../src/ops.ts'
 import { compare, tryCatch } from './helpers.ts'
 import { dtypes } from '../src/dtype.ts'
 import { ShapeTracker } from '../src/shape/shapetracker.ts'
@@ -298,5 +298,22 @@ Deno.test(
     ],
     tryCatch(UOp.const_with_shape),
     'out(trycatch(lambda: tiny.ops.UOp.const_with_shape(*data)))',
+  ),
+)
+
+Deno.test(
+  'div_and_mod_folding',
+  compare(
+    [
+      [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 1), 4, Ops.MOD, false],
+      [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 0), 4, Ops.MOD, false],
+      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx0`, 4]), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`gidx0`, 3]), new UOp(Ops.CONST, dtypes.int, [], 4)], undefined)], undefined), 4, Ops.MOD, false],
+      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], undefined), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 1)], undefined), 4, Ops.MOD, false],
+      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], undefined), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 1)], undefined), 12, Ops.IDIV, false],
+      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.EXPAND, dtypes.int, [new UOp(Ops.VCONST, dtypes.int.vec(4), [], [0, 1, 2, 3])], [[3, 4]]), new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`gidx0`, 3]), new UOp(Ops.CONST, dtypes.int, [], 48)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx0`, 4]), new UOp(Ops.CONST, dtypes.int, [], 12)], undefined)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx1`, 3]), new UOp(Ops.CONST, dtypes.int, [], 4)], undefined)], undefined)], undefined), 4, Ops.MOD, false],
+      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.EXPAND, dtypes.int, [new UOp(Ops.VCONST, dtypes.int.vec(4), [], [0, 1, 2, 3])], [[3, 4]]), new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`gidx0`, 3]), new UOp(Ops.CONST, dtypes.int, [], 48)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx0`, 4]), new UOp(Ops.CONST, dtypes.int, [], 12)], undefined)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx1`, 3]), new UOp(Ops.CONST, dtypes.int, [], 4)], undefined)], undefined)], undefined), 12, Ops.IDIV, false],
+    ],
+    div_and_mod_folding,
+    'out(tiny.ops.div_and_mod_folding(*data))',
   ),
 )

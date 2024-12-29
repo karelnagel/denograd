@@ -814,7 +814,7 @@ export function* splitUOp(x: UOp, sep: Ops): Generator<UOp> {
   else yield x
 }
 
-const div_and_mod_folding = (x: UOp, c: number, which: Ops.MOD | Ops.IDIV, split_rem = false): undefined | UOp => {
+export const div_and_mod_folding = (x: UOp, c: number, which: Ops.MOD | Ops.IDIV, split_rem = false): undefined | UOp => {
   // simplify x // c or x % c, None means no change, c must be > 0
   assert(c > 0)
   if (x.dtype.count > 1) return undefined
@@ -1023,8 +1023,7 @@ export const simplify_valid = (valid: UOp): UOp | undefined => {
   let somethingChanged = false
   const valids = splitUOp(valid, Ops.AND).toArray()
   for (const stmt of valids.sort((a, b) => _validPriority(b, valids) - _validPriority(a, valids))) {
-    const newstmt = uop_given_valid(ret.reduce((p, c) => p.bitwise_and(c)), stmt)
-    ret.push(ret && isNotNone(newstmt) ? newstmt : stmt)
+    ret.push(ret.length ? (uop_given_valid(ret.reduce((p, c) => p.bitwise_and(c)), stmt) || stmt) : stmt)
     if (!isEq(ret.at(-1), stmt)) somethingChanged = true
   }
   return somethingChanged ? ret.reduce((p, c) => p.bitwise_and(c)) : undefined

@@ -351,3 +351,60 @@ for (const [i, [tensor, op, ignore]] of ops.entries()) {
     ),
   })
 }
+
+Deno.test(
+  'Tensor._pool',
+  compare(
+    [
+      // Basic 2D pooling
+      [new Tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), [2, 2]],
+
+      // Test stride > kernel case
+      [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], 3],
+
+      // Test dilation
+      [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], 1, 2],
+
+      // Test kernel > stride case
+      [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]), [3, 3], 2],
+
+      // Test 1D pooling
+      [new Tensor([1, 2, 3, 4, 5, 6]), [2]],
+
+      // Test 3D pooling
+      [new Tensor([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]), [2, 2, 2]],
+
+      // Test different strides per dimension
+      [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], [2, 1]],
+
+      // Test different dilations per dimension
+      [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], 1, [2, 1]],
+    ],
+    tryCatch((t: Tensor, k_: number[], stride: number[] | number = 1, dilation: number[] | number = 1) => t._pool(k_, stride, dilation)),
+    'out(data[0]._pool(*data[1:]))',
+  ),
+)
+
+Deno.test(
+  'Tensor.repeat',
+  compare(
+    [
+      [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [3, 3]],
+    ],
+    (t: Tensor, repeats: number[]) => t.repeat(repeats),
+    'out(data[0].repeat(data[1]))',
+  ),
+)
+
+Deno.test(
+  'Tensor.reshape',
+  compare(
+    [
+      [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [1, 4, 1, 4]],
+      [new Tensor([[[[1, 2, 3, 4]], [[5, 6, 7, 8]], [[9, 10, 11, 12]], [[13, 14, 15, 16]]]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [1, 4, 1, 4]],
+      [new Tensor([[[[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]], [[5, 6, 7, 8], [5, 6, 7, 8], [5, 6, 7, 8]], [[9, 10, 11, 12], [9, 10, 11, 12], [9, 10, 11, 12]], [[13, 14, 15, 16], [13, 14, 15, 16], [13, 14, 15, 16]]], [[[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]], [[5, 6, 7, 8], [5, 6, 7, 8], [5, 6, 7, 8]], [[9, 10, 11, 12], [9, 10, 11, 12], [9, 10, 11, 12]], [[13, 14, 15, 16], [13, 14, 15, 16], [13, 14, 15, 16]]], [[[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]], [[5, 6, 7, 8], [5, 6, 7, 8], [5, 6, 7, 8]], [[9, 10, 11, 12], [9, 10, 11, 12], [9, 10, 11, 12]], [[13, 14, 15, 16], [13, 14, 15, 16], [13, 14, 15, 16]]]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [12, 12]],
+    ],
+    (t: Tensor, shape: number[]) => t.reshape(shape),
+    'out(data[0].reshape(*data[1]))',
+  ),
+)
