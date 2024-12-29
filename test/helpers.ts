@@ -27,10 +27,9 @@ dtypes // needed to force the import
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
 export const asdict = (o: any): any => {
-  if (!o) return o
+  if (o === undefined || o === null) return o
   if (typeof o === 'bigint') return Number(o)
   if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
-  if (o instanceof DataView) return [...new Uint8Array(o.buffer)].map((v) => asdict(v))
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
   if (o instanceof Tensor) {
