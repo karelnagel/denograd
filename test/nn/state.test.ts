@@ -40,8 +40,8 @@ Deno.test('get_state_dict', () => {
 
 Deno.test('safe_save', async () => {
   const dict = {
-    idk: new Tensor([3, 3, 4]),
-    shaped: new Tensor([3, 3, 4, 2]).reshape([2, 2]),
+    idk: new Tensor([2, 3, 4, 4]),
+    idk33: new Tensor([2, 3, 4, 4, 4, 4]),
   }
   const path = '/tmp/safe_save_test.safetensor'
   // Saving in TS
@@ -52,7 +52,10 @@ Deno.test('safe_save', async () => {
     'from tinygrad.nn.state import safe_load',
     'out(safe_load(data[0]))',
   ], [path])
-  expect(res).toBe(false)
+  for (const [entry, expected] of zip(res.entries(), Object.entries(dict))) {
+    expect(entry[0]).toBe(expected[0])
+    expect(entry[1].tolist()).toEqual(expected[1].tolist())
+  }
 })
 
 Deno.test('safe_load', async () => {

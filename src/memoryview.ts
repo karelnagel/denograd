@@ -58,7 +58,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
       this.byteOffset = opts.byteOffset || 0
       this.byteLength = opts.byteLength || input
     } else if (Array.isArray(input)) {
-      const typed = new MemoryView.ARRAYS[this.format](input as any)
+      const typed = new MemoryView.ARRAYS[this.format](this.isBigInt ? input.map((i) => BigInt(i)) as any : input.map((i) => Number(i)))
       this.buffer = typed.buffer
       this.byteOffset = opts.byteOffset || typed.byteOffset
       this.byteLength = opts.byteLength || typed.byteLength
