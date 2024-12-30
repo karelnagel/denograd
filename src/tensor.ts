@@ -2363,7 +2363,7 @@ export class Tensor extends SimpleMathTrait {
    */
   round = (): Tensor => {
     const b = this.cast(dtypes.int32).div(2.0)
-    return ((this.gt(0)).eq(b.cast(dtypes.int32) === b)).where((this.sub(0.5)).ceil(), (this.add(0.5)).floor())
+    return (this as Tensor).gt(0).eq(b.cast(dtypes.int32).eq(b)).where((this.sub(0.5)).ceil(), (this.add(0.5)).floor())
   }
 
   /**
