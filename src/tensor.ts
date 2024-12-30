@@ -435,7 +435,10 @@ export class Tensor extends SimpleMathTrait {
       Tensor.no_grad = this.prev
     }
   }
-  override toString = () => `<Tensor ${this.lazydata} on ${this.device} with grad ${this.grad?.lazydata}>`
+  override toString = () => `<Tensor ${this.lazydata} on ${this.device} with grad ${this.grad?.lazydata}>`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
 
   //   // Python has a non moving GC, so this should be okay
   // const __hash__ = () =>  id(this)

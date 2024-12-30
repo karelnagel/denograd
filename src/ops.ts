@@ -218,7 +218,10 @@ export class UOp extends MathTrait {
     if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op as any)!
     return checkCached({ op, dtype, src, arg }, UOp.ucache, this)
   }
-  override toString = () => `new UOp(${this.op.toString()}, ${this.dtype}, ${listStr(this.src)}, ${listStr(this.arg)})`
+  override toString = () => `new UOp(${this.op.toString()}, ${this.dtype}, ${listStr(this.src)}, ${listStr(this.arg)})`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => new UOp(args.op || this.op, args.dtype || this.dtype, args.src || this.src, args.arg || this.arg)
   get key(): string {
@@ -657,7 +660,10 @@ export class UPat extends MathTrait {
       return '<missing>'
     }
   }
-  override toString = () => `new UPat(${listStr(this.op?.map((o) => o.toString()))}, ${listStr(this.dtype)}, ${listStr(this.src)}, ${listStr(this.arg)}, ${this.name}, ${this.allowed_len === 0})`
+  override toString = () => `new UPat(${listStr(this.op?.map((o) => o.toString()))}, ${listStr(this.dtype)}, ${listStr(this.src)}, ${listStr(this.arg)}, ${this.name}, ${this.allowed_len === 0})`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||

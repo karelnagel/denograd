@@ -65,8 +65,9 @@ export class LazyBuffer extends MathTrait {
   __del__ = () => {
     if (this.buffer) this.buffer.ref(-1)
   }
-  override toString = (): string => {
-    return `<LB ${this.device} ${listStr(this.shape)} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st.toString() : `(${this.op}, ${this.realized})`}>`
+  override toString = (): string => `<LB ${this.device} ${listStr(this.shape)} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st.toString() : `(${this.op}, ${this.realized})`}>`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
   }
   get realized(): undefined | Buffer {
     // NOTE: we check for a lack of srcs instead of an allocated buffer to make unrealized assigns return undefined here
