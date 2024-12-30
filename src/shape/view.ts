@@ -87,7 +87,10 @@ export class View {
     return [...this.shape, ...this.strides, this.offset, ...(isNotNone(this.mask) ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize() : [x])
   }
   lt = (o: View) => isLessThan(this.t, o.t)
-  toString = () => `new View(${listStr(this.shape)}, ${listStr(this.strides)}, ${this.offset}, ${listStr(this.mask)}, ${this.contiguous})`
+  toString = () => `new View(${listStr(this.shape)}, ${listStr(this.strides)}, ${this.offset}, ${listStr(this.mask)}, ${this.contiguous})`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   to_indexed_uops = (_idxs?: UOp[], vexpr = UOp.const(dtypes.bool, true)): [UOp, UOp] => {
     const idxs = isNone(_idxs) ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
     let iexpr = sint_to_uop(this.offset)
@@ -240,7 +243,7 @@ export class View {
   minify = () => this.reshape(_merge_dims(this.shape, this.strides, this.mask).map((x) => x[0])) || this
   __unsafe_resize = (arg: [sint, sint][], mask?: [sint, sint][]): View => {
     const offset = zip(this.strides, arg).reduce((acc, [s, x]) => add(acc, mul(s, x[0])), 0 as sint)
-    if (this.mask) {
+    if (this.mask?.length) {
       //       # move the old mask
       const nmask = zip(this.mask, arg).map(([[mx, my], [ax, ay]]) => [smax(0, smin(sub(mx, ax), sub(ay, ax))), smax(0, smin(sub(my, ax), sub(ay, ax)))] as [sint, sint])
       //       # merge the masks if we have two

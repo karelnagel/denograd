@@ -48,7 +48,10 @@ export class ShapeTracker {
     for (const v of st.views) ret = new ShapeTracker([...ret.views, v]).simplify() // one view at a time = better simplification
     return ret
   }
-  toString = () => `new ShapeTracker(${listStr(this.views.map((v) => v.toString()))})`
+  toString = () => `new ShapeTracker(${listStr(this.views.map((v) => v.toString()))})`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   invert = (out_shape: sint[]): undefined | ShapeTracker => {
     const inverted_views: View[] = []
     for (const [v, s] of zip(this.views.toReversed(), [...this.views.toReversed().slice(1).map((x) => x.shape), out_shape])) {
