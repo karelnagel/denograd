@@ -1323,7 +1323,7 @@ export class Tensor extends SimpleMathTrait {
   }
   _resolve_dim = (dim: number, extra = false): number => {
     const total = this.ndim + Number(extra)
-    if (!(-Math.max(1, total) <= dim && dim <= Math.max(1, total) - 1)) throw new Error(`dim=${dim} out of range ${[-Math.max(1, total), Math.max(1, total) - 1]}`)
+    if (!(-Math.max(1, total) <= dim && dim <= Math.max(1, total) - 1)) throw new Error(`dim=${dim} out of range ${listStr([-Math.max(1, total), Math.max(1, total) - 1])}`)
     return dim < 0 ? dim + total : dim
   }
   /**
@@ -1858,7 +1858,7 @@ export class Tensor extends SimpleMathTrait {
     let x = this.pad([...noop, ...zip(i_, o_, s_).map(([i, o, s]) => [0, max([0, sub(mul(o, s), i) as number])] as [sint, sint])]).shrink([...noop, ...zip(o_, s_).map(([o, s]) => [0, mul(o, s)] as [sint, sint])])
     x = x.reshape([...noop, ...zip(o_, s_).flat()])
     x = x.shrink([...noop, ...zip(o_, k_).flatMap(([o, k]) => [[0, o], [0, k]] as [sint, sint][])])
-    return x.permute(...range(noop.length), ...range(i_.length).map((i) => noop.length = i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1))
+    return x.permute(...range(noop.length), ...range(i_.length).map((i) => noop.length + i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1))
   }
   _padding2d = (padding: number | number[], dims: number): number[] => {
     return !Array.isArray(padding) ? range(2 * dims).map(() => padding) : (padding.length === 2 * dims ? padding : padding.flatMap((p) => range(2).map(() => p)).toReversed())
