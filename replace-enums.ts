@@ -1,10 +1,11 @@
 import { walk } from 'jsr:@std/fs/walk'
 import { Ops } from './src/ops.ts'
-import { DType, dtypes } from './src/dtype.ts'
+import { DType, dtypes, PtrDType } from './src/dtype.ts'
 import { range } from './src/helpers.ts'
 
 DType
 dtypes
+PtrDType
 
 const run = (path: string) => {
   let data = Deno.readTextFileSync(path)
@@ -38,6 +39,28 @@ const run = (path: string) => {
   for (const dt of vecs) {
     data = data.replaceAll(dt, eval(dt).toString())
   }
+
+  const ptrs = data.matchAll(/new PtrDType\((.*?)1\)/g)
+  for (const ptr of ptrs) {
+    const dt = ptr[0]
+    data = data.replaceAll(dt, eval(dt).toString())
+  }
+  // const ptrs = [
+  //   "new PtrDType(11, 4, `float`, `f`, 1, undefined, dtypes.float, false, 1)",
+  //   "new PtrDType(11, 4, `float`, `f`, 1, undefined, dtypes.float, true, 1)",
+  //   "new PtrDType(5, 4, `int`, `i`, 1, undefined, dtypes.int, false, 1)",
+  //   "new PtrDType(5, 4, `int`, `i`, 1, undefined, dtypes.int, true, 1)",
+  //   "new PtrDType(6, 4, `unsigned int`, `I`, 1, undefined, dtypes.uint, false, 1)",
+  //   "new PtrDType(6, 4, `unsigned int`, `I`, 1, undefined, dtypes.uint, true, 1)",
+  //   "new PtrDType(0, 1, `bool`, `?`, 1, undefined, dtypes.bool, false, 1)",
+  //   "new PtrDType(0, 1, `bool`, `?`, 1, undefined, dtypes.bool, true, 1)",
+  //   "new PtrDType(-1, 0, `void`, undefined, 1, undefined, dtypes.void, false, 1)",
+  //   "new PtrDType(-1, 0, `void`, undefined, 1, undefined, dtypes.void, true, 1)"
+  // ]
+
+  // for (const dt of ptrs) {
+  //   data = data.replaceAll(dt, eval(dt).toString())
+  // }
 
   // data = data.replaceAll('new DType(-1, 0, `void`, undefined, 1, undefined)', 'dtypes.void')
   // data = data.replaceAll('new DType(11, 4, `float`, `f`, 1, undefined)', 'dtypes.float')
