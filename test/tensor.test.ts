@@ -380,7 +380,7 @@ Deno.test(
       // Test different dilations per dimension
       [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], 1, [2, 1]],
     ],
-    tryCatch((t: Tensor, k_: number[], stride: number[] | number = 1, dilation: number[] | number = 1) => t._pool(k_, stride, dilation)),
+    (t: Tensor, k_: number[], stride: number[] | number = 1, dilation: number[] | number = 1) => t._pool(k_, stride, dilation),
     'out(data[0]._pool(*data[1:]))',
   ),
 )

@@ -112,7 +112,7 @@ export class View {
   static create = (shape: sint[], strides?: sint[], offset: sint = 0, mask?: [sint, sint][]) => {
     // TODO: this resolve shouldn't be needed
     if (!shape.every((s) => resolve(ge(s, 0)))) throw new Error(`Trying to create View with negative dimension: shape=${shape}`)
-    strides = strides ? canonicalize_strides(shape, strides) : strides_for_shape(shape)
+    strides = strides?.length ? canonicalize_strides(shape, strides) : strides_for_shape(shape)
     // # canonicalize 0 in shape
     if (shape.includes(0)) return new View(shape, range(shape.length).map(() => 0), 0, undefined, true)
     // # canonicalize empty mask
@@ -120,7 +120,7 @@ export class View {
     // # if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
     // # then its stride can also be set to 0, albeit with a corresponding adjustment required to the offset
     const elim = mask?.map(([b, e]) => !resolve(lt(add(b, 1), e)))
-    if (mask && elim?.some((x) => x)) {
+    if (mask?.length && elim?.some((x) => x)) {
       if (mask.some(([b, e]) => !resolve(lt(b, e)))) [strides, offset, mask] = [range(shape.length).map((x) => 0), 0, range(shape.length).map((x) => [0, 0])]
       offset = add(offset, elim.reduce((acc, e, i) => add(acc, e ? mul(strides![i], mask![i][0]) : 0), 0 as sint))
       strides = zip(strides, elim).map(([st, e]) => e ? 0 : st)
@@ -159,7 +159,7 @@ export class View {
       const ret = vm2.reshape(vm1.shape)
       if (ret) return ret
     }
-    if (vm1.mask) {
+    if (vm1.mask?.length) {
       for (const [b, e] of vm1.mask) {
         if (resolve(ge(b, e), false)) return View.create(vm1.shape, range(vm1.shape.length).map(() => 0), 0, range(vm1.shape.length).map((x) => [0, 0]))
       }
@@ -200,7 +200,7 @@ export class View {
       if (isNone(reshaped_vm2)) return undefined
       if (!isEq(reshaped_vm2.shape, vm2.shape)) return reshaped_vm2.__add__(vm1)
     }
-    if (vm2.mask) {
+    if (vm2.mask?.length) {
       //       # Try to project vm2's mask on to vm1.
       let [newb, newe, bad] = [range(vm1.shape.length).map((x) => 0), vm1.shape, false]
       for (const [[b, e], o, term, [_, t]] of zip(vm2.mask, origin, terms, extents.toReversed())) {
@@ -232,11 +232,11 @@ export class View {
       //       # Otherwise if vm2's mask was violated, then cannot merge.
       if (bad) return undefined
     }
-    return View.create(vm1.shape, strides, add(zip(origin, vm2.strides).reduce((acc, [o, s]) => add(acc, add(o, s)), 0 as sint), vm2.offset))
+    return View.create(vm1.shape, strides, add(zip(origin, vm2.strides).reduce((acc, [o, s]) => add(acc, mul(o, s)), 0 as sint), vm2.offset))
   }
   invert = (out_shape: sint[]): View | undefined => {
     let ret = View.create(this.shape)
-    if (this.mask) ret = ret.shrink(this.mask)
+    if (this.mask?.length) ret = ret.shrink(this.mask)
     ret = ret.stride(this.strides.map((x) => lt(x, 0) ? -1 : 1)).permute(argsort(this.strides.map((x) => gt(x, 0) ? -x : x)))
     return isEq(sint_prod(ret.shape), sint_prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride !== (-1, 1)
   }
@@ -280,7 +280,7 @@ export class View {
     assert(zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1), `can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
     //     # NOTE: can the mask ever be (0,0)?
     //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
-    const mask = this.mask ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!isEq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
+    const mask = this.mask?.length ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!isEq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
     return View.create(new_shape, this.strides, this.offset, mask)
   }
 
@@ -344,7 +344,7 @@ export class View {
     if (new_mask !== undefined) {
       const new_strides = [...range(new_shape.length - strides.length).map(() => 0), ...strides.toReversed()]
       const extra_offset = sub(
-        this.mask ? sint_sum(zip(this.mask, this.strides).map(([m, s]) => mul(m[0], s))) : 0,
+        this.mask?.length ? sint_sum(zip(this.mask, this.strides).map(([m, s]) => mul(m[0], s))) : 0,
         sint_sum(zip(new_mask, new_strides).map(([m, s]) => mul(m[0], s))),
       )
       return View.create(new_shape, new_strides, add(this.offset, extra_offset), new_mask)
