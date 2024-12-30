@@ -1432,7 +1432,7 @@ export class Tensor extends SimpleMathTrait {
     axis = (axis === undefined ? range(this.ndim) : make_tuple(axis, 1)).map((x) => this._resolve_dim(x))
     if (this.ndim === 0) axis = []
     const ret = fxn.apply(this, axis)
-    return keepdim ? ret : ret.reshape([...this.shape.entries().filter(([i, _]) => !axis.includes(i)).map(([_, s]) => s)])
+    return keepdim ? ret : ret.reshape(this.shape.filter((_, i) => !axis.includes(i)))
   }
   /**
    * Returns the sum of the elements of the tensor along the specified axis || axes.

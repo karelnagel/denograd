@@ -6,6 +6,7 @@ import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 
+// KAREL: all this lazycache is wrong but it is still somehow needed to not fail
 const lazycache = new Map<any, LazyBuffer>()
 export const create_lazybuffer = (device: DeviceType, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, enable_cache = Boolean(LAZYCACHE)) => {
   dtype = to_dtype(dtype)
@@ -53,7 +54,7 @@ export class LazyBuffer extends MathTrait {
       assert(this.op !== Ops.ASSIGN || srcs[0].base.realized !== undefined, 'assign target must be realized')
       assert(all_same(this.srcs.map((x) => x.st.shape)), `src shape mismatch! ${this.srcs}`)
       //         // some LazyBuffers can be processed with only a view, no AST required
-      if (this.op === Ops.BUFFER_VIEW) this.buffer = srcs[0].base.buffer?.view(st.size, this.dtype, (srcs[0].st.views[0].offset as number) * srcs[0].dtype.itemsize)
+      if (this.op === Ops.BUFFER_VIEW) this.buffer = srcs[0].base.buffer!.view(st.size, this.dtype, (srcs[0].st.views[0].offset as number) * srcs[0].dtype.itemsize)
       else this.buffer = this.op === Ops.ASSIGN ? srcs[0].base.buffer : new Buffer(device, this.size, this.dtype)
       this.forced_realize = false
     } else {
@@ -229,7 +230,7 @@ export class LazyBuffer extends MathTrait {
     const this_real_strides = this.st.real_strides(true)
     const split_candidates = range(Math.min(256, idiv(2 ** get_number_env('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape as number[]))), 8 - 1, -1).flatMap((x) => axis.map((i) => [i, x]))
       .filter(([i, x]) => mod(this.shape[i], x) as number === 0 && this_real_strides[i] !== 0)
-    if (!split_candidates) return this._reduce_op(op, axis)
+    if (!split_candidates.length) return this._reduce_op(op, axis)
     const [dim_to_split, divisor] = split_candidates[0]
     const splitted_shape = [...this.shape.slice(0, dim_to_split), divisor, idiv(this.shape[dim_to_split], divisor), ...this.shape.slice(dim_to_split + 1)]
     const splitted = this.reshape(splitted_shape).permute([...range(splitted_shape.length).filter((x) => x !== dim_to_split), dim_to_split])

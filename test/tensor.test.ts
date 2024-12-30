@@ -273,6 +273,8 @@ Deno.test.ignore(
 )
 
 const ops: [Tensor, keyof Tensor, string?][] = [
+  [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'max'],
+  [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'min'],
   [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'relu'],
   [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), 'max_pool2d'],
   [new Tensor([[1, 2], [3, 4], [5, 6]]), 'flatten'],
@@ -327,8 +329,8 @@ const ops: [Tensor, keyof Tensor, string?][] = [
   [new Tensor([-2, -1, 0, 1, 2]), 'tanh'],
   [new Tensor([-2, -1, 0, 1, 2]), 'sinh'],
   [new Tensor([-2, -1, 0, 1, 2]), 'cosh'],
-  [new Tensor([-0.9, -0.5, 0, 0.5, 0.9]), 'atanh'],
-  [new Tensor([-2, -1, 0, 1, 2]), 'asinh'],
+  [new Tensor([-0.9, -0.5, 0, 0.5, 0.9]), 'atanh', 'TIMEOUT'],
+  [new Tensor([-2, -1, 0, 1, 2]), 'asinh', 'TIMEOUT'],
   [new Tensor([1.5, 2, 2.5, 3, 3.5]), 'acosh', 'TIMEOUT'],
   [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'hardtanh', 'TIMEOUT'],
   [new Tensor([-2, -1, 0, 1, 2]), 'erf', 'TIMEOUT'],
@@ -343,7 +345,7 @@ const ops: [Tensor, keyof Tensor, string?][] = [
 for (const [i, [tensor, op, ignore]] of ops.entries()) {
   Deno.test({
     name: `Tensor.ops.${op}.${i}`,
-    ignore: true,
+    ignore: !!ignore,
     fn: compare(
       [[tensor, op]],
       (t: Tensor, op: keyof Tensor) => (t[op] as any)(),
