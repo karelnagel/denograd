@@ -26,17 +26,14 @@ export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, r
 
 export const asdict = (o: any): any => {
   if (typeof o === 'function') return undefined
+  if (typeof o === 'number' && Number.isFinite(o)) return Math.round(o * 10000) / 10000
   if (o === undefined || o === null) return o
   if (typeof o === 'bigint') return Number(o)
   if (o instanceof Enum) return o.toString()
   if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
-  if (o instanceof Tensor) {
-    let data = o.tolist()
-    if (dtypes.is_float(o.dtype) && Array.isArray(data)) data = data.map((x) => (x as number).toFixed?.(4)) as any
-    return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data }
-  }
+  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: asdict(o.tolist()) }
   if (Array.isArray(o)) return o.map(asdict)
   if (o instanceof Map) {
     const res = [...o.entries().map(([k, v]) => [asdict(k), asdict(v)])]
