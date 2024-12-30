@@ -92,7 +92,9 @@ export class MemoryView<F extends FmtStr = 'B'> {
     }
     return strides
   }
-
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   /** Reinterpret the underlying type. */
   cast = <NewF extends FmtStr>(fmt: NewF, shape?: number[]): MemoryView<NewF> => {
     return new MemoryView<NewF>(this as any, { shape, fmt }) as any
