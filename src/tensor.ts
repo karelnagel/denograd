@@ -1537,7 +1537,7 @@ export class Tensor extends SimpleMathTrait {
    */
   min = (axis?: number | number[], keepdim = false) => {
     if (dtypes.is_int(this.dtype) || this.dtype === dtypes.bool) return this.bitwise_not().max(axis, keepdim).bitwise_not()
-    return (this.neg()).max(axis, keepdim).neg()
+    return this.neg().max(axis, keepdim).neg()
   }
 
   /**
@@ -2946,7 +2946,9 @@ export class Tensor extends SimpleMathTrait {
    */
   bitwise_not = (): Tensor => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
-    return this.dtype === dtypes.bool ? this.logical_not() : this.xor((1 << 8 * this.dtype.itemsize) - 1)
+    if (this.dtype === dtypes.bool) return this.logical_not()
+    const max = (1n << BigInt(8 * this.dtype.itemsize)) - 1n
+    return dtypes.is_big_int(this.dtype) ? this.xor(max as any) : this.xor(Number(max))
   }
 
   /**
