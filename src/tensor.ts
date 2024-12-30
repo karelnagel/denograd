@@ -2767,7 +2767,7 @@ export class Tensor extends SimpleMathTrait {
       // assert(isinstance(y, (*get_args(ConstType), UOp)), `${type(y)=}, ${y=}`)
       if (isinstance(y, UOp)) y = Tensor.from_uop(y, { device: x.device })
       else {
-        const y_dtype = isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_int(x.dtype) && typeof y === 'number') ? x.dtype : dtypes.from_js(y)
+        const y_dtype = isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_int(x.dtype) && Number.isInteger(y)) ? x.dtype : dtypes.from_js(y)
         y = new Tensor(dtypes.as_const(y, y_dtype), { device: x.device, dtype: y_dtype, requires_grad: false })
       }
     }

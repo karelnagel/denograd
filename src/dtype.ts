@@ -107,6 +107,7 @@ export class dtypes {
   static is_unsigned = (x: DType) => dtypes.uints.includes(x.scalar())
   static from_js = (x: number | boolean | (number | boolean)[]): DType => {
     if (typeof x === 'number') return Number.isInteger(x) ? dtypes.default_int : dtypes.default_float
+    if (typeof x === 'bigint') return dtypes.int64
     if (typeof x === 'boolean') return dtypes.bool
     //  put this in the last is faster because there are more items than lists/tuples to check
     if (Array.isArray(x)) return x ? max(x.map((x) => dtypes.from_js(x))) : dtypes.default_float
