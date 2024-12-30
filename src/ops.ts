@@ -898,7 +898,7 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
   let ubound = offset
   let lbound = offset
   // we can fold if the expression has only one non-constant term and this term can only take on two values
-  const v = svars[0]
+  let v = svars[0]
   if (svars.length === 1 && v.vmax - v.vmin === 1) {
     const r = (offset + remainders[0]) % c - offset % c
     offset -= r * v.vmin
@@ -908,7 +908,8 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
   // a//c = (a-a%c)/c, if we can fold a%c, we can fold a//c
   // within a mod we can freely subtract multiples of c, we use this to see if a is congruent to an expression whose vmin/vmax are between 0 and c
   let exitedWithBreak = false
-  for (let [r, v] of zip(remainders, svars)) {
+  let r
+  for ([r, v] of zip(remainders, svars)) {
     if (r > idiv(c, 2)) {
       r = r - c
       lbound = lbound + r * (v.vmax - v.vmin)
@@ -947,8 +948,8 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
       quo = quo.add(mul(q, v))
     }
   }
-  if (which === Ops.MOD) return mul(gcd, add(mod(rem, idiv(c, gcd)), mod(const2, gcd))) as UOp
-  return rem.idiv(add(idiv(c, gcd), quo))
+  if (which === Ops.MOD) return add(mul(gcd, mod(rem, idiv(c, gcd))), mod(const2, gcd)) as UOp
+  return add(idiv(rem, idiv(c, gcd)), quo) as UOp
 }
 
 const ltFolding = (x: UOp, c: number): UOp | undefined => {
