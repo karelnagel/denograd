@@ -469,9 +469,13 @@ export class Tensor extends SimpleMathTrait {
    *
    * NOTE: A Tensor can only be scheduled once.
    */
-  schedule_with_vars = (lst: Tensor[]): [ScheduleItem[], Map<Variable, number>] => {
+  schedule_with_vars = (lst: Tensor[] = []): [ScheduleItem[], Map<Variable, number>] => {
     const [schedule, var_vals] = create_schedule_with_vars([this, ...lst].flatMap((x) => x.lazydata.lbs))
     return [memory_planner(schedule), var_vals]
+  }
+  _debug_ast = () => {
+    const [schedule, vars] = this.cast(this.dtype.base).contiguous().to('PYTHON').schedule_with_vars()
+    return schedule.map((s) => s.ast)
   }
   /**
    * Creates the schedule needed to realize these Tensor(s).

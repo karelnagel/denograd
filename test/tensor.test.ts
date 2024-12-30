@@ -348,8 +348,8 @@ for (const [i, [tensor, op, ignore]] of ops.entries()) {
     ignore: !!ignore,
     fn: compare(
       [[tensor, op]],
-      (t: Tensor, op: keyof Tensor) => (t[op] as any)(),
-      'out(getattr(data[0],data[1])())',
+      (t: Tensor, op: keyof Tensor) => (t[op] as any)()._debug_ast(),
+      'out(getattr(data[0],data[1])()._debug_ast())',
     ),
   })
 }
