@@ -397,7 +397,7 @@ export class UPatRealized extends UPat {
 }
 export class UPatScheduled extends UPat {
   constructor(args: Partial<UPatInput> = {}) {
-    super(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), new UPat(args.op, args.dtype, args.src, args.arg, args.name || 'to_store', args.allow_any_len, args.location, args.custom_early_reject)], undefined, 'base')
+    super(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), new UPat(args.op, args.dtype, args.src, args.arg, 'to_store', args.allow_any_len, args.location, args.custom_early_reject)], undefined, 'base')
   }
 }
 // // ** this === schedule level const folding

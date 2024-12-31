@@ -184,7 +184,10 @@ export class Mul extends Function {
     this.x, this.y = x, y
     return x.mul(y)
   }
-  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [this.needs_input_grad[0] ? (this.y.mul(grad_output)) : undefined, this.needs_input_grad[1] ? (this.x.mul(grad_output)) : undefined]
+  override backward = (grad_output: LazyBuffer): [LazyBuffer?, LazyBuffer?] => [
+    this.needs_input_grad[0] ? (this.y.mul(grad_output)) : undefined,
+    this.needs_input_grad[1] ? (this.x.mul(grad_output)) : undefined,
+  ]
 }
 export class IDiv extends Function {
   override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.idiv(y)
@@ -2384,7 +2387,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   isnan = () => {
-    return this !== this
+    return this.ne(this)
   }
 
   /**
@@ -2764,12 +2767,12 @@ export class Tensor extends SimpleMathTrait {
     let x: Tensor = this
     if (!isinstance(y, Tensor)) {
       // make y a Tensor
-      // assert(isinstance(y, (*get_args(ConstType), UOp)), `${type(y)=}, ${y=}`)
+      assert(typeof y === 'number' || typeof y === 'boolean' || typeof y === 'bigint', `invalid y type: ${typeof y}`)
+      let y_dtype
+      if (isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_int(x.dtype) && Number.isInteger(y))) y_dtype = x.dtype
+      else if (!isinstance(y, UOp)) y_dtype = dtypes.from_js(y)
       if (isinstance(y, UOp)) y = Tensor.from_uop(y, { device: x.device })
-      else {
-        const y_dtype = isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_int(x.dtype) && Number.isInteger(y)) ? x.dtype : dtypes.from_js(y)
-        y = new Tensor(dtypes.as_const(y, y_dtype), { device: x.device, dtype: y_dtype, requires_grad: false })
-      }
+      else y = new Tensor(dtypes.as_const(y, y_dtype!), { device: x.device, dtype: y_dtype, requires_grad: false })
     }
     if (!isinstance(y, Tensor)) throw new Error('y has to be Tensor')
     if (match_dtype && x.dtype !== y.dtype) {
