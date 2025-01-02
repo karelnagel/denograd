@@ -48,7 +48,7 @@ export class ShapeTracker {
     for (const v of st.views) ret = new ShapeTracker([...ret.views, v]).simplify() // one view at a time = better simplification
     return ret
   }
-  toString = () => `new ShapeTracker(${listStr(this.views.map((v) => v.toString()))})`;
+  toString = () => `new ShapeTracker(${listStr(this.views)})`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }

@@ -218,7 +218,10 @@ export class UOp extends MathTrait {
     if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op as any)!
     return checkCached({ op, dtype, src, arg }, UOp.ucache, this)
   }
-  override toString = () => `new UOp(${this.op.toString()}, ${this.dtype}, ${listStr(this.src)}, ${listStr(this.arg)})`;
+  override toString = (indent = 2): string => {
+    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${' '.repeat(indent)}${this.src.map((s) => s.toString(indent + 2)).join(',\n' + ' '.repeat(indent))}\n${' '.repeat(indent - 2)}]`
+    return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${listStr(this.arg)})`
+  };
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
