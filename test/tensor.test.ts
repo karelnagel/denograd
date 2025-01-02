@@ -434,23 +434,23 @@ Deno.test(
   'Tensor.eq',
   compare<[Tensor, Tensor | number | boolean]>(
     () => [
-      // [new Tensor([3, 2, 1, 4]), 4],
-      // [new Tensor([3, 2, 3, 3]), Infinity],
-      // [new Tensor([3, 2, 3, 3.3]), Infinity], //
-      // [new Tensor([3, 2, 3, Infinity]), Infinity], //
-      // [new Tensor([3, 2, 3, NaN]), Infinity], //
-      // [new Tensor([3, 2, 3, true]), Infinity], //
-      // [new Tensor(4), 4],
+      [new Tensor([3, 2, 1, 4]), 4],
+      [new Tensor([3, 2, 3, 3]), Infinity],
+      [new Tensor([3, 2, 3, 3.3]), Infinity], //
+      [new Tensor([3, 2, 3, Infinity]), Infinity], //
+      [new Tensor([3, 2, 3, NaN]), Infinity], //
+      [new Tensor([3, 2, 3, true]), Infinity], //
+      [new Tensor(4), 4],
       [new Tensor(Infinity), Infinity], //
-      // [new Tensor(NaN), NaN],
-      // [new Tensor(Infinity), NaN],
-      // [new Tensor(NaN), Infinity],
-      // [new Tensor([Infinity]), Infinity], //
-      // [new Tensor([NaN, NaN]), NaN],
-      // [new Tensor([5.5]), 5.5],
-      // [new Tensor([3.1, 2.3, 1.3, 4.4]), true], //
+      [new Tensor(NaN), NaN],
+      [new Tensor(Infinity), NaN],
+      [new Tensor(NaN), Infinity],
+      [new Tensor([Infinity]), Infinity], //
+      [new Tensor([NaN, NaN]), NaN],
+      [new Tensor([5.5]), 5.5],
+      [new Tensor([3.1, 2.3, 1.3, 4.4]), true], //
     ],
     (t1, t2) => t1.eq(t2)._debug_ast(),
-    'out((data[0]==data[1])._debug_ast())',
+    'out((data[0] == data[1])._debug_ast())',
   ),
 )

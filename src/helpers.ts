@@ -7,6 +7,7 @@ import { BinaryLike, createHash, randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
+export const isInf = (x: number) => x === Infinity || x === -Infinity
 export abstract class Enum {
   constructor(public readonly name: string, public readonly value: number) {}
   toString = () => `${this.constructor.name}.${this.name}`;
@@ -78,7 +79,7 @@ export function* counter(start = 0) {
   let current = start
   while (true) yield current++
 }
-export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map(listStr).join(', ')}]` : typeof x === 'string' ? `"${x}"` : `${x}`
+export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map(listStr).join(', ')}]` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const isLessThan = (a: any, b: any): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -140,7 +141,7 @@ export function range(start: number, stop?: number, step = 1): number[] {
     stop = start
     start = 0
   }
-  if (!Number.isFinite(start) || !Number.isFinite(stop)) return []
+  if (!Number.isFinite(start) || !Number.isFinite(stop)) throw new Error(`Range should be finite`)
   if (step > 0) { for (let i = start; i < stop; i += step) result.push(i) }
   else if (step < 0) { for (let i = start; i > stop; i += step) result.push(i) }
   return result

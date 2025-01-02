@@ -264,10 +264,7 @@ Deno.test(
   'UOp.full_shape',
   compare(
     [
-      // [new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4]))],
-      [new UOp(Ops.ADD, undefined, [UOp.int(4), UOp.int(5)])],
-      // [new UOp(Ops.ADD, undefined, [new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4])), new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4]))])],
-      // [new UOp(Ops.ADD, undefined, [new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4]))])],
+      [new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4]))],
     ],
     (x: UOp) => x.full_shape,
     'out(trycatch(lambda: data[0].full_shape))',

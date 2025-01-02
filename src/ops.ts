@@ -1,5 +1,5 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { all_same, assert, bytesToString, checkCached, counter, DataClass, divmod, Enum, isEq, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sha256, sum, zip } from './helpers.ts'
+import { all_same, assert, bytesToString, checkCached, counter, DataClass, divmod, Enum, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, prod, raise, range, setDefault, setMap, sha256, sum, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 import { argfix } from './helpers.ts'
 
@@ -526,7 +526,7 @@ export const python_alu = new Map<Ops, (...x: number[]) => number>([
   [Ops.EXP2, safe_exp2],
   [Ops.SQRT, (x) => x >= 0 ? Math.sqrt(x) : NaN],
   [Ops.RECIP, (x) => x !== 0 ? 1 / x : x >= 0 ? Infinity : -Infinity],
-  [Ops.SIN, (x) => isFinite(x) ? Math.sin(x) : NaN],
+  [Ops.SIN, (x) => !isInf(x) ? Math.sin(x) : NaN],
   [Ops.NEG, (x) => -x],
   [Ops.ADD, (x, y) => x + y],
   [Ops.SUB, (x, y) => x - y],
@@ -1118,7 +1118,7 @@ export const symbolic_simple = new PatternMatcher([
   //   // x*0 -> 0 or 0*x -> 0
   //   // if x is nan or inf it should render the nan value.
   //   // NOTE: this can be wrong for loaded NaN
-  [UPat.var('x').mul(0), ({ x }) => x.const_like(typeof x.arg === 'number' && (isNaN(x.arg) || !isFinite(x.arg)) ? NaN : 0)],
+  [UPat.var('x').mul(0), ({ x }) => x.const_like(typeof x.arg === 'number' && (isNaN(x.arg) || isInf(x.arg)) ? NaN : 0)],
   //   // ** constant folding **
   [new UPat(GroupOp.ALU, undefined, new UPat([Ops.VCONST, Ops.CONST]), undefined, 'a'), ({ a }) => a.const_like(exec_alu(a.op, a.dtype, a.src?.map((x) => x.arg), false))],
   //   // bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly

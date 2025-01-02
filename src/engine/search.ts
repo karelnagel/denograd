@@ -1,7 +1,7 @@
 import { Kernel, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, Compiler, Device, Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
-import { assert, CACHELEVEL, DEBUG, diskcache_get, diskcache_put, get_env, get_number_env, isinstance, min, prod, range, to_function_name, zip } from '../helpers.ts'
+import { assert, CACHELEVEL, DEBUG, diskcache_get, diskcache_put, get_env, get_number_env, isInf, isinstance, min, prod, range, to_function_name, zip } from '../helpers.ts'
 import { idiv, mul, Ops, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -229,7 +229,7 @@ export const optimize_local_size = (_prg: Program, global_size: number[], rawbuf
     }
   }
   const ret = local_sizes.map((local_size) => [try_exec(local_size), local_size] as [number, number[]])[0] // KAREL: randomise local_sizes, and instead of [0] use min()
-  assert(isFinite(ret[0]), 'all optimize_local_size exec failed')
+  assert(!isInf(ret[0]), 'all optimize_local_size exec failed')
   return ret[1]
 }
 // export const time_linearizer = (lin: Kernel, rawbufs: Buffer[], allow_test_size = true, max_global_size = 65536, cnt = 3, disable_cache = false, clear_l2 = false): number => { // noqa: E501

@@ -22,14 +22,28 @@ const _store = (m: MemoryView, i: number, v: any) => {
 }
 
 type PyUOp = [Ops, DType | undefined, number[], any]
-const serialize = (data: PyUOp[]): Uint8Array => {
-  return stringToBytes(JSON.stringify(data.map(([ops, dtype, src, arg]) => [ops.toString(), dtype?.toString(), src, arg])))
+const jsonReplace = (key: string, value: unknown) => {
+  if (typeof value === 'number') {
+    if (Number.isNaN(value)) return '__NaN__'
+    if (value === Infinity) return '__Infinity__'
+    if (value === -Infinity) return '__-Infinity__'
+  }
+  if (value instanceof Ops) return value.toString()
+  if (value instanceof DType) return value.toString()
+  return value
 }
-const deserialize = (data: Uint8Array): PyUOp[] => {
-  const res = JSON.parse(bytesToString(data))
-  // replacing nulls with undefines
-  return res.map((x: any) => x.map((y: any) => y !== null ? y : undefined)).map(([ops, dtype, src, arg]: any) => [eval(ops), eval(dtype), src, arg])
+const jsonrevive = (key: string, value: unknown) => {
+  if (value === '__NaN__') return NaN
+  if (value === '__Infinity__') return Infinity
+  if (value === '__-Infinity__') return -Infinity
+  if (value === null) return undefined
+  if (typeof value === 'string' && value.startsWith('Ops.')) return Ops.values().find((o) => o.toString() === value)
+  if (typeof value === 'string' && value.startsWith('dtypes.')) return eval(value)
+  return value
 }
+
+const serialize = (data: PyUOp[]): Uint8Array => stringToBytes(JSON.stringify(data, jsonReplace))
+const deserialize = (data: Uint8Array): PyUOp[] => JSON.parse(bytesToString(data), jsonrevive)
 
 export class PythonProgram extends Program {
   uops: PyUOp[]
@@ -206,6 +220,7 @@ export class PythonProgram extends Program {
         i += 1
       }
     }
+    console.log(bufs)
     return performance.now() - st
   }
 }

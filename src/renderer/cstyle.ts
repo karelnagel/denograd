@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, assert, dedup, get_env, isNone, isNotNone, setDefault, strip_parens } from '../helpers.ts'
+import { AMX, assert, dedup, get_env, isInf, isNone, isNotNone, setDefault, strip_parens } from '../helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -25,7 +25,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   // const
   [new UPat(Ops.CONST, undefined, undefined, Infinity, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`],
   [new UPat(Ops.CONST, undefined, undefined, -Infinity, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`],
-  [new UPat(Ops.CONST, dtypes.floats).named('x'), ({ ctx, x }) => !isFinite(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined],
+  [new UPat(Ops.CONST, dtypes.floats).named('x'), ({ ctx, x }) => isInf(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined],
   [new UPat(Ops.CONST, dtypes.float).named('x'), ({ ctx, x }) => `${x.arg}f`],
   [new UPat(Ops.CONST, dtypes.int64).named('x'), ({ ctx, x }) => `${x.arg}ll`],
   [new UPat(Ops.CONST, dtypes.uint64).named('x'), ({ ctx, x }) => `${x.arg}ull`],
