@@ -9,8 +9,8 @@ process.env.PYTHON = '1'
 
 Deno.test(
   'Tensor.numel',
-  compare(
-    [
+  compare<[Tensor]>(
+    () => [
       [new Tensor([4, 4, 4, 2, 6.5])],
       [new Tensor(4)],
       [new Tensor([true, false])],
@@ -21,8 +21,8 @@ Deno.test(
 )
 Deno.test(
   'Tensor.item',
-  compare(
-    [
+  compare<[Tensor]>(
+    () => [
       [new Tensor(4)],
       [new Tensor(4.55)],
       [new Tensor(true)],
@@ -34,7 +34,7 @@ Deno.test(
 
 Deno.test(
   'Tensor.init',
-  compare(
+  compare<[any, TensorOptions]>(
     [
       [[4, 4, 4, 2, 6.5], { dtype: dtypes.half }],
       [[], {}],
@@ -54,14 +54,14 @@ Deno.test(
       [[true, false], {}],
       [new Uint8Array([2, 3]), { dtype: dtypes.float }],
     ],
-    (data: ConstType | undefined | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, opts: TensorOptions) => new Tensor(data, opts),
+    (data, opts) => new Tensor(data, opts),
     'out(tiny.Tensor(data[0], dtype=data[1].get("dtype")))',
   ),
 )
 
 Deno.test(
   'Tensor.reshape',
-  compare(
+  compare<[Tensor, number[]]>(
     [
       [new Tensor([4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5]), [10]],
       [new Tensor([4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5]), [1, 10]],
@@ -75,8 +75,8 @@ Deno.test(
 
 Deno.test(
   'Tensor._broadcast_to',
-  compare(
-    [
+  compare<[Tensor, number[]]>(
+    () => [
       [new Tensor([4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5]), [1, 10]],
       [new Tensor([4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5]), [1, 1, 10]],
     ],
@@ -87,8 +87,8 @@ Deno.test(
 
 Deno.test(
   'Tensor.get.data',
-  compare(
-    [
+  compare<[Tensor]>(
+    () => [
       [new Tensor([4, 11, 255, 2, 65, 1, 24, 3, 1, 5])],
     ],
     (t: Tensor) => {
@@ -129,12 +129,12 @@ Deno.test(
 
 Deno.test(
   'Tensor.get.tolist',
-  compare(
+  compare<[Tensor]>(
     [
       [new Tensor([4, 11, 255, 2, 65, 1, 24, 3, 1, 5])],
       [new Tensor([4.2, 11.7, 255.1, 2.9, 65.3, 1.4, 24.8, 3.6, 1.1, 5.5])],
     ],
-    (t: Tensor) => {
+    (t) => {
       return [
         t.get(undefined).tolist(),
         t.get('...').tolist(),
@@ -172,21 +172,21 @@ Deno.test(
 
 Deno.test(
   'Tensor.add',
-  compare(
+  compare<[Tensor, Tensor | number]>(
     [
       [new Tensor([4, 4, 4, 2, 6]), new Tensor([4, 4, 3, 3, 3])],
       [new Tensor([4, 4, 4, 2, 6.5, 5]).reshape([1, 1, 6]), new Tensor([4, 4, 3, 3, 3, 6])],
       [new Tensor([4, 4, 4, 2, 6.5, 5]).reshape([2, 3]), new Tensor([4, 4, 3, 3, 3, 6]).reshape([2, 3])],
       [new Tensor([4, 4, 4, 2, 6, 5]), 3.4],
     ],
-    (t1: Tensor, t2: Tensor | number) => t1.add(t2),
+    (t1, t2) => t1.add(t2),
     'out(data[0] + data[1])',
   ),
 )
 
 Deno.test(
   'Tensor.mul',
-  compare(
+  compare<[Tensor, Tensor | number]>(
     [
       [new Tensor([4, 4, 4, 2, 6]), new Tensor([4, 4, 3, 3, 3])],
       [new Tensor([4, 4, 4, 2, 6.5, 5]).reshape([1, 1, 6]), new Tensor([4, 4, 3, 3, 3, 6])],
@@ -194,39 +194,39 @@ Deno.test(
       [new Tensor([4, 4, 4, 2, 6.5, 5]).reshape([2, 3]), 1],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([2, 3]), 1.2],
     ],
-    (t1: Tensor, t2: Tensor | number) => t1.mul(t2),
+    (t1, t2) => t1.mul(t2),
     'out(data[0] * data[1])',
   ),
 )
 
 Deno.test(
   'Tensor.div',
-  compare(
-    [
+  compare<[Tensor, Tensor]>(
+    () => [
       [new Tensor([4, 4, 4, 2, 6]), new Tensor([4, 4, 3, 3, 3])],
       [new Tensor([4, 4, 4, 2, 6.5, 5]).reshape([1, 1, 6]), new Tensor([4, 4, 3, 3, 3, 6])],
       [new Tensor([4, 4, 4, 2, 6.5, 5]).reshape([2, 3]), new Tensor([4, 4, 3, 3, 3, 6]).reshape([2, 3])],
     ],
-    (t1: Tensor, t2: Tensor) => t1.div(t2),
+    (t1, t2) => t1.div(t2),
     'out(data[0] / data[1])',
   ),
 )
 Deno.test(
   'Tensor.idiv',
-  compare(
-    [
+  compare<[Tensor, Tensor]>(
+    () => [
       [new Tensor([4, 4, 4, 2, 6]), new Tensor([4, 4, 3, 3, 3])],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([1, 1, 6]), new Tensor([4, 4, 3, 3, 3, 6])],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([2, 3]), new Tensor([4, 4, 3, 3, 3, 6]).reshape([2, 3])],
     ],
-    (t1: Tensor, t2: Tensor) => t1.idiv(t2),
+    (t1, t2) => t1.idiv(t2),
     'out(data[0] // data[1])',
   ),
 )
 Deno.test(
   'Tensor.cast',
-  compare(
-    [
+  compare<[Tensor, DType]>(
+    () => [
       [new Tensor([4, 4, 4, 2, 6]), dtypes.bool],
       [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([1, 1, 6]), dtypes.float],
       [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([1, 1, 6]), dtypes.half],
@@ -235,14 +235,14 @@ Deno.test(
       [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([2, 3]), dtypes.double],
       [new Tensor([4, 4, 4, 2, 6, 5.5]).reshape([2, 3]), dtypes.bool],
     ],
-    (t1: Tensor, dtype: DType) => t1.cast(dtype),
+    (t1, dtype) => t1.cast(dtype),
     'out(data[0].cast(data[1]))',
   ),
 )
 Deno.test(
   'Tensor.maximum',
-  compare(
-    [
+  compare<[Tensor, Tensor]>(
+    () => [
       [new Tensor([4, 4, 4, 2, 6]), new Tensor([4, 4, 3, 3, 3])],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([1, 1, 6]), new Tensor([4, 4, 3, 3, 3, 6])],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([2, 3]), new Tensor([4, 4, 3, 3, 3, 6]).reshape([2, 3])],
@@ -253,21 +253,21 @@ Deno.test(
 )
 Deno.test(
   'Tensor.minimum',
-  compare(
-    [
+  compare<[Tensor, Tensor]>(
+    () => [
       [new Tensor([4, 4, 4, 2, 6]), new Tensor([4, 4, 3, 3, 3])],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([1, 1, 6]), new Tensor([4, 3, 3, 3, 3, 6])],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([2, 3]), new Tensor([1, 2, 3, 3, 3, 6]).reshape([2, 3])],
     ],
-    (t1: Tensor, t2: Tensor) => t1.minimum(t2)._debug_ast(),
+    (t1, t2) => t1.minimum(t2)._debug_ast(),
     'out(data[0].minimum(data[1])._debug_ast())',
   ),
 )
 
 Deno.test.ignore(
   'Tensor.matmul',
-  compare(
-    [
+  compare<[Tensor, Tensor]>(
+    () => [
       [new Tensor([4, 4, 4, 2, 6.5]), new Tensor([4, 4, 3, 3, 3])],
     ],
     (t1: Tensor, t2: Tensor) => t1.matmul(t2),
@@ -275,7 +275,7 @@ Deno.test.ignore(
   ),
 )
 
-const ops: [Tensor, keyof Tensor, string?][] = [
+const ops = (): [Tensor, keyof Tensor, string?][] => [
   [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'max'],
   [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'min'],
   [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'relu'],
@@ -345,22 +345,24 @@ const ops: [Tensor, keyof Tensor, string?][] = [
   [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'softsign', 'TIMEOUT'],
 ]
 
-for (const [i, [tensor, op, ignore]] of ops.entries()) {
-  Deno.test({
-    name: `Tensor.ops.${op}.${i}`,
-    ignore: !!ignore,
-    fn: compare(
-      [[tensor, op]],
-      (t: Tensor, op: keyof Tensor) => (t[op] as any)()._debug_ast(),
-      'out(getattr(data[0],data[1])()._debug_ast())',
-    ),
-  })
-}
+Deno.test('Tensor.ops', async (t) => {
+  for (const [i, [tensor, op, ignore]] of ops().entries()) {
+    await t.step({
+      name: `Tensor.ops.${op}.${i}`,
+      ignore: !!ignore,
+      fn: compare(
+        [[tensor, op]],
+        (t: Tensor, op: keyof Tensor) => (t[op] as any)()._debug_ast(),
+        'out(getattr(data[0],data[1])()._debug_ast())',
+      ),
+    })
+  }
+})
 
 Deno.test(
   'Tensor._pool',
-  compare(
-    [
+  compare<[Tensor, number[], (number | number[])?, (number | number[])?]>(
+    () => [
       // Basic 2D pooling
       [new Tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), [2, 2]],
 
@@ -385,53 +387,53 @@ Deno.test(
       // Test different dilations per dimension
       [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], 1, [2, 1]],
     ],
-    (t: Tensor, k_: number[], stride: number[] | number = 1, dilation: number[] | number = 1) => t._pool(k_, stride, dilation),
+    (t, k_, stride = 1, dilation = 1) => t._pool(k_, stride, dilation),
     'out(data[0]._pool(*data[1:]))',
   ),
 )
 
 Deno.test(
   'Tensor.repeat',
-  compare(
-    [
+  compare<[Tensor, sint[]]>(
+    () => [
       [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [3, 3]],
     ],
-    (t: Tensor, repeats: number[]) => t.repeat(repeats),
+    (t, repeats) => t.repeat(repeats),
     'out(data[0].repeat(data[1]))',
   ),
 )
 
 Deno.test(
   'Tensor.reshape',
-  compare(
-    [
+  compare<[Tensor, number[]]>(
+    () => [
       [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [1, 4, 1, 4]],
       [new Tensor([[[[1, 2, 3, 4]], [[5, 6, 7, 8]], [[9, 10, 11, 12]], [[13, 14, 15, 16]]]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [1, 4, 1, 4]],
       [new Tensor([[[[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]], [[5, 6, 7, 8], [5, 6, 7, 8], [5, 6, 7, 8]], [[9, 10, 11, 12], [9, 10, 11, 12], [9, 10, 11, 12]], [[13, 14, 15, 16], [13, 14, 15, 16], [13, 14, 15, 16]]], [[[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]], [[5, 6, 7, 8], [5, 6, 7, 8], [5, 6, 7, 8]], [[9, 10, 11, 12], [9, 10, 11, 12], [9, 10, 11, 12]], [[13, 14, 15, 16], [13, 14, 15, 16], [13, 14, 15, 16]]], [[[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]], [[5, 6, 7, 8], [5, 6, 7, 8], [5, 6, 7, 8]], [[9, 10, 11, 12], [9, 10, 11, 12], [9, 10, 11, 12]], [[13, 14, 15, 16], [13, 14, 15, 16], [13, 14, 15, 16]]]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [12, 12]],
     ],
-    (t: Tensor, shape: number[]) => t.reshape(shape),
+    (t, shape) => t.reshape(shape),
     'out(data[0].reshape(*data[1]))',
   ),
 )
 
 Deno.test(
   'Tensor.shrink',
-  compare(
-    [
+  compare<[Tensor, [sint, sint][]]>(
+    () => [
       [new Tensor([[[[1, 2, 3, 4, 1], [2, 3, 4, 1, 2]], [[5, 6, 7, 8, 5], [6, 7, 8, 5, 6]], [[9, 10, 11, 12, 9], [10, 11, 12, 9, 10]], [[13, 14, 15, 16, 13], [14, 15, 16, 13, 14]], [[1, 2, 3, 4, 1], [2, 3, 4, 1, 2]], [[5, 6, 7, 8, 5], [6, 7, 8, 5, 6]]], [[[9, 10, 11, 12, 9], [10, 11, 12, 9, 10]], [[13, 14, 15, 16, 13], [14, 15, 16, 13, 14]], [[1, 2, 3, 4, 1], [2, 3, 4, 1, 2]], [[5, 6, 7, 8, 5], [6, 7, 8, 5, 6]], [[9, 10, 11, 12, 9], [10, 11, 12, 9, 10]], [[13, 14, 15, 16, 13], [14, 15, 16, 13, 14]]]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [[0, 2], [0, 2], [0, 2], [0, 3]]],
       [new Tensor([[1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4], [5, 6, 7, 8, 5, 6, 7, 8, 5, 6, 7, 8], [9, 10, 11, 12, 9, 10, 11, 12, 9, 10, 11, 12], [13, 14, 15, 16, 13, 14, 15, 16, 13, 14, 15, 16], [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4], [5, 6, 7, 8, 5, 6, 7, 8, 5, 6, 7, 8], [9, 10, 11, 12, 9, 10, 11, 12, 9, 10, 11, 12], [13, 14, 15, 16, 13, 14, 15, 16, 13, 14, 15, 16], [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4], [5, 6, 7, 8, 5, 6, 7, 8, 5, 6, 7, 8], [9, 10, 11, 12, 9, 10, 11, 12, 9, 10, 11, 12], [13, 14, 15, 16, 13, 14, 15, 16, 13, 14, 15, 16]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [[0, 12], [0, 10]]],
       [new Tensor([[[[1, 2, 3, 4, 1], [2, 3, 4, 1, 2]], [[5, 6, 7, 8, 5], [6, 7, 8, 5, 6]], [[9, 10, 11, 12, 9], [10, 11, 12, 9, 10]], [[13, 14, 15, 16, 13], [14, 15, 16, 13, 14]], [[1, 2, 3, 4, 1], [2, 3, 4, 1, 2]]], [[[5, 6, 7, 8, 5], [6, 7, 8, 5, 6]], [[9, 10, 11, 12, 9], [10, 11, 12, 9, 10]], [[13, 14, 15, 16, 13], [14, 15, 16, 13, 14]], [[1, 2, 3, 4, 1], [2, 3, 4, 1, 2]], [[5, 6, 7, 8, 5], [6, 7, 8, 5, 6]]]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [[0, 2], [0, 4], [0, 2], [0, 3]]],
       [new Tensor([[1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4], [5, 6, 7, 8, 5, 6, 7, 8, 5, 6, 7, 8], [9, 10, 11, 12, 9, 10, 11, 12, 9, 10, 11, 12], [13, 14, 15, 16, 13, 14, 15, 16, 13, 14, 15, 16], [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4], [5, 6, 7, 8, 5, 6, 7, 8, 5, 6, 7, 8], [9, 10, 11, 12, 9, 10, 11, 12, 9, 10, 11, 12], [13, 14, 15, 16, 13, 14, 15, 16, 13, 14, 15, 16], [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4], [5, 6, 7, 8, 5, 6, 7, 8, 5, 6, 7, 8], [9, 10, 11, 12, 9, 10, 11, 12, 9, 10, 11, 12], [13, 14, 15, 16, 13, 14, 15, 16, 13, 14, 15, 16]], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [[0, 10], [0, 10]]],
     ],
-    (t: Tensor, args: [sint, sint][]) => t.shrink(args),
+    (t, args) => t.shrink(args),
     'out(data[0].shrink(data[1]))',
   ),
 )
 
 Deno.test(
   'Tensor.eq',
-  compare(
-    [
+  compare<[Tensor, Tensor | number | boolean]>(
+    () => [
       // [new Tensor([3, 2, 1, 4]), 4],
       // [new Tensor([3, 2, 3, 3]), Infinity],
       // [new Tensor([3, 2, 3, 3.3]), Infinity], //
@@ -448,7 +450,7 @@ Deno.test(
       // [new Tensor([5.5]), 5.5],
       // [new Tensor([3.1, 2.3, 1.3, 4.4]), true], //
     ],
-    (t1: Tensor, t2: Tensor | number | boolean) => t1.eq(t2)._debug_ast(),
+    (t1, t2) => t1.eq(t2)._debug_ast(),
     'out((data[0]==data[1])._debug_ast())',
   ),
 )

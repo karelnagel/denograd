@@ -74,7 +74,6 @@ export const pyStr = (o: any, useList = false): string => {
   if (typeof o === 'boolean') return o ? 'True' : 'False'
   if (typeof o === 'bigint') return o.toString()
   if (typeof o === 'number') {
-    console.log(o)
     if (o === Infinity) return 'math.inf'
     if (o === -Infinity) return '-math.inf'
     if (Number.isNaN(o)) return 'math.nan'
@@ -212,12 +211,13 @@ function calculateSimilarity(str1: string, str2: string): number {
   return 1 - dist / maxLength
 }
 
-export const compare = <T extends any[]>(inputs: T[], fn: (...args: T) => any, code: string | string[], options: {
+export const compare = <T extends any[] = any[]>(inputs: T[] | (() => T[]), fn: (...args: T) => any, code: string | string[], options: {
   ignore?: number[]
   ignoreKeys?: string[]
   stringSimilarity?: number
 } = {}) => {
   return async (t: Deno.TestContext) => {
+    if (typeof inputs === 'function') inputs = inputs()
     for (const [i, input] of inputs.entries()) {
       await t.step({
         name: i.toString(),
