@@ -1,6 +1,8 @@
 {
-  "name": "@karelnagel/denograd",
+  "name": "@denograd/core",
+  "version": "0.0.1",
   "exports": "./src/mod.ts",
+  "license": "MIT",
   "tasks": {
     "test": "deno test -A --parallel",
     "format": "deno fmt --ignore=tinygrad . ",

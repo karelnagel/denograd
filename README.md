@@ -1,29 +1,89 @@
-# Denograd - Tinygrad rewrite in Typescript
+# Denograd - best ML library in Typescript
 
-## Why rewrite in typescript?
+Tinygrad rewritten in typescript
 
-1. I think it's a better language
-2. Even if 1. isn't objectively correct, there are 17.5M(source ChatGPT) JS developers that might need to write AI models in the future and rn the only good option is to use python. If Karpathy's [software 2.0](https://karpathy.medium.com/software-2-0-a64152b37c35) thesis is correct then either 1) there needs to be good JS ML framework or 2) everyone should start using python - imo 1. is more realistic future.
-3. I wrote micrograd in TS and it was more than 10x faster than the python version (I know that tinygrad doesn't actually run the models in python, but still I think faster language might have some benefits)
-4. All the JS web frameworks would have easier way to integrate models(I know you can generate WebGPU code from tinygrad, but still it's more complex than just having the model in TS)
-5. I don't know that much about ML (and hardware and lower level programming), so I can learn
-6. TS isn't much more verbose than python, so should be able to have similar line count to python. Sure python operator overloading is nice, but I think it's not that big of a deal.
-7. Deno has Jupyter notebook support
-8. Tinygrad should be under 10 000 lines, so it shouldn't be that hard to convert it 😅. Writing tinygrad = very hard, converting it to another language = shouldn't be that hard
-9. The bar for best python ML lib is really high now, but I think for JS it's much lower, best one should be tensorflowJS. I think tinygrad will win in general and I like their philosophy.
+# Why?
+1. I wanted to learn more about ML and tinygrad
+2. I don't like python that much
+3. There are 17.5M JS/TS devs (source ChatGPT) and no good ML lib
+4. Creating python bindings would have been too easy and I would have worked only on the easy parts, and then JS/TS would still be kind of second class citizen + running this inside browser would be kind of hard(maybe) or just worse than native library. Downsides: a lot of work initially + keeping up with tinygrad updates is much harder, but doable.
 
-## Roadmap
+# Goal - The easiest and fastest way to run and train models in JS/TS.
 
-1. Get beautiful_mnist working with CLANG, TS or METAL runtime (not sure which one will be the easiest, but will find out). Write a lot of tests to make sure that the tinygrad implementation works the same way. Keep the file structure similar to python.
-2. Convert other backends and features that are included in tinygrad core.
-3. Keep the project in sync, tinygrad has ~15 PRs merged daily, so maybe have AI create PR for every tiny PR and let human edit and merge it.
-4. Make the TS version faster and better than python
-5. tinygrad realizes their mistake, drops python and start using this TS version (only partially joking)
+It should always use the fastest available runtime on your machine, so it would use WebGPU in browser and your GPU or CPU when using node/deno/bun. 
 
-## Money?
+With the upcoming tinygrad CLOUD, you should be able to just run one docker image on any hardware, point your program to that server and run your model there. There shouldn't be any setup required for each model, just a general CLOUD program that will work with every model and cache your model for fast inference. This way there is no need to pay for someone for hosting your model, you would just find the cheapest/best GPU server you can and you can run all your models there.
 
-idk, I think that JS frameworks, runtimes and VCs should be interested in having competitive JS ML framework. Also when tinygrad has CLOUD=1 ready and is making chips then they should also be interested in getting JS developers to use their products.
+Most popular models will be available as a package: 
+```ts
+import { Llama } from "@denograd/models"
 
--- these are just some notes for myself so I won't forget why I started doing this
+// run with the fastest available runtime
+const llama = new Llama({ model: "3.1-3B" })
+const res = llama.run({ prompt: "Hello how are you?" })
 
-`git rm $(git diff --name-only --diff-filter=U)`
+// run on tinygrad CLOUD or self hosted cloud
+const llama = new Llama({ device: "CLOUD", host: process.env.CLOUD_HOST })
+```
+
+Create, run and train your own models:
+```ts
+import { Tensor, nn } from '@denograd/core'
+import { range, tqdm } from '@denograd/helpers'
+import { mnist } from '@denograd/datasets'
+
+export class MNIST {
+  layers: ((x: Tensor) => Tensor)[]
+  constructor() {
+    this.layers = [
+      new nn.Conv2d(1, 32, 5).call, (x) => x.relu(),
+      new nn.Conv2d(32, 32, 5).call, (x) => x.relu(),
+      new nn.BatchNorm(32).call, (x) => x.max_pool2d(),
+      new nn.Conv2d(32, 64, 3).call, (x) => x.relu(),
+      new nn.Conv2d(64, 64, 3).call, (x) => x.relu(),
+      new nn.BatchNorm(64).call, (x) => x.max_pool2d(),
+      (x) => x.flatten(1), new nn.Linear(576, 10).call,
+    ]
+  }
+  call = (x: Tensor): Tensor => x.sequential(this.layers)
+}
+
+const [X_train, Y_train, X_test, Y_test] = await mnist()
+
+const model = new MNIST()
+const opt = nn.optim.Adam(nn.state.get_parameters(model))
+
+const train_step = (): Tensor => {
+  opt.zero_grad()
+  const samples = Tensor.randint([512], undefined, X_train.shape[0])
+  const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
+  opt.step()
+  return loss
+}
+
+const get_test_acc = (): Tensor => (model.call(X_test).argmax(1).eq(Y_test)).mean().mul(100)
+let test_acc = NaN
+
+Tensor.training = true
+for await (const i of tqdm(range(100))) {
+  const loss = train_step()
+  if (i % 10 === 9) test_acc = get_test_acc().item()
+  console.log(`loss: ${loss.item()} test_accuracy: ${test_acc}%`)
+}
+```
+
+# Roadmap
+- [x] rewrite all the necesary parts of tinygrad for MNIST, with 'PYTHON' runtime, with tests comparing the python and TS implemenations
+- [ ] get MNIST training correctly (WIP)
+- [ ] Github CI
+- [ ] delete lazy + other tinygrad updates
+- [ ] CLANG runtime
+- [ ] get it working inside browser with PYTHON runtime
+- [ ] WebGPU runtime
+- [ ] publish to npm and jsr
+- [ ] AMD runtime 
+- [ ] CLOUD runtime
+- [ ] add all the missing parts of Tensor and other code that were left out in the beginning.
+- [ ] other runtimes 
+- [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
+- [ ] make it fast
