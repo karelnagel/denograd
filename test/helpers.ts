@@ -34,6 +34,7 @@ export const asdict = (o: any): any => {
   if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
+  if (o instanceof UOp) return o.toString()
   if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: asdict(o.tolist()) }
 
   if (o instanceof Map) {
@@ -71,13 +72,22 @@ export const pyStr = (o: any, useList = false): string => {
   if (Array.isArray(o)) return o.length ? (useList ? `[${o.map((x) => pyStr(x)).join(', ')}]` : `(${o.map((x) => pyStr(x)).join(', ')},)`) : '()'
   if (o === null || typeof o === 'undefined') return 'None'
   if (typeof o === 'boolean') return o ? 'True' : 'False'
-  if (typeof o === 'number' || typeof o === 'bigint') return o === Infinity ? 'math.inf' : o === -Infinity ? '-math.inf' : Number.isNaN(o) ? 'math.nan' : o.toString()
+  if (typeof o === 'bigint') return o.toString()
+  if (typeof o === 'number') {
+    console.log(o)
+    if (o === Infinity) return 'math.inf'
+    if (o === -Infinity) return '-math.inf'
+    if (Number.isNaN(o)) return 'math.nan'
+    return o.toString()
+  }
   if (typeof o === 'string') return `"${o.replaceAll('\n', '\\\n')}"`
   if (o instanceof Map) return `{${[...o.entries()].map(([k, v]) => `${pyStr(k)}:${pyStr(v)}`).join(',')}}`
   if (o instanceof Set) return `set([${[...o].map((o) => pyStr(o)).join(', ')}])`
 
   // ************ TENSOR ************
-  if (o instanceof Tensor) return t`tiny.tensor.Tensor(${o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
+  if (o instanceof Tensor) {
+    return t`tiny.tensor.Tensor(${o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
+  }
 
   // ************ ENGINE ************
   if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${o.op}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`
