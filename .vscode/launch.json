@@ -5,7 +5,7 @@
       "request": "launch",
       "name": "Deno test",
       "type": "node",
-      "program": "${workspaceFolder}/test/patterns.test.ts",
+      "program": "${workspaceFolder}/test/tensor.test.ts",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "deno",
       "runtimeArgs": [
@@ -14,7 +14,7 @@
         "--allow-all",
         "--no-check",
         "--filter",
-        "symbolic_10"
+        "Tensor.ops.isinf"
       ],
       "attachSimplePort": 9229,
       "outputCapture": "std"

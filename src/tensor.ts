@@ -3,9 +3,9 @@ import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, lea
 import { LazyBuffer } from './engine/lazy.ts'
 import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
 import { add, ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
-import { BufferSpec, Device, DeviceType } from './device.ts'
+import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
-import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
+import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
 // // **** start with two base classes, Tensor && Function ****
@@ -364,28 +364,28 @@ export class Tensor extends SimpleMathTrait {
     if (skip_constructor) return
 
     if (dtype !== undefined) dtype = to_dtype(dtype)
-    assert(dtype === undefined || isinstance(dtype, DType), `invalid dtype ${dtype}`)
+    assert(dtype === undefined || dtype instanceof DType, `invalid dtype ${dtype}`)
     if (device === undefined && typeof data === 'string' && path.isAbsolute(data)) device = `DISK:${data}` // keep it on the disk if device === undefined
-    device = isinstance(device, Array) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
+    device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
 
     //     // NOTE: this can be in three states. false && undefined: no gradient, true: gradient
     //     // undefined (the default) will be updated to true if it's put in an optimizer
     this.requires_grad = requires_grad
 
     //     // create a LazyBuffer from the different types of inputs
-    if (isinstance(data, LazyBuffer)) assert(dtype === undefined || dtype === data.dtype, "dtype doesn't match, && casting isn't supported")
+    if (data instanceof LazyBuffer) assert(dtype === undefined || dtype === data.dtype, "dtype doesn't match, && casting isn't supported")
     else if (data === undefined) data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
     else if (typeof data === 'number' || typeof data === 'boolean') {
       data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
-    } else if (isinstance(data, UOp)) {
+    } else if (data instanceof UOp) {
       assert(data.op === Ops.BIND && data.src[0].op === Ops.DEFINE_VAR && data.src[1].op === Ops.CONST, `can't create tensor from UOp ${data}`)
       data = _metaop(Ops.CONST, [], dtype || data.dtype, device, data)
-    } else if (isinstance(data, Uint8Array)) data = _frompy(data, dtype || dtypes.uint8)
+    } else if (data instanceof Uint8Array) data = _frompy(data, dtype || dtypes.uint8)
     else if (Array.isArray(data)) {
       if (dtype === undefined) {
         const d = fully_flatten(data)
         if (d.length && d.every((s) => typeof s === 'boolean')) dtype = dtypes.bool
-        else dtype = d.length && all_int(d) ? dtypes.default_int : dtypes.default_float
+        else dtype = (d.length && all_int(d)) ? dtypes.default_int : dtypes.default_float
       }
       if (dtype === dtypes.bfloat16) data = new Tensor(_frompy(data, dtypes.float32), { device }).cast(dtypes.bfloat16).lazydata
       else data = _frompy(data, dtype)
@@ -406,11 +406,12 @@ export class Tensor extends SimpleMathTrait {
     //     // data might be on a different device
     if (typeof device === 'string') this.lazydata = data.device === device ? data : data.copy_to_device(device)
     //     // if device === a tuple, we should have/construct a MultiLazyBuffer
-    else if (isinstance(data, LazyBuffer)) throw new Error('MultiLazyBuffer')
-    else {
-      // assert(data.device === device, `MultiLazyBuffer device mismatch, ${data.device} !== ${device}`)
-      this.lazydata = data
-    }
+    else throw new Error('TODO: multi')
+    // else if (isinstance(data, LazyBuffer)) throw new Error('MultiLazyBuffer')
+    // else {
+    //   // assert(data.device === device, `MultiLazyBuffer device mismatch, ${data.device} !== ${device}`)
+    //   this.lazydata = data
+    // }
   }
   static train = class {
     mode: boolean
@@ -479,6 +480,13 @@ export class Tensor extends SimpleMathTrait {
   _debug_ast = () => {
     const [schedule, vars] = this.cast(this.dtype.base).contiguous().to('PYTHON').schedule_with_vars()
     return schedule.map((s) => s.ast)
+  }
+  _debug = () => {
+    const ctx = new ScheduleContext()
+    const cache = new Map<LazyBuffer, UOp>()
+    const buffers = new Map<UOp, Buffer>()
+    const uop = to_uop(this.lazydata, ctx, buffers, cache)
+    return uop
   }
   /**
    * Creates the schedule needed to realize these Tensor(s).
@@ -580,6 +588,15 @@ export class Tensor extends SimpleMathTrait {
    */
   tolist = (): ConstType[] | ConstType => {
     return this.data().toList() as number[]
+  }
+  /**
+   * Creates a clone of this tensor allocating a separate buffer for the data.
+   */
+  clone = (): Tensor => {
+    const ret = new Tensor(this.lazydata.clone(), { device: this.device, requires_grad: this.requires_grad })
+    if (this.grad !== undefined) ret.grad = this.grad.clone()
+    if (this._ctx) ret._ctx = this._ctx
+    return ret
   }
   /**
    * Moves the tensor to the given device.

@@ -15,7 +15,7 @@ import { ProgramSpec } from '../src/renderer/index.ts'
 import { LazyBuffer } from '../src/engine/lazy.ts'
 import { CompiledRunner, ExecItem, Runner } from '../src/engine/realize.ts'
 import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../src/engine/schedule.ts'
-import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRUAllocator } from '../src/device.ts'
+import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, DeviceType, LRUAllocator } from '../src/device.ts'
 import { PythonRenderer } from '../src/runtime/ops_python.ts'
 import { MemoryView } from '../src/memoryview.ts'
 import { Tensor } from '../src/tensor.ts'
@@ -27,6 +27,7 @@ export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, r
 export const asdict = (o: any): any => {
   if (typeof o === 'function') return undefined
   if (typeof o === 'number' && Number.isFinite(o)) return Math.round(o * 10000) / 10000
+  if (Array.isArray(o)) return o.map(asdict)
   if (o === undefined || o === null) return o
   if (typeof o === 'bigint') return Number(o)
   if (o instanceof Enum) return o.toString()
@@ -34,7 +35,7 @@ export const asdict = (o: any): any => {
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
   if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: asdict(o.tolist()) }
-  if (Array.isArray(o)) return o.map(asdict)
+
   if (o instanceof Map) {
     const res = [...o.entries().map(([k, v]) => [asdict(k), asdict(v)])]
     return typeof res.at(0)?.at(0) === 'object' ? res : Object.fromEntries(res) // If it's Map<string,...> then return object, otherwise array
@@ -76,7 +77,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof Set) return `set([${[...o].map((o) => pyStr(o)).join(', ')}])`
 
   // ************ TENSOR ************
-  if (o instanceof Tensor) return t`tiny.tensor.Tensor(${o.tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
+  if (o instanceof Tensor) return t`tiny.tensor.Tensor(${o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
 
   // ************ ENGINE ************
   if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${o.op}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`

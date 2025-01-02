@@ -180,7 +180,7 @@ Deno.test(
       [new Tensor([4, 4, 4, 2, 6, 5]), 3.4],
     ],
     (t1: Tensor, t2: Tensor | number) => t1.add(t2),
-    'out(data[0] + data[1])'
+    'out(data[0] + data[1])',
   ),
 )
 
@@ -425,5 +425,29 @@ Deno.test(
     ],
     (t: Tensor, args: [sint, sint][]) => t.shrink(args),
     'out(data[0].shrink(data[1]))',
+  ),
+)
+
+Deno.test(
+  'Tensor.eq',
+  compare(
+    [
+      [new Tensor([3, 2, 1, 4]), 4],
+      [new Tensor([3, 2, 3, 3]), Infinity], //
+      [new Tensor([3, 2, 3, 3.3]), Infinity], //
+      [new Tensor([3, 2, 3, Infinity]), Infinity], //
+      [new Tensor([3, 2, 3, NaN]), Infinity], //
+      [new Tensor(4), 4],
+      [new Tensor(Infinity), Infinity], //
+      [new Tensor(NaN), NaN],
+      [new Tensor(Infinity), NaN],
+      [new Tensor(NaN), Infinity],
+      [new Tensor([Infinity]), Infinity], //
+      [new Tensor([NaN, NaN]), NaN],
+      [new Tensor([5.5]), 5.5],
+      [new Tensor([3.1, 2.3, 1.3, 4.4]), true], //
+    ],
+    (t1: Tensor, t2: Tensor | number | boolean) => t1.eq(t2),
+    'out(data[0]==data[1])',
   ),
 )
