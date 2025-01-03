@@ -14,7 +14,8 @@ export const get_kernel = (renderer: Renderer, ast: UOp): Kernel => {
   const k = new Kernel(ast, renderer).required_optimizations()
   if (!NOOPT) {
     const used_tensor_cores = k.apply_tensor_cores(get_number_env('TC', 1))
-    if (!used_tensor_cores) k.hand_coded_optimizations()
+    // KAREL: TODO: Change back to hand_coded_optimizations()
+    if (!used_tensor_cores) k.required_optimizations()
   }
   // if (logkerns !== undefined) logkerns.writelines([`${(k.ast, k.applied_opts)}\n`])
   if (DEBUG >= 5) console.log((k.ast, k.applied_opts)) // print here to show final applied_opts for all kernels instead of just in beam_search

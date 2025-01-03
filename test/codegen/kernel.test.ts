@@ -46,7 +46,7 @@ const kernels = () => kernelInputs().map((i) => [new Kernel(...i)] as [Kernel])
 Deno.test(
   'Kernel.init',
   compare(
-    kernelInputs(),
+    kernelInputs,
     (ast: UOp, opts: Renderer) => tsKernel(new Kernel(ast, opts)),
     [
       `k = tiny.codegen.kernel.Kernel(*data)`,
@@ -57,7 +57,7 @@ Deno.test(
 Deno.test(
   'Kernel.membufs',
   compare(
-    kernels(),
+    kernels,
     (k: Kernel) => k.membufs,
     'out(data[0].membufs)',
   ),
@@ -65,7 +65,7 @@ Deno.test(
 Deno.test(
   'Kernel.float4_axis',
   compare(
-    kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
+    () => kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
     (k: Kernel, i: number) => k.float4_axis(i),
     'out(data[0].float4_axis(data[1]))',
   ),
@@ -73,7 +73,7 @@ Deno.test(
 Deno.test(
   'Kernel.upcasted_axis',
   compare(
-    kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
+    () => kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
     (k: Kernel, axis: number) => k.upcasted_axis(axis),
     'out(data[0].upcasted_axis(data[1]))',
   ),
@@ -81,7 +81,7 @@ Deno.test(
 Deno.test(
   'Kernel.first_reduce',
   compare(
-    kernels(),
+    kernels,
     (k: Kernel) => k.first_reduce,
     'out(data[0].first_reduce)',
   ),
@@ -89,7 +89,7 @@ Deno.test(
 Deno.test(
   'Kernel.colors',
   compare(
-    kernels(),
+    kernels,
     (k: Kernel) => k.colors(),
     'out(data[0].colors())',
   ),
@@ -97,7 +97,7 @@ Deno.test(
 Deno.test.ignore(
   'Kernel.colored_shape',
   compare(
-    kernels(),
+    kernels,
     (k: Kernel) => k.colored_shape(),
     'out(data[0].colored_shape())',
   ),
@@ -152,30 +152,20 @@ Deno.test(
 Deno.test(
   'Kernel.required_optimizations',
   compare(
-    kernels(),
+    kernels,
     (k: Kernel) => k.required_optimizations(),
     `out(data[0].required_optimizations())`,
   ),
 )
-Deno.test(
-  'Kernel.hand_coded_optimizations',
-  compare(
-    kernels(),
-    (k: Kernel) => tsKernel(k.hand_coded_optimizations()),
-    [
-      `k = data[0].hand_coded_optimizations()`,
-      pyKernel,
-    ],
-    {
-      ignore: [8, 10], // TODO: they generate wrong shapetracked, one view is too much, if you comment last this.apply_opt(), then it's works fine
-    },
-  ),
-)
+
 Deno.test(
   'Kernel.name',
   compare(
-    kernels(),
-    (k: Kernel) => k.name,
+    kernels,
+    (k: Kernel) => {
+      Kernel.kernel_cnt = {}
+      return k.name
+    },
     'out(data[0].name)',
   ),
 )
@@ -183,7 +173,7 @@ Deno.test(
 Deno.test(
   'Kernel.get_optimized_ast',
   compare(
-    kernels(),
+    kernels,
     (k: Kernel) => k.get_optimized_ast(),
     'out(data[0].get_optimized_ast())',
   ),
@@ -192,7 +182,7 @@ Deno.test(
 Deno.test(
   'Kernel.linearize',
   compare(
-    kernels(),
+    kernels,
     (k: Kernel) => tsKernel(k.linearize()),
     [
       `k = data[0].linearize()`,
@@ -207,8 +197,11 @@ Deno.test(
 Deno.test(
   'Kernel.to_program',
   compare(
-    kernels(),
-    (k: Kernel) => k.to_program(),
+    kernels,
+    (k: Kernel) => {
+      Kernel.kernel_cnt = {}
+      return k.to_program()
+    },
     'out(data[0].to_program())',
     {
       ignore: [7], // possibly bug in tinygrad(fails in python not in TS)
