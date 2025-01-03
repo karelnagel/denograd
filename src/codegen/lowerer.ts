@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { all, all_int, assert, isinstance, len, min, partition, prod, range, sum, zip } from '../helpers.ts'
+import { all, all_int, assert, isEq, isinstance, len, min, partition, prod, range, sum, zip } from '../helpers.ts'
 import { graph_rewrite, identity_element, idiv, KernelInfo, Ops, PatternMatcher, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 
@@ -8,7 +8,7 @@ export const get_contraction = (old_shape: sint[], new_shape: sint[]): number[][
   const acc_old = old_shape.reduce((acc, val, i) => [...acc, (val as number) * (acc[i - 1] ?? 1)], [] as number[])
   const acc_new = new_shape.reduce((acc, val, i) => [...acc, (val as number) * (acc[i - 1] ?? 1)], [] as number[])
   try {
-    const split = acc_new.map((acc) => acc !== 1 ? acc_old.indexOf(acc) : 0)
+    const split = acc_new.map((acc) => acc !== 1 ? acc_old.indexOf(acc) + 1 : 0)
     return zip([0, ...split.slice(0, -1)], [...split.slice(0, -1), old_shape.length]).map(([st, ed]) => range(st, ed))
   } catch {
     return undefined
@@ -37,7 +37,7 @@ export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[]
   const limited = max_sizes !== undefined ? _limit_dims(dims, max_sizes) : dims
   const raw_idxs = limited.map((s, i) => new UOp(Ops.SPECIAL, dtypes.int, [], [`${prefix}${i}`, s]))
   let ret = raw_idxs
-  if (limited !== dims) {
+  if (!isEq(limited, dims)) {
     ret = []
     const contraction = get_contraction(dims, limited)
     if (contraction === undefined) throw new Error(`get_contraction should !be undefined dims=${dims} limited=${limited}`)
@@ -66,6 +66,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   // NOTE: sum up the reduced axes looking across all local loads, yields the number of grouped reduces
   const group_for_reduces = range(first_reduce, first_upcasted).filter((i) => local_loads.some((l) => l.st_arg.shape[i] !== ast.src[0].st_arg.shape[i])).length //KAREL: not sure
   const global_dims = first_reduce - ki.local_dims
+
   let idxs
   if (opts.has_local) {
     if (ki.dont_use_locals) {
@@ -73,7 +74,10 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
       idxs = get_grouped_dims('idx', full_shape.slice(0, global_dims), opts.global_max, true)
     } else {
       //       # define indexes for GPU-like execution
-      idxs = [...get_grouped_dims('gidx', full_shape.slice(0, global_dims), opts.global_max, true), ...get_grouped_dims('lidx', full_shape.slice(global_dims, first_reduce + group_for_reduces), opts.local_max)]
+      idxs = [
+        ...get_grouped_dims('gidx', full_shape.slice(0, global_dims), opts.global_max, true),
+        ...get_grouped_dims('lidx', full_shape.slice(global_dims, first_reduce + group_for_reduces), opts.local_max),
+      ]
     }
   } else {
     //     # all loops are RANGES
