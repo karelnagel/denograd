@@ -40,6 +40,26 @@ Deno.test(
   ),
 )
 Deno.test(
+  'realize.get_optimized_ast',
+  compare(
+    kernelInputs(),
+    (renderer, ast) => get_kernel(renderer, ast).get_optimized_ast(),
+    [
+      'out(tiny.engine.realize.get_kernel(*data).get_optimized_ast())',
+    ],
+  ),
+)
+Deno.test(
+  'realize.linearize',
+  compare(
+    kernelInputs(),
+    (renderer, ast) => get_kernel(renderer, ast).linearize().uops,
+    [
+      'out(tiny.engine.realize.get_kernel(*data).linearize().uops)',
+    ],
+  ),
+)
+Deno.test(
   'realize.to_program',
   compare(
     kernelInputs(),
