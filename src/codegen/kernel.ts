@@ -595,8 +595,8 @@ export class Kernel {
 
     //     # name the function something unique
     const function_name = to_function_name(name)
-    Kernel.kernel_cnt[function_name] += 1
-    const num = Kernel.kernel_cnt[function_name] > 1 ? `n{Kernel.kernel_cnt[function_name]-1}` : ''
+    Kernel.kernel_cnt[function_name] = (Kernel.kernel_cnt[function_name] || 0) + 1
+    const num = Kernel.kernel_cnt[function_name] > 1 ? `n${Kernel.kernel_cnt[function_name] - 1}` : ''
     return name + colored(num, 'BLACK')
   }
   get_optimized_ast = (): UOp => {

@@ -345,19 +345,17 @@ const ops = (): [Tensor, keyof Tensor, string?][] => [
   [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'softsign', 'TIMEOUT'],
 ]
 
-Deno.test('Tensor.ops', async (t) => {
-  for (const [i, [tensor, op, ignore]] of ops().entries()) {
-    await t.step({
-      name: `Tensor.ops.${op}.${i}`,
-      ignore: !!ignore,
-      fn: compare(
-        [[tensor, op]],
-        (t: Tensor, op: keyof Tensor) => (t[op] as any)(),
-        'out(getattr(data[0],data[1])())',
-      ),
-    })
-  }
-})
+for (const [i, [tensor, op, ignore]] of ops().entries()) {
+  Deno.test({
+    name: `Tensor.ops.${op}.${i}`,
+    ignore: !!ignore,
+    fn: compare(
+      [[tensor, op]],
+      (t: Tensor, op: keyof Tensor) => (t[op] as any)(),
+      'out(getattr(data[0],data[1])())',
+    ),
+  })
+}
 
 Deno.test(
   'Tensor._pool',

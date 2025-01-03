@@ -555,7 +555,7 @@ export const exec_alu = (op: Ops, dtype: DType, operands: number[], truncateOutp
 export const print_uops = (uops: UOp[]) => {
   for (const [i, u] of uops.entries()) {
     const formattedParents = u.src.map((x) => uops.includes(x) ? x.op !== Ops.CONST ? uops.indexOf(x) : `${x.arg}` : '--')
-    console.log(`${i.toString().padStart(4)} ${u.op.toString().padEnd(20)} ${u.dtype.toString().padEnd(30)} ${formattedParents.toString().padEnd(32)} ${u.arg}`)
+    console.log(`${i.toString().padStart(4)} ${u.op.toString().padEnd(20)} ${u.dtype.toString().padEnd(30)} ${listStr(formattedParents).padEnd(32)} ${listStr(u.arg)}`)
   }
 }
 
