@@ -451,3 +451,48 @@ Deno.test(
     'out((data[0] == data[1]))',
   ),
 )
+Deno.test(
+  'Tensor.ones',
+  compare(
+    [
+      [[1, 1, 4, 4]],
+      [[1]],
+    ],
+    Tensor.ones,
+    'out(tiny.Tensor.ones(*data))',
+  ),
+)
+
+Deno.test(
+  'Tensor.zeros',
+  compare(
+    [
+      [[1, 1, 4, 4]],
+      [[1]],
+    ],
+    Tensor.zeros,
+    'out(tiny.Tensor.zeros(*data))',
+  ),
+)
+
+Deno.test(
+  'Tensor.rand',
+  compare(
+    [
+      [[1, 1, 4, 4]],
+    ],
+    Tensor.rand,
+    'out(tiny.Tensor.rand(*data))',
+  ),
+)
+
+Deno.test(
+  'Tensor.arange',
+  compare(
+    [
+      [8]
+    ],
+    Tensor.arange,
+    "out(tiny.Tensor.arange(*data))"
+  ),
+)

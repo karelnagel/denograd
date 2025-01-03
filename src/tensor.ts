@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, DEBUG, dedup, fully_flatten, get_env, IMAGE, isEq, isinstance, listStr, max, Metadata, prod, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, argfix, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, isEq, isinstance, listStr, max, Metadata, prod, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
 import { add, ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
@@ -359,6 +359,7 @@ export class Tensor extends SimpleMathTrait {
   static training = false
   static no_grad = false
 
+  static new = (data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, opts?: TensorOptions) => new Tensor(data, opts)
   constructor(data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
     super()
     if (skip_constructor) return
@@ -414,32 +415,6 @@ export class Tensor extends SimpleMathTrait {
     //   // assert(data.device === device, `MultiLazyBuffer device mismatch, ${data.device} !== ${device}`)
     //   this.lazydata = data
     // }
-  }
-  static train = class {
-    mode: boolean
-    prev!: boolean
-    constructor(mode = true) {
-      this.mode = mode
-    }
-    enter = () => {
-      this.prev = Tensor.training, Tensor.training = this.mode
-    }
-    exit = (_exc_type: any, _exc_value: any, _traceback: any) => {
-      Tensor.training = this.prev
-    }
-  }
-  static test = class test {
-    mode: boolean
-    prev!: boolean
-    constructor(mode = true) {
-      this.mode = mode
-    }
-    enter = () => {
-      this.prev = Tensor.no_grad, Tensor.no_grad = this.mode
-    }
-    exit = (_exc_type: any, _exc_value: any, _traceback: any) => {
-      Tensor.no_grad = this.prev
-    }
   }
   override toString = () => `<Tensor ${this.lazydata} on ${this.device} with grad ${this.grad?.lazydata}>`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
@@ -659,9 +634,9 @@ export class Tensor extends SimpleMathTrait {
     if (gunzip) data = await gunzipAsync(data)
     return new Tensor(new Uint8Array(data), opts)
   }
-  static _seed: number = Date.now()
-  static _device_seeds = new Map<string, Tensor>()
-  static _device_rng_counters = new Map<string, Tensor>()
+  static _seed: number = Math.floor(Date.now() / 1000)
+  static _device_seeds: Record<string, Tensor> = {}
+  static _device_rng_counters: Record<string, Tensor> = {}
 
   /**
    * Sets the seed for random operations.
@@ -678,7 +653,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   static manual_seed = (seed = 0) => {
-    Tensor._seed = seed, Tensor._device_seeds = new Map(), Tensor._device_rng_counters = new Map()
+    Tensor._seed = seed, Tensor._device_seeds = {}, Tensor._device_rng_counters = {}
   }
 
   static _threefry_random_bits = (key: Tensor, counts0: Tensor, counts1: Tensor) => {
@@ -700,27 +675,26 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.numpy())
    * ```
    */
-  static rand = (shape: number[], contiguous = true, opts: TensorOptions): Tensor => {
+  static rand = (shape: number[], contiguous = true, opts: TensorOptions = {}): Tensor => {
     const dtype = to_dtype(opts.dtype || dtypes.default_float)
     if (!dtypes.is_float(dtype)) throw new Error(`rand only supports float dtypes, got ${dtype}`)
-    shape = argfix(shape)
     if (!all_int(shape) || !shape.every((s) => s >= 0)) throw new Error(`invalid input ${shape}`)
-    let device = opts.device
-    if (device !== undefined && typeof device !== 'string') throw new Error(`rand only supports single device, got ${device}`)
-    const _device = device = Device.canonicalize(device)
+    if (opts.device !== undefined && typeof opts.device !== 'string') throw new Error(`rand only supports single device, got ${opts.device}`)
+    const _device = Device.canonicalize(opts.device)
+    let device = _device
 
     // when using MOCKGPU && NV generate rand on CLANG
     if (get_env('MOCKGPU') && device.startsWith('NV')) device = 'PYTHON' // Karel: changed CLANG to PYTHON
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     let had_counter
-    if (Tensor._device_seeds.keys().some((x) => x === device)) {
-      const new_device_seeds = new Tensor([
-        new MemoryView(sha256(new Uint32Array([Tensor._device_seeds.size]))).cast('i').getValue(0),
-        Tensor._seed,
-      ], { device: device, dtype: dtypes.uint32, requires_grad: false })
-      Tensor._device_seeds.set(device, new_device_seeds)
-      Tensor._device_rng_counters.set(device, new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false }))
+
+    if (!Tensor._device_seeds[device]) {
+      Tensor._device_seeds[device] = new Tensor(
+        [bytesToBigInt(sha256(intToBytes(Object.keys(Tensor._device_seeds).length))) % (2n ** 32n), Tensor._seed],
+        { device: device, dtype: dtypes.uint32, requires_grad: false },
+      )
+      Tensor._device_rng_counters[device] = new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false })
       had_counter = false
     } else had_counter = true
 
@@ -730,12 +704,12 @@ export class Tensor extends SimpleMathTrait {
     const num = ceildiv(numel * dtype.itemsize, 4)
 
     // increment rng counter for devices
-    if (had_counter) Tensor._device_rng_counters.get(device)!.assign(Tensor._device_rng_counters.get(device)!.add(num)).contiguous()
+    if (had_counter) Tensor._device_rng_counters[device].assign(Tensor._device_rng_counters[device].add(num)).contiguous()
 
     // threefry random bits
-    const counts0 = Tensor.arange(ceildiv(num, 2), undefined, undefined, { device: device, dtype: dtypes.uint32, requires_grad: false }).add(Tensor._device_rng_counters.get(device)!)
+    const counts0 = Tensor.arange(ceildiv(num, 2), undefined, undefined, { device, dtype: dtypes.uint32, requires_grad: false }).add(Tensor._device_rng_counters[device])
     const counts1 = counts0.add(ceildiv(num, 2))
-    let bits = Tensor._threefry_random_bits(Tensor._device_seeds.get(device)!, counts0, counts1).get({ stop: num })
+    let bits = Tensor._threefry_random_bits(Tensor._device_seeds[device], counts0, counts1).get({ stop: num })
 
     // bitcast to uint with same number of bits
     const [_, nmant] = dtypes.finfo(dtype)
@@ -787,7 +761,7 @@ export class Tensor extends SimpleMathTrait {
    */
 
   static zeros = (shape: sint[], opts?: TensorOptions): Tensor => {
-    return Tensor.full(argfix(shape), 0.0, opts)
+    return Tensor.full(argfix(shape), 0.0, { dtype: dtypes.float, ...opts })
   }
 
   /**
@@ -804,7 +778,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   static ones = (shape: sint[], opts?: TensorOptions): Tensor => {
-    return Tensor.full(argfix(shape), 1.0, opts)
+    return Tensor.full(argfix(shape), 1.0, { dtype: dtypes.float, ...opts })
   }
   /**
    * Returns a 1-D tensor of size `ceil((stop - start) / step)` with values from `[start, stop)`, with spacing between values given by `step`.
@@ -1000,10 +974,10 @@ export class Tensor extends SimpleMathTrait {
     return !isEq(new_shape, this.shape) ? Reshape.apply(this, shape = new_shape) : this
   }
   /**
-   * Returns a tensor that === expanded to the shape that === specified.
+   * Returns a tensor that is expanded to the shape that is specified.
    * Expand can also increase the number of dimensions that a tensor has.
    *
-   * Passing a `-1` || `undefined` to a dimension means that its size will !be changed.
+   * Passing a `-1` or `undefined` to a dimension means that its size will not be changed.
    *
    * ```python exec="true" source="above" session="tensor" result="python"
    * t = new Tensor([1, 2, 3])

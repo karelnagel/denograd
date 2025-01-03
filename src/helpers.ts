@@ -7,6 +7,16 @@ import { BinaryLike, createHash, randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
+export const intToBytes = (int: number) => {
+  const hash = new Uint8Array(4)
+  new DataView(hash.buffer).setInt32(0, int, false)
+  return hash
+}
+export const bytesToBigInt = (bytes: Uint8Array) => {
+  let result = BigInt(0)
+  for (const byte of bytes) result = (result << BigInt(8)) + BigInt(byte)
+  return result
+}
 export const isInf = (x: number) => x === Infinity || x === -Infinity
 export abstract class Enum {
   constructor(public readonly name: string, public readonly value: number) {}
