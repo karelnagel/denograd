@@ -377,7 +377,7 @@ export class Tensor extends SimpleMathTrait {
       assert(dtype === undefined || dtype === data.dtype, "dtype doesn't match, && casting isn't supported")
     } else if (data === undefined) {
       data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
-    } else if (typeof data === 'number' || typeof data === 'boolean') {
+    } else if (typeof data === 'number' || typeof data === 'boolean' || typeof data === 'bigint') {
       data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
     } else if (data instanceof UOp) {
       assert(data.op === Ops.BIND && data.src[0].op === Ops.DEFINE_VAR && data.src[1].op === Ops.CONST, `can't create tensor from UOp ${data}`)
@@ -429,7 +429,7 @@ export class Tensor extends SimpleMathTrait {
   }
 
   get length() {
-    if (!this.shape) throw new Error('len() of a 0-d tensor')
+    if (!this.shape.length) throw new Error('len() of a 0-d tensor')
     return this.shape[0]
   }
   get device(): DeviceType | DeviceType[] {
@@ -966,7 +966,7 @@ export class Tensor extends SimpleMathTrait {
    */
   reshape = (shape: (sint | undefined)[]): Tensor => {
     // resolve undefined && args
-    let new_shape: number[] = argfix(shape).map((s, i) => s || this.shape[i])
+    let new_shape: number[] = argfix(shape).map((s, i) => s !== undefined ? s : this.shape.at(i)!)
     // resolve -1
     const c = new_shape.filter((x) => x === -1).length
     if (c > 1) throw new Error(`only one dimension can be inferred using -1, getting ${new_shape}`)
@@ -1175,7 +1175,7 @@ export class Tensor extends SimpleMathTrait {
 
     let [indices_parsed, dim] = [[] as { index: TensorIndice; size: number; boundary: [number, number]; stride: number }[], 0]
     for (let index of indices) {
-      let size = index === undefined ? 1 : this.shape[dim] as number
+      let size = index === undefined ? 1 : this.shape.at(dim)! as number
       let [boundary, stride] = [[0, size] as [number, number], 1] // defaults
       if (Array.isArray(index) || index instanceof Tensor) {
         if (!isinstance(index, Tensor)) index = new Tensor(index, { device: this.device, requires_grad: false })
@@ -1347,7 +1347,7 @@ export class Tensor extends SimpleMathTrait {
   squeeze = (dim?: number): Tensor => {
     if (dim === undefined) return this.reshape(this.shape.filter((dim) => dim !== 1))
     dim = this._resolve_dim(dim)
-    return !this.ndim || this.shape[dim] !== 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
+    return !this.ndim || this.shape.at(dim)! !== 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
   }
 
   /**
@@ -1808,8 +1808,8 @@ export class Tensor extends SimpleMathTrait {
     if (axis === undefined) return this.flatten().argmax(0)
     axis = this._resolve_dim(axis)
     const m = this === this.max(axis, true)
-    const idx = Tensor.arange(this.shape[axis] as number, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape[axis], ...range(this.ndim - axis - 1).map(() => 1)]).mul(m, true)
-    return (idx.max(axis, keepdim).sub(this.shape[axis] as number, true)).cast(dtypes.int32)
+    const idx = Tensor.arange(this.shape.at(axis)! as number, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape.at(axis)!, ...range(this.ndim - axis - 1).map(() => 1)]).mul(m, true)
+    return (idx.max(axis, keepdim).sub(this.shape.at(axis) as number, true)).cast(dtypes.int32)
   }
 
   /**
@@ -2014,7 +2014,7 @@ export class Tensor extends SimpleMathTrait {
     // TODO: someday the optimizer will find this on it's own
     // for now this is a two stage cumsum
     const SPLIT = 256
-    const s = this.shape[axis] as number
+    const s = this.shape.at(axis) as number
     if (!Number.isInteger(s) || s <= SPLIT * 2) return this._cumalu(axis, op)
     const ret = this.transpose(axis, -1).pad([round_up(s, SPLIT) - s, 0], undefined, identity_element(op, this.dtype) as number).unflatten(-1, [-1, SPLIT])._cumalu(-1, op)
     let base = ret.get('...', -1)._cumalu(-1, op, true)
@@ -3284,7 +3284,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   size = (dim?: number): sint | sint[] => {
-    return dim === undefined ? this.shape : this.shape[dim]
+    return dim === undefined ? this.shape : this.shape.at(dim)!
   }
   // ***** cast ops *****
 
