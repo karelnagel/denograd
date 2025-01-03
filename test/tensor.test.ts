@@ -275,7 +275,7 @@ Deno.test.ignore(
   ),
 )
 
-const ops = (): [Tensor, keyof Tensor, string?][] => [
+const ops = (): [Tensor, keyof Tensor][] => [
   [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'max'],
   [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'min'],
   [new Tensor([[-2, -1, 0], [1, 2, 3]]), 'relu'],
@@ -315,10 +315,10 @@ const ops = (): [Tensor, keyof Tensor, string?][] => [
   [new Tensor([-2, -1, 0, 1, 2]), 'sigmoid'],
   [new Tensor([-2, -1, 0, 1, 2]), 'hardsigmoid'],
   [new Tensor([0, 1, 4, 9, 16]), 'sqrt'],
-  [new Tensor([1, 4, 9, 16]), 'rsqrt', 'TIMEOUT'],
-  [new Tensor([-1, -0.5, 0, 0.5, 1]), 'sin', 'TIMEOUT'],
-  [new Tensor([-1, -0.5, 0, 0.5, 1]), 'cos', 'TIMEOUT'],
-  [new Tensor([-1, -0.5, 0, 0.5, 1]), 'tan', 'TIMEOUT'],
+  [new Tensor([1, 4, 9, 16]), 'rsqrt'],
+  // [new Tensor([-1, -0.5, 0, 0.5, 1]), 'sin'],
+  // [new Tensor([-1, -0.5, 0, 0.5, 1]), 'cos'],
+  // [new Tensor([-1, -0.5, 0, 0.5, 1]), 'tan'],
   [new Tensor([-0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9]), 'asin'],
   [new Tensor([-0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9]), 'acos'],
   [new Tensor([-3, -2, -1, 0, 1, 2, 3]), 'atan'],
@@ -332,23 +332,22 @@ const ops = (): [Tensor, keyof Tensor, string?][] => [
   [new Tensor([-2, -1, 0, 1, 2]), 'tanh'],
   [new Tensor([-2, -1, 0, 1, 2]), 'sinh'],
   [new Tensor([-2, -1, 0, 1, 2]), 'cosh'],
-  [new Tensor([-0.9, -0.5, 0, 0.5, 0.9]), 'atanh', 'TIMEOUT'],
-  [new Tensor([-2, -1, 0, 1, 2]), 'asinh', 'TIMEOUT'],
-  [new Tensor([1.5, 2, 2.5, 3, 3.5]), 'acosh', 'TIMEOUT'],
-  [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'hardtanh', 'TIMEOUT'],
-  [new Tensor([-2, -1, 0, 1, 2]), 'erf', 'TIMEOUT'],
-  [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'gelu', 'TIMEOUT'],
-  [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'quick_gelu', 'TIMEOUT'],
-  [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'leakyrelu', 'TIMEOUT'],
-  [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'mish', 'TIMEOUT'],
-  [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'softplus', 'TIMEOUT'],
-  [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'softsign', 'TIMEOUT'],
+  // [new Tensor([-0.9, -0.5, 0, 0.5, 0.9]), 'atanh'],
+  // [new Tensor([-2, -1, 0, 1, 2]), 'asinh'],
+  // [new Tensor([1.5, 2, 2.5, 3, 3.5]), 'acosh'],
+  // [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'hardtanh'],
+  // [new Tensor([-2, -1, 0, 1, 2]), 'erf'],
+  // [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'gelu'],
+  // [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'quick_gelu'],
+  // [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'leakyrelu'],
+  // [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'mish'],
+  // [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'softplus'],
+  // [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'softsign'],
 ]
 
-for (const [i, [tensor, op, ignore]] of ops().entries()) {
+for (const [i, [tensor, op]] of ops().entries()) {
   Deno.test({
     name: `Tensor.ops.${op}.${i}`,
-    ignore: !!ignore,
     fn: compare(
       [[tensor, op]],
       (t: Tensor, op: keyof Tensor) => (t[op] as any)(),
