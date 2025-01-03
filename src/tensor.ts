@@ -588,8 +588,8 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.tolist())
    * ```
    */
-  tolist = (): ConstType[] | ConstType => {
-    return this.data().toList() as number[]
+  tolist = <T = any>(): T => {
+    return this.data().toList() as T
   }
   /**
    * Creates a clone of this tensor allocating a separate buffer for the data.
