@@ -235,7 +235,7 @@ export const fully_flatten = (l: any): any[] => {
 export const strip_parens = (s: string) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
 export const ceildiv = (num: number, amt: number): number => {
   const ret = -(Math.floor(-num / amt))
-  return Number.isInteger(ret) ? ret : Math.floor(ret)
+  return Number.isInteger(ret) ? ret : Math.trunc(ret)
 }
 export const round_up = (num: number, amt: number) => Math.ceil(num / amt) * amt
 export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0] // TODO:make work with sint

@@ -3,7 +3,7 @@ import type { DType } from '../dtype.ts'
 import { DataClass, raise, to_function_name } from '../helpers.ts'
 import { isNone } from '../helpers.ts'
 import { assert, isNotNone, prod, range } from '../helpers.ts'
-import { flopsMem, Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
+import { flops_mem, idiv, Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
 
@@ -18,7 +18,7 @@ export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D 
     public upcast_axes: [TC[], TC[], TC[]],
   ) {}
   early_upcast_axes = (): TC[] => { // list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
-    return range(2).map((dim) => [dim, prod(this.threads.filter(([d]) => d === dim).map(([d, sz]) => sz))]).filter(([d, sz]) => this.dims[d] > sz).map(([d, sz]) => [d, Math.floor(this.dims[d] / sz)])
+    return range(2).map((dim) => [dim, prod(this.threads.filter(([d]) => d === dim).map(([d, sz]) => sz))]).filter(([d, sz]) => this.dims[d] > sz).map(([d, sz]) => [d, idiv(this.dims[d], sz)])
   }
   st1_pattern?: TC[][] | TC[] // pattern to fix shapetracker for A
   st2_pattern?: TC[][] | TC[] // pattern to fix shapetracker for B
@@ -66,7 +66,7 @@ export class ProgramSpec {
   get lds_estimate() {
     return this._ops_lds()[1]
   }
-  _ops_lds = (): [sint, sint] => isNone(this.uops) ? [0, 0] : flopsMem(this.uops, true)
+  _ops_lds = (): [sint, sint] => isNone(this.uops) ? [0, 0] : flops_mem(this.uops, true)
 
   get function_name() {
     return to_function_name(this.name)

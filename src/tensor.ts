@@ -3018,8 +3018,8 @@ export class Tensor extends SimpleMathTrait {
       if (x < 0) return this.reciprocal().pow(-x).cast(this.dtype)
       if (x === 0) return this.mul(0).add(1, true)
       // rewrite pow 0.5 to sqrt
-      if (Math.floor(x - 0.5) + 0.5 === x) return this.pow(Math.floor(x - 0.5)).mul(this.sqrt())
-      if (Math.floor(x) === x) return this.pow(idiv(x, 2)).square().mul(x % 2 === 0 ? 1 : this)
+      if (Math.trunc(x - 0.5) + 0.5 === x) return this.pow(Math.trunc(x - 0.5)).mul(this.sqrt())
+      if (Math.trunc(x) === x) return this.pow(idiv(x, 2)).square().mul(x % 2 === 0 ? 1 : this)
     }
     // positive const ** self
     if (!isinstance(x, Tensor) && reverse && x > 0) return this.mul(Math.log(x)).exp()

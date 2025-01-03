@@ -428,7 +428,7 @@ export class UOp extends MathTrait {
   divides = (v: number): UOp | undefined => {
     if (v === 1) return this
     if (this.op === Ops.CONST) return this.arg % v === 0 ? this.const_like(idiv(this.arg, v)) : undefined
-    if (this.op === Ops.VCONST) return this.arg.every((x: number) => x % v === 0) ? this.const_like(this.arg.map((x: number) => Math.floor(x / v))) : undefined
+    if (this.op === Ops.VCONST) return this.arg.every((x: number) => x % v === 0) ? this.const_like(this.arg.map((x: number) => idiv(x, v))) : undefined
 
     if (this.op === Ops.ADD) {
       const d0 = this.src[0].divides(v)
@@ -539,8 +539,8 @@ export const python_alu = new Map<Ops, (...x: number[]) => number>([
   [Ops.SHR, (x, y) => x >> y],
   [Ops.SHL, (x, y) => x << y],
   [Ops.MAX, (...args) => Math.max(...args)],
-  [Ops.MOD, (x, y) => Math.abs(Math.floor(x)) % Math.abs(Math.floor(y)) * (x < 0 ? -1 : 1)],
-  [Ops.IDIV, (x, y) => y !== 0 ? Math.floor(Math.abs(x) / Math.abs(y)) * ((x * y < 0) ? -1 : 1) : x * Infinity],
+  [Ops.MOD, (x, y) => Math.abs(Math.trunc(x)) % Math.abs(Math.trunc(y)) * (x < 0 ? -1 : 1)],
+  [Ops.IDIV, (x, y) => y !== 0 ? idiv(Math.abs(x), Math.abs(y)) * ((x * y < 0) ? -1 : 1) : x * Infinity],
   [Ops.MULACC, (x, y, z) => (x * y) + z],
   [Ops.WHERE, (x, y, z) => x ? y : z],
 ])
@@ -559,7 +559,7 @@ export const print_uops = (uops: UOp[]) => {
   }
 }
 
-export const flopsMem = (uops: UOp[], ignoreIndexing = false): [UOp, UOp] => {
+export const flops_mem = (uops: UOp[], ignoreIndexing = false): [UOp, UOp] => {
   let flops = uops[0].const_like(0)
   let mem = uops[0].const_like(0)
   let mults = uops[0].const_like(1)
@@ -582,7 +582,7 @@ export const flopsMem = (uops: UOp[], ignoreIndexing = false): [UOp, UOp] => {
     else if (u.op === Ops.LOAD) mem = (mults.mul(u.dtype.itemsize)).add(mem)
     else if (u.op === Ops.STORE) mem = (mults.mul(u.src[1].dtype.itemsize)).add(mem)
     else if (GroupOp.ALU.includes(u.op) && !dontCount.has(u)) flops = flops.add((mults.mul(u.op === Ops.MULACC ? 2 : 1)).mul(u.dtype.count))
-    else if (u.op === Ops.WMMA && !dontCount.has(u)) flops = mults.mul(Math.floor(prod(u.arg[1]) / u.arg[5])).mul(2).add(flops)
+    else if (u.op === Ops.WMMA && !dontCount.has(u)) flops = add(flops, mul(idiv(mul(2, prod(u.arg[1])), u.arg[5]), mults))
   }
   return [flops, mem]
 }
@@ -961,15 +961,15 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
   return add(idiv(rem, idiv(c, gcd)), quo) as UOp
 }
 
-const ltFolding = (x: UOp, c: number): UOp | undefined => {
+const lt_folding = (x: UOp, c: number): UOp | undefined => {
   const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
   const d = mathGcd(...np.map((u) => u.constFactor()), c)
   if (np && d > 1 && 0 <= p.map((u) => u.vmin).reduce((p, c) => c + p) && p.map((u) => u.vmax).reduce((p, c) => p + c) < d) {
-    return np.reduce((p, c) => p.add(c), UOp.int(0)).divides(d)!.lt(Math.floor(c / d))
+    return np.reduce((p, c) => p.add(c), UOp.int(0)).divides(d)!.lt(idiv(c, d))
   }
   return undefined
 }
-const foldUnrolledDivs = ({ divs }: { divs: UOp }) => {
+const fold_unrolled_divs = ({ divs }: { divs: UOp }) => {
   // div pattern in unrolled arange
   // example: (x//4+(x+1)//4+(x+2)//4+(x+3)//4 -> x
   let [addChain, denominator, seenConst, ans] = [splitUOp(divs, Ops.ADD), undefined as number | undefined, [] as number[], undefined as undefined | UOp]
@@ -1178,9 +1178,9 @@ export const symbolic = symbolic_simple.add(
     [new UPat(Ops.MUL, undefined, [UPat.var('x'), UPat.cvar('c1')]).mul(UPat.var('y')), ({ x, c1, y }) => (x.mul(y)).mul(c1)],
     //   // *** rules from symbolic ***
     //   // unrolled arange div folding
-    [new UPat(Ops.ADD, undefined, [[new UPat(), new UPat(Ops.IDIV)]], undefined, 'divs'), ({ divs }) => foldUnrolledDivs({ divs })],
+    [new UPat(Ops.ADD, undefined, [[new UPat(), new UPat(Ops.IDIV)]], undefined, 'divs'), ({ divs }) => fold_unrolled_divs({ divs })],
     // generic lt folding
-    [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), ({ x, c }) => 0 < c.arg ? ltFolding(x, c.arg) : undefined],
+    [UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)), ({ x, c }) => 0 < c.arg ? lt_folding(x, c.arg) : undefined],
     // canonicalize a simplex with positive coefficients > 0
     // not x < 1 -> X > 0
     [UPat.var('x', dtypes.ints).lt(1).ne(true), ({ x }) => {

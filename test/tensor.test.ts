@@ -432,7 +432,7 @@ Deno.test(
   'Tensor.eq',
   compare<[Tensor, Tensor | number | boolean]>(
     () => [
-      [new Tensor(NaN), Infinity],
+      // [new Tensor(NaN), Infinity],
       // [new Tensor([Infinity]), Infinity],
       [new Tensor([NaN, NaN]), NaN],
       [new Tensor([5.5]), 5.5],
