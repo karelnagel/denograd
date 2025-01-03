@@ -362,7 +362,6 @@ export class Tensor extends SimpleMathTrait {
   constructor(data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
     super()
     if (skip_constructor) return
-
     if (dtype !== undefined) dtype = to_dtype(dtype)
     assert(dtype === undefined || dtype instanceof DType, `invalid dtype ${dtype}`)
     if (device === undefined && typeof data === 'string' && path.isAbsolute(data)) device = `DISK:${data}` // keep it on the disk if device === undefined
@@ -373,15 +372,18 @@ export class Tensor extends SimpleMathTrait {
     this.requires_grad = requires_grad
 
     //     // create a LazyBuffer from the different types of inputs
-    if (data instanceof LazyBuffer) assert(dtype === undefined || dtype === data.dtype, "dtype doesn't match, && casting isn't supported")
-    else if (data === undefined) data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
-    else if (typeof data === 'number' || typeof data === 'boolean') {
+    if (data instanceof LazyBuffer) {
+      assert(dtype === undefined || dtype === data.dtype, "dtype doesn't match, && casting isn't supported")
+    } else if (data === undefined) {
+      data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
+    } else if (typeof data === 'number' || typeof data === 'boolean') {
       data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
     } else if (data instanceof UOp) {
       assert(data.op === Ops.BIND && data.src[0].op === Ops.DEFINE_VAR && data.src[1].op === Ops.CONST, `can't create tensor from UOp ${data}`)
       data = _metaop(Ops.CONST, [], dtype || data.dtype, device, data)
-    } else if (data instanceof Uint8Array) data = _frompy(data, dtype || dtypes.uint8)
-    else if (Array.isArray(data)) {
+    } else if (data instanceof Uint8Array) {
+      data = _frompy(data, dtype || dtypes.uint8)
+    } else if (Array.isArray(data)) {
       if (dtype === undefined) {
         const d = fully_flatten(data)
         if (d.length && d.every((s) => typeof s === 'boolean')) dtype = dtypes.bool
@@ -655,7 +657,7 @@ export class Tensor extends SimpleMathTrait {
   static from_url = async (url: string, gunzip = false, opts?: TensorOptions): Promise<Tensor> => {
     let data = await fetch(url).then((data) => data.arrayBuffer())
     if (gunzip) data = await gunzipAsync(data)
-    return new Tensor(gunzip, opts)
+    return new Tensor(new Uint8Array(data), opts)
   }
   static _seed: number = Date.now()
   static _device_seeds = new Map<string, Tensor>()
