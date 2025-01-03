@@ -1,6 +1,5 @@
-import { ConstType, DType, dtypes } from '../src/dtype.ts'
-import { LazyBuffer } from '../src/engine/lazy.ts'
-import { sint, UOp } from '../src/ops.ts'
+import { DType, dtypes } from '../src/dtype.ts'
+import { Ops, sint } from '../src/ops.ts'
 import { Tensor, TensorOptions } from '../src/tensor.ts'
 import { compare, tryCatch } from './helpers.ts'
 import process from 'node:process'
@@ -383,6 +382,8 @@ Deno.test(
 
       // Test different dilations per dimension
       [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], 1, [2, 1]],
+
+      [new Tensor([0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [8]],
     ],
     (t, k_, stride = 1, dilation = 1) => t._pool(k_, stride, dilation),
     'out(data[0]._pool(*data[1:]))',
@@ -490,9 +491,31 @@ Deno.test(
   'Tensor.arange',
   compare(
     [
-      [8]
+      [8],
     ],
     Tensor.arange,
-    "out(tiny.Tensor.arange(*data))"
+    'out(tiny.Tensor.arange(*data))',
+  ),
+)
+
+Deno.test(
+  'Tensor._cumalu',
+  compare<[Tensor, number, Ops]>(
+    [
+      [Tensor.full([8], 1), 0, Ops.ADD],
+    ],
+    (t, axis, op) => t._cumalu(axis, op),
+    'out(data[0]._cumalu(*data[1:]))',
+  ),
+)
+
+Deno.test(
+  'Tensor.transpose',
+  compare<[Tensor, number, number]>(
+    [
+      [Tensor.full([8], 1), 0, -1],
+    ],
+    (t, dim0, dim1) => t.transpose(dim0, dim1),
+    'out(data[0].transpose(*data[1:]))',
   ),
 )

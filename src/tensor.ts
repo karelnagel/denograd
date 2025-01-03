@@ -1002,8 +1002,8 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.permute(1, 0).numpy())
    * ```
    */
-  permute = (...[order, ...args]: number[]): Tensor => {
-    const order_arg = argfix(order, ...args).map((x) => this._resolve_dim(x))
+  permute = (...args: number[]): Tensor => {
+    const order_arg = args.map((x) => this._resolve_dim(x))
     if (!isEq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
     return Permute.apply(this, order_arg)
   }
@@ -1386,6 +1386,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   transpose = (dim0 = 1, dim1 = 0): Tensor => {
+    dim0 = this._resolve_dim(dim0), dim1 = this._resolve_dim(dim1)
     const order = range(this.ndim)
     ;[order[dim0], order[dim1]] = [order[dim1], order[dim0]]
     return this.permute(...order)
@@ -1405,7 +1406,7 @@ export class Tensor extends SimpleMathTrait {
    */
 
   flatten = (start_dim = 0, end_dim = -1) => {
-    ;[start_dim, end_dim] = [this._resolve_dim(start_dim), this._resolve_dim(end_dim)]
+    start_dim = this._resolve_dim(start_dim), end_dim = this._resolve_dim(end_dim)
     return this.reshape([...this.shape.slice(0, start_dim), sint_prod(this.shape.slice(start_dim, end_dim + 1)), ...this.shape.slice(end_dim + 1)])
   }
   /**
@@ -2002,9 +2003,9 @@ export class Tensor extends SimpleMathTrait {
   }
 
   _cumalu = (axis: number, op: Ops, _include_initial = false): Tensor => {
-    assert(this.shape[axis] !== 0 && [Ops.ADD, Ops.MAX].includes(op))
-    const pl_sz = sub(this.shape[axis], Number(!_include_initial))
-    const pooled = this.transpose(axis, -1).pad([pl_sz, -Number(_include_initial)], undefined, identity_element(op, this.dtype) as number)._pool([this.shape[axis]])
+    assert(this.shape.at(axis) !== 0 && [Ops.ADD, Ops.MAX].includes(op))
+    const pl_sz = sub(this.shape.at(axis)!, Number(!_include_initial))
+    const pooled = this.transpose(axis, -1).pad([pl_sz, -Number(_include_initial)], undefined, identity_element(op, this.dtype) as number)._pool([this.shape.at(axis)!])
     return (op === Ops.ADD ? pooled.sum(-1) : pooled.max(-1)).transpose(axis, -1)
   }
   _split_cumalu = (axis: number, op: Ops): Tensor => {
