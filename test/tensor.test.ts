@@ -453,6 +453,18 @@ Deno.test(
   ),
 )
 Deno.test(
+  'Tensor.full',
+  compare(
+    [
+      [[3, 3], 1],
+      [[2, 4], 2],
+      [[4, 2], 3],
+    ],
+    Tensor.full,
+    'out(tiny.Tensor.full(*data))',
+  ),
+)
+Deno.test(
   'Tensor.ones',
   compare(
     [
@@ -508,12 +520,20 @@ Deno.test(
 
 Deno.test(
   'Tensor._cumalu',
-  compare<[null, number, Ops]>(
+  compare<[Tensor, number, Ops]>(
     [
-      [null, 0, Ops.ADD],
+      [Tensor.full([8], 1), 0, Ops.ADD], // Basic cumulative sum
+      [Tensor.arange(5), 0, Ops.ADD], // Cumsum on sequence
+      [Tensor.full([3, 3], 1), 0, Ops.ADD], // 2D cumsum along axis 0
+      [Tensor.full([3, 3], 1), 1, Ops.ADD], // 2D cumsum along axis 1
+      [Tensor.arange(5), 0, Ops.MAX], // Cumulative max
+      [Tensor.full([2, 4], 2), 1, Ops.MAX], // 2D cummax along axis 1
+      [Tensor.full([4, 2], 3), 0, Ops.MAX], // 2D cummax along axis 0
+      [Tensor.arange(1, 5).reshape([2, 2]), 0, Ops.ADD], // Reshaped cumsum
+      [Tensor.arange(1, 5).reshape([2, 2]), 1, Ops.MAX], // Reshaped cummax
     ],
-    (_, axis, op) => Tensor.full([8], 1)._cumalu(axis, op),
-    'out(tiny.Tensor.full([8], 1)._cumalu(*data[1:]))',
+    (t, axis, op) => t._cumalu(axis, op),
+    'out(data[0]._cumalu(*data[1:]))',
   ),
 )
 
@@ -533,7 +553,7 @@ Deno.test(
   compare<[Tensor]>(
     [
       [Tensor.full([8], 1)],
-      [new Tensor([3, 5, 3, 3, 4, 3]).reshape([2,3])],
+      [new Tensor([3, 5, 3, 3, 4, 3]).reshape([2, 3])],
     ],
     (t) => t.lazydata.st,
     'out(data[0].lazydata.st)',
