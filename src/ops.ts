@@ -6,48 +6,48 @@ import { argfix } from './helpers.ts'
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
 
-export class SimpleMathTrait {
+export class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   //   # required to implement
-  alu = (_arg: Ops, ..._src: typeof this[]): typeof this => raise('Not implemented')
-  const_like = (_b: ConstLike): typeof this => raise('Not implemented')
+  alu = (_arg: Ops, ..._src: T[]): T => raise('Not implemented')
+  const_like = (_b: ConstLike): T => raise('Not implemented')
 
   //   # great functions you get!
-  ufix = (x: ConstType<typeof this>): typeof this => x instanceof MathTrait ? x : this.const_like(x as any) //ignoring this error, cause not sure
-  _binop = (op: Ops, x: ConstType<typeof this>, reverse: boolean) => reverse ? this.ufix(x).alu(op, this) : this.alu(op, this.ufix(x))
+  ufix = (x: ConstType<T>): T => x instanceof MathTrait ? x : this.const_like(x as any) //ignoring this error, cause not sure
+  _binop = (op: Ops, x: ConstType<T>, reverse: boolean) => reverse ? this.ufix(x).alu(op, this as any) : this.alu(op, this.ufix(x))
   logical_not = () => this.ne(true)
   neg = () => {
     const dtype = 'dtype' in this && this.dtype instanceof DType ? this.dtype : undefined
     if (isNone(dtype)) throw new Error(`MathTraits __neg__ requires a dtype, ${this}`)
     return isEq(dtype.scalar(), dtypes.bool) ? this.logical_not() : this.mul(-1)
   }
-  add = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.ADD, x, reverse)
-  mul = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.MUL, x, reverse)
-  bitwise_and = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.AND, x, reverse)
-  bitwise_or = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.OR, x, reverse)
-  xor = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.XOR, x, reverse)
-  idiv = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.IDIV, x, reverse)
-  sub = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg())
-  div = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).mul(this.alu(Ops.RECIP)) : this.mul(this.ufix(x).alu(Ops.RECIP))
+  add = (x: ConstType<T>, reverse = false) => this._binop(Ops.ADD, x, reverse)
+  mul = (x: ConstType<T>, reverse = false) => this._binop(Ops.MUL, x, reverse)
+  bitwise_and = (x: ConstType<T>, reverse = false) => this._binop(Ops.AND, x, reverse)
+  bitwise_or = (x: ConstType<T>, reverse = false) => this._binop(Ops.OR, x, reverse)
+  xor = (x: ConstType<T>, reverse = false) => this._binop(Ops.XOR, x, reverse)
+  idiv = (x: ConstType<T>, reverse = false) => this._binop(Ops.IDIV, x, reverse)
+  sub = (x: ConstType<T>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg())
+  div = (x: ConstType<T>, reverse = false) => reverse ? this.ufix(x).mul(this.alu(Ops.RECIP)) : this.mul(this.ufix(x).alu(Ops.RECIP))
 
-  lt = (x: ConstType<typeof this>) => this.alu(Ops.CMPLT, this.ufix(x))
-  gt = (x: ConstType<typeof this>) => this.ufix(x).alu(Ops.CMPLT, this)
-  ge = (x: ConstType<typeof this>) => this.lt(x).logical_not()
-  le = (x: ConstType<typeof this>) => this.gt(x).logical_not()
-  ne = (x: ConstType<typeof this>) => this.alu(Ops.CMPNE, this.ufix(x))
-  eq = (x: ConstType<typeof this>) => this.ne(x).logical_not()
+  lt = (x: ConstType<T>) => this.alu(Ops.CMPLT, this.ufix(x))
+  gt = (x: ConstType<T>) => this.ufix(x).alu(Ops.CMPLT, this as any)
+  ge = (x: ConstType<T>) => this.lt(x).logical_not()
+  le = (x: ConstType<T>) => this.gt(x).logical_not()
+  ne = (x: ConstType<T>) => this.alu(Ops.CMPNE, this.ufix(x))
+  eq = (x: ConstType<T>) => this.ne(x).logical_not()
 }
 
-export class MathTrait extends SimpleMathTrait {
+export class MathTrait<T extends MathTrait<any>> extends SimpleMathTrait<T> {
   // TODO: move to Tensor when new backward is done (tinygrad)
-  lshift = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.SHL, x, reverse)
-  rshift = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.SHR, x, reverse)
+  lshift = (x: ConstType<T>, reverse = false) => this._binop(Ops.SHL, x, reverse)
+  rshift = (x: ConstType<T>, reverse = false) => this._binop(Ops.SHR, x, reverse)
 
   //   # not in Tensor
-  mod = (x: ConstType<typeof this>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
-  maximum = (x: ConstType<typeof this>) => this.alu(Ops.MAX, this.ufix(x))
-  minimum = (x: ConstType<typeof this>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg()).neg()
-  where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(x).ufix(y))
-  threefry = (seed: ConstType<typeof this>) => this.alu(Ops.THREEFRY, this.ufix(seed))
+  mod = (x: ConstType<T>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
+  maximum = (x: ConstType<T>) => this.alu(Ops.MAX, this.ufix(x))
+  minimum = (x: ConstType<T>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg()).neg()
+  where = (x: ConstType<T>, y: ConstType<T>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(x).ufix(y))
+  threefry = (seed: ConstType<T>) => this.alu(Ops.THREEFRY, this.ufix(seed))
   reciprocal = () => this.alu(Ops.RECIP)
   sqrt = () => this.alu(Ops.SQRT)
   sin = () => this.alu(Ops.SIN)
@@ -210,7 +210,7 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [number, any, DType, UOpTuple[]]
-export class UOp extends MathTrait {
+export class UOp extends MathTrait<UOp> {
   static ucache: Record<string, UOp> = {}
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
@@ -303,7 +303,7 @@ export class UOp extends MathTrait {
   }
   static sink = (...srcs: UOp[]) => new UOp(Ops.SINK, dtypes.void, [...srcs])
   index = (idx: UOp, valid?: UOp) => new UOp(Ops.INDEX, this.dtype, isNotNone(valid) ? [this, idx, valid] : [this, idx])
-  override const_like = (b: ConstLike<typeof this>) => (isNone(this.st) ? UOp.const(this.dtype, b) : UOp.const_with_shape(this.dtype, b, this.shape)) as typeof this
+  override const_like = (b: ConstLike<UOp>) => (isNone(this.st) ? UOp.const(this.dtype, b) : UOp.const_with_shape(this.dtype, b, this.shape)) as UOp
   broadcast = (count: number) => {
     if (this.dtype.count !== 1) throw new Error(`dtype.count !==1`)
     if (count === 1) return this
@@ -324,10 +324,10 @@ export class UOp extends MathTrait {
   }
   load = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.LOAD, kwargs?.dtype, kwargs?.src || [this, ...src], kwargs?.arg)
   store = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.STORE, kwargs?.dtype || dtypes.void, kwargs?.src || [this, ...src], kwargs?.arg)
-  override alu = (arg: Ops, ...src: typeof this[]): typeof this => {
+  override alu = (arg: Ops, ...src: UOp[]): UOp => {
     let out_dtype = [this, ...src].at(-1)!.dtype
     if ([Ops.CMPLT, Ops.CMPNE].includes(arg)) out_dtype = out_dtype.count > 1 ? dtypes.bool.vec(out_dtype.count) : dtypes.bool
-    return new UOp(arg, out_dtype, [this, ...src]) as typeof this
+    return new UOp(arg, out_dtype, [this, ...src]) as UOp
   }
   static const = (dtype: DType, b: ConstLike) => {
     if (b instanceof UOp) return b.unbind()[0]
@@ -596,7 +596,7 @@ const lines = (fn: string): string[] => {
 }
 
 export type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allow_any_len?: boolean; location?: any; custom_early_reject?: Ops[] }
-export class UPat extends MathTrait {
+export class UPat extends MathTrait<UPat> {
   op?: Ops[]
   dtype?: DType[]
   _in_src?: UPat | UPat[] | [UPat[]]
@@ -650,10 +650,10 @@ export class UPat extends MathTrait {
   store = (src: UPat[], kwargs: Partial<UPatInput> = {}) => new UPat(kwargs.op || Ops.STORE, kwargs.dtype || dtypes.void, kwargs.src || [this, ...src], kwargs.arg, kwargs.name, kwargs.allow_any_len, kwargs.location, kwargs.custom_early_reject)
   assign = (x: UPat) => new UPat(Ops.ASSIGN, this.dtype, [this, x])
 
-  override const_like = (b: ConstLike): typeof this => UPat.const(this.dtype, b) as typeof this
+  override const_like = (b: ConstLike): UPat => UPat.const(this.dtype, b)
   override alu = (op: Ops, ...src: UPat[]) => {
     const asrc = [this, ...src]
-    return new UPat(op, [Ops.CMPLT, Ops.CMPNE].includes(op) ? dtypes.bool : asrc.at(-1)?.dtype, GroupOp.Commutative.includes(op) ? [asrc] : asrc) as typeof this
+    return new UPat(op, [Ops.CMPLT, Ops.CMPNE].includes(op) ? dtypes.bool : asrc.at(-1)?.dtype, GroupOp.Commutative.includes(op) ? [asrc] : asrc)
   }
 
   printable = (): string => {
@@ -1091,7 +1091,7 @@ export const maxVarConst = ({ x, c1, c2 }: { x: UOp; c1: UOp; c2: UOp }) => {
   if (x.vmin >= (0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
   if (x.vmax <= (0)) return c1.arg >= c2.arg ? x.mul(c2) : x.mul(c1)
 }
-export const sint_to_uop = (x: sint, dtype = dtypes.int) => typeof x === 'number' ? UOp.const(dtype, x) : x
+export const sint_to_uop = (x: sint, dtype = dtypes.int) => (typeof x === 'number' || typeof x === 'bigint') ? UOp.const(dtype, x) : x
 
 export const symbolic_simple = new PatternMatcher([
   //   // ** this folding **

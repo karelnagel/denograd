@@ -348,7 +348,7 @@ export type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' |
  * np.set_printoptions(precision=4)
  * ```
  */
-export class Tensor extends SimpleMathTrait {
+export class Tensor extends SimpleMathTrait<Tensor> {
   lazydata!: LazyBuffer
   requires_grad?: boolean
   // tensors can have gradients if you have called .backward
@@ -498,7 +498,7 @@ export class Tensor extends SimpleMathTrait {
     //   // TODO: this === a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
       // if x.__class__ !== Tensor: x = new Tensor(x, device="PYTHON", dtype=this.dtype)// Karel: changed CLANG to PYTHON
-      this.contiguous().realize().lazydata.base.realized!.copyin((x as Tensor)._data())
+      this.contiguous().realize().lazydata.base.realized!.copyin(x._data())
       return this
     }
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
@@ -935,8 +935,8 @@ export class Tensor extends SimpleMathTrait {
       const token = _METADATA.set(md !== undefined ? { ...md, backward: true } : undefined)
       let grads: (Tensor | undefined)[] = t0._ctx!.backward(t0.grad.lazydata)
       _METADATA.reset(token)
-      grads = (t0._ctx?.parents?.length === 1 ? [grads] : grads).map((g) => g !== undefined ? new Tensor(g as Tensor, { device: this.device, requires_grad: false }) : undefined)
-      for (const [t, g] of zip(t0._ctx!.parents! as Tensor[], grads)) {
+      grads = (t0._ctx?.parents?.length === 1 ? [grads] : grads).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
+      for (const [t, g] of zip(t0._ctx!.parents!, grads)) {
         if (g !== undefined && t.requires_grad) {
           assert(isEq(g.shape, t.shape), `grad shape must match tensor shape, ${g.shape} !== ${t.shape}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
@@ -1630,7 +1630,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   var = (axis?: number | number[], keepdim = false, correction = 1) => {
-    const squares = ((this as Tensor).sub(this.mean(axis, true))).square()
+    const squares = (this.sub(this.mean(axis, true))).square()
     const n = sint_prod(zip(this.shape, squares.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si))
     return squares.sum(axis, keepdim).div(smax([0, sub(n, correction)]))
   }
@@ -1754,7 +1754,7 @@ export class Tensor extends SimpleMathTrait {
    */
   logsumexp = (axis = undefined, keepdim = false) => {
     const m = this.max(axis, true)
-    return (this as Tensor).sub(m).exp().sum(axis, keepdim).log().add(m.squeeze(axis))
+    return this.sub(m).exp().sum(axis, keepdim).log().add(m.squeeze(axis))
   }
   /**
    * Computes the log-cumsum-exp of the tensor along the specified axis || axes.
@@ -1781,7 +1781,7 @@ export class Tensor extends SimpleMathTrait {
    */
   logcumsumexp = (axis = 0) => {
     const m = this.max(axis, true)
-    return ((this as Tensor).sub(m)).exp().cumsum(axis).log().add(m)
+    return (this.sub(m)).exp().cumsum(axis).log().add(m)
   }
 
   /**
@@ -2120,7 +2120,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   override logical_not = () => {
-    return Neq.apply(...this.cast(dtypes.bool)._broadcasted(true)) as typeof this
+    return Neq.apply(...this.cast(dtypes.bool)._broadcasted(true))
   }
   /**
    * Negates the tensor element-wise.
@@ -2314,7 +2314,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   atan = () => {
-    return ((this as Tensor).div((this.mul(this).add(1, true)).sqrt())).asin()
+    return (this.div((this.mul(this).add(1, true)).sqrt())).asin()
   }
 
   // ***** math functions *****
@@ -2338,7 +2338,7 @@ export class Tensor extends SimpleMathTrait {
    */
   ceil = (): Tensor => {
     const b = this.trunc()
-    return ((this as Tensor).gt(b)).where(b.add(1), b)
+    return (this.gt(b)).where(b.add(1), b)
   }
   /**
    * Rounds the tensor element-wise towards negative infinity.
@@ -2349,7 +2349,7 @@ export class Tensor extends SimpleMathTrait {
    */
   floor = (): Tensor => {
     const b = this.trunc()
-    return ((this as Tensor).lt(b)).where(b.sub(1), b)
+    return (this.lt(b)).where(b.sub(1), b)
   }
   /**
    * Rounds the tensor element-wise with rounding half to even.
@@ -2360,7 +2360,7 @@ export class Tensor extends SimpleMathTrait {
    */
   round = (): Tensor => {
     const b = this.cast(dtypes.int32).div(2.0)
-    return (this as Tensor).gt(0).eq(b.cast(dtypes.int32).eq(b)).where((this.sub(0.5)).ceil(), (this.add(0.5)).floor())
+    return this.gt(0).eq(b.cast(dtypes.int32).eq(b)).where((this.sub(0.5)).ceil(), (this.add(0.5)).floor())
   }
 
   /**
@@ -2395,9 +2395,9 @@ export class Tensor extends SimpleMathTrait {
     if (this.dtype === dtypes.uint8 && isinstance(weight, Tensor)) {
       const W_PREC = 7
       const w_i = (weight.mul(1 << W_PREC).add(0.5)).cast(dtypes.int16)
-      return (this.add(((end.sub(this)).cast(dtypes.int8).mul(w_i).add(1 << W_PREC - 1)).cast(dtypes.uint16).rshift(W_PREC) as typeof this)).cast(dtypes.uint8)
+      return (this.add(((end.sub(this)).cast(dtypes.int8).mul(w_i).add(1 << W_PREC - 1)).cast(dtypes.uint16).rshift(W_PREC))).cast(dtypes.uint8)
     }
-    return (this as Tensor).add((end.sub(this)).mul(weight))
+    return this.add((end.sub(this)).mul(weight))
   }
 
   /**
@@ -2448,7 +2448,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   abs = () => {
-    return (this as Tensor).mul(this.sign())
+    return this.mul(this.sign())
   }
   /**
    * Compute `1/x` element-wise.
@@ -2515,7 +2515,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   swish = () => {
-    return (this as Tensor).mul(this.sigmoid())
+    return this.mul(this.sigmoid())
   }
 
   /**
@@ -2557,7 +2557,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   hardswish = () => {
-    return (this as Tensor).mul((this.add(3)).relu6()).mul(1 / 6)
+    return this.mul((this.add(3)).relu6()).mul(1 / 6)
   }
 
   /**
@@ -2621,7 +2621,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   asinh = () => {
-    return ((this as Tensor).add((this.square().add(1)).sqrt())).log()
+    return (this.add((this.square().add(1)).sqrt())).log()
   }
   /**
    * Applies the Inverse Hyperbolic Cosine (acosh) function element-wise.
@@ -2633,7 +2633,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   acosh = () => {
-    return ((this as Tensor).add((this.square().sub(1)).sqrt())).log()
+    return (this.add((this.square().sub(1)).sqrt())).log()
   }
 
   /**
@@ -2646,7 +2646,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   hardtanh = (min_val = -1, max_val = 1) => {
-    return (this as Tensor).clip(min_val, max_val)
+    return this.clip(min_val, max_val)
   }
 
   /**
@@ -2661,7 +2661,7 @@ export class Tensor extends SimpleMathTrait {
   erf = () => {
     // https://personal.math.ubc.ca/~cbm/aands/page_299.htm 7.1.26
     const t = this.abs().mul(0.3275911, true).add(1.0, true).div(1.0, true)
-    return (this as Tensor).sign().mul(t.mul(sint_polyN(t as any, [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592])).mul(this.square().neg().exp()).sub(1.0, true))
+    return this.sign().mul(t.mul(sint_polyN(t as any, [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592])).mul(this.square().neg().exp()).sub(1.0, true))
   }
 
   /**
@@ -2675,7 +2675,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   gelu = () => {
-    return (this as Tensor).mul(0.5, true).mul((((this as Tensor).add(this.pow(3).mul(0.044715, true))).mul(Math.sqrt(2 / Math.PI), true)).tanh()).add(1, true)
+    return this.mul(0.5, true).mul(((this.add(this.pow(3).mul(0.044715, true))).mul(Math.sqrt(2 / Math.PI), true)).tanh()).add(1, true)
   }
 
   /**
@@ -2688,7 +2688,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   quick_gelu = () => {
-    return (this as Tensor).mul((this.mul(1.702)).sigmoid())
+    return this.mul((this.mul(1.702)).sigmoid())
   }
 
   /**
@@ -2718,7 +2718,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   mish = () => {
-    return (this as Tensor).mul(this.softplus().tanh())
+    return this.mul(this.softplus().tanh())
   }
 
   /**
@@ -2744,7 +2744,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   softsign = () => {
-    return (this as Tensor).div(this.abs().add(1, true))
+    return this.div(this.abs().add(1, true))
   }
 
   // ***** broadcasted elementwise ops *****
@@ -2800,8 +2800,8 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.add(Tensor([[2.0], [3.5]])).numpy())
    * ```
    */
-  override add = (x: ConstType<typeof this>, reverse = false): typeof this => {
-    return Add.apply(...this._broadcasted(x, reverse)) as typeof this
+  override add = (x: ConstType<Tensor>, reverse = false) => {
+    return Add.apply(...this._broadcasted(x, reverse))
   }
 
   /**
@@ -2821,9 +2821,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.sub(Tensor([[2.0], [3.5]])).numpy())
    * ```
    */
-  override sub = (x: ConstType<typeof this>, reverse = false): typeof this => {
+  override sub = (x: ConstType<Tensor>, reverse = false): Tensor => {
     const [a, b] = this._broadcasted(x, reverse)
-    return a.add(b.neg()) as typeof this
+    return a.add(b.neg())
   }
   /**
    * Multiplies `this` && `x`.
@@ -2842,8 +2842,8 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.mul(Tensor([.at(-1.0)!, [2.0]])).numpy())
    * ```
    */
-  override mul = (x: ConstType<typeof this>, reverse = false): typeof this => {
-    return Mul.apply(...this._broadcasted(x, reverse)) as typeof this
+  override mul = (x: ConstType<Tensor>, reverse = false): Tensor => {
+    return Mul.apply(...this._broadcasted(x, reverse))
   }
 
   /**
@@ -2856,8 +2856,8 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor([1, 4, 10]).idiv(Tensor([2, 3, 4])).numpy())
    * ```
    */
-  override idiv = (x: ConstType<typeof this>, reverse = false): typeof this => {
-    return IDiv.apply(...this._broadcasted(x, reverse)) as typeof this
+  override idiv = (x: ConstType<Tensor>, reverse = false): Tensor => {
+    return IDiv.apply(...this._broadcasted(x, reverse))
   }
 
   /**
@@ -2878,9 +2878,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor([1, 4, 10]).div(Tensor([2, 3, 4])).numpy())
    * ```
    */
-  override div = (x: ConstType<typeof this> | sint, reverse = false): typeof this => {
+  override div = (x: ConstType<Tensor> | sint, reverse = false): Tensor => {
     const [numerator, denominator] = this._broadcasted(x, reverse)
-    return numerator.cast(least_upper_float(numerator.dtype)).mul(denominator.cast(least_upper_float(denominator.dtype)).reciprocal()) as typeof this
+    return numerator.cast(least_upper_float(numerator.dtype)).mul(denominator.cast(least_upper_float(denominator.dtype)).reciprocal())
   }
 
   /**
@@ -2895,9 +2895,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor([true, true, false, false]).xor(Tensor([true, false, true, false])).numpy())
    * ```
    */
-  override xor = (x: ConstType<typeof this>, reverse = false): typeof this => {
+  override xor = (x: ConstType<Tensor>, reverse = false): Tensor => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
-    return Xor.apply(...this._broadcasted(x, reverse)) as typeof this
+    return Xor.apply(...this._broadcasted(x, reverse))
   }
 
   /**
@@ -2911,9 +2911,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor([true, true, false, false]).bitwise_and(Tensor([true, false, true, false])).numpy())
    * ```
    */
-  override bitwise_and = (x: ConstType<typeof this>, reverse = false): typeof this => {
+  override bitwise_and = (x: ConstType<Tensor>, reverse = false): Tensor => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
-    return BitwiseAnd.apply(...this._broadcasted(x, reverse)) as typeof this
+    return BitwiseAnd.apply(...this._broadcasted(x, reverse))
   }
   /**
    * Compute the bit-wise OR of `this` && `x`.
@@ -2926,9 +2926,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor([true, true, false, false]).bitwise_or(Tensor([true, false, true, false])).numpy())
    * ```
    */
-  override bitwise_or = (x: ConstType<typeof this>, reverse = false): typeof this => {
+  override bitwise_or = (x: ConstType<Tensor>, reverse = false): Tensor => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
-    return BitwiseOr.apply(...this._broadcasted(x, reverse)) as typeof this
+    return BitwiseOr.apply(...this._broadcasted(x, reverse))
   }
 
   /**
@@ -3025,7 +3025,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   maximum = (x: ConstType<Tensor>): Tensor => {
-    return ((this as Tensor).lt(x)).detach().where(x, (this as Tensor).eq(x).detach().where((this.mul(0.5).add(mul(x as any, 0.5) as number)).cast(this.dtype), this))
+    return (this.lt(x)).detach().where(x, this.eq(x).detach().where((this.mul(0.5).add(mul(x as any, 0.5) as number)).cast(this.dtype), this))
   }
 
   /**
@@ -3069,9 +3069,9 @@ export class Tensor extends SimpleMathTrait {
   }
   masked_fill = (mask: Tensor, value: ConstType<Tensor>) => mask.where(value, this)
 
-  override lt = (x: ConstType<typeof this>): typeof this => Less.apply(...this._broadcasted(x, false)) as typeof this
-  override gt = (x: ConstType<typeof this>): typeof this => Less.apply(...this._broadcasted(x, true)) as typeof this
-  override ne = (x: ConstType<typeof this>): typeof this => Neq.apply(...this._broadcasted(x)) as typeof this
+  override lt = (x: ConstType<Tensor>): Tensor => Less.apply(...this._broadcasted(x, false))
+  override gt = (x: ConstType<Tensor>): Tensor => Less.apply(...this._broadcasted(x, true))
+  override ne = (x: ConstType<Tensor>): Tensor => Neq.apply(...this._broadcasted(x))
 
   // ***** functional nn ops *****
 
@@ -3088,7 +3088,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   linear = (weight: Tensor, bias?: Tensor) => {
-    const x = weight.shape.length === 1 ? (this as Tensor).mul(weight) : this.dot(weight)
+    const x = weight.shape.length === 1 ? this.mul(weight) : this.dot(weight)
     return bias !== undefined ? x.add(bias) : x
   }
 
@@ -3119,7 +3119,7 @@ export class Tensor extends SimpleMathTrait {
    * ```
    */
   layernorm = (axis: number | number[] = -1, eps: number): Tensor => {
-    const y = (this as Tensor).sub(this.mean(axis, true))
+    const y = this.sub(this.mean(axis, true))
     return y.mul((y.mul(y)).mean(axis, true).add(eps).rsqrt())
   }
   /**
@@ -3140,7 +3140,7 @@ export class Tensor extends SimpleMathTrait {
   batchnorm = (weight: undefined | Tensor, bias: undefined | Tensor, mean: Tensor, invstd: Tensor, axis: number | number[] = 1): Tensor => {
     const axis_ = argfix(axis)
     const shape = this.shape.map((s, ax) => axis_.includes(ax) ? s : 1)
-    let x = (this as Tensor).sub(mean.reshape(shape))
+    let x = this.sub(mean.reshape(shape))
     if (weight !== undefined) x = x.mul(weight.reshape(shape))
     const ret = x.mul(invstd.shape.length === axis_.length ? invstd.reshape(shape) : invstd)
     return bias !== undefined ? (ret.add(bias.reshape(shape))) : ret
@@ -3168,7 +3168,7 @@ export class Tensor extends SimpleMathTrait {
   // helper function commonly used for indexing
   _one_hot_along_dim = (num_classes: number, dim = -1) => {
     const offset = this.ndim - this._resolve_dim(dim) - 1
-    return (this as Tensor).eq(Tensor.arange(num_classes, undefined, undefined, { device: this.device, requires_grad: false }).reshape([num_classes, ...range(offset).map(() => 1)]))
+    return this.eq(Tensor.arange(num_classes, undefined, undefined, { device: this.device, requires_grad: false }).reshape([num_classes, ...range(offset).map(() => 1)]))
   }
   /**
    * Converts `this` to a one-hot tensor.

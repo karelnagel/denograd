@@ -23,7 +23,7 @@ export const create_lazybuffer = (device: DeviceType, st: ShapeTracker, dtype: D
   return ret
 }
 export const view_supported_devices = ['LLVM', 'CLANG', 'CUDA', 'NV', 'AMD', 'METAL', 'QCOM', 'DSP', 'DISK']
-export class LazyBuffer extends MathTrait {
+export class LazyBuffer extends MathTrait<LazyBuffer> {
   shape: sint[]
   size: number
 
@@ -89,7 +89,7 @@ export class LazyBuffer extends MathTrait {
     assert(isinstance(src, Array))
     return create_lazybuffer(device, ShapeTracker.from_shape(shape), dtype, op, arg, src, undefined, enable_cache)
   }
-  override const_like = (b: ConstLike): typeof this => this.const_with_shape(b as ConstType, this.shape) as typeof this
+  override const_like = (b: ConstLike) => this.const_with_shape(b as ConstType, this.shape)
   const_with_shape = (val: ConstType, shape: sint[]): LazyBuffer => {
     assert(isinstance(val, Number) || isinstance(val, Boolean), `val=${val} has ${typeof val}, !a ConstType`)
     return LazyBuffer.metaop(Ops.CONST, [], this.dtype, this.device, val).reshape(range(shape.length).map((x) => 1)).expand(shape)
@@ -166,7 +166,7 @@ export class LazyBuffer extends MathTrait {
   }
   clone = (): LazyBuffer => this.copy_to_device(this.device, undefined, true)
 
-  override alu = (op: Ops, ...in_srcs: typeof this[]): typeof this => {
+  override alu = (op: Ops, ...in_srcs: LazyBuffer[]): LazyBuffer => {
     const srcs: LazyBuffer[] = []
     for (const s of [this, ...in_srcs]) {
       if (isEq(s, s.base) && s.base.contiguous_child) { // KAREL: idk maybe it's never true
@@ -184,7 +184,7 @@ export class LazyBuffer extends MathTrait {
     const out_dtype = [Ops.CMPLT, Ops.CMPNE].includes(op) ? dtypes.bool : srcs.at(-1)!.dtype
 
     //     // const folding
-    if (python_alu.has(op) && srcs.every((s) => s.is_unrealized_unmasked_const())) return this.cast(out_dtype).const_like(exec_alu(op, out_dtype, srcs.map((s) => s.base.arg))) as typeof this
+    if (python_alu.has(op) && srcs.every((s) => s.is_unrealized_unmasked_const())) return this.cast(out_dtype).const_like(exec_alu(op, out_dtype, srcs.map((s) => s.base.arg)))
     if (GroupOp.Binary.includes(op)) {
       const [x, y] = [this, in_srcs[0]]
       if (op === Ops.ADD) {
@@ -197,7 +197,7 @@ export class LazyBuffer extends MathTrait {
       }
       if (op === Ops.IDIV && y.is_unrealized_unmasked_const() && y.base.arg === 1) return x
     }
-    return create_lazybuffer(this.device, ShapeTracker.from_shape(this.shape), out_dtype, op, undefined, srcs) as typeof this
+    return create_lazybuffer(this.device, ShapeTracker.from_shape(this.shape), out_dtype, op, undefined, srcs)
   }
   //   // *** reduce ops ***
 
