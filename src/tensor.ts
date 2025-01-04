@@ -971,7 +971,7 @@ export class Tensor extends SimpleMathTrait {
     const c = new_shape.filter((x) => x === -1).length
     if (c > 1) throw new Error(`only one dimension can be inferred using -1, getting ${new_shape}`)
     if (c) new_shape = new_shape.map((s) => s === -1 ? idiv(-prod(this.shape as number[]), prod(new_shape)) : s)
-    return !isEq(new_shape, this.shape) ? Reshape.apply(this, shape = new_shape) : this
+    return !isEq(new_shape, this.shape) ? Reshape.apply(this, new_shape) : this
   }
   /**
    * Returns a tensor that is expanded to the shape that is specified.

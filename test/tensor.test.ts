@@ -383,7 +383,7 @@ Deno.test(
       // Test different dilations per dimension
       [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], 1, [2, 1]],
 
-      [new Tensor([0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }), [8]],
+      [new Tensor([0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }).reshape([15]), [8]],
     ],
     (t, k_, stride = 1, dilation = 1) => t._pool(k_, stride, dilation),
     'out(data[0]._pool(*data[1:]))',
@@ -500,12 +500,12 @@ Deno.test(
 
 Deno.test(
   'Tensor._cumalu',
-  compare<[Tensor, number, Ops]>(
+  compare<[null, number, Ops]>(
     [
-      [Tensor.full([8], 1), 0, Ops.ADD],
+      [null, 0, Ops.ADD],
     ],
-    (t, axis, op) => t._cumalu(axis, op),
-    'out(data[0]._cumalu(*data[1:]))',
+    (_, axis, op) => Tensor.full([8], 1)._cumalu(axis, op),
+    'out(tiny.Tensor.full([8], 1)._cumalu(*data[1:]))',
   ),
 )
 
@@ -517,5 +517,27 @@ Deno.test(
     ],
     (t, dim0, dim1) => t.transpose(dim0, dim1),
     'out(data[0].transpose(*data[1:]))',
+  ),
+)
+
+Deno.test(
+  'Tensor.lazydata.st.fails',
+  compare<[Tensor]>(
+    [
+      [Tensor.full([8], 1)],
+      [new Tensor([3, 5, 3, 3, 4, 3]).reshape([2,3])],
+    ],
+    (t) => t.lazydata.st,
+    'out(data[0].lazydata.st)',
+  ),
+)
+Deno.test(
+  'Tensor.lazydata.st.success',
+  compare<[]>(
+    [
+      [],
+    ],
+    () => Tensor.full([8], 1).lazydata.st,
+    'out(tiny.Tensor.full([8], 1).lazydata.st)',
   ),
 )

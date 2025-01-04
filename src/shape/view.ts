@@ -34,32 +34,34 @@ export const _merge_dims = (shape: sint[], strides: sint[], mask?: [sint, sint][
   }
   return ret
 }
-/**Returns the new mask if reshape is possible, and None if not possible.*/
+const next = <A extends any[]>(arr: Iterator<A[number]>, def: A[number]) => {
+  const { value, done } = arr.next()
+  return done ? def : value
+}
 export const _reshape_mask = (_mask: undefined | [sint, sint][], old_shape: sint[], new_shape: sint[]): [sint, sint][] | undefined => {
   if (_mask === undefined) return new_shape.map((s) => [0, s])
   if (_mask.some((m) => typeof m[0] !== 'number' || typeof m[1] !== 'number')) return undefined
   if (_mask.some((m) => lt(sub(m[1], m[0]), 1))) return range(new_shape.length).map((x) => [0, 0]) //zero mask
-
   const new_mask: [sint, sint][] = []
   // _mask is all int here
-  const [r_masks, r_shape, r_new_shape] = [_mask.toReversed(), old_shape.toReversed(), new_shape.toReversed()]
-  let [curr_stride, old_dim, new_dim, mask] = [1 as sint, r_shape.pop() || 1, r_new_shape.pop() || 1, r_masks.pop() || [0, 1]]
+  const r_masks = _mask.toReversed().values(), r_shape = old_shape.toReversed().values(), r_new_shape = new_shape.toReversed().values()
+  let curr_stride: sint = 1, old_dim = next(r_shape, 1), new_dim = next(r_new_shape, 1), mask = next(r_masks, [0, 1])
   while (new_mask.length < new_shape.length) {
-    const [[l, r], next_stride] = [mask, mul(new_dim, curr_stride)]
-    if (ge(old_dim, next_stride)) { // need to split mask.
+    const [l, r] = mask, next_stride: sint = mul(new_dim, curr_stride)
+    if (old_dim >= next_stride) { // need to split mask.
       if (old_dim === next_stride) { // simply copy the mask and get next batch for merging
         new_mask.push([idiv(l, curr_stride), add(idiv(sub(r, 1), curr_stride), 1)])
-        ;[curr_stride, old_dim, new_dim, mask] = [1, r_shape.pop() || 1, r_new_shape.pop() || 1, r_masks.pop() || [0, 1]]
+        curr_stride = 1, old_dim = next(r_shape, 1), new_dim = next(r_new_shape, 1), mask = next(r_masks, [0, 1])
       } else { // mask can only be splitted if reshape doesn't cut across the mask.
         if (((mod(l, next_stride) !== 0 || mod(r, next_stride) !== 0) && idiv(l, next_stride) !== idiv(sub(r, 1), next_stride)) || mod(old_dim, next_stride) !== 0) return undefined
         new_mask.push([idiv(mod(l, next_stride), curr_stride), idiv(mod(sub(r, 1), next_stride), add(curr_stride, 1))])
-        ;[curr_stride, new_dim] = [next_stride, r_new_shape.pop() || 1] // need to get mask for next dimension
+        curr_stride = next_stride, new_dim = next(r_new_shape, 1) // need to get mask for next dimension
       }
     } else {
-      const next_mask = r_masks.pop() || [0, 1]
+      const next_mask = next(r_masks, [0, 1])
       // combine if the mask can unfold continuously
-      if (isEq(mask, [0, old_dim]) && sub(next_mask[1], next_mask[0]) !== 1) return undefined
-      ;[mask, old_dim] = [[add(mul(next_mask[0], old_dim), l), add(mul(sub(next_mask[1], 1), old_dim), r)], mul(old_dim, r_shape.pop() || 1)]
+      if (!isEq(mask, [0, old_dim]) && sub(next_mask[1], next_mask[0]) !== 1) return undefined
+      mask = [add(mul(next_mask[0], old_dim), l), add(mul(sub(next_mask[1], 1), old_dim), r)], old_dim = mul(old_dim, next(r_shape, 1))
     }
   }
 
