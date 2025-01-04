@@ -103,7 +103,7 @@ export class View {
   }
   size = (): number => {
     const ret = prod(this.shape.map((x) => x instanceof UOp ? x.vmax : x))
-    assert(typeof ret === 'number', `${ret} is not int`)
+    if (typeof ret !== 'number') throw new Error(`${ret} is not int`)
     return ret
   }
 
