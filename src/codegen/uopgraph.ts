@@ -169,10 +169,10 @@ export const threefry2x32 = (x: UOp, key: UOp) => {
     for (const r of rotations[i % 2]) {
       const x0 = xr[0].add(xr[1])
       ;[xr[0], xr[1]] = [x0, x0.xor(xr[1].mul(2 ** r).add(xr[1].idiv(2 ** (32 - r))))]
-      xr = [xr[0].add(ks[i % 3]), xr[1].add(ks[(i + 1) % 3]).add(i + 1)]
     }
+    xr = [xr[0].add(ks[i % 3]), xr[1].add(ks[(i + 1) % 3]).add(i).add(1)]
   }
-  return xr[1].cast(dtypes.uint64).mul(2 ** 32).bitwise_or(xr[0].cast(dtypes.uint64))
+  return xr[1].cast(dtypes.uint64).mul(2n ** 32n).bitwise_or(xr[0].cast(dtypes.uint64))
 }
 // # ***** main rewriter *****
 

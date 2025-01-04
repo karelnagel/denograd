@@ -56,14 +56,11 @@ Deno.test(
   ),
 )
 
-Deno.test.ignore(
+Deno.test(
   'threefry2x32',
   compare(
     [
-      [UOp.int(0x1234567812345678), UOp.int(0x1234567812345678)], // Test with same input and key
-      [UOp.int(0x0000000000000000), UOp.int(0x0000000000000000)], // Test with zeros
-      [UOp.int(0xFFFFFFFFFFFFFFFF), UOp.int(0xFFFFFFFFFFFFFFFF)], // Test with all ones
-      [UOp.int(0x1234567812345678), UOp.int(0x8765432187654321)], // Test with different input and key
+      [new UOp(Ops.OR, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 2), new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx0', 8])], undefined)], undefined)], undefined), new UOp(Ops.MUL, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 1), new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx0', 8])], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.ulong, [], 4294967296)], undefined)], undefined), new UOp(Ops.OR, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 3), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)], undefined)], undefined), new UOp(Ops.MUL, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 3), new UOp(Ops.CONST, dtypes.int, [], 1)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.ulong, [], 4294967296)], undefined)], undefined)],
     ],
     threefry2x32,
     'out(tiny.codegen.uopgraph.threefry2x32(*data))',
