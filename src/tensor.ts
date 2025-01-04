@@ -455,7 +455,7 @@ export class Tensor extends SimpleMathTrait {
     return [memory_planner(schedule), var_vals]
   }
   _debug_ast = () => {
-    const [schedule, vars] = this.cast(this.dtype.base).contiguous().to('PYTHON').schedule_with_vars()
+    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to('PYTHON').lazydata.lbs)
     return schedule.map((s) => s.ast)
   }
   _debug = () => {
