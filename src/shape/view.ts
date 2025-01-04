@@ -34,7 +34,7 @@ export const _merge_dims = (shape: sint[], strides: sint[], mask?: [sint, sint][
   }
   return ret
 }
-const next = <A extends any[]>(arr: Iterator<A[number]>, def: A[number]) => {
+const next = <A extends any>(arr: Iterator<A>, def: A): A => {
   const { value, done } = arr.next()
   return done ? def : value
 }
@@ -60,7 +60,7 @@ export const _reshape_mask = (_mask: undefined | [sint, sint][], old_shape: sint
     } else {
       const next_mask = next(r_masks, [0, 1])
       // combine if the mask can unfold continuously
-      if (!isEq(mask, [0, old_dim]) && sub(next_mask[1], next_mask[0]) !== 1) return undefined
+      if (!isEq(mask, [0, old_dim]) && (next_mask[1] as number) - (next_mask[0] as number) !== 1) return undefined
       mask = [add(mul(next_mask[0], old_dim), l), add(mul(sub(next_mask[1], 1), old_dim), r)], old_dim = mul(old_dim, next(r_shape, 1))
     }
   }
