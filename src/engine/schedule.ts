@@ -349,7 +349,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
         //         // can chase this down to contiguous children
         let st = r_uop.st!
         while (ctx.children.get(tr)!.size === 1) {
-          const tr_next = ctx.children.get(tr)!.values().next().value!
+          const tr_next = ctx.children.get(tr)!.keys().next().value!
           const tr_next_uop = uval(ctx.allbufs.get(tr_next)!)
           const st_childs = dedup(tr_next_uop.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop === tr).map((x) => x.st!))
           if (st_childs.length > 1) break

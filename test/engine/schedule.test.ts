@@ -1,7 +1,7 @@
 import { Buffer } from '../../src/device.ts'
-import { DType, dtypes, PtrDType } from '../../src/dtype.ts'
+import { dtypes } from '../../src/dtype.ts'
 import { LazyBuffer } from '../../src/engine/lazy.ts'
-import { _append_st_vars, apply_swizzle, create_schedule_with_vars, full_ast_rewrite, init_big_graph, push_swizzle_down_through_elementwise, realize_view, recursive_group, ScheduleContext, ScheduleItemContext, to_uop } from '../../src/engine/schedule.ts'
+import { _append_st_vars, apply_swizzle, create_schedule_with_vars, full_ast_rewrite, group_realizes, init_big_graph, push_swizzle_down_through_elementwise, realize_view, recursive_group, ScheduleContext, ScheduleItemContext, to_uop } from '../../src/engine/schedule.ts'
 import { counter, Metadata } from '../../src/helpers.ts'
 import { Ops, UOp } from '../../src/ops.ts'
 import { ShapeTracker } from '../../src/shape/shapetracker.ts'
@@ -135,14 +135,16 @@ Deno.test.ignore(
 //   ),
 // )
 
-// Deno.test(
-//   'group_realizes',
-//   compare(
-//     [],
-//     () => {},
-//     'out(XXX)',
-//   ),
-// )
+Deno.test(
+  'group_realizes',
+  compare(
+    [
+      [new ScheduleContext(new Map([[new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [2, [`PYTHON`, 9, dtypes.int]]), new LazyBuffer(`PYTHON`, new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, [], undefined, undefined)], [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [1, [`PYTHON`, 9, dtypes.int]]), new LazyBuffer(`PYTHON`, new ShapeTracker([new View([3, 3, 1], [3, 1, 0], 0, undefined, true)]), dtypes.int, Ops.REDUCE_AXIS, [Ops.ADD, [2]], [new LazyBuffer(`PYTHON`, new ShapeTracker([new View([1, 3, 4, 5], [0, 1, 0, 3], -6, [[0, 1], [0, 3], [0, 4], [2, 5]], false), new View([3, 3, 3], [20, 1, 6], 0, undefined, false)]), dtypes.int, undefined, undefined, undefined, new LazyBuffer(`PYTHON`, new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, [], undefined, undefined), new Metadata(`_cumalu`, ``, false))], undefined, new Metadata(`_cumalu`, ``, false))], [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [0, [`PYTHON`, 9, dtypes.int]]), new LazyBuffer(`PYTHON`, new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]), dtypes.int, Ops.CONTIGUOUS, undefined, [new LazyBuffer(`PYTHON`, new ShapeTracker([new View([3, 3], [1, 3], 0, undefined, false)]), dtypes.int, undefined, undefined, undefined, new LazyBuffer(`PYTHON`, new ShapeTracker([new View([3, 3, 1], [3, 1, 0], 0, undefined, true)]), dtypes.int, Ops.REDUCE_AXIS, [Ops.ADD, [2]], [new LazyBuffer(`PYTHON`, new ShapeTracker([new View([1, 3, 4, 5], [0, 1, 0, 3], -6, [[0, 1], [0, 3], [0, 4], [2, 5]], false), new View([3, 3, 3], [20, 1, 6], 0, undefined, false)]), dtypes.int, undefined, undefined, undefined, new LazyBuffer(`PYTHON`, new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, [], undefined, undefined), new Metadata(`_cumalu`, ``, false))], undefined, new Metadata(`_cumalu`, ``, false)), new Metadata(`_cumalu`, ``, false))], undefined, new Metadata(`tolist`, ``, false))]]), new Map([]), new Set([]), new Map([[new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [0, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.CONTIGUOUS, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [1, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.REDUCE_AXIS, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [2, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.EMPTY, dtypes.int, [], undefined)], new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]))], new ShapeTracker([new View([1, 3, 4, 5], [0, 1, 0, 3], -6, [[0, 1], [0, 3], [0, 4], [2, 5]], false), new View([3, 3, 3], [20, 1, 6], 0, undefined, false)]))], [Ops.ADD, [2]])], new ShapeTracker([new View([3, 3, 1], [3, 1, 0], 0, undefined, true)]))], new ShapeTracker([new View([3, 3], [1, 3], 0, undefined, false)]))], undefined)], [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [2, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.EMPTY, dtypes.int, [], undefined)]]), new Map([[new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [2, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [2, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.EMPTY, dtypes.int, [], undefined)], new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]))], [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [1, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [1, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.REDUCE_AXIS, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [2, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.EMPTY, dtypes.int, [], undefined)], new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]))], new ShapeTracker([new View([1, 3, 4, 5], [0, 1, 0, 3], -6, [[0, 1], [0, 3], [0, 4], [2, 5]], false), new View([3, 3, 3], [20, 1, 6], 0, undefined, false)]))], [Ops.ADD, [2]])], new ShapeTracker([new View([3, 3, 1], [3, 1, 0], 0, undefined, true)]))], [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [0, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [0, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.CONTIGUOUS, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [1, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.REDUCE_AXIS, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.VIEW, dtypes.int, [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [2, [`PYTHON`, 9, dtypes.int]]), new UOp(Ops.EMPTY, dtypes.int, [], undefined)], new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]))], new ShapeTracker([new View([1, 3, 4, 5], [0, 1, 0, 3], -6, [[0, 1], [0, 3], [0, 4], [2, 5]], false), new View([3, 3, 3], [20, 1, 6], 0, undefined, false)]))], [Ops.ADD, [2]])], new ShapeTracker([new View([3, 3, 1], [3, 1, 0], 0, undefined, true)]))], new ShapeTracker([new View([3, 3], [1, 3], 0, undefined, false)]))], undefined)], new ShapeTracker([new View([3, 3], [3, 1], 0, undefined, true)]))]]), new Map([]), new Map([[new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [2, [`PYTHON`, 9, dtypes.int]]), new Map([[new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [1, [`PYTHON`, 9, dtypes.int]]), undefined]])], [new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [1, [`PYTHON`, 9, dtypes.int]]), new Map([[new UOp(Ops.BUFFER, dtypes.int.ptr(), [], [0, [`PYTHON`, 9, dtypes.int]]), undefined]])]]))]
+    ],
+    group_realizes,
+    'out(tiny.engine.schedule.group_realizes(*data))',
+  ),
+)
 
 // Deno.test(
 //   '_as_const',
