@@ -805,11 +805,11 @@ export class Tensor extends SimpleMathTrait {
    */
   static arange = (start: number, stop?: number, step = 1, opts?: TensorOptions): Tensor => {
     if (stop === undefined) [stop, start] = [start, 0]
-    const dtype = opts?.dtype || [start, stop, step].some((x) => !Number.isInteger(x)) ? dtypes.default_float : dtypes.default_int
+    const dtype = opts?.dtype || ([start, stop, step].some((x) => !Number.isInteger(x)) ? dtypes.default_float : dtypes.default_int)
     // NOTE: this matches numpy, torch raises RuntimeError if stop-start && step have different signs
     const output_len = ceildiv(stop - start, step)
-    if (output_len <= 0) return new Tensor([], opts)
-    return (Tensor.full([output_len], step, { dtype, ...opts })._cumalu(0, Ops.ADD).add(start - step)).cast(dtype)
+    if (output_len <= 0) return new Tensor([], { ...opts, dtype })
+    return (Tensor.full([output_len], step, { ...opts, dtype })._cumalu(0, Ops.ADD).add(start - step)).cast(dtype)
   }
   /**
    * Creates a tensor with the same shape as `this`, filled with the given value.

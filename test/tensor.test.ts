@@ -491,7 +491,15 @@ Deno.test(
   'Tensor.arange',
   compare(
     [
-      [8],
+      [8], // basic case
+      [5, 10], // start and stop
+      [5, 10, 2], // start, stop, step
+      [5.5, 10, 2], // float values
+      [0, 5], // zero start
+      [-5, 5], // negative start
+      [5, -5, -1], // negative step
+      [5, 5], // empty range
+      [0, 10, 3], // step > 1
     ],
     Tensor.arange,
     'out(tiny.Tensor.arange(*data))',
