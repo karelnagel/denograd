@@ -2,7 +2,7 @@
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
 import { _METADATA, all_int, all_same, argfix, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, isEq, isinstance, listStr, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
-import { add, ceildiv, ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, polyN, prod, resolve, SimpleMathTrait, sint, smax, smin, sub, UOp, Variable } from './ops.ts'
+import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
 import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from './engine/schedule.ts'
@@ -347,7 +347,7 @@ export type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' |
  * np.set_printoptions(precision=4)
  * ```
  */
-export class Tensor extends SimpleMathTrait<Tensor> {
+export class Tensor extends MathTrait<Tensor> {
   lazydata!: LazyBuffer
   requires_grad?: boolean
   // tensors can have gradients if you have called .backward
@@ -426,7 +426,9 @@ export class Tensor extends SimpleMathTrait<Tensor> {
   bool = () => {
     throw new Error('__bool__ on Tensor !== defined')
   }
-
+  override mod = (x: ConstType<Tensor>, reverse?: boolean) => {
+    throw new Error("KAREL: Tensor doesn't have mod, this is only here because I needed to extend MathTrait and not SimpleMathTrait")
+  }
   get length() {
     if (!this.shape.length) throw new Error('len() of a 0-d tensor')
     return this.shape[0]
@@ -2164,7 +2166,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([1., 2., 4., 8.]).log2().numpy())
    * ```
    */
-  log2 = () => {
+  override log2 = () => {
     return this.log().div(Math.log(2))
   }
   /**
@@ -2188,7 +2190,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([0., 1., 2., 3.]).exp2().numpy())
    * ```
    */
-  exp2 = () => {
+  override exp2 = () => {
     return Exp.apply(this.mul(Math.log(2)))
   }
   /**
@@ -2237,7 +2239,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([1., 2., 3., 4.]).sqrt().numpy())
    * ```
    */
-  sqrt = () => {
+  override sqrt = () => {
     return Sqrt.apply(this.cast(least_upper_float(this.dtype)))
   }
   /**
@@ -2257,7 +2259,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([0., math.pi/2, math.pi, 3*math.pi/2, 2*math.pi]).sin().numpy())
    * ```
    */
-  sin = () => {
+  override sin = () => {
     return Sin.apply(this.cast(least_upper_float(this.dtype)))
   }
   /**
@@ -2456,7 +2458,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([1., 2., 3., 4.]).reciprocal().numpy())
    * ```
    */
-  reciprocal = () => {
+  override reciprocal = () => {
     return Reciprocal.apply(this.cast(least_upper_float(this.dtype)))
   }
 
@@ -2955,9 +2957,9 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([1, 3, 31], dtype=dtypes.uint8).lshift(2).numpy())
    * ```
    */
-  lshift = (x: number | bigint) => {
+  override lshift = (x: ConstType<Tensor>) => {
     assert(dtypes.is_unsigned(this.dtype) && (typeof x === 'number' || typeof x === 'bigint') && x >= 0, `not supported dtype=${this.dtype} x=${x}`)
-    return this.mul(typeof x === 'number' ? 2 ** x : 2n ** x)
+    return this.mul(typeof x === 'number' ? 2 ** x : 2n ** (x as bigint))
   }
 
   /**
@@ -2968,9 +2970,9 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([4, 13, 125], dtype=dtypes.uint8).rshift(2).numpy())
    * ```
    */
-  rshift = (x: number | bigint) => {
+  override rshift = (x: ConstType<Tensor>) => {
     assert(dtypes.is_unsigned(this.dtype) && (typeof x === 'number' || typeof x === 'bigint') && x >= 0, `!supported dtype=${this.dtype} x=${x}`)
-    return this.idiv(typeof x === 'number' ? 2 ** x : 2n ** x)
+    return this.idiv(typeof x === 'number' ? 2 ** x : 2n ** (x as bigint))
   }
 
   /**
@@ -3023,7 +3025,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([-1, 2, 3]).maximum(Tensor([-4, -2, 9])).numpy())
    * ```
    */
-  maximum = (x: ConstType<Tensor>): Tensor => {
+  override maximum = (x: ConstType<Tensor>): Tensor => {
     return (this.lt(x)).detach().where(x, this.eq(x).detach().where((this.mul(0.5).add(mul(x as any, 0.5) as number)).cast(this.dtype), this))
   }
 
@@ -3037,7 +3039,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log(Tensor([-1, 2, 3])).minimum(Tensor([-4, -2, 9]))).numpy())
    * ```
    */
-  minimum = (x: ConstType<Tensor>): Tensor => {
+  override minimum = (x: ConstType<Tensor>): Tensor => {
     return ((this.neg()).maximum(neg(x as number) as number)).neg()
   }
 
@@ -3058,7 +3060,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * console.log((cond > 0).where(cond, -number("inf")).numpy())
    * ```
    */
-  where = (x: Tensor | ConstType | sint, y: Tensor | ConstType | sint) => {
+  override where = (x: ConstType<Tensor>, y: ConstType<Tensor>) => {
     if (isinstance(x, Tensor)) [x, y] = x._broadcasted(y)
     else if (isinstance(y, Tensor)) [y, x] = y._broadcasted(x)
     let cond

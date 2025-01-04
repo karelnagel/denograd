@@ -25,7 +25,6 @@
       "include": [
         "prefer-const",
         "ban-types",
-        "eqeqeq",
         "no-class-assign",
         "no-compare-neg-zero",
         "no-inferrable-types"

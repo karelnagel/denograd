@@ -7,9 +7,43 @@ import { BinaryLike, createHash, randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
-type Value = number | boolean | bigint
+type Value = number | bigint
 export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
+export const abs = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.abs(x) : x < 0n ? -x : x
+export const trunc = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.trunc(x) : x
+export const sqrt = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.sqrt(x) : bigint_sqrt(x)
+export const sin = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.sin(x) : bigint_sin(x)
+
+// no idea, AI generated
+export const bigint_sqrt = (v: bigint) => {
+  let x = v
+  let y = (x + 1n) / 2n
+  while (y < x) {
+    x = y
+    y = (x + v / x) / 2n
+  }
+  return x
+}
+// no idea, AI generated
+export const bigint_sin = (v: bigint) => {
+  const PI = 3141592653589793238n
+  const TWO_PI = PI * 2n
+
+  let normalized = v % TWO_PI
+  if (normalized > PI) normalized -= TWO_PI
+  else if (normalized < -PI) normalized += TWO_PI
+
+  const x = normalized
+  const x2 = (x * x) / (10n ** 20n) // Scale down for precision
+  const x3 = (x2 * x) / (10n ** 20n)
+  const x5 = x3 * x2
+  const x7 = x5 * x2
+  const x9 = x7 * x2
+  const x11 = x9 * x2
+
+  return Number(x / (10n ** 10n) - x3 / 6n + x5 / 120n - x7 / 5040n + x9 / 362880n - x11 / 39916800n) / 10 ** 10
+}
 export const next = <A extends any>(arr: Iterator<A>, def: A): A => {
   const { value, done } = arr.next()
   return done ? def : value

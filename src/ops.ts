@@ -1,12 +1,12 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { all_same, assert, bytesToString, checkCached, counter, DataClass, divmod, Enum, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, zip } from './helpers.ts'
+import { abs, all_same, assert, bytesToString, checkCached, counter, DataClass, divmod, Enum, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 import { argfix } from './helpers.ts'
 
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
 
-export class SimpleMathTrait<T extends SimpleMathTrait<T>> {
+class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   //   # required to implement
   alu = (_arg: Ops, ..._src: T[]): T => raise('Not implemented')
   const_like = (_b: ConstLike): T => raise('Not implemented')
@@ -514,34 +514,34 @@ export class KernelInfo {
 }
 
 // # ***** ops in python *****
-const safe_exp2 = (x: number) => {
+const safe_exp2 = (x: number | bigint) => {
   try {
-    return 2 ** x
+    return typeof x === 'number' ? 2 ** x : 2n ** x
   } catch {
     return Infinity
   }
 }
-export const python_alu = new Map<Ops, (...x: number[]) => number>([
+export const python_alu = new Map<Ops, (...x: (number | bigint)[]) => number | bigint>([
   [Ops.LOG2, (x) => x === 0 ? x > 0 ? Math.log2(2) : -Infinity : NaN],
   [Ops.EXP2, safe_exp2],
-  [Ops.SQRT, (x) => x >= 0 ? Math.sqrt(x) : NaN],
-  [Ops.RECIP, (x) => x !== 0 ? 1 / x : x >= 0 ? Infinity : -Infinity],
-  [Ops.SIN, (x) => !isInf(x) ? Math.sin(x) : NaN],
-  [Ops.NEG, (x) => -x],
-  [Ops.ADD, (x, y) => x + y],
-  [Ops.SUB, (x, y) => x - y],
-  [Ops.MUL, (x, y) => x * y],
-  [Ops.CMPNE, (x, y) => Number(x !== y)],
-  [Ops.CMPLT, (x, y) => Number(x < y)],
-  [Ops.XOR, (x, y) => x ^ y],
-  [Ops.OR, (x, y) => x | y],
-  [Ops.AND, (x, y) => x & y],
-  [Ops.SHR, (x, y) => x >> y],
-  [Ops.SHL, (x, y) => x << y],
-  [Ops.MAX, (...args) => Math.max(...args)],
-  [Ops.MOD, (x, y) => Math.abs(Math.trunc(x)) % Math.abs(Math.trunc(y)) * (x < 0 ? -1 : 1)],
-  [Ops.IDIV, (x, y) => y !== 0 ? idiv(Math.abs(x), Math.abs(y)) * ((x * y < 0) ? -1 : 1) : x * Infinity],
-  [Ops.MULACC, (x, y, z) => (x * y) + z],
+  [Ops.SQRT, (x) => x >= 0 ? sqrt(x) : NaN],
+  [Ops.RECIP, (x) => x != 0 ? div(1, x) : x >= 0 ? Infinity : -Infinity],
+  [Ops.SIN, (x) => !isInf(x as number) ? sin(x) : NaN],
+  [Ops.NEG, (x) => neg(x)],
+  [Ops.ADD, (x, y) => add(x, y)],
+  [Ops.SUB, (x, y) => sub(x, y)],
+  [Ops.MUL, (x, y) => mul(x, y)],
+  [Ops.CMPNE, (x, y) => ne(x, y)],
+  [Ops.CMPLT, (x, y) => lt(x, y)],
+  [Ops.XOR, (x, y) => xor(x, y)],
+  [Ops.OR, (x, y) => or(x, y)],
+  [Ops.AND, (x, y) => and(x, y)],
+  [Ops.SHR, (x, y) => rshift(x, y)],
+  [Ops.SHL, (x, y) => lshift(x, y)],
+  [Ops.MAX, (...args) => max(args)],
+  [Ops.MOD, (x, y) => mul(mod(abs(trunc(x)), abs(trunc(y))), x < 0 ? -1 : 1)],
+  [Ops.IDIV, (x, y) => y !== 0 ? mul(idiv(abs(x), abs(y)), (mul(x, y) < 0) ? -1 : 1) : mul(x, Infinity)],
+  [Ops.MULACC, (x, y, z) => add(mul(x, y), z)],
   [Ops.WHERE, (x, y, z) => x ? y : z],
 ])
 
@@ -1228,8 +1228,8 @@ type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B 
 const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
   if (!bigintFn) bigintFn = numberFn as unknown as (a: bigint, b: bigint) => bigint
   return <A extends Math, B extends Math>(a: A, b: B): Return<A, B> => {
-    if (typeof a !== 'number' && typeof a !== 'bigint') return mathFn(a, b, false) as Return<A, B>
-    else if (typeof b !== 'number' && typeof b !== 'bigint') return mathFn(b, a, true) as Return<A, B>
+    if (a instanceof MathTrait) return mathFn(a, b, false) as Return<A, B>
+    else if (b instanceof MathTrait) return mathFn(b, a, true) as Return<A, B>
     else if (typeof a === 'bigint' || typeof b === 'bigint') return bigintFn(BigInt(a), BigInt(b)) as Return<A, B>
     else return numberFn(a as any, b as any) as Return<A, B>
   }
@@ -1243,8 +1243,11 @@ export const idiv = _meta((a, b, r) => a.idiv(b, r), (a, b) => Math.floor(a / b)
 export const neg = <A extends Math>(a: A): Return<A, A> => ((typeof a !== 'number' && typeof a !== 'bigint') ? a.neg() : typeof a === 'bigint' ? a * -1n : a * -1)
 export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => a % b)
 
-export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => Number(a && b), (a, b) => BigInt(a && b))
-export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => Number(a || b), (a, b) => BigInt(a || b))
+export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => a & b)
+export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => a | b)
+export const xor = _meta((a, b, r) => a.xor(b, r), (a, b) => a ^ b)
+export const lshift = _meta((a, b, r) => a.lshift(b, r), (a, b) => a << b)
+export const rshift = _meta((a, b, r) => a.rshift(b, r), (a, b) => a >> b)
 
 export const lt = _meta((a, b, r) => !r ? a.lt(b) : a.const_like(b as any).lt(a), (a, b) => Number(a < b), (a, b) => BigInt(a < b))
 export const gt = _meta((a, b, r) => !r ? a.gt(b) : a.const_like(b as any).gt(a), (a, b) => Number(a > b), (a, b) => BigInt(a > b))
