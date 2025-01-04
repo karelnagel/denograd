@@ -26,7 +26,7 @@ export class SimpleMathTrait {
   bitwise_or = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.OR, x, reverse)
   xor = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.XOR, x, reverse)
   idiv = (x: ConstType<typeof this>, reverse = false) => this._binop(Ops.IDIV, x, reverse)
-  sub = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, typeof x === 'number' || typeof x === 'boolean' ? this.ufix(-x) : x.neg())
+  sub = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg())
   div = (x: ConstType<typeof this>, reverse = false) => reverse ? this.ufix(x).mul(this.alu(Ops.RECIP)) : this.mul(this.ufix(x).alu(Ops.RECIP))
 
   lt = (x: ConstType<typeof this>) => this.alu(Ops.CMPLT, this.ufix(x))
@@ -45,7 +45,7 @@ export class MathTrait extends SimpleMathTrait {
   //   # not in Tensor
   mod = (x: ConstType<typeof this>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
   maximum = (x: ConstType<typeof this>) => this.alu(Ops.MAX, this.ufix(x))
-  minimum = (x: ConstType<typeof this>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' ? this.ufix(-x) : x.neg()).neg()
+  minimum = (x: ConstType<typeof this>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg()).neg()
   where = (x: ConstType<typeof this>, y: ConstType<typeof this>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(x).ufix(y))
   threefry = (seed: ConstType<typeof this>) => this.alu(Ops.THREEFRY, this.ufix(seed))
   reciprocal = () => this.alu(Ops.RECIP)

@@ -2,7 +2,7 @@ import { assert, checkCached, get_env, intersection, isEq, isLessThan, max, sort
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
-export type ConstType<This = never> = number | boolean | This
+export type ConstType<This = never> = number | bigint | boolean | This
 export type TypedArrays = Uint8Array | Int8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | BigInt64Array | BigUint64Array | Float32Array | Float64Array
 
 export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, destFmt: FmtStr) => {
@@ -105,7 +105,7 @@ export class dtypes {
   static is_int = (x: DType) => dtypes.ints.includes(x.scalar())
   static is_big_int = (x: DType) => dtypes.bigints.includes(x.scalar())
   static is_unsigned = (x: DType) => dtypes.uints.includes(x.scalar())
-  static from_js = (x: number | boolean | (number | boolean)[]): DType => {
+  static from_js = (x: number | boolean | bigint | (number | bigint | boolean)[]): DType => {
     if (typeof x === 'number') return Number.isInteger(x) ? dtypes.default_int : dtypes.default_float
     if (typeof x === 'bigint') return dtypes.int64
     if (typeof x === 'boolean') return dtypes.bool
@@ -132,11 +132,13 @@ export class dtypes {
     else if (Number.isNaN(val)) return true //python bool(math.nan) returns True
     else return Boolean(val)
   }
-  static min(x: DType) {
-    if (dtypes.is_int(x)) return dtypes.is_unsigned(x) ? 0 : (-2) ** (x.itemsize * 8 - 1)
-    return dtypes.is_float(x) ? -Infinity : false
+  static min(dtype: DType) {
+    if (dtypes.is_big_int(dtype)) return dtypes.is_unsigned(dtype) ? 0n : (-2n) ** (BigInt(dtype.itemsize) * 8n - 1n)
+    if (dtypes.is_int(dtype)) return dtypes.is_unsigned(dtype) ? 0 : (-2) ** (dtype.itemsize * 8 - 1)
+    return dtypes.is_float(dtype) ? -Infinity : false
   }
   static max(dtype: DType) {
+    if (dtypes.is_big_int(dtype)) return 2n ** (BigInt(dtype.itemsize) * 8n) - 1n + BigInt(dtypes.min(dtype))
     if (dtypes.is_int(dtype)) return 2 ** (dtype.itemsize * 8) - 1 + Number(dtypes.min(dtype))
     return dtypes.is_float(dtype) ? Infinity : true
   }

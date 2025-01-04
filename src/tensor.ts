@@ -1078,7 +1078,7 @@ export class Tensor extends SimpleMathTrait {
    * console.log(t.pad((1, 2, 0, -1), value=-number('inf')).numpy())
    * ```
    */
-  pad = (padding: sint[] | ([sint, sint] | undefined)[], mode: 'constant' | 'reflect' | 'replicate' | 'circular' = 'constant', value: number | boolean = 0.0): Tensor => {
+  pad = (padding: sint[] | ([sint, sint] | undefined)[], mode: 'constant' | 'reflect' | 'replicate' | 'circular' = 'constant', value: number | bigint | boolean = 0.0): Tensor => {
     if (!['constant', 'reflect', 'replicate', 'circular'].includes(mode)) throw new Error(`mode=${mode} !== supported`)
     const flat = padding.every((p) => Number.isInteger(p) || p instanceof UOp)
     if (flat && padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
@@ -1089,7 +1089,7 @@ export class Tensor extends SimpleMathTrait {
     pX = pX.map((p) => p || [0, 0] as [sint, sint])
     const pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
     if (mode === 'constant') {
-      const _constant = (x: Tensor, px: [sint, sint][], v: number | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
+      const _constant = (x: Tensor, px: [sint, sint][], v: number | bigint | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
       return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX, value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads, value)
     }
     throw new Error('KAREL:Not needed for mnist!')
@@ -1163,7 +1163,7 @@ export class Tensor extends SimpleMathTrait {
     // if ((Array.isArray(indices) && all_int(indices)) || !Array.isArray(indices)) indices = [indices]
     // turn scalar Tensors into const val for number indexing if possible
     let x = this as Tensor
-    indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) : i)
+    indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) as number : i)
 
     // filter ellipsis && fill with slice(undefined) || fill rest of indices with slice(undefined)
     const ellipsis_idx = [...indices.entries().filter(([dim, i]) => i === '...').map(([dim, i]) => dim)]
