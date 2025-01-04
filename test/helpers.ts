@@ -29,7 +29,7 @@ export const asdict = (o: any): any => {
   if (typeof o === 'number' && Number.isFinite(o)) return Math.round(o * 10000) / 10000
   if (Array.isArray(o)) return o.map(asdict)
   if (o === undefined || o === null) return o
-  if (typeof o === 'bigint') return Number(o)
+  if (typeof o === 'bigint') return o.toString()
   if (o instanceof Enum) return o.toString()
   if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
   if (o instanceof DType) return o.toString()

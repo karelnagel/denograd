@@ -2763,7 +2763,7 @@ export class Tensor extends SimpleMathTrait {
       // make y a Tensor
       assert(typeof y === 'number' || typeof y === 'boolean' || typeof y === 'bigint', `invalid y type: ${typeof y}`)
       let y_dtype
-      if (isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_int(x.dtype) && Number.isInteger(y))) y_dtype = x.dtype
+      if (isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_big_int(x.dtype)) || (dtypes.is_int(x.dtype) && Number.isInteger(y))) y_dtype = x.dtype
       else if (!isinstance(y, UOp)) y_dtype = dtypes.from_js(y)
       if (isinstance(y, UOp)) y = Tensor.from_uop(y, { device: x.device })
       else y = new Tensor(dtypes.as_const(y, y_dtype!), { device: x.device, dtype: y_dtype, requires_grad: false })
@@ -2956,9 +2956,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor([1, 3, 31], dtype=dtypes.uint8).lshift(2).numpy())
    * ```
    */
-  lshift = (x: number) => {
-    assert(dtypes.is_unsigned(this.dtype) && typeof x === 'number' && x >= 0, `!supported dtype=${this.dtype} x=${x}`)
-    return this.mul(2 ** x)
+  lshift = (x: number | bigint) => {
+    assert(dtypes.is_unsigned(this.dtype) && (typeof x === 'number' || typeof x === 'bigint') && x >= 0, `not supported dtype=${this.dtype} x=${x}`)
+    return this.mul(typeof x === 'number' ? 2 ** x : 2n ** x)
   }
 
   /**
@@ -2969,9 +2969,9 @@ export class Tensor extends SimpleMathTrait {
    * console.log(Tensor([4, 13, 125], dtype=dtypes.uint8).rshift(2).numpy())
    * ```
    */
-  rshift = (x: number) => {
-    assert(dtypes.is_unsigned(this.dtype) && typeof x === 'number' && x >= 0, `!supported dtype=${this.dtype} x=${x}`)
-    return this.idiv(2 ** x)
+  rshift = (x: number | bigint) => {
+    assert(dtypes.is_unsigned(this.dtype) && (typeof x === 'number' || typeof x === 'bigint') && x >= 0, `!supported dtype=${this.dtype} x=${x}`)
+    return this.idiv(typeof x === 'number' ? 2 ** x : 2n ** x)
   }
 
   /**
