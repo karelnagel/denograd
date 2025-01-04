@@ -54,7 +54,7 @@ export const _reshape_mask = (_mask: undefined | [sint, sint][], old_shape: sint
         curr_stride = 1, old_dim = next(r_shape, 1), new_dim = next(r_new_shape, 1), mask = next(r_masks, [0, 1])
       } else { // mask can only be splitted if reshape doesn't cut across the mask.
         if (((mod(l, next_stride) !== 0 || mod(r, next_stride) !== 0) && idiv(l, next_stride) !== idiv(sub(r, 1), next_stride)) || mod(old_dim, next_stride) !== 0) return undefined
-        new_mask.push([idiv(mod(l, next_stride), curr_stride), idiv(mod(sub(r, 1), next_stride), add(curr_stride, 1))])
+        new_mask.push([idiv(mod(l, next_stride), curr_stride), add(idiv(mod(sub(r, 1), next_stride), curr_stride), 1)])
         curr_stride = next_stride, new_dim = next(r_new_shape, 1) // need to get mask for next dimension
       }
     } else {
@@ -331,7 +331,7 @@ export class View {
       return new View(new_shape, this.strides, this.offset, this.mask, this.contiguous)
     }
 
-    const [strides, r_new_shape] = [[] as sint[], new_shape.toReversed()]
+    const strides: sint[] = [], r_new_shape = new_shape.toReversed()
     for (let [merged_dim, new_stride, real_dim] of _merge_dims(this.shape, this.strides, this.mask).toReversed()) {
       let acc = 1 as sint
       let new_dim: sint

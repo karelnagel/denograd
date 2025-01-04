@@ -384,6 +384,7 @@ Deno.test(
       [new Tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]), [2, 2], 1, [2, 1]],
 
       [new Tensor([0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1], { requires_grad: undefined, dtype: dtypes.int, device: `PYTHON` }).reshape([15]), [8]],
+      [new Tensor([[0, 0, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1]]), [3], 1, 1],
     ],
     (t, k_, stride = 1, dilation = 1) => t._pool(k_, stride, dilation),
     'out(data[0]._pool(*data[1:]))',
