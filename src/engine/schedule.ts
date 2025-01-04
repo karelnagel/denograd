@@ -65,7 +65,7 @@ export const to_uop = (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, 
   assert(buf.op !== undefined, `base must be base itthis ${buf}`)
   //   // make things that can't be images !images
   let dtype = buf.buffer!.dtype
-  if (isinstance(dtype, ImageDType) && (prod(buf.shape as number[]) !== prod(dtype.shape) || !buf.st.unit_stride_axes().some((x) => buf.shape[x] as number % 4 === 0))) {
+  if (isinstance(dtype, ImageDType) && ((prod(buf.shape as number[]) !== prod(dtype.shape)) || !buf.st.unit_stride_axes().some((x) => buf.shape[x] as number % 4 === 0))) {
     assert(buf.realized === undefined, "can't fixup allocated buffer")
     if (DEBUG >= 2) console.log(`forcing image ${dtype} with shape ${buf.shape} to ${dtype.base}`)
     dtype = buf.dtype.base
@@ -278,7 +278,7 @@ export const recursive_group = (
   if (realizes.has(tr) && tr !== r) {
     //     // can only fuse contiguous
     //     // max one reduceop per kernel
-    if (!st.contiguous || st.size !== rsize || reduce_for_op.has(tr)) setDefault(group, r, undefined)
+    if (!st.contiguous || (st.size !== rsize) || reduce_for_op.has(tr)) setDefault(group, r, undefined)
     return setDefault(group, tr, undefined)
   }
   for (const tr_next of children.get(tr)!.keys()) {
