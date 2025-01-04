@@ -1,7 +1,7 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, isEq, isinstance, listStr, merge_maps, merge_sets, Metadata, prod, range, setDefault } from '../helpers.ts'
-import { can_pad, ge, lt, resolve, sint_prod, sub, UPatInput } from '../ops.ts'
+import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, isEq, isinstance, listStr, merge_maps, Metadata, range, setDefault } from '../helpers.ts'
+import { can_pad, ge, lt, prod, resolve, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { LazyBuffer } from './lazy.ts'
@@ -119,7 +119,7 @@ export const push_swizzle_down_through_elementwise = (root: UOp): UOp | undefine
   const swizzles = root.src.filter((x) => x.base !== x)
   if (!swizzles.length) return undefined
   const swizzle_shapes = swizzles.map((x) => [x.st!.shape, x.src[0].st!.shape])
-  assert(all_same(swizzle_shapes.map(([x, y]) => [x, sint_prod(y)])), `swizzles must have the same size ${swizzle_shapes}`)
+  assert(all_same(swizzle_shapes.map(([x, y]) => [x, prod(y)])), `swizzles must have the same size ${swizzle_shapes}`)
   const [new_shape, new_input_shape] = swizzle_shapes[0]
   const new_src = root.src.map((x) => !x.has_st ? x : swizzles.includes(x) ? x.src[0] : apply_swizzle(x, ShapeTracker.from_shape(new_input_shape)))
   let ret = root.replace({ src: new_src })
@@ -424,11 +424,11 @@ export const realize_view = (ctx: Map<UOp, UOp>, base: UOp, view: UOp, to_store:
   const st = view.st!
   //   // fold simple pads
   const m = st.views.at(-1)!.mask
-  if (st.views.length === 1 && m !== undefined && all_int(base_shape) && resolve(ge(sint_prod(base_shape), sint_prod(m.map(([x, y]) => sub(y, x)))))) {
+  if (st.views.length === 1 && m !== undefined && all_int(base_shape) && resolve(ge(prod(base_shape), prod(m.map(([x, y]) => sub(y, x)))))) {
     return can_pad(base, ctx, new Set()) ? undefined : realize(ctx, b, to_store, base)
   }
   //   // early realize before expand
-  if (resolve(lt(sint_prod(base_shape), sint_prod(st.shape)))) return realize(ctx, b, to_store, base)
+  if (resolve(lt(prod(base_shape), prod(st.shape)))) return realize(ctx, b, to_store, base)
   //   // otherwise safety check pads
   return st.views.every((v) => v.mask === undefined) || can_pad(base, ctx, new Set()) ? undefined : realize(ctx, b, to_store, base)
 }

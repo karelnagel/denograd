@@ -1,8 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, DataClass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, next, prod, range, zip } from '../helpers.ts'
-import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, sint_sum, smax, smin, sym_infer, type Variable } from '../ops.ts'
-import { add, ge, idiv, lt, mod, mul, resolve, type sint, sint_to_uop, sub, UOp } from '../ops.ts'
+import { all_int, argsort, assert, DataClass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, next, range, zip } from '../helpers.ts'
+import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, resolve, type sint, sint_to_uop, smax, smin, sub, sum, sym_infer, UOp, type Variable } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
   return shape.map((s, i) => ({ s, st: strides[i] })).map(({ s, st }) => s === 1 ? 0 : st)
@@ -237,7 +236,7 @@ export class View {
     let ret = View.create(this.shape)
     if (this.mask?.length) ret = ret.shrink(this.mask)
     ret = ret.stride(this.strides.map((x) => lt(x, 0) ? -1 : 1)).permute(argsort(this.strides.map((x) => gt(x, 0) ? -x : x)))
-    return isEq(sint_prod(ret.shape), sint_prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride !== (-1, 1)
+    return isEq(prod(ret.shape), prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride !== (-1, 1)
   }
   minify = () => this.reshape(_merge_dims(this.shape, this.strides, this.mask).map((x) => x[0])) || this
   __unsafe_resize = (arg: [sint, sint][], mask?: [sint, sint][]): View => {
@@ -284,16 +283,16 @@ export class View {
   }
 
   permute = (axis: number[]): View => {
-    assert(isEq(sint_sorted(axis), range(this.shape.length)), `invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
+    assert(isEq(axis.toSorted(), range(this.shape.length)), `invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
     return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, this.mask !== undefined ? axis.map((a) => this.mask![a]) : undefined)
   }
   stride = (multi: number[]): View => {
     //     # except for the negative case, you can build this from the others. invertible in the negative case
     assert(multi.every((x) => typeof x === 'number' && x !== 0), `invalid stride ${multi} for ${this.shape}`)
     const strides = zip(this.strides, multi).map(([z, m]) => mul(z, m))
-    const new_shape = zip(this.shape, multi).map(([s, m]) => sint_ceildiv(s, Math.abs(m)))
+    const new_shape = zip(this.shape, multi).map(([s, m]) => ceildiv(s, Math.abs(m)))
     const offset = zip(this.shape, this.strides, multi).filter(([s, z, m]) => m < 0).reduce((acc, [s, z, m]) => add(acc, mul(sub(s, 1), z)), 0 as sint)
-    const mask = isNotNone(this.mask) ? zip(this.mask, this.shape, multi).map(([[mx, my], s, m]) => [sint_ceildiv(m > 0 ? mx : sub(s, my), Math.abs(m)), sint_ceildiv(m > 0 ? my : sub(s, mx), Math.abs(m))] as [sint, sint]) : undefined
+    const mask = isNotNone(this.mask) ? zip(this.mask, this.shape, multi).map(([[mx, my], s, m]) => [ceildiv(m > 0 ? mx : sub(s, my), Math.abs(m)), ceildiv(m > 0 ? my : sub(s, mx), Math.abs(m))] as [sint, sint]) : undefined
     return View.create(new_shape, strides, add(this.offset, offset), mask)
   }
 
@@ -310,7 +309,7 @@ export class View {
     const self_all_int = all_int(this.shape)
     if (self_all_int) {
       assert(new_shape.every((s) => s instanceof UOp || typeof s === 'number'), `${listStr(this.shape)} -> ${listStr(new_shape)} contains non (int, Variable) dim`)
-      if (resolve(ne(sint_prod(this.shape), sint_prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${listStr(this.shape)} -> new_shape=${listStr(new_shape)}`)
+      if (resolve(ne(prod(this.shape), prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${listStr(this.shape)} -> new_shape=${listStr(new_shape)}`)
     }
     if (new_shape.length === 0 && this.mask?.length && this.mask.some(([mx, my]) => mx === my)) return undefined
 
@@ -343,8 +342,8 @@ export class View {
     if (new_mask !== undefined) {
       const new_strides = [...range(new_shape.length - strides.length).map(() => 0), ...strides.toReversed()]
       const extra_offset = sub(
-        this.mask?.length ? sint_sum(zip(this.mask, this.strides).map(([m, s]) => mul(m[0], s))) : 0,
-        sint_sum(zip(new_mask, new_strides).map(([m, s]) => mul(m[0], s))),
+        this.mask?.length ? sum(zip(this.mask, this.strides).map(([m, s]) => mul(m[0], s))) : 0,
+        sum(zip(new_mask, new_strides).map(([m, s]) => mul(m[0], s))),
       )
       return View.create(new_shape, new_strides, add(this.offset, extra_offset), new_mask)
     }

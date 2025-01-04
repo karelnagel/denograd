@@ -31,8 +31,6 @@ Deno.test('fully_flatten', compare([[[1, 2, 3]], [[1, 2, 3, 4, 5]], [[[1, 2], [3
 
 Deno.test('stripParens', compare([['sdfsdf'], ['(sdfsdf'], ['(sdfsdf)']], helpers.strip_parens, 'out(tiny.helpers.strip_parens(*data))'))
 
-Deno.test('ceildiv', compare([[180, 3], [-10, 3], [10.5, 3], [-10.5, 3]], helpers.ceildiv, 'out(tiny.helpers.ceildiv(*data))'))
-
 Deno.test('roundUp', compare([[180, 3], [10, 3], [11, 3], [12, 3]], helpers.round_up, 'out(tiny.helpers.round_up(*data))'))
 
 Deno.test('data64', compare([[333], [45443], [0], [-1], [Number.MAX_SAFE_INTEGER], [Number.MIN_SAFE_INTEGER]], helpers.data64, 'out(tiny.helpers.data64(*data))'))
@@ -51,7 +49,6 @@ Deno.test('get_child', compare([[{ a: 1, b: { c: 2 } }, 'b.c'], [{ a: { x: [33, 
 
 Deno.test('word_wrap', compare([['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.word_wrap, 'out(tiny.helpers.word_wrap(*data))'))
 
-Deno.test('polyN', compare([[2, [1, 2, 3]], [2, [1, 2, 3]]], helpers.polyN, 'out(tiny.helpers.polyN(*data))'))
 
 Deno.test('to_function_name', compare([['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.to_function_name, `out(tiny.helpers.to_function_name(*data))`))
 

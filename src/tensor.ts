@@ -1,8 +1,8 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, isEq, isinstance, listStr, max, Metadata, prod, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
-import { add, ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, resolve, SimpleMathTrait, sint, sint_ceildiv, sint_prod, smax, smin, sub, UOp, Variable } from './ops.ts'
+import { _METADATA, all_int, all_same, argfix, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, isEq, isinstance, listStr, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
+import { add, ceildiv, ge, gt, identity_element, idiv, le, mul, ne, neg, Ops, polyN, prod, resolve, SimpleMathTrait, sint, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
 import path from 'node:path'
 import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from './engine/schedule.ts'
@@ -12,8 +12,7 @@ import { run_schedule } from './engine/realize.ts'
 import { gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
 const gunzipAsync = promisify(gunzip)
-import { sint_polyN } from './ops.ts'
-import { ceildiv, make_tuple, round_up } from './helpers.ts'
+import { make_tuple, round_up } from './helpers.ts'
 import { argsort } from './helpers.ts'
 import { MemoryView } from './memoryview.ts'
 
@@ -888,7 +887,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * ```
    */
   static glorot_uniform = (shape: number[], opts: TensorOptions): Tensor => {
-    return Tensor.uniform(shape, -1.0, 1.0, opts).mul((6 / (argfix(shape)[0] + sint_prod(argfix(shape).slice(1)))) ** 0.5)
+    return Tensor.uniform(shape, -1.0, 1.0, opts).mul((6 / (argfix(shape)[0] + prod(argfix(shape).slice(1)))) ** 0.5)
   }
 
   // ***** toposort && backward pass *****
@@ -1407,7 +1406,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
 
   flatten = (start_dim = 0, end_dim = -1) => {
     start_dim = this._resolve_dim(start_dim), end_dim = this._resolve_dim(end_dim)
-    return this.reshape([...this.shape.slice(0, start_dim), sint_prod(this.shape.slice(start_dim, end_dim + 1)), ...this.shape.slice(end_dim + 1)])
+    return this.reshape([...this.shape.slice(0, start_dim), prod(this.shape.slice(start_dim, end_dim + 1)), ...this.shape.slice(end_dim + 1)])
   }
   /**
    * Unflattens dimension `dim` of the tensor into multiple dimensions specified by `sizes`. `Tensor.flatten()` is the inverse of this function.
@@ -1606,7 +1605,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
   mean = (axis?: number | number[], keepdim = false) => {
     const output_dtype = dtypes.is_float(this.dtype) ? this.dtype : dtypes.float32
     const numerator = this.cast(sum_acc_dtype(this.dtype)).sum(axis, keepdim)
-    return numerator.div(sint_prod(zip(this.shape, this.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si)) as number).cast(output_dtype)
+    return numerator.div(prod(zip(this.shape, this.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si)) as number).cast(output_dtype)
   }
   /**
    * Returns the variance of the tensor along the specified axis or axes.
@@ -1631,7 +1630,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    */
   var = (axis?: number | number[], keepdim = false, correction = 1) => {
     const squares = (this.sub(this.mean(axis, true))).square()
-    const n = sint_prod(zip(this.shape, squares.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si))
+    const n = prod(zip(this.shape, squares.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si))
     return squares.sum(axis, keepdim).div(smax([0, sub(n, correction)]))
   }
   /**
@@ -1844,12 +1843,12 @@ export class Tensor extends SimpleMathTrait<Tensor> {
     assert(k_.length === s_.length && s_.length === d_.length, `stride/dilation mismatch kernel:${k_} stride:${s_} dilation:${d_}`)
     const [noop, i_] = [range(this.ndim - k_.length).map(() => undefined), this.shape.slice(-k_.length)]
     assert(zip(k_, d_, i_).every(([k, d, i]) => resolve(le(add(mul(d, sub(k, 1)), 1), i))), 'kernel size can!be greater than actual input size')
-    const o_ = zip(i_, d_, k_, s_).map(([i, d, k, s]) => sint_ceildiv(sub(i, mul(d, sub(k, 1))), s))
+    const o_ = zip(i_, d_, k_, s_).map(([i, d, k, s]) => ceildiv(sub(i, mul(d, sub(k, 1))), s))
     if (zip(k_, s_).some(([k, s]) => resolve(gt(k, s))) || d_.some((d) => d !== 1)) {
       // input size scaling factor to make sure shrink for stride === possible
       const f_ = zip(o_, s_, i_, d_).map(([o, s, i, d]) => 1 + Number(resolve(gt(mul(o, s), add(i, d)))))
       // repeats such that we don't need padding
-      let x = this.repeat([...range(noop.length).map(() => 1), ...zip(k_, i_, d_, f_).map(([k, i, d, f]) => sint_ceildiv(mul(k, add(mul(i, f), d)), i))])
+      let x = this.repeat([...range(noop.length).map(() => 1), ...zip(k_, i_, d_, f_).map(([k, i, d, f]) => ceildiv(mul(k, add(mul(i, f), d)), i))])
       // handle dilation
       x = x.shrink([...noop, ...zip(k_, i_, d_, f_).map(([k, i, d, f]) => [0, mul(k, add(mul(i, f), d))] as [sint, sint])]).reshape([...noop, ...zip(k_, i_, d_, f_).flatMap(([k, i, d, f]) => [k, add(mul(i, f), d)])])
       // handle stride
@@ -2292,7 +2291,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
   asin = () => {
     // https://personal.math.ubc.ca/~cbm/aands/page_81.htm 4.4.46
     const coefficients = [-0.0012624911, 0.0066700901, -0.0170881256, 0.0308918810, -0.0501743046, 0.0889789874, -0.2145988016, 1.5707963050]
-    const x = (this.abs().sub(1.0, true)).sqrt().mul(sint_polyN(this.abs() as any, coefficients) as number).sub(Math.PI / 2, true)
+    const x = (this.abs().sub(1.0, true)).sqrt().mul(polyN(this.abs() as any, coefficients) as number).sub(Math.PI / 2, true)
     return this.sign().mul(x)
   }
   /**
@@ -2661,7 +2660,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
   erf = () => {
     // https://personal.math.ubc.ca/~cbm/aands/page_299.htm 7.1.26
     const t = this.abs().mul(0.3275911, true).add(1.0, true).div(1.0, true)
-    return this.sign().mul(t.mul(sint_polyN(t as any, [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592])).mul(this.square().neg().exp()).sub(1.0, true))
+    return this.sign().mul(t.mul(polyN(t as any, [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592])).mul(this.square().neg().exp()).sub(1.0, true))
   }
 
   /**
@@ -3234,7 +3233,7 @@ export class Tensor extends SimpleMathTrait<Tensor> {
    * ```
    */
   numel = (): sint => {
-    return sint_prod(this.shape)
+    return prod(this.shape)
   }
 
   /**

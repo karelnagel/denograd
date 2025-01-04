@@ -1,7 +1,7 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, Enum, get_env, get_number_env, isinstance, range, round_up, setDefault, sum, to_function_name, USE_TC, zip } from '../helpers.ts'
-import { can_pad, ge, graph_rewrite, GroupOp, gt, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, resolve, sint, sint_prod, UOp, Variable, view_left } from '../ops.ts'
+import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, Enum, get_env, isinstance, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { can_pad, graph_rewrite, GroupOp, idiv, KernelInfo, le, mul, ne, Ops, print_uops, prod, resolve, sint, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape } from '../shape/view.ts'
@@ -245,7 +245,7 @@ export class Kernel {
         let special_strides: sint[] = []
         for (const [i, g] of shape_idx_groups.entries()) {
           const shape_piece = g.map((x) => this.output_shape[x])
-          assert(sint_prod(shape_piece) === base_shape[i], `get_contraction was wrong? ${shape_piece} !== ${base_shape[i]}`)
+          assert(prod(shape_piece) === base_shape[i], `get_contraction was wrong? ${shape_piece} !== ${base_shape[i]}`)
           special_strides = [...special_strides, ...strides_for_shape(shape_piece)]
         }
         //         # adding the fake image shape
@@ -322,8 +322,8 @@ export class Kernel {
 
     if (this.reduceop !== undefined && ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op) || (this.group_for_reduces && ![OptOps.NOLOCALS, OptOps.PADTO].includes(opt.op)))) {
       const acc_sz = this.reduceop.dtype.itemsize
-      const upcast_sz = sint_prod(zip(this.full_shape.slice(this.first_upcast), this.sts[0].shape.slice(this.first_upcast)).filter(([a, b]) => a === b).map(([a, _]) => a))
-      const local_sz = sint_prod(this.full_shape.slice(this.first_reduce - this.local_dims, this.first_reduce + this.group_for_reduces))
+      const upcast_sz = prod(zip(this.full_shape.slice(this.first_upcast), this.sts[0].shape.slice(this.first_upcast)).filter(([a, b]) => a === b).map(([a, _]) => a))
+      const local_sz = prod(this.full_shape.slice(this.first_reduce - this.local_dims, this.first_reduce + this.group_for_reduces))
       const smem_sz = mul(mul(mul(amt, acc_sz), upcast_sz), local_sz)
       check(!!le(smem_sz, this.opts.shared_max), `exceeds maximum shared memory size: needs ${smem_sz}, max ${this.opts.shared_max}`)
     }
@@ -358,7 +358,7 @@ export class Kernel {
       this.shift_to(axis, amt, undefined, undefined)
       this.upcast()
     } else if (opt.op === OptOps.UPCASTMID) { // white
-      check(this.bufs[0].src[0].dtype.name.startsWith('image') && !this.float4_axis(0) && this.group_for_reduces !== 0 && this.first_reduce <= 2 && (sint_prod(this.sts[0].shape) as number) > 1, 'invalid upcast mid reduce')
+      check(this.bufs[0].src[0].dtype.name.startsWith('image') && !this.float4_axis(0) && this.group_for_reduces !== 0 && this.first_reduce <= 2 && (prod(this.sts[0].shape) as number) > 1, 'invalid upcast mid reduce')
       const axes = this.sts[0].unit_stride_axes()
       check(axes.length === 1, `wrong number of stride 1 axis : ${axes}`)
       check(axes[0] === axis, 'wrong axis')
@@ -567,7 +567,7 @@ export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, Shap
     st = src_sts[0]
     const shapes = src_sts.map((x) => x.shape)
     if (!all_same(shapes)) {
-      const sizes = shapes.map((x) => sint_prod(x))
+      const sizes = shapes.map((x) => prod(x))
       if (all_same(sizes)) throw new Error(`found implicit reshape ${shapes}`)
       throw new Error(`found implicit expand ${sizes} ${shapes}`)
     }

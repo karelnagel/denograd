@@ -1,6 +1,6 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, DEBUG, dedup, flatten, get_env, isEq, isinstance, isNone, isNotNone, prod, product, range, setDefault, sorted, TRANSCENDENTAL, zip } from '../helpers.ts'
-import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
+import { all_same, AMX, assert, DEBUG, dedup, flatten, get_env, isEq, isinstance, isNone, isNotNone, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
+import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, prod, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
 
@@ -334,13 +334,13 @@ export const do_expand = (root: UOp) => {
   //   # NOTE: we 0 out the reduce axis for WMMA. in theory they should all be the same, but is this always correct?
   const exclude_args = root.op === Ops.WMMA ? dedup([...root.arg.at(-1)!, ...flatten(root.arg.at(-2)).map((y: any) => y[0])]) : []
   const expands_args = expands.map((x) => x.arg)
-  let expand_args
+  let expand_args: [number, number][]
   if (all_same(expands_args) && exclude_args.length === 0) {
     //     # if there's only one expand arg, it's okay to use it (optimization)
     expand_args = expands[0].arg
   } // otherwise, we sort them and GEP
-  else expand_args = dedup(flatten(expands_args)).toSorted().filter((x) => !exclude_args.includes((x as any)[0]))
-  const expand_sz = prod(expand_args.map((x: number[]) => x[1]))
+  else expand_args = dedup<[number, number]>(flatten(expands_args)).toSorted().filter((x) => !exclude_args.includes((x as any)[0]))
+  const expand_sz = prod(expand_args.map((x) => x[1]))
   const new_srcs = []
   for (const [i, src] of root.src.entries()) {
     if (src.op === Ops.EXPAND) {

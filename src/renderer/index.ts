@@ -1,9 +1,7 @@
 import { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { DataClass, raise, to_function_name } from '../helpers.ts'
-import { isNone } from '../helpers.ts'
-import { assert, isNotNone, prod, range } from '../helpers.ts'
-import { flops_mem, idiv, Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
+import { assert, DataClass, isNone, isNotNone, raise, range, to_function_name } from '../helpers.ts'
+import { flops_mem, idiv, Ops, prod, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
 

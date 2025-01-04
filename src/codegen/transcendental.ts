@@ -1,6 +1,6 @@
 import { DType, dtypes } from '../dtype.ts'
 import { assert, range } from '../helpers.ts'
-import { sint_polyN, UOp } from '../ops.ts'
+import { polyN, UOp } from '../ops.ts'
 
 export const TRANSCENDENTAL_SUPPORTED_DTYPES = [dtypes.float16, dtypes.float32, dtypes.float64]
 
@@ -149,7 +149,7 @@ export const cody_waite_reduction = (d: UOp): [UOp, UOp] => {
   return [_reduce_d(d, quadrant.cast(d.dtype)), quadrant.cast(dtypes.int32)]
 }
 // *** approximate sine on small angle. ***
-export const trig_poly = (d: UOp, coeff32: number[], coeff64: number[]) => d.mul(d.dtype === dtypes.float64 ? sint_polyN(d.mul(d), coeff64) : sint_polyN(d.mul(d), coeff32))
+export const trig_poly = (d: UOp, coeff32: number[], coeff64: number[]) => d.mul(d.dtype === dtypes.float64 ? polyN(d.mul(d), coeff64) : polyN(d.mul(d), coeff32))
 // approximate sine on [-pi/2, pi/2]
 // deno-fmt-ignore
 export const sin_poly = (d: UOp): UOp => {
@@ -213,10 +213,10 @@ export const xexp2 = ({ d }: { d: UOp }): UOp => {
   let u
   if (d.dtype === dtypes.float64) {
     // deno-fmt-ignore
-    u = sint_polyN(s, [0.4434359082926529454e-9, 0.7073164598085707425e-8, 0.1017819260921760451e-6, 0.1321543872511327615e-5, 0.1525273353517584730e-4,
+    u = polyN(s, [0.4434359082926529454e-9, 0.7073164598085707425e-8, 0.1017819260921760451e-6, 0.1321543872511327615e-5, 0.1525273353517584730e-4,
                     0.1540353045101147808e-3, 0.1333355814670499073e-2, 0.9618129107597600536e-2, 0.5550410866482046596e-1, 0.2402265069591012214e+0,
                     0.6931471805599452862e+0, 0.1000000000000000000e+1])
-  } else u = sint_polyN(s, [0.1535920892e-3, 0.1339262701e-2, 0.9618384764e-2, 0.5550347269e-1, 0.2402264476e+0, 0.6931471825e+0, 1.0])
+  } else u = polyN(s, [0.1535920892e-3, 0.1339262701e-2, 0.9618384764e-2, 0.5550347269e-1, 0.2402264476e+0, 0.6931471825e+0, 1.0])
   u = ldexp2k(u, q) // u*2^q
   const [upper, lower] = new Map([[dtypes.float64, [1024, -2000]], [dtypes.float32, [128, -150]], [dtypes.float16, [23, -22]]]).get(d.dtype)!
   //   # Replace x >= upper with +inf
@@ -248,11 +248,11 @@ export const xlog2 = ({ d }: { d: UOp }): UOp => {
   let t, s_hi, s_lo
   if (d.dtype === dtypes.float64) {
     // deno-fmt-ignore
-    t = sint_polyN(x2, [0.2211941750456081490e+0, 0.2200768693152277689e+0, 0.2623708057488514656e+0, 0.3205977477944495502e+0,
+    t = polyN(x2, [0.2211941750456081490e+0, 0.2200768693152277689e+0, 0.2623708057488514656e+0, 0.3205977477944495502e+0,
                        0.4121985945485324709e+0, 0.5770780162997058982e+0, 0.96179669392608091449]);
     ;[s_hi, s_lo] = [e.add(x.mul(2.885390081777926774)), e.const_like(0)]
   } else {
-    t = sint_polyN(x2, [0.4374550283e+0, 0.5764790177e+0, 0.9618012905120])
+    t = polyN(x2, [0.4374550283e+0, 0.5764790177e+0, 0.9618012905120])
     ;[s_hi, s_lo] = [e.add(x.mul(2.8853900432586669922)), x.mul(3.2734474483568488616e-08)]
   }
   let r = t.mul(x.mul(x2)).add(s_hi.add(s_lo))

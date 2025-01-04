@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
-import { assert, isEq, make_tuple, prod, range, zip } from '../helpers.ts'
-import { div, idiv, mul, sub } from '../ops.ts'
+import { assert, isEq, make_tuple, range, zip } from '../helpers.ts'
+import { div, idiv, mul, prod, sub } from '../ops.ts'
 import { Tensor } from '../tensor.ts'
 export * as optim from './optim.ts'
 export * as state from './state.ts'

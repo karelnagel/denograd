@@ -1,4 +1,4 @@
-import { assert, checkCached, get_env, intersection, isEq, isLessThan, max, sorted } from './helpers.ts'
+import { assert, checkCached, get_env, intersection, isEq, isLessThan } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -110,7 +110,7 @@ export class dtypes {
     if (typeof x === 'bigint') return dtypes.int64
     if (typeof x === 'boolean') return dtypes.bool
     //  put this in the last is faster because there are more items than lists/tuples to check
-    if (Array.isArray(x)) return x ? max(x.map((x) => dtypes.from_js(x))) : dtypes.default_float
+    if (Array.isArray(x)) return x.length ? x.map((x) => dtypes.from_js(x)).reduce((max, curr) => max.lt(curr) ? curr : max) : dtypes.default_float
     throw new Error(`Could not infer dtype of ${x} with type ${typeof x}`)
   }
   static verify = (val: ConstType, dtype: DType) => {
@@ -226,7 +226,7 @@ export const least_upper_dtype = (...ds: DType[]): DType => {
   const images = ds.filter((d) => (d instanceof ImageDType))
   if (images.length) return images[0]
   const res = [...intersection(...ds.flatMap((d) => new Set(_getRecursiveParents(d))))]
-  return sorted(res)[0]
+  return res.reduce((min, curr) => min.lt(curr) ? min : curr)
 }
 export const least_upper_float = (dt: DType) => dtypes.is_float(dt) ? dt : least_upper_dtype(dt, dtypes.float32)
 

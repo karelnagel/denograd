@@ -1,6 +1,6 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { all, all_int, assert, isEq, isinstance, len, min, partition, prod, range, sum, zip } from '../helpers.ts'
-import { graph_rewrite, identity_element, idiv, KernelInfo, Ops, PatternMatcher, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
+import { all_int, assert, isEq, isinstance, len, min, partition, range, zip } from '../helpers.ts'
+import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, prod, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 
 // # returns the axes to create new_shape if new_shape can be created by combining axis from old_shape
@@ -103,7 +103,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
 export const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   // NOTE: always using ridxs is fine here
   const [reduce_range, reduce_expand] = partition(x.axis_arg.map((i) => ctx.ridxs[i]), (y) => y.op === Ops.RANGE)
-  assert(all(reduce_expand.map((x) => x.op === Ops.EXPAND)), `not all EXPANDS in ${reduce_expand} for ${x.axis_arg}`)
+  assert(reduce_expand.every((x) => x.op === Ops.EXPAND), `not all EXPANDS in ${reduce_expand} for ${x.axis_arg}`)
   const alu_op: Ops = x.arg[0]
   let ret = x.src[0]
   const contract_axis = reduce_expand.flatMap((x) => x.arg)

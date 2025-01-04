@@ -1,8 +1,8 @@
-import { all_same, assert, bytesToString, flatten, get_env, isinstance, product, range, stringToBytes, sum, zip } from '../helpers.ts'
-import { exec_alu, GroupOp, idiv, Ops, UOp } from '../ops.ts'
+import { all_same, assert, bytesToString, flatten, get_env, isinstance, product, range, stringToBytes, zip } from '../helpers.ts'
+import { exec_alu, GroupOp, idiv, Ops, sum, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
-import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate, TypedArrays } from '../dtype.ts'
+import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate } from '../dtype.ts'
 import type { DeviceType, ProgramCallInput } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 

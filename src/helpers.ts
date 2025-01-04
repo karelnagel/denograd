@@ -7,6 +7,9 @@ import { BinaryLike, createHash, randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
+type Value = number | boolean | bigint
+export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
+export const min = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
 export const next = <A extends any>(arr: Iterator<A>, def: A): A => {
   const { value, done } = arr.next()
   return done ? def : value
@@ -113,21 +116,6 @@ export const isEq = (one: any, two: any): boolean => {
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
-type LT = { lt: (x: any) => boolean }
-type ADD = { add: (x: any) => ADD }
-
-const defaultSum = <T extends ADD | number>(a: T, b: T): T => (typeof a !== 'number' ? a.add(b) : typeof b !== 'number' ? b.add(a) : a + b) as T
-export const sum = <T extends ADD | number>(items: T[], fn = (a: T, b: T) => defaultSum(a, b)): T => items.reduce((acc, x) => fn(acc, x))
-
-const defaultLt = <T extends LT | number>(a: T, b: T) => (typeof a !== 'number' ? a.lt(b) : typeof b !== 'number' ? b.lt(a) : a < b)
-
-export const sorted = <T extends LT | number>(items: T[], reverse = false, fn = (a: T, b: T) => defaultLt(a, b)) => !reverse ? items.toSorted((a, b) => fn(a, b) ? -1 : 1) : items.toSorted((a, b) => fn(a, b) ? 1 : -1)
-export const max = <T extends LT | number>(items: T[], fn = (a: T, b: T) => defaultLt(a, b)) => sorted(items, true, fn)[0]
-export const min = <T extends LT | number>(items: T[], fn = (a: T, b: T) => defaultLt(a, b)) => sorted(items, false, fn)[0]
-
-export const all = (items: boolean[]) => items.every((x) => x)
-export const any = (items: boolean[]) => items.some((x) => x)
-
 export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
   map.set(key, defaultValue)
@@ -198,8 +186,6 @@ export function mathGcd(...numbers: number[]): number {
 }
 // TINYGRAD CODE
 // NOTE: it returns int 1 if x is empty regardless of the type of x
-export const prod = (x: number[]) => x.reduce((acc, curr) => acc * curr, 1)
-
 export const OSX = process.platform === 'darwin'
 export const CI = !!process.env.CI
 
@@ -247,10 +233,6 @@ export const fully_flatten = (l: any): any[] => {
 
 // def fromimport(mod, frm): return getattr(__import__(mod, fromlist=[frm]), frm)
 export const strip_parens = (s: string) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
-export const ceildiv = (num: number, amt: number): number => {
-  const ret = -(Math.floor(-num / amt))
-  return Number.isInteger(ret) ? ret : Math.trunc(ret)
-}
 export const round_up = (num: number, amt: number) => Math.ceil(num / amt) * amt
 export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0] // TODO:make work with sint
 export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))] // TODO:make work with sint
@@ -283,7 +265,6 @@ export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
 export const word_wrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + word_wrap(x.slice(wrap), wrap)
-export const polyN = (x: number, p: number[]): number => p.reduce((acc, c) => acc * x + c, 0)
 export const to_function_name = (s: string): string => ''.concat(...ansistrip(s).split('').map((c) => /[a-zA-Z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).padStart(2, '0')))
 export const get_env = (key: string, defaultVal = '') => process.env[key] || defaultVal
 export const get_number_env = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)

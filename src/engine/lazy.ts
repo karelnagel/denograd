@@ -1,7 +1,7 @@
 import { Buffer, DeviceType } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
-import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, isEq, isinstance, LAZYCACHE, listStr, Metadata, prod, range, SPLIT_REDUCEOP } from '../helpers.ts'
-import { exec_alu, GroupOp, identity_element, mod, ne, python_alu, resolve, sint_prod, sub } from '../ops.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, isEq, isinstance, LAZYCACHE, listStr, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { exec_alu, GroupOp, identity_element, mod, ne, prod, python_alu, resolve } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -215,8 +215,8 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
     //     // const folding
     //     // TODO: fold this for symbolic?
     if (this.is_unrealized_unmasked_const() && all_int(this.shape)) {
-      if (op === Ops.ADD) return this.const_with_shape(this.base.arg * (sint_prod(axis.map((i) => this.shape[i])) as number), new_shape)
-      if (op === Ops.MUL) return this.const_with_shape(this.base.arg ** (sint_prod(axis.map((i) => this.shape[i])) as number), new_shape)
+      if (op === Ops.ADD) return this.const_with_shape(this.base.arg * (prod(axis.map((i) => this.shape[i])) as number), new_shape)
+      if (op === Ops.MUL) return this.const_with_shape(this.base.arg ** (prod(axis.map((i) => this.shape[i])) as number), new_shape)
       if (op === Ops.MAX) return this.const_with_shape(this.base.arg, new_shape)
     }
     //     // TODO: can we split symbolic shape if the reduce axis !== symbolic?
