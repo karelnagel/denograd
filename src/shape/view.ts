@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, DataClass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, prod, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, DataClass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, next, prod, range, zip } from '../helpers.ts'
 import { and, gt, le, ne, neg, sint_ceildiv, sint_prod, sint_sorted, sint_sum, smax, smin, sym_infer, type Variable } from '../ops.ts'
 import { add, ge, idiv, lt, mod, mul, resolve, type sint, sint_to_uop, sub, UOp } from '../ops.ts'
 
@@ -34,10 +34,7 @@ export const _merge_dims = (shape: sint[], strides: sint[], mask?: [sint, sint][
   }
   return ret
 }
-const next = <A extends any>(arr: Iterator<A>, def: A): A => {
-  const { value, done } = arr.next()
-  return done ? def : value
-}
+
 export const _reshape_mask = (_mask: undefined | [sint, sint][], old_shape: sint[], new_shape: sint[]): [sint, sint][] | undefined => {
   if (_mask === undefined) return new_shape.map((s) => [0, s])
   if (_mask.some((m) => typeof m[0] !== 'number' || typeof m[1] !== 'number')) return undefined

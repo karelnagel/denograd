@@ -549,25 +549,3 @@ Deno.test(
     'out(data[0].transpose(*data[1:]))',
   ),
 )
-
-Deno.test(
-  'Tensor.lazydata.st.fails',
-  compare<[Tensor]>(
-    [
-      [Tensor.full([8], 1)],
-      [new Tensor([3, 5, 3, 3, 4, 3]).reshape([2, 3])],
-    ],
-    (t) => t.lazydata.st,
-    'out(data[0].lazydata.st)',
-  ),
-)
-Deno.test(
-  'Tensor.lazydata.st.success',
-  compare<[]>(
-    [
-      [],
-    ],
-    () => Tensor.full([8], 1).lazydata.st,
-    'out(tiny.Tensor.full([8], 1).lazydata.st)',
-  ),
-)

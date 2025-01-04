@@ -7,6 +7,10 @@ import { BinaryLike, createHash, randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
+export const next = <A extends any>(arr: Iterator<A>, def: A): A => {
+  const { value, done } = arr.next()
+  return done ? def : value
+}
 export const intToBytes = (int: number) => {
   const hash = new Uint8Array(4)
   new DataView(hash.buffer).setInt32(0, int, false)
