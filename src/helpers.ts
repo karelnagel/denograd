@@ -605,12 +605,13 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
 // DECORATORS
 export function cache<This extends object, Args extends any[], Return>(
   target: (this: This, ...args: Args) => Return,
-  context: ClassGetterDecoratorContext<This, Return> | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
+  ctx: ClassGetterDecoratorContext<This, Return> | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
 ) {
-  const instanceCache = new WeakMap<This, Record<string, Return>>()
+  const instanceCaches = new WeakMap<This, Record<string, Return>>()
+  const staticCache: Record<string, Return> = {}
   return function (this: This, ...args: Args): Return {
-    const key = JSON.stringify({ name: String(context.name), args })
-    let cache = instanceCache.get(this) || instanceCache.set(this, {}).get(this)!
+    const key = JSON.stringify({ name: String(ctx.name), args })
+    let cache = ctx.static ? staticCache : (instanceCaches.get(this) || instanceCaches.set(this, {}).get(this)!)
     if (key in cache) return cache[key]
     const res = target.call(this, ...args)
     cache[key] = res

@@ -235,11 +235,13 @@ export const promoLattice = new Map<DType, DType[]>([
   [dtypes.float32, [dtypes.float64]],
 ])
 
+// @cache
 export const _get_recursive_parents = (dtype: DType): DType[] => {
   if (isEq(dtype, dtypes.float64)) return [dtypes.float64]
   return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_get_recursive_parents)])]
 }
 
+// @cache
 export const least_upper_dtype = (...ds: DType[]): DType => {
   const images = ds.filter((d) => (d instanceof ImageDType))
   if (images.length) return images[0]
