@@ -45,7 +45,7 @@ const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (u
 @dataclass
 export class ShapeTracker {
   constructor(public views: View[]) {}
-  add(st: ShapeTracker): ShapeTracker {
+  add = (st: ShapeTracker): ShapeTracker => {
     let ret = new ShapeTracker(this.views)
     for (const v of st.views) ret = new ShapeTracker([...ret.views, v]).simplify() // one view at a time = better simplification
     return ret
