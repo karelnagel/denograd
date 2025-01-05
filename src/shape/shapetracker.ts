@@ -4,7 +4,8 @@ import { get_number_env, isNone, isNotNone, merge_maps, zip } from '../helpers.t
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
 
-const views_to_indexed_uops = cache_fn((views: View[], _idxs?: UOp[]): [UOp, UOp] => {
+// TODO: should be cached
+const views_to_indexed_uops = (views: View[], _idxs?: UOp[]): [UOp, UOp] => {
   let [idx, valid] = views.at(-1)!.to_indexed_uops(_idxs)
   for (let view of views.slice(0, -1).toReversed()) {
     view = view.minify()
@@ -16,7 +17,7 @@ const views_to_indexed_uops = cache_fn((views: View[], _idxs?: UOp[]): [UOp, UOp
     ;[idx, valid] = view.to_indexed_uops(idxs.toReversed(), valid)
   }
   return [idx, valid]
-})
+}
 
 const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (undefined | sint)[] => {
   // NOTE: if a stride is not always valid, it will be None
