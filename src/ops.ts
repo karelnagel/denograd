@@ -1,7 +1,6 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { abs, all_same, assert, checkCached, counter, dataclass, divmod, Enum, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
+import { abs, all_same, argfix, assert, cache, checkCached, counter, dataclass, divmod, Enum, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
-import { argfix } from './helpers.ts'
 
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
@@ -216,11 +215,12 @@ export class UOp extends MathTrait<UOp> {
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
     // KAREL: this is a hack, for some reason sometime it sends in int
-    if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op as any)!
+    // @ts-ignore for some fucking reason if you have 'as SomeType' in constructor, the decorators stop working
+    // if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op)!
     this.key = sha256(JSON.stringify([this.op, this.dtype, this.arg, this.src.map((s) => s.key)])).toString('hex')
     return checkCached(this.key, UOp.ucache, this)
   }
-  // @lru_cache
+  @cache
   override toString(indent = 2): string {
     const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${' '.repeat(indent)}${this.src.map((s) => s.toString(indent + 2)).join(',\n' + ' '.repeat(indent))}\n${' '.repeat(indent - 2)}]`
     return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${listStr(this.arg)})`
@@ -230,7 +230,7 @@ export class UOp extends MathTrait<UOp> {
   }
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => new UOp(args.op || this.op, args.dtype || this.dtype, args.src || this.src, args.arg || this.arg)
-  // @cached_property
+  @cache
   get toposort(): Set<UOp> {
     let nodes = new Set<UOp>()
     // NOTE: this is a lot faster than the comprehension in parents
@@ -238,7 +238,7 @@ export class UOp extends MathTrait<UOp> {
     nodes.add(this)
     return nodes
   }
-  // @cached_property
+  @cache
   get tuplize(): UOpTuple {
     return [this.op.value, this.arg, this.dtype, this.src.map((x) => x.tuplize)]
   }
@@ -247,7 +247,7 @@ export class UOp extends MathTrait<UOp> {
   get has_st() {
     return ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)
   }
-  // @cached_property
+  @cache
   get st(): undefined | ShapeTracker {
     if (this.op === Ops.VIEW) return this.arg
     // buffer ops can have a non contiguous shapetracker
@@ -259,7 +259,7 @@ export class UOp extends MathTrait<UOp> {
     // all other ops have a contiguous shapetracker
     return ShapeTracker.from_shape([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op) ? src_sts[0].reduce(this.axis_arg) : src_sts[0].shape)
   }
-  // @cached_property
+  @cache
   get full_shape(): sint[] {
     return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map((x) => smax(x))
   }
@@ -376,7 +376,7 @@ export class UOp extends MathTrait<UOp> {
   get device(): string {
     return this._device!
   }
-  // @cached_property
+  @cache
   get _device(): string | undefined {
     const dsrcs = this.src.filter((x) => isNotNone(x._device))
     return this.op === Ops.BUFFER ? this.arg[1][0] : dsrcs.length !== 0 ? dsrcs[0]._device : undefined
@@ -454,7 +454,7 @@ export class UOp extends MathTrait<UOp> {
     return this._min_max[1]
   }
   // Actually can return boolean as well, but types don't like it
-  // @cached_property
+  @cache
   get _min_max(): [number | bigint, number | bigint] {
     if (GroupOp.Binary.includes(this.op) && !dtypes.is_float(this.dtype)) {
       const [s0_vmin, s0_vmax] = this.src[0]._min_max, [s1_vmin, s1_vmax] = this.src[1]._min_max
@@ -494,7 +494,7 @@ export class UOp extends MathTrait<UOp> {
     if (this.op === Ops.VCONST) return [min(this.arg), max(this.arg)]
     return [Number(dtypes.min(this.dtype)), Number(dtypes.max(this.dtype))]
   }
-  // @cached_property
+  @cache
   get _sym_fxn(): [(m: Record<string, number>) => number, string[]] {
     const sthis = this.simplify()
     const varnames: string[] = [...sthis.toposort].filter((x) => x.op === Ops.DEFINE_VAR).map((x) => x.arg[0])

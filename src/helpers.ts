@@ -603,32 +603,28 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
 }
 
 // DECORATORS
-export function cached_property<Return>(target: () => Return, _context: ClassGetterDecoratorContext) {
-  let cache: Return | undefined
-  return (): Return => {
-    if (cache) return cache
-    const res = target()
-    cache = res
-    return res
-  }
-}
-export function lru_cache<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMethodDecoratorContext) {
-  const cache: Record<string, Return> = {}
-  return (...args: Args): Return => {
-    const key = JSON.stringify(args)
-    let res = cache[key]
-    if (res) return res
-    res = target(...args)
+export function cache<This extends object, Args extends any[], Return>(
+  target: (this: This, ...args: Args) => Return,
+  context: ClassGetterDecoratorContext<This, Return> | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
+) {
+  const instanceCache = new WeakMap<This, Record<string, Return>>()
+  return function (this: This, ...args: Args): Return {
+    const key = JSON.stringify({ name: String(context.name), args })
+    let cache = instanceCache.get(this) || instanceCache.set(this, {}).get(this)!
+    if (key in cache) return cache[key]
+    const res = target.call(this, ...args)
     cache[key] = res
     return res
   }
 }
-export function log<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMemberDecoratorContext) {
+
+export function debug<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMemberDecoratorContext) {
   const name = String(_context.name)
   return (...args: Args): Return => {
     console.log(`'${name}' called: ${args}`)
+    const start = performance.now()
     const res = target(...args)
-    console.log(`'${name}' returned: ${res}`)
+    console.log(`'${name}' returned in ${performance.now() - start}ms: ${res}`)
     return res
   }
 }

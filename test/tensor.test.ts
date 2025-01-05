@@ -495,8 +495,14 @@ Deno.test(
 //     [
 //       [[1, 1, 4, 4]],
 //     ],
-//     Tensor.rand,
-//     'out(tiny.Tensor.rand(*data))',
+//     (shape: number[]) => {
+//       const x = Tensor.rand(shape)
+//       return x.tolist()
+//     },
+//     [
+//       'x = tiny.Tensor.rand(*data)',
+//       "out(x)"
+//     ],
 //   ),
 // )
 
