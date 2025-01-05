@@ -1,4 +1,4 @@
-import { UOp } from '../../src/ops.ts'
+import { sint, UOp } from '../../src/ops.ts'
 import { ShapeTracker } from '../../src/shape/shapetracker.ts'
 import { compare, tryCatch } from '../helpers.ts'
 
@@ -63,33 +63,31 @@ Deno.test(
   ),
 )
 
-const testShape = <T extends any[]>(fn: (shape: ShapeTracker) => (...a: T) => any) => tryCatch((shape: ShapeTracker, args: T) => (fn(shape)(...args)))
-
 Deno.test(
-  'ShapeTracker.__add__',
+  'ShapeTracker.add',
   compare(
     [
-      [st1, [st2]],
-      [st1, [st3]],
-      [st2, [st3]],
+      [st1, st2],
+      [st1, st3],
+      [st2, st3],
     ],
-    testShape((shape) => shape.add),
-    'out(trycatch(lambda: data[0].__add__(*data[1])))',
+    (shape: ShapeTracker, st: ShapeTracker) => shape.add(st),
+    'out(trycatch(lambda: data[0] + data[1] ))',
   ),
 )
 Deno.test(
   'ShapeTracker.reduce',
   compare(
     [
-      [st1, [[0]]],
-      [st1, [[1]]],
-      [st1, [[0, 1]]],
-      [st2, [[0]]],
-      [st2, [[1]]],
-      [st2, [[0, 1]]],
+      [st1, [0]],
+      [st1, [1]],
+      [st1, [0, 1]],
+      [st2, [0]],
+      [st2, [1]],
+      [st2, [0, 1]],
     ],
-    testShape((shape) => shape.reduce),
-    'out(trycatch(lambda: data[0].reduce(*data[1])))',
+    (shape: ShapeTracker, axis: number[]) => shape.reduce(axis),
+    'out(trycatch(lambda: data[0].reduce(data[1])))',
   ),
 )
 
@@ -97,24 +95,24 @@ Deno.test(
   'ShapeTracker.to_uop',
   compare(
     [
-      [st1, []],
-      [st1, []],
-      [st2, []],
+      [st1],
+      [st1],
+      [st2],
     ],
-    testShape((shape) => shape.to_uop),
-    'out(trycatch(lambda: data[0].to_uop(*data[1])))',
+    (shape: ShapeTracker) => shape.to_uop(),
+    'out(trycatch(lambda: data[0].to_uop()))',
   ),
 )
 Deno.test(
   'ShapeTracker.to_indexed_uops',
   compare(
     [
-      [st1, []],
-      [st1, []],
-      [st2, []],
+      [st1],
+      [st1],
+      [st2],
     ],
-    testShape((shape) => shape.to_indexed_uops),
-    'out(trycatch(lambda: data[0].to_indexed_uops(*data[1])))',
+    (shape: ShapeTracker) => shape.to_indexed_uops(),
+    'out(trycatch(lambda: data[0].to_indexed_uops()))',
   ),
 )
 
@@ -122,12 +120,12 @@ Deno.test(
   'ShapeTracker.real_size',
   compare(
     [
-      [st1, []],
-      [st1, []],
-      [st2, []],
+      [st1],
+      [st1],
+      [st2],
     ],
-    testShape((shape) => shape.real_size),
-    'out(trycatch(lambda: data[0].real_size(*data[1])))',
+    (shape: ShapeTracker) => shape.real_size(),
+    'out(trycatch(lambda: data[0].real_size()))',
   ),
 )
 
@@ -135,38 +133,25 @@ Deno.test(
   'ShapeTracker.vars',
   compare(
     [
-      [st1, []],
-      [st1, []],
-      [st2, []],
+      [st1],
+      [st1],
+      [st2],
     ],
-    testShape((shape) => shape.vars),
-    'out(trycatch(lambda: data[0].vars(*data[1])))',
+    (shape: ShapeTracker) => shape.vars(),
+    'out(trycatch(lambda: data[0].vars()))',
   ),
 )
-// KAREL: make these work
-// Deno.test(
-//   'ShapeTracker.unbind',
-//   compare(
-//     [
-//       [st1, []],
-//       // [st2, []],
-//       // [st3, []],
-//     ],
-//     testShape((shape) => shape.unbind),
-//     'out(trycatch(lambda: data[0].unbind(*data[1])))',
-//   ),
-// )
 
 Deno.test(
   'ShapeTracker.real_strides',
   compare(
     [
-      [st1, []],
-      [st1, []],
-      [st2, []],
+      [st1],
+      [st1],
+      [st2],
     ],
-    testShape((shape) => shape.real_strides),
-    'out(trycatch(lambda: data[0].real_strides(*data[1])))',
+    (shape: ShapeTracker) => shape.real_strides(),
+    'out(trycatch(lambda: data[0].real_strides()))',
   ),
 )
 
@@ -174,12 +159,12 @@ Deno.test(
   'ShapeTracker.unit_stride_axes',
   compare(
     [
-      [st1, []],
-      [st1, []],
-      [st2, []],
+      [st1],
+      [st1],
+      [st2],
     ],
-    testShape((shape) => shape.unit_stride_axes),
-    'out(trycatch(lambda: data[0].unit_stride_axes(*data[1])))',
+    (shape: ShapeTracker) => shape.unit_stride_axes(),
+    'out(trycatch(lambda: data[0].unit_stride_axes()))',
   ),
 )
 
@@ -187,12 +172,12 @@ Deno.test(
   'ShapeTracker.axis_is_masked',
   compare(
     [
-      [st1, [0]],
-      [st1, [1]],
-      [st2, [0]],
+      [st1, 0],
+      [st1, 1],
+      [st2, 0],
     ],
-    testShape((shape) => shape.axis_is_masked),
-    'out(trycatch(lambda: data[0].axis_is_masked(*data[1])))',
+    (shape: ShapeTracker, axis: number) => shape.axis_is_masked(axis),
+    'out(trycatch(lambda: data[0].axis_is_masked(data[1])))',
   ),
 )
 
@@ -200,12 +185,12 @@ Deno.test(
   'ShapeTracker.simplify',
   compare(
     [
-      [st1, []],
-      [st2, []],
-      [st3, []],
+      [st1],
+      [st2],
+      [st3],
     ],
-    testShape((shape) => shape.simplify),
-    'out(trycatch(lambda: data[0].simplify(*data[1])))',
+    (shape: ShapeTracker) => shape.simplify(),
+    'out(trycatch(lambda: data[0].simplify()))',
   ),
 )
 
@@ -213,16 +198,16 @@ Deno.test(
   'ShapeTracker.reshape',
   compare(
     [
-      [st1, [[UOp.int(33), UOp.int(333)]]],
-      [st1, [[3, 4]]],
-      [st1, [[12]]],
-      [st1, [[2, 2, 3]]],
-      [st2, [[UOp.int(10), UOp.int(20)]]],
-      [st2, [[5, 4]]],
-      [st2, [[20]]],
+      [st1, [UOp.int(33), UOp.int(333)]],
+      [st1, [3, 4]],
+      [st1, [12]],
+      [st1, [2, 2, 3]],
+      [st2, [UOp.int(10), UOp.int(20)]],
+      [st2, [5, 4]],
+      [st2, [20]],
     ],
-    testShape((shape) => shape.reshape),
-    'out(trycatch(lambda: data[0].reshape(*data[1])))',
+    tryCatch((shape: ShapeTracker, new_shape: sint[]) => shape.reshape(new_shape)),
+    'out(trycatch(lambda: data[0].reshape(data[1])))',
     { stringSimilarity: 0.81 },
   ),
 )
