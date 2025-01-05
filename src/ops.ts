@@ -2,7 +2,6 @@ import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from '.
 import { abs, all_same, assert, checkCached, counter, dataclass, divmod, Enum, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 import { argfix } from './helpers.ts'
-import { createHash } from 'node:crypto'
 
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
@@ -212,17 +211,15 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [number, any, DType, UOpTuple[]]
 export class UOp extends MathTrait<UOp> {
-  key: string
   static ucache: Record<string, UOp> = {}
+  key: string
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
     // KAREL: this is a hack, for some reason sometime it sends in int
     if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op as any)!
-
-    this.key = createHash('sha256').update([op.toString(), dtype.toString(), src.map((s) => s.key).join(','), `${arg}`].join(';')).digest().toString('hex')
+    this.key = sha256(JSON.stringify([this.op, this.dtype, this.arg, this.src.map((s) => s.key)])).toString('hex')
     return checkCached(this.key, UOp.ucache, this)
   }
-
   // @lru_cache
   override toString(indent = 2): string {
     const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${' '.repeat(indent)}${this.src.map((s) => s.toString(indent + 2)).join(',\n' + ' '.repeat(indent))}\n${' '.repeat(indent - 2)}]`

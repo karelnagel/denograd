@@ -73,7 +73,7 @@ export abstract class Enum {
   }
 }
 export const randomId = () => randomUUID().toString()
-export const sha256 = (x: BinaryLike): Uint8Array => createHash('sha256').update(x).digest()
+export const sha256 = (x: BinaryLike) => createHash('sha256').update(x).digest()
 export const stringToBytes = (text: string) => new TextEncoder().encode(text)
 export const bytesToString = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
 ;(BigInt.prototype as any).toJSON = function () {
