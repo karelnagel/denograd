@@ -211,6 +211,7 @@ export const CI = !!process.env.CI
 
 if (process.platform === 'win32') process.stdout.write('')
 
+  // TODO: probably should just filter out duplicates + use isEq
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
 export const argfix = (...x: any[]) => {
   if (x.length && (Array.isArray(x[0]))) {

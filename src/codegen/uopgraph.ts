@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, DEBUG, dedup, flatten, get_env, isEq, isinstance, isNone, isNotNone, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
+import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, isEq, isinstance, isNone, isNotNone, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, prod, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -131,7 +131,7 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
 const powers_of_two = Object.fromEntries(range(64).map((i) => [2 ** i, i]))
 // @functools.lru_cache(None)
 type Pat = [UPat, (a: Record<'d' | 'base' | 'const' | 'div' | 'mul' | 'x' | 'y' | 'a' | 'b' | 'c', UOp>) => UOp | undefined]
-export const get_late_rewrite_patterns = (ops: Ops[], force_transcendental = false) => {
+export const get_late_rewrite_patterns = cache_fn((ops: Ops[], force_transcendental = false) => {
   let pat: Pat[] = ([[Ops.EXP2, xexp2], [Ops.LOG2, xlog2], [Ops.SIN, xsin]] as const).filter(([op, f]) => !ops.includes(op) || force_transcendental)
     .map(([op, f]) => [new UPat(op, TRANSCENDENTAL_SUPPORTED_DTYPES, [UPat.var('d')]), f] as const)
   //   # rewrite MOD to AND (which should always be supported, but not for generic in tests)
@@ -154,7 +154,7 @@ export const get_late_rewrite_patterns = (ops: Ops[], force_transcendental = fal
     pat = [...pat, [UPat.var('a').mul(UPat.var('b')).add(UPat.var('c')), ({ a, b, c }) => a.alu(Ops.MULACC, b, c)]]
   }
   return new PatternMatcher(pat)
-}
+})
 // # ***** threefry *****
 
 export const threefry2x32 = (x: UOp, key: UOp) => {
@@ -325,9 +325,9 @@ export const _expand_arg_to_idx = (args: [number, number][], rpk: Record<number,
 export const _choices_from_args = (args: [number, number][]): Record<number, number>[] => {
   return args.reduce((acc, [axis, m]) => acc.flatMap((d) => range(m).map((i) => ({ ...d, [axis]: i }))), [{}]) // KAREL: Can likely be wrong
 }
-export const _swizzle_args = (cargs: [number, number][], eargs: [number, number][], exclude_args: number[]): number[] => {
+export const _swizzle_args = cache_fn((cargs: [number, number][], eargs: [number, number][], exclude_args: number[]): number[] => {
   return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? { ...rpk, ...Object.fromEntries(exclude_args.map((x) => [x, 0])) } : rpk))
-}
+})
 export const do_expand = (root: UOp) => {
   const expands = root.src.filter((x) => x.op === Ops.EXPAND)
   if (expands.length === 0) return undefined
@@ -391,13 +391,14 @@ export const no_vectorized_alu = (alu: UOp) => {
   const alus = range(alu.dtype.vcount).map((i) => new UOp(alu.op, alu.dtype.scalar(), alu.src.map((s) => s.gep(i)), alu.arg))
   return new UOp(Ops.VECTORIZE, alu.dtype, alus)
 }
+
+const _gate_srcs = cache_fn((u: UOp, gate: UOp): UOp => {
+  if (u.op === Ops.BARRIER) return u
+  if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) return new UOp(u.op, u.dtype, [...u.src.toReversed(), new UOp(Ops.IF, dtypes.void, [gate, u.src.at(-1)!])], u.arg)
+  const replace_source = u.src.map((x) => _gate_srcs(x, gate))
+  return isEq(replace_source, u.src) ? u : new UOp(u.op, u.dtype, replace_source, u.arg)
+})
 export const create_gate = (root: UOp): undefined | UOp => {
-  const _gate_srcs = (u: UOp, gate: UOp): UOp => {
-    if (u.op === Ops.BARRIER) return u
-    if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) return new UOp(u.op, u.dtype, [...u.src.toReversed(), new UOp(Ops.IF, dtypes.void, [gate, u.src.at(-1)!])], u.arg)
-    const replace_source = u.src.map((x) => _gate_srcs(x, gate))
-    return isEq(replace_source, u.src) ? u : new UOp(u.op, u.dtype, replace_source, u.arg)
-  }
   let idx = root.src[0]
   if (idx.op === Ops.CAST) idx = idx.src[0]
   const ret = _gate_srcs(root, idx.src[2])
