@@ -158,7 +158,7 @@ Deno.test(
       [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
       [new UOp(Ops.IF, dtypes.bool, [new UOp(Ops.CMPLT, dtypes.bool, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)]), UOp.const(dtypes.float, 1.1), UOp.const(dtypes.float, 0.0)])],
     ],
-    tryCatch((x: UOp) => x.symInfer(new Map())),
+    tryCatch((x: UOp) => x.sym_infer(new Map())),
     'out(trycatch(lambda:data[0].sym_infer({})))',
   ),
 )

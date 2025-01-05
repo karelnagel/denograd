@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { assert, DataClass, isEq, listStr, range } from '../helpers.ts'
+import { assert, dataclass, isEq, listStr, range } from '../helpers.ts'
 import { get_number_env, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
@@ -40,7 +40,7 @@ const views_to_real_strides = (views: View[], ignore_valid = false): (undefined 
   return ret
 }
 
-@DataClass
+@dataclass
 export class ShapeTracker {
   constructor(public views: View[]) {}
   add = (st: ShapeTracker): ShapeTracker => {

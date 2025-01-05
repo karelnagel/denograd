@@ -80,8 +80,6 @@ export const bytesToString = (bytes: Uint8Array) => new TextDecoder().decode(byt
   return this.toString()
 }
 
-type ClassType<T> = { new (...args: any[]): T }
-
 export function product<T>(...arrays: T[][]): T[][] {
   if (arrays.length === 0) return [[]]
 
@@ -93,20 +91,8 @@ export function product<T>(...arrays: T[][]): T[][] {
     return result
   }, [[]])
 }
-export function DataClass<T extends ClassType<object>>(Cls: T) {
-  const cache: Record<string, T> = {}
-  return class extends Cls {
-    constructor(...args: any[]) {
-      const key = JSON.stringify(args)
-      const res = cache[key]
-      if (res) return res
-      super(...args)
-      cache[key] = this as any
-      Object.freeze(this)
-    }
-  }
-}
-export const checkCached = <T>(key: object, cache: Record<string, T>, self: T): T => {
+
+export const checkCached = <T>(key: any, cache: Record<string, T>, self: T): T => {
   const k = JSON.stringify(key)
   if (cache[k]) return cache[k]
   cache[k] = self
@@ -311,7 +297,7 @@ export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [get_number_env('TC', 1), g
 export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [get_number_env('FUSE_ARANGE', 0), get_number_env('FUSE_CONV_BW', 0), get_number_env('LAZYCACHE', 1)]
 export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [get_number_env('SPLIT_REDUCEOP', 1), get_number_env('NO_MEMORY_PLANNER', 0), get_number_env('RING', 1)]
 
-@DataClass
+@dataclass
 export class Metadata {
   constructor(public name: string, public caller: string, public backward = false) {}
   // def __hash__(self): return hash(self.name)
@@ -614,4 +600,50 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
   }
 
   return result
+}
+
+// DECORATORS
+export function cached_property<Return>(target: () => Return, _context: ClassGetterDecoratorContext) {
+  let cache: Return | undefined
+  return (): Return => {
+    if (cache) return cache
+    const res = target()
+    cache = res
+    return res
+  }
+}
+export function lru_cache<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMethodDecoratorContext) {
+  const cache: Record<string, Return> = {}
+  return (...args: Args): Return => {
+    const key = JSON.stringify(args)
+    let res = cache[key]
+    if (res) return res
+    res = target(...args)
+    cache[key] = res
+    return res
+  }
+}
+export function log<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMemberDecoratorContext) {
+  const name = String(_context.name)
+  return (...args: Args): Return => {
+    console.log(`'${name}' called: ${args}`)
+    const res = target(...args)
+    console.log(`'${name}' returned: ${res}`)
+    return res
+  }
+}
+
+type ClassType<T> = { new (...args: any[]): T }
+export function dataclass<T extends ClassType<object>>(Cls: T, ...args: any[]) {
+  return class xd extends Cls {
+    static _cache: Record<string, T> = {}
+    constructor(...args: any[]) {
+      const key = JSON.stringify(args)
+      const res = xd._cache[key]
+      if (res) return res
+      super(...args)
+      xd._cache[key] = this as any
+      Object.freeze(this)
+    }
+  }
 }

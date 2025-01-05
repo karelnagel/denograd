@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, DataClass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, next, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, dataclass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, next, range, zip } from '../helpers.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, resolve, type sint, sint_to_uop, smax, smin, sub, sum, sym_infer, UOp, type Variable } from '../ops.ts'
 
 export const canonicalize_strides = (shape: sint[], strides: sint[]): sint[] => {
@@ -77,12 +77,12 @@ export const un1d = (shape: sint[], offs: sint): sint[] => {
   return result
 }
 
-@DataClass
+@dataclass
 export class View {
   constructor(public shape: sint[], public strides: sint[], public offset: sint, public mask?: [sint, sint][], public contiguous?: boolean) {}
 
   get t() {
-    return [...this.shape, ...this.strides, this.offset, ...(isNotNone(this.mask) ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize() : [x])
+    return [...this.shape, ...this.strides, this.offset, ...(isNotNone(this.mask) ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize : [x])
   }
   lt = (o: View) => isLessThan(this.t, o.t)
   toString = () => `new View(${listStr(this.shape)}, ${listStr(this.strides)}, ${this.offset}, ${listStr(this.mask)}, ${this.contiguous})`;

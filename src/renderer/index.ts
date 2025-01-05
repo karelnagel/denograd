@@ -1,11 +1,11 @@
 import { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { assert, DataClass, isNone, isNotNone, raise, range, to_function_name } from '../helpers.ts'
+import { assert, dataclass, isNone, isNotNone, raise, range, to_function_name } from '../helpers.ts'
 import { flops_mem, idiv, Ops, prod, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
 
-@DataClass
+@dataclass
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
   constructor(
     public dims: [number, number, number],

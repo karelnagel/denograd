@@ -1,11 +1,11 @@
 import { ImageDType } from '../dtype.ts'
-import { assert, ctypes, DataClass, diskcache_get, diskcache_put, from_mv, get_env, get_number_env, isNone, isNotNone, stringToBytes } from '../helpers.ts'
+import { assert, ctypes, dataclass, diskcache_get, diskcache_put, from_mv, get_env, get_number_env, isNone, isNotNone, stringToBytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 
 // **************** Buffer + Allocators ****************
-@DataClass
+@dataclass
 export class BufferSpec {
   //   # TODO: move device, size, dtype here?
   constructor(
