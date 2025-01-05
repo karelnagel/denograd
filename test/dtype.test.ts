@@ -1,4 +1,4 @@
-import { _getRecursiveParents, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
+import { _get_recursive_parents, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
 import { compare, tryCatch } from './helpers.ts'
 
 // Deno.test(
@@ -128,7 +128,7 @@ Deno.test(
   '_getRecursiveParents',
   compare(
     [['float64'], ['float32'], ['float16'], ['half'], ['bool'], ['int'], ['uint']] as const,
-    (type) => _getRecursiveParents(dtypes[type]).map(x=>x.toString()).toSorted(),
+    (type) => _get_recursive_parents(dtypes[type]).map((x) => x.toString()).toSorted(),
     'out(sorted([str(x) for x in tiny.dtype._get_recursive_parents(tiny.dtype.DTYPES_DICT[data[0]])]))',
   ),
 )

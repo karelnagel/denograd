@@ -1,4 +1,4 @@
-import { assert, checkCached, get_env, intersection, isEq, isLessThan } from './helpers.ts'
+import { assert, cache, checkCached, get_env, intersection, isEq, isLessThan } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -29,6 +29,7 @@ export class DType {
   get vcount() {
     return this.count
   }
+  @cache
   vec(sz: number) {
     assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
     if (sz === 1 || isEq(this, dtypes.void)) return this // void doesn't vectorize, and sz=1 is scalar
@@ -59,6 +60,7 @@ export class PtrDType extends DType {
   override get base() {
     return this._base
   }
+  @cache
   override vec(sz: number): PtrDType {
     assert(this.v === 1, `can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
@@ -92,6 +94,7 @@ export class ImageDType extends PtrDType {
     assert(!local, "images can't be local")
     return this
   }
+  @cache
   override vec(sz: number): ImageDType {
     assert(this.v === 1, `can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
@@ -101,10 +104,22 @@ export class ImageDType extends PtrDType {
 }
 
 export class dtypes {
-  static is_float = (x: DType) => dtypes.floats.includes(x.scalar()) || x instanceof ImageDType
-  static is_int = (x: DType) => dtypes.ints.includes(x.scalar())
-  static is_big_int = (x: DType) => dtypes.bigints.includes(x.scalar())
-  static is_unsigned = (x: DType) => dtypes.uints.includes(x.scalar())
+  @cache
+  static is_float(x: DType) {
+    return dtypes.floats.includes(x.scalar()) || x instanceof ImageDType
+  }
+  @cache
+  static is_int(x: DType) {
+    return dtypes.ints.includes(x.scalar())
+  }
+  @cache
+  static is_big_int(x: DType) {
+    return dtypes.bigints.includes(x.scalar())
+  }
+  @cache
+  static is_unsigned(x: DType) {
+    return dtypes.uints.includes(x.scalar())
+  }
   static from_js = (x: number | boolean | bigint | (number | bigint | boolean)[]): DType => {
     if (typeof x === 'number') return Number.isInteger(x) ? dtypes.default_int : dtypes.default_float
     if (typeof x === 'bigint') return dtypes.int64
@@ -132,11 +147,13 @@ export class dtypes {
     else if (Number.isNaN(val)) return true //python bool(math.nan) returns True
     else return Boolean(val)
   }
+  @cache
   static min(dtype: DType) {
     if (dtypes.is_big_int(dtype)) return dtypes.is_unsigned(dtype) ? 0n : (-2n) ** (BigInt(dtype.itemsize) * 8n - 1n)
     if (dtypes.is_int(dtype)) return dtypes.is_unsigned(dtype) ? 0 : (-2) ** (dtype.itemsize * 8 - 1)
     return dtypes.is_float(dtype) ? -Infinity : false
   }
+  @cache
   static max(dtype: DType) {
     if (dtypes.is_big_int(dtype)) return 2n ** (BigInt(dtype.itemsize) * 8n) - 1n + BigInt(dtypes.min(dtype))
     if (dtypes.is_int(dtype)) return 2 ** (dtype.itemsize * 8) - 1 + Number(dtypes.min(dtype))
@@ -217,15 +234,16 @@ export const promoLattice = new Map<DType, DType[]>([
   [dtypes.bfloat16, [dtypes.float32]],
   [dtypes.float32, [dtypes.float64]],
 ])
-export const _getRecursiveParents = (dtype: DType): DType[] => {
+
+export const _get_recursive_parents = (dtype: DType): DType[] => {
   if (isEq(dtype, dtypes.float64)) return [dtypes.float64]
-  return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_getRecursiveParents)])]
+  return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_get_recursive_parents)])]
 }
 
 export const least_upper_dtype = (...ds: DType[]): DType => {
   const images = ds.filter((d) => (d instanceof ImageDType))
   if (images.length) return images[0]
-  const res = [...intersection(...ds.flatMap((d) => new Set(_getRecursiveParents(d))))]
+  const res = [...intersection(...ds.flatMap((d) => new Set(_get_recursive_parents(d))))]
   return res.reduce((min, curr) => min.lt(curr) ? min : curr)
 }
 export const least_upper_float = (dt: DType) => dtypes.is_float(dt) ? dt : least_upper_dtype(dt, dtypes.float32)

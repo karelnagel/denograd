@@ -1,5 +1,5 @@
 import { FmtStr } from '../src/dtype.ts'
-import { _getRecursiveParents, bitcast } from '../src/dtype.ts'
+import { _get_recursive_parents, bitcast } from '../src/dtype.ts'
 import { MemoryView } from '../src/memoryview.ts'
 import { compare } from './helpers.ts'
 
