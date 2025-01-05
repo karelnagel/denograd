@@ -145,7 +145,7 @@ export class ShapeTracker {
     return [...graph_rewrite(valid, symbolic_flat).toposort].filter((x) => x.op === Ops.RANGE).map((x) => x.arg).includes(axis)
   }
   simplify = (): ShapeTracker => {
-    const new_view = this.views.at(-2)?.__add__(this.views.at(-1)!)
+    const new_view = this.views.at(-2)?.add(this.views.at(-1)!)
     if (this.views.length >= 2 && isNotNone(new_view)) return new ShapeTracker([...this.views.slice(0, -2), new_view]).simplify()
     return this
   }

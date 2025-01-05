@@ -618,6 +618,16 @@ export function cache<This extends object, Args extends any[], Return>(
     return res
   }
 }
+export function cache_fn<Args extends any[], Return>(fn: (...args: Args) => Return) {
+  const cache: Record<string, Return> = {}
+  return (...args: Args) => {
+    const key = JSON.stringify(args)
+    if (key in cache) return cache[key]
+    const res = fn(...args)
+    cache[key] = res
+    return res
+  }
+}
 
 export function debug<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMemberDecoratorContext) {
   const name = String(_context.name)
@@ -630,17 +640,19 @@ export function debug<Args extends any[], Return>(target: (...args: Args) => Ret
   }
 }
 
-type ClassType<T> = { new (...args: any[]): T }
-export function dataclass<T extends ClassType<object>>(Cls: T, ...args: any[]) {
-  return class xd extends Cls {
-    static _cache: Record<string, T> = {}
-    constructor(...args: any[]) {
-      const key = JSON.stringify(args)
-      const res = xd._cache[key]
-      if (res) return res
-      super(...args)
-      xd._cache[key] = this as any
-      Object.freeze(this)
-    }
-  }
+type ClassType<T> = new (...args: any[]) => T
+export function dataclass<T extends ClassType<any>>(Base: T, _ctx?: ClassDecoratorContext): T {
+  const cache = new Map<string, InstanceType<T>>()
+
+  return new Proxy(Base, {
+    construct(target, argsList, newTarget) {
+      const key = JSON.stringify(argsList)
+      if (cache.has(key)) return cache.get(key)!
+
+      const instance = Reflect.construct(target, argsList, newTarget)
+      cache.set(key, instance)
+
+      return instance
+    },
+  }) as T
 }

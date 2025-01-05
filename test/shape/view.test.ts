@@ -1,4 +1,4 @@
-import { Ops, spec, symbolic_flat, UOp, UPat } from '../../src/ops.ts'
+import { Ops, sint, UOp } from '../../src/ops.ts'
 import { compare, tryCatch } from '../helpers.ts'
 import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape, un1d, View } from '../../src/shape/view.ts'
 import { dtypes } from '../../src/dtype.ts'
@@ -119,22 +119,21 @@ Deno.test(
   ),
 )
 
-const testView = <T extends any[]>(fn: (view: View) => (...a: T) => any) => tryCatch((view: View, args: T) => (fn(view)(...args)))
 Deno.test(
   'View.to_indexed_uops',
   compare(
     [
-      [view1, []], // default case with no indices
-      [view1, [[UOp.int(2), UOp.int(3)]]], // basic indices
-      [view2, []], // symbolic shape with mask
-      [view2, [[UOp.int(1), UOp.int(4)]]], // symbolic shape, mask and custom indices
-      [view3, []], // 3D view with mask
-      [view3, [[UOp.int(1), UOp.int(2), UOp.int(1)]]], // 3D view with mask and indices
-      [view4, []], // 4D view with mask
-      [view4, [[UOp.int(0), UOp.int(2), UOp.int(1), UOp.int(0)]]], // 4D view with mask and indices
+      [view1], // default case with no indices
+      [view1, [UOp.int(2), UOp.int(3)]], // basic indices
+      [view2], // symbolic shape with mask
+      [view2, [UOp.int(1), UOp.int(4)]], // symbolic shape, mask and custom indices
+      [view3], // 3D view with mask
+      [view3, [UOp.int(1), UOp.int(2)]], // 3D view with mask and indices
+      [view4], // 4D view with mask
+      [view4, [UOp.int(0), UOp.int(2), UOp.int(1)]], // 4D view with mask and indices
     ],
-    testView((v) => v.to_indexed_uops),
-    'out(trycatch(lambda:data[0].to_indexed_uops(*data[1])))',
+    (v: View, _idxs?: UOp[], vexpr?: UOp) => v.to_indexed_uops(_idxs, vexpr),
+    'out(trycatch(lambda:data[0].to_indexed_uops(*data[1:])))',
   ),
 )
 
@@ -142,13 +141,13 @@ Deno.test(
   'View.size',
   compare(
     [
-      [view1, []],
-      [view2, []],
-      [view3, []],
-      [view4, []],
+      [view1],
+      [view2],
+      [view3],
+      [view4],
     ],
-    testView((v) => v.size),
-    'out(trycatch(lambda:data[0].size(*data[1])))',
+    (v: View) => v.size(),
+    'out(trycatch(lambda:data[0].size()))',
   ),
 )
 
@@ -156,68 +155,29 @@ Deno.test(
   'View.vars',
   compare(
     [
-      [view1, []],
-      [view2, []],
-      [view3, []],
-      [view4, []],
+      [view1],
+      [view2],
+      [view3],
+      [view4],
     ],
-    testView((v) => v.vars),
-    'out(trycatch(lambda:data[0].vars(*data[1])))',
+    (v: View) => v.vars(),
+    'out(trycatch(lambda:data[0].vars(*data[1:])))',
   ),
 )
 
-// KAREL: these get stuck
-// Deno.test(
-//   'View.unbind',
-//   compare(
-//     [
-//       [view1, []],
-//       [view2, []],
-//       [view3, []],
-//       [view4, []],
-//     ],
-//     testView((v) => v.unbind),
-//     'out(trycatch(lambda:data[0].unbind(*data[1])))',
-//   ),
-// )
-
 Deno.test(
-  'View.__add__',
+  'View.add',
   compare(
     [
-      [view1, [view1]],
-      [view2, [view1]],
-      [view1, [view2]],
-      [view3, [view1]],
-      [view3, [view4]],
-      [
-        new View(
-          [4, 55],
-          [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 55)], undefined), 1],
-          0,
-          undefined,
-          false,
-        ),
-        [
-          new View(
-            [8, 110, 33],
-            [
-              new UOp(Ops.MUL, dtypes.int, [
-                new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined),
-                new UOp(Ops.CONST, dtypes.int, [], 110),
-              ], undefined),
-              new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined),
-              1,
-            ],
-            0,
-            undefined,
-            false,
-          ),
-        ],
-      ],
+      [view1, view1],
+      [view2, view1],
+      [view1, view2],
+      [view3, view1],
+      [view3, view4],
+      [new View([4, 55], [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 55)], undefined), 1], 0, undefined, false), new View([8, 110, 33], [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined), new UOp(Ops.CONST, dtypes.int, [], 110)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined), 1], 0, undefined, false)],
     ],
-    testView((v) => v.__add__),
-    'out(trycatch(lambda:data[0].__add__(*data[1])))',
+    (v1: View, v2: View) => v1.add(v2),
+    'out(trycatch(lambda: data[0] + data[1] ))',
   ),
 )
 
@@ -225,16 +185,16 @@ Deno.test(
   'View.invert',
   compare(
     [
-      [view1, [[3, UOp.int(4)]]],
-      [view2, [[UOp.int(4), UOp.int(6)]]],
-      [view3, [[UOp.int(3), UOp.int(5), UOp.int(2)]]],
-      [view4, [[UOp.int(2), UOp.int(4), UOp.int(3), UOp.int(2)]]],
-      [view4, [[4, 4]]],
-      [view4, [[3, 3, 3]]],
-      [view1, [[4, 4]]],
+      [view1, [3, UOp.int(4)]],
+      [view2, [UOp.int(4), UOp.int(6)]],
+      [view3, [UOp.int(3), UOp.int(5), UOp.int(2)]],
+      [view4, [UOp.int(2), UOp.int(4), UOp.int(3), UOp.int(2)]],
+      [view4, [4, 4]],
+      [view4, [3, 3, 3]],
+      [view1, [4, 4]],
     ],
-    testView((v) => v.invert),
-    'out(trycatch(lambda:data[0].invert(*data[1])))',
+    (v: View, out_shape: sint[]) => v.invert(out_shape),
+    'out(trycatch(lambda: data[0].invert(data[1])))',
   ),
 )
 
@@ -242,13 +202,13 @@ Deno.test(
   'View.minify',
   compare(
     [
-      [view1, []],
-      [view2, []],
-      [view3, []],
-      [view4, []],
+      [view1],
+      [view2],
+      [view3],
+      [view4],
     ],
-    testView((v) => v.minify),
-    'out(trycatch(lambda:data[0].minify(*data[1])))',
+    (v: View) => v.minify(),
+    'out(trycatch(lambda:data[0].minify()))',
   ),
 )
 
@@ -256,17 +216,17 @@ Deno.test(
   'View.pad',
   compare(
     [
-      [view1, [[[0, 0], [0, 0]]]],
-      [view1, [[[1, 1], [2, 2]]]],
-      [view2, [[[0, 1], [1, 0]]]],
-      [view3, [[[1, 0], [0, 1], [2, 1]]]],
-      [view4, [[[0, 0], [1, 1], [2, 2], [0, 1]]]],
-      [view1, [[[UOp.int(1), UOp.int(2)], [UOp.int(0), UOp.int(1)]]]],
-      [view2, [[[UOp.int(2), UOp.int(0)], [UOp.int(1), UOp.int(2)]]]],
-      [view3, [[[0, UOp.int(1)], [UOp.int(1), 0], [1, UOp.int(2)]]]],
+      [view1, [[0, 0], [0, 0]]],
+      [view1, [[1, 1], [2, 2]]],
+      [view2, [[0, 1], [1, 0]]],
+      [view3, [[1, 0], [0, 1], [2, 1]]],
+      [view4, [[0, 0], [1, 1], [2, 2], [0, 1]]],
+      [view1, [[UOp.int(1), UOp.int(2)], [UOp.int(0), UOp.int(1)]]],
+      [view2, [[UOp.int(2), UOp.int(0)], [UOp.int(1), UOp.int(2)]]],
+      [view3, [[0, UOp.int(1)], [UOp.int(1), 0], [1, UOp.int(2)]]],
     ],
-    testView((v) => v.pad),
-    'out(trycatch(lambda:data[0].pad(*data[1])))',
+    tryCatch((v: View, arg: [sint, sint][]) => v.pad(arg)),
+    'out(trycatch(lambda:data[0].pad(data[1])))',
     { stringSimilarity: 0.75 },
   ),
 )
@@ -275,34 +235,34 @@ Deno.test(
   'View.shrink',
   compare(
     [
-      [view1, [[[0, 2], [1, 3]]]],
-      [view2, [[[0, 2], [2, 4]]]],
-      [view3, [[[1, 3], [1, 3]]]],
-      [view4, [[[0, 2], [1, 2], [0, 1]]]],
-      [view1, [[[UOp.int(0), UOp.int(2)], [UOp.int(1), UOp.int(3)]]]],
-      [view2, [[[UOp.int(1), UOp.int(3)], [UOp.int(2), UOp.int(4)]]]],
-      [view3, [[[0, UOp.int(2)], [1, UOp.int(3)]]]],
-      [view4, [[[UOp.int(0), 2], [1, UOp.int(3)], [0, UOp.int(1)]]]],
+      [view1, [[0, 2], [1, 3]]],
+      [view2, [[0, 2], [2, 4]]],
+      [view3, [[1, 3], [1, 3]]],
+      [view4, [[0, 2], [1, 2], [0, 1]]],
+      [view1, [[UOp.int(0), UOp.int(2)], [UOp.int(1), UOp.int(3)]]],
+      [view2, [[UOp.int(1), UOp.int(3)], [UOp.int(2), UOp.int(4)]]],
+      [view3, [[0, UOp.int(2)], [1, UOp.int(3)]]],
+      [view4, [[UOp.int(0), 2], [1, UOp.int(3)], [0, UOp.int(1)]]],
     ],
-    testView((v) => v.shrink),
-    'out(trycatch(lambda:data[0].shrink(*data[1])))',
+    tryCatch((v: View, arg: [sint, sint][]) => v.shrink(arg)),
+    'out(trycatch(lambda:data[0].shrink(data[1])))',
   ),
 )
 Deno.test(
   'View.expand',
   compare(
     [
-      [view4, [[0, 3, 1]]],
-      [view4, [[0, 3, 2]]],
-      [view4, [[UOp.int(0), UOp.int(3), UOp.int(2)]]],
-      [view3, [[4, 4]]],
-      [view2, [[4, 6]]],
-      [view1, [[4, 4]]],
-      [view1, [[4, 2, 2]]],
-      [view2, [[4, UOp.int(4)]]],
+      [view4, [0, 3, 1]],
+      [view4, [0, 3, 2]],
+      [view4, [UOp.int(0), UOp.int(3), UOp.int(2)]],
+      [view3, [4, 4]],
+      [view2, [4, 6]],
+      [view1, [4, 4]],
+      [view1, [4, 2, 2]],
+      [view2, [4, UOp.int(4)]],
     ],
-    testView((v) => v.expand),
-    'out(trycatch(lambda:data[0].expand(*data[1])))',
+    tryCatch((v: View, new_shape: sint[]) => v.expand(new_shape)),
+    'out(trycatch(lambda:data[0].expand(data[1])))',
     { stringSimilarity: 0.69 },
   ),
 )
@@ -311,16 +271,16 @@ Deno.test(
   'View.permute',
   compare(
     [
-      [view1, [[0, 1]]],
-      [view1, [[1, 0]]],
-      [view2, [[1, 0]]],
-      [view3, [[0, 1]]],
-      [view3, [[1, 0]]],
-      [view4, [[1, 1]]],
-      [view4, [[0, 2, 1]]],
+      [view1, [0, 1]],
+      [view1, [1, 0]],
+      [view2, [1, 0]],
+      [view3, [0, 1]],
+      [view3, [1, 0]],
+      [view4, [1, 1]],
+      [view4, [0, 2, 1]],
     ],
-    testView((v) => v.permute),
-    'out(trycatch(lambda:data[0].permute(*data[1])))',
+    tryCatch((v: View, axis: number[]) => v.permute(axis)),
+    'out(trycatch(lambda:data[0].permute(data[1])))',
     { stringSimilarity: 0.94 },
   ),
 )
@@ -329,15 +289,15 @@ Deno.test(
   'View.stride',
   compare(
     [
-      [view1, [[2]]],
-      [view1, [[-2]]],
-      [view2, [[2, 3]]],
-      [view2, [[-2, -3]]],
-      [view3, [[2, -2, 3]]],
-      [view4, [[2, -1, 3, -2]]],
+      [view1, [2]],
+      [view1, [-2]],
+      [view2, [2, 3]],
+      [view2, [-2, -3]],
+      [view3, [2, -2, 3]],
+      [view4, [2, -1, 3, -2]],
     ],
-    testView((v) => v.stride),
-    'out(trycatch(lambda:data[0].stride(*data[1])))',
+    (v: View, multi: number[]) => v.stride(multi),
+    'out(trycatch(lambda:data[0].stride(data[1])))',
   ),
 )
 
@@ -345,30 +305,30 @@ Deno.test(
   'View.reshape',
   compare(
     [
-      [view1, [[1, 16]]],
-      [view1, [[4, 4]]],
-      [view2, [[3, 8]]],
-      [view2, [[24]]],
-      [view2, [[UOp.int(24)]]],
-      [view2, [[12, 1, 1, 2, 1, 1, 1]]],
-      [view2, [[UOp.int(12), 1, 1, 2, 1, 1, 1]]],
-      [view3, [[8, 1, 1, 2, 1, 1, 1]]],
-      [new View([4, 55], [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 55)], undefined), 1], 0, undefined, false), [[]]],
-      [new View([], [], 0, undefined, true), [[1]]],
-      [new View([15], [0], 0, [[7, 15]], false), [[1, 15]]],
-      [new View([3, 5], [0, 0], 0, [[0, 3], [2, 5]], false), [[1, 3, 1, 5]]],
-      [new View([], [], 0, undefined, true), [[1, 1, 1, 1]]],
-      [new View([], [], 0, undefined, true), [[]]],
-      [new View([3, 5], [0, 0], 0, [[0, 3], [2, 5]], false), [[1, 3, 1, 5]]],
-      [new View([], [], 0, undefined, true), [[1, 1, 1, 1]]],
-      [new View([], [], 0, undefined, true), [[]]],
-      [new View([1, 3, 1, 5], [0, 5, 0, 1], 0, undefined, true), [[3, 5]]],
-      [new View([1, 3, 1, 5], [0, 0, 0, 0], 0, undefined, false), [[3, 5]]],
-      [new View([3, 5], [5, 1], 0, undefined, true), [[15]]],
-      [new View([3, 5], [0, 0], 0, undefined, false), [[15]]],
+      [view1, [1, 16]],
+      [view1, [4, 4]],
+      [view2, [3, 8]],
+      [view2, [24]],
+      [view2, [UOp.int(24)]],
+      [view2, [12, 1, 1, 2, 1, 1, 1]],
+      [view2, [UOp.int(12), 1, 1, 2, 1, 1, 1]],
+      [view3, [8, 1, 1, 2, 1, 1, 1]],
+      [new View([4, 55], [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 55)], undefined), 1], 0, undefined, false), []],
+      [new View([], [], 0, undefined, true), [1]],
+      [new View([15], [0], 0, [[7, 15]], false), [1, 15]],
+      [new View([3, 5], [0, 0], 0, [[0, 3], [2, 5]], false), [1, 3, 1, 5]],
+      [new View([], [], 0, undefined, true), [1, 1, 1, 1]],
+      [new View([], [], 0, undefined, true), []],
+      [new View([3, 5], [0, 0], 0, [[0, 3], [2, 5]], false), [1, 3, 1, 5]],
+      [new View([], [], 0, undefined, true), [1, 1, 1, 1]],
+      [new View([], [], 0, undefined, true), []],
+      [new View([1, 3, 1, 5], [0, 5, 0, 1], 0, undefined, true), [3, 5]],
+      [new View([1, 3, 1, 5], [0, 0, 0, 0], 0, undefined, false), [3, 5]],
+      [new View([3, 5], [5, 1], 0, undefined, true), [15]],
+      [new View([3, 5], [0, 0], 0, undefined, false), [15]],
     ],
-    testView((v) => v.reshape),
-    'out(trycatch(lambda:data[0].reshape(*data[1])))',
+    tryCatch((v: View, new_shape: sint[]) => v.reshape(new_shape)),
+    'out(trycatch(lambda:data[0].reshape(data[1])))',
     { stringSimilarity: 0.6 },
   ),
 )
