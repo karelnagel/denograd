@@ -1,5 +1,5 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { abs, all_same, argfix, assert, cache, checkCached, counter, dataclass, divmod, Enum, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
+import { abs, all_same, argfix, assert, cache, checkCached, counter, dataclass, divmod, Enum, get_key, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -209,6 +209,7 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [number, any, DType, UOpTuple[]]
+
 export class UOp extends MathTrait<UOp> {
   static ucache: Record<string, UOp> = {}
   key: string
@@ -217,7 +218,7 @@ export class UOp extends MathTrait<UOp> {
     // KAREL: this is a hack, for some reason sometime it sends in int
     // @ts-ignore for some fucking reason if you have 'as SomeType' in constructor, the decorators stop working
     if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op)!
-    this.key = sha256(JSON.stringify([this.op, this.dtype, this.arg, this.src.map((s) => s.key)])).toString('hex')
+    this.key = get_key([this.op, this.dtype, this.arg, this.src])
     return checkCached(this.key, UOp.ucache, this)
   }
   @cache

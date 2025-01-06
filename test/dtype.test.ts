@@ -1,5 +1,7 @@
+import { expect } from 'expect/expect'
 import { _get_recursive_parents, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
 import { compare, tryCatch } from './helpers.ts'
+import { PtrDType } from '../src/dtype.ts'
 
 // Deno.test(
 //   'DType.init',
@@ -196,3 +198,9 @@ Deno.test(
     { ignore: [8, 12] },
   ),
 )
+
+Deno.test('DType.dataclass', () => {
+  expect(new DType(3, 3, 'sdf', '?', 3, undefined)).toBe(new DType(3, 3, 'sdf', '?', 3, undefined))
+  expect(dtypes.int16).toBe(DType.new(3, 2, 'short', 'h'))
+  expect(dtypes.int16.ptr(true)).toBe(new PtrDType(3, 2, 'short', 'h', 1, undefined, new DType(3, 2, 'short', 'h', 1), true, 1))
+})

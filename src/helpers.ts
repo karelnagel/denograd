@@ -93,7 +93,7 @@ export function product<T>(...arrays: T[][]): T[][] {
 }
 
 export const checkCached = <T>(key: any, cache: Record<string, T>, self: T): T => {
-  const k = JSON.stringify(key)
+  const k = get_key(key)
   if (cache[k]) return cache[k]
   cache[k] = self
   return self
@@ -211,7 +211,7 @@ export const CI = !!process.env.CI
 
 if (process.platform === 'win32') process.stdout.write('')
 
-  // TODO: probably should just filter out duplicates + use isEq
+// TODO: probably should just filter out duplicates + use isEq
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
 export const argfix = (...x: any[]) => {
   if (x.length && (Array.isArray(x[0]))) {
@@ -603,7 +603,15 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
   return result
 }
 
+export const get_key = (o: any): string => {
+  const json = JSON.stringify(o, (key, value) => {
+    if (typeof value?.key === 'string') return value.key
+    return value
+  })
+  return sha256(json).toString('hex')
+}
 // DECORATORS
+
 export function cache<This extends object, Args extends any[], Return>(
   target: (this: This, ...args: Args) => Return,
   ctx: ClassGetterDecoratorContext<This, Return> | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
@@ -611,7 +619,7 @@ export function cache<This extends object, Args extends any[], Return>(
   const instanceCaches = new WeakMap<This, Record<string, Return>>()
   const staticCache: Record<string, Return> = {}
   return function (this: This, ...args: Args): Return {
-    const key = JSON.stringify({ name: String(ctx.name), args })
+    const key = get_key([String(ctx.name), args])
     let cache = ctx.static ? staticCache : (instanceCaches.get(this) || instanceCaches.set(this, {}).get(this)!)
     if (key in cache) return cache[key]
     const res = target.call(this, ...args)
@@ -622,7 +630,7 @@ export function cache<This extends object, Args extends any[], Return>(
 export function cache_fn<Args extends any[], Return>(fn: (...args: Args) => Return) {
   const cache: Record<string, Return> = {}
   return (...args: Args) => {
-    const key = JSON.stringify(args)
+    const key = get_key(args)
     if (key in cache) return cache[key]
     const res = fn(...args)
     cache[key] = res
@@ -642,18 +650,16 @@ export function debug<Args extends any[], Return>(target: (...args: Args) => Ret
 }
 
 type ClassType<T> = new (...args: any[]) => T
-export function dataclass<T extends ClassType<any>>(Base: T, _ctx?: ClassDecoratorContext): T {
+export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecoratorContext): T {
   const cache = new Map<string, InstanceType<T>>()
-
   return new Proxy(Base, {
     construct(target, argsList, newTarget) {
-      const key = JSON.stringify(argsList)
+      const key = get_key([ctx.name, ...argsList])
       if (cache.has(key)) return cache.get(key)!
-
       const instance = Reflect.construct(target, argsList, newTarget)
-      cache.set(key, instance)
 
+      cache.set(key, instance)
       return instance
     },
-  }) as T
+  })
 }

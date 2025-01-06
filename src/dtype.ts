@@ -1,4 +1,4 @@
-import { assert, cache, checkCached, get_env, intersection, isEq, isLessThan } from './helpers.ts'
+import { assert, cache, checkCached, dataclass, get_env, get_key, intersection, isEq, isLessThan } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -10,10 +10,12 @@ export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, des
   return [...new MemoryView.ARRAYS[destFmt](src.buffer)]
 }
 
+@dataclass
 export class DType {
   static dcache: Record<string, DType> = {}
+  key: string
   constructor(public priority: number, public itemsize: number, public name: string, public fmt: undefined | FmtStr, public count: number, public _scalar?: DType, kwargs?: any) {
-    return checkCached({ priority, count, itemsize, name, _scalar, fmt, kwargs }, DType.dcache, this)
+    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, kwargs])
   }
 
   static new = (priority: number, itemsize: number, name: string, fmt?: FmtStr) => new DType(priority, itemsize, name, fmt, 1, undefined)
@@ -56,6 +58,7 @@ export class PtrDType extends DType {
     this._base = _base
     this.local = local
     this.v = v
+    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, _base, local, v])
   }
   override get base() {
     return this._base
@@ -89,6 +92,7 @@ export class ImageDType extends PtrDType {
     public shape: number[],
   ) {
     super(priority, itemsize, name, fmt, count, _scalar, _base, local, v, { shape })
+    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, _base, local, v, shape])
   }
   override ptr = (local = false) => {
     assert(!local, "images can't be local")
