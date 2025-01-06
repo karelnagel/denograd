@@ -12,10 +12,9 @@ export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, des
 
 @dataclass
 export class DType {
-  static dcache: Record<string, DType> = {}
   key: string
-  constructor(public priority: number, public itemsize: number, public name: string, public fmt: undefined | FmtStr, public count: number, public _scalar?: DType, kwargs?: any) {
-    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, kwargs])
+  constructor(public priority: number, public itemsize: number, public name: string, public fmt: undefined | FmtStr, public count: number, public _scalar?: DType, kwargs: any[] = []) {
+    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, ...kwargs])
   }
 
   static new = (priority: number, itemsize: number, name: string, fmt?: FmtStr) => new DType(priority, itemsize, name, fmt, 1, undefined)
@@ -52,13 +51,12 @@ export class PtrDType extends DType {
     public _base: DType,
     public local: boolean,
     public v: number,
-    kwargs?: any,
+    kwargs: any[] = [],
   ) {
-    super(priority, itemsize, name, fmt, count, _scalar, { _base, local, v, ...kwargs })
+    super(priority, itemsize, name, fmt, count, _scalar, [_base, local, v, ...kwargs])
     this._base = _base
     this.local = local
     this.v = v
-    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, _base, local, v])
   }
   override get base() {
     return this._base
@@ -91,8 +89,7 @@ export class ImageDType extends PtrDType {
     v: number,
     public shape: number[],
   ) {
-    super(priority, itemsize, name, fmt, count, _scalar, _base, local, v, { shape })
-    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, _base, local, v, shape])
+    super(priority, itemsize, name, fmt, count, _scalar, _base, local, v, [shape])
   }
   override ptr = (local = false) => {
     assert(!local, "images can't be local")
