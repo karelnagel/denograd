@@ -1,9 +1,10 @@
 import { dtypes } from '../dtype.ts'
-import { assert, DataClass, isEq, listStr, range } from '../helpers.ts'
+import { assert, cache_fn, dataclass, isEq, listStr, range } from '../helpers.ts'
 import { get_number_env, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
 
+// TODO: should be cached
 const views_to_indexed_uops = (views: View[], _idxs?: UOp[]): [UOp, UOp] => {
   let [idx, valid] = views.at(-1)!.to_indexed_uops(_idxs)
   for (let view of views.slice(0, -1).toReversed()) {
@@ -17,7 +18,8 @@ const views_to_indexed_uops = (views: View[], _idxs?: UOp[]): [UOp, UOp] => {
   }
   return [idx, valid]
 }
-const views_to_real_strides = (views: View[], ignore_valid = false): (undefined | sint)[] => {
+
+const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (undefined | sint)[] => {
   // NOTE: if a stride is not always valid, it will be None
   if (views.length === 1 && isNone(views.at(-1)!.mask)) return views.at(-1)!.strides
   let ret: (undefined | sint)[] = range(views.at(-1)!.shape.length).map((x) => undefined)
@@ -38,9 +40,9 @@ const views_to_real_strides = (views: View[], ignore_valid = false): (undefined 
     for (const masked_axis of [...valid.toposort].filter((x) => x.op === Ops.RANGE).map((x) => x.arg)) ret[masked_axis] = undefined
   }
   return ret
-}
+})
 
-@DataClass
+@dataclass
 export class ShapeTracker {
   constructor(public views: View[]) {}
   add = (st: ShapeTracker): ShapeTracker => {
@@ -83,25 +85,12 @@ export class ShapeTracker {
 
   to_indexed_uops = (_idxs?: UOp[]): [UOp, UOp] => views_to_indexed_uops(this.views, isNotNone(_idxs) ? _idxs : undefined)
 
-  // to_indexed_uops = (_idxs?: UOp[]): [UOp, UOp] => {
-  //   let [idx, valid] = this.views.at(-1)!.to_indexed_uops(_idxs)
-  //   for (let view of this.views.slice(0, -1).toReversed()) {
-  //     view = view.minify()
-  //     let [acc, idxs] = [1 as sint, [] as UOp[]]
-  //     for (const d of view.shape.toReversed()) {
-  //       idxs.push((idx.idiv(acc)).mod(d))
-  //       acc = mul(acc, d)
-  //     }
-  //     ;[idx, valid] = view.to_indexed_uops(idxs.toReversed(), valid)
-  //   }
-  //   return [idx, valid]
-  // }
   real_size = (): number => {
     if (this.shape.includes(0)) return 0
     const [idx, valid] = this.to_indexed_uops()
     if (!valid.vmax) return 0
     assert(idx.vmax < 1e12, `real_size broken for ${self}`)
-    return Math.trunc(idx.vmax + 1)
+    return Math.trunc(idx.vmax as number + 1)
   }
   vars = (): Variable[] => [...new Set(this.views.flatMap((v) => v.vars()))]
 
@@ -117,27 +106,6 @@ export class ShapeTracker {
   //   # NOTE: if a stride is not always valid, it will be None
   real_strides = (ignore_valid = false) => views_to_real_strides(this.views, ignore_valid)
 
-  // real_strides = (ignore_valid = false): (undefined | sint)[] => {
-  //   if (this.views.length === 1 && isNone(this.views.at(-1)?.mask)) return this.views.at(-1)!.strides
-  //   let ret: (sint | undefined)[] = range(this.shape.length).map((x) => undefined)
-  //   let [idx, valid] = this.to_indexed_uops().map((u) => graphRewrite(u, symbolic_flat))
-  //   //     # TODO: always apply these in to_indexed_uops?
-  //   const newvalid = simplifyValid(valid)
-  //   if (isNotNone(newvalid)) valid = newvalid
-  //   const newidx = uop_given_valid(valid, idx)
-  //   if (isNotNone(newidx)) idx = graphRewrite(newidx, symbolic_flat)
-  //   for (const c of splitUOp(idx, Ops.ADD)) {
-  //     if (c.op === Ops.RANGE) ret[c.arg[0]] = 1
-  //     if (c.op === Ops.MUL && c.src[0].op === Ops.RANGE && c.src[1].op === Ops.CONST) ret[c.src[0].arg[0]] = c.src[1].arg
-  //     if (c.op === Ops.MUL && c.src[1].op === Ops.RANGE && c.src[0].op === Ops.CONST) ret[c.src[1].arg[0]] = c.src[0].arg
-  //   }
-  //   const used_ranges = [...idx.sparents().keys().filter((x) => x.op === Ops.RANGE).map((x) => x.arg[0])]
-  //   ret = ret.map((x, i) => used_ranges.includes(i) ? x : 0)
-  //   if (!ignore_valid) {
-  //     for (const masked_axis of valid.sparents().keys().filter((x) => x.op === Ops.RANGE).map((x) => x.arg[0])) ret[masked_axis] = undefined
-  //   }
-  //   return ret
-  // }
   unit_stride_axes = (ignore_valid = false): number[] => [...this.real_strides(ignore_valid).entries()].filter(([i, st]) => st === 1).map(([i, st]) => i)
 
   axis_is_masked = (axis: number): boolean => {
@@ -145,7 +113,7 @@ export class ShapeTracker {
     return [...graph_rewrite(valid, symbolic_flat).toposort].filter((x) => x.op === Ops.RANGE).map((x) => x.arg).includes(axis)
   }
   simplify = (): ShapeTracker => {
-    const new_view = this.views.at(-2)?.__add__(this.views.at(-1)!)
+    const new_view = this.views.at(-2)?.add(this.views.at(-1)!)
     if (this.views.length >= 2 && isNotNone(new_view)) return new ShapeTracker([...this.views.slice(0, -2), new_view]).simplify()
     return this
   }

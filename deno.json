@@ -19,12 +19,12 @@
       "exclude": [
         "no-explicit-any",
         "no-unused-vars",
-        "verbatim-module-syntax"
+        "verbatim-module-syntax",
+        "prefer-const"
       ],
       "include": [
         "prefer-const",
         "ban-types",
-        "eqeqeq",
         "no-class-assign",
         "no-compare-neg-zero",
         "no-inferrable-types"
@@ -39,5 +39,6 @@
   "exclude": [
     "./tinygrad"
   ],
-  "compilerOptions": {}
+  "compilerOptions": {
+  }
 }

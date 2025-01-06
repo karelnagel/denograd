@@ -31,7 +31,7 @@ const kernelInputs = (): [Renderer, UOp][] => [
 Deno.test(
   'realize.get_kernel',
   compare(
-    kernelInputs(),
+    kernelInputs,
     (renderer, ast) => tsKernel(get_kernel(renderer, ast)),
     [
       'k = tiny.engine.realize.get_kernel(*data)',
@@ -42,7 +42,7 @@ Deno.test(
 Deno.test(
   'realize.get_optimized_ast',
   compare(
-    kernelInputs(),
+    kernelInputs,
     (renderer, ast) => get_kernel(renderer, ast).get_optimized_ast(),
     [
       'out(tiny.engine.realize.get_kernel(*data).get_optimized_ast())',
@@ -52,7 +52,7 @@ Deno.test(
 Deno.test(
   'realize.linearize',
   compare(
-    kernelInputs(),
+    kernelInputs,
     (renderer, ast) => get_kernel(renderer, ast).linearize().uops,
     [
       'out(tiny.engine.realize.get_kernel(*data).linearize().uops)',
@@ -62,7 +62,7 @@ Deno.test(
 Deno.test(
   'realize.to_program',
   compare(
-    kernelInputs(),
+    kernelInputs,
     (renderer, ast) => {
       Kernel.kernel_cnt = {}
       return get_kernel(renderer, ast).to_program()
@@ -77,7 +77,7 @@ Deno.test(
 Deno.test(
   'realize.get_runner',
   compare(
-    kernelInputs().map(([r, ast]) => [r.device, ast] as [DeviceType, UOp]),
+    ()=>kernelInputs().map(([r, ast]) => [r.device, ast] as [DeviceType, UOp]),
     (d, ast) => {
       Kernel.kernel_cnt = {}
       const runner = get_runner(d, ast)

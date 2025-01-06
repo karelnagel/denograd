@@ -1,6 +1,6 @@
 import { Kernel } from '../codegen/kernel.ts'
 import { Buffer, Device, DeviceType, Program } from '../device.ts'
-import { all_int, assert, BEAM, CAPTURING, colored, DEBUG, get_number_env, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
+import { all_int, assert, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
 import { idiv, Ops, sint, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec, Renderer } from '../renderer/index.ts'
 import { ScheduleItem } from './schedule.ts'
@@ -124,10 +124,10 @@ class BufferXfer extends BufferCopy {
 
 const method_cache: Record<string, CompiledRunner> = {}
 export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {
-  const ckey = JSON.stringify([device, ast.key, BEAM, NOOPT, false])
+  const ckey = get_key([device, ast.key, BEAM, NOOPT, false])
   const cret = method_cache[ckey]
   if (cret) return cret
-  const bkey = JSON.stringify([device.split(':')[0], ast.key, BEAM, NOOPT, true])
+  const bkey = get_key([device.split(':')[0], ast.key, BEAM, NOOPT, true])
   let ret
   const bret = method_cache[bkey]
   if (bret) {

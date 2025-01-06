@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, CI, DEBUG, get_env, get_number_env, GlobalCounters, isNone, isNotNone, OSX } from './helpers.ts'
+import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, isNone, isNotNone, OSX } from './helpers.ts'
 import process from 'node:process'
 import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
@@ -23,7 +23,8 @@ export type AllDevices = keyof typeof DEVICES | 'CLANG'
 export type DeviceType = AllDevices | `${AllDevices}:${string}`
 
 export class _Device {
-  _canonicalize = (device: DeviceType): DeviceType => {
+  @cache
+  _canonicalize(device: DeviceType): DeviceType {
     const d = device.split(':', 1)[0].toUpperCase()
     return d + device.slice(d.length).replace(':0', '') as DeviceType
   }
@@ -36,6 +37,7 @@ export class _Device {
     return new ret(ix)
   }
   default = () => this.get(this.DEFAULT)
+  @cache
   get_available_devices(): DeviceType[] {
     const res: DeviceType[] = []
     for (const device of Object.keys(DEVICES).filter((x) => x !== 'DISK')) {
@@ -48,6 +50,7 @@ export class _Device {
     }
     return res
   }
+  @cache
   get DEFAULT(): DeviceType {
     const fromEnv = Object.keys(DEVICES).filter((d) => !['DISK'].includes(d) && get_number_env(d) === 1)[0]
     if (fromEnv) return fromEnv as DeviceType

@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, colored, DataClass, DEBUG, dedup, Enum, get_env, isinstance, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, colored, dataclass, DEBUG, dedup, Enum, get_env, isinstance, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, idiv, KernelInfo, le, mul, ne, Ops, print_uops, prod, resolve, sint, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -36,7 +36,7 @@ export const check = (cond: boolean, msg = '') => {
 }
 type TensorCoreOptions = any
 
-@DataClass
+@dataclass
 export class Opt {
   constructor(public op: OptOps, public axis?: number, public amt?: number) {}
   toString = () => `Opt(op=${this.op}, axis=${this.axis}, amt=${this.amt})`

@@ -1,7 +1,7 @@
 // // **************** memory planning ****************
 
 import { Buffer, Device } from '../device.ts'
-import { DEBUG, dedup, NO_MEMORY_PLANNER } from '../helpers.ts'
+import { DEBUG, dedup, get_key, NO_MEMORY_PLANNER } from '../helpers.ts'
 import { Ops } from '../ops.ts'
 import { ScheduleItem } from './schedule.ts'
 
@@ -20,7 +20,7 @@ const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[],
   type Seg = [number, number, Buffer]
   const free_segs = new Map<string, Seg[]>() // Map<buffer key, [start, end, buffer to reuse on the seg>]
   const find_replace_buffer = (buf: Buffer, st: number, en: number) => {
-    const key = JSON.stringify([buf.device, buf.dtype, buf.options, ...(!('offset' in Device.get(buf.device).allocator!) ? [buf.nbytes] : [])])
+    const key = get_key([buf.device, buf.dtype, buf.options, ...(!('offset' in Device.get(buf.device).allocator!) ? [buf.nbytes] : [])])
 
     const default_buf: Seg = [0, buffers.length - 1, buf] // will return the buffer itthis if the replace one !== found.
     const next = free_segs.get(key)?.entries()?.filter(([i, [sst, sen]]) => sst <= st && en <= sen).next().value

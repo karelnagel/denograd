@@ -1,5 +1,7 @@
-import { _getRecursiveParents, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
+import { expect } from 'expect/expect'
+import { _get_recursive_parents, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../src/dtype.ts'
 import { compare, tryCatch } from './helpers.ts'
+import { PtrDType } from '../src/dtype.ts'
 
 // Deno.test(
 //   'DType.init',
@@ -128,7 +130,7 @@ Deno.test(
   '_getRecursiveParents',
   compare(
     [['float64'], ['float32'], ['float16'], ['half'], ['bool'], ['int'], ['uint']] as const,
-    (type) => _getRecursiveParents(dtypes[type]).map(x=>x.toString()).toSorted(),
+    (type) => _get_recursive_parents(dtypes[type]).map((x) => x.toString()).toSorted(),
     'out(sorted([str(x) for x in tiny.dtype._get_recursive_parents(tiny.dtype.DTYPES_DICT[data[0]])]))',
   ),
 )
@@ -196,3 +198,9 @@ Deno.test(
     { ignore: [8, 12] },
   ),
 )
+
+Deno.test('DType.dataclass', () => {
+  expect(new DType(3, 3, 'sdf', '?', 3, undefined)).toBe(new DType(3, 3, 'sdf', '?', 3, undefined))
+  expect(dtypes.int16).toBe(DType.new(3, 2, 'short', 'h'))
+  expect(dtypes.int16.ptr(true)).toBe(new PtrDType(3, 2, 'short', 'h', 1, undefined, new DType(3, 2, 'short', 'h', 1), true, 1))
+})

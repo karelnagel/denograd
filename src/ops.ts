@@ -1,12 +1,11 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { all_same, assert, bytesToString, checkCached, counter, DataClass, divmod, Enum, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, partition, permutations, raise, range, setDefault, setMap, sha256, zip } from './helpers.ts'
+import { abs, all_same, argfix, assert, cache, checkCached, counter, dataclass, divmod, Enum, get_key, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
-import { argfix } from './helpers.ts'
 
 export type Variable = UOp
 export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
 
-export class SimpleMathTrait<T extends SimpleMathTrait<T>> {
+class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   //   # required to implement
   alu = (_arg: Ops, ..._src: T[]): T => raise('Not implemented')
   const_like = (_b: ConstLike): T => raise('Not implemented')
@@ -202,36 +201,34 @@ const _suop = (lst: sint[], uop_fxn: (...x: UOp[]) => UOp, python_fxn: (...a: nu
   const [uops, nums] = partition(lst, (x) => x instanceof UOp) as [UOp[], number[]]
   return ssimplify((nums ? [...uops, python_fxn(...nums)] as UOp[] : []).reduce((acc, x) => uop_fxn(acc, x)))
 }
-export const smax = (...lst: (sint | sint[])[]) => _suop(argfix(...lst), (...x) => x.reduce((acc, x) => acc.maximum(x)), (...x) => Math.max(...x))
-export const smin = (...lst: (sint | sint[])[]) => _suop(argfix(...lst), (...x) => x.reduce((acc, x) => acc.minimum(x)), (...x) => Math.min(...x))
+export const smax = (...lst: (sint | sint[])[]) => _suop(argfix(...lst), (...x) => x.reduce((acc, x) => acc.maximum(x)), (...x) => max(x))
+export const smin = (...lst: (sint | sint[])[]) => _suop(argfix(...lst), (...x) => x.reduce((acc, x) => acc.minimum(x)), (...x) => min(x))
 
 export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uop
-export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.symInfer(varVals) : uop
+export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.sym_infer(varVals) : uop
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [number, any, DType, UOpTuple[]]
+
 export class UOp extends MathTrait<UOp> {
   static ucache: Record<string, UOp> = {}
+  key: string
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
-    // KAREL: this is a hack, for some reason sometime it sends in int
-    if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op as any)!
-    return checkCached({ op, dtype, src, arg }, UOp.ucache, this)
+    this.key = get_key([this.op, this.dtype, this.arg, this.src])
+    return checkCached(this.key, UOp.ucache, this)
   }
-  override toString = (indent = 2): string => {
+  @cache
+  override toString(indent = 2): string {
     const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${' '.repeat(indent)}${this.src.map((s) => s.toString(indent + 2)).join(',\n' + ' '.repeat(indent))}\n${' '.repeat(indent - 2)}]`
     return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${listStr(this.arg)})`
-  };
+  }
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
   __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => new UOp(args.op || this.op, args.dtype || this.dtype, args.src || this.src, args.arg || this.arg)
-  get key(): string {
-    let data = JSON.stringify([this.op, this.dtype, this.arg])
-    for (const s of this.src) data += s.key
-    return bytesToString(sha256(data))
-  }
+  @cache
   get toposort(): Set<UOp> {
     let nodes = new Set<UOp>()
     // NOTE: this is a lot faster than the comprehension in parents
@@ -239,13 +236,16 @@ export class UOp extends MathTrait<UOp> {
     nodes.add(this)
     return nodes
   }
-  tuplize = (): UOpTuple => [this.op.value, this.arg, this.dtype, this.src.map((x) => x.tuplize())]
+  @cache
+  get tuplize(): UOpTuple {
+    return [this.op.value, this.arg, this.dtype, this.src.map((x) => x.tuplize)]
+  }
 
   //   # *** uop shape stuff ***
   get has_st() {
     return ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)
   }
-
+  @cache
   get st(): undefined | ShapeTracker {
     if (this.op === Ops.VIEW) return this.arg
     // buffer ops can have a non contiguous shapetracker
@@ -257,14 +257,15 @@ export class UOp extends MathTrait<UOp> {
     // all other ops have a contiguous shapetracker
     return ShapeTracker.from_shape([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op) ? src_sts[0].reduce(this.axis_arg) : src_sts[0].shape)
   }
+  @cache
+  get full_shape(): sint[] {
+    return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map((x) => smax(x))
+  }
   get shape() {
     return this.st!.shape
   }
   get size() {
     return this.op === Ops.BUFFER ? this.arg[1][1] : this.st!.size
-  }
-  get full_shape(): sint[] {
-    return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map((x) => smax(x))
   }
   //   # *** uop evaluation ***
 
@@ -276,7 +277,7 @@ export class UOp extends MathTrait<UOp> {
   _eval = <T extends new (...args: any[]) => void>(dtypes: DType[], expectedType: T): InstanceType<T> => {
     if (!dtypes.includes(this.dtype)) throw new Error(`eval with wrong dtype ${this}`)
     const simpleThis = this.simplify()
-    const [vmin, vmax] = simpleThis._minMax()
+    const [vmin, vmax] = simpleThis._min_max
     if (!isEq(vmin, vmax)) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleThis.render()}`)
     // if ((vmin instanceof expectedType)) throw new Error(`vmin is wrong dtype ${typeof vmin} != ${expectedType}`)
     return vmin as InstanceType<T>
@@ -373,6 +374,7 @@ export class UOp extends MathTrait<UOp> {
   get device(): string {
     return this._device!
   }
+  @cache
   get _device(): string | undefined {
     const dsrcs = this.src.filter((x) => isNotNone(x._device))
     return this.op === Ops.BUFFER ? this.arg[1][0] : dsrcs.length !== 0 ? dsrcs[0]._device : undefined
@@ -444,21 +446,22 @@ export class UOp extends MathTrait<UOp> {
     return undefined // generic None if we aren't sure
   }
   get vmin() {
-    return this._minMax()[0]
+    return this._min_max[0]
   }
   get vmax() {
-    return this._minMax()[1]
+    return this._min_max[1]
   }
   // Actually can return boolean as well, but types don't like it
-  _minMax = (): [number, number] => {
+  @cache
+  get _min_max(): [number | bigint, number | bigint] {
     if (GroupOp.Binary.includes(this.op) && !dtypes.is_float(this.dtype)) {
-      const [[s0_vmin, s0_vmax], [s1_vmin, s1_vmax]] = [this.src[0]._minMax(), this.src[1]._minMax()]
-      if (this.op === Ops.ADD) return [s0_vmin + s1_vmin, s0_vmax + s1_vmax]
+      const [s0_vmin, s0_vmax] = this.src[0]._min_max, [s1_vmin, s1_vmax] = this.src[1]._min_max
+      if (this.op === Ops.ADD) return [add(s0_vmin, s1_vmin), add(s0_vmax, s1_vmax)]
       if (this.op === Ops.MUL) {
-        const vals = [s0_vmin * s1_vmin, s0_vmin * s1_vmax, s0_vmax * s1_vmin, s0_vmax * s1_vmax]
-        return [Math.min(...vals), Math.max(...vals)]
+        const vals = [mul(s0_vmin, s1_vmin), mul(s0_vmin, s1_vmax), mul(s0_vmax, s1_vmin), mul(s0_vmax, s1_vmax)]
+        return [min(vals), max(vals)]
       }
-      if (this.op === Ops.MOD && s1_vmin > 0) return [0, s1_vmax - 1]
+      if (this.op === Ops.MOD && s1_vmin > 0) return [0, sub(s1_vmax, 1)]
       if (this.op === Ops.IDIV) {
         if (s1_vmin === s1_vmax) { // min/max are equal in a CONST
           if (s1_vmin > 0) return [idiv(s0_vmin, s1_vmin), idiv(s0_vmax, s1_vmin)]
@@ -468,7 +471,7 @@ export class UOp extends MathTrait<UOp> {
         if ((s0_vmax <= 0 && s1_vmin < 0) || (s0_vmin >= 0 && s1_vmin > 0)) return [0, Number(dtypes.max(this.dtype))]
         if ((s0_vmax <= 0 && s1_vmin > 0) || (s0_vmin >= 0 && s1_vmin < 0)) return [Number(dtypes.min(this.dtype)), 0]
       }
-      if (this.op === Ops.MAX) return [Math.max(s0_vmin, s1_vmin), Math.max(s0_vmax, s1_vmax)]
+      if (this.op === Ops.MAX) return [max([s0_vmin, s1_vmin]), max([s0_vmax, s1_vmax])]
       if (this.op === Ops.CMPLT) return [Number(s0_vmax < s1_vmin), Number(s0_vmin < s1_vmax)]
       if (this.op === Ops.CMPNE) return [Number((s0_vmax < s1_vmin) || (s1_vmax < s0_vmin)), Number(!(s0_vmin === s0_vmax && s0_vmax === s1_vmin && s1_vmin === s1_vmax))]
       if (this.dtype === dtypes.bool) {
@@ -477,27 +480,27 @@ export class UOp extends MathTrait<UOp> {
       }
     }
     // float has NAN issue and we use explicit NAN in transcendental
-    if (this.op === Ops.WHERE && dtypes.is_int(this.dtype)) return [Math.min(this.src[1].vmin, this.src[2].vmin), Math.max(this.src[1].vmax, this.src[2].vmax)]
+    if (this.op === Ops.WHERE && dtypes.is_int(this.dtype)) return [min([this.src[1].vmin, this.src[2].vmin]), max([this.src[1].vmax, this.src[2].vmax])]
     // NOTE: returned UOp is assumed to be CONST
     if (this.op === Ops.DEFINE_VAR && this.arg) return [this.arg[1], this.arg[2]]
     if (this.op === Ops.RANGE) return [this.src[0].vmin, (this.src[1].sub(1)).vmax]
-    if (this.op === Ops.BIND) return this.src[0]._minMax() // ignore the bound value
-    if ([Ops.EXPAND, Ops.VECTORIZE].includes(this.op)) return [Math.min(...this.src.map((x) => x.vmin)), Math.max(...this.src.map((x) => x.vmax))]
+    if (this.op === Ops.BIND) return this.src[0]._min_max // ignore the bound value
+    if ([Ops.EXPAND, Ops.VECTORIZE].includes(this.op)) return [min(this.src.map((x) => x.vmin)), max(this.src.map((x) => x.vmax))]
     // TODO: UOps.SPECIAL is UOps.DEFINE_VAR
     if (this.op === Ops.SPECIAL) return [0, typeof this.arg[1] === 'number' ? (this.arg[1] - 1) : Number(dtypes.max(this.dtype))]
     if (this.op === Ops.CONST) return [this.arg, this.arg]
-    if (this.op === Ops.VCONST) return [Math.min(...this.arg), Math.max(...this.arg)]
+    if (this.op === Ops.VCONST) return [min(this.arg), max(this.arg)]
     return [Number(dtypes.min(this.dtype)), Number(dtypes.max(this.dtype))]
   }
-
-  _sym_fxn = (): [(m: Record<string, number>) => number, string[]] => {
+  @cache
+  get _sym_fxn(): [(m: Record<string, number>) => number, string[]] {
     const sthis = this.simplify()
     const varnames: string[] = [...sthis.toposort].filter((x) => x.op === Ops.DEFINE_VAR).map((x) => x.arg[0])
     // TODO: sanitize varnames, or don't use naked eval while staying fast
     return [eval(`({${varnames.join(',')}})=>${sthis.render()}`), varnames]
   }
-  symInfer = (varVals: Map<UOp, number>) => {
-    const [fxn, varnames] = this._sym_fxn()
+  sym_infer = (varVals: Map<UOp, number>) => {
+    const [fxn, varnames] = this._sym_fxn
     const args = Object.fromEntries(varVals.entries().filter(([k, _]) => varnames.includes(k.arg[0])).map(([k, v]) => [k.arg[0] as string, v]))
     return fxn(args)
   }
@@ -508,40 +511,40 @@ export class UOp extends MathTrait<UOp> {
   }
 }
 
-@DataClass
+@dataclass
 export class KernelInfo {
   constructor(public local_dims = 0, public upcasted = 0, public dont_use_locals = false) {}
 }
 
 // # ***** ops in python *****
-const safe_exp2 = (x: number) => {
+const safe_exp2 = (x: number | bigint) => {
   try {
-    return 2 ** x
+    return typeof x === 'number' ? 2 ** x : 2n ** x
   } catch {
     return Infinity
   }
 }
-export const python_alu = new Map<Ops, (...x: number[]) => number>([
+export const python_alu = new Map<Ops, (...x: (number | bigint)[]) => number | bigint>([
   [Ops.LOG2, (x) => x === 0 ? x > 0 ? Math.log2(2) : -Infinity : NaN],
   [Ops.EXP2, safe_exp2],
-  [Ops.SQRT, (x) => x >= 0 ? Math.sqrt(x) : NaN],
-  [Ops.RECIP, (x) => x !== 0 ? 1 / x : x >= 0 ? Infinity : -Infinity],
-  [Ops.SIN, (x) => !isInf(x) ? Math.sin(x) : NaN],
-  [Ops.NEG, (x) => -x],
-  [Ops.ADD, (x, y) => x + y],
-  [Ops.SUB, (x, y) => x - y],
-  [Ops.MUL, (x, y) => x * y],
-  [Ops.CMPNE, (x, y) => Number(x !== y)],
-  [Ops.CMPLT, (x, y) => Number(x < y)],
-  [Ops.XOR, (x, y) => x ^ y],
-  [Ops.OR, (x, y) => x | y],
-  [Ops.AND, (x, y) => x & y],
-  [Ops.SHR, (x, y) => x >> y],
-  [Ops.SHL, (x, y) => x << y],
-  [Ops.MAX, (...args) => Math.max(...args)],
-  [Ops.MOD, (x, y) => Math.abs(Math.trunc(x)) % Math.abs(Math.trunc(y)) * (x < 0 ? -1 : 1)],
-  [Ops.IDIV, (x, y) => y !== 0 ? idiv(Math.abs(x), Math.abs(y)) * ((x * y < 0) ? -1 : 1) : x * Infinity],
-  [Ops.MULACC, (x, y, z) => (x * y) + z],
+  [Ops.SQRT, (x) => x >= 0 ? sqrt(x) : NaN],
+  [Ops.RECIP, (x) => x != 0 ? div(1, x) : x >= 0 ? Infinity : -Infinity],
+  [Ops.SIN, (x) => !isInf(x as number) ? sin(x) : NaN],
+  [Ops.NEG, (x) => neg(x)],
+  [Ops.ADD, (x, y) => add(x, y)],
+  [Ops.SUB, (x, y) => sub(x, y)],
+  [Ops.MUL, (x, y) => mul(x, y)],
+  [Ops.CMPNE, (x, y) => ne(x, y)],
+  [Ops.CMPLT, (x, y) => lt(x, y)],
+  [Ops.XOR, (x, y) => xor(x, y)],
+  [Ops.OR, (x, y) => or(x, y)],
+  [Ops.AND, (x, y) => and(x, y)],
+  [Ops.SHR, (x, y) => rshift(x, y)],
+  [Ops.SHL, (x, y) => lshift(x, y)],
+  [Ops.MAX, (...args) => max(args)],
+  [Ops.MOD, (x, y) => mul(mod(abs(trunc(x)), abs(trunc(y))), x < 0 ? -1 : 1)],
+  [Ops.IDIV, (x, y) => y !== 0 ? mul(idiv(abs(x), abs(y)), (mul(x, y) < 0) ? -1 : 1) : mul(x, Infinity)],
+  [Ops.MULACC, (x, y, z) => add(mul(x, y), z)],
   [Ops.WHERE, (x, y, z) => x ? y : z],
 ])
 
@@ -879,10 +882,10 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
   // simple cancel div/mod case
   const q = idiv(x.vmin, c)
   if (q === idiv(x.vmax, c)) {
-    if (which === Ops.MOD) return x.sub(q * c)
+    if (which === Ops.MOD) return x.sub(mul(q, c))
     return x.const_like(q)
   }
-  let [svars, factors, quotients, remainders, gcd, div, const2, offset, something_changed] = [[], [], [], [], c, 1, 0, 0, false] as [UOp[], number[], number[], number[], number, number, number, number, boolean]
+  let svars: UOp[] = [], factors: number[] = [], quotients: number[] = [], remainders: number[] = [], gcd = c, div = 1, const2 = 0, offset: number | bigint = 0, something_changed = false
   for (let u of splitUOp(x, Ops.ADD)) {
     if (u.op === Ops.MOD && which === Ops.MOD && u.src[1].op === Ops.CONST && u.src[1].arg % c === 0) {
       u = u.src[0]
@@ -892,7 +895,7 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
     const v = u.divides(f)!
     const [q, r] = divmod(f, c)
     if (r === 0 || ((which === Ops.MOD || split_rem || u.op === Ops.CONST) && r !== f)) something_changed = true
-    offset += r * v.vmin
+    offset = add(offset, mul(r, v.vmin))
     if (u.op === Ops.CONST) const2 += f
     else { // div is the smallest common divisor of all terms
       if (f > 1 && c % f === 0 && (div === 1 || div > f)) div = f
@@ -903,16 +906,16 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
       remainders.push(r)
     }
   }
-  offset = offset % c
+  offset = mod(offset, c)
   let ubound = offset
   let lbound = offset
   // we can fold if the expression has only one non-constant term and this term can only take on two values
   let v = svars[0]
-  if (svars.length === 1 && v.vmax - v.vmin === 1) {
-    const r = (offset + remainders[0]) % c - offset % c
-    offset -= r * v.vmin
+  if (svars.length === 1 && sub(v.vmax, v.vmin) === 1) {
+    const r = sub(mod(add(offset, remainders[0]), c), mod(offset, c))
+    offset = sub(offset, mul(r, v.vmin))
     if (which === Ops.MOD) return add(mul(r, v), offset) as UOp
-    return add(mul(idiv(factors[0] - r, c), v), idiv(const2 - offset, c)) as UOp
+    return add(mul(idiv(sub(factors[0], r), c), v), idiv(sub(const2, offset), c)) as UOp
   }
   // a//c = (a-a%c)/c, if we can fold a%c, we can fold a//c
   // within a mod we can freely subtract multiples of c, we use this to see if a is congruent to an expression whose vmin/vmax are between 0 and c
@@ -921,24 +924,24 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
   for ([r, v] of zip(remainders, svars)) {
     if (r > idiv(c, 2)) {
       r = r - c
-      lbound = lbound + r * (v.vmax - v.vmin)
+      lbound = add(lbound, mul(r, sub(v.vmax, v.vmin)))
       if (lbound < 0) {
         exitedWithBreak = true
         break
       }
     } else {
-      ubound = ubound + r * (v.vmax - v.vmin)
+      ubound = add(ubound, mul(r, sub(v.vmax, v.vmin)))
       if (ubound >= c) {
         exitedWithBreak = true
         break
       }
     }
-    offset -= r * v.vmin // determine what the new offset would be
+    offset = sub(offset, mul(r, v.vmin)) // determine what the new offset would be
   }
   if (!exitedWithBreak) { // vmin/vmax of the remainder is between 0 and c, we can remove the mod/div
     remainders = remainders.map((r) => Math.min(Math.abs(r), Math.abs(r - c)))
     if (which === Ops.MOD) return zip(remainders, svars).reduce((acc, [r, v]) => acc.add(mul(r, v)), x.const_like(offset))
-    return zip(factors, remainders, svars).reduce((acc, [f, r, v]) => acc.add(mul(idiv(f - r, c), v)), x.const_like(idiv(const2 - offset, c)))
+    return zip(factors, remainders, svars).reduce((acc, [f, r, v]) => acc.add(mul(idiv(f - r, c), v)), x.const_like(idiv(sub(const2, offset), c)))
   }
 
   if (gcd !== 1) something_changed = true
@@ -964,7 +967,7 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
 const lt_folding = (x: UOp, c: number): UOp | undefined => {
   const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
   const d = mathGcd(...np.map((u) => u.constFactor()), c)
-  if (np && d > 1 && 0 <= p.map((u) => u.vmin).reduce((p, c) => c + p) && p.map((u) => u.vmax).reduce((p, c) => p + c) < d) {
+  if (np && d > 1 && 0 <= p.map((u) => u.vmin).reduce((p, c) => add(c, p)) && p.map((u) => u.vmax).reduce((p, c) => add(p, c)) < d) {
     return np.reduce((p, c) => p.add(c), UOp.int(0)).divides(d)!.lt(idiv(c, d))
   }
   return undefined
@@ -989,7 +992,7 @@ const fold_unrolled_divs = ({ divs }: { divs: UOp }) => {
   if (isNone(denominator)) return undefined
   // the first (denominator-len(seen_const)) terms may have been folded to 0 already
   for (const i of range(denominator - seenConst.length)) {
-    if (isNotNone(ans) && 0 <= ans.vmin && ans.vmax + i < denominator) seenConst.push(i)
+    if (isNotNone(ans) && 0 <= ans.vmin && add(ans.vmax, i) < denominator) seenConst.push(i)
   }
   return isNotNone(ans) && isEq(seenConst.sort((a, b) => b - a), range(denominator)) ? ans : undefined
 }
@@ -1133,7 +1136,7 @@ export const symbolic_simple = new PatternMatcher([
 export const symbolic = symbolic_simple.add(
   new PatternMatcher([
     // ** COMMUTATIVE flipping **
-    [new UPat(GroupOp.Commutative).named('x'), ({ x }) => isLessThan(x.src[1].tuplize(), x.src[0].tuplize()) ? x.replace({ src: x.src.toReversed() }) : undefined],
+    [new UPat(GroupOp.Commutative).named('x'), ({ x }) => isLessThan(x.src[1].tuplize, x.src[0].tuplize) ? x.replace({ src: x.src.toReversed() }) : undefined],
     //   // group like
     [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, y, c }) => (x.add(x.mul(c))).add(y)],
     //   // ** boolean algebra **
@@ -1228,8 +1231,8 @@ type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B 
 const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
   if (!bigintFn) bigintFn = numberFn as unknown as (a: bigint, b: bigint) => bigint
   return <A extends Math, B extends Math>(a: A, b: B): Return<A, B> => {
-    if (typeof a !== 'number' && typeof a !== 'bigint') return mathFn(a, b, false) as Return<A, B>
-    else if (typeof b !== 'number' && typeof b !== 'bigint') return mathFn(b, a, true) as Return<A, B>
+    if (a instanceof MathTrait) return mathFn(a, b, false) as Return<A, B>
+    else if (b instanceof MathTrait) return mathFn(b, a, true) as Return<A, B>
     else if (typeof a === 'bigint' || typeof b === 'bigint') return bigintFn(BigInt(a), BigInt(b)) as Return<A, B>
     else return numberFn(a as any, b as any) as Return<A, B>
   }
@@ -1243,8 +1246,11 @@ export const idiv = _meta((a, b, r) => a.idiv(b, r), (a, b) => Math.floor(a / b)
 export const neg = <A extends Math>(a: A): Return<A, A> => ((typeof a !== 'number' && typeof a !== 'bigint') ? a.neg() : typeof a === 'bigint' ? a * -1n : a * -1)
 export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => a % b)
 
-export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => Number(a && b), (a, b) => BigInt(a && b))
-export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => Number(a || b), (a, b) => BigInt(a || b))
+export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => a & b)
+export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => a | b)
+export const xor = _meta((a, b, r) => a.xor(b, r), (a, b) => a ^ b)
+export const lshift = _meta((a, b, r) => a.lshift(b, r), (a, b) => a << b)
+export const rshift = _meta((a, b, r) => a.rshift(b, r), (a, b) => a >> b)
 
 export const lt = _meta((a, b, r) => !r ? a.lt(b) : a.const_like(b as any).lt(a), (a, b) => Number(a < b), (a, b) => BigInt(a < b))
 export const gt = _meta((a, b, r) => !r ? a.gt(b) : a.const_like(b as any).gt(a), (a, b) => Number(a > b), (a, b) => BigInt(a > b))

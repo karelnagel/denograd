@@ -7,9 +7,43 @@ import { BinaryLike, createHash, randomUUID } from 'node:crypto'
 import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
-type Value = number | boolean | bigint
+type Value = number | bigint
 export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
+export const abs = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.abs(x) : x < 0n ? -x : x
+export const trunc = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.trunc(x) : x
+export const sqrt = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.sqrt(x) : bigint_sqrt(x)
+export const sin = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.sin(x) : bigint_sin(x)
+
+// no idea, AI generated
+export const bigint_sqrt = (v: bigint) => {
+  let x = v
+  let y = (x + 1n) / 2n
+  while (y < x) {
+    x = y
+    y = (x + v / x) / 2n
+  }
+  return x
+}
+// no idea, AI generated
+export const bigint_sin = (v: bigint) => {
+  const PI = 3141592653589793238n
+  const TWO_PI = PI * 2n
+
+  let normalized = v % TWO_PI
+  if (normalized > PI) normalized -= TWO_PI
+  else if (normalized < -PI) normalized += TWO_PI
+
+  const x = normalized
+  const x2 = (x * x) / (10n ** 20n) // Scale down for precision
+  const x3 = (x2 * x) / (10n ** 20n)
+  const x5 = x3 * x2
+  const x7 = x5 * x2
+  const x9 = x7 * x2
+  const x11 = x9 * x2
+
+  return Number(x / (10n ** 10n) - x3 / 6n + x5 / 120n - x7 / 5040n + x9 / 362880n - x11 / 39916800n) / 10 ** 10
+}
 export const next = <A extends any>(arr: Iterator<A>, def: A): A => {
   const { value, done } = arr.next()
   return done ? def : value
@@ -39,14 +73,12 @@ export abstract class Enum {
   }
 }
 export const randomId = () => randomUUID().toString()
-export const sha256 = (x: BinaryLike): Uint8Array => createHash('sha256').update(x).digest()
+export const sha256 = (x: BinaryLike) => createHash('sha256').update(x).digest()
 export const stringToBytes = (text: string) => new TextEncoder().encode(text)
 export const bytesToString = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
 ;(BigInt.prototype as any).toJSON = function () {
   return this.toString()
 }
-
-type ClassType<T> = { new (...args: any[]): T }
 
 export function product<T>(...arrays: T[][]): T[][] {
   if (arrays.length === 0) return [[]]
@@ -59,21 +91,9 @@ export function product<T>(...arrays: T[][]): T[][] {
     return result
   }, [[]])
 }
-export function DataClass<T extends ClassType<object>>(Cls: T) {
-  const cache: Record<string, T> = {}
-  return class extends Cls {
-    constructor(...args: any[]) {
-      const key = JSON.stringify(args)
-      const res = cache[key]
-      if (res) return res
-      super(...args)
-      cache[key] = this as any
-      Object.freeze(this)
-    }
-  }
-}
-export const checkCached = <T>(key: object, cache: Record<string, T>, self: T): T => {
-  const k = JSON.stringify(key)
+
+export const checkCached = <T>(key: any, cache: Record<string, T>, self: T): T => {
+  const k = get_key(key)
   if (cache[k]) return cache[k]
   cache[k] = self
   return self
@@ -191,6 +211,7 @@ export const CI = !!process.env.CI
 
 if (process.platform === 'win32') process.stdout.write('')
 
+// TODO: probably should just filter out duplicates + use isEq
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
 export const argfix = (...x: any[]) => {
   if (x.length && (Array.isArray(x[0]))) {
@@ -277,7 +298,7 @@ export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [get_number_env('TC', 1), g
 export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [get_number_env('FUSE_ARANGE', 0), get_number_env('FUSE_CONV_BW', 0), get_number_env('LAZYCACHE', 1)]
 export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [get_number_env('SPLIT_REDUCEOP', 1), get_number_env('NO_MEMORY_PLANNER', 0), get_number_env('RING', 1)]
 
-@DataClass
+@dataclass
 export class Metadata {
   constructor(public name: string, public caller: string, public backward = false) {}
   // def __hash__(self): return hash(self.name)
@@ -580,4 +601,65 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
   }
 
   return result
+}
+
+export const get_key = (o: any): string => {
+  const json = JSON.stringify(o, (key, value) => {
+    if (typeof value?.key === 'string') return value.key
+    return value
+  })
+  return sha256(json).toString('hex')
+}
+// DECORATORS
+
+export function cache<This extends object, Args extends any[], Return>(
+  target: (this: This, ...args: Args) => Return,
+  ctx: ClassGetterDecoratorContext<This, Return> | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
+) {
+  const instanceCaches = new WeakMap<This, Record<string, Return>>()
+  const staticCache: Record<string, Return> = {}
+  return function (this: This, ...args: Args): Return {
+    const key = get_key([String(ctx.name), args])
+    let cache = ctx.static ? staticCache : (instanceCaches.get(this) || instanceCaches.set(this, {}).get(this)!)
+    if (key in cache) return cache[key]
+    const res = target.call(this, ...args)
+    cache[key] = res
+    return res
+  }
+}
+export function cache_fn<Args extends any[], Return>(fn: (...args: Args) => Return) {
+  const cache: Record<string, Return> = {}
+  return (...args: Args) => {
+    const key = get_key(args)
+    if (key in cache) return cache[key]
+    const res = fn(...args)
+    cache[key] = res
+    return res
+  }
+}
+
+export function debug<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMemberDecoratorContext) {
+  const name = String(_context.name)
+  return (...args: Args): Return => {
+    console.log(`'${name}' called: ${args}`)
+    const start = performance.now()
+    const res = target(...args)
+    console.log(`'${name}' returned in ${performance.now() - start}ms: ${res}`)
+    return res
+  }
+}
+
+type ClassType<T> = new (...args: any[]) => T
+export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecoratorContext): T {
+  const cache = new Map<string, InstanceType<T>>()
+  return new Proxy(Base, {
+    construct(target, argsList, newTarget) {
+      const key = get_key([ctx.name, ...argsList])
+      if (cache.has(key)) return cache.get(key)!
+      const instance = Reflect.construct(target, argsList, newTarget)
+
+      cache.set(key, instance)
+      return instance
+    },
+  })
 }
