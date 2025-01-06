@@ -2,9 +2,6 @@ import { DType, dtypes } from '../src/dtype.ts'
 import { Ops, sint } from '../src/ops.ts'
 import { Tensor, TensorOptions } from '../src/tensor.ts'
 import { compare, tryCatch } from './helpers.ts'
-import process from 'node:process'
-
-process.env.PYTHON = '1'
 
 Deno.test(
   'Tensor.numel',
