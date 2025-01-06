@@ -21,5 +21,4 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: pip install -e ./tinygrad
       - run: deno test -A
