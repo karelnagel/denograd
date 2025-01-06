@@ -872,9 +872,9 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(Tensor.uniform(2, 3, low=2, high=10).numpy())
    * ```
    */
-  static uniform = (shape: number[], low = 0.0, high = 1.0, opts?: TensorOptions): Tensor => {
-    const dtype = opts?.dtype || dtypes.default_float
-    return (Tensor.rand(shape, undefined, { ...opts, dtype }).mul(high - low, true)).cast(dtype).add(low)
+  static uniform = (shape: number[], low = 0.0, high = 1.0, { dtype, ...opts }: TensorOptions = {}): Tensor => {
+    if (!dtype) dtype = dtype || dtypes.default_float
+    return Tensor.rand(shape, undefined, opts).mul(high - low, true).cast(dtype).add(low)
   }
 
   /**

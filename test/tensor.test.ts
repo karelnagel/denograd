@@ -494,6 +494,7 @@ Deno.test(
   compare(
     [
       [[1, 1, 4, 4]],
+      [[1, 1, 3, 3]],
     ],
     (shape: number[]) => {
       Tensor.manual_seed(3)

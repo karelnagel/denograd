@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { assert, isEq, make_tuple, range, zip } from '../helpers.ts'
+import { assert, flatten, isEq, make_tuple, range, zip } from '../helpers.ts'
 import { div, idiv, mul, prod, sub } from '../ops.ts'
 import { Tensor } from '../tensor.ts'
 export * as optim from './optim.ts'
@@ -120,9 +120,9 @@ export class Conv2d {
     this.kernel_size = make_tuple(kernel_size, 2)
     if (typeof padding === 'string') {
       if (padding.toLowerCase() !== 'same') throw new Error(`Invalid padding string ${padding}, only 'same' is supported`)
-      if (stride !== 1) throw new Error("padding='same' !== supported for strided convolutions")
+      if (stride !== 1) throw new Error("padding='same' is not supported for strided convolutions")
       const pad = zip(make_tuple(dilation, this.kernel_size.length), this.kernel_size.toReversed()).map(([d, k]) => [idiv(d * (k - 1), 2), d * (k - 1) - idiv(d * (k - 1), 2)])
-      padding = pad.flat()
+      padding = flatten(pad)
     }
     this.stride = stride, this.dilation = dilation, this.groups = groups, this.padding = padding
     const scale = 1 / Math.sqrt(in_channels * prod(this.kernel_size))
