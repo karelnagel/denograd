@@ -74,10 +74,10 @@ for await (const i of tqdm(range(100))) {
 
 # Roadmap
 - [x] rewrite all the necesary parts of tinygrad for MNIST, with 'PYTHON' runtime, with tests comparing the python and TS implemenations
-- [ ] get MNIST training correctly (WIP)
-- [ ] Github CI
+- [x] Github CI
+- [ ] get MNIST training correctly (WIP, probably everything should work, but just the PYTHON runtime is so slow, so we need CLANG first)
+- [ ] CLANG runtime (WIP)
 - [ ] delete lazy + other tinygrad updates
-- [ ] CLANG runtime
 - [ ] get it working inside browser with PYTHON runtime
 - [ ] WebGPU runtime
 - [ ] publish to npm and jsr
