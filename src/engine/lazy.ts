@@ -1,25 +1,22 @@
 import { Buffer, DeviceType } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
-import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, isEq, isinstance, LAZYCACHE, listStr, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, get_key, get_number_env, isEq, isinstance, LAZYCACHE, listStr, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, prod, python_alu, resolve } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 
 // KAREL: all this lazycache is wrong but it is still somehow needed to not fail
-const lazycache = new Map<any, LazyBuffer>()
+const lazycache = new Map<string, LazyBuffer>()
 export const create_lazybuffer = (device: DeviceType, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, enable_cache = Boolean(LAZYCACHE)) => {
   dtype = to_dtype(dtype)
   if (op === Ops.CONST) [arg, enable_cache] = [!isinstance(arg, UOp) ? dtypes.as_const(arg, dtype) : arg, true]
 
-  const cache_key = base === undefined ? [device, st, dtype, op, arg, srcs.map((x) => new WeakRef(x))] : [st, new WeakRef(base)]
-  if (enable_cache) {
-    const rret = lazycache.get(cache_key)
-    if (rret !== undefined) return rret
-  }
+  const key = base === undefined ? get_key([device, st, dtype, op, arg, srcs]) : get_key([st, base])
+  if (enable_cache && lazycache.has(key)) return lazycache.get(key)!
 
   const ret = new LazyBuffer(device, st, dtype, op, arg, srcs, base, _METADATA.value)
-  if (enable_cache) lazycache.set(cache_key, ret)
+  if (enable_cache) lazycache.set(key, ret)
   return ret
 }
 export const view_supported_devices = ['LLVM', 'CLANG', 'CUDA', 'NV', 'AMD', 'METAL', 'QCOM', 'DSP', 'DISK']
