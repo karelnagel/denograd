@@ -1,6 +1,7 @@
 import { BatchNorm, Conv2d } from '../../src/nn/index.ts'
 import { Tensor } from '../../src/tensor.ts'
 import { compare } from '../helpers.ts'
+import { Linear } from '../../src/nn/index.ts'
 
 Deno.test(
   'Conv2d.init',
@@ -95,6 +96,51 @@ Deno.test(
       'bn = BatchNorm(data[0])',
       't = tiny.Tensor.rand(*data[1])',
       'out(bn(t))',
+    ],
+  ),
+)
+
+Deno.test(
+  'Linear.init',
+  compare(
+    [
+      [1, 1], // simplest case, 1 -> 1
+      [2, 3], // 2 -> 3
+      [3, 3, false], // 3 -> 3, no bias
+    ],
+    (in_features: number, out_features: number, bias: boolean = true) => {
+      Tensor.manual_seed(3)
+      const linear = new Linear(in_features, out_features, bias)
+      return [linear.bias, linear.weight]
+    },
+    [
+      'from tinygrad.nn import Linear',
+      'tiny.Tensor.manual_seed(3)',
+      'linear = Linear(*data)',
+      'out([linear.bias, linear.weight])',
+    ],
+  ),
+)
+
+Deno.test(
+  'Linear.call',
+  compare(
+    [
+      [1, 1, [4, 1]], // shape: (4, 1) => 4 samples, each of size 1
+      [2, 3, [5, 2]], // shape: (5, 2) => 5 samples, each of size 2
+    ],
+    (in_features: number, out_features: number, input_shape: number[]) => {
+      Tensor.manual_seed(3)
+      const linear = new Linear(in_features, out_features)
+      const t = Tensor.rand(input_shape)
+      return linear.call(t)
+    },
+    [
+      'from tinygrad.nn import Linear',
+      'tiny.Tensor.manual_seed(3)',
+      'linear = Linear(data[0], data[1])',
+      't = tiny.Tensor.rand(*data[2])',
+      'out(linear(t))',
     ],
   ),
 )
