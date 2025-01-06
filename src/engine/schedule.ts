@@ -1,6 +1,6 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, isEq, isinstance, listStr, merge_maps, Metadata, range, setDefault } from '../helpers.ts'
+import { all_int, all_same, assert, cache, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, isEq, isinstance, listStr, merge_maps, Metadata, range, setDefault } from '../helpers.ts'
 import { can_pad, ge, lt, prod, resolve, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -28,6 +28,7 @@ export class ScheduleItem {
   get inputs(): Buffer[] {
     return this.bufs.filter((b, i) => !this.output_idxs.includes(i))
   }
+  @cache
   get output_idxs(): number[] {
     return this.ast.op === Ops.SINK ? this.ast.src.map((x) => x.src[0].arg) : [0]
   }
