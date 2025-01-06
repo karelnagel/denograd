@@ -7,16 +7,16 @@ import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 
 // KAREL: all this lazycache is wrong but it is still somehow needed to not fail
-const lazycache = new Map<string, LazyBuffer>()
+// const lazycache = new Map<string, LazyBuffer>()
 export const create_lazybuffer = (device: DeviceType, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, enable_cache = Boolean(LAZYCACHE)) => {
   dtype = to_dtype(dtype)
-  if (op === Ops.CONST) [arg, enable_cache] = [!isinstance(arg, UOp) ? dtypes.as_const(arg, dtype) : arg, true]
+  if (op === Ops.CONST) arg = !isinstance(arg, UOp) ? dtypes.as_const(arg, dtype) : arg, enable_cache = true
 
-  const key = base === undefined ? get_key([device, st, dtype, op, arg, srcs]) : get_key([st, base])
-  if (enable_cache && lazycache.has(key)) return lazycache.get(key)!
+  // const key = get_key([device, st, dtype, op, arg, srcs, base])
+  // if (enable_cache && lazycache.has(key)) return lazycache.get(key)!
 
   const ret = new LazyBuffer(device, st, dtype, op, arg, srcs, base, _METADATA.value)
-  if (enable_cache) lazycache.set(key, ret)
+  // if (enable_cache) lazycache.set(key, ret)
   return ret
 }
 export const view_supported_devices = ['LLVM', 'CLANG', 'CUDA', 'NV', 'AMD', 'METAL', 'QCOM', 'DSP', 'DISK']

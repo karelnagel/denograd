@@ -1,4 +1,4 @@
-import { assert, cache, checkCached, dataclass, get_env, get_key, intersection, isEq, isLessThan } from './helpers.ts'
+import { assert, cache, cache_fn, checkCached, dataclass, get_env, get_key, intersection, isEq, isLessThan } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -236,19 +236,17 @@ export const promoLattice = new Map<DType, DType[]>([
   [dtypes.float32, [dtypes.float64]],
 ])
 
-// @cache
-export const _get_recursive_parents = (dtype: DType): DType[] => {
+export const _get_recursive_parents = cache_fn((dtype: DType): DType[] => {
   if (isEq(dtype, dtypes.float64)) return [dtypes.float64]
   return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_get_recursive_parents)])]
-}
+})
 
-// @cache
-export const least_upper_dtype = (...ds: DType[]): DType => {
+export const least_upper_dtype = cache_fn((...ds: DType[]): DType => {
   const images = ds.filter((d) => (d instanceof ImageDType))
   if (images.length) return images[0]
   const res = [...intersection(...ds.flatMap((d) => new Set(_get_recursive_parents(d))))]
   return res.reduce((min, curr) => min.lt(curr) ? min : curr)
-}
+})
 export const least_upper_float = (dt: DType) => dtypes.is_float(dt) ? dt : least_upper_dtype(dt, dtypes.float32)
 
 export const DTYPES_DICT: Record<string, DType> = Object.fromEntries(Object.entries(dtypes).filter(([k, v]) => v instanceof DType && !k.startsWith('default') && k !== 'void'))

@@ -129,7 +129,6 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
 // # ***** optional patterns *****
 
 const powers_of_two = Object.fromEntries(range(64).map((i) => [2 ** i, i]))
-// @functools.lru_cache(None)
 type Pat = [UPat, (a: Record<'d' | 'base' | 'const' | 'div' | 'mul' | 'x' | 'y' | 'a' | 'b' | 'c', UOp>) => UOp | undefined]
 export const get_late_rewrite_patterns = cache_fn((ops: Ops[], force_transcendental = false) => {
   let pat: Pat[] = ([[Ops.EXP2, xexp2], [Ops.LOG2, xlog2], [Ops.SIN, xsin]] as const).filter(([op, f]) => !ops.includes(op) || force_transcendental)
