@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { assert, dataclass, isNone, isNotNone, raise, range, to_function_name } from '../helpers.ts'
+import { assert, cache, dataclass, isNone, isNotNone, raise, range, to_function_name } from '../helpers.ts'
 import { flops_mem, idiv, Ops, prod, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
@@ -64,8 +64,11 @@ export class ProgramSpec {
   get lds_estimate() {
     return this._ops_lds()[1]
   }
-  _ops_lds = (): [sint, sint] => isNone(this.uops) ? [0, 0] : flops_mem(this.uops, true)
-
+  @cache
+  _ops_lds(): [sint, sint] {
+    return isNone(this.uops) ? [0, 0] : flops_mem(this.uops, true)
+  }
+  @cache
   get function_name() {
     return to_function_name(this.name)
   }
