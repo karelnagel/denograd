@@ -1,4 +1,4 @@
-import { Conv2d } from '../../src/nn/index.ts'
+import { BatchNorm, Conv2d } from '../../src/nn/index.ts'
 import { Tensor } from '../../src/tensor.ts'
 import { compare } from '../helpers.ts'
 
@@ -50,6 +50,51 @@ Deno.test(
       'conv = Conv2d(*data[:3])',
       't = tiny.Tensor.rand(*data[3])',
       'out(conv(t))',
+    ],
+  ),
+)
+
+Deno.test(
+  'BatchNorm.init',
+  compare(
+    [
+      [1], // simplest case, 1 feature
+      [3, 1e-3, false, true, 0.9], // custom eps, momentum, affine off
+      [2, 1e-5, false, true, 0.1], // default eps, momentum, affine on
+    ],
+    (sz: number, eps: number = 1e-5, affine?: boolean, track_running_stats?: boolean, momentum: number = 0.1) => {
+      Tensor.manual_seed(3)
+      const bn = new BatchNorm(sz, eps, affine, track_running_stats, momentum)
+      return [bn.weight, bn.bias, bn.running_mean, bn.running_var, bn.num_batches_tracked]
+    },
+    [
+      'from tinygrad.nn import BatchNorm',
+      'tiny.Tensor.manual_seed(3)',
+      'bn = BatchNorm(*data)',
+      'out([bn.weight, bn.bias, getattr(bn,"running_mean",None), getattr(bn,"running_var",None), bn.num_batches_tracked])',
+    ],
+  ),
+)
+
+Deno.test(
+  'BatchNorm.call',
+  compare(
+    [
+      [1, [2, 1, 4, 4]],
+      [2, [2, 2, 3, 3]],
+    ],
+    (num_features: number, shape: number[]) => {
+      Tensor.manual_seed(3)
+      const bn = new BatchNorm(num_features)
+      const t = Tensor.rand(shape)
+      return bn.call(t)
+    },
+    [
+      'from tinygrad.nn import BatchNorm',
+      'tiny.Tensor.manual_seed(3)',
+      'bn = BatchNorm(data[0])',
+      't = tiny.Tensor.rand(*data[1])',
+      'out(bn(t))',
     ],
   ),
 )

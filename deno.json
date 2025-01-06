@@ -26,8 +26,7 @@
         "prefer-const",
         "ban-types",
         "no-class-assign",
-        "no-compare-neg-zero",
-        "no-inferrable-types"
+        "no-compare-neg-zero"
       ]
     }
   },
@@ -39,6 +38,5 @@
   "exclude": [
     "./tinygrad"
   ],
-  "compilerOptions": {
-  }
+  "compilerOptions": {}
 }

@@ -1,3 +1,4 @@
+import { is_dtype_supported } from '../device.ts'
 import { dtypes } from '../dtype.ts'
 import { assert, flatten, isEq, make_tuple, range, zip } from '../helpers.ts'
 import { div, idiv, mul, prod, sub } from '../ops.ts'
@@ -44,7 +45,7 @@ export class BatchNorm {
     this.bias = affine ? Tensor.zeros([sz]) : undefined
 
     this.num_batches_tracked = Tensor.zeros([1], { dtype: is_dtype_supported(dtypes.long) ? dtypes.long : dtypes.int, requires_grad: false })
-    if (track_running_stats) [this.running_mean, this.running_var] = [Tensor.zeros([sz], { requires_grad: false }), Tensor.ones([sz], { requires_grad: false })]
+    if (track_running_stats) this.running_mean = Tensor.zeros([sz], { requires_grad: false }), this.running_var = Tensor.ones([sz], { requires_grad: false })
   }
   calc_stats = (x: Tensor): [Tensor, Tensor] => {
     const shape_mask: number[] = [1, -1, ...(range(x.ndim - 2).map((x) => 1))]
@@ -72,9 +73,6 @@ export class BatchNorm {
 export const BatchNorm2d = BatchNorm
 export const BatchNorm3d = BatchNorm
 
-function is_dtype_supported(long: any): boolean {
-  throw new Error('Function not implemented.')
-}
 /**
  * Applies a 1D convolution over an input signal composed of several input planes.
  *
