@@ -215,9 +215,6 @@ export class UOp extends MathTrait<UOp> {
   key: string
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
-    // KAREL: this is a hack, for some reason sometime it sends in int
-    // @ts-ignore for some fucking reason if you have 'as SomeType' in constructor, the decorators stop working
-    if (typeof this.op === 'number') op = this.op = Ops.values().find((x) => x.value === op)!
     this.key = get_key([this.op, this.dtype, this.arg, this.src])
     return checkCached(this.key, UOp.ucache, this)
   }
