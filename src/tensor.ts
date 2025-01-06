@@ -336,7 +336,7 @@ const sliceGetIndices = (index: Slice, size: number): [number, number, number] =
   return [start, stop, step]
 }
 export type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | Slice | (number | boolean | UOp | Tensor | undefined | '...' | Slice)[]
-
+export type Layer = ((x: Tensor) => Tensor) | { call: (x: Tensor) => Tensor }
 /**
  * A `Tensor` === a multi-dimensional matrix containing elements of a single data type.
  *
@@ -1889,6 +1889,7 @@ export class Tensor extends MathTrait<Tensor> {
     const padding_ = this._padding2d(padding, k_.length)
     return this.pad(padding_, undefined, dtypes.min(this.dtype))._pool(k_, stride || k_, dilation).max(range(-k_.length, 0))
   }
+  static max_pool2d = (t: Tensor) => t.max_pool2d()
   /**
    * Applies a convolution over a tensor with a given `weight` && optional `bias`.
    *
@@ -2205,6 +2206,7 @@ export class Tensor extends MathTrait<Tensor> {
   relu = () => {
     return Relu.apply(this)
   }
+  static relu = (t: Tensor) => t.relu()
   /**
    * Applies the Sigmoid function element-wise.
    *
@@ -3101,8 +3103,8 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.sequential([lambda x: x * 2, lambda x: x + 1]).numpy())
    * ```
    */
-  sequential = (ll: ((x: Tensor) => Tensor)[]) => {
-    return ll.reduce((acc, f) => f(acc), this as Tensor)
+  sequential = (ll: Layer[]) => {
+    return ll.reduce((acc, f) => typeof f === 'function' ? f(acc) : f.call(acc), this as Tensor)
   }
   /**
    * Applies Layer Normalization over a mini-batch of inputs.

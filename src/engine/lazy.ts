@@ -88,7 +88,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   }
   override const_like = (b: ConstLike) => this.const_with_shape(b as ConstType, this.shape)
   const_with_shape = (val: ConstType, shape: sint[]): LazyBuffer => {
-    assert(isinstance(val, Number) || isinstance(val, Boolean), `val=${val} has ${typeof val}, !a ConstType`)
+    assert(typeof val === 'number' || typeof val === 'boolean' || typeof val === 'bigint', `val=${val} has ${typeof val}, !a ConstType`)
     return LazyBuffer.metaop(Ops.CONST, [], this.dtype, this.device, val).reshape(range(shape.length).map((x) => 1)).expand(shape)
   }
   //   @property

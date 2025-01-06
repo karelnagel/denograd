@@ -1,40 +1,30 @@
 import { expect } from 'expect/expect'
 import { Tensor } from '../../src/tensor.ts'
-import { get_state_dict, safe_load } from '../../src/nn/state.ts'
+import { get_parameters, get_state_dict, safe_load } from '../../src/nn/state.ts'
 import { zip } from '../../src/helpers.ts'
-import { dtypes } from '../../src/dtype.ts'
 import { safe_save } from '../../src/nn/state.ts'
 import { python } from '../helpers.ts'
+import { MNIST } from '../../beautiful_mnist.ts'
 
 Deno.test('get_state_dict', () => {
-  class MNIST {
-    idk = new Tensor([2])
-    layers: ((x: Tensor) => Tensor)[]
-    constructor() {
-      this.layers = [
-        // new nn.Conv2d(1, 32, 5).call,
-        (x) => x.relu(),
-        // new nn.Conv2d(32, 32, 5).call,
-        (x) => x.relu(),
-        // new nn.BatchNorm(32).call,
-        (x) => x.max_pool2d(),
-        // new nn.Conv2d(32, 64, 3).call,
-        (x) => x.relu(),
-        // new nn.Conv2d(64, 64, 3).call,
-        (x) => x.relu(),
-        // new nn.BatchNorm(64).call,
-        (x) => x.max_pool2d(),
-        (x) => x.flatten(1),
-        // new nn.Linear(576, 10).call,
-      ]
-    }
-    call = (x: Tensor): Tensor => x.sequential(this.layers)
-  }
   const model = new MNIST()
   const dict = get_state_dict(model)
-  for (const [entry, expected] of zip(Object.entries(dict), ['idk'])) {
-    expect(entry[0]).toEqual(expected)
-    expect(entry[1]).toBeInstanceOf(Tensor)
+  expect(Object.entries(dict).length).toBe(20)
+  for (const [key, tensor] of Object.entries(dict)) {
+    const [layers, num, name] = key.split('.')
+    expect(layers).toBe('layers')
+    expect(Number(num)).toBeGreaterThanOrEqual(0)
+    expect(Number(num)).toBeLessThanOrEqual(13)
+    expect(['weight', 'bias', 'num_batches_tracked', 'running_mean', 'running_var', 'num_batches_tracked']).toContain(name)
+    expect(tensor).toBeInstanceOf(Tensor)
+  }
+})
+Deno.test('get_parameters', () => {
+  const model = new MNIST()
+  const params = get_parameters(model)
+  expect(params.length).toBe(20)
+  for (const tensor of params) {
+    expect(tensor).toBeInstanceOf(Tensor)
   }
 })
 
