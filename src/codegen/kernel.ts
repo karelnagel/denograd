@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, colored, dataclass, DEBUG, dedup, Enum, get_env, isinstance, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, cache, cache_fn, colored, dataclass, DEBUG, dedup, Enum, get_env, isinstance, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, idiv, KernelInfo, le, mul, ne, Ops, print_uops, prod, resolve, sint, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -47,6 +47,8 @@ export class Opt {
     return this.axis
   }
 }
+const ordered_parents = cache_fn((op: UOp): UOp[] => dedup([...op.src.flatMap((x) => ordered_parents(x)), op]))
+
 export class Kernel {
   ast!: UOp
   opts: Renderer
@@ -80,7 +82,6 @@ export class Kernel {
       console.log(this.ast)
       throw e
     }
-    const ordered_parents = (op: UOp): UOp[] => dedup([...op.src.flatMap((x) => ordered_parents(x)), op])
     this.reduceops = dedup(ordered_parents(this.ast).filter((x) => x.op === Ops.REDUCE_AXIS))
 
     this.vars = this.ast.variables()
@@ -414,7 +415,7 @@ export class Kernel {
   //   # **** kernel outputs ****
 
   static kernel_cnt: Record<string, number> = {}
-  //   @functools.cached_property
+  @cache
   get name(): string {
     //     # kernel name (before late upcast)
     const kernel_type = this.reduceop !== undefined ? 'r' : ([...this.ast.toposort].every((x) => x.op === Ops.SINK || GroupOp.Buffer.includes(x.op)) ? 'C' : 'E')
@@ -427,87 +428,87 @@ export class Kernel {
     const num = Kernel.kernel_cnt[function_name] > 1 ? `n${Kernel.kernel_cnt[function_name] - 1}` : ''
     return name + colored(num, 'BLACK')
   }
-  get_optimized_ast = (): UOp => {
-    //     @functools.lru_cache(undefined)
-    const fixup_ast = (op: UOp): UOp => {
-      let ret = op.replace({ src: op.src.map((x) => fixup_ast(x)) })
-      if (GroupOp.Buffer.includes(op.op) && this.bufs.includes(op)) {
-        const st_uop = this.sts[this.bufs.indexOf(op)].to_uop()
-        return op.op === Ops.VALID ? ret.replace({ src: [st_uop] }) : ret.replace({ src: [ret.src[0], st_uop, ...ret.src.slice(2)] })
-      }
-      if (op.op === Ops.SINK) return ret.replace({ arg: new KernelInfo(this.local_dims, this.upcasted, this.dont_use_locals) })
-      if (op.op === Ops.REDUCE_AXIS) {
-        const reduce_idx = this.bufs.length + this.reduceops.indexOf(op) * 2
-
-        const reduced_axes = (start: number, stop: number) => range(start, stop).filter((i) => resolve(ne(this.sts[reduce_idx].shape[i], this.sts[reduce_idx + 1].shape[i])))
-        const axes = reduced_axes(this.first_reduce + this.group_for_reduces, this.shape_len)
-        const grouped_axes = reduced_axes(this.first_reduce, this.first_reduce + this.group_for_reduces)
-        //       # KAREL: not needed for mnist
-        //         # if (tc := this.tensor_core) && (this.use_tensor_cores === 1 ||this.use_tensor_cores === 3):
-        //         #   def fix_st(st: ShapeTracker, wd_pattern, tcd_pattern):
-        //         #     st = ShapeTracker.from_shape(st.shape) # st needs to be contiguous
-        //         #     wd, warp_dims = this.global_dims,  tuple(sz for _, sz in tc.threads)
-        //         #     tcd, tcd_dims = this.first_upcast, tuple(sz for _, sz in tc.reduce_axes + tc.early_upcast_axes)
-
-        //         #     assert st.shape[wd:wd+len(warp_dims)] === warp_dims, f"warp dims wrong: {st.shape[wd:wd+len(warp_dims)]=} !== {warp_dims=}"
-        //         #     assert st.shape[tcd:tcd+len(tcd_dims)] === tcd_dims, f"tcd dims wrong: {st.shape[tcd:tcd+len(tcd_dims)]=} !== {tcd_dims=}"
-        //         #     assert tc.expanded_shape!==undefined
-
-        //         #     new_shape = st.shape[:tcd] + tc.expanded_shape + st.shape[tcd+len(tcd_dims):]  # expand the tcd
-        //         #     permaxis = list(range(wd)) + [y + (wd if x === 0 else tcd) for x,y in wd_pattern]  + list(range(wd+len(warp_dims),tcd)) + \
-        //         #                                  [y + (wd if x === 0 else tcd) for x,y in tcd_pattern] + list(range(tcd+len(tc.expanded_shape),len(new_shape)))
-        //         #     return st.reshape(new_shape).permute(tuple(permaxis)).reshape(st.shape).simplify()
-
-        //         #   srcs = list((ret.src[0] if ret.src[0].op!==Ops.CAST else ret.src[0].src[0]).src)
-        //         #   for i, tc_pattern in enumerate([tc.st1_pattern, tc.st2_pattern]):
-        //         #     if tc_pattern: srcs[i] = srcs[i].view(fix_st(srcs[i].st_arg if srcs[i].op===Ops.LOAD else srcs[i].src[0].st_arg, *tc_pattern))
-
-        //         #     if this.use_tensor_cores === 3:  # for TC=3, emulate the warp addressing with locals
-        //         #       local_shape = tuple(1 if i >= this.first_reduce && i < this.first_upcast else s for i, s in enumerate(this.full_shape))
-        //         #       st = store_st = ShapeTracker.from_shape(local_shape)
-        //         #       local_buffer = UOp(Ops.DEFINE_LOCAL, tc.dtype_in.ptr(local=true), (), (f"temp{i + 1}", st.real_size()))
-        //         #       if tc_pattern: store_st = fix_st(store_st, *tc_pattern)
-        //         #       local_store = UOp.store(local_buffer, store_st.to_uop(), srcs[i])
-        //         #       srcs[i] = UOp(Ops.LOAD, tc.dtype_in, (local_buffer, st.to_uop(), local_store))
-
-        //         #   tc_reduce_axes = tuple(this.first_upcast + ax for ax, _ in tc.reduce_axes)
-        //         #   if this.use_tensor_cores === 1: # real WMMA, use CONTRACT/EXPAND to get the vectorization right
-        //         #     upcast_axes = tuple(tuple((this.first_upcast + ax, sz) for ax, sz in up) for up in tc.upcast_axes)
-        //         #     wmma_arg = (str(tc), tc.dims, tc.dtype_in, tc.dtype_out, this.opts.device, prod(sz for _, sz in tc.threads), upcast_axes, tc_reduce_axes)
-        //         #     wmma_sz = [prod(x[1] for x in l) for l in upcast_axes]
-        //         #     wmma = UOp(Ops.WMMA, dtype=tc.dtype_out.vec(wmma_sz[2]), src=(
-        //         #       UOp(Ops.CONTRACT, dtype=srcs[0].dtype.vec(wmma_sz[0]), src=(srcs[0],), arg=upcast_axes[0]),
-        //         #       UOp(Ops.CONTRACT, dtype=srcs[1].dtype.vec(wmma_sz[1]), src=(srcs[1],), arg=upcast_axes[1]),
-        //         #       UOp.const(tc.dtype_out.vec(wmma_sz[2]), 0.0)), arg=wmma_arg)
-        //         #     tc_uop = UOp(Ops.EXPAND, tc.dtype_out, (wmma,), arg=upcast_axes[2])
-
-        //         #   else: # for TC=3 MUL/SUM instead of WMMA
-        //         #     tc_uop = UOp(Ops.REDUCE_AXIS, tc.dtype_out, ((srcs[0] * srcs[1]).cast(tc.dtype_out),), (Ops.ADD, tc_reduce_axes))
-
-        //         #   new_reduce_axes = tuple(i for i in axes if i not in tc_reduce_axes)
-        //         #   return ret.replace(src=(tc_uop,), arg=(Ops.ADD, new_reduce_axes)) if new_reduce_axes else tc_uop
-
-        ret = ret.replace({ arg: [op.arg[0], axes] })
-        if (this.group_for_reduces && grouped_axes) {
-          const local_shape = [
-            ...range(this.global_dims).map(() => 1),
-            ...this.full_shape.slice(this.global_dims, this.global_dims + this.local_dims),
-            ...range(this.first_reduce, this.first_reduce + this.group_for_reduces).map((i) => this.sts[reduce_idx].shape[i] !== this.sts[reduce_idx + 1].shape[i] ? this.full_shape[i] : 1),
-            ...range(this.shape_len - this.upcasted - this.group_for_reduces - this.first_reduce).map(() => 1),
-            ...this.upcasted_axis(0).map((x) => x[0]),
-          ]
-          let st_uop = ShapeTracker.from_shape(local_shape).to_uop()
-          const local_buffer = new UOp(Ops.DEFINE_LOCAL, op.dtype.ptr(true), [], [`temp${this.reduceops.indexOf(op) + 1}`, st_uop.arg.real_size()])
-          const local_load = new UOp(Ops.LOAD, op.dtype, [local_buffer, st_uop, local_buffer.store([st_uop, ret])])
-          const grouped_reduce = new UOp(Ops.REDUCE_AXIS, op.dtype, [local_load], [op.arg[0], grouped_axes])
-          if (op === this.reduceops.at(-1)) return grouped_reduce
-          st_uop = ShapeTracker.from_shape(local_shape.map((a, i) => grouped_axes.includes(i) ? 1 : a)).to_uop()
-          return new UOp(Ops.LOAD, op.dtype, [local_buffer, st_uop, local_buffer.store([st_uop, grouped_reduce])])
-        }
-      }
-      return ret
+  @cache
+  fixup_ast(op: UOp): UOp {
+    let ret = op.replace({ src: op.src.map((x) => this.fixup_ast(x)) })
+    if (GroupOp.Buffer.includes(op.op) && this.bufs.includes(op)) {
+      const st_uop = this.sts[this.bufs.indexOf(op)].to_uop()
+      return op.op === Ops.VALID ? ret.replace({ src: [st_uop] }) : ret.replace({ src: [ret.src[0], st_uop, ...ret.src.slice(2)] })
     }
-    return graph_rewrite(fixup_ast(this.ast), view_left)
+    if (op.op === Ops.SINK) return ret.replace({ arg: new KernelInfo(this.local_dims, this.upcasted, this.dont_use_locals) })
+    if (op.op === Ops.REDUCE_AXIS) {
+      const reduce_idx = this.bufs.length + this.reduceops.indexOf(op) * 2
+
+      const reduced_axes = (start: number, stop: number) => range(start, stop).filter((i) => resolve(ne(this.sts[reduce_idx].shape[i], this.sts[reduce_idx + 1].shape[i])))
+      const axes = reduced_axes(this.first_reduce + this.group_for_reduces, this.shape_len)
+      const grouped_axes = reduced_axes(this.first_reduce, this.first_reduce + this.group_for_reduces)
+      //       # KAREL: not needed for mnist
+      //         # if (tc := this.tensor_core) && (this.use_tensor_cores === 1 ||this.use_tensor_cores === 3):
+      //         #   def fix_st(st: ShapeTracker, wd_pattern, tcd_pattern):
+      //         #     st = ShapeTracker.from_shape(st.shape) # st needs to be contiguous
+      //         #     wd, warp_dims = this.global_dims,  tuple(sz for _, sz in tc.threads)
+      //         #     tcd, tcd_dims = this.first_upcast, tuple(sz for _, sz in tc.reduce_axes + tc.early_upcast_axes)
+
+      //         #     assert st.shape[wd:wd+len(warp_dims)] === warp_dims, f"warp dims wrong: {st.shape[wd:wd+len(warp_dims)]=} !== {warp_dims=}"
+      //         #     assert st.shape[tcd:tcd+len(tcd_dims)] === tcd_dims, f"tcd dims wrong: {st.shape[tcd:tcd+len(tcd_dims)]=} !== {tcd_dims=}"
+      //         #     assert tc.expanded_shape!==undefined
+
+      //         #     new_shape = st.shape[:tcd] + tc.expanded_shape + st.shape[tcd+len(tcd_dims):]  # expand the tcd
+      //         #     permaxis = list(range(wd)) + [y + (wd if x === 0 else tcd) for x,y in wd_pattern]  + list(range(wd+len(warp_dims),tcd)) + \
+      //         #                                  [y + (wd if x === 0 else tcd) for x,y in tcd_pattern] + list(range(tcd+len(tc.expanded_shape),len(new_shape)))
+      //         #     return st.reshape(new_shape).permute(tuple(permaxis)).reshape(st.shape).simplify()
+
+      //         #   srcs = list((ret.src[0] if ret.src[0].op!==Ops.CAST else ret.src[0].src[0]).src)
+      //         #   for i, tc_pattern in enumerate([tc.st1_pattern, tc.st2_pattern]):
+      //         #     if tc_pattern: srcs[i] = srcs[i].view(fix_st(srcs[i].st_arg if srcs[i].op===Ops.LOAD else srcs[i].src[0].st_arg, *tc_pattern))
+
+      //         #     if this.use_tensor_cores === 3:  # for TC=3, emulate the warp addressing with locals
+      //         #       local_shape = tuple(1 if i >= this.first_reduce && i < this.first_upcast else s for i, s in enumerate(this.full_shape))
+      //         #       st = store_st = ShapeTracker.from_shape(local_shape)
+      //         #       local_buffer = UOp(Ops.DEFINE_LOCAL, tc.dtype_in.ptr(local=true), (), (f"temp{i + 1}", st.real_size()))
+      //         #       if tc_pattern: store_st = fix_st(store_st, *tc_pattern)
+      //         #       local_store = UOp.store(local_buffer, store_st.to_uop(), srcs[i])
+      //         #       srcs[i] = UOp(Ops.LOAD, tc.dtype_in, (local_buffer, st.to_uop(), local_store))
+
+      //         #   tc_reduce_axes = tuple(this.first_upcast + ax for ax, _ in tc.reduce_axes)
+      //         #   if this.use_tensor_cores === 1: # real WMMA, use CONTRACT/EXPAND to get the vectorization right
+      //         #     upcast_axes = tuple(tuple((this.first_upcast + ax, sz) for ax, sz in up) for up in tc.upcast_axes)
+      //         #     wmma_arg = (str(tc), tc.dims, tc.dtype_in, tc.dtype_out, this.opts.device, prod(sz for _, sz in tc.threads), upcast_axes, tc_reduce_axes)
+      //         #     wmma_sz = [prod(x[1] for x in l) for l in upcast_axes]
+      //         #     wmma = UOp(Ops.WMMA, dtype=tc.dtype_out.vec(wmma_sz[2]), src=(
+      //         #       UOp(Ops.CONTRACT, dtype=srcs[0].dtype.vec(wmma_sz[0]), src=(srcs[0],), arg=upcast_axes[0]),
+      //         #       UOp(Ops.CONTRACT, dtype=srcs[1].dtype.vec(wmma_sz[1]), src=(srcs[1],), arg=upcast_axes[1]),
+      //         #       UOp.const(tc.dtype_out.vec(wmma_sz[2]), 0.0)), arg=wmma_arg)
+      //         #     tc_uop = UOp(Ops.EXPAND, tc.dtype_out, (wmma,), arg=upcast_axes[2])
+
+      //         #   else: # for TC=3 MUL/SUM instead of WMMA
+      //         #     tc_uop = UOp(Ops.REDUCE_AXIS, tc.dtype_out, ((srcs[0] * srcs[1]).cast(tc.dtype_out),), (Ops.ADD, tc_reduce_axes))
+
+      //         #   new_reduce_axes = tuple(i for i in axes if i not in tc_reduce_axes)
+      //         #   return ret.replace(src=(tc_uop,), arg=(Ops.ADD, new_reduce_axes)) if new_reduce_axes else tc_uop
+
+      ret = ret.replace({ arg: [op.arg[0], axes] })
+      if (this.group_for_reduces && grouped_axes) {
+        const local_shape = [
+          ...range(this.global_dims).map(() => 1),
+          ...this.full_shape.slice(this.global_dims, this.global_dims + this.local_dims),
+          ...range(this.first_reduce, this.first_reduce + this.group_for_reduces).map((i) => this.sts[reduce_idx].shape[i] !== this.sts[reduce_idx + 1].shape[i] ? this.full_shape[i] : 1),
+          ...range(this.shape_len - this.upcasted - this.group_for_reduces - this.first_reduce).map(() => 1),
+          ...this.upcasted_axis(0).map((x) => x[0]),
+        ]
+        let st_uop = ShapeTracker.from_shape(local_shape).to_uop()
+        const local_buffer = new UOp(Ops.DEFINE_LOCAL, op.dtype.ptr(true), [], [`temp${this.reduceops.indexOf(op) + 1}`, st_uop.arg.real_size()])
+        const local_load = new UOp(Ops.LOAD, op.dtype, [local_buffer, st_uop, local_buffer.store([st_uop, ret])])
+        const grouped_reduce = new UOp(Ops.REDUCE_AXIS, op.dtype, [local_load], [op.arg[0], grouped_axes])
+        if (op === this.reduceops.at(-1)) return grouped_reduce
+        st_uop = ShapeTracker.from_shape(local_shape.map((a, i) => grouped_axes.includes(i) ? 1 : a)).to_uop()
+        return new UOp(Ops.LOAD, op.dtype, [local_buffer, st_uop, local_buffer.store([st_uop, grouped_reduce])])
+      }
+    }
+    return ret
+  }
+  get_optimized_ast = (): UOp => {
+    return graph_rewrite(this.fixup_ast(this.ast), view_left)
   }
   //   # **** this===the lowerer ****
 
