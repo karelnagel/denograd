@@ -208,7 +208,7 @@ export class View {
     }
     if (vm2.mask?.length) {
       //       # Try to project vm2's mask on to vm1.
-      let [newb, newe, bad] = [range(vm1.shape.length).map((x) => 0), vm1.shape, false]
+      let [newb, newe, bad] = [range(vm1.shape.length).map((x) => 0), [...vm1.shape], false]
       for (const [[b, e], o, term, [_, t]] of zip(vm2.mask, origin, terms, extents.toReversed())) {
         if (resolve(and(le(b, t.vmin), lt(t.vmax, e)), false)) continue
         if (typeof o !== 'number' || typeof b !== 'number' || typeof e !== 'number') {
