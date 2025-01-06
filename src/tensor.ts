@@ -456,7 +456,7 @@ export class Tensor extends MathTrait<Tensor> {
     return [memory_planner(schedule), var_vals]
   }
   _debug_ast = () => {
-    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to('PYTHON').lazydata.lbs)
+    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to('CLANG').lazydata.lbs)
     return schedule.map((s) => s.ast)
   }
   _debug = () => {
@@ -498,7 +498,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     //   // TODO: this === a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
-      // if x.__class__ !== Tensor: x = new Tensor(x, device="PYTHON", dtype=this.dtype)// Karel: changed CLANG to PYTHON
+      // if x.__class__ !== Tensor: x = new Tensor(x, device="CLANG", dtype=this.dtype)
       this.contiguous().realize().lazydata.base.realized!.copyin(x._data())
       return this
     }
@@ -523,10 +523,10 @@ export class Tensor extends MathTrait<Tensor> {
   _data = (): MemoryView => {
     if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
-    const cpu = this.cast(this.dtype.base).contiguous().to('PYTHON').realize() // Karel: changed CLANG to PYTHON
+    const cpu = this.cast(this.dtype.base).contiguous().to('CLANG').realize()
     const buf = cpu.lazydata!.base.realized
-    if (this.device !== 'PYTHON') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true) // Karel: changed CLANG to PYTHON
-    return buf!.as_buffer(this.device !== 'PYTHON' ? true : false) // Karel: changed CLANG to PYTHON
+    if (this.device !== 'CLANG') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
+    return buf!.as_buffer(this.device !== 'CLANG' ? true : false)
   }
   /**
    * Returns the data of this tensor as a memoryview.
@@ -685,7 +685,7 @@ export class Tensor extends MathTrait<Tensor> {
     let device = _device
 
     // when using MOCKGPU && NV generate rand on CLANG
-    if (get_env('MOCKGPU') && device.startsWith('NV')) device = 'PYTHON' // Karel: changed CLANG to PYTHON
+    if (get_env('MOCKGPU') && device.startsWith('NV')) device = 'CLANG'
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     let had_counter
