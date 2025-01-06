@@ -163,7 +163,7 @@ export class View {
     if (vm1.contiguous && isEq(vm1.shape, vm2.shape)) return vm2
     if (vm1.contiguous && vm1.size() === vm2.size()) {
       const ret = vm2.reshape(vm1.shape)
-      if (ret) return ret
+      if (ret !== undefined) return ret
     }
     if (vm1.mask?.length) {
       for (const [b, e] of vm1.mask) {
@@ -189,14 +189,14 @@ export class View {
     //     # NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
     if (!all_int(vm1.shape)) return undefined
     const idxs: UOp[] = [...vm1.shape.map((s, i) => UOp.variable(`idx${i}`, 0, s - 1))]
-    let [merged_size, merged_term] = [1, UOp.int(0)] as [sint, UOp]
+    let merged_size: sint = 1, merged_term = UOp.int(0)
     const extents: [sint, UOp][] = []
     for (const [term, s, o] of zip(terms.toReversed(), vm2.shape.toReversed(), origin.toReversed())) {
       merged_term = merged_term.add(mul(add(term.reduce((acc, [d1, s1]) => add(acc, mul(idxs[d1], s1)), 0 as sint), o), merged_size))
       merged_size = mul(merged_size, s)
       if (resolve(lt(merged_term, merged_size), false) && resolve(le(0, merged_term), false)) {
         extents.push([merged_size, merged_term])
-        ;[merged_size, merged_term] = [1, UOp.int(0)]
+        merged_size = 1, merged_term = UOp.int(0)
       }
     }
     if (resolve(merged_term.ne(0))) return undefined
@@ -216,7 +216,7 @@ export class View {
           continue
         }
         if (term.length !== 1) {
-          if (!term && newe) newe[0] = 0
+          if (!term && newe.length) newe[0] = 0
           else bad = true
           continue
         }

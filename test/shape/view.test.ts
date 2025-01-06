@@ -175,6 +175,7 @@ Deno.test(
       [view3, view1],
       [view3, view4],
       [new View([4, 55], [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 55)], undefined), 1], 0, undefined, false), new View([8, 110, 33], [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined), new UOp(Ops.CONST, dtypes.int, [], 110)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 33)], undefined), 1], 0, undefined, false)],
+      [new View([10], [1], 0, [[0, 5]], false), new View([9], [1], 0, undefined, true)],
     ],
     (v1: View, v2: View) => v1.add(v2),
     'out(trycatch(lambda: data[0] + data[1] ))',

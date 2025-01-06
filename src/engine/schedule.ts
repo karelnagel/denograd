@@ -273,7 +273,7 @@ export const recursive_group = (
   group: Map<UOp, undefined>,
   cache: Map<[UOp, ShapeTracker], undefined>,
 ): undefined => {
-  if (cache.has([tr, st])) return
+  if (cache.keys().some(([_tr, _st]) => tr === _tr && st === _st)) return
   cache.set([tr, st], undefined)
   const rsize = allbufs.get(r)!.st?.size
   if (realizes.has(tr) && tr !== r) {
@@ -320,13 +320,15 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   for (let [r, r_uop] of ctx.allbufs.entries()) {
     r_uop = uval(r_uop)
     if (r_uop.op !== Ops.REDUCE_AXIS) continue
-    const x = r_uop.src[0]
-    if (FUSE_CONV_BW && uval(x.base).op === r_uop.op && x.base !== x) double_reduces.push(r)
+    if (FUSE_CONV_BW) {
+      const x = r_uop.src[0]
+      if (uval(x.base).op === r_uop.op && x.base !== x) double_reduces.push(r)
+    }
     if (ctx.realizes.has(r)) continue
     let group = new Map<UOp, undefined>()
     recursive_group(r, r_uop.st!, r, ctx.children, ctx.allbufs, ctx.realizes, reduce_for_op, group, new Map())
     //     // max one reduceop per kernel
-    let can_chase = [...group].every(([tr]) => !reduce_for_op.has(tr))
+    let can_chase = group.keys().every((tr) => !reduce_for_op.has(tr))
     //     // TODO: forced_realize exists because the scheduler === incapable of checking for this-contained DAGs
     let forced_realize = group.has(r)
     if (!forced_realize && group.size > 1) group = get_isolated_children(r, reduce_for_op, ctx.children, ctx.allbufs, ctx.realizes, group)
