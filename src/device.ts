@@ -14,7 +14,7 @@ const DEVICES = {
   // QCOM: () => import('./runtime/ops_qcom.ts').then((o) => o.QCOMDevice),
   // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
-  CLANG: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
+  CLANG: await import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
   DISK: await import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
   PYTHON: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
