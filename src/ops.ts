@@ -208,7 +208,6 @@ export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uo
 export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.sym_infer(varVals) : uop
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
-type UOpTuple = [number, any, DType, UOpTuple[]]
 
 @dataclass
 export class UOp extends MathTrait<UOp> {
@@ -236,7 +235,7 @@ export class UOp extends MathTrait<UOp> {
     return nodes
   }
   @cache
-  get tuplize(): UOpTuple {
+  get tuplize(): any[] {
     return [this.op.value, this.arg, this.dtype, this.src.map((x) => x.tuplize)]
   }
 

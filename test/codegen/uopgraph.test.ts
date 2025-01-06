@@ -56,18 +56,18 @@ Deno.test(
   ),
 )
 
-// Deno.test(
-//   'threefry2x32',
-//   compare(
-//     [
-//       [new UOp(Ops.OR, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 2), new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx0', 8])], undefined)], undefined)], undefined), new UOp(Ops.MUL, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 1), new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx0', 8])], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.ulong, [], 4294967296)], undefined)], undefined), new UOp(Ops.OR, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 3), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)], undefined)], undefined), new UOp(Ops.MUL, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 3), new UOp(Ops.CONST, dtypes.int, [], 1)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.ulong, [], 4294967296)], undefined)], undefined)],
-//     ],
-//     (x: UOp, key: UOp) => {
-//       threefry2x32(x, key)
-//     },
-//     'tiny.codegen.uopgraph.threefry2x32(*data)',
-//   ),
-// )
+Deno.test(
+  'threefry2x32',
+  compare(
+    [
+      [new UOp(Ops.OR, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 2), new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx0', 8])], undefined)], undefined)], undefined), new UOp(Ops.MUL, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 1), new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx0', 8])], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.ulong, [], 4294967296)], undefined)], undefined), new UOp(Ops.OR, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 3), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)], undefined)], undefined), new UOp(Ops.MUL, dtypes.ulong, [new UOp(Ops.CAST, dtypes.ulong, [new UOp(Ops.LOAD, dtypes.uint, [new UOp(Ops.INDEX, dtypes.uint.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 3), new UOp(Ops.CONST, dtypes.int, [], 1)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.ulong, [], 4294967296)], undefined)], undefined)],
+    ],
+    (x: UOp, key: UOp) => {
+      threefry2x32(x, key)
+    },
+    'tiny.codegen.uopgraph.threefry2x32(*data)',
+  ),
+)
 
 Deno.test(
   'loop_collapse',
