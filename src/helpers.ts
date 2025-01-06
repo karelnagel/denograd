@@ -654,9 +654,12 @@ export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecorator
   const cache = new Map<string, InstanceType<T>>()
   return new Proxy(Base, {
     construct(target, argsList, newTarget) {
-      const key = get_key([ctx.name, ...argsList])
+      let key = get_key([ctx.name, ...argsList])
       if (cache.has(key)) return cache.get(key)!
       const instance = Reflect.construct(target, argsList, newTarget)
+
+      if (typeof instance.key === 'string') key = instance.key
+      if (cache.has(key)) return cache.get(key)!
 
       cache.set(key, instance)
       return instance

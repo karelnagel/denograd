@@ -210,13 +210,12 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 type UOpTuple = [number, any, DType, UOpTuple[]]
 
+@dataclass
 export class UOp extends MathTrait<UOp> {
-  static ucache: Record<string, UOp> = {}
   key: string
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
     this.key = get_key([this.op, this.dtype, this.arg, this.src])
-    return checkCached(this.key, UOp.ucache, this)
   }
   @cache
   override toString(indent = 2): string {
