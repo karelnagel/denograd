@@ -22,7 +22,8 @@ export class ClangCompiler extends Compiler {
     Deno.writeTextFileSync(code, src)
 
     const args = ['-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', code, '-o', bin]
-    new Deno.Command('clang', { args }).outputSync()
+    const res = new Deno.Command('clang', { args }).outputSync()
+    if (!res.success) throw new Error(`Clang compiling failed, error: ${new TextDecoder().decode(res.stderr)}`)
 
     const data = Deno.readFileSync(bin)
     Deno.removeSync(code), Deno.removeSync(bin)
