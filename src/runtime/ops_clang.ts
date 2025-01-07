@@ -33,7 +33,7 @@ export class ClangProgram extends Program {
     super(name, lib)
     // write to disk so we can load it
     const cachedFile = temp('cachedFile')
-    Deno.writeTextFileSync(cachedFile, lib.toString())
+    Deno.writeFileSync(cachedFile, lib)
     console.log(`wrote ${cachedFile} fn name: ${name}`)
     this.fxn = Deno.dlopen(cachedFile, {
       'call': {
