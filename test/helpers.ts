@@ -171,7 +171,7 @@ def trycatch(fn):
   try: return fn()
   except Exception as e: return str(e)
 
-${isNotNone(data) ? `data = ${pyStr(data)}` : ''}
+${isNotNone(data) ? `data = ${await pyStr(data)}` : ''}
 def out(o):
     print("<<<<<"+to_ts(o)+">>>>>")
 
