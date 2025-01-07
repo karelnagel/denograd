@@ -18,4 +18,9 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno test -A --parallel
+      - run: deno test -A --parallel --coverage=cov/
+      - run: deno coverage --lcov cov/ > cov.lcov
+      - uses: codecov/codecov-action@v3
+        with:
+          file: cov.lcov
+          token: ${{ secrets.CODECOV_TOKEN }}
