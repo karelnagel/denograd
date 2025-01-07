@@ -1,8 +1,9 @@
 import { Compiled, Compiler, MallocAllocator, Program } from './allocator.ts'
-import { cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '../helpers.ts'
+import { cpuObjdump, cpuTimeExecution, isNone, temp } from '../helpers.ts'
 import { execSync } from 'node:child_process'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
+import { MemoryView } from '../memoryview.ts'
 
 export class ClangCompiler extends Compiler {
   args
@@ -25,16 +26,24 @@ export class ClangCompiler extends Compiler {
   override disassemble = (lib: Uint8Array) => cpuObjdump(lib, this.objdumpTool)
 }
 
+type Fxn = Deno.DynamicLibrary<{ readonly call: { readonly parameters: readonly ['buffer', 'buffer']; readonly result: 'buffer'; readonly name: string } }>
 export class ClangProgram extends Program {
-  fxn
+  fxn: Fxn
   constructor(name: string, lib: Uint8Array) {
     super(name, lib)
     // write to disk so we can load it
     const cachedFile = temp('cachedFile')
     Deno.writeTextFileSync(cachedFile, lib.toString())
-    this.fxn = ctypes.CDLL(cachedFile).get(name)
+    console.log(`wrote ${cachedFile} fn name: ${name}`)
+    this.fxn = Deno.dlopen(cachedFile, {
+      'call': {
+        parameters: ['buffer', 'buffer'],
+        result: 'buffer',
+        name,
+      } as const,
+    })
   }
-  override call = (bufs: any[], vals: any, wait = false) => cpuTimeExecution(() => this.fxn(...bufs, ...vals), wait)
+  override call = (bufs: MemoryView[], vals: any, wait = false) => cpuTimeExecution(() => this.fxn.symbols.call!(bufs[0], bufs[1]), wait)
 }
 
 export class ClangDevice extends Compiled {

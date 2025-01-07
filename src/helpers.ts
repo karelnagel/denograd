@@ -485,41 +485,6 @@ export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
 export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {
   return { ...obj, ...replace } as T
 }
-// # *** ctypes helpers
-export class c_char {
-  from_buffer = (mv: MemoryView) => {}
-  mul = (other: number) => new c_char()
-  call = () => {}
-}
-export class c_ubyte {
-  mul = (other: number) => new c_ubyte()
-  call = () => {}
-  fromAddress = (ptr: number) => {}
-}
-type CData = any
-
-export class ctypes {
-  static cast = (obj: any, type: any) => {
-    return { contents: [new c_char()] }
-  }
-  static addressof = (obj: CData): number => {
-    return 0
-  }
-  static memmove = (dst: any, src: any, count: number) => {}
-  static POINTER = (type: c_char) => new c_char()
-  static create_string_buffer = (init: Uint8Array) => {}
-  static c_char = new c_char()
-  static c_uint8 = new c_ubyte()
-  static CDLL = (file: string) => {
-    return { get: (name: string) => (...args: any[]) => {} }
-  }
-}
-
-// # TODO: make this work with read only memoryviews (if possible)
-export const from_mv = (mv: MemoryView, to_type = ctypes.c_char): c_char[] => {
-  throw new Error('not implemented')
-}
-
 // # *** universal support for code object pickling
 
 // def _reconstruct_code(*args): return types.CodeType(*args)

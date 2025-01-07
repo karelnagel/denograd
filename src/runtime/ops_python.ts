@@ -265,7 +265,7 @@ export class PythonAllocator extends Allocator {
   _copyout = (dest: MemoryView, src: MemoryView): MemoryView => {
     return dest.set(src)
   }
-  _free = (opaque: number, options: BufferSpec) => {
+  _free = (opaque: MemoryView, options: BufferSpec) => {
     throw new Error("PYTHON doesn't have _free")
   }
 }

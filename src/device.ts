@@ -66,7 +66,7 @@ export const Device = new _Device()
 export class Buffer {
   _base?: Buffer
   _lb_refcount?: number
-  _buf?: any
+  _buf?: MemoryView
   allocator?: Allocator
 
   constructor(
@@ -107,7 +107,7 @@ export class Buffer {
   ref = (cnt: number) => this.base._lb_refcount! += cnt
   is_allocated = () => !!this._buf
   ensure_allocated = (): Buffer => !this.is_allocated() ? this.allocate() : this
-  allocate = (opaque?: any, external_ptr?: any): Buffer => {
+  allocate = (opaque?: any, external_ptr?: bigint): Buffer => {
     assert(!this.is_allocated(), "can't allocate already allocated buffer")
     this.allocator = Device.get(this.device).allocator
     if (isNotNone(external_ptr)) {
@@ -141,7 +141,7 @@ export class Buffer {
     if (!this.is_allocated()) return
     if (isNone(this._base) && (isNone(this.options) || isNone(this.options.external_ptr))) {
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used -= this.nbytes
-      this.allocator?.free(this._buf, this.nbytes, this.options)
+      this.allocator?.free(this._buf!, this.nbytes, this.options)
     }
   }
   toString = () => {
