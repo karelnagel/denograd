@@ -1,6 +1,6 @@
 import { Kernel } from '../codegen/kernel.ts'
 import { Buffer, Device, DeviceType, Program } from '../device.ts'
-import { all_int, assert, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, Metadata, NOOPT, replace, zip } from '../helpers.ts'
+import { all_int, assert, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, Metadata, NOOPT, replace, to_function_name, zip } from '../helpers.ts'
 import { idiv, Ops, sint, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec, Renderer } from '../renderer/index.ts'
 import { ScheduleItem } from './schedule.ts'
@@ -43,9 +43,9 @@ export class CompiledRunner extends Runner {
     if (DEBUG >= 4) console.log(p.src)
     if (!this.lib) this.lib = Device.get(p.device).compiler.compile_cached(p.src)
     if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(this.lib)
-    // KAREL:
     const Prg = Device.get(p.device).runtime!
-    this._prg = new Prg(p.function_name, this.lib)
+    // KAREL: TODO: should be p.function_name
+    this._prg = new Prg(to_function_name(p.name), this.lib)
   }
   __reduce__ = () => [this.p, this.lib]
 

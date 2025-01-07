@@ -32,9 +32,9 @@ export class _Device {
   canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
   get = (device: DeviceType): Compiled => {
     const ix = this.canonicalize(device)
-    const ret = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]
+    const Device = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
-    return new ret(ix)
+    return new Device(ix)
   }
   default = () => this.get(this.DEFAULT)
   @cache

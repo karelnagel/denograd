@@ -68,10 +68,11 @@ export class ProgramSpec {
   _ops_lds(): [sint, sint] {
     return isNone(this.uops) ? [0, 0] : flops_mem(this.uops, true)
   }
-  @cache
-  get function_name() {
-    return to_function_name(this.name)
-  }
+  // TODO: for some reason gives invalid out
+  // @cache
+  // get function_name() {
+  //   return to_function_name(this.name)
+  // }
 
   launch_dims = (varVals: Map<Variable, number>) => {
     const globalSize = this.global_size?.map((sz) => sym_infer(sz, varVals))

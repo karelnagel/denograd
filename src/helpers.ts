@@ -286,7 +286,7 @@ export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
 export const word_wrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + word_wrap(x.slice(wrap), wrap)
-export const to_function_name = (s: string): string => ''.concat(...ansistrip(s).split('').map((c) => /[a-zA-Z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).padStart(2, '0')))
+export const to_function_name = (s: string) => ansistrip(s).split('').map((c) => /[A-Za-z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')).join('')
 export const get_env = (key: string, defaultVal = '') => process.env[key] || defaultVal
 export const get_number_env = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)

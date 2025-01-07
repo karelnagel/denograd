@@ -45,8 +45,10 @@ export abstract class Allocator<AllocRes = MemoryView> {
 export abstract class LRUAllocator extends Allocator {
   cache = new Map<[number, BufferSpec | undefined], any>()
   override alloc = (size: number, options?: BufferSpec) => {
-    const c = this.cache.get([size, options])
-    if (c.length) return c.pop()
+    // KAREL: TODO: enable cache
+    // const c = this.cache.get([size, options])
+    // console.log(c)
+    // if (c.length) return c.pop()
     try {
       assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
       return this._alloc(size, isNotNone(options) ? options : new BufferSpec())

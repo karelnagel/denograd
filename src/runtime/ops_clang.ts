@@ -1,5 +1,5 @@
 import { Compiled, Compiler, MallocAllocator, Program } from './allocator.ts'
-import { cpuObjdump, cpuTimeExecution, isNone, temp } from '../helpers.ts'
+import { cpuObjdump, cpuTimeExecution, isNone, range, temp } from '../helpers.ts'
 import { execSync } from 'node:child_process'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
@@ -15,35 +15,40 @@ export class ClangCompiler extends Compiler {
   }
 
   override compile = (src: string): Uint8Array => {
-    // TODO: remove file write. sadly clang doesn't like the use of /dev/stdout here
-    const outputFile = temp('temp_output.so')
-    const args = ['clang', '-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', '-', '-o', outputFile]
-    execSync(args.join(' '), { input: src, stdio: 'pipe' })
-    const data = Deno.readFileSync(outputFile)
-    Deno.removeSync(outputFile)
+    // KAREL: TODO: try without files
+    const code = Deno.makeTempFileSync()
+    const bin = Deno.makeTempFileSync()
+    Deno.writeTextFileSync(code, src)
+
+    const args = ['-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', code, '-o', bin]
+    new Deno.Command('clang', { args }).outputSync()
+
+    const data = Deno.readFileSync(bin)
+    Deno.removeSync(code), Deno.removeSync(bin)
     return data
   }
   override disassemble = (lib: Uint8Array) => cpuObjdump(lib, this.objdumpTool)
 }
 
-type Fxn = Deno.DynamicLibrary<{ readonly call: { readonly parameters: readonly ['buffer', 'buffer']; readonly result: 'buffer'; readonly name: string } }>
 export class ClangProgram extends Program {
-  fxn: Fxn
   constructor(name: string, lib: Uint8Array) {
     super(name, lib)
-    // write to disk so we can load it
-    const cachedFile = temp('cachedFile')
-    Deno.writeFileSync(cachedFile, lib)
-    console.log(`wrote ${cachedFile} fn name: ${name}`)
-    this.fxn = Deno.dlopen(cachedFile, {
-      'call': {
-        parameters: ['buffer', 'buffer'],
-        result: 'buffer',
-        name,
-      } as const,
-    })
+    if (!name) throw new Error("Name can't be undefined")
   }
-  override call = (bufs: MemoryView[], vals: any, wait = false) => cpuTimeExecution(() => this.fxn.symbols.call!(bufs[0], bufs[1]), wait)
+  override call = (bufs: MemoryView[], vals: any, wait = false) => {
+    console.log({ vals })
+    const file = Deno.makeTempFileSync()
+    Deno.writeFileSync(file, this.lib)
+    const fxn = Deno.dlopen(file, {
+      call: {
+        parameters: range(bufs.length).map(() => 'buffer'),
+        result: 'void',
+        name: this.name,
+      },
+    })
+    Deno.removeSync(file)
+    return cpuTimeExecution(() => fxn.symbols.call(...bufs.map((b) => b.buffer)), wait)
+  }
 }
 
 export class ClangDevice extends Compiled {
