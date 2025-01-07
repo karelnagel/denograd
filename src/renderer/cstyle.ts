@@ -4,6 +4,8 @@ import { AMX, assert, dedup, get_env, isInf, isNone, isNotNone, setDefault, stri
 import { GroupOp, idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
+const float = (x: number) => Number.isInteger(x) ? x + '.0' : x
+
 export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<string, UOp>, string | undefined>([
   [new UPat(Ops.DEFINE_ACC).named('x'), ({ ctx, x }) => ctx.get(x.src[0])],
   [new UPat(Ops.ASSIGN).named('x'), ({ ctx, x }) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
@@ -26,13 +28,13 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat(Ops.CONST, undefined, undefined, Infinity, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`],
   [new UPat(Ops.CONST, undefined, undefined, -Infinity, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`],
   [new UPat(Ops.CONST, dtypes.floats).named('x'), ({ ctx, x }) => isInf(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined],
-  [new UPat(Ops.CONST, dtypes.float).named('x'), ({ ctx, x }) => `${x.arg}f`],
+  [new UPat(Ops.CONST, dtypes.float).named('x'), ({ ctx, x }) => `${float(x.arg)}f`],
   [new UPat(Ops.CONST, dtypes.int64).named('x'), ({ ctx, x }) => `${x.arg}ll`],
   [new UPat(Ops.CONST, dtypes.uint64).named('x'), ({ ctx, x }) => `${x.arg}ull`],
   [new UPat(Ops.CONST, dtypes.uint32).named('x'), ({ ctx, x }) => `${x.arg}u`],
   [new UPat(Ops.CONST, dtypes.bool).named('x'), ({ ctx, x }) => x.arg ? '1' : '0'],
   // consts are rendered to larger type and casted
-  [new UPat(Ops.CONST, [dtypes.bfloat16, dtypes.half]).named('x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}f`)})`],
+  [new UPat(Ops.CONST, [dtypes.bfloat16, dtypes.half]).named('x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${float(x.arg)}f`)})`],
   [new UPat(Ops.CONST, [dtypes.uint8, dtypes.uint16]).named('x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}u`)})`],
   [new UPat(Ops.CONST, [dtypes.int8, dtypes.int16]).named('x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, x.arg)})`],
   // default const render

@@ -42,7 +42,6 @@ export class ClangProgram extends Program {
     console.log({ vals })
     const file = await Deno.makeTempFile()
     await Deno.writeFile(file, this.lib)
-    console.log(`Wrote code to ${file}, ${this.name}, ${this.lib}`)
     const fxn = Deno.dlopen(file, {
       call: {
         parameters: range(bufs.length).map(() => 'buffer'),
