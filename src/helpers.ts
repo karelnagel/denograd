@@ -466,9 +466,9 @@ export const diskcache = (func: any) => {
 
 // # *** Exec helpers
 
-export const cpuTimeExecution = (cb: () => void, enable: boolean) => {
+export const cpuTimeExecution =async  (cb: () => Promise<void>, enable: boolean) => {
   const st = performance.now()
-  cb()
+  await cb()
   return performance.now() - st
 }
 

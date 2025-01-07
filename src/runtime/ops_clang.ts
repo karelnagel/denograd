@@ -37,7 +37,7 @@ export class ClangProgram extends Program {
     if (!name) throw new Error("Name can't be undefined")
   }
   override call = (bufs: MemoryView[], vals: any, wait = false) =>
-    cpuTimeExecution(() => {
+    cpuTimeExecution(async () => {
       console.log({ vals })
       const file = Deno.makeTempFileSync()
       Deno.writeFileSync(file, this.lib)
@@ -46,10 +46,11 @@ export class ClangProgram extends Program {
           parameters: range(bufs.length).map(() => 'buffer'),
           result: 'void',
           name: this.name,
+          nonblocking: true,
         },
       })
       Deno.removeSync(file)
-      fxn.symbols.call(...bufs.map((b) => b.buffer))
+      await fxn.symbols.call(...bufs.map((b) => b.buffer))
       fxn.close()
     }, wait)
 }

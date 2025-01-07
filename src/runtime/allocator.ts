@@ -1,3 +1,4 @@
+// deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
 import { assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, isNone, isNotNone, stringToBytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
@@ -133,7 +134,7 @@ export type ProgramCallInput = { global_size?: number[]; local_size?: number[]; 
 export class Program {
   constructor(public name: string, public lib: Uint8Array) {
   }
-  call = (bufs: any[], vals: ProgramCallInput, wait: boolean): number => {
+  call = async (bufs: any[], vals: ProgramCallInput, wait: boolean): Promise<number> => {
     throw new Error('not implemented')
   }
 }

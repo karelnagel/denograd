@@ -1,3 +1,4 @@
+// deno-lint-ignore-file require-await
 import { Kernel } from '../codegen/kernel.ts'
 import { Buffer, Device, DeviceType, Program } from '../device.ts'
 import { all_int, assert, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, Metadata, NOOPT, replace, to_function_name, zip } from '../helpers.ts'
@@ -30,8 +31,8 @@ export class Runner {
   get dev() {
     return Device.get(this.device)
   }
-  exec = (rawbufs: Buffer[], var_vals?: Map<Variable, number>): number | undefined => this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
-  call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): number | undefined => {
+  exec = async (rawbufs: Buffer[], var_vals?: Map<Variable, number>): Promise<number> => this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
+  call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
     throw new Error('override this')
   }
 }
@@ -49,10 +50,10 @@ export class CompiledRunner extends Runner {
   }
   __reduce__ = () => [this.p, this.lib]
 
-  override call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): number | undefined => {
+  override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
     let [global_size, local_size] = this.p.launch_dims(var_vals)
     if (global_size !== undefined && local_size === undefined && all_int(this.p.global_size!)) {
-      local_size = optimize_local_size(this._prg, global_size, rawbufs)
+      local_size = await optimize_local_size(this._prg, global_size, rawbufs)
       global_size = zip(global_size, local_size!).map(([g, l]) => g % l === 0 ? idiv(g, l) : g / l)
       this.p.global_size = global_size
       this.p.global_size = local_size
@@ -66,7 +67,7 @@ export class CompiledRunner extends Runner {
       lra['local_size'] = local_size
       assert(local_size.length === 3, 'local size must have len 3')
     }
-    return this._prg.call(rawbufs.map((x) => x._buf), { ...lra, vals: this.p.vars?.map((k) => var_vals.get(k)!) }, wait)
+    return await this._prg.call(rawbufs.map((x) => x._buf), { ...lra, vals: this.p.vars?.map((k) => var_vals.get(k)!) }, wait)
   }
 }
 
@@ -74,15 +75,15 @@ export class EmptyOp extends Runner {
   constructor(buf: Buffer) {
     super(colored(`empty ${buf.size.toString().padStart(10)} ${buf.dtype}`, 'yellow'), buf.device)
   }
-  override call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): number | undefined => undefined
+  override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => 0
 }
 export class ViewOp extends Runner {
   constructor(buf: Buffer) {
     super(colored(`view ${buf.nbytes.toString().padStart(8)} @ ${buf.offset.toString().padEnd(10)}`, 'yellow'), buf.device)
   }
-  override call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): number | undefined => {
+  override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
     assert(rawbufs[0]._base !== undefined && rawbufs[0]._base === rawbufs[1].base, `must be base ${rawbufs}`)
-    return undefined
+    return 0
   }
 }
 export class BufferCopy extends Runner {
@@ -103,7 +104,7 @@ export class BufferCopy extends Runner {
       dest.copyin(src.as_buffer(true)) // may allocate a CPU buffer depending on allow_zero_copy
     }
   }
-  override call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false) => {
+  override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false) => {
     const [dest, src] = rawbufs.slice(0, 2)
     assert(dest.size === src.size && dest.dtype === src.dtype, `buffer copy mismatch, ${dest.size} !== ${src.size}, ${dest.dtype} !== ${src.dtype}`)
     const st = performance.now()
@@ -112,6 +113,7 @@ export class BufferCopy extends Runner {
       Device.get(dest.device).synchronize()
       return performance.now() - st
     }
+    return 0
   }
 }
 class BufferXfer extends BufferCopy {
@@ -151,10 +153,10 @@ export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {
 // @DataClass
 export class ExecItem {
   constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
-  run = (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): number | undefined => {
+  run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number> => {
     const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
     const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())
-    const et = this.prg.call(bufs, var_vals, wait = wait || DEBUG >= 2)
+    const et = await this.prg.call(bufs, var_vals, wait = wait || DEBUG >= 2)
     if (do_update_stats) {
       GlobalCounters.kernel_count += 1
       const op_est = sym_infer(this.prg.op_estimate, var_vals)
@@ -213,9 +215,9 @@ export const lower_schedule = function* (schedule: ScheduleItem[]): Generator<Ex
 
 const capturing: any[] = [] // put classes with an add method in here
 
-export const run_schedule = (schedule: ScheduleItem[], var_vals?: Map<Variable, number>, do_update_stats = true) => {
+export const run_schedule = async (schedule: ScheduleItem[], var_vals?: Map<Variable, number>, do_update_stats = true) => {
   for (const ei of lower_schedule(schedule)) {
     if (capturing.length && CAPTURING) capturing[0].add(ei)
-    ei.run(var_vals, undefined, undefined, do_update_stats)
+    await ei.run(var_vals, undefined, undefined, do_update_stats)
   }
 }

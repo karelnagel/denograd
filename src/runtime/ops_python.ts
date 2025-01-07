@@ -1,3 +1,4 @@
+// deno-lint-ignore-file require-await
 import { all_same, assert, bytesToString, flatten, get_env, isinstance, product, range, stringToBytes, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, idiv, Ops, sum, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
@@ -62,7 +63,8 @@ export class PythonProgram extends Program {
     super(name, lib)
     this.uops = deserialize(lib)
   }
-  override call = (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
+  // KAREL: TODO: use Web workers maybe?
+  override call = async (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
     const st = performance.now()
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length

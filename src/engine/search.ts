@@ -213,14 +213,14 @@ export const timeout_handler = (signum: any, frame: any) => {
 //   //   if BEAM_DEBUG: console.log(`BEAM_SEARCH: final tm=${beam[0][1]*1e6:0.2f} us, applied_opts=${beam[0][0].applied_opts}`)
 //   return beam[0][0]
 // }
-export const optimize_local_size = (_prg: Program, global_size: number[], rawbufs: Buffer[]): number[] => {
+export const optimize_local_size = async (_prg: Program, global_size: number[], rawbufs: Buffer[]): Promise<number[]> => {
   const test_rawbuffers = rawbufs.slice(1).includes(rawbufs[0]) ? [new Buffer(rawbufs[0].device, rawbufs[0].size, rawbufs[0].dtype).allocate(), ...rawbufs.slice(1)] : rawbufs
   const MAX_WORKGROUP = 1024
   const local_dims = global_size.map((sz) => [...new Set([sz, 1, 2, 4, 8, 16, 32, 64, 128, 256, MAX_WORKGROUP])].filter((x) => x <= sz))
   const local_sizes = [...local_dims.reduce((acc, curr) => acc.flatMap((x) => curr.map((y) => [...x, y])), [[]] as number[][])].filter((x) => prod(x) <= MAX_WORKGROUP).flatMap((x) => [x, x]) // try each valid size twice
-  const try_exec = (local_size: number[]): number => {
+  const try_exec = async (local_size: number[]): Promise<number> => {
     try {
-      return _prg.call(test_rawbuffers.map((x) => x._buf), {
+      return await _prg.call(test_rawbuffers.map((x) => x._buf), {
         global_size: zip(global_size, local_size).map(([g, l]) => g % l === 0 ? idiv(g, l) : g / l),
         local_size,
       }, true)
@@ -228,9 +228,9 @@ export const optimize_local_size = (_prg: Program, global_size: number[], rawbuf
       return Infinity
     }
   }
-  const ret = local_sizes.map((local_size) => [try_exec(local_size), local_size] as [number, number[]])[0] // KAREL: randomise local_sizes, and instead of [0] use min()
-  assert(!isInf(ret[0]), 'all optimize_local_size exec failed')
-  return ret[1]
+  const ret = await Promise.all(local_sizes.map(async (local_size) => [await try_exec(local_size), local_size] as [number, number[]])) // KAREL: randomise local_sizes, and instead of [0] use min()
+  assert(!isInf(ret[0][0]), 'all optimize_local_size exec failed')
+  return ret[0][1]
 }
 // export const time_linearizer = (lin: Kernel, rawbufs: Buffer[], allow_test_size = true, max_global_size = 65536, cnt = 3, disable_cache = false, clear_l2 = false): number => { // noqa: E501
 //   const key = { 'ast': lin.ast.key, 'opts': lin.applied_opts.toString(), 'allow_test_size': allow_test_size, 'max_global_size': max_global_size, 'clear_l2': clear_l2, 'device': lin.opts.device, 'suffix': lin.opts.suffix }

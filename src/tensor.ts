@@ -478,11 +478,11 @@ export class Tensor extends MathTrait<Tensor> {
   //   /**
   //    * Triggers the computation needed to create these Tensor(s).
   //    */
-  realize = (lst?: Tensor[], do_update_stats = true): Tensor => {
-    run_schedule(...this.schedule_with_vars(lst || []), do_update_stats)
+  realize = async (lst?: Tensor[], do_update_stats = true): Promise<Tensor> => {
+    await run_schedule(...this.schedule_with_vars(lst || []), do_update_stats)
     return this
   }
-  static realize = (lst: Tensor[], do_update_stats = true): Tensor => lst[0].realize(lst.slice(1), do_update_stats)
+  static realize = (lst: Tensor[], do_update_stats = true) => lst[0].realize(lst.slice(1), do_update_stats)
   /**
    * Replaces the data of this tensor with the data of another tensor. Only the shape of the tensors must match.
    */
@@ -496,11 +496,12 @@ export class Tensor extends MathTrait<Tensor> {
 
   assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
-    //   // TODO: this === a hack for writing to DISK. remove with working assign
+    //   // TODO: this is a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
       // if x.__class__ !== Tensor: x = new Tensor(x, device="CLANG", dtype=this.dtype)
-      this.contiguous().realize().lazydata.base.realized!.copyin(x._data())
-      return this
+      throw new Error("TODO: realize is async, but I'd like to not make assign async, so maybe there's a better way")
+      // this.contiguous().realize().lazydata.base.realized!.copyin(x._data())
+      // return this
     }
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
@@ -520,10 +521,10 @@ export class Tensor extends MathTrait<Tensor> {
   detach = (): Tensor => {
     return new Tensor(this.lazydata, { device: this.device, requires_grad: false })
   }
-  _data = (): MemoryView => {
+  _data = async (): Promise<MemoryView> => {
     if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
-    const cpu = this.cast(this.dtype.base).contiguous().to('CLANG').realize()
+    const cpu = await this.cast(this.dtype.base).contiguous().to('CLANG').realize()
     const buf = cpu.lazydata!.base.realized
     if (this.device !== 'CLANG') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
     return buf!.as_buffer(this.device !== 'CLANG' ? true : false)
@@ -536,11 +537,11 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(np.frombuffer(t.data(), dtype=np.int32))
    * ```
    */
-  data = (): MemoryView<any> => {
+  data = async (): Promise<MemoryView<any>> => {
     assert(this.dtype.base.fmt !== undefined, `no fmt dtype for ${this.dtype.base}`)
     assert(all_int(this.shape), `no data if shape === symbolic, ${this.shape}`)
     // if (TYPE_CHECKING ) assert(this.dtype.base.fmt !== "e")
-    return this.shape.includes(0) ? this._data().cast(this.dtype.base.fmt!) : this._data().cast(this.dtype.base.fmt!, this.shape as number[])
+    return await this._data().then((x) => x.cast(this.dtype.base.fmt!, this.shape.includes(0) ? undefined : this.shape as number[]))
   }
   /**
    * Returns the value of this tensor as a standard Python number.
@@ -550,9 +551,9 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.item())
    * ```
    */
-  item = (): ConstType => {
+  item = async (): Promise<ConstType> => {
     assert(this.numel() === 1, 'must have one element for item')
-    return this.data().getValue(...range(this.shape.length || 1).map(() => 0)) as number
+    return await this.data().then((x) => x.getValue(...range(this.shape.length || 1).map(() => 0))) as number
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
   // src: https://github.com/python/mypy/blob/release-1.6/mypy/typeshed/stdlib/builtins.pyi//L803
@@ -564,8 +565,8 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.tolist())
    * ```
    */
-  tolist = <T = any>(): T => {
-    return this.data().toList() as T
+  tolist = async <T = any>(): Promise<T> => {
+    return await this.data().then((x) => x.toList()) as T
   }
   /**
    * Creates a clone of this tensor allocating a separate buffer for the data.
@@ -3183,8 +3184,8 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.one_hot(5).numpy())
    * ```
    */
-  one_hot = (num_classes = -1): Tensor => {
-    if (num_classes === -1) num_classes = (this.max().add(1)).item() as number
+  one_hot = async (num_classes = -1): Promise<Tensor> => {
+    if (num_classes === -1) num_classes = await this.max().add(1).item() as number
     return this.get('...', undefined)._one_hot_along_dim(num_classes).where(1, 0)
   }
 
