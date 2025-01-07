@@ -87,7 +87,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
 
   // ************ TENSOR ************
   if (o instanceof Tensor) {
-    return t`tiny.tensor.Tensor(${o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
+    return t`tiny.tensor.Tensor(${await o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
   }
 
   // ************ ENGINE ************
