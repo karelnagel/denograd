@@ -466,10 +466,12 @@ export const diskcache = (func: any) => {
 
 // # *** Exec helpers
 
-export const cpuTimeExecution =async  (cb: () => Promise<void>, enable: boolean) => {
-  const st = performance.now()
-  await cb()
-  return performance.now() - st
+export const cpuTimeExecution =  <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
+  return async (...args: Args) => {
+    const st = performance.now()
+    await fn(...args)
+    return performance.now() - st
+  }
 }
 
 export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {

@@ -44,9 +44,9 @@ export class CompiledRunner extends Runner {
     if (DEBUG >= 4) console.log(p.src)
     if (!this.lib) this.lib = Device.get(p.device).compiler.compile_cached(p.src)
     if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(this.lib)
-    const Prg = Device.get(p.device).runtime!
+    const Runtime = Device.get(p.device).runtime!
     // KAREL: TODO: should be p.function_name
-    this._prg = new Prg(to_function_name(p.name), this.lib)
+    this._prg = new Runtime(to_function_name(p.name), this.lib)
   }
   __reduce__ = () => [this.p, this.lib]
 

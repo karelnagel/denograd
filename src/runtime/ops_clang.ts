@@ -34,25 +34,26 @@ export class ClangCompiler extends Compiler {
 export class ClangProgram extends Program {
   constructor(name: string, lib: Uint8Array) {
     super(name, lib)
+    if (!lib?.length) throw new Error('Lib is empty')
     if (!name) throw new Error("Name can't be undefined")
   }
-  override call = (bufs: MemoryView[], vals: any, wait = false) =>
-    cpuTimeExecution(async () => {
-      console.log({ vals })
-      const file = Deno.makeTempFileSync()
-      Deno.writeFileSync(file, this.lib)
-      const fxn = Deno.dlopen(file, {
-        call: {
-          parameters: range(bufs.length).map(() => 'buffer'),
-          result: 'void',
-          name: this.name,
-          nonblocking: true,
-        },
-      })
-      Deno.removeSync(file)
-      await fxn.symbols.call(...bufs.map((b) => b.buffer))
-      fxn.close()
-    }, wait)
+  override call = cpuTimeExecution(async (bufs: MemoryView[], vals: any, wait = false) => {
+    console.log({ vals })
+    const file = await Deno.makeTempFile()
+    await Deno.writeFile(file, this.lib)
+    console.log(`Wrote code to ${file}, ${this.name}, ${this.lib}`)
+    const fxn = Deno.dlopen(file, {
+      call: {
+        parameters: range(bufs.length).map(() => 'buffer'),
+        result: 'void',
+        name: this.name,
+        nonblocking: true,
+      },
+    })
+    await Deno.remove(file)
+    await fxn.symbols.call(...bufs.map((b) => b.buffer))
+    fxn.close()
+  })
 }
 
 export class ClangDevice extends Compiled {

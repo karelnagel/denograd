@@ -1,5 +1,5 @@
 // deno-lint-ignore-file require-await
-import { all_same, assert, bytesToString, flatten, get_env, isinstance, product, range, stringToBytes, zip } from '../helpers.ts'
+import { all_same, assert, bytesToString, cpuTimeExecution, flatten, get_env, isinstance, product, range, stringToBytes, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, idiv, Ops, sum, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
@@ -64,8 +64,7 @@ export class PythonProgram extends Program {
     this.uops = deserialize(lib)
   }
   // KAREL: TODO: use Web workers maybe?
-  override call = async (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
-    const st = performance.now()
+  override call = cpuTimeExecution(async (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length
     for (const idxs of product(...global_size.toReversed().map((x) => range(x)))) {
@@ -233,8 +232,7 @@ export class PythonProgram extends Program {
         i += 1
       }
     }
-    return performance.now() - st
-  }
+  })
 }
 
 export class PythonRenderer extends Renderer {
