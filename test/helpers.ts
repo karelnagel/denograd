@@ -151,7 +151,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o instanceof MemoryView) return t`memoryview(bytes(${Array.from(o.toBytes())}))`
 
   if (typeof o === 'function') return 'lambda x: x'
-  if (o?.constructor?.name === 'Object') return `{${Object.entries(o).map((entry) => t`${entry[0]}:${entry[1]}`).join(',')}}`
+  if (o?.constructor?.name === 'Object') return `{${(await Promise.all(Object.entries(o).map(async (entry) => await t`${entry[0]}:${entry[1]}`))).join(',')}}`
   throw new Error(`Invalid value: ${o.constructor.name} ${JSON.stringify(o)}`)
 }
 export const python = async <T = any>(code: string | string[], data?: any): Promise<T> => {
