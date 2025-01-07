@@ -15,6 +15,7 @@ export class ClangCompiler extends Compiler {
   }
 
   override compile = (src: string): Uint8Array => {
+    console.log(src)
     // KAREL: TODO: try without files
     const code = Deno.makeTempFileSync()
     const bin = Deno.makeTempFileSync()
