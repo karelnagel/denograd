@@ -309,7 +309,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
     data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt }) //KAREL: not that sure
   }
   //   // fake realize
-  ret.buffer!.allocate(Device.DEFAULT !== 'PYTHON' ? data : new MemoryView(data as Uint8Array, { fmt: 'B' }))
+  ret.buffer!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
   ret.srcs?.forEach((x) => x.__del__())
   delete ret.srcs
   return ret
