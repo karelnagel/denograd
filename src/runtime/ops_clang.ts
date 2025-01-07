@@ -35,20 +35,22 @@ export class ClangProgram extends Program {
     super(name, lib)
     if (!name) throw new Error("Name can't be undefined")
   }
-  override call = (bufs: MemoryView[], vals: any, wait = false) => {
-    console.log({ vals })
-    const file = Deno.makeTempFileSync()
-    Deno.writeFileSync(file, this.lib)
-    const fxn = Deno.dlopen(file, {
-      call: {
-        parameters: range(bufs.length).map(() => 'buffer'),
-        result: 'void',
-        name: this.name,
-      },
-    })
-    Deno.removeSync(file)
-    return cpuTimeExecution(() => fxn.symbols.call(...bufs.map((b) => b.buffer)), wait)
-  }
+  override call = (bufs: MemoryView[], vals: any, wait = false) =>
+    cpuTimeExecution(() => {
+      console.log({ vals })
+      const file = Deno.makeTempFileSync()
+      Deno.writeFileSync(file, this.lib)
+      const fxn = Deno.dlopen(file, {
+        call: {
+          parameters: range(bufs.length).map(() => 'buffer'),
+          result: 'void',
+          name: this.name,
+        },
+      })
+      Deno.removeSync(file)
+      fxn.symbols.call(...bufs.map((b) => b.buffer))
+      fxn.close()
+    }, wait)
 }
 
 export class ClangDevice extends Compiled {
