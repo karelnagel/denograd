@@ -1,5 +1,6 @@
+// deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { assert, ctypes, dataclass, diskcache_get, diskcache_put, from_mv, get_env, get_number_env, isNone, isNotNone, stringToBytes } from '../helpers.ts'
+import { assert, dataclass, diskcache_get, diskcache_put, get_env, get_key, get_number_env, isNone, isNotNone, setDefault, stringToBytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -14,23 +15,26 @@ export class BufferSpec {
     public cpu_access = false,
     public host = false,
     public nolru = false,
-    public external_ptr?: number,
+    public external_ptr?: bigint,
   ) {}
 }
 
 // # TODO: size, dest, src are the same type. can we enforce this?
-export abstract class Allocator {
-  //   # overriden in LRUAllocator
-
-  alloc = (size: number, options?: BufferSpec) => {
+export abstract class Allocator<AllocRes = MemoryView> {
+  // using instead of super.alloc()
+  _super_alloc = (size: number, options?: BufferSpec): AllocRes => {
     assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
     return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
   }
-  free = (opaque: number, size: number, options?: BufferSpec) => this._free(opaque, isNotNone(options) ? options : new BufferSpec())
+  //   # overriden in LRUAllocator
+  alloc = (size: number, options?: BufferSpec) => this._super_alloc(size, options)
+
+  _super_free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._free(opaque, isNotNone(options) ? options : new BufferSpec())
+  free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._super_free(opaque, size, options)
 
   //   # implemented by the runtime
-  abstract _alloc: (size: number, options: BufferSpec) => void
-  abstract _free: (opaque: number, options: BufferSpec) => void // if opaque is a Python object, you don't need a free
+  abstract _alloc: (size: number, options: BufferSpec) => AllocRes
+  abstract _free: (opaque: MemoryView, options: BufferSpec) => void // if opaque is a Python object, you don't need a free
   abstract _copyin: (dest: any, src: MemoryView) => any
   abstract _copyout: (dest: MemoryView, src: any) => any
   // def _as_buffer( src) -> memoryview:
@@ -43,39 +47,41 @@ export abstract class Allocator {
  * It ensures that buffers are not freed until it is absolutely necessary, optimizing performance.
  */
 export abstract class LRUAllocator extends Allocator {
-  cache = new Map<[number, BufferSpec | undefined], any>()
+  cache = new Map<string, { size: number; options?: BufferSpec; opaques: MemoryView[] }>()
   override alloc = (size: number, options?: BufferSpec) => {
-    const c = this.cache.get([size, options])
-    if (c.length) return c.pop()
+    const c = setDefault(this.cache, get_key([size, options]), { size, options, opaques: [] })
+    if (c.opaques.length) return c.opaques.pop()!
     try {
-      assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-      return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
+      return this._super_alloc(size, options)
     } catch {
       this.free_cache()
-      assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-      return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
+      return this._super_alloc(size, options)
     }
   }
   free_cache = () => {
-    for (const [[sz, options], opaques] of this.cache.entries()) {
-      for (const opaque of opaques) {
-        this._free(opaque, isNotNone(options) ? options : new BufferSpec())
-      }
-      opaques.clear()
+    for (const { size, options, opaques } of this.cache.values()) {
+      for (const opaque of opaques) this._super_free(opaque, size, options)
+      opaques.splice(0, opaques.length)
     }
   }
-  override free = (opaque: any, size: number, options?: BufferSpec) => {
-    if (get_number_env('LRU', 1) && (isNone(options) || !options.nolru)) this.cache.get([size, options]).append(opaque)
-    else this._free(opaque, isNotNone(options) ? options : new BufferSpec())
+  // KAREL: TODO: free gets never called
+  override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
+    if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
+      setDefault(this.cache, get_key([size, options]), { size, opaques: [], options }).opaques.push(opaque)
+    } else this._super_free(opaque, size, options)
   }
 }
 
 export class _MallocAllocator extends LRUAllocator {
-  _alloc = (size: number, options: BufferSpec) => options.external_ptr ? (ctypes.c_uint8.mul(size)).fromAddress(options.external_ptr) : (ctypes.c_uint8.mul(size)).call()
+  _alloc = (size: number, options: BufferSpec): MemoryView => {
+    const mv = new MemoryView(size)
+    if (options.external_ptr) throw new Error(`TODO: external_ptr:${options.external_ptr}`)
+    return mv
+  }
   _asBuffer = (src: ArrayBuffer): MemoryView => new MemoryView(src).flat()
-  _copyin = (dest: any, src: MemoryView) => ctypes.memmove(dest, from_mv(src), src.byteLength)
-  _copyout = (dest: MemoryView, src: any) => ctypes.memmove(from_mv(dest), src, dest.byteLength)
-  _offset = (buf: ArrayBuffer, size: number, offset: number) => from_mv(this._asBuffer(buf).slice(offset, offset + size))
+  _copyin = (dest: MemoryView, src: MemoryView) => dest.set(src)
+  _copyout = (dest: MemoryView, src: MemoryView) => dest.set(src)
+  _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
   _free = () => {
     throw new Error('Not implemented')
   }
@@ -107,7 +113,7 @@ export class Compiler {
 export class Compiled {
   constructor(
     public device: DeviceType,
-    public allocator?: Allocator,
+    public allocator?: Allocator<any>,
     public renderer: Renderer = new Renderer(),
     public compiler: Compiler = new Compiler(),
     public runtime?: typeof Program,
@@ -127,7 +133,7 @@ export type ProgramCallInput = { global_size?: number[]; local_size?: number[]; 
 export class Program {
   constructor(public name: string, public lib: Uint8Array) {
   }
-  call = (bufs: any[], vals: ProgramCallInput, wait: boolean): number => {
+  call = async (bufs: any[], vals: ProgramCallInput, wait: boolean): Promise<number> => {
     throw new Error('not implemented')
   }
 }

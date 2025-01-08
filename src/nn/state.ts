@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { bytesToString, DEBUG, isinstance, stringToBytes } from '../helpers.ts'
+import { bytesToString, DEBUG, isEq, isinstance, stringToBytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 import { tqdm } from '../tqdm.ts'
 
@@ -24,10 +24,10 @@ export const inverse_safe_dtypes = new Map(Object.entries(safe_dtypes).map(([k, 
 /**
  * Loads a .safetensor file from disk, returning the data, metadata length, && metadata.
  */
-export const safe_load_metadata = (t: Tensor | string): [Tensor, number, Record<string, any>] => {
+export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, number, Record<string, any>]> => {
   if (typeof t === 'string') t = new Tensor(t)
-  const data_start = t.get({ start: 0, stop: 8 }).data().cast('b').getValue(0) + 8
-  return [t, data_start, JSON.parse(bytesToString(t.get({ start: 8, stop: data_start }).data().toBytes()))]
+  const data_start = await t.get({ start: 0, stop: 8 }).data().then((x) => x.cast('i').getValue(0) + 8)
+  return [t, data_start, JSON.parse(bytesToString(await t.get({ start: 8, stop: data_start }).data().then((x) => x.toBytes())))]
 }
 /**
  * Loads a .safetensor file from disk, returning the state_dict.
@@ -35,9 +35,9 @@ export const safe_load_metadata = (t: Tensor | string): [Tensor, number, Record<
  * state_dict = nn.state.safe_load("test.safetensor")
  * ```
  */
-export const safe_load = (fn: Tensor | string): Record<string, Tensor> => {
+export const safe_load = async (fn: Tensor | string): Promise<Record<string, Tensor>> => {
   if (typeof fn === 'string') fn = new Tensor(fn)
-  const [t, data_start, metadata] = safe_load_metadata(fn)
+  const [t, data_start, metadata] = await safe_load_metadata(fn)
   const data = t.get({ start: data_start })
   return Object.fromEntries(
     Object.entries(metadata)
@@ -53,7 +53,7 @@ export const safe_load = (fn: Tensor | string): Record<string, Tensor> => {
  * nn.state.safe_save({'t':t}, "test.safetensor")
  * ```
  */
-export const safe_save = (tensors: Record<string, Tensor>, fn: string, metadata?: Record<string, any>) => {
+export const safe_save = async (tensors: Record<string, Tensor>, fn: string, metadata?: Record<string, any>) => {
   const headers: Record<string, any> = {}
   let offset = 0
   if (metadata) headers.__metadata__ = metadata
@@ -65,9 +65,9 @@ export const safe_save = (tensors: Record<string, Tensor>, fn: string, metadata?
   j += '\x20'.repeat((8 - j.length % 8) % 8)
   // pathlib.Path(fn).unlink(missing_ok=true)
   const t = Tensor.empty([8 + j.length + offset], { dtype: dtypes.uint8, device: `DISK:${fn}` })
-  t.get({ start: 0, stop: 8 }).bitcast(dtypes.int64).assign([j.length])
-  t.get({ start: 8, stop: 8 + j.length }).assign(stringToBytes(j))
-  for (const [k, v] of Object.entries(safe_load(t))) v.assign(tensors[k])
+  await t.get({ start: 0, stop: 8 }).bitcast(dtypes.int64).assign_disk([j.length])
+  await t.get({ start: 8, stop: 8 + j.length }).assign_disk(stringToBytes(j))
+  for (const [k, v] of Object.entries(await safe_load(t))) await v.assign_disk(tensors[k])
 }
 // state dict
 
@@ -132,11 +132,11 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
       if (DEBUG >= 1) console.log(`WARNING: !loading ${k}`)
       continue
     }
-    if (v.shape !== state_dict[k].shape) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
+    if (!isEq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
     //     // if isinstance((mlb:=v.lazydata), MultiLazyBuffer):
     //     //   if isinstance(state_dict[k].lazydata, MultiLazyBuffer): v.replace(state_dict[k]).realize()
     //     //   else: v.replace(state_dict[k].shard(mlb.device, mlb.axis)).realize()
-    else v.replace(state_dict[k].to(v.device)).realize()
+    else await v.replace(state_dict[k].to(v.device)).realize()
     if (consume) delete state_dict[k]
   }
 }

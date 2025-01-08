@@ -279,8 +279,8 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
     const TSPatterns = matcher.patterns.map((pattern) => pattern[0])
     const PYPatterns = await python(`${pyImport}\nout([pattern[0] for pattern in ${pyCode}.patterns])`)
     for (const [i, [ts, py]] of zip(TSPatterns, PYPatterns).entries()) {
-      await t.step(i.toString(), () => {
-        expect(removeKeys(asdict(ts), ['location', 'op'])).toEqual(removeKeys(asdict(py), ['location', 'op']))
+      await t.step(i.toString(), async () => {
+        expect(removeKeys(await asdict(ts), ['location', 'op'])).toEqual(removeKeys(await asdict(py), ['location', 'op']))
       })
     }
   })
@@ -290,10 +290,10 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
     for (const [key, ts] of matcher.pdict.entries()) {
       const py = PYDict.get(key)!
       for (const [i, [ts1, py1]] of zip(ts as any[], py).entries()) {
-        await t.step(i.toString(), () => {
-          expect(removeKeys(asdict(ts1[0]), ['location', 'op'])).toEqual(removeKeys(asdict(py1[0]), ['location', 'op'])) //UPat
-          expect(asdict(ts1[2]).toSorted()).toEqual(asdict(py1[2]).toSorted()) // Ops[]
-          expect(asdict(ts1[3])).toEqual(asdict(py1[3])) // has ctx?
+        await t.step(i.toString(), async () => {
+          expect(removeKeys(await asdict(ts1[0]), ['location', 'op'])).toEqual(removeKeys(await asdict(py1[0]), ['location', 'op'])) //UPat
+          expect((await asdict(ts1[2])).toSorted()).toEqual((await asdict(py1[2])).toSorted()) // Ops[]
+          expect(await asdict(ts1[3])).toEqual(await asdict(py1[3])) // has ctx?
         })
       }
     }
@@ -303,7 +303,7 @@ for (const [name, { matcher, uops }] of entries(ALL_PATTERN_MATCHERS)) {
     Deno.test(`${name}_${i}`, async () => {
       const ts = tryCatch(() => matcher.rewrite(uop, new Map([[uop, 'somectxvalue']])))()
       const py = await python(`${pyImport}\nout(${pyCode}.rewrite(data,{data:"somectxvalue"}))`, uop)
-      expect(asdict(ts)).toEqual(asdict(py))
+      expect(await asdict(ts)).toEqual(await asdict(py))
     })
   }
 }

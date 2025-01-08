@@ -15,7 +15,7 @@ export class DiskBuffer {
 }
 // const [MAP_LOCKED, MAP_POPULATE] = [OSX ? 0 : 0x2000, mmap.MAP_POPULATE || (OSX ? 0 : 0x008000)]
 
-export class DiskAllocator extends Allocator {
+export class DiskAllocator extends Allocator<DiskBuffer> {
   constructor(public dev: DiskDevice) {
     super()
   }

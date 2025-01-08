@@ -24,24 +24,24 @@ dtypes // needed to force the import
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
-export const asdict = (o: any): any => {
+export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined
-  if (typeof o === 'number' && Number.isFinite(o)) return Math.round(o * 10000) / 10000
-  if (Array.isArray(o)) return o.map(asdict)
+  if (typeof o === 'number' && Number.isFinite(o)) return (Math.round(o * 10000) / 10000).toString()
+  if (Array.isArray(o)) return await Promise.all(o.map(async (x) => await asdict(x)))
   if (o === undefined || o === null) return o
   if (typeof o === 'bigint') return o.toString()
   if (o instanceof Enum) return o.toString()
-  if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
+  if (o instanceof Set) return await Promise.all([...o.values().map(async (v) => await asdict(v))])
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
   if (o instanceof UOp) return o.toString()
-  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: asdict(o.tolist()) }
+  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: await asdict(await o.tolist()) }
 
   if (o instanceof Map) {
-    const res = [...o.entries().map(([k, v]) => [asdict(k), asdict(v)])]
+    const res = await Promise.all([...o.entries().map(async ([k, v]) => [await asdict(k), await asdict(v)])])
     return typeof res.at(0)?.at(0) === 'object' ? res : Object.fromEntries(res) // If it's Map<string,...> then return object, otherwise array
   }
-  if (typeof o === 'object') return Object.fromEntries(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(([k, v]) => [k, asdict(v)]))
+  if (typeof o === 'object') return Object.fromEntries(await Promise.all(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(async ([k, v]) => [k, await asdict(v)])))
   return o
 }
 export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return): (...a: Args) => Return | string => {
@@ -59,17 +59,19 @@ export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return)
 class SkipFormatting {
   constructor(public value: string) {}
 }
-export const pyStr = (o: any, useList = false): string => {
-  const t = (strings: TemplateStringsArray, ...values: any[]) => {
+
+// I'm not proud of this async mess here
+const pyStr = async (o: any, useList = false): Promise<string> => {
+  const t = async (strings: TemplateStringsArray, ...values: any[]) => {
     let result = strings[0]
-    for (let i = 0; i < values.length; i++) result += pyStr(values[i]) + strings[i + 1]
+    for (let i = 0; i < values.length; i++) result += await pyStr(values[i]) + strings[i + 1]
     return result
   }
   if (o instanceof SkipFormatting) return o.value
   if (o instanceof Ops) return `tiny.ops.${o.toString()}`
   if (o instanceof OptOps) return `tiny.codegen.kernel.${o.toString()}`
 
-  if (Array.isArray(o)) return o.length ? (useList ? `[${o.map((x) => pyStr(x)).join(', ')}]` : `(${o.map((x) => pyStr(x)).join(', ')},)`) : '()'
+  if (Array.isArray(o)) return o.length ? (useList ? `[${await Promise.all(o.map(async (x) => await pyStr(x)).join(', '))}]` : `(${(await Promise.all(o.map(async (x) => await pyStr(x)))).join(', ')},)`) : '()'
   if (o === null || typeof o === 'undefined') return 'None'
   if (typeof o === 'boolean') return o ? 'True' : 'False'
   if (typeof o === 'bigint') return o.toString()
@@ -80,12 +82,12 @@ export const pyStr = (o: any, useList = false): string => {
     return o.toString()
   }
   if (typeof o === 'string') return `"${o.replaceAll('\n', '\\\n')}"`
-  if (o instanceof Map) return `{${[...o.entries()].map(([k, v]) => `${pyStr(k)}:${pyStr(v)}`).join(',')}}`
-  if (o instanceof Set) return `set([${[...o].map((o) => pyStr(o)).join(', ')}])`
+  if (o instanceof Map) return `{${(await Promise.all([...o.entries()].map(async ([k, v]) => `${await pyStr(k)}:${await pyStr(v)}`))).join(',')}}`
+  if (o instanceof Set) return `set([${(await Promise.all([...o].map(async (o) => await pyStr(o)))).join(', ')}])`
 
   // ************ TENSOR ************
   if (o instanceof Tensor) {
-    return t`tiny.tensor.Tensor(${o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
+    return t`tiny.tensor.Tensor(${await o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
   }
 
   // ************ ENGINE ************
@@ -121,7 +123,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof PythonRenderer) return t`PythonRenderer()`
   if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, reduce_axes=${o.reduce_axes}, upcast_axes=${o.upcast_axes}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out})`
   if (o instanceof ProgramSpec) {
-    return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${new SkipFormatting(pyStr(o.globals, true))},outs=${new SkipFormatting(pyStr(o.outs, true))}, _ran_post_init=${o._ran_post_init})`
+    return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${new SkipFormatting(await pyStr(o.globals, true))},outs=${new SkipFormatting(await pyStr(o.outs, true))}, _ran_post_init=${o._ran_post_init})`
   }
 
   // ************ SHAPE ************
@@ -129,14 +131,14 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof ShapeTracker) return t`tiny.shape.shapetracker.ShapeTracker(views=${o.views})`
 
   // ************ DTYPE ************
-  if (o instanceof ImageDType) return `tiny.dtype.dtypes.${o.name}(${pyStr(o.shape)})${o.v !== 1 ? `.vec(${o.v})` : ''}`
-  if (o instanceof PtrDType) return `${pyStr(o.base)}.ptr(${o.local ? 'local=True' : ''})${o.v !== 1 ? `.vec(${o.v})` : ''}`
+  if (o instanceof ImageDType) return `tiny.dtype.dtypes.${o.name}(${await pyStr(o.shape)})${o.v !== 1 ? `.vec(${o.v})` : ''}`
+  if (o instanceof PtrDType) return `${await pyStr(o.base)}.ptr(${o.local ? 'local=True' : ''})${o.v !== 1 ? `.vec(${o.v})` : ''}`
   if (o instanceof DType) return `tiny.dtype.dtypes.${INVERSE_DTYPES_DICT[o.scalar().name]}${o.count > 1 ? `.vec(${o.count})` : ''}`
 
   // ************ OPS ************
   if (o instanceof UPat) {
     // if src is UPat[][] we use list, if UPat[] then tuple
-    const src = Array.isArray(o._in_src) ? (Array.isArray(o._in_src.at(0)) ? new SkipFormatting(pyStr(o._in_src.at(0), true)) : o._in_src) : o._in_src
+    const src = Array.isArray(o._in_src) ? (Array.isArray(o._in_src.at(0)) ? new SkipFormatting(await pyStr(o._in_src.at(0), true)) : o._in_src) : o._in_src
     return t`tiny.ops.UPat(op=${o.op}, dtype=${o.dtype}, src=${src}, arg=${o.arg}, name=${o.name}, allow_any_len=${o.allowed_len === -1}, location=${o.location}, custom_early_reject=${o.custom_early_reject})`
   }
   if (o instanceof UOp) return t`tiny.ops.UOp(op=${o.op}, dtype=${o.dtype}, src=${o.src}, arg=${o.arg})`
@@ -149,7 +151,7 @@ export const pyStr = (o: any, useList = false): string => {
   if (o instanceof MemoryView) return t`memoryview(bytes(${Array.from(o.toBytes())}))`
 
   if (typeof o === 'function') return 'lambda x: x'
-  if (o?.constructor?.name === 'Object') return `{${Object.entries(o).map((entry) => t`${entry[0]}:${entry[1]}`).join(',')}}`
+  if (o?.constructor?.name === 'Object') return `{${(await Promise.all(Object.entries(o).map(async (entry) => await t`${entry[0]}:${entry[1]}`))).join(',')}}`
   throw new Error(`Invalid value: ${o.constructor.name} ${JSON.stringify(o)}`)
 }
 export const python = async <T = any>(code: string | string[], data?: any): Promise<T> => {
@@ -169,7 +171,7 @@ def trycatch(fn):
   try: return fn()
   except Exception as e: return str(e)
 
-${isNotNone(data) ? `data = ${pyStr(data)}` : ''}
+${isNotNone(data) ? `data = ${await pyStr(data)}` : ''}
 def out(o):
     print("<<<<<"+to_ts(o)+">>>>>")
 
@@ -232,7 +234,7 @@ export const compare = <T extends any[] = any[]>(inputs: T[] | (() => T[]), fn: 
               expect(`${ts}\n\nsimilarity:${similarity}`).toEqual(`${py}\n\nsimilarity:${similarity}`)
             }
           } else {
-            expect(removeKeys(asdict(ts), options.ignoreKeys)).toEqual(removeKeys(asdict(py), options.ignoreKeys))
+            expect(removeKeys(await asdict(ts), options.ignoreKeys)).toEqual(removeKeys(await asdict(py), options.ignoreKeys))
           }
         },
       })

@@ -4,6 +4,8 @@ import { AMX, assert, dedup, get_env, isInf, isNone, isNotNone, setDefault, stri
 import { GroupOp, idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
+const float = (x: number) => Number.isInteger(x) ? x + '.0' : x
+
 export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<string, UOp>, string | undefined>([
   [new UPat(Ops.DEFINE_ACC).named('x'), ({ ctx, x }) => ctx.get(x.src[0])],
   [new UPat(Ops.ASSIGN).named('x'), ({ ctx, x }) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
@@ -25,21 +27,21 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   // const
   [new UPat(Ops.CONST, undefined, undefined, Infinity, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`],
   [new UPat(Ops.CONST, undefined, undefined, -Infinity, 'x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`],
-  [new UPat(Ops.CONST, dtypes.floats).named('x'), ({ ctx, x }) => isInf(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined],
-  [new UPat(Ops.CONST, dtypes.float).named('x'), ({ ctx, x }) => `${x.arg}f`],
+  [new UPat(Ops.CONST, dtypes.floats).named('x'), ({ ctx, x }) => isNaN(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined],
+  [new UPat(Ops.CONST, dtypes.float).named('x'), ({ ctx, x }) => `${float(x.arg)}f`],
   [new UPat(Ops.CONST, dtypes.int64).named('x'), ({ ctx, x }) => `${x.arg}ll`],
   [new UPat(Ops.CONST, dtypes.uint64).named('x'), ({ ctx, x }) => `${x.arg}ull`],
   [new UPat(Ops.CONST, dtypes.uint32).named('x'), ({ ctx, x }) => `${x.arg}u`],
   [new UPat(Ops.CONST, dtypes.bool).named('x'), ({ ctx, x }) => x.arg ? '1' : '0'],
   // consts are rendered to larger type and casted
-  [new UPat(Ops.CONST, [dtypes.bfloat16, dtypes.half]).named('x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}f`)})`],
+  [new UPat(Ops.CONST, [dtypes.bfloat16, dtypes.half]).named('x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${float(x.arg)}f`)})`],
   [new UPat(Ops.CONST, [dtypes.uint8, dtypes.uint16]).named('x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}u`)})`],
   [new UPat(Ops.CONST, [dtypes.int8, dtypes.int16]).named('x'), ({ ctx, x }) => `(${ctx.render_cast(x.dtype, x.arg)})`],
   // default const render
   [new UPat(Ops.CONST).named('x'), ({ ctx, x }) => x.arg.toString()],
   // new load/store
   [new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]), ({ ctx, buf, idx }) => `(${ctx.get(buf)}+${idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)})`],
-  [new UPat(Ops.LOAD, undefined, [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')]), ({ ctx, bidx, var1, gate }) => `(${ctx.get(gate)}?*${ctx.get(bidx)}:${ctx.get(var1)})`],
+  [new UPat(Ops.LOAD, undefined, [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')]), (x) => `(${x.ctx.get(x.gate)}?*${x.ctx.get(x.bidx)}:${x.ctx.get(x.var)})`],
   [new UPat(Ops.LOAD, undefined, [UPat.var('bidx')], undefined, undefined, true), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
   [new UPat(Ops.STORE, undefined, [UPat.var('bidx'), UPat.var('var')], undefined, undefined, true), (p) => `*${p.ctx.get(p.bidx)} = ${p.ctx.get(p.var)};`],
   // alu/gep
@@ -118,8 +120,11 @@ export class CStyleLanguage extends Renderer {
     const r = new Map<UOp, string>()
     this.r = r
 
-    // KAREL: it didn't seem to do anything
-    // const child_count = Counter(uops.flatMap((ru) => ru.src.map((v) => v)))
+    const child_count = new Map<UOp, number>()
+    for (const u of uops) {
+      for (const v of u.src) child_count.set(v, (child_count.get(v) || 0) + 1)
+    }
+
     const bufs = new Map<UOp, [string, [DType, boolean]]>()
     const kernel = []
     let depth = 1
@@ -163,7 +168,12 @@ export class CStyleLanguage extends Renderer {
       assert(isNotNone(l), `failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)
 
       if ([Ops.ENDIF, Ops.ENDRANGE].includes(u.op)) depth -= 1
-      if ([Ops.CONST, Ops.GEP, Ops.INDEX].includes(u.op) || ([Ops.VECTORIZE, ...GroupOp.ALU, Ops.CAST, Ops.BITCAST].includes(u.op) && !get_env('EXPAND_SSA'))) {
+      if (
+        [Ops.CONST, Ops.GEP, Ops.INDEX].includes(u.op) ||
+        ([Ops.VECTORIZE, ...GroupOp.ALU, Ops.CAST, Ops.BITCAST].includes(u.op) &&
+          (child_count.get(u) || 0) === 1 &&
+          !get_env('EXPAND_SSA'))
+      ) {
         r.set(u, l!)
       } else {
         if ([Ops.RANGE, Ops.ASSIGN, Ops.DEFINE_LOCAL].includes(u.op) || u.dtype === dtypes.void) {

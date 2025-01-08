@@ -45,10 +45,20 @@ Deno.test('partition', compare([[['a', 'b', 'c', 'd'], (x: string) => x > 'b']],
 
 Deno.test('unwrap', compare([[1], [2], ['sdf']], helpers.unwrap, 'out(tiny.helpers.unwrap(*data))'))
 
-Deno.test('get_child', compare([[{ a: 1, b: { c: 2 } }, 'b.c'], [{ a: { x: [33, 54] }, b: { c: 2 } }, 'a.x.0'], [[3, { a: { v: 'true' } }], '1.a.v']], helpers.getChild, 'out(tiny.helpers.get_child(*data))'))
+Deno.test(
+  'get_child',
+  compare(
+    [
+      [{ a: 1, b: { c: 2 } }, 'b.c'],
+      [{ a: { x: [33, 54] }, b: { c: 2 } }, 'a.x.0'],
+      [[3, { a: { v: 'true' } }], '1.a.v'],
+    ],
+    helpers.getChild,
+    'out(tiny.helpers.get_child(*data))',
+  ),
+)
 
 Deno.test('word_wrap', compare([['This is a long string that needs to be wrapped to fit within 80 characters. Sfasdf dsafg sdf sdf sdf sdf sdf s dfs df']], helpers.word_wrap, 'out(tiny.helpers.word_wrap(*data))'))
-
 
 Deno.test('to_function_name', compare([['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.to_function_name, `out(tiny.helpers.to_function_name(*data))`))
 

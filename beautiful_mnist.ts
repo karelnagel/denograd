@@ -32,12 +32,12 @@ if (import.meta.main) {
   const model = new MNIST()
   const opt = nn.optim.Adam(nn.state.get_parameters(model))
 
-  const train_step = (): Tensor => {
+  const train_step = async (): Promise<Tensor> => {
     opt.zero_grad()
     const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0] as number)
     // TODO: this "gather" of samples === very slow. will be under 5s when this === fixed
     const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
-    opt.step()
+    await opt.step()
     return loss
   }
 
@@ -48,9 +48,9 @@ if (import.meta.main) {
   Tensor.training = true
   for await (const i of t) {
     GlobalCounters.reset() // NOTE: this makes it nice for DEBUG=2 timing
-    const loss = train_step()
-    if (i % 10 === 9) test_acc = get_test_acc().item() as number
-    console.log(`loss: ${loss.item()} test_accuracy: ${test_acc}%`)
+    const loss = await train_step()
+    if (i % 10 === 9) test_acc = await get_test_acc().item() as number
+    console.log(`loss: ${await loss.item()} test_accuracy: ${test_acc}%`)
   }
   Tensor.training = false
 }

@@ -309,7 +309,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
     data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt }) //KAREL: not that sure
   }
   //   // fake realize
-  ret.buffer!.allocate(Device.DEFAULT !== 'PYTHON' ? data : new MemoryView(data as Uint8Array, { fmt: 'B' }))
+  ret.buffer!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
   ret.srcs?.forEach((x) => x.__del__())
   delete ret.srcs
   return ret
@@ -456,7 +456,7 @@ export class Tensor extends MathTrait<Tensor> {
     return [memory_planner(schedule), var_vals]
   }
   _debug_ast = () => {
-    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to('PYTHON').lazydata.lbs)
+    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to('CLANG').lazydata.lbs)
     return schedule.map((s) => s.ast)
   }
   _debug = () => {
@@ -478,11 +478,11 @@ export class Tensor extends MathTrait<Tensor> {
   //   /**
   //    * Triggers the computation needed to create these Tensor(s).
   //    */
-  realize = (lst?: Tensor[], do_update_stats = true): Tensor => {
-    run_schedule(...this.schedule_with_vars(lst || []), do_update_stats)
+  realize = async (lst?: Tensor[], do_update_stats = true): Promise<Tensor> => {
+    await run_schedule(...this.schedule_with_vars(lst || []), do_update_stats)
     return this
   }
-  static realize = (lst: Tensor[], do_update_stats = true): Tensor => lst[0].realize(lst.slice(1), do_update_stats)
+  static realize = (lst: Tensor[], do_update_stats = true) => lst[0].realize(lst.slice(1), do_update_stats)
   /**
    * Replaces the data of this tensor with the data of another tensor. Only the shape of the tensors must match.
    */
@@ -493,15 +493,16 @@ export class Tensor extends MathTrait<Tensor> {
     this.lazydata = x.lazydata
     return this
   }
-
+  assign_disk = async (x: Tensor | number[] | string | Uint8Array): Promise<Tensor> => {
+    if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
+    if (typeof this.device === 'string' && !this.device.startsWith('DISK')) throw new Error('This can be only used with DISK device')
+    ;(await this.contiguous().realize()).lazydata.base.realized!.copyin(await x._data())
+    return this
+  }
   assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
-    //   // TODO: this === a hack for writing to DISK. remove with working assign
-    if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
-      // if x.__class__ !== Tensor: x = new Tensor(x, device="PYTHON", dtype=this.dtype)// Karel: changed CLANG to PYTHON
-      this.contiguous().realize().lazydata.base.realized!.copyin(x._data())
-      return this
-    }
+    //   // TODO: this is a hack for writing to DISK. remove with working assign
+    if (typeof this.device === 'string' && this.device.startsWith('DISK')) throw new Error("Use async assign_disk instead, until disk get's good assign")
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign
@@ -520,13 +521,13 @@ export class Tensor extends MathTrait<Tensor> {
   detach = (): Tensor => {
     return new Tensor(this.lazydata, { device: this.device, requires_grad: false })
   }
-  _data = (): MemoryView => {
+  _data = async (): Promise<MemoryView> => {
     if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
-    const cpu = this.cast(this.dtype.base).contiguous().to('PYTHON').realize() // Karel: changed CLANG to PYTHON
+    const cpu = await this.cast(this.dtype.base).contiguous().to('CLANG').realize()
     const buf = cpu.lazydata!.base.realized
-    if (this.device !== 'PYTHON') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true) // Karel: changed CLANG to PYTHON
-    return buf!.as_buffer(this.device !== 'PYTHON' ? true : false) // Karel: changed CLANG to PYTHON
+    if (this.device !== 'CLANG') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
+    return buf!.as_buffer(this.device !== 'CLANG' ? true : false)
   }
   /**
    * Returns the data of this tensor as a memoryview.
@@ -536,11 +537,11 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(np.frombuffer(t.data(), dtype=np.int32))
    * ```
    */
-  data = (): MemoryView<any> => {
+  data = async (): Promise<MemoryView<any>> => {
     assert(this.dtype.base.fmt !== undefined, `no fmt dtype for ${this.dtype.base}`)
     assert(all_int(this.shape), `no data if shape === symbolic, ${this.shape}`)
     // if (TYPE_CHECKING ) assert(this.dtype.base.fmt !== "e")
-    return this.shape.includes(0) ? this._data().cast(this.dtype.base.fmt!) : this._data().cast(this.dtype.base.fmt!, this.shape as number[])
+    return await this._data().then((x) => x.cast(this.dtype.base.fmt!, this.shape.includes(0) ? undefined : this.shape as number[]))
   }
   /**
    * Returns the value of this tensor as a standard Python number.
@@ -550,9 +551,9 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.item())
    * ```
    */
-  item = (): ConstType => {
+  item = async (): Promise<ConstType> => {
     assert(this.numel() === 1, 'must have one element for item')
-    return this.data().getValue(...range(this.shape.length || 1).map(() => 0)) as number
+    return await this.data().then((x) => x.getValue(...range(this.shape.length || 1).map(() => 0))) as number
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
   // src: https://github.com/python/mypy/blob/release-1.6/mypy/typeshed/stdlib/builtins.pyi//L803
@@ -564,8 +565,8 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.tolist())
    * ```
    */
-  tolist = <T = any>(): T => {
-    return this.data().toList() as T
+  tolist = async <T = any>(): Promise<T> => {
+    return await this.data().then((x) => x.toList()) as T
   }
   /**
    * Creates a clone of this tensor allocating a separate buffer for the data.
@@ -685,7 +686,7 @@ export class Tensor extends MathTrait<Tensor> {
     let device = _device
 
     // when using MOCKGPU && NV generate rand on CLANG
-    if (get_env('MOCKGPU') && device.startsWith('NV')) device = 'PYTHON' // Karel: changed CLANG to PYTHON
+    if (get_env('MOCKGPU') && device.startsWith('NV')) device = 'CLANG'
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     let had_counter
@@ -895,19 +896,21 @@ export class Tensor extends MathTrait<Tensor> {
   // ***** toposort && backward pass *****
 
   _deepwalk = (): Tensor[] => {
-    const _walk = function* (node: Tensor, visited: Set<Tensor>): Generator<any> {
+    const _walk = (node: Tensor, visited: Set<Tensor>): Tensor[] => {
+      const res: Tensor[] = []
       visited.add(node)
       // if tensor isn't leaf, reset grad
       const ctx = node._ctx
       if (ctx !== undefined && ctx.parents!.length !== 0) node.grad = undefined
       if (ctx) {
-        for (const parent of ctx.parents!) {
-          if (!visited.has(parent)) yield* _walk(parent, visited)
+        for (const i of node._ctx!.parents!) {
+          if (!visited.has(i)) res.concat(_walk(i, visited))
         }
+        res.push(node)
       }
-      yield node
+      return res
     }
-    return Array.from(_walk(this, new Set<Tensor>()))
+    return _walk(this, new Set<Tensor>())
   }
 
   /**
@@ -1808,7 +1811,7 @@ export class Tensor extends MathTrait<Tensor> {
   argmax = (axis?: number, keepdim = false): Tensor => {
     if (axis === undefined) return this.flatten().argmax(0)
     axis = this._resolve_dim(axis)
-    const m = this === this.max(axis, true)
+    const m = this.eq(this.max(axis, true))
     const idx = Tensor.arange(this.shape.at(axis)! as number, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape.at(axis)!, ...range(this.ndim - axis - 1).map(() => 1)]).mul(m, true)
     return (idx.max(axis, keepdim).sub(this.shape.at(axis) as number, true)).cast(dtypes.int32)
   }
@@ -3183,8 +3186,8 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.one_hot(5).numpy())
    * ```
    */
-  one_hot = (num_classes = -1): Tensor => {
-    if (num_classes === -1) num_classes = (this.max().add(1)).item() as number
+  one_hot = async (num_classes = -1): Promise<Tensor> => {
+    if (num_classes === -1) num_classes = await this.max().add(1).item() as number
     return this.get('...', undefined)._one_hot_along_dim(num_classes).where(1, 0)
   }
 
@@ -3291,11 +3294,11 @@ export class Tensor extends MathTrait<Tensor> {
   }
   // ***** cast ops *****
 
-  // llvm_bf16_cast = (dtype: DTypeLike) => {
-  //   // hack for devices that don't support bfloat16
-  //   assert(this.dtype === dtypes.bfloat16)
-  //   return this.to('LLVM').bitcast(dtypes.uint16).cast(dtypes.uint32).mul(1 << 16).bitcast(dtypes.float32).cast(dtype)
-  // }
+  llvm_bf16_cast = (dtype: DTypeLike) => {
+    // hack for devices that don't support bfloat16
+    assert(this.dtype === dtypes.bfloat16)
+    return this.to('LLVM' as any).bitcast(dtypes.uint16).cast(dtypes.uint32).mul(1 << 16).bitcast(dtypes.float32).cast(dtype)
+  }
 
   /**
    * Casts `this` to the given `dtype`.

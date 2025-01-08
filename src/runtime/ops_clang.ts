@@ -1,8 +1,9 @@
 import { Compiled, Compiler, MallocAllocator, Program } from './allocator.ts'
-import { cpuObjdump, cpuTimeExecution, ctypes, isNone, temp } from '../helpers.ts'
+import { cpuObjdump, cpuTimeExecution, isNone, range, temp } from '../helpers.ts'
 import { execSync } from 'node:child_process'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
+import { MemoryView } from '../memoryview.ts'
 
 export class ClangCompiler extends Compiler {
   args
@@ -14,27 +15,43 @@ export class ClangCompiler extends Compiler {
   }
 
   override compile = (src: string): Uint8Array => {
-    // TODO: remove file write. sadly clang doesn't like the use of /dev/stdout here
-    const outputFile = temp('temp_output.so')
-    const args = ['clang', '-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', '-', '-o', outputFile]
-    execSync(args.join(' '), { input: src, stdio: 'pipe' })
-    const data = Deno.readFileSync(outputFile)
-    Deno.removeSync(outputFile)
+    // KAREL: TODO: try without files
+    const code = Deno.makeTempFileSync()
+    const bin = Deno.makeTempFileSync()
+    Deno.writeTextFileSync(code, src)
+
+    const args = ['-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', code, '-o', bin]
+    const res = new Deno.Command('clang', { args }).outputSync()
+    if (!res.success) throw new Error(`Clang compiling failed, error: ${new TextDecoder().decode(res.stderr)}`)
+
+    const data = Deno.readFileSync(bin)
+    Deno.removeSync(code), Deno.removeSync(bin)
     return data
   }
   override disassemble = (lib: Uint8Array) => cpuObjdump(lib, this.objdumpTool)
 }
 
 export class ClangProgram extends Program {
-  fxn
   constructor(name: string, lib: Uint8Array) {
     super(name, lib)
-    // write to disk so we can load it
-    const cachedFile = temp('cachedFile')
-    Deno.writeTextFileSync(cachedFile, lib.toString())
-    this.fxn = ctypes.CDLL(cachedFile).get(name)
+    if (!lib?.length) throw new Error('Lib is empty')
+    if (!name) throw new Error("Name can't be undefined")
   }
-  override call = (bufs: any[], vals: any, wait = false) => cpuTimeExecution(() => this.fxn(...bufs, ...vals), wait)
+  override call = cpuTimeExecution(async (bufs: MemoryView[], vals: any, wait = false) => {
+    const file = await Deno.makeTempFile()
+    await Deno.writeFile(file, this.lib)
+    const fxn = Deno.dlopen(file, {
+      call: {
+        parameters: range(bufs.length).map(() => 'buffer'),
+        result: 'void',
+        name: this.name,
+        nonblocking: true,
+      },
+    })
+    await Deno.remove(file)
+    await fxn.symbols.call(...bufs.map((b) => b.buffer))
+    fxn.close()
+  })
 }
 
 export class ClangDevice extends Compiled {

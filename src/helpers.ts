@@ -286,7 +286,7 @@ export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
 export const word_wrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + word_wrap(x.slice(wrap), wrap)
-export const to_function_name = (s: string): string => ''.concat(...ansistrip(s).split('').map((c) => /[a-zA-Z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).padStart(2, '0')))
+export const to_function_name = (s: string) => ansistrip(s).split('').map((c) => /[A-Za-z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')).join('')
 export const get_env = (key: string, defaultVal = '') => process.env[key] || defaultVal
 export const get_number_env = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
 export const temp = (x: string): string => path.join(os.tmpdir(), x)
@@ -466,10 +466,12 @@ export const diskcache = (func: any) => {
 
 // # *** Exec helpers
 
-export const cpuTimeExecution = (cb: () => void, enable: boolean) => {
-  const st = performance.now()
-  cb()
-  return performance.now() - st
+export const cpuTimeExecution =  <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
+  return async (...args: Args) => {
+    const st = performance.now()
+    await fn(...args)
+    return performance.now() - st
+  }
 }
 
 export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
@@ -485,41 +487,6 @@ export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
 export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {
   return { ...obj, ...replace } as T
 }
-// # *** ctypes helpers
-export class c_char {
-  from_buffer = (mv: MemoryView) => {}
-  mul = (other: number) => new c_char()
-  call = () => {}
-}
-export class c_ubyte {
-  mul = (other: number) => new c_ubyte()
-  call = () => {}
-  fromAddress = (ptr: number) => {}
-}
-type CData = any
-
-export class ctypes {
-  static cast = (obj: any, type: any) => {
-    return { contents: [new c_char()] }
-  }
-  static addressof = (obj: CData): number => {
-    return 0
-  }
-  static memmove = (dst: any, src: any, count: number) => {}
-  static POINTER = (type: c_char) => new c_char()
-  static create_string_buffer = (init: Uint8Array) => {}
-  static c_char = new c_char()
-  static c_uint8 = new c_ubyte()
-  static CDLL = (file: string) => {
-    return { get: (name: string) => (...args: any[]) => {} }
-  }
-}
-
-// # TODO: make this work with read only memoryviews (if possible)
-export const from_mv = (mv: MemoryView, to_type = ctypes.c_char): c_char[] => {
-  throw new Error('not implemented')
-}
-
 // # *** universal support for code object pickling
 
 // def _reconstruct_code(*args): return types.CodeType(*args)

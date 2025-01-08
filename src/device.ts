@@ -14,12 +14,12 @@ const DEVICES = {
   // QCOM: () => import('./runtime/ops_qcom.ts').then((o) => o.QCOMDevice),
   // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
+  CLANG: await import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
   DISK: await import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
   PYTHON: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
-  // CLANG: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
 // KAREL: enable clang
-export type AllDevices = keyof typeof DEVICES | 'CLANG'
+export type AllDevices = keyof typeof DEVICES
 export type DeviceType = AllDevices | `${AllDevices}:${string}`
 
 export class _Device {
@@ -32,9 +32,9 @@ export class _Device {
   canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
   get = (device: DeviceType): Compiled => {
     const ix = this.canonicalize(device)
-    const ret = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]
+    const Device = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
-    return new ret(ix)
+    return new Device(ix)
   }
   default = () => this.get(this.DEFAULT)
   @cache
@@ -66,7 +66,7 @@ export const Device = new _Device()
 export class Buffer {
   _base?: Buffer
   _lb_refcount?: number
-  _buf?: any
+  _buf?: MemoryView
   allocator?: Allocator
 
   constructor(
@@ -107,7 +107,7 @@ export class Buffer {
   ref = (cnt: number) => this.base._lb_refcount! += cnt
   is_allocated = () => !!this._buf
   ensure_allocated = (): Buffer => !this.is_allocated() ? this.allocate() : this
-  allocate = (opaque?: any, external_ptr?: any): Buffer => {
+  allocate = (opaque?: any, external_ptr?: bigint): Buffer => {
     assert(!this.is_allocated(), "can't allocate already allocated buffer")
     this.allocator = Device.get(this.device).allocator
     if (isNotNone(external_ptr)) {
@@ -137,11 +137,11 @@ export class Buffer {
   get nbytes() {
     return this.size * this.dtype.itemsize
   }
-  __del__ = () => {
+  del = () => {
     if (!this.is_allocated()) return
     if (isNone(this._base) && (isNone(this.options) || isNone(this.options.external_ptr))) {
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used -= this.nbytes
-      this.allocator?.free(this._buf, this.nbytes, this.options)
+      this.allocator?.free(this._buf!, this.nbytes, this.options)
     }
   }
   toString = () => {
