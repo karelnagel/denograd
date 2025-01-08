@@ -82,7 +82,7 @@ export class _MallocAllocator extends LRUAllocator {
   _asBuffer = (src: ArrayBuffer): MemoryView => new MemoryView(src).flat()
   _copyin = (dest: MemoryView, src: MemoryView) => dest.set(src)
   _copyout = (dest: MemoryView, src: MemoryView) => dest.set(src)
-  _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, size)
+  _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
   _free = () => {
     throw new Error('Not implemented')
   }
