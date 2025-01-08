@@ -19,7 +19,7 @@ const DEVICES = {
   PYTHON: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
 // KAREL: enable clang
-export type AllDevices = keyof typeof DEVICES | 'CLANG'
+export type AllDevices = keyof typeof DEVICES
 export type DeviceType = AllDevices | `${AllDevices}:${string}`
 
 export class _Device {

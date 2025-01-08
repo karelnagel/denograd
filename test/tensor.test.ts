@@ -134,15 +134,15 @@ Deno.test(
       return [
         await t.get(undefined).tolist(),
         await t.get('...').tolist(),
-        await  t.reshape([5, 2]).tolist(),
-        await  t.get(0).tolist(),
-        await   t.get(9).tolist(),
-        await   t.get({ start: 2, stop: 2 }).tolist(),
-        await   t.reshape([2, 5]).get(0, 4).tolist(),
+        await t.reshape([5, 2]).tolist(),
+        await t.get(0).tolist(),
+        await t.get(9).tolist(),
+        await t.get({ start: 2, stop: 2 }).tolist(),
+        await t.reshape([2, 5]).get(0, 4).tolist(),
         // await t.get({ start: 2, stop: 6 }).tolist(), // float tensor fails uop verification
-        await  t.reshape([2, 5]).get(1).tolist(),
-        await   t.get({ start: 0, stop: 2 }).tolist(),
-        await  t.reshape([5, 2]).get({ start: 1, stop: 2 }).tolist(),
+        await t.reshape([2, 5]).get(1).tolist(),
+        await t.get({ start: 0, stop: 2 }).tolist(),
+        await t.reshape([5, 2]).get({ start: 1, stop: 2 }).tolist(),
         // await t.reshape([5, 2]).get({ start: 1, stop: 3 }).tolist(), // float tensor fails uop verification
       ]
     },
@@ -458,7 +458,7 @@ Deno.test(
       [[2, 4], 2],
       [[4, 2], 3],
     ],
-    Tensor.full,
+    (shape: number[], fill: number) => Tensor.full(shape, fill),
     'out(tiny.Tensor.full(*data))',
   ),
 )
