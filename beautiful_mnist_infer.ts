@@ -29,7 +29,7 @@ if (import.meta.main) {
   const [X_train, Y_train, X_test, Y_test] = await mnist(undefined, !!get_env('FASHION'))
 
   const model = new MNIST()
-
-  const res = await model.call(X_train.get(1).reshape([1, 1, 28, 28])).tolist()
+  const samples = Tensor.randint([1], undefined, X_train.shape[0] as number)
+  const res = await model.call(X_train.get(samples)).tolist()
   console.log(res)
 }

@@ -15,7 +15,6 @@ export class ClangCompiler extends Compiler {
   }
 
   override compile = (src: string): Uint8Array => {
-    console.log(src)
     // KAREL: TODO: try without files
     const code = Deno.makeTempFileSync()
     const bin = Deno.makeTempFileSync()
@@ -39,7 +38,6 @@ export class ClangProgram extends Program {
     if (!name) throw new Error("Name can't be undefined")
   }
   override call = cpuTimeExecution(async (bufs: MemoryView[], vals: any, wait = false) => {
-    console.log({ vals })
     const file = await Deno.makeTempFile()
     await Deno.writeFile(file, this.lib)
     const fxn = Deno.dlopen(file, {

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, isNone, isNotNone, stringToBytes } from '../helpers.ts'
+import { assert, dataclass, diskcache_get, diskcache_put, get_env, get_key, get_number_env, isNone, isNotNone, setDefault, stringToBytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -21,13 +21,16 @@ export class BufferSpec {
 
 // # TODO: size, dest, src are the same type. can we enforce this?
 export abstract class Allocator<AllocRes = MemoryView> {
-  //   # overriden in LRUAllocator
-
-  alloc = (size: number, options?: BufferSpec): AllocRes => {
+  // using instead of super.alloc()
+  _super_alloc = (size: number, options?: BufferSpec): AllocRes => {
     assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
     return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
   }
-  free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._free(opaque, isNotNone(options) ? options : new BufferSpec())
+  //   # overriden in LRUAllocator
+  alloc = (size: number, options?: BufferSpec) => this._super_alloc(size, options)
+
+  _super_free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._free(opaque, isNotNone(options) ? options : new BufferSpec())
+  free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._super_free(opaque, size, options)
 
   //   # implemented by the runtime
   abstract _alloc: (size: number, options: BufferSpec) => AllocRes
@@ -44,32 +47,28 @@ export abstract class Allocator<AllocRes = MemoryView> {
  * It ensures that buffers are not freed until it is absolutely necessary, optimizing performance.
  */
 export abstract class LRUAllocator extends Allocator {
-  cache = new Map<[number, BufferSpec | undefined], any>()
+  cache = new Map<string, { size: number; options?: BufferSpec; opaques: MemoryView[] }>()
   override alloc = (size: number, options?: BufferSpec) => {
-    // KAREL: TODO: enable cache
-    // const c = this.cache.get([size, options])
-    // console.log(c)
-    // if (c.length) return c.pop()
+    const c = setDefault(this.cache, get_key([size, options]), { size, options, opaques: [] })
+    if (c.opaques.length) return c.opaques.pop()!
     try {
-      assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-      return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
+      return this._super_alloc(size, options)
     } catch {
       this.free_cache()
-      assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-      return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
+      return this._super_alloc(size, options)
     }
   }
   free_cache = () => {
-    for (const [[sz, options], opaques] of this.cache.entries()) {
-      for (const opaque of opaques) {
-        this._free(opaque, isNotNone(options) ? options : new BufferSpec())
-      }
-      opaques.clear()
+    for (const { size, options, opaques } of this.cache.values()) {
+      for (const opaque of opaques) this._super_free(opaque, size, options)
+      opaques.splice(0, opaques.length)
     }
   }
+  // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
-    if (get_number_env('LRU', 1) && (isNone(options) || !options.nolru)) this.cache.get([size, options]).append(opaque)
-    else this._free(opaque, isNotNone(options) ? options : new BufferSpec())
+    if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
+      setDefault(this.cache, get_key([size, options]), { size, opaques: [], options }).opaques.push(opaque)
+    } else this._super_free(opaque, size, options)
   }
 }
 

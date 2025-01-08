@@ -137,7 +137,7 @@ export class Buffer {
   get nbytes() {
     return this.size * this.dtype.itemsize
   }
-  __del__ = () => {
+  del = () => {
     if (!this.is_allocated()) return
     if (isNone(this._base) && (isNone(this.options) || isNone(this.options.external_ptr))) {
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used -= this.nbytes
