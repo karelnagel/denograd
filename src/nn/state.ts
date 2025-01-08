@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { bytesToString, DEBUG, isinstance, stringToBytes } from '../helpers.ts'
+import { bytesToString, DEBUG, isEq, isinstance, stringToBytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 import { tqdm } from '../tqdm.ts'
 
@@ -26,7 +26,7 @@ export const inverse_safe_dtypes = new Map(Object.entries(safe_dtypes).map(([k, 
  */
 export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, number, Record<string, any>]> => {
   if (typeof t === 'string') t = new Tensor(t)
-  const data_start = await t.get({ start: 0, stop: 8 }).data().then((x) => x.cast('b').getValue(0) + 8)
+  const data_start = await t.get({ start: 0, stop: 8 }).data().then((x) => x.cast('i').getValue(0) + 8)
   return [t, data_start, JSON.parse(bytesToString(await t.get({ start: 8, stop: data_start }).data().then((x) => x.toBytes())))]
 }
 /**
@@ -132,7 +132,7 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
       if (DEBUG >= 1) console.log(`WARNING: !loading ${k}`)
       continue
     }
-    if (v.shape !== state_dict[k].shape) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
+    if (!isEq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
     //     // if isinstance((mlb:=v.lazydata), MultiLazyBuffer):
     //     //   if isinstance(state_dict[k].lazydata, MultiLazyBuffer): v.replace(state_dict[k]).realize()
     //     //   else: v.replace(state_dict[k].shard(mlb.device, mlb.axis)).realize()

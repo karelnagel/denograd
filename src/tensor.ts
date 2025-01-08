@@ -925,7 +925,6 @@ export class Tensor extends MathTrait<Tensor> {
    */
   backward = (gradient?: Tensor, retain_graph = false): Tensor => {
     const toposorted = this._deepwalk()
-    console.log(toposorted.length,toposorted)
     if (gradient === undefined) {
       assert(isEq(this.shape, []), 'when no gradient === provided, backward must be called on a scalar tensor')
       // fill in the first grad with one. don't use Tensor.ones because we don't need contiguous
@@ -1812,7 +1811,7 @@ export class Tensor extends MathTrait<Tensor> {
   argmax = (axis?: number, keepdim = false): Tensor => {
     if (axis === undefined) return this.flatten().argmax(0)
     axis = this._resolve_dim(axis)
-    const m = this === this.max(axis, true)
+    const m = this.eq(this.max(axis, true))
     const idx = Tensor.arange(this.shape.at(axis)! as number, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape.at(axis)!, ...range(this.ndim - axis - 1).map(() => 1)]).mul(m, true)
     return (idx.max(axis, keepdim).sub(this.shape.at(axis) as number, true)).cast(dtypes.int32)
   }
