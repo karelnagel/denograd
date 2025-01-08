@@ -495,7 +495,7 @@ export const pm_render = new PatternMatcher([
 
 export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   assert(sink.op === Ops.SINK, `sink isn't sink, it's ${sink.op}`)
-  const supported_ops = isNotNone(opts) ? Object.keys(opts?.code_for_op) : []
+  const supported_ops = isNotNone(opts) ? [...opts.code_for_op.keys()] : []
   const extra_matcher = isNotNone(opts) && isNotNone(opts.extra_matcher) ? opts.extra_matcher : new PatternMatcher([])
 
   //   # initial symbolic + migrate indexing (remove this)
