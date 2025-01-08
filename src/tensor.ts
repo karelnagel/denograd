@@ -3292,11 +3292,11 @@ export class Tensor extends MathTrait<Tensor> {
   }
   // ***** cast ops *****
 
-  // llvm_bf16_cast = (dtype: DTypeLike) => {
-  //   // hack for devices that don't support bfloat16
-  //   assert(this.dtype === dtypes.bfloat16)
-  //   return this.to('LLVM').bitcast(dtypes.uint16).cast(dtypes.uint32).mul(1 << 16).bitcast(dtypes.float32).cast(dtype)
-  // }
+  llvm_bf16_cast = (dtype: DTypeLike) => {
+    // hack for devices that don't support bfloat16
+    assert(this.dtype === dtypes.bfloat16)
+    return this.to('LLVM' as any).bitcast(dtypes.uint16).cast(dtypes.uint32).mul(1 << 16).bitcast(dtypes.float32).cast(dtype)
+  }
 
   /**
    * Casts `this` to the given `dtype`.
