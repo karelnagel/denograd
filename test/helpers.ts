@@ -24,24 +24,24 @@ dtypes // needed to force the import
 
 export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
 
-export const asdict = (o: any): any => {
+export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined
   if (typeof o === 'number' && Number.isFinite(o)) return Math.round(o * 10000) / 10000
-  if (Array.isArray(o)) return o.map(asdict)
+  if (Array.isArray(o)) return await Promise.all(o.map(async (x) => await asdict(x)))
   if (o === undefined || o === null) return o
   if (typeof o === 'bigint') return o.toString()
   if (o instanceof Enum) return o.toString()
-  if (o instanceof Set) return [...o.values().map((v) => asdict(v))]
+  if (o instanceof Set) return await Promise.all([...o.values().map(async (v) => await asdict(v))])
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
   if (o instanceof UOp) return o.toString()
-  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: asdict(o.tolist()) }
+  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: await asdict(await o.tolist()) }
 
   if (o instanceof Map) {
-    const res = [...o.entries().map(([k, v]) => [asdict(k), asdict(v)])]
+    const res = await Promise.all([...o.entries().map(async ([k, v]) => [await asdict(k), await asdict(v)])])
     return typeof res.at(0)?.at(0) === 'object' ? res : Object.fromEntries(res) // If it's Map<string,...> then return object, otherwise array
   }
-  if (typeof o === 'object') return Object.fromEntries(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(([k, v]) => [k, asdict(v)]))
+  if (typeof o === 'object') return Object.fromEntries(await Promise.all(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(async ([k, v]) => [k, await asdict(v)])))
   return o
 }
 export const tryCatch = <Args extends any[], Return>(fn: (...a: Args) => Return): (...a: Args) => Return | string => {
@@ -234,7 +234,7 @@ export const compare = <T extends any[] = any[]>(inputs: T[] | (() => T[]), fn: 
               expect(`${ts}\n\nsimilarity:${similarity}`).toEqual(`${py}\n\nsimilarity:${similarity}`)
             }
           } else {
-            expect(removeKeys(asdict(ts), options.ignoreKeys)).toEqual(removeKeys(asdict(py), options.ignoreKeys))
+            expect(removeKeys(await asdict(ts), options.ignoreKeys)).toEqual(removeKeys(await asdict(py), options.ignoreKeys))
           }
         },
       })

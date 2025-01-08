@@ -18,7 +18,7 @@ Deno.test(
   ),
 )
 
-Deno.test.ignore(
+Deno.test(
   'mnist.get.tensor',
   compare(
     [[]],
