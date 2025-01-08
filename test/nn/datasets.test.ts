@@ -10,7 +10,7 @@ Deno.test(
     expect(X_test.shape).toEqual([10_000, 1, 28, 28])
     expect(Y_test.shape).toEqual([10_000])
 
-    const train = X_train.get(69).tolist() as any
+    const train = await X_train.get(69).tolist() as any
     expect(train.length).toBe(1)
     for (const row of train[0]) {
       for (const x of row) expect(x).toBeGreaterThanOrEqual(0), expect(x).toBeLessThanOrEqual(255)

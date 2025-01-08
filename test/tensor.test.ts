@@ -23,7 +23,7 @@ Deno.test(
       [new Tensor(4.55)],
       [new Tensor(true)],
     ],
-    (t: Tensor) => t.item(),
+    async (t: Tensor) => await t.item(),
     'out(data[0].item())',
   ),
 )
@@ -76,7 +76,7 @@ Deno.test(
       [new Tensor([4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5]), [1, 10]],
       [new Tensor([4, 4, 4, 2, 6.5, 1, 2, 3, 4, 5]), [1, 1, 10]],
     ],
-    tryCatch((t: Tensor, shape: number[]) => t._broadcast_to(shape).tolist()),
+    tryCatch(async (t: Tensor, shape: number[]) => await t._broadcast_to(shape).tolist()),
     'out(data[0]._broadcast_to(data[1]).tolist())',
   ),
 )
@@ -87,20 +87,20 @@ Deno.test(
     () => [
       [new Tensor([4, 11, 255, 2, 65, 1, 24, 3, 1, 5])],
     ],
-    (t: Tensor) => {
+    async (t: Tensor) => {
       return [
-        t.get(undefined).data(),
-        t.get('...').data(),
-        t.reshape([5, 2]).data(),
-        t.get(0).data(),
-        t.get(9).data(),
-        t.get({ start: 2, stop: 2 }).data(),
-        t.reshape([2, 5]).get(0, 4).data(),
-        t.get({ start: 2, stop: 6 }).data(),
-        t.reshape([2, 5]).get(1).data(),
-        t.get({ start: 0, stop: 2 }).data(),
-        t.reshape([5, 2]).get({ start: 1, stop: 2 }).data(),
-        t.reshape([5, 2]).get({ start: 1, stop: 3 }).data(),
+        await t.get(undefined).data(),
+        await t.get('...').data(),
+        await t.reshape([5, 2]).data(),
+        await t.get(0).data(),
+        await t.get(9).data(),
+        await t.get({ start: 2, stop: 2 }).data(),
+        await t.reshape([2, 5]).get(0, 4).data(),
+        await t.get({ start: 2, stop: 6 }).data(),
+        await t.reshape([2, 5]).get(1).data(),
+        await t.get({ start: 0, stop: 2 }).data(),
+        await t.reshape([5, 2]).get({ start: 1, stop: 2 }).data(),
+        await t.reshape([5, 2]).get({ start: 1, stop: 3 }).data(),
       ]
     },
     [
@@ -130,20 +130,20 @@ Deno.test(
       [new Tensor([4, 11, 255, 2, 65, 1, 24, 3, 1, 5])],
       [new Tensor([4.2, 11.7, 255.1, 2.9, 65.3, 1.4, 24.8, 3.6, 1.1, 5.5])],
     ],
-    (t) => {
+    async (t) => {
       return [
-        t.get(undefined).tolist(),
-        t.get('...').tolist(),
-        t.reshape([5, 2]).tolist(),
-        t.get(0).tolist(),
-        t.get(9).tolist(),
-        t.get({ start: 2, stop: 2 }).tolist(),
-        t.reshape([2, 5]).get(0, 4).tolist(),
-        // t.get({ start: 2, stop: 6 }).tolist(), // float tensor fails uop verification
-        t.reshape([2, 5]).get(1).tolist(),
-        t.get({ start: 0, stop: 2 }).tolist(),
-        t.reshape([5, 2]).get({ start: 1, stop: 2 }).tolist(),
-        // t.reshape([5, 2]).get({ start: 1, stop: 3 }).tolist(), // float tensor fails uop verification
+        await t.get(undefined).tolist(),
+        await t.get('...').tolist(),
+        await  t.reshape([5, 2]).tolist(),
+        await  t.get(0).tolist(),
+        await   t.get(9).tolist(),
+        await   t.get({ start: 2, stop: 2 }).tolist(),
+        await   t.reshape([2, 5]).get(0, 4).tolist(),
+        // await t.get({ start: 2, stop: 6 }).tolist(), // float tensor fails uop verification
+        await  t.reshape([2, 5]).get(1).tolist(),
+        await   t.get({ start: 0, stop: 2 }).tolist(),
+        await  t.reshape([5, 2]).get({ start: 1, stop: 2 }).tolist(),
+        // await t.reshape([5, 2]).get({ start: 1, stop: 3 }).tolist(), // float tensor fails uop verification
       ]
     },
     [
