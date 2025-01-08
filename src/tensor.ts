@@ -896,19 +896,21 @@ export class Tensor extends MathTrait<Tensor> {
   // ***** toposort && backward pass *****
 
   _deepwalk = (): Tensor[] => {
-    const _walk = function* (node: Tensor, visited: Set<Tensor>): Generator<any> {
+    const _walk = (node: Tensor, visited: Set<Tensor>): Tensor[] => {
+      const res: Tensor[] = []
       visited.add(node)
       // if tensor isn't leaf, reset grad
       const ctx = node._ctx
       if (ctx !== undefined && ctx.parents!.length !== 0) node.grad = undefined
       if (ctx) {
-        for (const parent of ctx.parents!) {
-          if (!visited.has(parent)) yield* _walk(parent, visited)
+        for (const i of node._ctx!.parents!) {
+          if (!visited.has(i)) res.concat(_walk(i, visited))
         }
+        res.push(node)
       }
-      yield node
+      return res
     }
-    return Array.from(_walk(this, new Set<Tensor>()))
+    return _walk(this, new Set<Tensor>())
   }
 
   /**
@@ -923,6 +925,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   backward = (gradient?: Tensor, retain_graph = false): Tensor => {
     const toposorted = this._deepwalk()
+    console.log(toposorted.length,toposorted)
     if (gradient === undefined) {
       assert(isEq(this.shape, []), 'when no gradient === provided, backward must be called on a scalar tensor')
       // fill in the first grad with one. don't use Tensor.ones because we don't need contiguous
