@@ -493,16 +493,16 @@ export class Tensor extends MathTrait<Tensor> {
     this.lazydata = x.lazydata
     return this
   }
-
+  assign_disk = async (x: Tensor | number[] | string | Uint8Array): Promise<Tensor> => {
+    if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
+    if (typeof this.device === 'string' && !this.device.startsWith('DISK')) throw new Error('This can be only used with DISK device')
+    ;(await this.contiguous().realize()).lazydata.base.realized!.copyin(await x._data())
+    return this
+  }
   assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     //   // TODO: this is a hack for writing to DISK. remove with working assign
-    if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
-      // if x.__class__ !== Tensor: x = new Tensor(x, device="CLANG", dtype=this.dtype)
-      throw new Error("TODO: realize is async, but I'd like to not make assign async, so maybe there's a better way")
-      // this.contiguous().realize().lazydata.base.realized!.copyin(x._data())
-      // return this
-    }
+    if (typeof this.device === 'string' && this.device.startsWith('DISK')) throw new Error("Use async assign_disk instead, until disk get's good assign")
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign

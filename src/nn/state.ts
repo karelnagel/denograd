@@ -65,9 +65,9 @@ export const safe_save = async (tensors: Record<string, Tensor>, fn: string, met
   j += '\x20'.repeat((8 - j.length % 8) % 8)
   // pathlib.Path(fn).unlink(missing_ok=true)
   const t = Tensor.empty([8 + j.length + offset], { dtype: dtypes.uint8, device: `DISK:${fn}` })
-  t.get({ start: 0, stop: 8 }).bitcast(dtypes.int64).assign([j.length])
-  t.get({ start: 8, stop: 8 + j.length }).assign(stringToBytes(j))
-  for (const [k, v] of Object.entries(await safe_load(t))) v.assign(tensors[k])
+  await t.get({ start: 0, stop: 8 }).bitcast(dtypes.int64).assign_disk([j.length])
+  await t.get({ start: 8, stop: 8 + j.length }).assign_disk(stringToBytes(j))
+  for (const [k, v] of Object.entries(await safe_load(t))) await v.assign_disk(tensors[k])
 }
 // state dict
 
