@@ -243,8 +243,8 @@ Deno.test(
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([1, 1, 6]), new Tensor([4, 4, 3, 3, 3, 6])],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([2, 3]), new Tensor([4, 4, 3, 3, 3, 6]).reshape([2, 3])],
     ],
-    (t1: Tensor, t2: Tensor) => t1.maximum(t2)._debug_ast(),
-    'out(data[0].maximum(data[1])._debug_ast())',
+    (t1: Tensor, t2: Tensor) => t1.maximum(t2),
+    'out(data[0].maximum(data[1]))',
   ),
 )
 Deno.test(
@@ -255,8 +255,8 @@ Deno.test(
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([1, 1, 6]), new Tensor([4, 3, 3, 3, 3, 6])],
       [new Tensor([4, 4, 4, 2, 6, 5]).reshape([2, 3]), new Tensor([1, 2, 3, 3, 3, 6]).reshape([2, 3])],
     ],
-    (t1, t2) => t1.minimum(t2)._debug_ast(),
-    'out(data[0].minimum(data[1])._debug_ast())',
+    (t1, t2) => t1.minimum(t2),
+    'out(data[0].minimum(data[1]))',
   ),
 )
 
