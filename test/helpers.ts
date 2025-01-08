@@ -26,10 +26,10 @@ export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, r
 
 export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined
-  if (typeof o === 'number' && Number.isFinite(o)) return Math.round(o * 10000) / 10000
+  if (typeof o === 'number' && Number.isFinite(o)) return (Math.round(o * 10000) / 10000).toString()
   if (Array.isArray(o)) return await Promise.all(o.map(async (x) => await asdict(x)))
   if (o === undefined || o === null) return o
-  if (typeof o === 'bigint' || typeof o === 'number') return o.toString()
+  if (typeof o === 'bigint') return o.toString()
   if (o instanceof Enum) return o.toString()
   if (o instanceof Set) return await Promise.all([...o.values().map(async (v) => await asdict(v))])
   if (o instanceof DType) return o.toString()
