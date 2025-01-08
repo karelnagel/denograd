@@ -120,8 +120,11 @@ export class CStyleLanguage extends Renderer {
     const r = new Map<UOp, string>()
     this.r = r
 
-    // KAREL: it didn't seem to do anything
-    // const child_count = Counter(uops.flatMap((ru) => ru.src.map((v) => v)))
+    const child_count = new Map<UOp, number>()
+    for (const u of uops) {
+      for (const v of u.src) child_count.set(v, (child_count.get(v) || 0) + 1)
+    }
+
     const bufs = new Map<UOp, [string, [DType, boolean]]>()
     const kernel = []
     let depth = 1
@@ -165,7 +168,12 @@ export class CStyleLanguage extends Renderer {
       assert(isNotNone(l), `failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)
 
       if ([Ops.ENDIF, Ops.ENDRANGE].includes(u.op)) depth -= 1
-      if ([Ops.CONST, Ops.GEP, Ops.INDEX].includes(u.op) || ([Ops.VECTORIZE, ...GroupOp.ALU, Ops.CAST, Ops.BITCAST].includes(u.op) && !get_env('EXPAND_SSA'))) {
+      if (
+        [Ops.CONST, Ops.GEP, Ops.INDEX].includes(u.op) ||
+        ([Ops.VECTORIZE, ...GroupOp.ALU, Ops.CAST, Ops.BITCAST].includes(u.op) &&
+          (child_count.get(u) || 0) === 1 &&
+          !get_env('EXPAND_SSA'))
+      ) {
         r.set(u, l!)
       } else {
         if ([Ops.RANGE, Ops.ASSIGN, Ops.DEFINE_LOCAL].includes(u.op) || u.dtype === dtypes.void) {
