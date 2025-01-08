@@ -41,7 +41,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat(Ops.CONST).named('x'), ({ ctx, x }) => x.arg.toString()],
   // new load/store
   [new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]), ({ ctx, buf, idx }) => `(${ctx.get(buf)}+${idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)})`],
-  [new UPat(Ops.LOAD, undefined, [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')]), ({ ctx, bidx, var1, gate }) => `(${ctx.get(gate)}?*${ctx.get(bidx)}:${ctx.get(var1)})`],
+  [new UPat(Ops.LOAD, undefined, [UPat.var('bidx'), UPat.var('var'), UPat.var('gate')]), (x) => `(${x.ctx.get(x.gate)}?*${x.ctx.get(x.bidx)}:${x.ctx.get(x.var)})`],
   [new UPat(Ops.LOAD, undefined, [UPat.var('bidx')], undefined, undefined, true), ({ ctx, bidx }) => `*${ctx.get(bidx)}`],
   [new UPat(Ops.STORE, undefined, [UPat.var('bidx'), UPat.var('var')], undefined, undefined, true), (p) => `*${p.ctx.get(p.bidx)} = ${p.ctx.get(p.var)};`],
   // alu/gep
