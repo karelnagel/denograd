@@ -6,7 +6,7 @@ const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR
 
 export const disp = (y: UOp): string => {
   if (y.op === Ops.BLOCKSTART) return 'w' + disp(y.src[0])
-  if (y.op === Ops.IF) return `IF${y.key}` // KAREL: not sure
+  if (y.op === Ops.IF) return `IF${y.key}`
   if (y.op === Ops.RANGE) return y.arg.toString()
   return '<NONE>'
 }
@@ -112,7 +112,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
     }
   }
   if (to_append.length === 0 && placed.size === 0) return undefined
-  return new UOp(x.op, dtypes.void, new_srcs, new BasicBlock(new_ctx.toSorted((a, b) => isLessThan(a.tuplize, b.tuplize) ? -1 : 1), /**KAREL: not sure about sort */ [...to_append, ...x.arg.lst], x.arg.end))
+  return new UOp(x.op, dtypes.void, new_srcs, new BasicBlock(new_ctx.toSorted((a, b) => isLessThan(a.tuplize, b.tuplize) ? -1 : 1), [...to_append, ...x.arg.lst], x.arg.end))
 }
 export const pm_block_merge = new PatternMatcher<{ ctx: Map<UOp, UOp[]>; x: UOp }>([[new UPat([Ops.BLOCKEND, Ops.BLOCK]).named('x'), ({ ctx, x }) => block_merge(ctx, x)]])
 
@@ -144,7 +144,6 @@ export const block_reorder = (in_block: UOp): UOp => {
       if (priA !== priB) return priA - priB
       // Compare tuplize as secondary sort key
       // Assuming tuplize comparison works similar to Python
-      // KAREL: probably doesn't work every time correctly
       return isLessThan(a.tuplize, b.tuplize) ? -1 : 1
     })
   }

@@ -78,7 +78,7 @@ Deno.bench({
 })
 
 // Test
-const batch = 512
+const batch = 4
 Deno.bench({
   name: 'mnist.test.py',
   group: 'mnist.test',

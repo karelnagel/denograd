@@ -6,7 +6,7 @@ import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 
-// KAREL: all this lazycache is wrong but it is still somehow needed to not fail
+// TODO: enable lazycache
 // const lazycache = new Map<string, LazyBuffer>()
 export const create_lazybuffer = (device: DeviceType, st: ShapeTracker, dtype: DType, op?: Ops, arg?: any, srcs: LazyBuffer[] = [], base?: LazyBuffer, enable_cache = Boolean(LAZYCACHE)) => {
   dtype = to_dtype(dtype)
@@ -166,7 +166,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   override alu = (op: Ops, ...in_srcs: LazyBuffer[]): LazyBuffer => {
     const srcs: LazyBuffer[] = []
     for (const s of [this, ...in_srcs]) {
-      if (isEq(s, s.base) && s.base.contiguous_child) { // KAREL: idk maybe it's never true
+      if (isEq(s, s.base) && s.base.contiguous_child) {
         const root = s.base.contiguous_child[0].deref()
         if (root !== undefined) srcs.push(root._view(s.base.contiguous_child[1]))
       } else {

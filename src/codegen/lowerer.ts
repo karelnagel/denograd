@@ -64,7 +64,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const first_reduce = min([first_upcasted, ...ast.toposort.values().filter((x) => x.op === Ops.REDUCE_AXIS).flatMap((x) => x.axis_arg)])
   const local_loads = ast.toposort.values().filter((x) => x.op === Ops.LOAD && x.src[0].op === Ops.DEFINE_LOCAL)
   // NOTE: sum up the reduced axes looking across all local loads, yields the number of grouped reduces
-  const group_for_reduces = range(first_reduce, first_upcasted).filter((i) => local_loads.some((l) => l.st_arg.shape[i] !== ast.src[0].st_arg.shape[i])).length //KAREL: not sure
+  const group_for_reduces = range(first_reduce, first_upcasted).filter((i) => local_loads.some((l) => l.st_arg.shape[i] !== ast.src[0].st_arg.shape[i])).length
   const global_dims = first_reduce - ki.local_dims
 
   let idxs
@@ -89,7 +89,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   // upcast loops
   for (const [i, g] of full_shape.slice(first_upcasted).entries()) {
     assert(isinstance(g, Number), 'needs to be int to upcast/unroll')
-    idxs.push(new UOp(Ops.EXPAND, dtypes.int, [UOp.const(dtypes.int.vec(g as number), range(g as number))], [[i + first_upcasted, g]])) // KAREL: not sure about g, but it is also sint in tiny
+    idxs.push(new UOp(Ops.EXPAND, dtypes.int, [UOp.const(dtypes.int.vec(g as number), range(g as number))], [[i + first_upcasted, g]]))
   }
   // late indexes (group for reduce)
   const ridxs = [...idxs]
@@ -114,12 +114,12 @@ export const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   if (!reduce_range.length) return ret
   // create ACC and assign
   const acc = new UOp(Ops.DEFINE_ACC, x.dtype, [x.const_like(identity_element(alu_op, x.dtype.scalar())), ...reduce_range], [ctx.acc_num + 0])
-  ctx = { ...ctx, acc_num: ctx.acc_num + 1 } // KAREL: not sure, ctx.acc_num += 1 makes tests fail
+  ctx = { ...ctx, acc_num: ctx.acc_num + 1 } // not sure, ctx.acc_num += 1 makes tests fail
   return acc.assign(acc.alu(alu_op, ret))
 }
 export const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {
   let [idx, valid] = x.st_arg.to_indexed_uops(x.op === Ops.LOAD && x.src[0].op === Ops.DEFINE_LOCAL ? ctx.ridxs : ctx.idxs)
-  // KAREL: check has_valid in UPat, not here
+  // TODO: check has_valid in UPat, not here
   let has_valid = valid.op !== Ops.CONST || valid.arg !== true
   const buf = x.src[0]
   if (x.op === Ops.LOAD) {

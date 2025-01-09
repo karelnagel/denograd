@@ -106,8 +106,7 @@ export const payne_hanek_reduction = (d: UOp): [UOp, UOp] => {
 
   // round quotient to nearest
   const q = shr(p, 62).cast(dtypes.int32)
-  // KAREL: todo: too large value
-  p = p.bitwise_and(0x3fffffffffffffff)
+  p = p.bitwise_and(0x3fffffffffffffffn)
   const r = (p.cast(intermediate_dtype).mul(3.4061215800865545e-19)).cast(d.dtype)
 
   // if fraction >= 0.5, r -= pi/2, q += 1

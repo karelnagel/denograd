@@ -168,7 +168,7 @@ export class ExecItem {
         const lds_est = sym_infer(this.prg.lds_estimate, var_vals)
         mem_est = Math.min(mem_est, lds_est) // there can't be more memory accessed than loads/stores. remove this when symbolic === fixed
         const ptm = et !== undefined ? (et > 0.01 ? colored(`${(et * 1e3).toFixed(2)}ms`, 'yellow') : `${(et * 1e6).toFixed(2)}us`) : ''
-        // KAREL: Fucking hell, skipping this for now
+        // KAREL: skipping this for now
         //         console.log(`${colored(f'*** {this.prg.device[:7]:7s} ${GlobalCounters.kernel_count:4d}', 'magenta' if (jit else ('green' if this.prg.first_run else undefined))} ${this.prg.display_name+' '*(41-ansithis.prg.display_name.length)} arg ${bufs.length:2d} mem ${GlobalCounters.mem_used/1e9:5.2f} GB ` +  // noqa) E501
         //               (string() if (et === undefined else `tm ${ptm}/${GlobalCounters.time_sum_s*1e3:9.2f}ms (${op_est/((et || 1e-20)*1e9):9.2f} GFLOPS ${mem_est/((et || 1e-20)*1e9):6.1f}|${lds_est/((et || 1e-20)*1e9):<7.1f} GB/s)` +  // noqa) E501
         //                ` ${[repr(m) if TRACEMETA >= 2 else string(m) for m in this.metadata] if this.metadata else ''}`))

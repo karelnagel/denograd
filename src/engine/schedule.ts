@@ -13,7 +13,6 @@ const BUF_LIMIT = { 'METAL': 32 }
 
 // **** ScheduleItem return type
 
-// @DataClass //KAREL: not sure
 export class ScheduleItem {
   constructor(public ast: UOp, public bufs: Buffer[], public metadata: Metadata[], public assign_preloads: Set<UOp>) {}
   /**
@@ -40,7 +39,6 @@ export class ScheduleItem {
 
 // // **** Schedule context && big graph
 
-// @DataClass // maybe needed
 export class ScheduleContext {
   constructor(
     public lazybufs = new Map<UOp, LazyBuffer>(), // this maps BUFFER uops of this schedule to the underlying lazybuffer

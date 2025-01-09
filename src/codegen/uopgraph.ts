@@ -322,7 +322,7 @@ export const _expand_arg_to_idx = (args: [number, number][], rpk: Record<number,
   return idx
 }
 export const _choices_from_args = (args: [number, number][]): Record<number, number>[] => {
-  return args.reduce((acc, [axis, m]) => acc.flatMap((d) => range(m).map((i) => ({ ...d, [axis]: i }))), [{}]) // KAREL: Can likely be wrong
+  return args.reduce((acc, [axis, m]) => acc.flatMap((d) => range(m).map((i) => ({ ...d, [axis]: i }))), [{}])
 }
 export const _swizzle_args = cache_fn((cargs: [number, number][], eargs: [number, number][], exclude_args: number[]): number[] => {
   return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? { ...rpk, ...Object.fromEntries(exclude_args.map((x) => [x, 0])) } : rpk))

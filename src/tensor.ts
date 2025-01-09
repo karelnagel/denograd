@@ -305,7 +305,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
   else {
     ret = LazyBuffer.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
     assert(dtype.fmt !== undefined, `${dtype} has undefined fmt`)
-    data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt }) //KAREL: not that sure
+    data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt })
   }
   //   // fake realize
   ret.buffer!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
@@ -580,7 +580,7 @@ export class Tensor extends MathTrait<Tensor> {
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
     if (device === this.device) return this
     if (typeof device !== 'string') {
-      throw new Error('KAREL: implement shard()')
+      throw new Error('Unimplemented shard()')
       // return this.shard(device)
     }
     const ret = new Tensor(this.lazydata, { device, requires_grad: this.requires_grad })
@@ -1092,8 +1092,7 @@ export class Tensor extends MathTrait<Tensor> {
       const _constant = (x: Tensor, px: [sint, sint][], v: number | bigint | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
       return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX, value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads, value)
     }
-    throw new Error('KAREL:Not needed for mnist!')
-    // KAREL: not needed for mnist
+    throw new Error('Not implemented')
     // assert(all_int(this.shape), `does !support symbolic shape ${this.shape}`)
     // if mode === "circular":
     //   if any(pB>sh || pA>sh for (const (pB,pA),sh of zip(pX, X.shape))){ raise ValueError('Padding value causes wrapping around more than once.')
@@ -1158,9 +1157,6 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   get = (...indices: TensorIndice[]): Tensor => {
-    // wrap single index into a list
-    // KAREL: this shouldn't be needed since it's always an array in TS
-    // if ((Array.isArray(indices) && all_int(indices)) || !Array.isArray(indices)) indices = [indices]
     // turn scalar Tensors into const val for number indexing if possible
     let x = this as Tensor
     indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) as number : i)
@@ -1171,7 +1167,7 @@ export class Tensor extends MathTrait<Tensor> {
     const fill_idx = ellipsis_idx.length ? ellipsis_idx[0] : indices.length
     const num_indices = indices.length - ellipsis_idx.length - indices.filter((i) => i === undefined).length
     if (num_indices > this.ndim) throw new Error(`too many ${num_indices} for ${this.ndim}`)
-    indices.splice(fill_idx, 1, ...Array(this.ndim - num_indices).fill({} as Slice)) //KAREL: not sure about 1
+    indices.splice(fill_idx, 1, ...Array(this.ndim - num_indices).fill({} as Slice))
 
     let [indices_parsed, dim] = [[] as { index: TensorIndice; size: number; boundary: [number, number]; stride: number }[], 0]
     for (let index of indices) {
@@ -1206,7 +1202,7 @@ export class Tensor extends MathTrait<Tensor> {
     const mops = indices_parsed.filter((i) => i.index !== undefined)
     if (mops.length) {
       //   // flip negative strides
-      let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)] // KAREL: not sure
+      let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)] 
       x = x.shrink(shrinks).flip([...strides.entries().filter(([i, st]) => st < 0).map(([i, st]) => i)])
       //   // handle stride !== 1 || -1
       if (strides.some((st) => Math.abs(st) !== 1)) {
