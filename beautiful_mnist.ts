@@ -7,6 +7,16 @@ import { get_env, get_number_env, GlobalCounters, range } from './src/helpers.ts
 import { tqdm } from './src/tqdm.ts'
 import { Model } from './src/nn/index.ts'
 
+export class SmallMNIST extends Model {
+  layers: Layer[] = [
+    new nn.Conv2d(1, 2, 3),
+    Tensor.relu,
+    Tensor.max_pool2d,
+    (x) => x.flatten(1), 
+    new nn.Linear(2 * 13 * 13, 10),
+  ];
+}
+
 export class MNIST extends Model {
   layers: Layer[] = [
     new nn.Conv2d(1, 32, 5),

@@ -1,9 +1,3 @@
-// // sorted in order of increasing complexity
-// from typing import List
-// from tinygrad.helpers import dedup, flatten, getenv
-// from tinygrad.tensor import Tensor
-// from tinygrad.dtype import dtypes, least_upper_dtype
-
 import { DeviceType } from '../device.ts'
 import { dtypes, least_upper_dtype } from '../dtype.ts'
 import { assert, dedup, get_env } from '../helpers.ts'
