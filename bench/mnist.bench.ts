@@ -129,7 +129,7 @@ Deno.bench({
     Tensor.manual_seed(3)
     const model = new MNIST()
     const [x_train, y_train] = await mnist()
-    const samples = Tensor.randint([batch], undefined, x_train.shape[0] as number)
+    const samples = Tensor.randint([batch], undefined, x_train.shape[0])
     await model.call(x_train.get(samples)).sparse_categorical_crossentropy(y_train.get(samples)).tolist()
   },
 })

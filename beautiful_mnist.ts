@@ -34,7 +34,7 @@ if (import.meta.main) {
 
   const train_step = async (): Promise<Tensor> => {
     opt.zero_grad()
-    const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0] as number)
+    const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0])
     // TODO: this "gather" of samples === very slow. will be under 5s when this === fixed
     const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
     await opt.step()
