@@ -423,7 +423,7 @@ export class Tensor extends MathTrait<Tensor> {
     throw new Error('__bool__ on Tensor !== defined')
   }
   override mod = (x: ConstType<Tensor>, reverse?: boolean) => {
-    throw new Error("KAREL: Tensor doesn't have mod, this is only here because I needed to extend MathTrait and not SimpleMathTrait")
+    throw new Error("Tensor doesn't have mod, this is only here because I needed to extend MathTrait and not SimpleMathTrait")
   }
   get length() {
     if (!this.shape.length) throw new Error('len() of a 0-d tensor')
@@ -432,8 +432,8 @@ export class Tensor extends MathTrait<Tensor> {
   get device(): DeviceType | DeviceType[] {
     return this.lazydata.device
   }
-  get shape(): sint[] {
-    return this.lazydata.shape
+  get shape(): number[] {
+    return this.lazydata.shape as number[]
   }
 
   get dtype(): DType {
@@ -855,7 +855,7 @@ export class Tensor extends MathTrait<Tensor> {
   static randint = (shape: number[], low = 0, high = 10, opts?: TensorOptions): Tensor => {
     if (!Number.isInteger(low) || !Number.isInteger(high)) throw new Error(`${low} && ${high} must be integers`)
     const dtype = to_dtype(opts?.dtype || dtypes.int32)
-    if (!dtypes.is_int(dtype)) throw new Error(`${dtype} must be number`)
+    if (!dtypes.is_int(dtype)) throw new Error(`${dtype} must be int`)
     return Tensor.uniform(shape, low, high, { ...opts, dtype })
   }
   /**
@@ -1233,7 +1233,7 @@ export class Tensor extends MathTrait<Tensor> {
       for (const [dim, tensor] of zip(dims, tensors)) {
         try {
           const i = tensor.reshape([...(tensor.shape as number[]), ...range(x.ndim - dims[0]).map(() => 1)]).expand(pre_reduce_shape as number[])
-          masks.push(i._one_hot_along_dim(x.shape[dim] as number, dim - x.ndim))
+          masks.push(i._one_hot_along_dim(x.shape[dim], dim - x.ndim))
         } catch (e) {
           throw new Error(`Can not broadcast indices: ${e}`)
         }
@@ -1281,7 +1281,7 @@ export class Tensor extends MathTrait<Tensor> {
     for (const arg of args) assert(arg.ndim === this.ndim && zip(this.shape, arg.shape).entries().filter(([i]) => i !== dim).every(([_, [ti, ai]]) => ti === ai))
     const tensors = [this, ...args]
 
-    const dim_cumsum = tensors.map((t) => t.shape[dim] as number).reduce((acc, curr, idx) => [...acc, (acc[idx] || 0) + curr], [0])
+    const dim_cumsum = tensors.map((t) => t.shape[dim]).reduce((acc, curr, idx) => [...acc, (acc[idx] || 0) + curr], [0])
     for (const [i, t] of tensors.entries()) tensors[i] = t.pad(range(t.ndim).map((j) => j === dim ? [dim_cumsum[i], dim_cumsum.at(-1)! - dim_cumsum[i + 1]] as [sint, sint] : undefined))
     return tensors.reduce((acc, x) => acc.add(x))
   }

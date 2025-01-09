@@ -1,6 +1,6 @@
 import { exec } from 'node:child_process'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../src/dtype.ts'
-import { Enum, isNotNone, Metadata, randomId } from '../src/helpers.ts'
+import { bytesToString, Enum, isNotNone, Metadata, randomId } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../src/ops.ts'
@@ -154,14 +154,22 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o?.constructor?.name === 'Object') return `{${(await Promise.all(Object.entries(o).map(async (entry) => await t`${entry[0]}:${entry[1]}`))).join(',')}}`
   throw new Error(`Invalid value: ${o.constructor.name} ${JSON.stringify(o)}`)
 }
+export const py_bench = async (b: Deno.BenchContext, code: string | string[]) => {
+  if (Array.isArray(code)) code = code.join('\n')
+  const file = `/tmp/tiny_${randomId()}.py`
+  await Deno.writeTextFile(file, code)
+  b.start()
+  const out = await new Deno.Command(`python3`, { env: { PYTHONPATH: './tinygrad' }, args: [file] }).output()
+  if (out.stdout.length) console.log(bytesToString(out.stdout))
+  if (!out.success) throw new Error(bytesToString(out.stderr))
+  b.end()
+}
+
 export const python = async <T = any>(code: string | string[], data?: any): Promise<T> => {
   if (Array.isArray(code)) code = code.join('\n')
   code = `
 import tinygrad as tiny
 import math
-import json
-from dataclasses import asdict
-import itertools
 from tinygrad.renderer import cstyle
 from tinygrad.ops import Ops
 from tinygrad.to_ts import to_ts
@@ -178,10 +186,9 @@ def out(o):
 ${code}
 `
   const file = `/tmp/tiny_${randomId()}.py`
-  console.log(file)
-  await execAsync(`echo ${JSON.stringify(code.trim())} > ${file}`)
+  await Deno.writeTextFile(file, code.trim())
   const [stdout, ts] = (await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
-  console.log(stdout)
+  if (stdout) console.log(stdout)
   try {
     return eval(ts)
   } catch (e) {

@@ -618,7 +618,7 @@ export class UPat extends MathTrait<UPat> {
     // only one if it's a tuple (we use src[])
     else if (Array.isArray(src)) this.src = [src as UPat[]]
     // repeat if it's a UPat
-    else if (src instanceof UPat) this.src = [range(100).map(() => src!) as UPat[]] // KAREL: this is a hack
+    else if (src instanceof UPat) this.src = [range(10).map(() => src!) as UPat[]] // KAREL: this is a hack
 
     // NOTE: This is here because we can't differentaite between list and tuple so we use Upat[][] to achieve the same thing as list. but after this part the difference isn't needed anymore so we convert back to UPat[]
     if (Array.isArray(src) && src?.length === 1 && Array.isArray(src[0])) src = src[0]
@@ -1210,7 +1210,7 @@ export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
-// KAREL: probably all these should be JS specific
+
 export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
   [new UPat([Ops.DEFINE_VAR, Ops.SPECIAL]).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg[0])],
   [new UPat(Ops.RANGE).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `ridx(${x.arg},)`)],
@@ -1219,7 +1219,7 @@ export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
   [new UPat(Ops.NEG, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `(-${x.src[0].arg})`)],
   [new UPat(Ops.MAX, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `max(${x.src[0].arg}, ${x.src[1].arg})`)],
   [new UPat(Ops.MULACC, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `(${x.src[0].arg}*${x.src[1].arg}+${x.src[2].arg})`)],
-  [new UPat(Ops.WHERE, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `(${x.src[1].arg} if ${x.src[0].arg} else ${x.src[2].arg})`)],
+  [new UPat(Ops.WHERE, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `(${x.src[0].arg} ? ${x.src[1].arg} : ${x.src[2].arg})`)],
   [new UPat(GroupOp.ALU, undefined, new UPat(Ops.NOOP), undefined, 'x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `(${x.src[0].arg}${syms.get(x.op)}${x.src[1].arg})`)],
 ])
 

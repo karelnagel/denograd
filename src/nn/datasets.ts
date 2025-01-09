@@ -5,12 +5,12 @@ import { tar_extract } from './state.ts'
 export const mnist = async (device = undefined, fashion = false): Promise<[Tensor, Tensor, Tensor, Tensor]> => {
   const base_url = fashion ? 'http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/' : 'https://storage.googleapis.com/cvdf-datasets/mnist/'
   const _mnist = (file: string) => Tensor.from_url(base_url + file, true)
-  return [
-    (await _mnist('train-images-idx3-ubyte.gz')).get({ start: 0x10 }).reshape([-1, 1, 28, 28]).to(device),
-    (await _mnist('train-labels-idx1-ubyte.gz')).get({ start: 8 }).to(device),
-    (await _mnist('t10k-images-idx3-ubyte.gz')).get({ start: 0x10 }).reshape([-1, 1, 28, 28]).to(device),
-    (await _mnist('t10k-labels-idx1-ubyte.gz')).get({ start: 8 }).to(device),
-  ]
+  return await Promise.all([
+    _mnist('train-images-idx3-ubyte.gz').then((x) => x.get({ start: 0x10 }).reshape([-1, 1, 28, 28]).to(device)),
+    _mnist('train-labels-idx1-ubyte.gz').then((x) => x.get({ start: 8 }).to(device)),
+    _mnist('t10k-images-idx3-ubyte.gz').then((x) => x.get({ start: 0x10 }).reshape([-1, 1, 28, 28]).to(device)),
+    _mnist('t10k-labels-idx1-ubyte.gz').then((x) => x.get({ start: 8 }).to(device)),
+  ])
 }
 
 export const cifar = async (device = undefined) => {

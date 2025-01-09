@@ -18,7 +18,6 @@ const DEVICES = {
   DISK: await import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
   PYTHON: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
-// KAREL: enable clang
 export type AllDevices = keyof typeof DEVICES
 export type DeviceType = AllDevices | `${AllDevices}:${string}`
 
