@@ -81,7 +81,7 @@ Deno.test(
       opt.zero_grad()
       const samples = new Tensor([1])
       const loss = model.call(x_train.get(samples)).sparse_categorical_crossentropy(y_train.get(samples)).backward()
-      // await opt.step()
+      await opt.step()
       Tensor.training = false
 
       return loss

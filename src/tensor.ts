@@ -28,10 +28,10 @@ export class Function {
     if (this.requires_grad) this.parents = tensors
     this.metadata = metadata
   }
-  forward = (..._args: any[]): any => {
+  forward = (..._args: any[]): LazyBuffer => {
     throw new Error(`forward !implemented for ${this}`)
   }
-  backward = (_grad_output: LazyBuffer): any => {
+  backward = (_grad_output: LazyBuffer): LazyBuffer | (LazyBuffer | undefined)[] => {
     throw new Error(`backward !implemented for ${this}`)
   }
 
@@ -179,7 +179,7 @@ export class Mul extends Function {
   x!: LazyBuffer
   y!: LazyBuffer
   override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => {
-    this.x, this.y = x, y
+    this.x = x, this.y = y
     return x.mul(y)
   }
   override backward = (grad_output: LazyBuffer): [LazyBuffer?, LazyBuffer?] => [
@@ -237,7 +237,7 @@ export class Max extends Function {
 export class Expand extends Function {
   expanded_axis!: number[]
   override forward = (x: LazyBuffer, shape: number[]): LazyBuffer => {
-    this.expanded_axis = zip(x.shape, shape).filter(([si, so]) => resolve(ne(si, so))).map((_, i) => i)
+    this.expanded_axis = [...zip(x.shape, shape).entries()].filter(([i, [si, so]]) => resolve(ne(si, so))).map(([i]) => i)
     return x.expand(shape)
   }
   override backward = (grad_output: LazyBuffer): LazyBuffer => {
@@ -893,14 +893,14 @@ export class Tensor extends MathTrait<Tensor> {
 
   _deepwalk = (): Tensor[] => {
     const _walk = (node: Tensor, visited: Set<Tensor>): Tensor[] => {
-      const res: Tensor[] = []
+      let res: Tensor[] = []
       visited.add(node)
       // if tensor isn't leaf, reset grad
       const ctx = node._ctx
       if (ctx !== undefined && ctx.parents!.length !== 0) node.grad = undefined
       if (ctx) {
         for (const i of node._ctx!.parents!) {
-          if (!visited.has(i)) res.concat(_walk(i, visited))
+          if (!visited.has(i)) res = [...res, ..._walk(i, visited)]
         }
         res.push(node)
       }
@@ -933,12 +933,12 @@ export class Tensor extends MathTrait<Tensor> {
       if (t0.grad === undefined) throw new Error(`tensor ${t0} has no grad`)
       const md = t0._ctx?.metadata
       const token = _METADATA.set(md !== undefined ? { ...md, backward: true } : undefined)
-      let grads: (Tensor | undefined)[] = t0._ctx!.backward(t0.grad.lazydata)
+      const lazys = t0._ctx!.backward(t0.grad.lazydata)
       _METADATA.reset(token)
-      grads = (t0._ctx?.parents?.length === 1 ? [grads] : grads).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
+      const grads = (!Array.isArray(lazys) ? [lazys] : lazys).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
       for (const [t, g] of zip(t0._ctx!.parents!, grads)) {
         if (g !== undefined && t.requires_grad) {
-          assert(isEq(g.shape, t.shape), `grad shape must match tensor shape, ${g.shape} !== ${t.shape}`)
+          assert(isEq(g.shape, t.shape), `grad shape must match tensor shape, ${listStr(g.shape)} !== ${listStr(t.shape)}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
         }
       }
