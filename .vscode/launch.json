@@ -29,6 +29,22 @@
       "env": {
         "PYTHONPATH": "/Users/karel/Documents/denograd/tinygrad"
       }
+    },
+    {
+      "request": "launch",
+      "name": "Deno tmp_infer",
+      "type": "node",
+      "program": "${workspaceFolder}/tmp_infer.ts",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": [
+        "run",
+        "--inspect",
+        "--allow-all"
+      ],
+      "attachSimplePort": 9229,
+
+      "outputCapture": "std"
     }
   ],
   "inputs": [

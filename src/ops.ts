@@ -216,9 +216,10 @@ export class UOp extends MathTrait<UOp> {
     super()
     this.key = get_key([this.op, this.dtype, this.arg, this.src])
   }
+  // TODO: fix indentation
   @cache
-  override toString(indent = 2): string {
-    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${' '.repeat(indent)}${this.src.map((s) => s.toString(indent + 2)).join(',\n' + ' '.repeat(indent))}\n${' '.repeat(indent - 2)}]`
+  override toString(): string {
+    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[${this.src.map((s) => s.toString()).join(',\n')}]`
     return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${listStr(this.arg)})`
   }
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
