@@ -154,13 +154,14 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o?.constructor?.name === 'Object') return `{${(await Promise.all(Object.entries(o).map(async (entry) => await t`${entry[0]}:${entry[1]}`))).join(',')}}`
   throw new Error(`Invalid value: ${o.constructor.name} ${JSON.stringify(o)}`)
 }
-export const py_bench = async (code: string | string[], b: Deno.BenchContext) => {
+export const py_bench = async (b: Deno.BenchContext, code: string | string[]) => {
   if (Array.isArray(code)) code = code.join('\n')
   const file = `/tmp/tiny_${randomId()}.py`
   await Deno.writeTextFile(file, code)
   b.start()
   const out = await new Deno.Command(`python3`, { env: { PYTHONPATH: './tinygrad' }, args: [file] }).output()
-  if (!out.success) throw new Error(out.stderr.toString())
+  if (out.stdout.length) console.log(bytesToString(out.stdout))
+  if (!out.success) throw new Error(bytesToString(out.stderr))
   b.end()
 }
 

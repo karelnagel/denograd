@@ -855,7 +855,7 @@ export class Tensor extends MathTrait<Tensor> {
   static randint = (shape: number[], low = 0, high = 10, opts?: TensorOptions): Tensor => {
     if (!Number.isInteger(low) || !Number.isInteger(high)) throw new Error(`${low} && ${high} must be integers`)
     const dtype = to_dtype(opts?.dtype || dtypes.int32)
-    if (!dtypes.is_int(dtype)) throw new Error(`${dtype} must be number`)
+    if (!dtypes.is_int(dtype)) throw new Error(`${dtype} must be int`)
     return Tensor.uniform(shape, low, high, { ...opts, dtype })
   }
   /**
