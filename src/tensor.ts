@@ -1202,7 +1202,7 @@ export class Tensor extends MathTrait<Tensor> {
     const mops = indices_parsed.filter((i) => i.index !== undefined)
     if (mops.length) {
       //   // flip negative strides
-      let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)] 
+      let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)]
       x = x.shrink(shrinks).flip([...strides.entries().filter(([i, st]) => st < 0).map(([i, st]) => i)])
       //   // handle stride !== 1 || -1
       if (strides.some((st) => Math.abs(st) !== 1)) {

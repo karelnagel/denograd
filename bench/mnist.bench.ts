@@ -11,22 +11,30 @@ Deno.bench({
 
 // Loading mnist datasets
 Deno.bench({
-  name: 'mnist.dataset.py',
-  group: 'mnist.dataset',
-  baseline: true,
-  fn: async (b) => void await py_bench(b, ['from tinygrad import nn', 'nn.datasets.mnist()']),
-})
-Deno.bench({
   name: 'mnist.dataset.ts',
   group: 'mnist.dataset',
+  baseline: true,
   fn: async () => void await mnist(),
+})
+Deno.bench({
+  name: 'mnist.dataset.py',
+  group: 'mnist.dataset',
+  fn: async (b) => void await py_bench(b, ['from tinygrad import nn', 'nn.datasets.mnist()']),
 })
 
 // Load weights from file
 Deno.bench({
-  name: 'mnist.load.py',
+  name: 'mnist.load.ts',
   group: 'mnist.load',
   baseline: true,
+  fn: async () => {
+    const model = new MNIST()
+    await model.load('./model.safetensors')
+  },
+})
+Deno.bench({
+  name: 'mnist.load.py',
+  group: 'mnist.load',
   fn: async (b) => {
     await py_bench(b, [
       'from examples.beautiful_mnist import Model',
@@ -36,20 +44,24 @@ Deno.bench({
     ])
   },
 })
-Deno.bench({
-  name: 'mnist.load.ts',
-  group: 'mnist.load',
-  fn: async () => {
-    const model = new MNIST()
-    await model.load('./model.safetensors')
-  },
-})
 
 // Inference
 Deno.bench({
-  name: 'mnist.inference.py',
+  name: 'mnist.inference.ts',
   group: 'mnist.inference',
   baseline: true,
+  fn: async () => {
+    Tensor.manual_seed(3)
+    const model = new MNIST()
+    const input = Tensor.randint([28, 28], 0, 255).reshape([1, 1, 28, 28])
+    const res = await model.call(input).tolist()
+    expect(res.length).toBe(1)
+    expect(res[0].length).toBe(10)
+  },
+})
+Deno.bench({
+  name: 'mnist.inference.py',
+  group: 'mnist.inference',
   fn: async (b) => {
     await py_bench(b, [
       'from examples.beautiful_mnist import Model',
@@ -64,25 +76,23 @@ Deno.bench({
     ])
   },
 })
+
+// Test
+const batch = 1
 Deno.bench({
-  name: 'mnist.inference.ts',
-  group: 'mnist.inference',
+  name: 'mnist.test.ts',
+  group: 'mnist.test',
+  baseline: true,
   fn: async () => {
     Tensor.manual_seed(3)
     const model = new MNIST()
-    const input = Tensor.randint([28, 28], 0, 255).reshape([1, 1, 28, 28])
-    const res = await model.call(input).tolist()
-    expect(res.length).toBe(1)
-    expect(res[0].length).toBe(10)
+    const [_, _1, x_test, y_test] = await mnist()
+    await model.call(x_test.get({ stop: batch })).argmax(1).eq(y_test.get({ stop: batch })).mean().mul(100).tolist()
   },
 })
-
-// Test
-const batch = 4
 Deno.bench({
   name: 'mnist.test.py',
   group: 'mnist.test',
-  baseline: true,
   fn: async (b) =>
     await py_bench(b, [
       'from examples.beautiful_mnist import Model',
@@ -90,25 +100,26 @@ Deno.bench({
       'Tensor.manual_seed(3)',
       'model = Model()',
       '_,_,x_test,y_test = nn.datasets.mnist()',
-      `res = model(x_test[:${batch}]).argmax(1).eq(y_test[:${batch}]).mean().mul(100).tolist()`,
+      `model(x_test[:${batch}]).argmax(1).eq(y_test[:${batch}]).mean().mul(100).tolist()`,
     ]),
-})
-Deno.bench({
-  name: 'mnist.test.ts',
-  group: 'mnist.test',
-  fn: async () => {
-    Tensor.manual_seed(3)
-    const model = new MNIST()
-    const [_, _1, x_test, y_test] = await mnist()
-    const res = await model.call(x_test.get({ stop: batch })).argmax(1).eq(y_test.get({ stop: batch })).mean().mul(100).tolist()
-  },
 })
 
 // Train
 Deno.bench({
-  name: 'mnist.train.py',
+  name: 'mnist.train.ts',
   group: 'mnist.train',
   baseline: true,
+  fn: async () => {
+    Tensor.manual_seed(3)
+    const model = new MNIST()
+    const [x_train, y_train] = await mnist()
+    const samples = Tensor.randint([batch], undefined, x_train.shape[0])
+    await model.call(x_train.get(samples)).sparse_categorical_crossentropy(y_train.get(samples)).tolist()
+  },
+})
+Deno.bench({
+  name: 'mnist.train.py',
+  group: 'mnist.train',
   fn: async (b) =>
     await py_bench(b, [
       'from examples.beautiful_mnist import Model',
@@ -119,15 +130,4 @@ Deno.bench({
       `samples = Tensor.randint(${batch}, high=x_train.shape[0])`,
       `model(x_train[samples]).sparse_categorical_crossentropy(y_train[samples]).tolist()`,
     ]),
-})
-Deno.bench({
-  name: 'mnist.train.ts',
-  group: 'mnist.train',
-  fn: async () => {
-    Tensor.manual_seed(3)
-    const model = new MNIST()
-    const [x_train, y_train] = await mnist()
-    const samples = Tensor.randint([batch], undefined, x_train.shape[0])
-    await model.call(x_train.get(samples)).sparse_categorical_crossentropy(y_train.get(samples)).tolist()
-  },
 })

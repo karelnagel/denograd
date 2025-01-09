@@ -53,7 +53,7 @@ Deno.test(
   async () => {
     Tensor.manual_seed(333)
     const model = new MNIST()
-    await model.load("./model.safetensors")
+    await model.load('./model.safetensors')
     const ts = [(model.layers[0] as any).weight, (model.layers.at(-1)! as any).weight]
     const py = await python([
       'from examples.beautiful_mnist import Model',

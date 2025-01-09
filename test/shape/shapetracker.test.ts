@@ -196,7 +196,7 @@ Deno.test(
       [new ShapeTracker([new View([5], [1], 0, undefined, true), new View([5], [1], 0, undefined, true)])],
       [new ShapeTracker([new View([10], [1], 0, [[0, 5]], false), new View([9], [1], 0, undefined, true)])],
       [new ShapeTracker([new View([5], [1], 0, undefined, true), new View([10], [1], 0, [[0, 5]], false)])],
-      [new ShapeTracker([new View([5, 1], [1, 0], 0, undefined, true), new View([5], [1], 0, undefined, true)])]
+      [new ShapeTracker([new View([5, 1], [1, 0], 0, undefined, true), new View([5], [1], 0, undefined, true)])],
     ],
     (shape: ShapeTracker) => shape.simplify(),
     'out(trycatch(lambda: data[0].simplify()))',
