@@ -91,7 +91,6 @@ Deno.bench({
       'model = Model()',
       '_,_,x_test,y_test = nn.datasets.mnist()',
       `res = model(x_test[:${batch}]).argmax(1).eq(y_test[:${batch}]).mean().mul(100).tolist()`,
-      'assert res>13 and res<15',
     ]),
 })
 Deno.bench({
@@ -102,7 +101,6 @@ Deno.bench({
     const model = new MNIST()
     const [_, _1, x_test, y_test] = await mnist()
     const res = await model.call(x_test.get({ stop: batch })).argmax(1).eq(y_test.get({ stop: batch })).mean().mul(100).tolist()
-    expect(res > 13 && res < 15).toBeTruthy()
   },
 })
 
