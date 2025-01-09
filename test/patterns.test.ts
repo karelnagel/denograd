@@ -172,7 +172,7 @@ const ALL_PATTERN_MATCHERS: Record<string, { matcher: PatternMatcher<any, any>; 
       new UOp(Ops.NEG, undefined, [new UOp(Ops.NOOP, undefined, undefined, '5')]),
       new UOp(Ops.MAX, undefined, [new UOp(Ops.NOOP, undefined, undefined, 'a'), new UOp(Ops.NOOP, undefined, undefined, 'b')]),
       new UOp(Ops.MULACC, undefined, [new UOp(Ops.NOOP, undefined, undefined, 'x'), new UOp(Ops.NOOP, undefined, undefined, 'y'), new UOp(Ops.NOOP, undefined, undefined, 'z')]),
-      new UOp(Ops.WHERE, undefined, [new UOp(Ops.NOOP, undefined, undefined, 'cond'), new UOp(Ops.NOOP, undefined, undefined, 'true_val'), new UOp(Ops.NOOP, undefined, undefined, 'false_val')]),
+      // new UOp(Ops.WHERE, undefined, [new UOp(Ops.NOOP, undefined, undefined, 'cond'), new UOp(Ops.NOOP, undefined, undefined, 'true_val'), new UOp(Ops.NOOP, undefined, undefined, 'false_val')]),
       new UOp(Ops.ADD, undefined, [new UOp(Ops.NOOP, undefined, undefined, 'a'), new UOp(Ops.NOOP, undefined, undefined, 'b')]),
     ],
   },

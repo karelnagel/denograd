@@ -125,7 +125,8 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
   if (DEBUG >= 1 && Object.keys(state_dict).length > Object.keys(model_state_dict).length) {
     console.log('WARNING: unused weights in state_dict', Object.keys(state_dict).filter((x) => !Object.keys(model_state_dict).includes(x)).toSorted())
   }
-  const t = tqdm(Object.entries(model_state_dict), { label: 'Downloading' })
+  // const t = tqdm(Object.entries(model_state_dict), { label: 'Downloading' })
+  const t = Object.entries(model_state_dict)
   for await (const [k, v] of t) {
     // t.desc = `ram used: ${GlobalCounters.mem_used/1e9:5.2f} GB, ${k:50s}: `
     if (state_dict[k] === undefined && !strict) {
