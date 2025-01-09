@@ -466,7 +466,7 @@ export const diskcache = (func: any) => {
 
 // # *** Exec helpers
 
-export const cpuTimeExecution =  <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
+export const cpuTimeExecution = <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
   return async (...args: Args) => {
     const st = performance.now()
     await fn(...args)
@@ -616,17 +616,38 @@ export function debug<Args extends any[], Return>(target: (...args: Args) => Ret
   }
 }
 
+function createWeakValueCache<V extends object>() {
+  const store = new Map<string, WeakRef<V>>()
+  const finalizationGroup = new FinalizationRegistry<string>((key) => store.delete(key))
+
+  return {
+    get: (key: string): V | undefined => store.get(key)?.deref(),
+    set: (key: string, value: V) => {
+      store.set(key, new WeakRef(value))
+      finalizationGroup.register(value, key)
+    },
+  }
+}
+
 type ClassType<T> = new (...args: any[]) => T
+
 export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecoratorContext): T {
-  const cache = new Map<string, InstanceType<T>>()
+  const cache = createWeakValueCache<InstanceType<T>>()
+
   return new Proxy(Base, {
     construct(target, argsList, newTarget) {
       let key = get_key([ctx.name, ...argsList])
-      if (cache.has(key)) return cache.get(key)!
+
+      const existing = cache.get(key)
+      if (existing) return existing
+
       const instance = Reflect.construct(target, argsList, newTarget)
 
-      if (typeof instance.key === 'string') key = instance.key
-      if (cache.has(key)) return cache.get(key)!
+      if (typeof instance.key === 'string') {
+        key = instance.key
+        const existing = cache.get(key)
+        if (existing) return existing
+      }
 
       cache.set(key, instance)
       return instance

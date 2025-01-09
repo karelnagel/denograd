@@ -423,7 +423,7 @@ export class Tensor extends MathTrait<Tensor> {
     throw new Error('__bool__ on Tensor !== defined')
   }
   override mod = (x: ConstType<Tensor>, reverse?: boolean) => {
-    throw new Error("KAREL: Tensor doesn't have mod, this is only here because I needed to extend MathTrait and not SimpleMathTrait")
+    throw new Error("Tensor doesn't have mod, this is only here because I needed to extend MathTrait and not SimpleMathTrait")
   }
   get length() {
     if (!this.shape.length) throw new Error('len() of a 0-d tensor')
