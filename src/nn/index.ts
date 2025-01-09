@@ -2,9 +2,63 @@ import { is_dtype_supported } from '../device.ts'
 import { dtypes } from '../dtype.ts'
 import { assert, flatten, isEq, make_tuple, range, zip } from '../helpers.ts'
 import { div, idiv, mul, prod, sub } from '../ops.ts'
-import { Tensor } from '../tensor.ts'
+import { Layer, Tensor } from '../tensor.ts'
+import { get_state_dict } from './state.ts'
+import { load_state_dict, safe_load, safe_save } from './state.ts'
 export * as optim from './optim.ts'
 export * as state from './state.ts'
+
+/**
+ * Abstract model to simplify calling, loading and saving different models.
+ * You only need to implement list of layers to create a new model
+ * ```ts
+ * export class MNIST extends Model {
+ *  layers: Layer[] = [
+ *    new nn.Conv2d(1, 32, 5),
+ *    Tensor.relu,
+ *    // ...other layers
+ *  ]
+ * }
+ * const mnist = new MNIST()
+ *
+ * // call the model with some input
+ * mnist.call(Tensor.rand([1, 1, 28, 28]))
+ *
+ * // load weigths from ./mnist.safetensors
+ * await mnist.load("./mnist.safetensors")
+ *
+ * //save weigths to ./mnist.safetensors
+ * await mnist.save("./mnist.safetensors")
+ * ```
+ */
+export abstract class Model {
+  abstract layers: Layer[]
+  /**
+   * Call model with a Tensor input, returns a Tensor with output.
+   * ```ts
+   * const model = new Model()
+   * const res = model.call(Tensor.rand([1, 1, 28, 28]))
+   * console.log(await res.tolist())
+   * ```
+   */
+  call = (x: Tensor) => x.sequential(this.layers)
+  /**
+   * Load model weights from a .safetensors file at the given path
+   * ```ts
+   * const model = new Model()
+   * await model.load("./model.safetensors")
+   * ```
+   */
+  load = async (path: string) => await load_state_dict(this, await safe_load(path))
+  /**
+   * Save model weights to a .safetensors file at the given path
+   * ```ts
+   * const model = new Model()
+   * await model.save("./model.safetensors")
+   * ```
+   */
+  save = async (path: string) => await safe_save(get_state_dict(this), path)
+}
 /**
  * Applies Batch Normalization over a 2D || 3D input.
  *

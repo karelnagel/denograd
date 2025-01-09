@@ -5,8 +5,9 @@ import * as nn from './src/nn/index.ts'
 import { mnist } from './src/nn/datasets.ts'
 import { get_env, get_number_env, GlobalCounters, range } from './src/helpers.ts'
 import { tqdm } from './src/tqdm.ts'
+import { Model } from './src/nn/index.ts'
 
-export class MNIST {
+export class MNIST extends Model {
   layers: Layer[] = [
     new nn.Conv2d(1, 32, 5),
     Tensor.relu,
@@ -23,7 +24,6 @@ export class MNIST {
     (x) => x.flatten(1),
     new nn.Linear(576, 10),
   ]
-  call = (x: Tensor): Tensor => x.sequential(this.layers)
 }
 
 if (import.meta.main) {

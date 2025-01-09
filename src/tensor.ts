@@ -4,7 +4,6 @@ import { LazyBuffer } from './engine/lazy.ts'
 import { _METADATA, all_int, all_same, argfix, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, isEq, isinstance, listStr, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
 import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
-import path from 'node:path'
 import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
@@ -364,7 +363,10 @@ export class Tensor extends MathTrait<Tensor> {
     if (skip_constructor) return
     if (dtype !== undefined) dtype = to_dtype(dtype)
     assert(dtype === undefined || dtype instanceof DType, `invalid dtype ${dtype}`)
-    if (device === undefined && typeof data === 'string' && path.isAbsolute(data)) device = `DISK:${data}` // keep it on the disk if device === undefined
+    if (device === undefined && typeof data === 'string') {
+      data = Deno.realPathSync(data)
+      device = `DISK:${data}`
+    } // keep it on the disk if device === undefined
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
 
     //     // NOTE: this can be in three states. false && undefined: no gradient, true: gradient
@@ -391,13 +393,7 @@ export class Tensor extends MathTrait<Tensor> {
       }
       if (dtype === dtypes.bfloat16) data = new Tensor(_frompy(data, dtypes.float32), { device }).cast(dtypes.bfloat16).lazydata
       else data = _frompy(data, dtype)
-    } //     // else if string(type(data)) === "<class 'numpy.ndarray'>":
-    //     //   import numpy as np
-    //     //   assert(isinstance(data, np.ndarray), `expected np.ndarray, got ${data}`)
-    //     //   if data.shape === (): data = _metaop(Ops.CONST, tuple(), dtype || _from_np_dtype(data.dtype), device, data.item())
-    //     //   else: data = _fromnp(data.astype(npdtype) if dtype !== undefined && (npdtype:=_to_np_dtype(dtype)) !== undefined else data)  // type: ignore [name-defined]
-    // Using string as path
-    else if (typeof data === 'string') {
+    } else if (typeof data === 'string') {
       dtype = dtype || dtypes.uint8
       data = _metaop(Ops.EMPTY, [idiv(Deno.statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
     }

@@ -22,7 +22,7 @@ import { Tensor } from '../src/tensor.ts'
 
 dtypes // needed to force the import
 
-export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error || stderr ? rej(error) : res(stdout as any as string)))
+export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error ? rej(error || stderr) : res(stdout.toString())))
 
 export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined
@@ -180,9 +180,8 @@ ${code}
   const file = `/tmp/tiny_${randomId()}.py`
   console.log(file)
   await execAsync(`echo ${JSON.stringify(code.trim())} > ${file}`)
-  const res = await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)
-  console.log(res.split('<<<<<')[0])
-  const ts = res.split('<<<<<')[1]?.split('>>>>>')[0].trim()
+  const [stdout, ts] = (await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
+  console.log(stdout)
   try {
     return eval(ts)
   } catch (e) {

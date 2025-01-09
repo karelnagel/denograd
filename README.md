@@ -32,20 +32,16 @@ import { Tensor, nn } from '@denograd/core'
 import { range, tqdm } from '@denograd/helpers'
 import { mnist } from '@denograd/datasets'
 
-export class MNIST {
-  layers: ((x: Tensor) => Tensor)[]
-  constructor() {
-    this.layers = [
-      new nn.Conv2d(1, 32, 5).call, (x) => x.relu(),
-      new nn.Conv2d(32, 32, 5).call, (x) => x.relu(),
-      new nn.BatchNorm(32).call, (x) => x.max_pool2d(),
-      new nn.Conv2d(32, 64, 3).call, (x) => x.relu(),
-      new nn.Conv2d(64, 64, 3).call, (x) => x.relu(),
-      new nn.BatchNorm(64).call, (x) => x.max_pool2d(),
-      (x) => x.flatten(1), new nn.Linear(576, 10).call,
-    ]
-  }
-  call = (x: Tensor): Tensor => x.sequential(this.layers)
+export class MNIST extends Model {
+  layers: Layer[] = [
+    new nn.Conv2d(1, 32, 5), Tensor.relu,
+    new nn.Conv2d(32, 32, 5), Tensor.relu,
+    new nn.BatchNorm(32), Tensor.max_pool2d,
+    new nn.Conv2d(32, 64, 3), Tensor.relu,
+    new nn.Conv2d(64, 64, 3), Tensor.relu,
+    new nn.BatchNorm(64), Tensor.max_pool2d,
+    (x) => x.flatten(1), new nn.Linear(576, 10),
+  ]
 }
 
 const [X_train, Y_train, X_test, Y_test] = await mnist()
