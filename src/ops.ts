@@ -218,7 +218,7 @@ export class UOp extends MathTrait<UOp> {
   }
   @cache
   override toString(): string {
-    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${this.src.map((s) => s.toString()).join(',\n').split("\n").map(s=>"  "+s).join("\n")}\n]`
+    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${this.src.map((s) => s.toString()).join(',\n').split('\n').map((s) => '  ' + s).join('\n')}\n]`
     return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${listStr(this.arg)})`
   }
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
@@ -512,6 +512,7 @@ export class UOp extends MathTrait<UOp> {
 @dataclass
 export class KernelInfo {
   constructor(public local_dims = 0, public upcasted = 0, public dont_use_locals = false) {}
+  toString = () => `new KernelInfo(${this.local_dims}, ${this.upcasted}, ${this.dont_use_locals})`
 }
 
 // # ***** ops in python *****
@@ -671,15 +672,15 @@ export class UPat extends MathTrait<UPat> {
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
-      (isNotNone(this.name) && !isEq(setDefault(store, this.name, uop), uop)) ||
+      (isNotNone(this.name) && setDefault(store, this.name, uop) !== uop) ||
       (isNotNone(this.dtype) && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
-      (isNotNone(this.arg) && !isEq(this.arg, uop.arg)) ||
+      (isNotNone(this.arg) && this.arg !== uop.arg) ||
       (this.allowed_len !== -1 && uop.src.length !== this.allowed_len)
     ) return []
     if (isNone(this.src)) return [store]
     let res: Map<string, UOp>[] = []
     for (const vp of this.src) {
-      let stores = [store]
+      let stores = [new Map(store)]
       let new_stores: typeof stores = []
       for (const [uu, vv] of zip(uop.src, vp)) {
         for (const s of stores) new_stores = [...new_stores, ...vv.match(uu, s)]
@@ -744,9 +745,9 @@ export class RewriteContext {
   rewrite = (n: UOp): UOp => {
     const rn = this.replace.get(n)
     if (isNotNone(rn)) return rn
-    const newSrc = n.src.map((x) => this.rewrite(x))
-    const newN = isEq(newSrc, n.src) ? this.pm.rewrite(n, this.ctx) : new UOp(n.op, n.dtype, newSrc, n.arg)
-    const ret = isNone(newN) ? n : this.rewrite(newN)
+    const new_src = n.src.map((x) => this.rewrite(x))
+    const new_n = isEq(new_src, n.src) ? this.pm.rewrite(n, this.ctx) : new UOp(n.op, n.dtype, new_src, n.arg)
+    const ret = isNone(new_n) ? n : this.rewrite(new_n)
     this.replace.set(n, ret)
     return ret
   }
