@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { assert, cache, dataclass, raise, range } from '../helpers.ts'
+import { assert, cache, dataclass, range } from '../helpers.ts'
 import { flops_mem, idiv, Ops, prod, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
@@ -96,5 +96,7 @@ export class Renderer {
   extra_matcher?: any
   code_for_op = new Map<Ops, (...a: string[]) => string>()
 
-  render = (name: string, uops: UOp[]): string => raise('needs a renderer')
+  render = (name: string, uops: UOp[]): string => {
+    throw new Error('needs a renderer')
+  }
 }

@@ -169,9 +169,6 @@ export const assert = (condition: boolean): condition is true => {
   if (!condition) throw new Error()
   return condition
 }
-export const raise = (msg?: string) => {
-  throw new Error(msg)
-}
 export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
   if (length === 1) return arr.map((item) => [item])
 

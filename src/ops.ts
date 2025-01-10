@@ -1,5 +1,5 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { abs, all_same, argfix, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, isInf, isLessThan, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
+import { abs, all_same, argfix, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, isInf, isLessThan, isSubset, listStr, mathGcd, max, min, partition, permutations, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -7,8 +7,12 @@ export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
 
 class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   //   # required to implement
-  alu = (_arg: Ops, ..._src: T[]): T => raise('Not implemented')
-  const_like = (_b: ConstLike): T => raise('Not implemented')
+  alu = (_arg: Ops, ..._src: T[]): T => {
+    throw new Error('Not implemented')
+  }
+  const_like = (_b: ConstLike): T => {
+    throw new Error('Not implemented')
+  }
 
   //   # great functions you get!
   ufix = (x: ConstType<T>): T => x instanceof MathTrait ? x : this.const_like(x as any) //ignoring this error, cause not sure
