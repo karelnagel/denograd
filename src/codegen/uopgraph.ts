@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, isNone, isNotNone, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
+import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, isNone, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, prod, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -65,7 +65,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
   //   # dedup expand for LOAD
   if (is_load && old_new_srcs.length !== ex.src.length) new_srcs = ex.src.map((s) => new_srcs[old_new_srcs.indexOf(s)])
   //   # remove Nones for STORE
-  return used.length ? new UOp(ex.op, ex.dtype, [...new_srcs.filter((x) => isNotNone(x))], ex.arg) : undefined
+  return used.length ? new UOp(ex.op, ex.dtype, [...new_srcs.filter((x) => x !== undefined)], ex.arg) : undefined
 }
 
 export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {
@@ -183,9 +183,9 @@ export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, 
     if (DEBUG >= 1) console.log(`WARNING, NOT FOLDING: mul:${mul.arg} loop_start:${loop_start.arg}`)
     return undefined
   }
-  if (isNotNone(idx2)) add = add + idx2
-  if (isNotNone(idx3)) add = add + idx3
-  if (isNotNone(vec)) {
+  if (idx2 !== undefined) add = add + idx2
+  if (idx3 !== undefined) add = add + idx3
+  if (vec !== undefined) {
     //     # add, mul, loop_start, loop_end
     const dvec = (x: UOp) => {
       if (x.op === Ops.CONST) return UOp.const(x.dtype.vec(vec.dtype.count), x.arg)
@@ -195,7 +195,7 @@ export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, 
   }
 
   let comprange
-  if (mul.vmin > 0 && isNotNone(ne)) {
+  if (mul.vmin > 0 && ne !== undefined) {
     comprange = loop_end.minimum(add.sub(compval)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
   } else if (mul.vmax < 0 && isNone(ne)) comprange = loop_end.minimum(add.sub(compval).sub(mul)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
   else return undefined
@@ -203,7 +203,7 @@ export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, 
   //   # TODO: what does it mean to have the same numbered DEFINE_ACC with different ranges?
   const new_acc = acc.replace({ src: [acc.src[1], ...acc.src.slice(1).filter((x) => x !== rng)] })
   let ret = new_acc.assign(new_acc.add(new_reduce_op))
-  if (isNotNone(extra)) ret = ret.add(acc.assign(acc.add(extra)))
+  if (extra !== undefined) ret = ret.add(acc.assign(acc.add(extra)))
   //   return ret
 }
 export const index_collapse = (idx: UOp, rng: UOp, buf: UOp, ld: UOp, acc: UOp, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
@@ -448,7 +448,7 @@ export const devectorize = new PatternMatcher([
 export const delete_redundant_gates = (buf: UOp, idx: UOp, val: UOp, store_gate: UOp, cast?: UOp): undefined | UOp => {
   if (![...val.toposort].filter((gate) => gate.op === Ops.IF).map((gate) => gate.src[0]).includes(store_gate)) return undefined
   //   # remove the gate from the index
-  return (isNotNone(cast) ? buf.index(idx).cast(cast.dtype) : buf.index(idx)).store([val])
+  return (cast !== undefined ? buf.index(idx).cast(cast.dtype) : buf.index(idx)).store([val])
 }
 const _stidx = UPat.var('buf').index(UPat.var('idx'), UPat.var('store_gate'))
 export const load_store_indexing = new PatternMatcher([
@@ -469,7 +469,7 @@ export const migrate_indexing = new PatternMatcher([
 
 export const move_mask = (x: UOp, buf: UOp, idx: UOp, mask: UOp, cast?: UOp): UOp => {
   //   # this moves the mask from the indexing to the load/store op for rendering
-  const nidx = isNotNone(cast) ? buf.index(idx).cast(cast.dtype) : buf.index(idx)
+  const nidx = cast !== undefined ? buf.index(idx).cast(cast.dtype) : buf.index(idx)
   return x.op === Ops.LOAD ? nidx.load([x.const_like(0), mask, ...x.src.slice(1)], { dtype: x.dtype }) : nidx.store([x.src[1], mask, ...x.src.slice(2)])
 }
 const _masked_index = new UPat(Ops.INDEX, undefined, [new UPat(undefined).named('buf'), new UPat(undefined).named('idx'), new UPat(undefined).named('mask')])
@@ -495,8 +495,8 @@ export const pm_render = new PatternMatcher([
 
 export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   assert(sink.op === Ops.SINK, `sink isn't sink, it's ${sink.op}`)
-  const supported_ops = isNotNone(opts) ? [...opts.code_for_op.keys()] : []
-  const extra_matcher = isNotNone(opts) && isNotNone(opts.extra_matcher) ? opts.extra_matcher : new PatternMatcher([])
+  const supported_ops = opts !== undefined ? [...opts.code_for_op.keys()] : []
+  const extra_matcher = opts !== undefined && opts.extra_matcher !== undefined ? opts.extra_matcher : new PatternMatcher([])
 
   //   # initial symbolic + migrate indexing (remove this)
   sink = graph_rewrite(sink, sym.add(migrate_indexing))
@@ -504,7 +504,7 @@ export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   sink = graph_rewrite(sink, sym.add(expander))
 
   //   # devectorize + load_store_indexing
-  sink = graph_rewrite(sink, sym.add(isNotNone(opts) && opts.supports_float4 ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing))
+  sink = graph_rewrite(sink, sym.add(opts !== undefined && opts.supports_float4 ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing))
 
   //   # final rules for the renderer (without sym)
   sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops as any as Ops[], TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))

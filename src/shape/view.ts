@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, is_eq, isInt, isLessThan, isNone, isNotNone, listStr, next, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, is_eq, isInt, isLessThan, isNone, listStr, next, range, zip } from '../helpers.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, resolve, type sint, sint_to_uop, smax, smin, sub, sum, sym_infer, UOp, type Variable } from '../ops.ts'
 
 export const canonicalize_strides = cache_fn((shape: sint[], strides: sint[]): sint[] => {
@@ -19,7 +19,7 @@ export const _merge_dims = cache_fn((shape: sint[], strides: sint[], mask?: [sin
   assert(shape.length === strides.length && (isNone(mask) || shape.length === mask?.length))
   const ret = [[shape[0], strides[0], strides[0] !== 0 ? shape[0] : 0] as [sint, sint, sint]]
   // merge this dim to next dim if size is 1
-  let merging = isNotNone(mask) ? sub(mask[0][1], mask[0][0]) === 1 : shape[0] === 1
+  let merging = mask !== undefined ? sub(mask[0][1], mask[0][0]) === 1 : shape[0] === 1
   for (let i = 1; i < shape.length; i++) {
     const s = shape[i], st = strides[i]
     const [last_s, last_st, last_pre_expand_s] = ret.at(-1)!
@@ -29,7 +29,7 @@ export const _merge_dims = cache_fn((shape: sint[], strides: sint[], mask?: [sin
     if (merging || last_st === mul(s, st)) ret[ret.length - 1] = [mul(last_s, s), st, st !== 0 ? (merging ? s : mul(last_pre_expand_s, s)) : 0]
     else ret.push([s, st, st !== 0 ? s : 0])
     // merge this dim to next dim if size is 1
-    merging = isNotNone(mask) ? sub(mask[i][1], mask[i][0]) === 1 : s === 1
+    merging = mask !== undefined ? sub(mask[i][1], mask[i][0]) === 1 : s === 1
   }
   return ret
 })
@@ -86,7 +86,7 @@ export class View {
 
   @cache
   get t() {
-    return [...this.shape, ...this.strides, this.offset, ...(isNotNone(this.mask) ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize : [x])
+    return [...this.shape, ...this.strides, this.offset, ...(this.mask !== undefined ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize : [x])
   }
   lt(this: View, o: View) {
     return isLessThan(this.t, o.t)
@@ -100,9 +100,9 @@ export class View {
   to_indexed_uops(_idxs?: UOp[], vexpr = UOp.const(dtypes.bool, true)): [UOp, UOp] {
     const idxs = isNone(_idxs) ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
     let iexpr = sint_to_uop(this.offset)
-    for (const [idx, sh, st, m] of zip(idxs, this.shape, this.strides, isNotNone(this.mask) ? this.mask : this.shape.map((x) => undefined))) {
+    for (const [idx, sh, st, m] of zip(idxs, this.shape, this.strides, this.mask !== undefined ? this.mask : this.shape.map((x) => undefined))) {
       if (resolve(ne(sh, 1)) && resolve(ne(st, 0))) iexpr = iexpr.add(idx.mul(st))
-      if (isNotNone(m)) {
+      if (m !== undefined) {
         if (resolve(ne(m[0], 0))) vexpr = vexpr.mul(idx.ge(m[0]))
         if (resolve(ne(m[1], sh))) vexpr = vexpr.mul(idx.lt(m[1]))
       }
@@ -123,7 +123,7 @@ export class View {
     // # canonicalize 0 in shape
     if (shape.includes(0)) return new View(shape, range(shape.length).map(() => 0), 0, undefined, true)
     // # canonicalize empty mask
-    if (isNotNone(mask) && zip(mask, shape).every(([m, s]) => is_eq(m, [0, s]))) mask = undefined
+    if (mask !== undefined && zip(mask, shape).every(([m, s]) => is_eq(m, [0, s]))) mask = undefined
     // # if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
     // # then its stride can also be set to 0, albeit with a corresponding adjustment required to the offset
     const elim = mask?.map(([b, e]) => !resolve(lt(add(b, 1), e)))
@@ -145,7 +145,7 @@ export class View {
   }
   @cache
   vars(): Variable[] {
-    const flatten_mask = isNotNone(this.mask) ? this.mask.flatMap((m) => m.map((x) => x)) : []
+    const flatten_mask = this.mask !== undefined ? this.mask.flatMap((m) => m.map((x) => x)) : []
     return [...new Set([...this.shape, ...this.strides, this.offset, ...flatten_mask].filter((x) => x instanceof UOp).reduce((acc, x) => [...acc, ...x.vars()], [] as UOp[]))]
   }
   @cache
@@ -156,7 +156,7 @@ export class View {
     const new_shape = this.shape.map((x) => substitute(x))
     const new_strides = this.strides.map((x) => substitute(x))
     const new_offset = substitute(this.offset)
-    const new_mask = isNotNone(this.mask) ? this.mask.map((x) => [substitute(x[0]), substitute(x[1])] as [sint, sint]) : undefined
+    const new_mask = this.mask !== undefined ? this.mask.map((x) => [substitute(x[0]), substitute(x[1])] as [sint, sint]) : undefined
     return [View.create(new_shape, new_strides, new_offset, new_mask), Object.fromEntries(var_unboundvar_val.map((x) => x[1]))]
   }
   @cache
@@ -260,10 +260,10 @@ export class View {
       //       # move the old mask
       const nmask = zip(this.mask, arg).map(([[mx, my], [ax, ay]]) => [smax(0, smin(sub(mx, ax), sub(ay, ax))), smax(0, smin(sub(my, ax), sub(ay, ax)))] as [sint, sint])
       //       # merge the masks if we have two
-      mask = isNotNone(mask) ? zip(nmask, mask).map(([[mx1, my1], [mx2, my2]]) => [smax(mx1, mx2), smin(my1, my2)] as [sint, sint]) : nmask
+      mask = mask !== undefined ? zip(nmask, mask).map(([[mx1, my1], [mx2, my2]]) => [smax(mx1, mx2), smin(my1, my2)] as [sint, sint]) : nmask
     }
     const shape = arg.map(([x, y]) => sub(y, x))
-    if (isNotNone(mask) && zip(mask, shape).every(([m, s]) => m[0] === 0 && m[1] === s)) mask = undefined
+    if (mask !== undefined && zip(mask, shape).every(([m, s]) => m[0] === 0 && m[1] === s)) mask = undefined
     return View.create(shape.map((s) => s instanceof UOp ? s.ssimplify() : s), this.strides, add(this.offset, offset), mask)
   }
   @cache
@@ -311,7 +311,7 @@ export class View {
     const strides = zip(this.strides, multi).map(([z, m]) => mul(z, m))
     const new_shape = zip(this.shape, multi).map(([s, m]) => ceildiv(s, Math.abs(m)))
     const offset = zip(this.shape, this.strides, multi).filter(([s, z, m]) => m < 0).reduce((acc, [s, z, m]) => add(acc, mul(sub(s, 1), z)), 0 as sint)
-    const mask = isNotNone(this.mask) ? zip(this.mask, this.shape, multi).map(([[mx, my], s, m]) => [ceildiv(m > 0 ? mx : sub(s, my), Math.abs(m)), ceildiv(m > 0 ? my : sub(s, mx), Math.abs(m))] as [sint, sint]) : undefined
+    const mask = this.mask !== undefined ? zip(this.mask, this.shape, multi).map(([[mx, my], s, m]) => [ceildiv(m > 0 ? mx : sub(s, my), Math.abs(m)), ceildiv(m > 0 ? my : sub(s, mx), Math.abs(m))] as [sint, sint]) : undefined
     return View.create(new_shape, strides, add(this.offset, offset), mask)
   }
   @cache

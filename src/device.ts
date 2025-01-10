@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, isNone, isNotNone, OSX } from './helpers.ts'
+import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, isNone, OSX } from './helpers.ts'
 import process from 'node:process'
 import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
@@ -85,8 +85,8 @@ export class Buffer {
     if (isNone(base)) {
       assert(offset === 0, "base buffers can't have offset")
       this._lb_refcount = lb_refcount
-      if (isNotNone(in_opaque)) this.allocate(in_opaque)
-      if (isNotNone(in_initial_value)) {
+      if (in_opaque !== undefined) this.allocate(in_opaque)
+      if (in_initial_value !== undefined) {
         this.allocate()
         this.copyin(new MemoryView(in_initial_value))
       }
@@ -98,7 +98,7 @@ export class Buffer {
     if (in_preallocate) this.allocate()
   }
   get base(): Buffer {
-    return isNotNone(this._base) ? this._base : this
+    return this._base !== undefined ? this._base : this
   }
   get lb_refcount() {
     return this.base._lb_refcount!
@@ -109,22 +109,22 @@ export class Buffer {
   allocate = (opaque?: any, external_ptr?: bigint): Buffer => {
     assert(!this.is_allocated(), "can't allocate already allocated buffer")
     this.allocator = Device.get(this.device).allocator
-    if (isNotNone(external_ptr)) {
+    if (external_ptr !== undefined) {
       this.options = this.options ? new BufferSpec(this.options.image, this.options.uncached, this.options.cpu_access, this.options.host, this.options.nolru, external_ptr) : new BufferSpec(undefined, undefined, undefined, undefined, undefined, external_ptr)
     }
-    if (isNotNone(this._base)) {
+    if (this._base !== undefined) {
       this._base.ensure_allocated()
       if (!this.allocator || !('_offset' in this.allocator)) throw new Error('offset function required for view')
       this._buf = (this.allocator._offset as any)(this.base._buf, this.nbytes, this.offset)
     } else {
-      this._buf = isNotNone(opaque) ? opaque : this.allocator?.alloc(this.nbytes, this.options)
+      this._buf = opaque !== undefined ? opaque : this.allocator?.alloc(this.nbytes, this.options)
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used += this.nbytes
     }
     return this
   }
   __reduce__ = () => {
     let buf
-    if (isNotNone(this._base)) {
+    if (this._base !== undefined) {
       return [Buffer, [this.device, this.size, this.dtype, undefined, undefined, undefined, 0, this.base, this.offset, this.is_allocated()]]
     }
     if (this.is_allocated()) {
@@ -144,7 +144,7 @@ export class Buffer {
     }
   }
   toString = () => {
-    return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}${this.base ? ` offset:${this.offset}` : ''}${isNotNone(this.options) ? ` ${this.options}` : ''}>`
+    return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}${this.base ? ` offset:${this.offset}` : ''}${this.options !== undefined ? ` ${this.options}` : ''}>`
   }
   as_buffer = (allowZeroCopy = false, forceZeroCopy = false): MemoryView => {
     // zero copy with as_buffer (disabled by default due to use after free)
@@ -168,7 +168,7 @@ export class Buffer {
   }
   view = (size: number, dtype: DType, offset: number): Buffer => {
     assert(offset < this.nbytes, 'offset must be less than nbytes')
-    if (isNotNone(this._base)) return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this._base, this.offset + offset)
+    if (this._base !== undefined) return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this._base, this.offset + offset)
     return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this, offset)
   }
 }

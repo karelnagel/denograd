@@ -151,7 +151,6 @@ export function zip<T extends Array<any>>(...toZip: Iterableify<T>): T[] {
 }
 
 export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
-export const isNotNone = <T>(x: T | null | undefined): x is T => x !== undefined && x !== null
 
 export const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
   const newVal = fn(map.get(key)!)

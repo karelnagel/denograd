@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { ArrayMap, assert, dataclass, dedup, flatten, get_key, is_eq, isinstance, isLessThan, isNotNone, len, min, partition, setDefault } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, dedup, flatten, get_key, is_eq, isinstance, isLessThan, len, min, partition, setDefault } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
@@ -18,7 +18,7 @@ export class BasicBlock {
     this.key = get_key(ctx, lst, end)
   }
   lt = (o: BasicBlock) => isLessThan([...this.ctx, ...this.lst].map((x) => x.tuplize), [...o.ctx, ...o.lst].map((x) => x.tuplize))
-  toString = () => `${isNotNone(this.end) ? (disp(this.end) + ' ') : ''}` + `${this.ctx.map((y) => disp(y))} ${len(this.lst)}` + '\n' + this.lst.map((x) => x.op.toString()).join('\n')
+  toString = () => `${this.end !== undefined ? (disp(this.end) + ' ') : ''}` + `${this.ctx.map((y) => disp(y))} ${len(this.lst)}` + '\n' + this.lst.map((x) => x.op.toString()).join('\n')
 }
 type CTX = [Map<UOp, UOp[]>, Map<UOp, UOp[]>]
 export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
@@ -55,7 +55,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
     let srcs = flatten(lst.map((y) => y.src))
     const old_block = old_blocks.get(rng)
     old_blocks.delete(rng)
-    if (isNotNone(old_block)) {
+    if (old_block !== undefined) {
       //       # NOTE: order shouldn't matter here
       srcs = [...srcs, ...old_block.src]
       lst = [...lst, ...old_block.arg.lst]
@@ -100,7 +100,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
   let new_ctx = x.arg.ctx
   const placed = new Set()
   for (const u of x.src) {
-    if (u.op === Ops.BLOCK && (is_eq(u.arg.ctx, x.arg.ctx) || (isNotNone(x.arg.end) && u.arg.ctx.includes(x.arg.end)))) {
+    if (u.op === Ops.BLOCK && (is_eq(u.arg.ctx, x.arg.ctx) || (x.arg.end !== undefined && u.arg.ctx.includes(x.arg.end)))) {
       //       # NOTE: this can't appear in srcs twice or it would be a BLOCKFORK
       new_ctx = [...new_ctx, ...u.arg.ctx.filter((y: UOp) => !x.arg.ctx.includes(y))]
       new_srcs = [...new_srcs, ...u.src]

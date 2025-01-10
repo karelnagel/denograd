@@ -1,6 +1,6 @@
 import { exec } from 'node:child_process'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../src/dtype.ts'
-import { bytesToString, Enum, isNotNone, Metadata, randomId } from '../src/helpers.ts'
+import { bytesToString, Enum, Metadata, randomId } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../src/ops.ts'
@@ -179,7 +179,7 @@ def trycatch(fn):
   try: return fn()
   except Exception as e: return str(e)
 
-${isNotNone(data) ? `data = ${await pyStr(data)}` : ''}
+${data !== undefined ? `data = ${await pyStr(data)}` : ''}
 def out(o):
     print("<<<<<"+to_ts(o)+">>>>>")
 

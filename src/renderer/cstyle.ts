@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, assert, dedup, get_env, isInf, isNone, isNotNone, setDefault, strip_parens } from '../helpers.ts'
+import { AMX, assert, dedup, get_env, isNone, setDefault, strip_parens } from '../helpers.ts'
 import { GroupOp, idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -165,7 +165,7 @@ export class CStyleLanguage extends Renderer {
         r.set(u, `${prefix}${setDefault(c, prefix, 0)}`)
       }
       let l = this.string_rewrite.rewrite(u, this)
-      assert(isNotNone(l), `failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)
+      assert(l !== undefined, `failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)
 
       if ([Ops.ENDIF, Ops.ENDRANGE].includes(u.op)) depth -= 1
       if (

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, isNone, isNotNone, setDefault, stringToBytes } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, isNone, setDefault, stringToBytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -24,12 +24,12 @@ export abstract class Allocator<AllocRes = MemoryView> {
   // using instead of super.alloc()
   _super_alloc = (size: number, options?: BufferSpec): AllocRes => {
     assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-    return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
+    return this._alloc(size, options !== undefined ? options : new BufferSpec())
   }
   //   # overriden in LRUAllocator
   alloc = (size: number, options?: BufferSpec) => this._super_alloc(size, options)
 
-  _super_free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._free(opaque, isNotNone(options) ? options : new BufferSpec())
+  _super_free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._free(opaque, options !== undefined ? options : new BufferSpec())
   free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._super_free(opaque, size, options)
 
   //   # implemented by the runtime
@@ -103,7 +103,7 @@ export class Compiler {
     if (isNone(lib)) {
       assert(!get_env('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
       lib = this.compile(src)
-      if (isNotNone(this.cachekey)) diskcache_put(this.cachekey, src, lib)
+      if (this.cachekey !== undefined) diskcache_put(this.cachekey, src, lib)
     }
     return lib
   }

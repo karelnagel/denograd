@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { assert, cache_fn, dataclass, get_key, is_eq, listStr, range } from '../helpers.ts'
-import { get_number_env, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
+import { get_number_env, isNone, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
 
@@ -26,9 +26,9 @@ const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (u
   let [idx, valid] = views_to_indexed_uops(views).map((u) => graph_rewrite(u, symbolic_flat))
   // TODO: always apply these in to_indexed_uops?
   const newvalid = simplify_valid(valid)
-  if (isNotNone(newvalid)) valid = newvalid
+  if (newvalid !== undefined) valid = newvalid
   const newidx = uop_given_valid(valid, idx)
-  if (isNotNone(newidx)) idx = graph_rewrite(newidx, symbolic_flat)
+  if (newidx !== undefined) idx = graph_rewrite(newidx, symbolic_flat)
   for (const c of splitUOp(idx, Ops.ADD)) {
     if (c.op === Ops.RANGE) ret[c.arg] = 1
     if (c.op === Ops.MUL && c.src[0].op === Ops.RANGE && c.src[1].op === Ops.CONST) ret[c.src[0].arg] = c.src[1].arg
@@ -86,7 +86,7 @@ export class ShapeTracker {
 
   to_uop = () => new UOp(Ops.VIEW, dtypes.void, [], this)
 
-  to_indexed_uops = (_idxs?: UOp[]): [UOp, UOp] => views_to_indexed_uops(this.views, isNotNone(_idxs) ? _idxs : undefined)
+  to_indexed_uops = (_idxs?: UOp[]): [UOp, UOp] => views_to_indexed_uops(this.views, _idxs !== undefined ? _idxs : undefined)
 
   real_size = (): number => {
     if (this.shape.includes(0)) return 0
@@ -118,7 +118,7 @@ export class ShapeTracker {
   simplify = (): ShapeTracker => {
     if (this.views.length >= 2) {
       const new_view = this.views.at(-2)?.add(this.views.at(-1)!)
-      if (isNotNone(new_view)) return new ShapeTracker([...this.views.slice(0, -2), new_view]).simplify()
+      if (new_view !== undefined) return new ShapeTracker([...this.views.slice(0, -2), new_view]).simplify()
     }
     return this
   }
