@@ -218,7 +218,7 @@ export class UOp extends MathTrait<UOp> {
   }
   @cache
   override toString(): string {
-    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${this.src.map((s) => s.toString()).join(',\n').split('\n').map((s) => '  ' + s).join('\n')}\n]`
+    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${this.src.map((s) => s.key).join(',\n').split('\n').map((s) => '  ' + s).join('\n')}\n]`
     return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${listStr(this.arg)})`
   }
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {

@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { MNIST, SmallMNIST } from '../beautiful_mnist.ts'
+import { MNIST } from '../beautiful_mnist.ts'
 import { Adam, get_parameters, mnist } from '../src/mod.ts'
 import { Tensor } from '../src/tensor.ts'
 import { asdict, compare, python } from './helpers.ts'
@@ -74,7 +74,7 @@ Deno.test(
     async () => {
       Tensor.manual_seed(333)
       const [x_train, y_train] = await mnist()
-      const model = new SmallMNIST()
+      const model = new MNIST()
       const opt = Adam(get_parameters(model))
 
       Tensor.training = true

@@ -547,9 +547,9 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.item())
    * ```
    */
-  item = async (): Promise<ConstType> => {
+  item = async <T = any>(): Promise<T> => {
     assert(this.numel() === 1, 'must have one element for item')
-    return await this.data().then((x) => x.getValue(...range(this.shape.length || 1).map(() => 0))) as number
+    return await this.data().then((x) => x.getValue(...range(this.shape.length || 1).map(() => 0))) as T
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
   // src: https://github.com/python/mypy/blob/release-1.6/mypy/typeshed/stdlib/builtins.pyi//L803

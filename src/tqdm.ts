@@ -19,13 +19,7 @@ export type TqdmOptions = {
 const markers = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█']
 const filledMarker = markers.at(-1)
 
-function renderBarWithSize({
-  i,
-  label,
-  size,
-  width,
-  elapsed,
-}: RenderBarOptions & { size: number }): string {
+function renderBarWithSize({ i, label, size, width, elapsed }: RenderBarOptions & { size: number }): string {
   const n = Math.max(i * 8 * width / size, 0)
   const whole = Math.floor(n / 8)
   const rem = Math.round(n % 8)
@@ -35,22 +29,14 @@ function renderBarWithSize({
   const remaining = (size - i) / rate
   const percent = i / size * 100
   const graph = `${label ? label + ': ' : ''}${percent.toFixed(1)}% |${bar}${gap}| ${i}/${size} | ${elapsed.toFixed(2)}>${remaining.toFixed(2)}s ${rate.toFixed(2)}it/s`
-  if (graph === '' && n > 0) {
-    return '▏'
-  }
+  if (graph === '' && n > 0) return '▏'
   return graph
 }
 
-function renderBarWithoutSize({
-  i,
-  label,
-  elapsed,
-}: RenderBarOptions & { size: undefined }): string {
+function renderBarWithoutSize({ i, label, elapsed }: RenderBarOptions & { size: undefined }): string {
   const rate = i / elapsed
   const graph = `${label ? label + ': ' : ''}${i} | ${elapsed.toFixed(2)}s ${rate.toFixed(2)}it/s`
-  if (graph === '' && i > 0) {
-    return '▏'
-  }
+  if (graph === '' && i > 0) return '▏'
   return graph
 }
 
@@ -58,13 +44,8 @@ function renderBarWithoutSize({
  * TQDM bar rendering logic extracted out for easy testing and modularity.
  * Renders the full bar string given all necessary inputs.
  */
-function renderBar({
-  size,
-  ...options
-}: RenderBarOptions): string {
-  if (size === undefined) {
-    return renderBarWithoutSize({ size: undefined, ...options })
-  }
+function renderBar({ size, ...options }: RenderBarOptions): string {
+  if (size === undefined) return renderBarWithoutSize({ size: undefined, ...options })
   return renderBarWithSize({ size, ...options })
 }
 
@@ -72,50 +53,57 @@ function* arrayToIterableIterator<T>(iter: T[]): IterableIterator<T> {
   yield* iter
 }
 
-function isIterableIterator<T>(
-  value: IterableIterator<T> | AsyncIterableIterator<T>,
-): value is IterableIterator<T> {
+function isIterableIterator<T>(value: IterableIterator<T> | AsyncIterableIterator<T>): value is IterableIterator<T> {
   return value !== null &&
     typeof (value as IterableIterator<T>)[Symbol.iterator] === 'function' &&
     typeof value.next === 'function'
 }
 
-async function* toAsyncIterableIterator<T>(
-  iter: IterableIterator<T>,
-): AsyncIterableIterator<T> {
+async function* toAsyncIterableIterator<T>(iter: IterableIterator<T>): AsyncIterableIterator<T> {
   for (const it of iter) {
     yield it
   }
 }
 
-/**
- * A TQDM progress bar for an arbitrary `AsyncIterableIterator<T>`.
- *
- * Note that unlike in Python, here we need to manually specify the total size
- * of the iterable.
- */
-export async function* tqdm<T>(
-  iter: Array<T> | IterableIterator<T> | AsyncIterableIterator<T>,
-  { label, size, width = 16 }: TqdmOptions = {},
-): AsyncIterableIterator<T> {
-  if (Array.isArray(iter)) {
-    size = iter.length
-    iter = arrayToIterableIterator(iter)
-  }
-  if (isIterableIterator(iter)) {
-    iter = toAsyncIterableIterator(iter)
+export class Tqdm<T> implements AsyncIterableIterator<T> {
+  private iter: AsyncIterableIterator<T>
+  private i: number
+  private start: number
+  private label: string | undefined
+  private size: number | undefined
+  private width: number
+
+  constructor(iter: Array<T> | IterableIterator<T> | AsyncIterableIterator<T>, { label, size, width = 16 }: TqdmOptions = {}) {
+    if (Array.isArray(iter)) {
+      size = iter.length
+      iter = arrayToIterableIterator(iter)
+    }
+    if (isIterableIterator(iter)) {
+      iter = toAsyncIterableIterator(iter)
+    }
+    this.iter = iter
+    this.i = 0
+    this.start = Date.now()
+    this.label = label
+    this.size = size
+    this.width = width
   }
 
-  const start = Date.now()
-  async function print(s: string): Promise<void> {
-    await Deno.stdout.write(stringToBytes(s))
-  }
-  let i = 1
-  for await (const it of iter) {
-    yield it
-    const elapsed = (Date.now() - start) / 1000
-    await print(renderBar({ i, label, size, width, elapsed }) + '\x1b[1G')
-    i++
-  }
-  print('\n')
+  private print = async (s: string) => await Deno.stdout.write(stringToBytes(s))
+
+  set_description = (label: string) => this.label = label
+
+  next = async (): Promise<IteratorResult<T>> => {
+    const result = await this.iter.next()
+    if (!result.done) {
+      const elapsed = (Date.now() - this.start) / 1000
+      await this.print(renderBar({ i: this.i, label: this.label, size: this.size, width: this.width, elapsed }) + '\x1b[1G')
+      this.i++
+    } else {
+      await this.print('\n')
+    }
+    return result
+  };
+
+  [Symbol.asyncIterator] = (): AsyncIterableIterator<T> => this
 }

@@ -4,9 +4,9 @@ import process from 'node:process'
 import os from 'node:os'
 import { execSync } from 'node:child_process'
 import { BinaryLike, createHash, randomUUID } from 'node:crypto'
-import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
+
 type Value = number | bigint
 export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
@@ -673,4 +673,11 @@ export class ArrayMap<K, V> {
   keys = () => this.entries().map((e) => e[0])
   values = () => this.entries().map((e) => e[1])
   delete = (k: K) => delete this.map[get_key(k)]
+}
+
+export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) => {
+  const s = performance.now()
+  const res = await fn()
+  console.log(`${name} took ${Math.round(performance.now() - s) / 1000}s and returned ${res}`)
+  return res
 }
