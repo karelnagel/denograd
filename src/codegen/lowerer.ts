@@ -70,7 +70,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   let idxs
   if (opts.has_local) {
     if (ki.dont_use_locals) {
-      assert(ki.local_dims === 0, "can't use locals if there's no local dims")
+      if (ki.local_dims !== 0) throw new Error("can't use locals if there's no local dims")
       idxs = get_grouped_dims('idx', full_shape.slice(0, global_dims), opts.global_max, true)
     } else {
       //       # define indexes for GPU-like execution
@@ -88,7 +88,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
 
   // upcast loops
   for (const [i, g] of full_shape.slice(first_upcasted).entries()) {
-    assert(isinstance(g, Number), 'needs to be int to upcast/unroll')
+    if (!isinstance(g, Number)) throw new Error('needs to be int to upcast/unroll')
     idxs.push(new UOp(Ops.EXPAND, dtypes.int, [UOp.const(dtypes.int.vec(g as number), range(g as number))], [[i + first_upcasted, g]]))
   }
   // late indexes (group for reduce)
@@ -103,7 +103,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
 export const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   // NOTE: always using ridxs is fine here
   const [reduce_range, reduce_expand] = partition(x.axis_arg.map((i) => ctx.ridxs[i]), (y) => y.op === Ops.RANGE)
-  assert(reduce_expand.every((x) => x.op === Ops.EXPAND), `not all EXPANDS in ${reduce_expand} for ${x.axis_arg}`)
+  if (reduce_expand.some((x) => x.op !== Ops.EXPAND)) throw new Error(`not all EXPANDS in ${reduce_expand} for ${x.axis_arg}`)
   const alu_op: Ops = x.arg[0]
   let ret = x.src[0]
   const contract_axis = reduce_expand.flatMap((x) => x.arg)

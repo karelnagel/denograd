@@ -83,7 +83,7 @@ export class Buffer {
     if (dtype instanceof ImageDType) this.options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
     else assert(dtype instanceof DType && !(dtype instanceof PtrDType))
     if (base === undefined) {
-      assert(offset === 0, "base buffers can't have offset")
+      if (offset !== 0) throw new Error("base buffers can't have offset")
       this._lb_refcount = lb_refcount
       if (in_opaque !== undefined) this.allocate(in_opaque)
       if (in_initial_value !== undefined) {
@@ -91,8 +91,8 @@ export class Buffer {
         this.copyin(new MemoryView(in_initial_value))
       }
     } else {
-      assert(base._base === undefined, "base can't have a base")
-      assert(device === base.device, 'base must have the same device')
+      if (base._base !== undefined) throw new Error("base can't have a base")
+      if (device !== base.device) throw new Error('base must have the same device')
       this._base = base
     }
     if (in_preallocate) this.allocate()
@@ -107,7 +107,7 @@ export class Buffer {
   is_allocated = () => !!this._buf
   ensure_allocated = (): Buffer => !this.is_allocated() ? this.allocate() : this
   allocate = (opaque?: any, external_ptr?: bigint): Buffer => {
-    assert(!this.is_allocated(), "can't allocate already allocated buffer")
+    if (this.is_allocated()) throw new Error("can't allocate already allocated buffer")
     this.allocator = Device.get(this.device).allocator
     if (external_ptr !== undefined) {
       this.options = this.options ? new BufferSpec(this.options.image, this.options.uncached, this.options.cpu_access, this.options.host, this.options.nolru, external_ptr) : new BufferSpec(undefined, undefined, undefined, undefined, undefined, external_ptr)
@@ -149,25 +149,25 @@ export class Buffer {
   as_buffer = (allowZeroCopy = false, forceZeroCopy = false): MemoryView => {
     // zero copy with as_buffer (disabled by default due to use after free)
     if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (this.options === undefined || this.options.image === undefined)) return (this.allocator._asBuffer as any)(this._buf)
-    assert(!forceZeroCopy, 'force zero copy was passed, but copy is required')
+    if (forceZeroCopy) throw new Error('force zero copy was passed, but copy is required')
     return this.copyout(new MemoryView(new Uint8Array(this.nbytes)))
   }
   copyin = (mv: MemoryView): Buffer => {
     mv = mv.flat()
-    assert(mv.byteLength === this.nbytes, `size mismatch, ${mv.byteLength} != ${this.dtype} ${this.size}`)
-    assert(this.is_allocated(), "can't copyin to unallocated buffer")
+    if (mv.byteLength !== this.nbytes) throw new Error(`size mismatch, ${mv.byteLength} != ${this.dtype} ${this.size}`)
+    if (!this.is_allocated()) throw new Error("can't copyin to unallocated buffer")
     this.allocator?._copyin(this._buf, mv)
     return this
   }
   copyout = (mv: MemoryView): MemoryView => {
     mv = mv.flat()
-    assert(mv.byteLength === this.nbytes, `size mismatch, {len(mv)=} != {this.dtype=} ${this.size}`)
-    assert(this.is_allocated(), "can't copyout unallocated buffer")
+    if (mv.byteLength !== this.nbytes) throw new Error(`size mismatch, {len(mv)=} != {this.dtype=} ${this.size}`)
+    if (!this.is_allocated()) throw new Error("can't copyout unallocated buffer")
     this.allocator?._copyout(mv, this._buf)
     return mv
   }
   view = (size: number, dtype: DType, offset: number): Buffer => {
-    assert(offset < this.nbytes, 'offset must be less than nbytes')
+    if (offset >= this.nbytes) throw new Error('offset must be less than nbytes')
     if (this._base !== undefined) return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this._base, this.offset + offset)
     return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this, offset)
   }

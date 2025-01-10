@@ -121,7 +121,7 @@ export class Kernel {
 
   upcasted_axis = (i: number): [number, undefined | sint, boolean][] => {
     const [upcasted_shape, upcasted_stride] = [this.sts[i].shape.slice(this.first_upcast), this.sts[i].real_strides().slice(this.first_upcast)]
-    assert(all_int(upcasted_shape), `cannot upcast a symbolic amount upcasted_shape=${upcasted_shape}`)
+    if (!all_int(upcasted_shape)) throw new Error(`cannot upcast a symbolic amount upcasted_shape=${upcasted_shape}`)
     return zip(upcasted_shape as number[], upcasted_stride, zip(this.sts[0].shape.slice(this.first_upcast), this.full_shape.slice(this.first_upcast)).map(([x, y]) => Boolean(ne(x, y))))
   }
   get first_reduce() {
@@ -181,7 +181,7 @@ export class Kernel {
     colors = [...colors, ...range(this.first_upcast - (this.first_reduce + this.group_for_reduces)).map(() => 'red')]
     //     # upcasted dimensions are reduce (magenta) ||normal (yellow)
     colors = [...colors, ...range(this.first_upcast, this.shape_len).map((i) => this.full_shape[i] !== this.sts[0].shape[i] ? 'magenta' : 'yellow')]
-    assert(colors.length === this.shape_len, 'colors size mismatch')
+    if (colors.length !== this.shape_len) throw new Error('colors size mismatch')
     return colors
   }
   colored_shape = (pad?: number, dense = false): string => {
@@ -246,7 +246,7 @@ export class Kernel {
         let special_strides: sint[] = []
         for (const [i, g] of shape_idx_groups.entries()) {
           const shape_piece = g.map((x) => this.output_shape[x])
-          assert(prod(shape_piece) === base_shape[i], `get_contraction was wrong? ${shape_piece} !== ${base_shape[i]}`)
+          if (prod(shape_piece) !== base_shape[i]) throw new Error(`get_contraction was wrong? ${shape_piece} !== ${base_shape[i]}`)
           special_strides = [...special_strides, ...strides_for_shape(shape_piece)]
         }
         //         # adding the fake image shape
@@ -404,7 +404,7 @@ export class Kernel {
   required_optimizations = (): Kernel => {
     if (isinstance(this.membufs[0].dtype, ImageDType)) {
       const unit_stride_axes_mul_4 = this.sts[0].unit_stride_axes(true).filter((i) => (this.sts[0].shape[i] as number) % 4 === 0)
-      assert(!!unit_stride_axes_mul_4.length, `needs a unit stride axis in ${this.bufs[0]}`)
+      if (!unit_stride_axes_mul_4.length) throw new Error(`needs a unit stride axis in ${this.bufs[0]}`)
       if (unit_stride_axes_mul_4.every((x) => x < this.first_upcast) && !this.upcast_in_mid_reduce_axes.includes(unit_stride_axes_mul_4[0])) {
         this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
       }
@@ -560,7 +560,7 @@ export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, Shap
   if ([Ops.REDUCE_AXIS, Ops.WMMA].includes(uop.op)) st = ShapeTracker.from_shape(sts.get(uop.src[0])!.reduce(uop.axis_arg))
   // movementops are pushed to VIEW
   else if (uop.op === Ops.VIEW) {
-    assert(uop.src.length === 0, `can't swizzle in kernel yet ${uop}`)
+    if (uop.src.length !== 0) throw new Error(`can't swizzle in kernel yet ${uop}`)
     st = uop.arg
   } // everything else inherits shape
   else {
@@ -576,11 +576,11 @@ export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, Shap
   sts.set(uop, st)
 }
 export const verify_ast = (ast: UOp): Map<UOp, ShapeTracker> => {
-  assert(ast.op === Ops.SINK && ast.src.every((x) => x.op === Ops.STORE), 'must be SINK')
-  assert(all_same(ast.src.map((x) => x.st_arg.size)), 'outputs must be exactly the same size')
+  if (ast.op !== Ops.SINK || ast.src.some((x) => x.op !== Ops.STORE)) throw new Error('must be SINK')
+  if (!all_same(ast.src.map((x) => x.st_arg.size))) throw new Error('outputs must be exactly the same size')
   const sts = new Map<UOp, ShapeTracker>()
   for (const out of ast.src) _assert_valid_uop(out, out.st_arg, sts)
   const shape_dims = zip(...sts.values().map((x) => x.shape)).map((dims) => dedup(dims).toSorted())
-  assert(shape_dims.every((x) => x.length === 1 || (x.length === 2 && x[0] === 1)), `shapes must have either 1 ||n in each dimension, ${shape_dims}`)
+  if (!shape_dims.every((x) => x.length === 1 || (x.length === 2 && x[0] === 1))) throw new Error(`shapes must have either 1 ||n in each dimension, ${shape_dims}`)
   return sts
 }

@@ -251,7 +251,7 @@ export class UOp extends MathTrait<UOp> {
     if (GroupOp.Buffer.includes(this.op) && src_sts.length !== 0) return src_sts[0]
     src_sts = this.src.filter((x) => x.st !== undefined).map((x) => x.st!)
     if (src_sts.length === 0) return undefined
-    assert(all_same(src_sts.map((x) => x.shape)), `UOp parents must have the same shape ${this} ${listStr(src_sts.map((x) => x.shape))}`)
+    if (!all_same(src_sts.map((x) => x.shape))) throw new Error(`UOp parents must have the same shape ${this} ${listStr(src_sts.map((x) => x.shape))}`)
     // all other ops have a contiguous shapetracker
     return ShapeTracker.from_shape([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op) ? src_sts[0].reduce(this.axis_arg) : src_sts[0].shape)
   }
@@ -352,7 +352,7 @@ export class UOp extends MathTrait<UOp> {
   }
 
   view = (new_st: ShapeTracker): UOp => {
-    assert(this.st !== undefined && this.base.st !== undefined, `must have shape ${this}`)
+    if (this.st === undefined || this.base.st === undefined) throw new Error(`must have shape ${this}`)
     const ret = new UOp(Ops.VIEW, this.dtype, [this.base], new_st)
     // instant folding rules
     if (this.st?.size === 0 || (new_st.views.at(-1)!.mask !== undefined && new_st.views.at(-1)!.mask?.some((x) => sub(x[1], x[0]) === 0))) return ret.const_like(0)
@@ -379,26 +379,26 @@ export class UOp extends MathTrait<UOp> {
   }
   get buf_uop(): UOp {
     if (this.op === Ops.BUFFER) return this
-    assert([...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.op) && this.src[0].op === Ops.BUFFER, `buf_uop called on ${this.op}`)
+    if (![...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.op) || this.src[0].op !== Ops.BUFFER) throw new Error(`buf_uop called on ${this.op}`)
     return this.src[0]
   }
   //   # *** uop Variable stuff ***
 
   static variable = (name: string, minVal: ConstType<UOp> = dtypes.min(dtypes.int), maxVal: ConstType<UOp> = dtypes.max(dtypes.int), dtype = dtypes.int) => {
-    assert(!(minVal instanceof UOp) && !(maxVal instanceof UOp), `can't create Variable ${name} with ${minVal}/${maxVal}`)
+    if ((minVal instanceof UOp) || (maxVal instanceof UOp)) throw new Error(`can't create Variable ${name} with ${minVal}/${maxVal}`)
     return new UOp(Ops.DEFINE_VAR, dtype, undefined, [name, minVal, maxVal])
   }
   get expr() {
-    assert(this.op === Ops.DEFINE_VAR, `op is ${this.op}, need DEFINE_VAR`)
+    if (this.op !== Ops.DEFINE_VAR) throw new Error(`op is ${this.op}, need DEFINE_VAR`)
     return this.arg[0]
   }
   bind = (val: number) => {
-    assert(this.op === Ops.DEFINE_VAR, `op is ${this.op}, need DEFINE_VAR`)
-    assert(this.arg[1] <= val && val <= this.arg[2], `bind ${val} not in range [${this.arg[1]}, ${this.arg[2]}]`)
+    if (this.op !== Ops.DEFINE_VAR) throw new Error(`op is ${this.op}, need DEFINE_VAR`)
+    if (this.arg[1] > val || val > this.arg[2]) throw new Error(`bind ${val} not in range [${this.arg[1]}, ${this.arg[2]}]`)
     return new UOp(Ops.BIND, this.dtype, [this, this.const_like(val)])
   }
   unbind = (): [Variable, number] => {
-    assert(this.op === Ops.BIND && this.src[0].op === Ops.DEFINE_VAR && this.src[1].op === Ops.CONST, `can't unbind ${this}`)
+    if (this.op !== Ops.BIND || this.src[0].op !== Ops.DEFINE_VAR || this.src[1].op !== Ops.CONST) throw new Error(`can't unbind ${this}`)
     return [this.src[0], this.src[1].arg]
   }
   val = () => this.unbind()[1]
@@ -608,11 +608,12 @@ export class UPat extends MathTrait<UPat> {
   early_reject: Ops[]
   constructor(op?: Ops | Ops[], dtype?: DType | DType[], src?: UPat | UPat[] | [UPat[]], public arg?: any, public name?: string, allow_any_len?: boolean, location?: any, public custom_early_reject?: Ops[]) {
     super()
-    assert(op === undefined || !(!Array.isArray(op) && Object.values(Ops).includes(op)) || !(Array.isArray(op) && Object.values(Ops).includes(op[0])), 'op must be Ops or tuple of Ops')
+    // TODO reverse this condition
+    if (!(op === undefined || !(!Array.isArray(op) && Object.values(Ops).includes(op)) || !(Array.isArray(op) && Object.values(Ops).includes(op[0])))) throw new Error('op must be Ops or tuple of Ops')
     this.op = Array.isArray(op) ? op : op !== undefined ? [op] : undefined
     this.dtype = Array.isArray(dtype) ? dtype : dtype !== undefined ? [dtype] : undefined
     this._in_src = src
-    assert(this.name !== 'ctx', "UPat can't be named ctx")
+    if (this.name === 'ctx') throw new Error("UPat can't be named ctx")
 
     // try all permutations if it's a list (we use src[][])
     if (Array.isArray(src) && Array.isArray(src[0])) this.src = !all_same(src[0]) ? permutations(src[0]) : [src[0]]

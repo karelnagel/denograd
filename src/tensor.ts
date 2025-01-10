@@ -36,7 +36,7 @@ export class Function {
   }
 
   static apply(...args: any[]): Tensor {
-    assert(args.length > 0, 'No args')
+    if (!args.length) throw new Error('No args')
 
     const x = args.filter((x) => x instanceof Tensor)
     const ctx = new this(x[0].device, x, _METADATA.value)
@@ -304,7 +304,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
   if (x instanceof Uint8Array) [ret, data] = [LazyBuffer.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
   else {
     ret = LazyBuffer.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
-    assert(dtype.fmt !== undefined, `${dtype} has undefined fmt`)
+    if (dtype.fmt === undefined) throw new Error(`${dtype} has undefined fmt`)
     data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt })
   }
   //   // fake realize
@@ -362,7 +362,7 @@ export class Tensor extends MathTrait<Tensor> {
     super()
     if (skip_constructor) return
     if (dtype !== undefined) dtype = to_dtype(dtype)
-    assert(dtype === undefined || dtype instanceof DType, `invalid dtype ${dtype}`)
+    if (dtype !== undefined && !(dtype instanceof DType)) throw new Error(`invalid dtype ${dtype}`)
     if (device === undefined && typeof data === 'string') {
       data = Deno.realPathSync(data)
       device = `DISK:${data}`
@@ -375,13 +375,13 @@ export class Tensor extends MathTrait<Tensor> {
 
     //     // create a LazyBuffer from the different types of inputs
     if (data instanceof LazyBuffer) {
-      assert(dtype === undefined || dtype === data.dtype, "dtype doesn't match, && casting isn't supported")
+      if (dtype !== undefined && dtype !== data.dtype) throw new Error("dtype doesn't match, && casting isn't supported")
     } else if (data === undefined) {
       data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
     } else if (typeof data === 'number' || typeof data === 'boolean' || typeof data === 'bigint') {
       data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
     } else if (data instanceof UOp) {
-      assert(data.op === Ops.BIND && data.src[0].op === Ops.DEFINE_VAR && data.src[1].op === Ops.CONST, `can't create tensor from UOp ${data}`)
+      if (data.op !== Ops.BIND || data.src[0].op !== Ops.DEFINE_VAR || data.src[1].op !== Ops.CONST) throw new Error(`can't create tensor from UOp ${data}`)
       data = _metaop(Ops.CONST, [], dtype || data.dtype, device, data)
     } else if (data instanceof Uint8Array) {
       data = _frompy(data, dtype || dtypes.uint8)
@@ -485,7 +485,7 @@ export class Tensor extends MathTrait<Tensor> {
   replace = (x: Tensor): Tensor => {
     // used for replacing a Tensor with a new version of it (potentially with a different device && dtype)
     assert(!x.requires_grad && this._ctx === undefined)
-    assert(is_eq(this.shape, x.shape), `replace shape mismatch ${this.shape} !== ${x.shape}`)
+    if (!is_eq(this.shape, x.shape)) throw new Error(`replace shape mismatch ${this.shape} !== ${x.shape}`)
     this.lazydata = x.lazydata
     return this
   }
@@ -502,11 +502,11 @@ export class Tensor extends MathTrait<Tensor> {
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign
-    assert(is_eq(this.shape, x.shape), `assign shape mismatch ${this.shape} !== ${x.shape}`)
-    assert(this.device === x.device, `assign device mismatch ${this.device} !== ${x.device}`)
-    assert(this.dtype === x.dtype, `assign dtype mismatch ${this.dtype} !== ${x.dtype}`)
+    if (!is_eq(this.shape, x.shape)) throw new Error(`assign shape mismatch ${this.shape} !== ${x.shape}`)
+    if (this.device !== x.device) throw new Error(`assign device mismatch ${this.device} !== ${x.device}`)
+    if (this.dtype !== x.dtype) throw new Error(`assign dtype mismatch ${this.dtype} !== ${x.dtype}`)
     // assert(!isinstance(this.lazydata, MultiLazyBuffer) || this.lazydata.axis === x.lazydata.axis, "axis must match on MultiLazyBuffer")
-    assert(!x.requires_grad) // this requires_grad === okay?
+    if (x.requires_grad) throw new Error("assign can't have grad") // this requires_grad === okay?
     if (!this.lazydata.is_realized) return this.replace(x)
     this.lazydata = this.lazydata.assign(x.lazydata)
     return this
@@ -534,8 +534,8 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   data = async (): Promise<MemoryView<any>> => {
-    assert(this.dtype.base.fmt !== undefined, `no fmt dtype for ${this.dtype.base}`)
-    assert(all_int(this.shape), `no data if shape === symbolic, ${this.shape}`)
+    if (this.dtype.base.fmt === undefined) throw new Error(`no fmt dtype for ${this.dtype.base}`)
+    if (!all_int(this.shape)) throw new Error(`no data if shape === symbolic, ${this.shape}`)
     // if (TYPE_CHECKING ) assert(this.dtype.base.fmt !== "e")
     return await this._data().then((x) => x.cast(this.dtype.base.fmt!, this.shape.includes(0) ? undefined : this.shape as number[]))
   }
@@ -548,7 +548,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   item = async <T = number>(): Promise<T> => {
-    assert(this.numel() === 1, 'must have one element for item')
+    if (this.numel() !== 1) throw new Error('must have one element for item')
     return await this.data().then((x) => x.getValue(...range(this.shape.length || 1).map(() => 0))) as T
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
@@ -922,12 +922,12 @@ export class Tensor extends MathTrait<Tensor> {
   backward = (gradient?: Tensor, retain_graph = false): Tensor => {
     const toposorted = this._deepwalk()
     if (gradient === undefined) {
-      assert(is_eq(this.shape, []), 'when no gradient === provided, backward must be called on a scalar tensor')
+      if (!is_eq(this.shape, [])) throw new Error('when no gradient === provided, backward must be called on a scalar tensor')
       // fill in the first grad with one. don't use Tensor.ones because we don't need contiguous
       // this === "implicit gradient creation"
       gradient = new Tensor(1.0, { dtype: this.dtype, device: this.device, requires_grad: false })
     }
-    assert(is_eq(this.shape, gradient.shape), `grad shape must match tensor shape, ${gradient.shape} !== ${this.shape}`)
+    if (!is_eq(this.shape, gradient.shape)) throw new Error(`grad shape must match tensor shape, ${gradient.shape} !== ${this.shape}`)
     this.grad = gradient
     for (const t0 of toposorted.toReversed()) {
       if (t0.grad === undefined) throw new Error(`tensor ${t0} has no grad`)
@@ -938,7 +938,7 @@ export class Tensor extends MathTrait<Tensor> {
       const grads = (!Array.isArray(lazys) ? [lazys] : lazys).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
       for (const [t, g] of zip(t0._ctx!.parents!, grads)) {
         if (g !== undefined && t.requires_grad) {
-          assert(is_eq(g.shape, t.shape), `grad shape must match tensor shape, ${listStr(g.shape)} !== ${listStr(t.shape)}`)
+          if (!is_eq(g.shape, t.shape)) throw new Error(`grad shape must match tensor shape, ${listStr(g.shape)} !== ${listStr(t.shape)}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
         }
       }
@@ -1835,11 +1835,11 @@ export class Tensor extends MathTrait<Tensor> {
   // ***** processing ops *****
 
   _pool = (k_: sint[], stride: number[] | number = 1, dilation: number[] | number = 1): Tensor => {
-    assert(this.shape.length >= k_.length, `can't pool ${this.shape} with ${k_}`)
+    if (this.shape.length < k_.length) throw new Error(`can't pool ${this.shape} with ${k_}`)
     const [s_, d_] = [make_tuple(stride, k_.length), make_tuple(dilation, k_.length)]
-    assert(k_.length === s_.length && s_.length === d_.length, `stride/dilation mismatch kernel:${k_} stride:${s_} dilation:${d_}`)
+    if (k_.length !== s_.length || s_.length !== d_.length) throw new Error(`stride/dilation mismatch kernel:${k_} stride:${s_} dilation:${d_}`)
     const [noop, i_] = [range(this.ndim - k_.length).map(() => undefined), this.shape.slice(-k_.length)]
-    assert(zip(k_, d_, i_).every(([k, d, i]) => resolve(le(add(mul(d, sub(k, 1)), 1), i))), 'kernel size can!be greater than actual input size')
+    if (!zip(k_, d_, i_).every(([k, d, i]) => resolve(le(add(mul(d, sub(k, 1)), 1), i)))) throw new Error('kernel size can!be greater than actual input size')
     const o_ = zip(i_, d_, k_, s_).map(([i, d, k, s]) => ceildiv(sub(i, mul(d, sub(k, 1))), s))
     if (zip(k_, s_).some(([k, s]) => resolve(gt(k, s))) || d_.some((d) => d !== 1)) {
       // input size scaling factor to make sure shrink for stride === possible
