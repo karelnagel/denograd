@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { all_int, assert, is_eq, isinstance, len, min, partition, range, zip } from '../helpers.ts'
+import { all_int, assert, is_eq, isinstance, min, partition, range, zip } from '../helpers.ts'
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, prod, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 
@@ -59,7 +59,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const ki = isinstance(ast.arg, KernelInfo) ? ast.arg : new KernelInfo()
   // NOTE: assumes the shape is <global dims> <local dims> <group_for_reduces> <reduces> <upcasts/unrolls>
   const full_shape = ast.full_shape
-  const first_upcasted = len(full_shape) - ki.upcasted
+  const first_upcasted = full_shape.length - ki.upcasted
   // if there's no reduce, this is first_upcasted. assumes reduces are at the end
   const first_reduce = min([first_upcasted, ...ast.toposort.values().filter((x) => x.op === Ops.REDUCE_AXIS).flatMap((x) => x.axis_arg)])
   const local_loads = ast.toposort.values().filter((x) => x.op === Ops.LOAD && x.src[0].op === Ops.DEFINE_LOCAL)

@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { ArrayMap, assert, dataclass, dedup, flatten, get_key, is_eq, isinstance, isLessThan, len, min, partition, setDefault } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, dedup, flatten, get_key, is_eq, isinstance, isLessThan, min, partition, setDefault } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
@@ -18,7 +18,7 @@ export class BasicBlock {
     this.key = get_key(ctx, lst, end)
   }
   lt = (o: BasicBlock) => isLessThan([...this.ctx, ...this.lst].map((x) => x.tuplize), [...o.ctx, ...o.lst].map((x) => x.tuplize))
-  toString = () => `${this.end !== undefined ? (disp(this.end) + ' ') : ''}` + `${this.ctx.map((y) => disp(y))} ${len(this.lst)}` + '\n' + this.lst.map((x) => x.op.toString()).join('\n')
+  toString = () => `${this.end !== undefined ? (disp(this.end) + ' ') : ''}` + `${this.ctx.map((y) => disp(y))} ${this.lst.length}` + '\n' + this.lst.map((x) => x.op.toString()).join('\n')
 }
 type CTX = [Map<UOp, UOp[]>, Map<UOp, UOp[]>]
 export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
@@ -164,7 +164,7 @@ export const block_reorder = (in_block: UOp): UOp => {
       if (in_degree.get(u) === 0) push(u)
     }
   }
-  assert(newlst.length === in_block.arg.lst.length, `len mismatch ${len(newlst)} != ${len(in_block.arg.lst)}`)
+  assert(newlst.length === in_block.arg.lst.length, `len mismatch ${newlst.length} != ${in_block.arg.lst.length}`)
   return in_block.replace({ arg: new BasicBlock(in_block.arg.ctx, newlst) })
 }
 
