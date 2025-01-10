@@ -7,8 +7,11 @@ import { Renderer } from '../../src/renderer/index.ts'
 import { ClangRenderer } from '../../src/renderer/cstyle.ts'
 import { ShapeTracker } from '../../src/shape/shapetracker.ts'
 import { View } from '../../src/shape/view.ts'
-import { pyKernel, tsKernel } from '../codegen/kernel.test.ts'
 import { compare } from '../helpers.ts'
+
+export const kernelKeys = ['ast', 'opts', 'vars', 'bufs', 'applied_opts', 'group_for_reduces', 'upcasted', 'local_dims', 'tensor_core', 'tensor_core_opts', 'use_tensor_cores', 'bufs_for_tensor_core', 'dont_use_locals', 'sts', 'reduceops', 'full_buf_index', 'uops'] as const
+export const tsKernel = (k: Kernel) => kernelKeys.map((key) => k[key])
+export const pyKernel = `out([getattr(k,key,None) for key in [${kernelKeys.map((k) => `"${k}"`)}]])`
 
 const kernelInputs = (): [Renderer, UOp][] => [
   [new ClangRenderer(), new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.VIEW, dtypes.void, [], new ShapeTracker([new View([1], [0], 0, undefined, true)])), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.VALID, dtypes.bool, [new UOp(Ops.VIEW, dtypes.void, [], new ShapeTracker([new View([1], [0], 0, undefined, true)]))], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined)], undefined)], undefined)],
