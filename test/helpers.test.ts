@@ -1,10 +1,9 @@
 import * as helpers from '../src/helpers.ts'
 import { compare } from './helpers.ts'
 
-
 Deno.test('argsort', compare([[[1, 2, 3]], [[1, 4, 2]]], helpers.argsort, 'out(tiny.helpers.argsort(*data))'))
 
-Deno.test('memsizeToStr', compare([[123], [100_000], [2_450_000]], helpers.memsizeToStr, 'out(tiny.helpers.memsize_to_str(*data))'))
+Deno.test('memsizeToStr', compare([[123], [100_000], [2_450_000]], helpers.memsize_to_str, 'out(tiny.helpers.memsize_to_str(*data))'))
 
 Deno.test('dedup', compare([[[1, 2, 3, 2, 1]], [[1, 2, 3]]], helpers.dedup, 'out(tiny.helpers.dedup(*data))'))
 
@@ -14,7 +13,7 @@ Deno.test('allInt', compare([[[1, 2, 3]], [[1, 2.5, 3]]], helpers.all_int, 'out(
 
 Deno.test('colored', compare([['test', 'red'], ['test', 'green']], helpers.colored, 'out(tiny.helpers.colored(*data))'))
 
-Deno.test('colorizeFloat', compare([[0.5], [1.0], [1.2]], helpers.colorizeFloat, 'out(tiny.helpers.colorize_float(*data))'))
+Deno.test('colorizeFloat', compare([[0.5], [1.0], [1.2]], helpers.colorize_float, 'out(tiny.helpers.colorize_float(*data))'))
 
 Deno.test('ansistrip', compare([[' sdf sdf sdf sdfasdf'], ['test']], helpers.ansistrip, 'out(tiny.helpers.ansistrip(*data))'))
 

@@ -1,5 +1,5 @@
 // deno-lint-ignore-file require-await
-import { all_same, assert, bytesToString, cpuTimeExecution, flatten, get_env, isinstance, product, range, stringToBytes, zip } from '../helpers.ts'
+import { all_same, assert, bytes_to_string, cpu_time_execution, flatten, get_env, isinstance, product, range, string_to_bytes, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, idiv, Ops, sum, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
@@ -54,8 +54,8 @@ const jsonRevive = (key: string, value: unknown) => {
   throw new Error(`Can't deserialize ${value}`)
 }
 
-const serialize = (data: PyUOp[]): Uint8Array => stringToBytes(JSON.stringify(data, jsonReplace))
-const deserialize = (data: Uint8Array): PyUOp[] => JSON.parse(bytesToString(data), jsonRevive)
+const serialize = (data: PyUOp[]): Uint8Array => string_to_bytes(JSON.stringify(data, jsonReplace))
+const deserialize = (data: Uint8Array): PyUOp[] => JSON.parse(bytes_to_string(data), jsonRevive)
 
 export class PythonProgram extends Program {
   uops: PyUOp[]
@@ -64,7 +64,7 @@ export class PythonProgram extends Program {
     this.uops = deserialize(lib)
   }
   // KAREL: TODO: use Web workers maybe?
-  override call = cpuTimeExecution(async (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
+  override call = cpu_time_execution(async (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length
     for (const idxs of product(...global_size.toReversed().map((x) => range(x)))) {
@@ -247,12 +247,12 @@ export class PythonRenderer extends Renderer {
   }
   override render = (name: string, uops: UOp[]): string => {
     const lops = uops.map((u) => [u.op, u.dtype, u.src.map((v) => uops.indexOf(v)), u.arg] as PyUOp)
-    return btoa(bytesToString(serialize(lops)))
+    return btoa(bytes_to_string(serialize(lops)))
   }
 }
 
 export class PythonCompiler extends Compiler {
-  override compile = (src: string): Uint8Array => stringToBytes(atob(src))
+  override compile = (src: string): Uint8Array => string_to_bytes(atob(src))
 }
 
 export class PythonAllocator extends Allocator {

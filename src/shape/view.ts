@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, is_eq, isInt, isLessThan, listStr, next, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, is_eq, is_less_than, isInt, list_str, next, range, zip } from '../helpers.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, resolve, type sint, sint_to_uop, smax, smin, sub, sum, sym_infer, UOp, type Variable } from '../ops.ts'
 
 export const canonicalize_strides = cache_fn((shape: sint[], strides: sint[]): sint[] => {
@@ -89,10 +89,10 @@ export class View {
     return [...this.shape, ...this.strides, this.offset, ...(this.mask !== undefined ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize : [x])
   }
   lt(this: View, o: View) {
-    return isLessThan(this.t, o.t)
+    return is_less_than(this.t, o.t)
   }
   toString() {
-    return `new View(${listStr(this.shape)}, ${listStr(this.strides)}, ${this.offset}, ${listStr(this.mask)}, ${this.contiguous})`
+    return `new View(${list_str(this.shape)}, ${list_str(this.strides)}, ${this.offset}, ${list_str(this.mask)}, ${this.contiguous})`
   }
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
@@ -268,9 +268,9 @@ export class View {
   }
   @cache
   pad(arg: [sint, sint][]): View {
-    if (arg.length !== this.shape.length) throw new Error(`invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
+    if (arg.length !== this.shape.length) throw new Error(`invalid pad ${list_str(arg)} for ${list_str(this.shape)}`)
     //     # NOTE: not checking for symbolic arg
-    for (const [b, e] of arg) if (!((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0))) throw new Error(`invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
+    for (const [b, e] of arg) if (!((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0))) throw new Error(`invalid pad ${list_str(arg)} for ${list_str(this.shape)}`)
     if (arg.some(([b, e]) => resolve(ne(b, 0)) || resolve(ne(e, 0)))) {
       const zvarg = zip(this.shape, arg).map(([s, [b, e]]) => [neg(b), add(s, e)] as [sint, sint])
       const mask = zip(this.shape, arg).map(([s, [b, _]]) => [b, add(s, b)] as [sint, sint])
@@ -280,20 +280,20 @@ export class View {
   }
   @cache
   shrink(arg: [sint, sint][]): View {
-    if (arg.length !== this.shape.length) throw new Error(`invalid shrink ${listStr(arg)} for ${listStr(this.shape)}`)
+    if (arg.length !== this.shape.length) throw new Error(`invalid shrink ${list_str(arg)} for ${list_str(this.shape)}`)
     // # NOTE: not checking for symbolic arg
-    for (const [s, [b, e]] of zip(this.shape, arg)) if ((isInt(b) && isInt(e) && isInt(s)) && !(0 <= b && b <= e && e <= s)) throw new Error(`invalid shrink ${listStr(arg)} for ${listStr(this.shape)}`)
+    for (const [s, [b, e]] of zip(this.shape, arg)) if ((isInt(b) && isInt(e) && isInt(s)) && !(0 <= b && b <= e && e <= s)) throw new Error(`invalid shrink ${list_str(arg)} for ${list_str(this.shape)}`)
     return this.__unsafe_resize(arg)
   }
   @cache
   expand(new_shape: sint[]): View {
-    if (new_shape.length !== this.shape.length) throw new Error(`expand arg new_shape=${listStr(new_shape)} must have same number of dimensions as shape self.shape=${listStr(this.shape)}`)
+    if (new_shape.length !== this.shape.length) throw new Error(`expand arg new_shape=${list_str(new_shape)} must have same number of dimensions as shape self.shape=${list_str(this.shape)}`)
     if (this.shape.includes(0)) {
-      if (!zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0))) throw new Error(`can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
+      if (!zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0))) throw new Error(`can't expand ${list_str(this.shape)} into ${list_str(new_shape)}`)
       return View.create(new_shape)
     }
     //     # TODO: this resolve might be wrong
-    if (!zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1)) throw new Error(`can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
+    if (!zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1)) throw new Error(`can't expand ${list_str(this.shape)} into ${list_str(new_shape)}`)
     //     # NOTE: can the mask ever be (0,0)?
     //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
     const mask = this.mask?.length ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!is_eq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
@@ -301,7 +301,7 @@ export class View {
   }
   @cache
   permute(axis: number[]): View {
-    if (!is_eq(axis.toSorted(), range(this.shape.length))) throw new Error(`invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
+    if (!is_eq(axis.toSorted(), range(this.shape.length))) throw new Error(`invalid permutation ${list_str(axis)} of len ${this.shape.length}`)
     return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, this.mask !== undefined ? axis.map((a) => this.mask![a]) : undefined)
   }
   @cache
@@ -319,16 +319,16 @@ export class View {
     if (is_eq(this.shape, new_shape)) return this
 
     //     # TODO: this resolve shouldn't be needed
-    if (!new_shape.every((x) => resolve(ge(x, 0)))) throw new Error(`shape can't contain negative numbers ${listStr(new_shape)}`)
+    if (!new_shape.every((x) => resolve(ge(x, 0)))) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
     if (this.shape.includes(0)) {
-      if (!new_shape.includes(0)) throw new Error(`cannot reshape 0 size to ${listStr(new_shape)}`)
+      if (!new_shape.includes(0)) throw new Error(`cannot reshape 0 size to ${list_str(new_shape)}`)
       return View.create(new_shape)
     }
     //     # check for the same size
     const self_all_int = all_int(this.shape)
     if (self_all_int) {
-      if (!new_shape.every((s) => s instanceof UOp || typeof s === 'number')) throw new Error(`${listStr(this.shape)} -> ${listStr(new_shape)} contains non (int, Variable) dim`)
-      if (resolve(ne(prod(this.shape), prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${listStr(this.shape)} -> new_shape=${listStr(new_shape)}`)
+      if (!new_shape.every((s) => s instanceof UOp || typeof s === 'number')) throw new Error(`${list_str(this.shape)} -> ${list_str(new_shape)} contains non (int, Variable) dim`)
+      if (resolve(ne(prod(this.shape), prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${list_str(this.shape)} -> new_shape=${list_str(new_shape)}`)
     }
     if (new_shape.length === 0 && this.mask?.length && this.mask.some(([mx, my]) => mx === my)) return undefined
 

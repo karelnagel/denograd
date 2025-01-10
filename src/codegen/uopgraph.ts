@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
+import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, range, set_default, TRANSCENDENTAL } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, prod, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -25,7 +25,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
     else [root_src, arg] = [idx, 0]
     //     # add gates for gated
     if (s!.src[0].src.length === 3) root_src = [s!.src[0].src[2], root_src]
-    if (setDefault(offsets_rootsrc, root_src, new Map()).has(arg)) throw new Error(`${offsets_rootsrc.get(root_src)!.get(arg)} != ${i} with ${s?.src.length} sources`)
+    if (set_default(offsets_rootsrc, root_src, new Map()).has(arg)) throw new Error(`${offsets_rootsrc.get(root_src)!.get(arg)} != ${i} with ${s?.src.length} sources`)
     offsets_rootsrc.get(root_src)!.set(arg, i)
   }
   //   # then rewrite everything we can

@@ -1,4 +1,4 @@
-import { assert, cache, cache_fn, dataclass, get_env, get_key, intersection, isLessThan } from './helpers.ts'
+import { assert, cache, cache_fn, dataclass, get_env, get_key, intersection, is_less_than } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -23,7 +23,7 @@ export class DType {
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
-  lt = (o: DType) => isLessThan(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]) as [number[], number[]])
+  lt = (o: DType) => is_less_than(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]) as [number[], number[]])
   get base(): DType {
     return this
   }

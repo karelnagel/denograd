@@ -1,5 +1,5 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { abs, all_same, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, isInf, isLessThan, isSubset, listStr, mathGcd, max, min, partition, permutations, range, setDefault, sin, sqrt, trunc, zip } from './helpers.ts'
+import { abs, all_same, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, min, partition, permutations, range, set_default, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -223,7 +223,7 @@ export class UOp extends MathTrait<UOp> {
   @cache
   override toString(): string {
     const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${this.src.map((s) => s.toString()).join(',\n').split('\n').map((s) => '  ' + s).join('\n')}\n]`
-    return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${listStr(this.arg)})`
+    return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${list_str(this.arg)})`
   }
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
@@ -255,7 +255,7 @@ export class UOp extends MathTrait<UOp> {
     if (GroupOp.Buffer.includes(this.op) && src_sts.length !== 0) return src_sts[0]
     src_sts = this.src.filter((x) => x.st !== undefined).map((x) => x.st!)
     if (src_sts.length === 0) return undefined
-    if (!all_same(src_sts.map((x) => x.shape))) throw new Error(`UOp parents must have the same shape ${this} ${listStr(src_sts.map((x) => x.shape))}`)
+    if (!all_same(src_sts.map((x) => x.shape))) throw new Error(`UOp parents must have the same shape ${this} ${list_str(src_sts.map((x) => x.shape))}`)
     // all other ops have a contiguous shapetracker
     return ShapeTracker.from_shape([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op) ? src_sts[0].reduce(this.axis_arg) : src_sts[0].shape)
   }
@@ -424,8 +424,8 @@ export class UOp extends MathTrait<UOp> {
   /**largest known int that divides this */
   constFactor = (): number => {
     if (this.op === Ops.CONST) return this.arg
-    if (this.op === Ops.VCONST) return mathGcd(...this.arg)
-    if (this.op === Ops.ADD) return mathGcd(this.src[0].constFactor(), this.src[1].constFactor())
+    if (this.op === Ops.VCONST) return math_gcd(...this.arg)
+    if (this.op === Ops.ADD) return math_gcd(this.src[0].constFactor(), this.src[1].constFactor())
     if (this.op === Ops.MUL) return this.src[1].op === Ops.CONST ? this.src[0].op === Ops.CONST ? this.src[0].arg : this.src[1].arg : 1
     return 1
   }
@@ -561,7 +561,7 @@ export const exec_alu = (op: Ops, dtype: DType, operands: number[], truncateOutp
 export const print_uops = (uops: UOp[]) => {
   for (const [i, u] of uops.entries()) {
     const formattedParents = u.src.map((x) => uops.includes(x) ? x.op !== Ops.CONST ? uops.indexOf(x) : `${x.arg}` : '--')
-    console.log(`${i.toString().padStart(4)} ${u.op.toString().padEnd(20)} ${u.dtype.toString().padEnd(30)} ${listStr(formattedParents).padEnd(32)} ${listStr(u.arg)}`)
+    console.log(`${i.toString().padStart(4)} ${u.op.toString().padEnd(20)} ${u.dtype.toString().padEnd(30)} ${list_str(formattedParents).padEnd(32)} ${list_str(u.arg)}`)
   }
 }
 
@@ -670,14 +670,14 @@ export class UPat extends MathTrait<UPat> {
       return '<missing>'
     }
   }
-  override toString = () => `new UPat(${listStr(this.op?.map((o) => o.toString()))}, ${listStr(this.dtype)}, ${listStr(this.src)}, ${listStr(this.arg)}, ${this.name}, ${this.allowed_len === 0})`;
+  override toString = () => `new UPat(${list_str(this.op?.map((o) => o.toString()))}, ${list_str(this.dtype)}, ${list_str(this.src)}, ${list_str(this.arg)}, ${this.name}, ${this.allowed_len === 0})`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
       (this.op !== undefined && !this.op.includes(uop.op)) ||
-      (this.name !== undefined && setDefault(store, this.name, uop) !== uop) ||
+      (this.name !== undefined && set_default(store, this.name, uop) !== uop) ||
       (this.dtype !== undefined && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
       (this.arg !== undefined && !is_eq(this.arg, uop.arg)) ||
       (this.allowed_len !== -1 && uop.src.length !== this.allowed_len)
@@ -716,7 +716,7 @@ export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, F
     this.patterns = patterns
     for (const [p, fxn] of this.patterns) {
       assert(p.op !== undefined)
-      for (const uop of p.op || []) setDefault(this.pdict, uop, []).push([p, fxn, new Set(p.early_reject), fxn.toString().includes('ctx')])
+      for (const uop of p.op || []) set_default(this.pdict, uop, []).push([p, fxn, new Set(p.early_reject), fxn.toString().includes('ctx')])
     }
   }
 
@@ -726,7 +726,7 @@ export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, F
     const ler = new Set(uop.src.map((u) => u.op))
     for (const [p, fxn, early_reject, hasCtx] of this.pdict.get(uop.op) || []) {
       const index = this.patterns.findIndex((pattern) => pattern[0] === p)
-      if (!isSubset(ler, early_reject)) {
+      if (!is_subset(ler, early_reject)) {
         continue
       }
       for (const match of p.match(uop, new Map())) {
@@ -903,7 +903,7 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
     if (u.op === Ops.CONST) const2 += f
     else { // div is the smallest common divisor of all terms
       if (f > 1 && c % f === 0 && (div === 1 || div > f)) div = f
-      gcd = mathGcd(r, gcd)
+      gcd = math_gcd(r, gcd)
       factors.push(f)
       svars.push(v)
       quotients.push(q)
@@ -970,7 +970,7 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
 
 const lt_folding = (x: UOp, c: number): UOp | undefined => {
   const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
-  const d = mathGcd(...np.map((u) => u.constFactor()), c)
+  const d = math_gcd(...np.map((u) => u.constFactor()), c)
   if (np && d > 1 && 0 <= p.map((u) => u.vmin).reduce((p, c) => add(c, p)) && p.map((u) => u.vmax).reduce((p, c) => add(p, c)) < d) {
     return np.reduce((p, c) => p.add(c), UOp.int(0)).divides(d)!.lt(idiv(c, d))
   }
@@ -1140,7 +1140,7 @@ export const symbolic_simple = new PatternMatcher([
 export const symbolic = symbolic_simple.add(
   new PatternMatcher([
     // ** COMMUTATIVE flipping **
-    [new UPat(GroupOp.Commutative).named('x'), ({ x }) => isLessThan(x.src[1].tuplize, x.src[0].tuplize) ? x.replace({ src: x.src.toReversed() }) : undefined],
+    [new UPat(GroupOp.Commutative).named('x'), ({ x }) => is_less_than(x.src[1].tuplize, x.src[0].tuplize) ? x.replace({ src: x.src.toReversed() }) : undefined],
     //   // group like
     [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, y, c }) => (x.add(x.mul(c))).add(y)],
     //   // ** boolean algebra **

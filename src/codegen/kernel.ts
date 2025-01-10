@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, cache, cache_fn, colored, dataclass, DEBUG, dedup, Enum, get_env, isinstance, range, round_up, setDefault, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, cache, cache_fn, colored, dataclass, DEBUG, dedup, Enum, get_env, isinstance, range, round_up, set_default, to_function_name, USE_TC, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, idiv, KernelInfo, le, mul, ne, Ops, print_uops, prod, resolve, sint, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -539,7 +539,7 @@ export class Kernel {
     //     # group non-local bufs by the op type (LOAD ||STORE) && the buffer arg. take the max access of that buffer in bytes
     //     # TODO: these max && min don't work on symbolic, && results are very wrong.
     const groups = new Map<[Ops, any], UOp[]>()
-    for (const x of [...this.ast.toposort].filter((x) => GroupOp.Buffer.includes(x.op) && x.src[0].op === Ops.DEFINE_GLOBAL)) setDefault(groups, [x.op, x.src[0].arg], []).push(x)
+    for (const x of [...this.ast.toposort].filter((x) => GroupOp.Buffer.includes(x.op) && x.src[0].op === Ops.DEFINE_GLOBAL)) set_default(groups, [x.op, x.src[0].arg], []).push(x)
     const mem_bytes = [...groups.values()].flatMap((group) => Math.max(...group.map((x) => x.src[0].dtype.itemsize * x.st_arg.real_size()))).reduce((acc, x) => acc + x, 0)
     return new ProgramSpec(ansiname, src, this.opts.device, this.uops, mem_bytes, this.opts.has_local ? [1, 1, 1] : undefined, this.opts.has_local ? [1, 1, 1] : undefined)
   }

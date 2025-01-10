@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, is_eq, isinstance, listStr, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
 import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
 import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from './engine/schedule.ts'
@@ -689,7 +689,7 @@ export class Tensor extends MathTrait<Tensor> {
 
     if (!Tensor._device_seeds[device]) {
       Tensor._device_seeds[device] = new Tensor(
-        [bytesToBigInt(sha256(intToBytes(Object.keys(Tensor._device_seeds).length))) % (2n ** 32n), Tensor._seed],
+        [bytes_to_bigint(sha256(int_to_bytes(Object.keys(Tensor._device_seeds).length))) % (2n ** 32n), Tensor._seed],
         { device: device, dtype: dtypes.uint32, requires_grad: false },
       )
       Tensor._device_rng_counters[device] = new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false })
@@ -937,7 +937,7 @@ export class Tensor extends MathTrait<Tensor> {
       const grads = (!Array.isArray(lazys) ? [lazys] : lazys).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
       for (const [t, g] of zip(t0._ctx!.parents!, grads)) {
         if (g !== undefined && t.requires_grad) {
-          if (!is_eq(g.shape, t.shape)) throw new Error(`grad shape must match tensor shape, ${listStr(g.shape)} !== ${listStr(t.shape)}`)
+          if (!is_eq(g.shape, t.shape)) throw new Error(`grad shape must match tensor shape, ${list_str(g.shape)} !== ${list_str(t.shape)}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
         }
       }
@@ -1083,7 +1083,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (flat && padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
     // turn flat padding into group padding
     let pX = flat ? [...range(this.ndim - idiv(padding.length, 2)).map(() => [0, 0] as [sint, sint]), ...zip(slice(padding as number[], { start: -2, step: -2 }), slice(padding as number[], { step: -2 }))] : padding as [sint, sint][]
-    if (pX.length !== this.ndim) throw new Error(`padding length is improper, ${listStr(padding)} ${this.ndim}`)
+    if (pX.length !== this.ndim) throw new Error(`padding length is improper, ${list_str(padding)} ${this.ndim}`)
     const X = this
     pX = pX.map((p) => p || [0, 0] as [sint, sint])
     const pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
@@ -1320,7 +1320,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
   _resolve_dim = (dim: number, extra = false): number => {
     const total = this.ndim + Number(extra)
-    if (!(-Math.max(1, total) <= dim && dim <= Math.max(1, total) - 1)) throw new Error(`dim=${dim} out of range ${listStr([-Math.max(1, total), Math.max(1, total) - 1])}`)
+    if (!(-Math.max(1, total) <= dim && dim <= Math.max(1, total) - 1)) throw new Error(`dim=${dim} out of range ${list_str([-Math.max(1, total), Math.max(1, total) - 1])}`)
     return dim < 0 ? dim + total : dim
   }
   /**
@@ -1976,7 +1976,7 @@ export class Tensor extends MathTrait<Tensor> {
     let [x, dx, dw] = [this as Tensor, this.ndim, w.ndim]
     if (!(dx > 0 && dw > 0)) throw new Error(`both tensors need to be at least 1D, got ${dx}D && ${dw}D`)
     const axis_w = -Math.min(w.ndim, 2)
-    if (x.shape.at(-1) !== w.shape.at(axis_w)) throw new Error(`can not dot ${listStr(x.shape)} && ${listStr(w.shape)}, axis_w=${axis_w}`)
+    if (x.shape.at(-1) !== w.shape.at(axis_w)) throw new Error(`can not dot ${list_str(x.shape)} && ${list_str(w.shape)}, axis_w=${axis_w}`)
     x = x.reshape([...x.shape.slice(0, -1), ...range(Math.min(dx - 1, dw - 1, 1)).map(() => 1), x.shape.at(-1)!])
     w = w.reshape([...w.shape.slice(0, -2), ...range(Math.min(dx - 1, dw - 1, 1)).map(() => 1), ...w.shape.slice(axis_w)]).transpose(-1, axis_w)
     return (x.mul(w)).sum(-1, undefined, acc_dtype).cast(acc_dtype === undefined ? least_upper_dtype(x.dtype, w.dtype) : acc_dtype)
@@ -2746,7 +2746,7 @@ export class Tensor extends MathTrait<Tensor> {
   // ***** broadcasted elementwise ops *****
   _broadcast_to = (new_shape: sint[]): Tensor => {
     if (is_eq(this.shape, new_shape)) return this
-    if (this.ndim > new_shape.length) throw new Error(`can not broadcast tensor to fewer dimensions. shape=${listStr(this.shape)} to new_shape=${listStr(new_shape)}`)
+    if (this.ndim > new_shape.length) throw new Error(`can not broadcast tensor to fewer dimensions. shape=${list_str(this.shape)} to new_shape=${list_str(new_shape)}`)
     // first unsqueeze left with 1s https://data-apis.org/array-api/latest/API_specification/broadcasting.html
     const [shape, _] = _align_left(this.shape, new_shape)
     // for each dimension, check either dim === 1, || it does !change

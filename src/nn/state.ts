@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { bytesToString, DEBUG, is_eq, isinstance, stringToBytes } from '../helpers.ts'
+import { bytes_to_string, DEBUG, is_eq, isinstance, string_to_bytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export const safe_dtypes = {
@@ -26,7 +26,7 @@ export const inverse_safe_dtypes = new Map(Object.entries(safe_dtypes).map(([k, 
 export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, number, Record<string, any>]> => {
   if (typeof t === 'string') t = new Tensor(t)
   const data_start = await t.get({ start: 0, stop: 8 }).data().then((x) => x.cast('i').getValue(0) + 8)
-  return [t, data_start, JSON.parse(bytesToString(await t.get({ start: 8, stop: data_start }).data().then((x) => x.toBytes())))]
+  return [t, data_start, JSON.parse(bytes_to_string(await t.get({ start: 8, stop: data_start }).data().then((x) => x.toBytes())))]
 }
 /**
  * Loads a .safetensor file from disk, returning the state_dict.
@@ -65,7 +65,7 @@ export const safe_save = async (tensors: Record<string, Tensor>, fn: string, met
   // pathlib.Path(fn).unlink(missing_ok=true)
   const t = Tensor.empty([8 + j.length + offset], { dtype: dtypes.uint8, device: `DISK:${fn}` })
   await t.get({ start: 0, stop: 8 }).bitcast(dtypes.int64).assign_disk([j.length])
-  await t.get({ start: 8, stop: 8 + j.length }).assign_disk(stringToBytes(j))
+  await t.get({ start: 8, stop: 8 + j.length }).assign_disk(string_to_bytes(j))
   for (const [k, v] of Object.entries(await safe_load(t))) await v.assign_disk(tensors[k])
 }
 // state dict

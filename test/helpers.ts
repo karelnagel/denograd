@@ -1,6 +1,6 @@
 import { exec } from 'node:child_process'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../src/dtype.ts'
-import { bytesToString, Enum, Metadata, randomId } from '../src/helpers.ts'
+import { bytes_to_string, Enum, Metadata, random_id } from '../src/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../src/ops.ts'
@@ -156,12 +156,12 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
 }
 export const py_bench = async (b: Deno.BenchContext, code: string | string[]) => {
   if (Array.isArray(code)) code = code.join('\n')
-  const file = `/tmp/tiny_${randomId()}.py`
+  const file = `/tmp/tiny_${random_id()}.py`
   await Deno.writeTextFile(file, code)
   b.start()
   const out = await new Deno.Command(`python3`, { env: { PYTHONPATH: './tinygrad' }, args: [file] }).output()
-  if (out.stdout.length) console.log(bytesToString(out.stdout))
-  if (!out.success) throw new Error(bytesToString(out.stderr))
+  if (out.stdout.length) console.log(bytes_to_string(out.stdout))
+  if (!out.success) throw new Error(bytes_to_string(out.stderr))
   b.end()
 }
 
@@ -185,14 +185,14 @@ def out(o):
 
 ${code}
 `
-  const file = `/tmp/tiny_${randomId()}.py`
+  const file = `/tmp/tiny_${random_id()}.py`
   await Deno.writeTextFile(file, code.trim())
   const [stdout, ts] = (await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
   try {
     return eval(ts)
   } catch (e) {
-    Deno.writeTextFileSync(`invalidcode-${randomId()}.ts`, ts)
+    Deno.writeTextFileSync(`invalidcode-${random_id()}.ts`, ts)
     throw new Error(`eval failed, code:"${ts}" error: ${e}`)
   }
 }

@@ -48,12 +48,12 @@ export const next = <A extends any>(arr: Iterator<A>, def: A): A => {
   const { value, done } = arr.next()
   return done ? def : value
 }
-export const intToBytes = (int: number) => {
+export const int_to_bytes = (int: number) => {
   const hash = new Uint8Array(4)
   new DataView(hash.buffer).setInt32(0, int, false)
   return hash
 }
-export const bytesToBigInt = (bytes: Uint8Array) => {
+export const bytes_to_bigint = (bytes: Uint8Array) => {
   let result = BigInt(0)
   for (const byte of bytes) result = (result << BigInt(8)) + BigInt(byte)
   return result
@@ -72,10 +72,10 @@ export abstract class Enum {
     return this.value
   }
 }
-export const randomId = () => randomUUID().toString()
+export const random_id = () => randomUUID().toString()
 export const sha256 = (x: BinaryLike) => createHash('sha256').update(x).digest()
-export const stringToBytes = (text: string) => new TextEncoder().encode(text)
-export const bytesToString = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
+export const string_to_bytes = (text: string) => new TextEncoder().encode(text)
+export const bytes_to_string = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
 ;(BigInt.prototype as any).toJSON = function () {
   return this.toString()
 }
@@ -108,12 +108,12 @@ export function* counter(start = 0) {
   let current = start
   while (true) yield current++
 }
-export const listStr = (x?: any[]): string => Array.isArray(x) ? `[${x.map(listStr).join(', ')}]` : `${x}`
+export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
-export const isLessThan = (a: any, b: any): boolean => {
+export const is_less_than = (a: any, b: any): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return a.length < b.length
-    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return isLessThan(ai, bi)
+    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return is_less_than(ai, bi)
   }
   if (typeof a === 'object' && typeof b === 'object' && 'lt' in a && 'lt' in b) {
     return a.lt(b)
@@ -129,7 +129,7 @@ export const is_eq = (one: any, two: any): boolean => {
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
-export function setDefault<K, V>(map: Map<K, V> | ArrayMap<K, V>, key: K, defaultValue: V): V {
+export function set_default<K, V>(map: Map<K, V> | ArrayMap<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
   map.set(key, defaultValue)
   return defaultValue
@@ -169,12 +169,12 @@ export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
   return result
 }
 
-export function isSubset<T>(main: Set<T>, subset: Set<T>): boolean {
+export function is_subset<T>(main: Set<T>, subset: Set<T>): boolean {
   for (const elem of subset) if (!main.has(elem)) return false
   return true
 }
 
-export function mathGcd(...numbers: number[]): number {
+export function math_gcd(...numbers: number[]): number {
   function gcdTwo(a: number, b: number): number {
     while (b !== 0) {
       const temp = b
@@ -206,8 +206,8 @@ export const colored = (st: string, color?: string, background = false) => {
   const code = 10 * (background ? 1 : 0) + 60 * (color === color.toUpperCase() ? 1 : 0) + 30 + colors.indexOf(color.toLowerCase())
   return `\u001b[${code}m${st}\u001b[0m`
 }
-export const colorizeFloat = (x: number) => colored(x.toFixed(2).padStart(7) + 'x', x < 0.75 ? 'green' : x > 1.15 ? 'red' : 'yellow')
-export const memsizeToStr = (_b: number) => [tuple(1e9, 'GB'), tuple(1e6, 'MB'), tuple(1e3, 'KB'), tuple(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
+export const colorize_float = (x: number) => colored(x.toFixed(2).padStart(7) + 'x', x < 0.75 ? 'green' : x > 1.15 ? 'red' : 'yellow')
+export const memsize_to_str = (_b: number) => [tuple(1e9, 'GB'), tuple(1e6, 'MB'), tuple(1e3, 'KB'), tuple(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
 export const ansistrip = (s: string) => s.replace(/\x1b\[(K|.*?m)/g, '')
 export const ansilen = (s: string) => ansistrip(s).length
 export const make_tuple = (x: number | number[], cnt: number): number[] => Array.isArray(x) ? [...x] : Array(cnt).fill(x)
@@ -441,7 +441,7 @@ export const diskcache = (func: any) => {
 
 // # *** Exec helpers
 
-export const cpuTimeExecution = <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
+export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
   return async (...args: Args) => {
     const st = performance.now()
     await fn(...args)
@@ -449,7 +449,7 @@ export const cpuTimeExecution = <Args extends any[]>(fn: (...args: Args) => Prom
   }
 }
 
-export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
+export const cpu_objdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
   const outputFile = temp('temp_output.so')
   Deno.writeFileSync(outputFile, lib)
   try {
@@ -593,7 +593,7 @@ export function debug<Args extends any[], Return>(target: (...args: Args) => Ret
   }
 }
 
-function createWeakValueCache<V extends object>() {
+function create_weak_value_cache<V extends object>() {
   const store = new Map<string, WeakRef<V>>()
   const finalizationGroup = new FinalizationRegistry<string>((key) => store.delete(key))
 
@@ -609,7 +609,7 @@ function createWeakValueCache<V extends object>() {
 type ClassType<T> = new (...args: any[]) => T
 
 export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecoratorContext): T {
-  const cache = createWeakValueCache<InstanceType<T>>()
+  const cache = create_weak_value_cache<InstanceType<T>>()
 
   return new Proxy(Base, {
     construct(target, argsList, newTarget) {

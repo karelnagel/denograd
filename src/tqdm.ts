@@ -1,6 +1,6 @@
 // https://github.com/thesephist/tsqdm/blob/main/src/tqdm.ts
 
-import { stringToBytes } from './helpers.ts'
+import { string_to_bytes } from './helpers.ts'
 
 type RenderBarOptions = {
   i: number
@@ -89,7 +89,7 @@ export class Tqdm<T> implements AsyncIterableIterator<T> {
     this.width = width
   }
 
-  private print = async (s: string) => await Deno.stdout.write(stringToBytes(s))
+  private print = async (s: string) => await Deno.stdout.write(string_to_bytes(s))
 
   set_description = (label: string) => this.label = label
 

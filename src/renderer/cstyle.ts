@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, assert, dedup, get_env, setDefault, strip_parens } from '../helpers.ts'
+import { AMX, assert, dedup, get_env, set_default, strip_parens } from '../helpers.ts'
 import { GroupOp, idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -162,7 +162,7 @@ export class CStyleLanguage extends Renderer {
         ])
         prefix = prefixes.get(u.op) || 'alu'
 
-        r.set(u, `${prefix}${setDefault(c, prefix, 0)}`)
+        r.set(u, `${prefix}${set_default(c, prefix, 0)}`)
       }
       let l = this.string_rewrite.rewrite(u, this)
       if (l === undefined) throw new Error(`failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)

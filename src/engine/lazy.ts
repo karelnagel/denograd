@@ -1,6 +1,6 @@
 import { Buffer, DeviceType } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
-import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, is_eq, isinstance, LAZYCACHE, listStr, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, is_eq, isinstance, LAZYCACHE, list_str, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, prod, python_alu, resolve } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
@@ -63,7 +63,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   __del__ = () => {
     if (this.buffer) this.buffer.ref(-1)
   }
-  override toString = (): string => `<LB ${this.device} ${listStr(this.shape)} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st.toString() : `(${this.op}, ${this.realized})`}>`;
+  override toString = (): string => `<LB ${this.device} ${list_str(this.shape)} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st.toString() : `(${this.op}, ${this.realized})`}>`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }

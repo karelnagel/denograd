@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, setDefault, stringToBytes } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, set_default, string_to_bytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -49,7 +49,7 @@ export abstract class Allocator<AllocRes = MemoryView> {
 export abstract class LRUAllocator extends Allocator {
   cache = new ArrayMap<[number, BufferSpec?], MemoryView[]>()
   override alloc = (size: number, options?: BufferSpec) => {
-    const c = setDefault(this.cache, [size, options] as const, [])
+    const c = set_default(this.cache, [size, options] as const, [])
     if (c.length) return c.pop()!
     try {
       return this._super_alloc(size, options)
@@ -67,7 +67,7 @@ export abstract class LRUAllocator extends Allocator {
   // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
     if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
-      setDefault(this.cache, [size, options] as const, []).push(opaque)
+      set_default(this.cache, [size, options] as const, []).push(opaque)
     } else this._super_free(opaque, size, options)
   }
 }
@@ -97,7 +97,7 @@ export class Compiler {
   constructor(cachekey?: string) {
     this.cachekey = get_env('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
-  compile = (src: string): Uint8Array => stringToBytes(src) // NOTE: empty compiler is the default
+  compile = (src: string): Uint8Array => string_to_bytes(src) // NOTE: empty compiler is the default
   compile_cached = (src: string): Uint8Array => {
     let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
     if (lib === undefined) {

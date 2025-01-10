@@ -1,4 +1,4 @@
-import { all_int, listStr } from './helpers.ts'
+import { all_int, list_str } from './helpers.ts'
 
 export type FmtStr = keyof typeof MemoryView.ARRAYS
 
@@ -39,7 +39,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
 
   // New fields for multi-dimensional logic:
   shape: number[] = []
-  toString = () => `new MemoryView(new ${this.asTypedArray.constructor.name}(${listStr(this.to1DList())}), {byteOffset:${this.byteOffset}, byteLength:${this.byteLength}, fmt:'${this.format}', shape:${listStr(this.shape)}})`
+  toString = () => `new MemoryView(new ${this.asTypedArray.constructor.name}(${list_str(this.to1DList())}), {byteOffset:${this.byteOffset}, byteLength:${this.byteLength}, fmt:'${this.format}', shape:${list_str(this.shape)}})`
   // Just like your code; constructor with shape support added at the end:
   constructor(input: MemoryView<F>, opts?: MemoryViewOptions<F>)
   constructor(input: number, opts?: MemoryViewOptions<F>)
@@ -136,7 +136,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
 
   /** Set multi-dimensional element. */
   setValue(value: Const<F>, ...indices: number[]) {
-    if (indices.length !== this.shape.length) throw new Error(`Expected shape=${listStr(this.shape)} indices; got ${listStr(indices)}`)
+    if (indices.length !== this.shape.length) throw new Error(`Expected shape=${list_str(this.shape)} indices; got ${list_str(indices)}`)
     let offset = 0
     for (let i = 0; i < indices.length; i++) {
       if (indices[i] < 0 || indices[i] >= this.shape[i]) throw new RangeError(`Index ${i} = ${indices[i]} is out of bounds for dimension size ${this.shape[i]}`)

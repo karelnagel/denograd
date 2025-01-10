@@ -1,5 +1,5 @@
 import { Compiled, Compiler, MallocAllocator, Program } from './allocator.ts'
-import { cpuObjdump, cpuTimeExecution, range } from '../helpers.ts'
+import { cpu_objdump, cpu_time_execution, range } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -27,7 +27,7 @@ export class ClangCompiler extends Compiler {
     Deno.removeSync(code), Deno.removeSync(bin)
     return data
   }
-  override disassemble = (lib: Uint8Array) => cpuObjdump(lib, this.objdumpTool)
+  override disassemble = (lib: Uint8Array) => cpu_objdump(lib, this.objdumpTool)
 }
 
 export class ClangProgram extends Program {
@@ -36,7 +36,7 @@ export class ClangProgram extends Program {
     if (!lib?.length) throw new Error('Lib is empty')
     if (!name) throw new Error("Name can't be undefined")
   }
-  override call = cpuTimeExecution(async (bufs: MemoryView[], vals: any, wait = false) => {
+  override call = cpu_time_execution(async (bufs: MemoryView[], vals: any, wait = false) => {
     const file = await Deno.makeTempFile()
     await Deno.writeFile(file, this.lib)
     const fxn = Deno.dlopen(file, {

@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { assert, cache_fn, dataclass, get_key, is_eq, listStr, range } from '../helpers.ts'
+import { assert, cache_fn, dataclass, get_key, is_eq, list_str, range } from '../helpers.ts'
 import { get_number_env, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
@@ -53,7 +53,7 @@ export class ShapeTracker {
     for (const v of st.views) ret = new ShapeTracker([...ret.views, v]).simplify() // one view at a time = better simplification
     return ret
   }
-  toString = () => `new ShapeTracker(${listStr(this.views)})`;
+  toString = () => `new ShapeTracker(${list_str(this.views)})`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }

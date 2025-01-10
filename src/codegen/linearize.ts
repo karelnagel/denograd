@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { ArrayMap, assert, dataclass, dedup, flatten, get_key, is_eq, isinstance, isLessThan, min, partition, setDefault } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, dedup, flatten, get_key, is_eq, is_less_than, isinstance, min, partition, set_default } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
@@ -17,7 +17,7 @@ export class BasicBlock {
   constructor(public ctx: UOp[], public lst: UOp[], public end?: UOp) {
     this.key = get_key(ctx, lst, end)
   }
-  lt = (o: BasicBlock) => isLessThan([...this.ctx, ...this.lst].map((x) => x.tuplize), [...o.ctx, ...o.lst].map((x) => x.tuplize))
+  lt = (o: BasicBlock) => is_less_than([...this.ctx, ...this.lst].map((x) => x.tuplize), [...o.ctx, ...o.lst].map((x) => x.tuplize))
   toString = () => `${this.end !== undefined ? (disp(this.end) + ' ') : ''}` + `${this.ctx.map((y) => disp(y))} ${this.lst.length}` + '\n' + this.lst.map((x) => x.op.toString()).join('\n')
 }
 type CTX = [Map<UOp, UOp[]>, Map<UOp, UOp[]>]
@@ -45,7 +45,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
         to_append.push(u)
       } //         # if it's a different context, we create a new block with this UOp
 
-      else setDefault(new_blocks, block_ctx, []).push(u)
+      else set_default(new_blocks, block_ctx, []).push(u)
     } //       # otherwise, we keep it in the srcs
     else new_srcs.push(u)
   }
@@ -116,7 +116,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
     }
   }
   if (to_append.length === 0 && placed.size === 0) return undefined
-  return new UOp(x.op, dtypes.void, new_srcs, new BasicBlock(new_ctx.toSorted((a, b) => isLessThan(a.tuplize, b.tuplize) ? -1 : 1), [...to_append, ...x.arg.lst], x.arg.end))
+  return new UOp(x.op, dtypes.void, new_srcs, new BasicBlock(new_ctx.toSorted((a, b) => is_less_than(a.tuplize, b.tuplize) ? -1 : 1), [...to_append, ...x.arg.lst], x.arg.end))
 }
 export const pm_block_merge = new PatternMatcher<{ ctx: Map<UOp, UOp[]>; x: UOp }>([[new UPat([Ops.BLOCKEND, Ops.BLOCK]).named('x'), ({ ctx, x }) => block_merge(ctx, x)]])
 
@@ -130,12 +130,12 @@ export const block_reorder = (in_block: UOp): UOp => {
   for (const u of in_block.arg.lst.toReversed()) {
     for (const s of u.src) {
       if (in_this_block.has(s)) {
-        local_children.set(s, [...setDefault(local_children, s, []), u])
-        in_degree.set(u, setDefault(in_degree, u, 0) + 1)
+        local_children.set(s, [...set_default(local_children, s, []), u])
+        in_degree.set(u, set_default(in_degree, u, 0) + 1)
       }
     }
     //     # put loads in the beginning of the block and prevent priority inversion
-    priorities.set(u, min([u.op === Ops.LOAD ? -1000 : 0, ...(setDefault(local_children, u, []).map((x) => priorities.get(x)!))]))
+    priorities.set(u, min([u.op === Ops.LOAD ? -1000 : 0, ...(set_default(local_children, u, []).map((x) => priorities.get(x)!))]))
   }
 
   //   # placement queue
@@ -148,7 +148,7 @@ export const block_reorder = (in_block: UOp): UOp => {
       if (priA !== priB) return priA - priB
       // Compare tuplize as secondary sort key
       // Assuming tuplize comparison works similar to Python
-      return isLessThan(a.tuplize, b.tuplize) ? -1 : 1
+      return is_less_than(a.tuplize, b.tuplize) ? -1 : 1
     })
   }
 
@@ -178,7 +178,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
     let this_block_ctx: UOp[] = []
     for (const s of u.src) {
       //       # save children
-      setDefault(children, s, []).push(u)
+      set_default(children, s, []).push(u)
       //       # compute block ctx
       if ([Ops.RANGE, Ops.IF].includes(s.op)) this_block_ctx.push(s)
       //       # don't flow (fully) through assign and store
@@ -196,7 +196,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
 
       else this_block_ctx = [...this_block_ctx, ...temp_block_ctxs.get(s)!]
     }
-    temp_block_ctxs.set(u, dedup(this_block_ctx).toSorted((a, b) => isLessThan(a.tuplize, b.tuplize) ? -1 : 1))
+    temp_block_ctxs.set(u, dedup(this_block_ctx).toSorted((a, b) => is_less_than(a.tuplize, b.tuplize) ? -1 : 1))
   }
   //   # make final block_ctxs, add BLOCKSTART to block_ctxs for IF and RANGE
   const block_ctxs = new Map<UOp, UOp[]>()
@@ -223,7 +223,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   }
   //   # combine matching BLOCKENDS
   const blockends_to_arg = new Map<UOp, UOp[]>()
-  for (const be of sink.toposort) if (be.op === Ops.BLOCKEND) setDefault(blockends_to_arg, be.arg.end, []).push(be)
+  for (const be of sink.toposort) if (be.op === Ops.BLOCKEND) set_default(blockends_to_arg, be.arg.end, []).push(be)
   const new_forks = new Map<UOp, UOp>()
   for (const [k, v] of blockends_to_arg.entries()) {
     //     # NOTE: if any BLOCKEND is the parent of any other with the same arg, this algo fails
@@ -243,7 +243,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   //   # there should just be one block left, with a few parents with 0 srcs
   assert(sink.op === Ops.BLOCK)
   // TODO this sorts a little bit differently, than tinygrad
-  let _uops = dedup(sink.src).toSorted((a, b) => isLessThan(a.tuplize, b.tuplize) ? -1 : 1)
+  let _uops = dedup(sink.src).toSorted((a, b) => is_less_than(a.tuplize, b.tuplize) ? -1 : 1)
   assert(_uops.every((x) => x.src.length === 0 && ![Ops.BLOCK, Ops.BLOCKSTART, Ops.BLOCKEND, Ops.BLOCKFORK].includes(x.op)))
   _uops = [..._uops, ...sink.arg.lst]
 
