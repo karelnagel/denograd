@@ -674,7 +674,7 @@ export class UPat extends MathTrait<UPat> {
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
       (isNotNone(this.name) && setDefault(store, this.name, uop) !== uop) ||
       (isNotNone(this.dtype) && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
-      (isNotNone(this.arg) && this.arg !== uop.arg) ||
+      (isNotNone(this.arg) && !isEq(this.arg ,uop.arg)) ||
       (this.allowed_len !== -1 && uop.src.length !== this.allowed_len)
     ) return []
     if (isNone(this.src)) return [store]
