@@ -83,13 +83,13 @@ for await (const i of tqdm(range(100))) {
 - [x] rewrite all the necesary parts of tinygrad for MNIST, with 'PYTHON' runtime, with tests comparing the python and TS implemenations
 - [x] Github CI
 - [x] CLANG runtime (WIP)
-- [ ] get MNIST training
-- [ ] delete lazy + other tinygrad updates
-- [ ] get it working inside browser with PYTHON runtime
+- [x] get MNIST training
+- [ ] METAL runtime
+- [ ] get working inside browser with PYTHON runtime
 - [ ] WebGPU runtime
-- [ ] publish to npm and jsr
 - [ ] AMD runtime
 - [ ] CLOUD runtime
+- [ ] delete lazy + other tinygrad updates
 - [ ] add all the missing parts of Tensor and other code that were left out in the beginning.
 - [ ] other runtimes
 - [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
