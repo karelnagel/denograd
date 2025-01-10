@@ -25,7 +25,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
     else [root_src, arg] = [idx, 0]
     //     # add gates for gated
     if (s!.src[0].src.length === 3) root_src = [s!.src[0].src[2], root_src]
-    assert(!setDefault(offsets_rootsrc, root_src, new Map()).has(arg), `${offsets_rootsrc.get(root_src)!.get(arg)} != ${i} with ${s?.src.length} sources`)
+    if (setDefault(offsets_rootsrc, root_src, new Map()).has(arg)) throw new Error(`${offsets_rootsrc.get(root_src)!.get(arg)} != ${i} with ${s?.src.length} sources`)
     offsets_rootsrc.get(root_src)!.set(arg, i)
   }
   //   # then rewrite everything we can
@@ -377,7 +377,7 @@ export const do_contract = (con: UOp) => {
   //   # CONTRACT without EXPAND repeats the element VECTORIZED
   if (ex.op !== Ops.EXPAND) return new UOp(Ops.VECTORIZE, con.dtype, range(con.dtype.count).flatMap(() => con.src))
   //   # CONTRACT may remove several axes from EXPAND
-  assert(con.dtype.count === prod(con.arg.map((x: any) => x[1])), 'dtype is wrong')
+  if (con.dtype.count !== prod(con.arg.map((x: any) => x[1]))) throw new Error('dtype is wrong')
   let idxs: number[] = []
   const new_ex_args = ex.arg.filter((x: any) => !con.arg.some((arg: any[]) => is_eq(arg, x)))
   for (const rpk of _choices_from_args(new_ex_args)) {
@@ -494,7 +494,7 @@ export const pm_render = new PatternMatcher([
 // # *** uop graph ***
 
 export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
-  assert(sink.op === Ops.SINK, `sink isn't sink, it's ${sink.op}`)
+  if (sink.op !== Ops.SINK) throw new Error(`sink isn't sink, it's ${sink.op}`)
   const supported_ops = opts !== undefined ? [...opts.code_for_op.keys()] : []
   const extra_matcher = opts !== undefined && opts.extra_matcher !== undefined ? opts.extra_matcher : new PatternMatcher([])
 

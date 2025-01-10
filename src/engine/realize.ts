@@ -61,11 +61,11 @@ export class CompiledRunner extends Runner {
     const lra: Record<string, any> = {}
     if (global_size?.length) {
       lra['global_size'] = global_size
-      assert(global_size.length === 3, 'global size must have len 3')
+      if (global_size.length !== 3) throw new Error('global size must have len 3')
     }
     if (local_size?.length) {
       lra['local_size'] = local_size
-      assert(local_size.length === 3, 'local size must have len 3')
+      if (local_size.length !== 3) throw new Error('local size must have len 3')
     }
     return await this._prg.call(rawbufs.map((x) => x._buf), { ...lra, vals: this.p.vars?.map((k) => var_vals.get(k)!) }, wait)
   }
@@ -82,7 +82,7 @@ export class ViewOp extends Runner {
     super(colored(`view ${buf.nbytes.toString().padStart(8)} @ ${buf.offset.toString().padEnd(10)}`, 'yellow'), buf.device)
   }
   override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
-    assert(rawbufs[0]._base !== undefined && rawbufs[0]._base === rawbufs[1].base, `must be base ${rawbufs}`)
+    if (rawbufs[0]._base === undefined || rawbufs[0]._base !== rawbufs[1].base) throw new Error(`must be base ${rawbufs}`)
     return 0
   }
 }
@@ -106,7 +106,7 @@ export class BufferCopy extends Runner {
   }
   override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false) => {
     const [dest, src] = rawbufs.slice(0, 2)
-    assert(dest.size === src.size && dest.dtype === src.dtype, `buffer copy mismatch, ${dest.size} !== ${src.size}, ${dest.dtype} !== ${src.dtype}`)
+    if (dest.size !== src.size || dest.dtype !== src.dtype) throw new Error(`buffer copy mismatch, ${dest.size} !== ${src.size}, ${dest.dtype} !== ${src.dtype}`)
     const st = performance.now()
     this.copy(dest, src)
     if (wait) {

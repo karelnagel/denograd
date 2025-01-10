@@ -1904,8 +1904,8 @@ export class Tensor extends MathTrait<Tensor> {
       // return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype)
     }
     const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
-    assert(groups * (cin as number) === cin_ && this.shape.length === weight.shape.length, `Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * (cin as number)} vs. ${cin_})`)
-    if (Array.isArray(padding)) assert(padding.length === 2 * HW.length || padding.length === HW.length, `Expected padding of length ${2 * HW.length} || ${HW.length}, but got ${padding.length} for tensor of shape ${this.shape}`)
+    if (!(groups * (cin as number) === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * (cin as number)} vs. ${cin_})`)
+    if (Array.isArray(padding) && !(padding.length === 2 * HW.length || padding.length === HW.length)) throw new Error(`Expected padding of length ${2 * HW.length} || ${HW.length}, but got ${padding.length} for tensor of shape ${this.shape}`)
     const padding_ = this._padding2d(padding, HW.length)
 
     // conv2d === a pooling op (with padding)
@@ -2050,7 +2050,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
 
   static _tri = (r: sint, c: sint, diagonal = 0, opts?: TensorOptions): Tensor => {
-    assert(typeof r === 'number', `does not support symbolic, getting r={r}, c={c}`)
+    if (typeof r !== 'number') throw new Error(`does not support symbolic, getting r={r}, c={c}`)
     if (r === 0 || c === 0 || diagonal >= (c as number)) return Tensor.zeros([r, c], opts)
     if ((r as number) + diagonal <= 0) return Tensor.ones([r, c], opts)
     const s = sub(add(r, c), 1)
@@ -2759,7 +2759,7 @@ export class Tensor extends MathTrait<Tensor> {
     let x: Tensor = this
     if (!isinstance(y, Tensor)) {
       // make y a Tensor
-      assert(typeof y === 'number' || typeof y === 'boolean' || typeof y === 'bigint', `invalid y type: ${typeof y}`)
+      if (typeof y !== 'number' && typeof y !== 'boolean' && typeof y !== 'bigint') throw new Error(`invalid y type: ${typeof y}`)
       let y_dtype
       if (isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_big_int(x.dtype)) || (dtypes.is_int(x.dtype) && Number.isInteger(y))) y_dtype = x.dtype
       else if (!isinstance(y, UOp)) y_dtype = dtypes.from_js(y)
@@ -2955,7 +2955,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   override lshift = (x: ConstType<Tensor>) => {
-    assert(dtypes.is_unsigned(this.dtype) && (typeof x === 'number' || typeof x === 'bigint') && x >= 0, `not supported dtype=${this.dtype} x=${x}`)
+    if (!(dtypes.is_unsigned(this.dtype) && (typeof x === 'number' || typeof x === 'bigint') && x >= 0)) throw new Error(`not supported dtype=${this.dtype} x=${x}`)
     return this.mul(typeof x === 'number' ? 2 ** x : 2n ** (x as bigint))
   }
 
@@ -2968,7 +2968,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   override rshift = (x: ConstType<Tensor>) => {
-    assert(dtypes.is_unsigned(this.dtype) && (typeof x === 'number' || typeof x === 'bigint') && x >= 0, `!supported dtype=${this.dtype} x=${x}`)
+    if (!(dtypes.is_unsigned(this.dtype) && (typeof x === 'number' || typeof x === 'bigint') && x >= 0)) throw new Error(`!supported dtype=${this.dtype} x=${x}`)
     return this.idiv(typeof x === 'number' ? 2 ** x : 2n ** (x as bigint))
   }
 
@@ -3198,8 +3198,8 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   sparse_categorical_crossentropy = (Y: Tensor, ignore_index = -1, label_smoothing = 0.0, reduction: ReductionStr = 'mean'): Tensor => {
-    assert(0.0 <= label_smoothing && label_smoothing <= 1.0, 'label_smoothing must be in [0.0, 1.0]')
-    assert(['mean', 'sum', 'none'].includes(reduction), "reduction must be one of ['mean', 'sum', 'none']")
+    if (!(0.0 <= label_smoothing && label_smoothing <= 1.0)) throw new Error('label_smoothing must be in [0.0, 1.0]')
+    if (!['mean', 'sum', 'none'].includes(reduction)) throw new Error("reduction must be one of ['mean', 'sum', 'none']")
     const [log_probs, loss_mask] = [this.log_softmax(), ignore_index !== -1 ? (Y.ne(ignore_index)) : Y.ones_like({ dtype: dtypes.bool })]
     const y_counted = Y.to(this.device).flatten().reshape([-1, 1])._one_hot_along_dim(this.shape.at(-1)! as number)
     const y = (y_counted.mul(loss_mask.reshape([-1, 1]))).reshape([...Y.shape, this.shape.at(-1)!])

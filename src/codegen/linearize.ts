@@ -34,7 +34,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   for (const u of x.src) {
     if (u.op === Ops.BLOCK) {
       //       # merge sibling blocks. NOTE: blocks must only have one output source
-      assert(!old_blocks.has(u.arg.ctx), 'sibiling should never have been created')
+      if (old_blocks.has(u.arg.ctx)) throw new Error('sibiling should never have been created')
       old_blocks.set(u.arg.ctx, u)
     } else if (!DONT_PLACE_IN_BLOCK.includes(u.op) && new Set(children.get(u)).isSubsetOf(in_this_block)) {
       //       # if it can go in blocks and all its children are in the block, we add it to the block
@@ -86,7 +86,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
     if (ctx.get(x.arg.end!)!.filter((y) => !in_this_block.has(y)).length === 0) {
       //       # find the parent block that has the BLOCKSTART in the ctx
       const parent_blocks = x.src.filter((y) => y.op === Ops.BLOCK && y.arg.ctx.includes(new UOp(Ops.BLOCKSTART, undefined, [x.arg.end])))
-      assert(parent_blocks.length <= 1, 'should never have two parent blocks')
+      if (parent_blocks.length > 1) throw new Error('should never have two parent blocks')
       if (parent_blocks.length === 1) {
         const parent_block = parent_blocks[0]
         // range needs DEFINE_ACC to be before the range (never in DEFINE_ACC for if)
@@ -164,12 +164,12 @@ export const block_reorder = (in_block: UOp): UOp => {
       if (in_degree.get(u) === 0) push(u)
     }
   }
-  assert(newlst.length === in_block.arg.lst.length, `len mismatch ${newlst.length} != ${in_block.arg.lst.length}`)
+  if (newlst.length !== in_block.arg.lst.length) throw new Error(`len mismatch ${newlst.length} != ${in_block.arg.lst.length}`)
   return in_block.replace({ arg: new BasicBlock(in_block.arg.ctx, newlst) })
 }
 
 export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
-  assert(sink.op === Ops.SINK, `sink isn't sink, it's ${sink.op}`)
+  if (sink.op !== Ops.SINK) throw new Error(`sink isn't sink, it's ${sink.op}`)
 
   //   # get children and all block contexts
   const temp_block_ctxs = new Map<UOp, UOp[]>()

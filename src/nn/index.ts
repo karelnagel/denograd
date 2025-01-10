@@ -238,7 +238,7 @@ export class LayerNorm {
     this.bias = elementwise_affine ? Tensor.zeros(this.normalized_shape) : undefined
   }
   call(x: Tensor): Tensor {
-    assert(is_eq(this.normalized_shape, x.shape.slice(this.normalized_shape.length)), `last dimensions of ${x.shape} must match ${this.normalized_shape}`)
+    if (!is_eq(this.normalized_shape, x.shape.slice(this.normalized_shape.length))) throw new Error(`last dimensions of ${x.shape} must match ${this.normalized_shape}`)
     x = x.layernorm(this.axis, this.eps)
     if (!this.elementwise_affine) return x
     return x.mul(this.weight!).add(this.bias!)

@@ -229,7 +229,7 @@ export const optimize_local_size = async (_prg: Program, global_size: number[], 
     }
   }
   const ret = await Promise.all(local_sizes.map(async (local_size) => [await try_exec(local_size), local_size] as [number, number[]])) // KAREL: randomise local_sizes, and instead of [0] use min()
-  assert(!isInf(ret[0][0]), 'all optimize_local_size exec failed')
+  if (isInf(ret[0][0])) throw new Error('all optimize_local_size exec failed')
   return ret[0][1]
 }
 // export const time_linearizer = (lin: Kernel, rawbufs: Buffer[], allow_test_size = true, max_global_size = 65536, cnt = 3, disable_cache = false, clear_l2 = false): number => { // noqa: E501

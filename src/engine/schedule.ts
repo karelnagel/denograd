@@ -61,11 +61,11 @@ export const to_uop = (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, 
     cache.set(buf, ret)
     return ret
   }
-  assert(buf.op !== undefined, `base must be base itthis ${buf}`)
+  if (buf.op === undefined) throw new Error(`base must be base itthis ${buf}`)
   //   // make things that can't be images !images
   let dtype = buf.buffer!.dtype
   if (isinstance(dtype, ImageDType) && ((prod(buf.shape as number[]) !== prod(dtype.shape)) || !buf.st.unit_stride_axes().some((x) => buf.shape[x] as number % 4 === 0))) {
-    assert(buf.realized === undefined, "can't fixup allocated buffer")
+    if (buf.realized !== undefined) throw new Error("can't fixup allocated buffer")
     if (DEBUG >= 2) console.log(`forcing image ${dtype} with shape ${buf.shape} to ${dtype.base}`)
     dtype = buf.dtype.base
     //     // hack the underlying buffer too
@@ -103,7 +103,7 @@ export const to_uop = (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, 
 // // ** movement ops
 
 export const apply_swizzle = (u: UOp, arg: ShapeTracker): UOp => {
-  assert(u === u.base, `must be base to swizzle ${u}`)
+  if (u !== u.base) throw new Error(`must be base to swizzle ${u}`)
   // with Context(TRACK_MATCH_STATS=0): return graph_rewrite(u.view(arg), view_left)
   return graph_rewrite(u.view(arg), view_left)
 }
@@ -118,7 +118,7 @@ export const push_swizzle_down_through_elementwise = (root: UOp): UOp | undefine
   const swizzles = root.src.filter((x) => x.base !== x)
   if (!swizzles.length) return undefined
   const swizzle_shapes = swizzles.map((x) => [x.st!.shape, x.src[0].st!.shape])
-  assert(all_same(swizzle_shapes.map(([x, y]) => [x, prod(y)])), `swizzles must have the same size ${swizzle_shapes}`)
+  if (!all_same(swizzle_shapes.map(([x, y]) => [x, prod(y)]))) throw new Error(`swizzles must have the same size ${swizzle_shapes}`)
   const [new_shape, new_input_shape] = swizzle_shapes[0]
   const new_src = root.src.map((x) => !x.has_st ? x : swizzles.includes(x) ? x.src[0] : apply_swizzle(x, ShapeTracker.from_shape(new_input_shape)))
   let ret = root.replace({ src: new_src })
@@ -253,7 +253,7 @@ export const PROCESS_REPLAY_CAPTURE: [[UOp, Set<UOp>], UOp][] = []
 // // **** Schedule grouping
 
 export const uval = (u: UOp): UOp => {
-  assert(is_scheduled(u), `must be a scheduled op ${u}`)
+  if (!is_scheduled(u)) throw new Error(`must be a scheduled op ${u}`)
   const r = u.src[1]
   return r.op === Ops.CONTIGUOUS && !(r.src[0].base.op === Ops.VIEW && r.src[0].base.src.length === 2) ? r.src[0] : r
 }
@@ -402,7 +402,7 @@ export class UPatScheduled extends UPat {
 // // ** this === schedule level const folding
 
 export const _as_const = (u: UOp, val: ConstType): UOp => {
-  assert(is_scheduled(u), `must be scheduled to fold ${u}`)
+  if (!is_scheduled(u)) throw new Error(`must be scheduled to fold ${u}`)
   const base = ShapeTracker.from_shape([])
   const st = base.reshape(range(u.shape.length).map((x) => 1)).expand(u.shape)
   return new UOp(Ops.VIEW, u.dtype, [u.buf_uop, UOp.const(u.dtype, val)], base).view(st)

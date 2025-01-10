@@ -165,8 +165,8 @@ export function range(start: number, stop?: number, step = 1): number[] {
   return result
 }
 export const d = <T extends any[]>(...t: T) => t
-export const assert = (condition: boolean, str?: string): condition is true => {
-  if (!condition) throw new Error(str)
+export const assert = (condition: boolean): condition is true => {
+  if (!condition) throw new Error()
   return condition
 }
 export const raise = (msg?: string) => {

@@ -23,7 +23,7 @@ export class BufferSpec {
 export abstract class Allocator<AllocRes = MemoryView> {
   // using instead of super.alloc()
   _super_alloc = (size: number, options?: BufferSpec): AllocRes => {
-    assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
+    if (typeof size === 'number' && size <= 0) throw new Error(`alloc size must be positve, getting {size}`)
     return this._alloc(size, options !== undefined ? options : new BufferSpec())
   }
   //   # overriden in LRUAllocator
@@ -101,7 +101,7 @@ export class Compiler {
   compile_cached = (src: string): Uint8Array => {
     let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
     if (lib === undefined) {
-      assert(!get_env('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
+      if (get_env('ASSERT_COMPILE')) throw new Error(`tried to compile with ASSERT_COMPILE set\n${src}`)
       lib = this.compile(src)
       if (this.cachekey !== undefined) diskcache_put(this.cachekey, src, lib)
     }

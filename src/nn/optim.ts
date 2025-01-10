@@ -13,7 +13,7 @@ export class Optimizer {
     for (const x of params) if (x.requires_grad === undefined) x.requires_grad = true
 
     this.params = dedup(params.filter((x) => x.requires_grad))
-    assert(this.params.length !== 0, 'optimizer must have at least one param')
+    if (this.params.length === 0) throw new Error('optimizer must have at least one param')
     this.device = this.params[0].device
     this.buffers = dedup(params.filter((x) => !x.requires_grad)) // buffers are still realized
     // store lr in at least float32 precision
@@ -37,7 +37,7 @@ export class Optimizer {
    * Returns the tensors that need to be realized to perform a single optimization step.
    */
   schedule_step = (): Tensor[] => {
-    assert(Tensor.training, `Tensor.training=${Tensor.training}, Tensor.training must be enabled to use the optimizer. Consider setting Tensor.training=True before calling Optimizer.step().`)
+    if (!Tensor.training) throw new Error(`Tensor.training=${Tensor.training}, Tensor.training must be enabled to use the optimizer. Consider setting Tensor.training=True before calling Optimizer.step().`)
     return [...this._step(), ...this.params, ...this.buffers]
   }
   _step = (): Tensor[] => {

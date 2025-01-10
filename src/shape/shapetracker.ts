@@ -92,7 +92,7 @@ export class ShapeTracker {
     if (this.shape.includes(0)) return 0
     const [idx, valid] = this.to_indexed_uops()
     if (!valid.vmax) return 0
-    assert(idx.vmax < 1e12, `real_size broken for ${self}`)
+    if (idx.vmax >= 1e12) throw new Error(`real_size broken for ${self}`)
     return Math.trunc(idx.vmax as number + 1)
   }
   vars = (): Variable[] => [...new Set(this.views.flatMap((v) => v.vars()))]

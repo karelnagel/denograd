@@ -268,9 +268,9 @@ export class View {
   }
   @cache
   pad(arg: [sint, sint][]): View {
-    assert(arg.length === this.shape.length, `invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
+    if (arg.length !== this.shape.length) throw new Error(`invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
     //     # NOTE: not checking for symbolic arg
-    for (const [b, e] of arg) assert((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0), `invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
+    for (const [b, e] of arg) if (!((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0))) throw new Error(`invalid pad ${listStr(arg)} for ${listStr(this.shape)}`)
     if (arg.some(([b, e]) => resolve(ne(b, 0)) || resolve(ne(e, 0)))) {
       const zvarg = zip(this.shape, arg).map(([s, [b, e]]) => [neg(b), add(s, e)] as [sint, sint])
       const mask = zip(this.shape, arg).map(([s, [b, _]]) => [b, add(s, b)] as [sint, sint])
@@ -280,20 +280,20 @@ export class View {
   }
   @cache
   shrink(arg: [sint, sint][]): View {
-    assert(arg.length === this.shape.length, `invalid shrink ${listStr(arg)} for ${listStr(this.shape)}`)
+    if (arg.length !== this.shape.length) throw new Error(`invalid shrink ${listStr(arg)} for ${listStr(this.shape)}`)
     // # NOTE: not checking for symbolic arg
-    for (const [s, [b, e]] of zip(this.shape, arg)) assert(!(isInt(b) && isInt(e) && isInt(s)) || (0 <= b && b <= e && e <= s), `invalid shrink ${listStr(arg)} for ${listStr(this.shape)}`)
+    for (const [s, [b, e]] of zip(this.shape, arg)) if ((isInt(b) && isInt(e) && isInt(s)) && !(0 <= b && b <= e && e <= s)) throw new Error(`invalid shrink ${listStr(arg)} for ${listStr(this.shape)}`)
     return this.__unsafe_resize(arg)
   }
   @cache
   expand(new_shape: sint[]): View {
-    assert(new_shape.length === this.shape.length, `expand arg new_shape=${listStr(new_shape)} must have same number of dimensions as shape self.shape=${listStr(this.shape)}`)
+    if (new_shape.length !== this.shape.length) throw new Error(`expand arg new_shape=${listStr(new_shape)} must have same number of dimensions as shape self.shape=${listStr(this.shape)}`)
     if (this.shape.includes(0)) {
-      assert(zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0)), `can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
+      if (!zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0))) throw new Error(`can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
       return View.create(new_shape)
     }
     //     # TODO: this resolve might be wrong
-    assert(zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1), `can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
+    if (!zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1)) throw new Error(`can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
     //     # NOTE: can the mask ever be (0,0)?
     //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
     const mask = this.mask?.length ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!is_eq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
@@ -301,13 +301,13 @@ export class View {
   }
   @cache
   permute(axis: number[]): View {
-    assert(is_eq(axis.toSorted(), range(this.shape.length)), `invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
+    if (!is_eq(axis.toSorted(), range(this.shape.length))) throw new Error(`invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
     return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, this.mask !== undefined ? axis.map((a) => this.mask![a]) : undefined)
   }
   @cache
   stride(multi: number[]): View {
     //     # except for the negative case, you can build this from the others. invertible in the negative case
-    assert(multi.every((x) => typeof x === 'number' && x !== 0), `invalid stride ${multi} for ${this.shape}`)
+    if (!multi.every((x) => typeof x === 'number' && x !== 0)) throw new Error(`invalid stride ${multi} for ${this.shape}`)
     const strides = zip(this.strides, multi).map(([z, m]) => mul(z, m))
     const new_shape = zip(this.shape, multi).map(([s, m]) => ceildiv(s, Math.abs(m)))
     const offset = zip(this.shape, this.strides, multi).filter(([s, z, m]) => m < 0).reduce((acc, [s, z, m]) => add(acc, mul(sub(s, 1), z)), 0 as sint)
@@ -319,15 +319,15 @@ export class View {
     if (is_eq(this.shape, new_shape)) return this
 
     //     # TODO: this resolve shouldn't be needed
-    assert(new_shape.every((x) => resolve(ge(x, 0))), `shape can't contain negative numbers ${listStr(new_shape)}`)
+    if (!new_shape.every((x) => resolve(ge(x, 0)))) throw new Error(`shape can't contain negative numbers ${listStr(new_shape)}`)
     if (this.shape.includes(0)) {
-      assert(new_shape.includes(0), `cannot reshape 0 size to ${listStr(new_shape)}`)
+      if (!new_shape.includes(0)) throw new Error(`cannot reshape 0 size to ${listStr(new_shape)}`)
       return View.create(new_shape)
     }
     //     # check for the same size
     const self_all_int = all_int(this.shape)
     if (self_all_int) {
-      assert(new_shape.every((s) => s instanceof UOp || typeof s === 'number'), `${listStr(this.shape)} -> ${listStr(new_shape)} contains non (int, Variable) dim`)
+      if (!new_shape.every((s) => s instanceof UOp || typeof s === 'number')) throw new Error(`${listStr(this.shape)} -> ${listStr(new_shape)} contains non (int, Variable) dim`)
       if (resolve(ne(prod(this.shape), prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${listStr(this.shape)} -> new_shape=${listStr(new_shape)}`)
     }
     if (new_shape.length === 0 && this.mask?.length && this.mask.some(([mx, my]) => mx === my)) return undefined

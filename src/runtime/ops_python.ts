@@ -169,10 +169,10 @@ export class PythonProgram extends Program {
           type Fn2 = (a: number, b: number) => [number, number]
           const wmma_helper = (WARP_THREADS: number, K: number, NUM_A: number, NUM_B: number, NUM_C: number, a_elem: Fn, b_elem: Fn, c_map: Fn2) => {
             for (const [cc, tinp, num] of zip(['A', 'B', 'C'], inp, [NUM_A, NUM_B, NUM_C])) {
-              assert(tinp.length === num, `${cc} must have ${num} elements per thread, it has ${tinp.length}`)
-              assert(flatten(tinp).length === num * warp_size, `WMMA must have ${num * warp_size} total elements for ${cc} in WMMA`)
+              if (tinp.length !== num) throw new Error(`${cc} must have ${num} elements per thread, it has ${tinp.length}`)
+              if (flatten(tinp).length !== num * warp_size) throw new Error(`WMMA must have ${num * warp_size} total elements for ${cc} in WMMA`)
             }
-            assert(warp_size > 0 && warp_size % WARP_THREADS === 0, `must have multiples of ${WARP_THREADS} warp threads`)
+            if (warp_size <= 0 || warp_size % WARP_THREADS !== 0) throw new Error(`must have multiples of ${WARP_THREADS} warp threads`)
             const out = range(NUM_C).map((elem_idx) => [...inp[2][elem_idx]])
             for (const goff of range(0, warp_size, WARP_THREADS)) {
               for (const lane_id of range(WARP_THREADS)) {
@@ -195,7 +195,7 @@ export class PythonProgram extends Program {
           } else if (arg[4] === 'AMD') {
             // A (16 elements on 32 threads): col major, lane 16-32 === lane 0-15
             const a_elem: Fn = (x, i, j, goff) => {
-              assert(x[i][goff + j] === x[i][goff + j + 16], 'warp elements !duplicated properly across lanes')
+              if (x[i][goff + j] !== x[i][goff + j + 16]) throw new Error('warp elements !duplicated properly across lanes')
               return x[i][goff + j]
             }
             // B (16 elements on 32 threads): row major, lane 16-32 === lane 0-15
@@ -224,11 +224,11 @@ export class PythonProgram extends Program {
             ul[i] = wmma_helper(1, 1, 16, 16, 256, elem, elem, c_map)
           } else throw new Error(`unimplemented tensor core ${arg}`)
         } else if (GroupOp.ALU.includes(uop)) {
-          assert(all_same(inp.map((x) => x.length)), `${inp.map((x) => x.length)} doesn't match on ${uop}`)
-          assert(all_same([dtype, ...dtp]) || [Ops.CMPNE, Ops.CMPLT, Ops.WHERE].includes(uop), `dtype mismatch on ${uop}`)
+          if (!all_same(inp.map((x) => x.length))) throw new Error(`${inp.map((x) => x.length)} doesn't match on ${uop}`)
+          if (!all_same([dtype, ...dtp]) && ![Ops.CMPNE, Ops.CMPLT, Ops.WHERE].includes(uop)) throw new Error(`dtype mismatch on ${uop}`)
           ul[i] = zip(...inp).map((p) => exec_alu(uop, dtype, p))
         }
-        assert(!!ul[i], `${uop}, ${dtype}, ${idp}, ${arg}`)
+        if (!ul[i]) throw new Error(`${uop}, ${dtype}, ${idp}, ${arg}`)
         i += 1
       }
     }
