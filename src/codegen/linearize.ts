@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { assert, dataclass, dedup, get_key, isEq, isinstance, isLessThan, isNotNone, len, min, partition, setDefault } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, dedup, flatten, get_key, isEq, isinstance, isLessThan, isNotNone, len, min, partition, setDefault } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
@@ -28,8 +28,8 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   //   # collections to build
   let new_srcs: UOp[] = []
   const to_append: UOp[] = []
-  const old_blocks = new Map<UOp[], UOp>()
-  const new_blocks = new Map<UOp[], UOp[]>()
+  const old_blocks = new ArrayMap<UOp[], UOp>()
+  const new_blocks = new ArrayMap<UOp[], UOp[]>()
 
   for (const u of x.src) {
     if (u.op === Ops.BLOCK) {
@@ -38,7 +38,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
       old_blocks.set(u.arg.ctx, u)
     } else if (!DONT_PLACE_IN_BLOCK.includes(u.op) && new Set(children.get(u)).isSubsetOf(in_this_block)) {
       //       # if it can go in blocks and all its children are in the block, we add it to the block
-      const block_ctx = block_ctxs.get(u)
+      const block_ctx = block_ctxs.get(u)!
       if (isEq(block_ctx, x.arg.ctx)) {
         //         # if it's the same context, we place the UOp in this block and append the parents to its srcs
         new_srcs = [...new_srcs, ...u.src]
@@ -50,17 +50,18 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
     else new_srcs.push(u)
   }
   if (to_append.length === 0 && new_blocks.size === 0) return undefined
+
   for (let [rng, lst] of new_blocks.entries()) {
-    let srcs = lst.flatMap((y) => y.src)
+    let srcs = flatten(lst.map((y) => y.src))
     const old_block = old_blocks.get(rng)
     old_blocks.delete(rng)
     if (isNotNone(old_block)) {
       //       # NOTE: order shouldn't matter here
       srcs = [...srcs, ...old_block.src]
-      lst = [...lst, old_block.arg.lst]
+      lst = [...lst, ...old_block.arg.lst]
     }
     let new_block = new UOp(Ops.BLOCK, dtypes.void, dedup(srcs), new BasicBlock(rng, lst))
-    let lrng = rng
+    let lrng = [...rng]
     for (const r of rng.toReversed()) {
       if (!x.arg.ctx.includes(r) && r.op !== Ops.BLOCKSTART) {
         lrng = lrng.filter((x) => x !== r)
@@ -205,7 +206,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
 
   //   # TODO: there's probably a clever way to remove this while loop
   while (true) {
-    sink = graph_rewrite(sink, make_basic_blocks, [block_ctxs, children])
+    sink = graph_rewrite(sink, make_basic_blocks, [block_ctxs, children] satisfies CTX)
 
     // # add BLOCKFORK (slow!)
     const block_parent_count = [...sink.toposort].filter((x) => x.op === Ops.BLOCK).flatMap((x) => x.src).reduce((acc, src) => {

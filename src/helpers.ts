@@ -136,7 +136,7 @@ export const isEq = (one: any, two: any): boolean => {
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
-export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
+export function setDefault<K, V>(map: Map<K, V> | ArrayMap<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
   map.set(key, defaultValue)
   return defaultValue
@@ -571,6 +571,7 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
 }
 
 export const get_key = (...args: any[]): string => {
+  if (args.length === 1 && typeof args[0]?.key === 'string') return args[0].key
   const json = JSON.stringify(args, (key, value) => {
     if (typeof value?.key === 'string') return value.key
     if (typeof value === 'string') return value
@@ -654,4 +655,22 @@ export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecorator
       return instance
     },
   })
+}
+
+// in JS [1] !== [1], so this is for Maps where key needs to be array
+export class ArrayMap<K, V> {
+  private map: Record<string, [K, V]>
+  constructor(values: [K, V][] = []) {
+    this.map = Object.fromEntries(values.map(([key, value]) => [get_key(key), [key, value]]))
+  }
+  get size() {
+    return Object.keys(this.map).length
+  }
+  get = (key: K): V | undefined => this.map[get_key(key)]?.[1]
+  set = (key: K, value: V) => this.map[get_key(key)] = [key, value]
+  has = (key: K) => (get_key(key) in this.map)
+  entries = (): [K, V][] => Object.values(this.map)
+  keys = () => this.entries().map((e) => e[0])
+  values = () => this.entries().map((e) => e[1])
+  delete = (k: K) => delete this.map[get_key(k)]
 }
