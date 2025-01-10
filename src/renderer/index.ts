@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { assert, cache, dataclass, isNone, isNotNone, raise, range, to_function_name } from '../helpers.ts'
+import { assert, cache, dataclass, range } from '../helpers.ts'
 import { flops_mem, idiv, Ops, prod, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
@@ -39,7 +39,7 @@ export class ProgramSpec {
     public outs: number[] = [],
     public _ran_post_init = false, // NOTE: this is needed if you call replace on the Program
   ) {
-    if (!this._ran_post_init && isNotNone(this.uops)) {
+    if (!this._ran_post_init && this.uops !== undefined) {
       // single pass through the uops
       for (const u of this.uops) {
         if (u.op === Ops.DEFINE_VAR) this.vars?.push(u)
@@ -49,7 +49,7 @@ export class ProgramSpec {
           // NOTE: you have to set local_size and global_size to the base [1,1,1] outside this
           if (u.arg[0][0] === 'i') this.local_size = undefined
           const specialSize = (u.arg[0][0] === 'l' ? this.local_size : this.global_size) || []
-          assert(isNotNone(specialSize))
+          assert(specialSize !== undefined)
           specialSize[Number(u.arg[0].at(-1)!)] = u.arg[1]
         }
       }
@@ -66,7 +66,7 @@ export class ProgramSpec {
   }
   @cache
   _ops_lds(): [sint, sint] {
-    return isNone(this.uops) ? [0, 0] : flops_mem(this.uops, true)
+    return this.uops === undefined ? [0, 0] : flops_mem(this.uops, true)
   }
   // TODO: for some reason gives invalid out
   // @cache
@@ -96,5 +96,7 @@ export class Renderer {
   extra_matcher?: any
   code_for_op = new Map<Ops, (...a: string[]) => string>()
 
-  render = (name: string, uops: UOp[]): string => raise('needs a renderer')
+  render = (name: string, uops: UOp[]): string => {
+    throw new Error('needs a renderer')
+  }
 }

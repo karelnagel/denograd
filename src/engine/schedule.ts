@@ -1,6 +1,6 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, cache, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, isEq, isinstance, listStr, merge_maps, Metadata, range, setDefault } from '../helpers.ts'
+import { all_int, all_same, assert, cache, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, isinstance, list_str, merge_maps, Metadata, range, set_default } from '../helpers.ts'
 import { can_pad, ge, lt, prod, resolve, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -31,7 +31,7 @@ export class ScheduleItem {
   get output_idxs(): number[] {
     return this.ast.op === Ops.SINK ? this.ast.src.map((x) => x.src[0].arg) : [0]
   }
-  toString = () => `new ScheduleItem(${this.ast}, ${listStr(this.bufs)}, ${listStr(this.metadata)}, ${listStr([...this.assign_preloads])})`;
+  toString = () => `new ScheduleItem(${this.ast}, ${list_str(this.bufs)}, ${list_str(this.metadata)}, ${list_str([...this.assign_preloads])})`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
@@ -61,11 +61,11 @@ export const to_uop = (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, 
     cache.set(buf, ret)
     return ret
   }
-  assert(buf.op !== undefined, `base must be base itthis ${buf}`)
+  if (buf.op === undefined) throw new Error(`base must be base itthis ${buf}`)
   //   // make things that can't be images !images
   let dtype = buf.buffer!.dtype
   if (isinstance(dtype, ImageDType) && ((prod(buf.shape as number[]) !== prod(dtype.shape)) || !buf.st.unit_stride_axes().some((x) => buf.shape[x] as number % 4 === 0))) {
-    assert(buf.realized === undefined, "can't fixup allocated buffer")
+    if (buf.realized !== undefined) throw new Error("can't fixup allocated buffer")
     if (DEBUG >= 2) console.log(`forcing image ${dtype} with shape ${buf.shape} to ${dtype.base}`)
     dtype = buf.dtype.base
     //     // hack the underlying buffer too
@@ -93,7 +93,7 @@ export const to_uop = (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, 
     ctx.lazybufs.set(ubuf, buf)
     ctx.allbufs.set(ubuf, ret)
     for (const x of op.src) {
-      if (is_scheduled(x.base)) setDefault(ctx.children, x.base.buf_uop, new Map()).set(ubuf, undefined)
+      if (is_scheduled(x.base)) set_default(ctx.children, x.base.buf_uop, new Map()).set(ubuf, undefined)
     }
   }
   return ret
@@ -103,7 +103,7 @@ export const to_uop = (buf: LazyBuffer, ctx: ScheduleContext, buffers: Map<UOp, 
 // // ** movement ops
 
 export const apply_swizzle = (u: UOp, arg: ShapeTracker): UOp => {
-  assert(u === u.base, `must be base to swizzle ${u}`)
+  if (u !== u.base) throw new Error(`must be base to swizzle ${u}`)
   // with Context(TRACK_MATCH_STATS=0): return graph_rewrite(u.view(arg), view_left)
   return graph_rewrite(u.view(arg), view_left)
 }
@@ -118,7 +118,7 @@ export const push_swizzle_down_through_elementwise = (root: UOp): UOp | undefine
   const swizzles = root.src.filter((x) => x.base !== x)
   if (!swizzles.length) return undefined
   const swizzle_shapes = swizzles.map((x) => [x.st!.shape, x.src[0].st!.shape])
-  assert(all_same(swizzle_shapes.map(([x, y]) => [x, prod(y)])), `swizzles must have the same size ${swizzle_shapes}`)
+  if (!all_same(swizzle_shapes.map(([x, y]) => [x, prod(y)]))) throw new Error(`swizzles must have the same size ${swizzle_shapes}`)
   const [new_shape, new_input_shape] = swizzle_shapes[0]
   const new_src = root.src.map((x) => !x.has_st ? x : swizzles.includes(x) ? x.src[0] : apply_swizzle(x, ShapeTracker.from_shape(new_input_shape)))
   let ret = root.replace({ src: new_src })
@@ -175,7 +175,7 @@ export const append_bufs = new PatternMatcher<Record<string, UOp> & { ctx: Sched
   [new UPat(Ops.BUFFER).named('x'), ({ ctx, x }) => _append_buf(ctx, x)],
 ])
 export const _append_preload = (ctx: ScheduleItemContext, x: UOp, b: UOp): UOp => {
-  const adj_loads = setDefault(ctx.assign_adj, b, [])
+  const adj_loads = set_default(ctx.assign_adj, b, [])
   adj_loads.push(x)
   if (!all_same(adj_loads.map((x) => x.op))) throw new Error(`Detected cycle when fusing ${adj_loads}. Can only fuse PRELOAD || LOAD of ${b}`)
   return x.replace({ op: Ops.LOAD })
@@ -201,7 +201,7 @@ export const multioutput = new PatternMatcher<Record<string, UOp> & { ctx: Sched
 ])
 
 export const append_load = new PatternMatcher<Record<string, UOp> & { ctx: ScheduleItemContext }, undefined>([
-  [UPat.var('b').load([new UPat()], { name: 'x' }), ({ ctx, b, x }) => ctx.assigns.has(b) ? void setDefault(ctx.assign_adj, b, []).push(x) : undefined],
+  [UPat.var('b').load([new UPat()], { name: 'x' }), ({ ctx, b, x }) => ctx.assigns.has(b) ? void set_default(ctx.assign_adj, b, []).push(x) : undefined],
 ])
 
 export const full_ast_rewrite = (pre: UOp, ctx: ScheduleContext): [UOp, ScheduleItemContext] => {
@@ -253,7 +253,7 @@ export const PROCESS_REPLAY_CAPTURE: [[UOp, Set<UOp>], UOp][] = []
 // // **** Schedule grouping
 
 export const uval = (u: UOp): UOp => {
-  assert(is_scheduled(u), `must be a scheduled op ${u}`)
+  if (!is_scheduled(u)) throw new Error(`must be a scheduled op ${u}`)
   const r = u.src[1]
   return r.op === Ops.CONTIGUOUS && !(r.src[0].base.op === Ops.VIEW && r.src[0].base.src.length === 2) ? r.src[0] : r
 }
@@ -277,30 +277,28 @@ export const recursive_group = (
   if (realizes.has(tr) && tr !== r) {
     //     // can only fuse contiguous
     //     // max one reduceop per kernel
-    if (!st.contiguous || (st.size !== rsize) || reduce_for_op.has(tr)) setDefault(group, r, undefined)
-    return setDefault(group, tr, undefined)
+    if (!st.contiguous || (st.size !== rsize) || reduce_for_op.has(tr)) set_default(group, r, undefined)
+    return set_default(group, tr, undefined)
   }
   for (const tr_next of children.get(tr)!.keys()) {
     //     // max one reduceop per kernel
     const tr_next_uop = uval(allbufs.get(tr_next)!).base
-    if (tr_next_uop.op === Ops.REDUCE_AXIS) return setDefault(group, r, undefined)
+    if (tr_next_uop.op === Ops.REDUCE_AXIS) return set_default(group, r, undefined)
     //     // can only fuse contiguous
     const st_childs = dedup(tr_next_uop.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop === tr).map((x) => x.st!))
-    if (st_childs.length > 1) return setDefault(group, r, undefined)
+    if (st_childs.length > 1) return set_default(group, r, undefined)
     recursive_group(tr_next, st.add(st_childs[0]), r, children, allbufs, realizes, reduce_for_op, group, cache)
   }
 }
 export const get_isolated_children = (r: UOp, reduce_for_op: Map<UOp, UOp>, children: Map<UOp, Map<UOp, undefined>>, allbufs: Map<UOp, UOp>, realizes: Map<UOp, UOp>, group: Map<UOp, undefined>): Map<UOp, undefined> => {
-  const [rc_parents, cache] = [new Map(group), new Set()]
-  while (rc_parents.size) {
-    const current = rc_parents.keys().next().value!
-    rc_parents.delete(current)
-    const p = uval(current)
+  let [rc_parents, cache] = [[...group.keys()], new Set()]
+  while (rc_parents.length) {
+    const p = uval(allbufs.get(rc_parents.pop()!)!)
     if (cache.has(p)) continue
     cache.add(p)
     //     // max one reduceop per kernel
     if (p.op === Ops.REDUCE_AXIS) return new Map()
-    p.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop !== r).forEach((x) => rc_parents.set(x.base.buf_uop, undefined))
+    rc_parents = [...rc_parents, ...p.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop !== r).map((x) => x.base.buf_uop)]
   }
   //   // search descendants of the reduceop that can cleanly group
   const descendants = new Map<UOp, undefined>()
@@ -384,7 +382,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   //   //   for (const tr of group){ del ctx.realizes[tr]
   //   // group BUFFER uops into kernels
   const output_groups = new Map<UOp, UOp[]>()
-  for (const ubuf of ctx.realizes.keys()) setDefault(output_groups, reduce_for_op.get(ubuf) || ubuf, []).push(ubuf)
+  for (const ubuf of ctx.realizes.keys()) set_default(output_groups, reduce_for_op.get(ubuf) || ubuf, []).push(ubuf)
   return [...output_groups.values()]
 }
 // // **** Schedule creation && BFS toposort
@@ -404,7 +402,7 @@ export class UPatScheduled extends UPat {
 // // ** this === schedule level const folding
 
 export const _as_const = (u: UOp, val: ConstType): UOp => {
-  assert(is_scheduled(u), `must be scheduled to fold ${u}`)
+  if (!is_scheduled(u)) throw new Error(`must be scheduled to fold ${u}`)
   const base = ShapeTracker.from_shape([])
   const st = base.reshape(range(u.shape.length).map((x) => 1)).expand(u.shape)
   return new UOp(Ops.VIEW, u.dtype, [u.buf_uop, UOp.const(u.dtype, val)], base).view(st)
@@ -440,7 +438,7 @@ export const fold_img_cast = (ctx: Map<UOp, UOp>, xb: UOp, view: UOp, b: UOp, to
 }
 export const init_big_graph = (ctx: Map<UOp, UOp>, sink: UOp): UOp | undefined => {
   const new_src = sink.src.filter((x) => is_scheduled(x.base) && uval(x.base).op !== Ops.CONST).map((x) => x.base)
-  return isEq(new_src, sink.src) ? undefined : new_src.length === 0 ? new UOp(Ops.NOOP) : UOp.sink(...new_src)
+  return is_eq(new_src, sink.src) ? undefined : new_src.length === 0 ? new UOp(Ops.NOOP) : UOp.sink(...new_src)
 }
 export const do_realize = new PatternMatcher<Record<string, UOp> & { ctx: Map<UOp, UOp> }, UOp | undefined>([
   //   // always realize sinked ops
@@ -521,22 +519,22 @@ export const create_schedule_with_vars = (outs: LazyBuffer[]): [ScheduleItem[], 
     //     // realize outputs before a parent === assigned to
     const parents_assigns = dedup([...si.assign_preloads].map((x) => schedule_targets.get(buffers.get(x)!)!).filter((xsi) => xsi && xsi !== si))
     for (const assign of parents_assigns) {
-      setDefault(graph, si, []).push(assign)
-      in_degree.set(assign, setDefault(in_degree, assign, 0) + 1)
+      set_default(graph, si, []).push(assign)
+      in_degree.set(assign, set_default(in_degree, assign, 0) + 1)
     }
     //     // realize outputs after all parents are realized
     const scheduled_parents = dedup(si.inputs.map((x) => schedule_targets.get(x)!).filter((xsi) => xsi !== undefined && !parents_assigns.includes(xsi)))
     for (const x of scheduled_parents) {
-      setDefault(graph, x, []).push(si)
-      in_degree.set(si, setDefault(in_degree, si, 0) + 1)
+      set_default(graph, x, []).push(si)
+      in_degree.set(si, set_default(in_degree, si, 0) + 1)
     }
   }
-  const queue = prescheduled.filter((si) => setDefault(in_degree, si, 0) === 0)
+  const queue = prescheduled.filter((si) => set_default(in_degree, si, 0) === 0)
   const schedule: ScheduleItem[] = []
   while (queue.length) {
     const si = queue.shift()
     schedule.push(si!)
-    for (const x of setDefault(graph, si!, [])) {
+    for (const x of set_default(graph, si!, [])) {
       in_degree.set(x, in_degree.get(x)! - 1)
       if (in_degree.get(x) === 0) queue.push(x)
     }

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { assert, dataclass, diskcache_get, diskcache_put, get_env, get_key, get_number_env, isNone, isNotNone, setDefault, stringToBytes } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, set_default, string_to_bytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -23,13 +23,13 @@ export class BufferSpec {
 export abstract class Allocator<AllocRes = MemoryView> {
   // using instead of super.alloc()
   _super_alloc = (size: number, options?: BufferSpec): AllocRes => {
-    assert(typeof size !== 'number' || size > 0, `alloc size must be positve, getting {size}`)
-    return this._alloc(size, isNotNone(options) ? options : new BufferSpec())
+    if (typeof size === 'number' && size <= 0) throw new Error(`alloc size must be positve, getting {size}`)
+    return this._alloc(size, options !== undefined ? options : new BufferSpec())
   }
   //   # overriden in LRUAllocator
   alloc = (size: number, options?: BufferSpec) => this._super_alloc(size, options)
 
-  _super_free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._free(opaque, isNotNone(options) ? options : new BufferSpec())
+  _super_free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._free(opaque, options !== undefined ? options : new BufferSpec())
   free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._super_free(opaque, size, options)
 
   //   # implemented by the runtime
@@ -47,10 +47,10 @@ export abstract class Allocator<AllocRes = MemoryView> {
  * It ensures that buffers are not freed until it is absolutely necessary, optimizing performance.
  */
 export abstract class LRUAllocator extends Allocator {
-  cache = new Map<string, { size: number; options?: BufferSpec; opaques: MemoryView[] }>()
+  cache = new ArrayMap<[number, BufferSpec?], MemoryView[]>()
   override alloc = (size: number, options?: BufferSpec) => {
-    const c = setDefault(this.cache, get_key([size, options]), { size, options, opaques: [] })
-    if (c.opaques.length) return c.opaques.pop()!
+    const c = set_default(this.cache, [size, options] as const, [])
+    if (c.length) return c.pop()!
     try {
       return this._super_alloc(size, options)
     } catch {
@@ -59,7 +59,7 @@ export abstract class LRUAllocator extends Allocator {
     }
   }
   free_cache = () => {
-    for (const { size, options, opaques } of this.cache.values()) {
+    for (const [[size, options], opaques] of this.cache.entries()) {
       for (const opaque of opaques) this._super_free(opaque, size, options)
       opaques.splice(0, opaques.length)
     }
@@ -67,7 +67,7 @@ export abstract class LRUAllocator extends Allocator {
   // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
     if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
-      setDefault(this.cache, get_key([size, options]), { size, opaques: [], options }).opaques.push(opaque)
+      set_default(this.cache, [size, options] as const, []).push(opaque)
     } else this._super_free(opaque, size, options)
   }
 }
@@ -97,13 +97,13 @@ export class Compiler {
   constructor(cachekey?: string) {
     this.cachekey = get_env('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
-  compile = (src: string): Uint8Array => stringToBytes(src) // NOTE: empty compiler is the default
+  compile = (src: string): Uint8Array => string_to_bytes(src) // NOTE: empty compiler is the default
   compile_cached = (src: string): Uint8Array => {
     let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
-    if (isNone(lib)) {
-      assert(!get_env('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
+    if (lib === undefined) {
+      if (get_env('ASSERT_COMPILE')) throw new Error(`tried to compile with ASSERT_COMPILE set\n${src}`)
       lib = this.compile(src)
-      if (isNotNone(this.cachekey)) diskcache_put(this.cachekey, src, lib)
+      if (this.cachekey !== undefined) diskcache_put(this.cachekey, src, lib)
     }
     return lib
   }

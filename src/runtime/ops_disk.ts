@@ -9,7 +9,7 @@ export class DiskBuffer {
   }
   toString = () => `<DiskBuffer size=${this.size} offset=${this.offset}>`
   _buf = (): MemoryView => {
-    assert(this.device.mem !== undefined, "DiskBuffer wasn't opened")
+    if (this.device.mem === undefined) throw new Error("DiskBuffer wasn't opened")
     return new MemoryView(this.device.mem).slice(this.offset, this.offset + this.size)
   }
 }
@@ -59,7 +59,7 @@ export class DiskDevice extends Compiled {
   }
   _might_open = (size: number) => {
     this.count += 1
-    assert(this.size === undefined || size <= this.size, `can't reopen Disk tensor with larger size, opened with ${this.size}, tried to open with ${size}`)
+    if (this.size !== undefined && size > this.size) throw new Error(`can't reopen Disk tensor with larger size, opened with ${this.size}, tried to open with ${size}`)
     if (this.size !== undefined) return
     this.size = size
 

@@ -1,6 +1,6 @@
 import { Buffer, DeviceType } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
-import { _METADATA, all_int, all_same, assert, DEBUG, get_key, get_number_env, isEq, isinstance, LAZYCACHE, listStr, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, is_eq, isinstance, LAZYCACHE, list_str, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, prod, python_alu, resolve } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
@@ -12,7 +12,7 @@ export const create_lazybuffer = (device: DeviceType, st: ShapeTracker, dtype: D
   dtype = to_dtype(dtype)
   if (op === Ops.CONST) arg = !isinstance(arg, UOp) ? dtypes.as_const(arg, dtype) : arg, enable_cache = true
 
-  // const key = get_key([device, st, dtype, op, arg, srcs, base])
+  // const key = get_key(device, st, dtype, op, arg, srcs, base)
   // if (enable_cache && lazycache.has(key)) return lazycache.get(key)!
 
   const ret = new LazyBuffer(device, st, dtype, op, arg, srcs, base, _METADATA.value)
@@ -48,22 +48,22 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
     if (base === undefined) {
       //       // properties on base
       this.op = op, this.arg = arg, this.srcs = srcs // this === a UOp, except the src === LazyBuffers && !UOps
-      assert(this.op !== Ops.ASSIGN || srcs[0].base.realized !== undefined, 'assign target must be realized')
-      assert(all_same(this.srcs.map((x) => x.st.shape)), `src shape mismatch! ${this.srcs}`)
+      if (this.op === Ops.ASSIGN && srcs[0].base.realized === undefined) throw new Error('assign target must be realized')
+      if (!all_same(this.srcs.map((x) => x.st.shape))) throw new Error(`src shape mismatch! ${this.srcs}`)
       //         // some LazyBuffers can be processed with only a view, no AST required
       if (this.op === Ops.BUFFER_VIEW) this.buffer = srcs[0].base.buffer!.view(st.size, this.dtype, (srcs[0].st.views[0].offset as number) * srcs[0].dtype.itemsize)
       else this.buffer = this.op === Ops.ASSIGN ? srcs[0].base.buffer : new Buffer(device, this.size, this.dtype)
       this.forced_realize = false
     } else {
       //       // properties on view
-      assert(base.base === base, 'base must be a base itself')
+      if (base.base !== base) throw new Error('base must be a base itself')
       this._base = base
     }
   }
   __del__ = () => {
     if (this.buffer) this.buffer.ref(-1)
   }
-  override toString = (): string => `<LB ${this.device} ${listStr(this.shape)} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st.toString() : `(${this.op}, ${this.realized})`}>`;
+  override toString = (): string => `<LB ${this.device} ${list_str(this.shape)} ${this.dtype.toString().slice(7)} ${this.base !== this ? this.st.toString() : `(${this.op}, ${this.realized})`}>`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
@@ -88,7 +88,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   }
   override const_like = (b: ConstLike) => this.const_with_shape(b as ConstType, this.shape)
   const_with_shape = (val: ConstType, shape: sint[]): LazyBuffer => {
-    assert(typeof val === 'number' || typeof val === 'boolean' || typeof val === 'bigint', `val=${val} has ${typeof val}, !a ConstType`)
+    if (typeof val !== 'number' && typeof val !== 'boolean' && typeof val !== 'bigint') throw new Error(`val=${val} has ${typeof val}, !a ConstType`)
     return LazyBuffer.metaop(Ops.CONST, [], this.dtype, this.device, val).reshape(range(shape.length).map((x) => 1)).expand(shape)
   }
   //   @property
@@ -97,8 +97,8 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   }
 
   assign = (x: LazyBuffer): LazyBuffer => {
-    assert(x.size === this.size, `assign target must have same size ${this.size} !== ${x.size}`)
-    assert(this.is_realized, `assign target must be realized ${this}`)
+    if (x.size !== this.size) throw new Error(`assign target must have same size ${this.size} !== ${x.size}`)
+    if (!this.is_realized) throw new Error(`assign target must be realized ${this}`)
     return LazyBuffer.metaop(Ops.ASSIGN, this.shape, this.dtype, this.device, this.st.contiguous ? undefined : this.st, [this, x], true) // NOTE: assign to VIEW === fine
   }
   can_view = () => {
@@ -138,7 +138,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   is_unrealized_unmasked_const = () => this.is_unrealized_const() && this.st.views.every((v) => v.mask === undefined)
 
   _copy = (device: DeviceType): LazyBuffer => {
-    assert(!!this.st.contiguous && this.size === this.base.size, `can only copy contig ${this} ${this.base}`)
+    if (!this.st.contiguous || this.size !== this.base.size) throw new Error(`can only copy contig ${this} ${this.base}`)
     return create_lazybuffer(device, ShapeTracker.from_shape(this.shape), this.dtype, Ops.COPY, this.buffer?.nbytes, [this], undefined, false)
   }
   copy_to_device = (device: DeviceType, force = false, clone = false): LazyBuffer => {
@@ -166,7 +166,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   override alu = (op: Ops, ...in_srcs: LazyBuffer[]): LazyBuffer => {
     const srcs: LazyBuffer[] = []
     for (const s of [this, ...in_srcs]) {
-      if (isEq(s, s.base) && s.base.contiguous_child) {
+      if (s === s.base && s.base.contiguous_child) {
         const root = s.base.contiguous_child[0].deref()
         if (root !== undefined) srcs.push(root._view(s.base.contiguous_child[1]))
       } else {
@@ -175,8 +175,8 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
     }
     const dts = (op === Ops.WHERE ? srcs.slice(1) : srcs).map((x) => x.dtype.base)
     if (!all_same(dts)) throw new Error(`all dtypes must match ${dts} on ${op}`)
-    assert(all_same(srcs.map((x) => x.shape)), `all shapes must be the same ${srcs.map((x) => x.shape)}`)
-    if (op === Ops.WHERE) assert(srcs[0].dtype === dtypes.bool, 'Ops.WHERE must have the first arg be bool')
+    if (!all_same(srcs.map((x) => x.shape))) throw new Error(`all shapes must be the same ${srcs.map((x) => x.shape)}`)
+    if (op === Ops.WHERE && srcs[0].dtype !== dtypes.bool) throw new Error('Ops.WHERE must have the first arg be bool')
 
     const out_dtype = [Ops.CMPLT, Ops.CMPNE].includes(op) ? dtypes.bool : srcs.at(-1)!.dtype
 
@@ -199,7 +199,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   //   // *** reduce ops ***
 
   _reduce_op = (op: Ops, axis: number[]): LazyBuffer => {
-    assert(axis.every((x) => 0 <= x && x < this.shape.length), `axis args ${axis} out of range for shape ${this.shape}`)
+    if (!axis.every((x) => 0 <= x && x < this.shape.length)) throw new Error(`axis args ${axis} out of range for shape ${this.shape}`)
     axis = axis.filter((x) => resolve(ne(this.shape[x], 1))).toSorted()
     if (axis.length === 0) return this
     return create_lazybuffer(this.device, ShapeTracker.from_shape(this.st.reduce(axis)), this.dtype, Ops.REDUCE_AXIS, [op, axis], [this])
@@ -240,7 +240,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
     if (this.st.size === 0 || (new_st.views.at(-1)!.mask !== undefined && new_st.views.at(-1)!.mask!.some((x) => (x[1] as number) - (x[0] as number) === 0))) {
       return this.const_with_shape(0, new_st.shape)
     }
-    if (new_st.contiguous && isEq(this.base.shape, new_st.shape)) return this.base
+    if (new_st.contiguous && is_eq(this.base.shape, new_st.shape)) return this.base
     return create_lazybuffer(this.device, new_st, this.dtype, undefined, undefined, undefined, this.base)
   }
   reshape = (arg: sint[]) => this._view(this.st.reshape(arg))

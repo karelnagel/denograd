@@ -1,4 +1,4 @@
-import { assert, cache, cache_fn, checkCached, dataclass, get_env, get_key, intersection, isEq, isLessThan } from './helpers.ts'
+import { assert, cache, cache_fn, dataclass, get_env, get_key, intersection, is_less_than } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -14,7 +14,7 @@ export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, des
 export class DType {
   key: string
   constructor(public priority: number, public itemsize: number, public name: string, public fmt: undefined | FmtStr, public count: number, public _scalar?: DType, kwargs: any[] = []) {
-    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, ...kwargs])
+    this.key = get_key(priority, count, itemsize, name, _scalar, fmt, ...kwargs)
   }
 
   static new = (priority: number, itemsize: number, name: string, fmt?: FmtStr) => new DType(priority, itemsize, name, fmt, 1, undefined)
@@ -23,7 +23,7 @@ export class DType {
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
-  lt = (o: DType) => isLessThan(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]) as [number[], number[]])
+  lt = (o: DType) => is_less_than(...[this, o].map((x) => [x.priority, x.itemsize, x.name, x.fmt, x.count]) as [number[], number[]])
   get base(): DType {
     return this
   }
@@ -32,8 +32,8 @@ export class DType {
   }
   @cache
   vec(sz: number) {
-    assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
-    if (sz === 1 || isEq(this, dtypes.void)) return this // void doesn't vectorize, and sz=1 is scalar
+    if (this.count !== 1) throw new Error(`can't vectorize ${this} with size ${sz}`)
+    if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
     return new DType(this.priority, this.itemsize * sz, `${INVERSE_DTYPES_DICT[this.name]}${sz}`, undefined, sz, this)
   }
   ptr = (local = false) => new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, undefined, this, local, 1)
@@ -63,7 +63,7 @@ export class PtrDType extends DType {
   }
   @cache
   override vec(sz: number): PtrDType {
-    assert(this.v === 1, `can't vectorize ptr ${this} with size ${sz}`)
+    if (this.v !== 1) throw new Error(`can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
     return new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz)
   }
@@ -92,12 +92,12 @@ export class ImageDType extends PtrDType {
     super(priority, itemsize, name, fmt, count, _scalar, _base, local, v, [shape])
   }
   override ptr = (local = false) => {
-    assert(!local, "images can't be local")
+    if (local) throw new Error("images can't be local")
     return this
   }
   @cache
   override vec(sz: number): ImageDType {
-    assert(this.v === 1, `can't vectorize ptr ${this} with size ${sz}`)
+    if (this.v !== 1) throw new Error(`can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
     return new ImageDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz, this.shape)
   }
@@ -137,7 +137,7 @@ export class dtypes {
   }
   static as_const(val: ConstType | ConstType[], dtype: DType): ConstType | ConstType[] {
     if (Array.isArray(val)) {
-      assert(val.length === dtype.count, `mismatch (${val.map((val) => typeof val === 'boolean' ? (val ? 'True' : 'False') : val)},) ${dtype.toString()}`)
+      if (val.length !== dtype.count) throw new Error(`mismatch (${val.map((val) => typeof val === 'boolean' ? (val ? 'True' : 'False') : val)},) ${dtype.toString()}`)
       return val.map((x) => dtypes.as_const(x, dtype) as ConstType)
     }
 
@@ -164,7 +164,7 @@ export class dtypes {
    * @returns [exponent, mantissa]
    */
   static finfo(x: DType): [number, number] {
-    assert(dtypes.is_float(x), `${x} is not a floating point type`)
+    if (!dtypes.is_float(x)) throw new Error(`${x} is not a floating point type`)
     return new Map<DType, [number, number]>([[dtypes.float16, [5, 10]], [dtypes.bfloat16, [8, 7]], [dtypes.float32, [8, 23]], [dtypes.float64, [11, 52]]]).get(x)!
   }
   static fields = () => DTYPES_DICT
@@ -213,7 +213,7 @@ export class dtypes {
 const envDefaultFloat = get_env('DEFAULT_FLOAT', '')
 if (envDefaultFloat) {
   dtypes.default_float = dtypes[envDefaultFloat as keyof dtypes]
-  assert(dtypes.is_float(dtypes.default_float), `${envDefaultFloat} is not a float dtype`)
+  if (!dtypes.is_float(dtypes.default_float)) throw new Error(`${envDefaultFloat} is not a float dtype`)
 }
 
 export type DTypeLike = string | DType
@@ -237,7 +237,7 @@ export const promoLattice = new Map<DType, DType[]>([
 ])
 
 export const _get_recursive_parents = cache_fn((dtype: DType): DType[] => {
-  if (isEq(dtype, dtypes.float64)) return [dtypes.float64]
+  if (dtype === dtypes.float64) return [dtypes.float64]
   return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_get_recursive_parents)])]
 })
 
@@ -255,7 +255,7 @@ export const INVERSE_DTYPES_DICT: Record<string, string> = { ...Object.fromEntri
 export const sum_acc_dtype = (dt: DType) => {
   // default acc dtype for sum
   if (dtypes.is_unsigned(dt)) return least_upper_dtype(dt, dtypes.uint)
-  if (dtypes.is_int(dt) || isEq(dt, dtypes.bool)) return least_upper_dtype(dt, dtypes.int)
+  if (dtypes.is_int(dt) || dt === dtypes.bool) return least_upper_dtype(dt, dtypes.int)
   return least_upper_dtype(dt, dtypes.float)
 }
 

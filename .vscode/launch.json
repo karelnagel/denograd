@@ -32,9 +32,9 @@
     },
     {
       "request": "launch",
-      "name": "Deno tmp_infer",
+      "name": "Deno beautiful_mnist",
       "type": "node",
-      "program": "${workspaceFolder}/tmp_infer.ts",
+      "program": "${workspaceFolder}/beautiful_mnist.ts",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "deno",
       "runtimeArgs": [
@@ -43,7 +43,6 @@
         "--allow-all"
       ],
       "attachSimplePort": 9229,
-
       "outputCapture": "std"
     }
   ],

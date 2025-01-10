@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { all_int, assert, isEq, isinstance, len, min, partition, range, zip } from '../helpers.ts'
+import { all_int, assert, is_eq, isinstance, min, partition, range, zip } from '../helpers.ts'
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, prod, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 
@@ -37,7 +37,7 @@ export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[]
   const limited = max_sizes !== undefined ? _limit_dims(dims, max_sizes) : dims
   const raw_idxs = limited.map((s, i) => new UOp(Ops.SPECIAL, dtypes.int, [], [`${prefix}${i}`, s]))
   let ret = raw_idxs
-  if (!isEq(limited, dims)) {
+  if (!is_eq(limited, dims)) {
     ret = []
     const contraction = get_contraction(dims, limited)
     if (contraction === undefined) throw new Error(`get_contraction should !be undefined dims=${dims} limited=${limited}`)
@@ -59,7 +59,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const ki = isinstance(ast.arg, KernelInfo) ? ast.arg : new KernelInfo()
   // NOTE: assumes the shape is <global dims> <local dims> <group_for_reduces> <reduces> <upcasts/unrolls>
   const full_shape = ast.full_shape
-  const first_upcasted = len(full_shape) - ki.upcasted
+  const first_upcasted = full_shape.length - ki.upcasted
   // if there's no reduce, this is first_upcasted. assumes reduces are at the end
   const first_reduce = min([first_upcasted, ...ast.toposort.values().filter((x) => x.op === Ops.REDUCE_AXIS).flatMap((x) => x.axis_arg)])
   const local_loads = ast.toposort.values().filter((x) => x.op === Ops.LOAD && x.src[0].op === Ops.DEFINE_LOCAL)
@@ -70,7 +70,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   let idxs
   if (opts.has_local) {
     if (ki.dont_use_locals) {
-      assert(ki.local_dims === 0, "can't use locals if there's no local dims")
+      if (ki.local_dims !== 0) throw new Error("can't use locals if there's no local dims")
       idxs = get_grouped_dims('idx', full_shape.slice(0, global_dims), opts.global_max, true)
     } else {
       //       # define indexes for GPU-like execution
@@ -88,7 +88,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
 
   // upcast loops
   for (const [i, g] of full_shape.slice(first_upcasted).entries()) {
-    assert(isinstance(g, Number), 'needs to be int to upcast/unroll')
+    if (!isinstance(g, Number)) throw new Error('needs to be int to upcast/unroll')
     idxs.push(new UOp(Ops.EXPAND, dtypes.int, [UOp.const(dtypes.int.vec(g as number), range(g as number))], [[i + first_upcasted, g]]))
   }
   // late indexes (group for reduce)
@@ -103,7 +103,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
 export const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   // NOTE: always using ridxs is fine here
   const [reduce_range, reduce_expand] = partition(x.axis_arg.map((i) => ctx.ridxs[i]), (y) => y.op === Ops.RANGE)
-  assert(reduce_expand.every((x) => x.op === Ops.EXPAND), `not all EXPANDS in ${reduce_expand} for ${x.axis_arg}`)
+  if (reduce_expand.some((x) => x.op !== Ops.EXPAND)) throw new Error(`not all EXPANDS in ${reduce_expand} for ${x.axis_arg}`)
   const alu_op: Ops = x.arg[0]
   let ret = x.src[0]
   const contract_axis = reduce_expand.flatMap((x) => x.arg)

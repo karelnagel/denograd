@@ -4,9 +4,9 @@ import process from 'node:process'
 import os from 'node:os'
 import { execSync } from 'node:child_process'
 import { BinaryLike, createHash, randomUUID } from 'node:crypto'
-import { MemoryView } from './memoryview.ts'
 
 // GENERAL HELPERS
+
 type Value = number | bigint
 export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
@@ -48,12 +48,12 @@ export const next = <A extends any>(arr: Iterator<A>, def: A): A => {
   const { value, done } = arr.next()
   return done ? def : value
 }
-export const intToBytes = (int: number) => {
+export const int_to_bytes = (int: number) => {
   const hash = new Uint8Array(4)
   new DataView(hash.buffer).setInt32(0, int, false)
   return hash
 }
-export const bytesToBigInt = (bytes: Uint8Array) => {
+export const bytes_to_bigint = (bytes: Uint8Array) => {
   let result = BigInt(0)
   for (const byte of bytes) result = (result << BigInt(8)) + BigInt(byte)
   return result
@@ -72,10 +72,10 @@ export abstract class Enum {
     return this.value
   }
 }
-export const randomId = () => randomUUID().toString()
+export const random_id = () => randomUUID().toString()
 export const sha256 = (x: BinaryLike) => createHash('sha256').update(x).digest()
-export const stringToBytes = (text: string) => new TextEncoder().encode(text)
-export const bytesToString = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
+export const string_to_bytes = (text: string) => new TextEncoder().encode(text)
+export const bytes_to_string = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
 ;(BigInt.prototype as any).toJSON = function () {
   return this.toString()
 }
@@ -92,12 +92,6 @@ export function product<T>(...arrays: T[][]): T[][] {
   }, [[]])
 }
 
-export const checkCached = <T>(key: any, cache: Record<string, T>, self: T): T => {
-  const k = get_key(key)
-  if (cache[k]) return cache[k]
-  cache[k] = self
-  return self
-}
 export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
   instance: any,
   classType: T | NumberConstructor | BooleanConstructor | ArrayConstructor | StringConstructor,
@@ -109,34 +103,33 @@ export const isinstance = <T extends abstract new (...args: any) => any | Number
   return Array.isArray(classType) ? classType.some((t) => instance instanceof t) : instance instanceof classType
 }
 
-export const len = (x: { length: number } | null | undefined): number => isNone(x) ? 0 : x.length
-
 export const divmod = (a: number, b: number) => [Math.floor(a / b), a % b] as [number, number]
 export function* counter(start = 0) {
   let current = start
   while (true) yield current++
 }
-export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map(listStr).join(', ')}]` : `${x}`
+export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
-export const isLessThan = (a: any, b: any): boolean => {
+export const is_less_than = (a: any, b: any): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return a.length < b.length
-    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return isLessThan(ai, bi)
+    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return is_less_than(ai, bi)
   }
   if (typeof a === 'object' && typeof b === 'object' && 'lt' in a && 'lt' in b) {
     return a.lt(b)
   }
   return a < b
 }
-export const isEq = (one: any, two: any): boolean => {
-  if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => isEq(o, two[i]))
-  // if (typeof one === 'object' && typeof two === 'object') return JSON.stringify(one) === JSON.stringify(two)//should not be needed after having cahces for classes
+const CONSTS = ['number', 'bigint', 'boolean']
+export const is_eq = (one: any, two: any): boolean => {
+  if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => is_eq(o, two[i]))
   // deno-lint-ignore eqeqeq
-  return one == two // this uses == instead of ===, cause in python 0==False, but in js 0!==false, but 0==false
+  if (CONSTS.includes(typeof one) && CONSTS.includes(typeof two)) return one == two
+  return one === two
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
-export function setDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
+export function set_default<K, V>(map: Map<K, V> | ArrayMap<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
   map.set(key, defaultValue)
   return defaultValue
@@ -149,14 +142,6 @@ export function zip<T extends Array<any>>(...toZip: Iterableify<T>): T[] {
   return range(minLength).map((i) => iterators.map((arr) => arr[i]) as T)
 }
 
-export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
-export const isNotNone = <T>(x: T | null | undefined): x is T => x !== undefined && x !== null
-
-export const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
-  const newVal = fn(map.get(key)!)
-  map.set(key, newVal)
-  return newVal
-}
 export function range(start: number, stop?: number, step = 1): number[] {
   const result: number[] = []
   if (stop === undefined) {
@@ -168,13 +153,10 @@ export function range(start: number, stop?: number, step = 1): number[] {
   else if (step < 0) { for (let i = start; i > stop; i += step) result.push(i) }
   return result
 }
-export const d = <T extends any[]>(...t: T) => t
-export const assert = (condition: boolean, message?: string): condition is true => {
-  if (!condition) throw new Error(message)
+export const tuple = <T extends any[]>(...t: T) => t
+export const assert = (condition: boolean): condition is true => {
+  if (!condition) throw new Error()
   return condition
-}
-export const raise = (msg?: string) => {
-  throw new Error(msg)
 }
 export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
   if (length === 1) return arr.map((item) => [item])
@@ -187,12 +169,12 @@ export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
   return result
 }
 
-export function isSubset<T>(main: Set<T>, subset: Set<T>): boolean {
+export function is_subset<T>(main: Set<T>, subset: Set<T>): boolean {
   for (const elem of subset) if (!main.has(elem)) return false
   return true
 }
 
-export function mathGcd(...numbers: number[]): number {
+export function math_gcd(...numbers: number[]): number {
   function gcdTwo(a: number, b: number): number {
     while (b !== 0) {
       const temp = b
@@ -213,16 +195,9 @@ if (process.platform === 'win32') process.stdout.write('')
 
 // TODO: probably should just filter out duplicates + use isEq
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
-export const argfix = (...x: any[]) => {
-  if (x.length && (Array.isArray(x[0]))) {
-    if (x.length !== 1) throw new Error(`bad arg ${x}`)
-    return [...x[0]]
-  }
-  return x
-}
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
-export const all_same = <T>(items: T[]) => items.every((x) => isEq(x, items[0]))
+export const all_same = <T>(items: T[]) => items.every((x) => is_eq(x, items[0]))
 export const isInt = (x: any): x is number => Number.isInteger(x)
 export const all_int = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
 export const colored = (st: string, color?: string, background = false) => {
@@ -231,8 +206,8 @@ export const colored = (st: string, color?: string, background = false) => {
   const code = 10 * (background ? 1 : 0) + 60 * (color === color.toUpperCase() ? 1 : 0) + 30 + colors.indexOf(color.toLowerCase())
   return `\u001b[${code}m${st}\u001b[0m`
 }
-export const colorizeFloat = (x: number) => colored(x.toFixed(2).padStart(7) + 'x', x < 0.75 ? 'green' : x > 1.15 ? 'red' : 'yellow')
-export const memsizeToStr = (_b: number) => [d(1e9, 'GB'), d(1e6, 'MB'), d(1e3, 'KB'), d(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
+export const colorize_float = (x: number) => colored(x.toFixed(2).padStart(7) + 'x', x < 0.75 ? 'green' : x > 1.15 ? 'red' : 'yellow')
+export const memsize_to_str = (_b: number) => [tuple(1e9, 'GB'), tuple(1e6, 'MB'), tuple(1e3, 'KB'), tuple(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
 export const ansistrip = (s: string) => s.replace(/\x1b\[(K|.*?m)/g, '')
 export const ansilen = (s: string) => ansistrip(s).length
 export const make_tuple = (x: number | number[], cnt: number): number[] => Array.isArray(x) ? [...x] : Array(cnt).fill(x)
@@ -394,7 +369,7 @@ export const diskcache_clear = () => {
   //   drop_tables = cur.execute("SELECT 'DROP TABLE IF EXISTS ' || quote(name) || ';' FROM sqlite_master WHERE type = 'table';").fetchall()
   //   cur.executescript("\n".join([s[0] for s in drop_tables] + ["VACUUM;"]))
 }
-export const diskcache_get = (table: string, key: any): any | null => {
+export const diskcache_get = (table: string, key: any): any | undefined => {
   //   if CACHELEVEL == 0: return None
   //   if isinstance(key, (str,int)): key = {"key": key}
   //   conn = db_connection()
@@ -404,7 +379,7 @@ export const diskcache_get = (table: string, key: any): any | null => {
   //   except sqlite3.OperationalError:
   //     return None  # table doesn't exist
   //   if (val:=res.fetchone()) is not None: return pickle.loads(val[0])
-  return null
+  return undefined
 }
 // _db_tables = set()
 export const diskcache_put = (table: string, key: any, val: any) => {
@@ -466,7 +441,7 @@ export const diskcache = (func: any) => {
 
 // # *** Exec helpers
 
-export const cpuTimeExecution = <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
+export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
   return async (...args: Args) => {
     const st = performance.now()
     await fn(...args)
@@ -474,7 +449,7 @@ export const cpuTimeExecution = <Args extends any[]>(fn: (...args: Args) => Prom
   }
 }
 
-export const cpuObjdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
+export const cpu_objdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
   const outputFile = temp('temp_output.so')
   Deno.writeFileSync(outputFile, lib)
   try {
@@ -570,9 +545,11 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
   return result
 }
 
-export const get_key = (o: any): string => {
-  const json = JSON.stringify(o, (key, value) => {
+export const get_key = (...args: any[]): string => {
+  if (args.length === 1 && typeof args[0]?.key === 'string') return args[0].key
+  const json = JSON.stringify(args, (key, value) => {
     if (typeof value?.key === 'string') return value.key
+    if (typeof value === 'string') return value
     return value
   })
   return sha256(json).toString('hex')
@@ -586,7 +563,7 @@ export function cache<This extends object, Args extends any[], Return>(
   const instanceCaches = new WeakMap<This, Record<string, Return>>()
   const staticCache: Record<string, Return> = {}
   return function (this: This, ...args: Args): Return {
-    const key = get_key([String(ctx.name), args])
+    const key = get_key(String(ctx.name), args)
     let cache = ctx.static ? staticCache : (instanceCaches.get(this) || instanceCaches.set(this, {}).get(this)!)
     if (key in cache) return cache[key]
     const res = target.call(this, ...args)
@@ -616,7 +593,7 @@ export function debug<Args extends any[], Return>(target: (...args: Args) => Ret
   }
 }
 
-function createWeakValueCache<V extends object>() {
+function create_weak_value_cache<V extends object>() {
   const store = new Map<string, WeakRef<V>>()
   const finalizationGroup = new FinalizationRegistry<string>((key) => store.delete(key))
 
@@ -632,11 +609,11 @@ function createWeakValueCache<V extends object>() {
 type ClassType<T> = new (...args: any[]) => T
 
 export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecoratorContext): T {
-  const cache = createWeakValueCache<InstanceType<T>>()
+  const cache = create_weak_value_cache<InstanceType<T>>()
 
   return new Proxy(Base, {
     construct(target, argsList, newTarget) {
-      let key = get_key([ctx.name, ...argsList])
+      let key = get_key(ctx.name, ...argsList)
 
       const existing = cache.get(key)
       if (existing) return existing
@@ -653,4 +630,29 @@ export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecorator
       return instance
     },
   })
+}
+
+// in JS [1] !== [1], so this is for Maps where key needs to be array
+export class ArrayMap<K, V> {
+  private map: Record<string, [K, V]>
+  constructor(values: [K, V][] = []) {
+    this.map = Object.fromEntries(values.map(([key, value]) => [get_key(key), [key, value]]))
+  }
+  get size() {
+    return Object.keys(this.map).length
+  }
+  get = (key: K): V | undefined => this.map[get_key(key)]?.[1]
+  set = (key: K, value: V) => this.map[get_key(key)] = [key, value]
+  has = (key: K) => (get_key(key) in this.map)
+  entries = (): [K, V][] => Object.values(this.map)
+  keys = () => this.entries().map((e) => e[0])
+  values = () => this.entries().map((e) => e[1])
+  delete = (k: K) => delete this.map[get_key(k)]
+}
+
+export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) => {
+  const s = performance.now()
+  const res = await fn()
+  console.log(`${name} took ${Math.round(performance.now() - s) / 1000}s and returned ${res}`)
+  return res
 }
