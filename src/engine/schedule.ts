@@ -291,16 +291,14 @@ export const recursive_group = (
   }
 }
 export const get_isolated_children = (r: UOp, reduce_for_op: Map<UOp, UOp>, children: Map<UOp, Map<UOp, undefined>>, allbufs: Map<UOp, UOp>, realizes: Map<UOp, UOp>, group: Map<UOp, undefined>): Map<UOp, undefined> => {
-  const [rc_parents, cache] = [new Map(group), new Set()]
-  while (rc_parents.size) {
-    const current = rc_parents.keys().next().value!
-    rc_parents.delete(current)
-    const p = uval(current)
+  let [rc_parents, cache] = [[...group.keys()], new Set()]
+  while (rc_parents.length) {
+    const p = uval(allbufs.get(rc_parents.pop()!)!)
     if (cache.has(p)) continue
     cache.add(p)
     //     // max one reduceop per kernel
     if (p.op === Ops.REDUCE_AXIS) return new Map()
-    p.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop !== r).forEach((x) => rc_parents.set(x.base.buf_uop, undefined))
+    rc_parents = [...rc_parents, ...p.src.filter((x) => is_scheduled(x.base) && x.base.buf_uop !== r).map((x) => x.base.buf_uop)]
   }
   //   // search descendants of the reduceop that can cleanly group
   const descendants = new Map<UOp, undefined>()
@@ -315,7 +313,10 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   const reduce_for_op = new Map<UOp, UOp>()
   const reduce_of_const: UOp[] = []
   const double_reduces: UOp[] = []
+  let j = 0
   for (let [r, r_uop] of ctx.allbufs.entries()) {
+    console.log(++j, [...ctx.allbufs.entries()].length)
+
     r_uop = uval(r_uop)
     if (r_uop.op !== Ops.REDUCE_AXIS) continue
     if (FUSE_CONV_BW) {
