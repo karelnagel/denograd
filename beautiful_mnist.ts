@@ -49,9 +49,9 @@ if (import.meta.main) {
   let test_acc = NaN
   const t = new Tqdm(range(get_number_env('STEPS', 12)))
   for await (const i of t) {
-    const loss = await train_step()
-    test_acc = await get_test_acc().item()
-    t.set_description(`loss: ${(await loss.item()).toFixed(2)}, test_accuracy: ${test_acc}`)
+    const loss = await train_step().then((x) => x.item())
+    if (i % 10 === 9) test_acc = await get_test_acc().item()
+    t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
   }
   Tensor.training = false
   await model.save('./mnist.safetensors')

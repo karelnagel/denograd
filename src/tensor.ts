@@ -547,7 +547,7 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.item())
    * ```
    */
-  item = async <T = any>(): Promise<T> => {
+  item = async <T = number>(): Promise<T> => {
     assert(this.numel() === 1, 'must have one element for item')
     return await this.data().then((x) => x.getValue(...range(this.shape.length || 1).map(() => 0))) as T
   }
