@@ -242,6 +242,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
 
   //   # there should just be one block left, with a few parents with 0 srcs
   assert(sink.op === Ops.BLOCK)
+  // TODO this sorts a little bit differently, than tinygrad
   let _uops = dedup(sink.src).toSorted((a, b) => isLessThan(a.tuplize, b.tuplize) ? -1 : 1)
   assert(_uops.every((x) => x.src.length === 0 && ![Ops.BLOCK, Ops.BLOCKSTART, Ops.BLOCKEND, Ops.BLOCKFORK].includes(x.op)))
   _uops = [..._uops, ...sink.arg.lst]
