@@ -47,10 +47,10 @@ if (import.meta.main) {
 
   Tensor.training = true
   let test_acc = NaN
-  const t = new Tqdm(range(get_number_env('STEPS', 10)))
+  const t = new Tqdm(range(get_number_env('STEPS', 12)))
   for await (const i of t) {
     const loss = await train_step()
-    if (i % 10 === 9) test_acc = await get_test_acc().item()
+    test_acc = await get_test_acc().item()
     t.set_description(`loss: ${(await loss.item()).toFixed(2)}, test_accuracy: ${test_acc}`)
   }
   Tensor.training = false

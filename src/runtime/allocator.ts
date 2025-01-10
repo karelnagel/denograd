@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { assert, dataclass, diskcache_get, diskcache_put, get_env, get_key, get_number_env, isNone, isNotNone, setDefault, stringToBytes } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, isNone, isNotNone, setDefault, stringToBytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -47,10 +47,10 @@ export abstract class Allocator<AllocRes = MemoryView> {
  * It ensures that buffers are not freed until it is absolutely necessary, optimizing performance.
  */
 export abstract class LRUAllocator extends Allocator {
-  cache = new Map<string, { size: number; options?: BufferSpec; opaques: MemoryView[] }>()
+  cache = new ArrayMap<[number, BufferSpec?], MemoryView[]>()
   override alloc = (size: number, options?: BufferSpec) => {
-    const c = setDefault(this.cache, get_key(size, options), { size, options, opaques: [] })
-    if (c.opaques.length) return c.opaques.pop()!
+    const c = setDefault(this.cache, [size, options] as const, [])
+    if (c.length) return c.pop()!
     try {
       return this._super_alloc(size, options)
     } catch {
@@ -59,7 +59,7 @@ export abstract class LRUAllocator extends Allocator {
     }
   }
   free_cache = () => {
-    for (const { size, options, opaques } of this.cache.values()) {
+    for (const [[size, options], opaques] of this.cache.entries()) {
       for (const opaque of opaques) this._super_free(opaque, size, options)
       opaques.splice(0, opaques.length)
     }
@@ -67,7 +67,7 @@ export abstract class LRUAllocator extends Allocator {
   // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
     if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
-      setDefault(this.cache, get_key(size, options), { size, opaques: [], options }).opaques.push(opaque)
+      setDefault(this.cache, [size, options] as const, []).push(opaque)
     } else this._super_free(opaque, size, options)
   }
 }
