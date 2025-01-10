@@ -12,9 +12,9 @@ export class SmallMNIST extends Model {
     new nn.Conv2d(1, 2, 3),
     Tensor.relu,
     Tensor.max_pool2d,
-    (x) => x.flatten(1), 
+    (x) => x.flatten(1),
     new nn.Linear(2 * 13 * 13, 10),
-  ];
+  ]
 }
 
 export class MNIST extends Model {
@@ -39,12 +39,16 @@ export class MNIST extends Model {
 if (import.meta.main) {
   const [X_train, Y_train, X_test, Y_test] = await mnist(undefined, !!get_env('FASHION'))
 
-  const model = new MNIST()
+  // TODO
+  const model = new SmallMNIST()
+  // const model = new MNIST()
   const opt = nn.optim.Adam(nn.state.get_parameters(model))
 
   const train_step = async (): Promise<Tensor> => {
     opt.zero_grad()
-    const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0])
+    // TODO
+    // const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0])
+    const samples = new Tensor(Array.from({ length: 500 }, (_, i) => i + 1))
     // TODO: this "gather" of samples === very slow. will be under 5s when this === fixed
     const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
     await opt.step()
@@ -57,9 +61,10 @@ if (import.meta.main) {
   const t = tqdm(range(get_number_env('STEPS', 14)))
   Tensor.training = true
   for await (const i of t) {
+    console.log(i)
     GlobalCounters.reset() // NOTE: this makes it nice for DEBUG=2 timing
     const loss = await train_step()
-    if (i % 10 === 9) test_acc = await get_test_acc().item() as number
+    test_acc = await get_test_acc().item() as number
     console.log(`loss: ${await loss.item()} test_accuracy: ${test_acc}%`)
   }
   Tensor.training = false
