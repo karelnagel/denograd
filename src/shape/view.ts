@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, is_eq, isInt, isLessThan, isNone, listStr, next, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, is_eq, isInt, isLessThan, listStr, next, range, zip } from '../helpers.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, resolve, type sint, sint_to_uop, smax, smin, sub, sum, sym_infer, UOp, type Variable } from '../ops.ts'
 
 export const canonicalize_strides = cache_fn((shape: sint[], strides: sint[]): sint[] => {
@@ -16,7 +16,7 @@ export const strides_for_shape = cache_fn((shape: sint[]): sint[] => {
 export const _merge_dims = cache_fn((shape: sint[], strides: sint[], mask?: [sint, sint][]): [sint, sint, sint][] => {
   // merge contiguous sub-parts or zero strided dims. ret = Tuple[(merged_size, stride, merged size w/o zero stride), ...]
   if (!shape.length) return []
-  assert(shape.length === strides.length && (isNone(mask) || shape.length === mask?.length))
+  assert(shape.length === strides.length && (mask === undefined || shape.length === mask?.length))
   const ret = [[shape[0], strides[0], strides[0] !== 0 ? shape[0] : 0] as [sint, sint, sint]]
   // merge this dim to next dim if size is 1
   let merging = mask !== undefined ? sub(mask[0][1], mask[0][0]) === 1 : shape[0] === 1
@@ -98,7 +98,7 @@ export class View {
     return this.toString()
   }
   to_indexed_uops(_idxs?: UOp[], vexpr = UOp.const(dtypes.bool, true)): [UOp, UOp] {
-    const idxs = isNone(_idxs) ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
+    const idxs = _idxs === undefined ? this.shape.map((s, i) => UOp.range(dtypes.int, 0, s, i)) : _idxs
     let iexpr = sint_to_uop(this.offset)
     for (const [idx, sh, st, m] of zip(idxs, this.shape, this.strides, this.mask !== undefined ? this.mask : this.shape.map((x) => undefined))) {
       if (resolve(ne(sh, 1)) && resolve(ne(st, 0))) iexpr = iexpr.add(idx.mul(st))
@@ -140,7 +140,7 @@ export class View {
     // strides = tuple(x.ssimplify() if isinstance(x, UOp) else x for x in strides)
     // if mask: mask = tuple((s.ssimplify() if isinstance(s, UOp) else s, e.ssimplify() if isinstance(e, UOp) else e) for s,e in mask)
     // """
-    const contiguous = offset === 0 && isNone(mask) && is_eq(strides, strides_for_shape(shape))
+    const contiguous = offset === 0 && mask === undefined && is_eq(strides, strides_for_shape(shape))
     return new View(shape, strides, offset, mask, contiguous)
   }
   @cache
@@ -206,7 +206,7 @@ export class View {
     const vm2_shape = extents.toReversed().map(([s, _]) => s)
     if (!is_eq(vm2_shape, vm2.shape)) {
       const reshaped_vm2 = vm2.reshape(vm2_shape)
-      if (isNone(reshaped_vm2)) return undefined
+      if (reshaped_vm2 === undefined) return undefined
       if (!is_eq(reshaped_vm2.shape, vm2.shape)) return reshaped_vm2.add(vm1)
     }
     if (vm2.mask?.length) {

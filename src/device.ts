@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, isNone, OSX } from './helpers.ts'
+import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, OSX } from './helpers.ts'
 import process from 'node:process'
 import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
@@ -82,7 +82,7 @@ export class Buffer {
   ) {
     if (dtype instanceof ImageDType) this.options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
     else assert(dtype instanceof DType && !(dtype instanceof PtrDType))
-    if (isNone(base)) {
+    if (base === undefined) {
       assert(offset === 0, "base buffers can't have offset")
       this._lb_refcount = lb_refcount
       if (in_opaque !== undefined) this.allocate(in_opaque)
@@ -91,7 +91,7 @@ export class Buffer {
         this.copyin(new MemoryView(in_initial_value))
       }
     } else {
-      assert(isNone(base._base), "base can't have a base")
+      assert(base._base === undefined, "base can't have a base")
       assert(device === base.device, 'base must have the same device')
       this._base = base
     }
@@ -138,7 +138,7 @@ export class Buffer {
   }
   del = () => {
     if (!this.is_allocated()) return
-    if (isNone(this._base) && (isNone(this.options) || isNone(this.options.external_ptr))) {
+    if (this._base === undefined && (this.options === undefined || this.options.external_ptr === undefined)) {
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used -= this.nbytes
       this.allocator?.free(this._buf!, this.nbytes, this.options)
     }
@@ -148,7 +148,7 @@ export class Buffer {
   }
   as_buffer = (allowZeroCopy = false, forceZeroCopy = false): MemoryView => {
     // zero copy with as_buffer (disabled by default due to use after free)
-    if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (isNone(this.options) || isNone(this.options.image))) return (this.allocator._asBuffer as any)(this._buf)
+    if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (this.options === undefined || this.options.image === undefined)) return (this.allocator._asBuffer as any)(this._buf)
     assert(!forceZeroCopy, 'force zero copy was passed, but copy is required')
     return this.copyout(new MemoryView(new Uint8Array(this.nbytes)))
   }
@@ -175,7 +175,7 @@ export class Buffer {
 
 // # TODO: move this to each Device
 export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
-  if (isNone(device)) device = Device.DEFAULT
+  if (device === undefined) device = Device.DEFAULT
   if (dtype === dtypes.bfloat16) {
     // NOTE: this requires bf16 buffer support
     return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !CI && !get_env('PTX')

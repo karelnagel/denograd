@@ -109,7 +109,7 @@ export const isinstance = <T extends abstract new (...args: any) => any | Number
   return Array.isArray(classType) ? classType.some((t) => instance instanceof t) : instance instanceof classType
 }
 
-export const len = (x: { length: number } | null | undefined): number => isNone(x) ? 0 : x.length
+export const len = (x: { length: number }  | undefined): number => x === undefined ? 0 : x.length
 
 export const divmod = (a: number, b: number) => [Math.floor(a / b), a % b] as [number, number]
 export function* counter(start = 0) {
@@ -150,7 +150,6 @@ export function zip<T extends Array<any>>(...toZip: Iterableify<T>): T[] {
   return range(minLength).map((i) => iterators.map((arr) => arr[i]) as T)
 }
 
-export const isNone = <T>(x: T | null | undefined): x is null | undefined => x === undefined || x === null
 
 export const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
   const newVal = fn(map.get(key)!)

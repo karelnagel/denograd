@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { assert, cache, dataclass, isNone, raise, range, to_function_name } from '../helpers.ts'
+import { assert, cache, dataclass, raise, range } from '../helpers.ts'
 import { flops_mem, idiv, Ops, prod, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
@@ -66,7 +66,7 @@ export class ProgramSpec {
   }
   @cache
   _ops_lds(): [sint, sint] {
-    return isNone(this.uops) ? [0, 0] : flops_mem(this.uops, true)
+    return this.uops === undefined ? [0, 0] : flops_mem(this.uops, true)
   }
   // TODO: for some reason gives invalid out
   // @cache

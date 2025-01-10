@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { assert, cache_fn, dataclass, get_key, is_eq, listStr, range } from '../helpers.ts'
-import { get_number_env, isNone, merge_maps, zip } from '../helpers.ts'
+import { get_number_env, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
 
@@ -21,7 +21,7 @@ const views_to_indexed_uops = cache_fn((views: View[], _idxs?: UOp[]): [UOp, UOp
 
 const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (undefined | sint)[] => {
   // NOTE: if a stride is not always valid, it will be None
-  if (views.length === 1 && isNone(views.at(-1)!.mask)) return views.at(-1)!.strides
+  if (views.length === 1 && views.at(-1)!.mask === undefined) return views.at(-1)!.strides
   let ret: (undefined | sint)[] = range(views.at(-1)!.shape.length).map((x) => undefined)
   let [idx, valid] = views_to_indexed_uops(views).map((u) => graph_rewrite(u, symbolic_flat))
   // TODO: always apply these in to_indexed_uops?
@@ -61,7 +61,7 @@ export class ShapeTracker {
     const inverted_views: View[] = []
     for (const [v, s] of zip(this.views.toReversed(), [...this.views.toReversed().slice(1).map((x) => x.shape), out_shape])) {
       const inverted = v.invert(s)
-      if (isNone(inverted)) return undefined
+      if (inverted === undefined) return undefined
       inverted_views.push(inverted)
     }
     return new ShapeTracker(inverted_views).reshape(out_shape)
@@ -73,7 +73,7 @@ export class ShapeTracker {
   }
   get consecutive() {
     const v = this.views[0]
-    return this.views.length === 1 && isNone(v.mask) && is_eq(v.strides, strides_for_shape(v.shape))
+    return this.views.length === 1 && v.mask === undefined && is_eq(v.strides, strides_for_shape(v.shape))
   }
   get shape() {
     return this.views.at(-1)!.shape

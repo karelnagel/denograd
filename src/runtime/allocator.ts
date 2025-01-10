@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, isNone, setDefault, stringToBytes } from '../helpers.ts'
+import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, setDefault, stringToBytes } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -100,7 +100,7 @@ export class Compiler {
   compile = (src: string): Uint8Array => stringToBytes(src) // NOTE: empty compiler is the default
   compile_cached = (src: string): Uint8Array => {
     let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
-    if (isNone(lib)) {
+    if (lib === undefined) {
       assert(!get_env('ASSERT_COMPILE'), `tried to compile with ASSERT_COMPILE set\n${src}`)
       lib = this.compile(src)
       if (this.cachekey !== undefined) diskcache_put(this.cachekey, src, lib)

@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, isNone, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
+import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, prod, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -38,7 +38,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
           const load_1 = new_srcs[offsets.get(o)!]!
           const new_src = [...load_1.src]
           const oidx = new_src[0].src[1]
-          if (isNone(oidx.divides(fold_length))) continue
+          if (oidx.divides(fold_length) === undefined) continue
           if (is_image) {
             // for images, we rewrite the index. it must evenly divide 4 from the above check
             new_src[0] = buf.index(
@@ -92,7 +92,7 @@ export const float4_folding = new PatternMatcher([
 
 export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undefined | UOp => {
   const idx = uop_given_valid(valid, start_idx)
-  if (isNone(idx)) return buf.const_like(0)
+  if (idx === undefined) return buf.const_like(0)
   if (!isinstance(buf.dtype, ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
   throw new Error('not implemented')
   //   # wait for it to be image indexed before running simplification
@@ -197,7 +197,7 @@ export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, 
   let comprange
   if (mul.vmin > 0 && ne !== undefined) {
     comprange = loop_end.minimum(add.sub(compval)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
-  } else if (mul.vmax < 0 && isNone(ne)) comprange = loop_end.minimum(add.sub(compval).sub(mul)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
+  } else if (mul.vmax < 0 && ne === undefined) comprange = loop_end.minimum(add.sub(compval).sub(mul)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
   else return undefined
   const new_reduce_op = comprange.cast(multconst.dtype).mul(multconst)
   //   # TODO: what does it mean to have the same numbered DEFINE_ACC with different ranges?

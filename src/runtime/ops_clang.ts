@@ -1,6 +1,5 @@
 import { Compiled, Compiler, MallocAllocator, Program } from './allocator.ts'
-import { cpuObjdump, cpuTimeExecution, isNone, range, temp } from '../helpers.ts'
-import { execSync } from 'node:child_process'
+import { cpuObjdump, cpuTimeExecution, range } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -10,7 +9,7 @@ export class ClangCompiler extends Compiler {
   objdumpTool
   constructor(cachekey = 'compile_clang', args?: string[], objdumpTool = 'objdump') {
     super(cachekey)
-    this.args = isNone(args) ? ['-march=native'] : args
+    this.args = args === undefined ? ['-march=native'] : args
     this.objdumpTool = objdumpTool
   }
 

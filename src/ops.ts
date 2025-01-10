@@ -1,5 +1,5 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { abs, all_same, argfix, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, isInf, isLessThan, isNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
+import { abs, all_same, argfix, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, isInf, isLessThan, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -16,7 +16,7 @@ class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   logical_not = () => this.ne(true)
   neg = () => {
     const dtype = 'dtype' in this && this.dtype instanceof DType ? this.dtype : undefined
-    if (isNone(dtype)) throw new Error(`MathTraits __neg__ requires a dtype, ${this}`)
+    if (dtype === undefined) throw new Error(`MathTraits __neg__ requires a dtype, ${this}`)
     return dtype.scalar() === dtypes.bool ? this.logical_not() : this.mul(-1)
   }
   add = (x: ConstType<T>, reverse = false) => this._binop(Ops.ADD, x, reverse)
@@ -302,7 +302,7 @@ export class UOp extends MathTrait<UOp> {
   }
   static sink = (...srcs: UOp[]) => new UOp(Ops.SINK, dtypes.void, [...srcs])
   index = (idx: UOp, valid?: UOp) => new UOp(Ops.INDEX, this.dtype, valid !== undefined ? [this, idx, valid] : [this, idx])
-  override const_like = (b: ConstLike<UOp>) => (isNone(this.st) ? UOp.const(this.dtype, b) : UOp.const_with_shape(this.dtype, b, this.shape)) as UOp
+  override const_like = (b: ConstLike<UOp>) => (this.st === undefined ? UOp.const(this.dtype, b) : UOp.const_with_shape(this.dtype, b, this.shape)) as UOp
   broadcast = (count: number) => {
     if (this.dtype.count !== 1) throw new Error(`dtype.count !==1`)
     if (count === 1) return this
@@ -608,9 +608,9 @@ export class UPat extends MathTrait<UPat> {
   early_reject: Ops[]
   constructor(op?: Ops | Ops[], dtype?: DType | DType[], src?: UPat | UPat[] | [UPat[]], public arg?: any, public name?: string, allow_any_len?: boolean, location?: any, public custom_early_reject?: Ops[]) {
     super()
-    assert(isNone(op) || !(!Array.isArray(op) && Object.values(Ops).includes(op)) || !(Array.isArray(op) && Object.values(Ops).includes(op[0])), 'op must be Ops or tuple of Ops')
-    this.op = Array.isArray(op) ? op : !isNone(op) ? [op] : undefined
-    this.dtype = Array.isArray(dtype) ? dtype : !isNone(dtype) ? [dtype] : undefined
+    assert(op === undefined || !(!Array.isArray(op) && Object.values(Ops).includes(op)) || !(Array.isArray(op) && Object.values(Ops).includes(op[0])), 'op must be Ops or tuple of Ops')
+    this.op = Array.isArray(op) ? op : op !== undefined ? [op] : undefined
+    this.dtype = Array.isArray(dtype) ? dtype : dtype !== undefined ? [dtype] : undefined
     this._in_src = src
     assert(this.name !== 'ctx', "UPat can't be named ctx")
 
@@ -624,12 +624,12 @@ export class UPat extends MathTrait<UPat> {
     // NOTE: This is here because we can't differentaite between list and tuple so we use Upat[][] to achieve the same thing as list. but after this part the difference isn't needed anymore so we convert back to UPat[]
     if (Array.isArray(src) && src?.length === 1 && Array.isArray(src[0])) src = src[0]
 
-    this.allowed_len = (allow_any_len || src instanceof UPat || isNone(src)) ? -1 : src.length
+    this.allowed_len = (allow_any_len || src instanceof UPat || src === undefined) ? -1 : src.length
     this.location = location || getLocation()
 
     if (custom_early_reject !== undefined) this.early_reject = custom_early_reject
     else {
-      const upatMatch = src instanceof UPat ? [src] : (isNone(src) ? [] : this.src![0])
+      const upatMatch = src instanceof UPat ? [src] : (src === undefined ? [] : this.src![0])
       this.early_reject = upatMatch.filter((pp) => pp.op !== undefined && pp.op.length === 1).map((pp) => pp.op![0])
     }
   }
@@ -677,7 +677,7 @@ export class UPat extends MathTrait<UPat> {
       (this.arg !== undefined && !is_eq(this.arg, uop.arg)) ||
       (this.allowed_len !== -1 && uop.src.length !== this.allowed_len)
     ) return []
-    if (isNone(this.src)) return [store]
+    if (this.src === undefined) return [store]
     let res: Map<string, UOp>[] = []
     for (const vp of this.src) {
       let stores = [new Map(store)]
@@ -747,7 +747,7 @@ export class RewriteContext {
     if (rn !== undefined) return rn
     const new_src = n.src.map((x) => this.rewrite(x))
     const new_n = is_eq(new_src, n.src) ? this.pm.rewrite(n, this.ctx) : new UOp(n.op, n.dtype, new_src, n.arg)
-    const ret = isNone(new_n) ? n : this.rewrite(new_n)
+    const ret = new_n === undefined ? n : this.rewrite(new_n)
     this.replace.set(n, ret)
     return ret
   }
@@ -839,7 +839,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   [new UPat(Ops.REDUCE_AXIS).named('x'), ({ x }) => Array.isArray(x.arg) && x.arg.length === 2 && [Ops.ADD, Ops.MUL, Ops.MAX].includes(x.arg[0])],
   [new UPat(Ops.GEP, undefined, [new UPat(undefined).named('src')], undefined, 'gep'), ({ gep, src }) => gep.dtype === src.dtype.scalar()],
   [new UPat(Ops.VECTORIZE).named('x'), ({ x }) => x.src?.length > 1 && x.src?.length === x.dtype.count && x.src!.every((y) => x.dtype === y.dtype.vec(x.src?.length))],
-  [new UPat([Ops.BITCAST, Ops.CAST], undefined, [new UPat()], undefined, 'x'), ({ x }) => isNone(x.arg)],
+  [new UPat([Ops.BITCAST, Ops.CAST], undefined, [new UPat()], undefined, 'x'), ({ x }) => x.arg === undefined],
   [new UPat(Ops.BARRIER, dtypes.void, new UPat(Ops.STORE, undefined, undefined, undefined, undefined, true)), () => true], // NOTE: all pointers must be local
   //   # NOTE: for testing, we let sinks be anything
   // [new UPat(UOps.SINK, undefined, new UPat(UOps.STORE)), () => true],
@@ -977,7 +977,7 @@ const fold_unrolled_divs = ({ divs }: { divs: UOp }) => {
   let [addChain, denominator, seenConst, ans] = [splitUOp(divs, Ops.ADD), undefined as number | undefined, [] as number[], undefined as undefined | UOp]
   for (const u of addChain) {
     if (!(u.op === Ops.IDIV && u.src[1].op === Ops.CONST)) return undefined
-    if (isNone(denominator)) denominator = u.src[1].arg
+    if (denominator === undefined) denominator = u.src[1].arg
     if (denominator !== u.src[1].arg) return undefined
     // assumed CONST is the last of an ADD
     let s0 = u.src[0]
@@ -985,10 +985,10 @@ const fold_unrolled_divs = ({ divs }: { divs: UOp }) => {
       seenConst.push(s0.src[1].arg)
       s0 = s0.src[0]
     } else seenConst.push(0)
-    if (isNone(ans)) ans = s0
+    if (ans === undefined) ans = s0
     if (ans !== s0) return undefined
   }
-  if (isNone(denominator)) return undefined
+  if (denominator === undefined) return undefined
   // the first (denominator-len(seen_const)) terms may have been folded to 0 already
   for (const i of range(denominator - seenConst.length)) {
     if (ans !== undefined && 0 <= ans.vmin && add(ans.vmax, i) < denominator) seenConst.push(i)
@@ -1057,7 +1057,7 @@ export const uop_given_valid = (valid: UOp, uop: UOp): UOp | undefined => {
     }
     // try checking the whole clause
     if (uop.toposort.has(expr)) {
-      candidates.push([[expr, UOp.variable('fake', isNone(v[0]) ? expr.vmin : v[0], isNone(v[1]) ? expr.vmax : v[1], expr.dtype)]])
+      candidates.push([[expr, UOp.variable('fake', v[0] === undefined ? expr.vmin : v[0], v[1] === undefined ? expr.vmax : v[1], expr.dtype)]])
     }
     for (const candidate of candidates) {
       // if every branch in candidate gives the same simplified uop, we can rewrite the uop

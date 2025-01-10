@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, assert, dedup, get_env, isNone, setDefault, strip_parens } from '../helpers.ts'
+import { AMX, assert, dedup, get_env, setDefault, strip_parens } from '../helpers.ts'
 import { GroupOp, idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -63,7 +63,7 @@ const root_render_kernel = (self: CStyleLanguage, { bufs, functionName, kernel, 
   const tmp = bufs.some(([_, [dtype]]) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
   const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.render_dtype(dtype, mutable) + self.buffer_suffix : dtype === dtypes.int ? self.arg_int_prefix : undefined])
   const prg = [`${self.kernel_prefix}void ${self.get_kernel_modifier(uops)}${functionName}(`, ...buftypes.map(([name, t]) => `${t} ${name}`).join(', '), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
-  return isNone(prefix) ? prg : `${prefix.join('\n')}\n${prg}`
+  return prefix === undefined ? prg : `${prefix.join('\n')}\n${prg}`
 }
 
 export class CStyleLanguage extends Renderer {
