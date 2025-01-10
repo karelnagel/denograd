@@ -1,7 +1,6 @@
 import { dtypes } from '../dtype.ts'
 import { bytesToString, DEBUG, isEq, isinstance, stringToBytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
-import { tqdm } from '../tqdm.ts'
 
 export const safe_dtypes = {
   'BOOL': dtypes.bool,
