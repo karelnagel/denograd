@@ -1,6 +1,6 @@
 import { is_dtype_supported } from '../device.ts'
 import { dtypes } from '../dtype.ts'
-import { assert, flatten, isEq, make_tuple, range, zip } from '../helpers.ts'
+import { assert, flatten, is_eq, make_tuple, range, zip } from '../helpers.ts'
 import { div, idiv, mul, prod, sub } from '../ops.ts'
 import { Layer, Tensor } from '../tensor.ts'
 import { get_state_dict } from './state.ts'
@@ -238,7 +238,7 @@ export class LayerNorm {
     this.bias = elementwise_affine ? Tensor.zeros(this.normalized_shape) : undefined
   }
   call(x: Tensor): Tensor {
-    assert(isEq(this.normalized_shape, x.shape.slice(this.normalized_shape.length)), `last dimensions of ${x.shape} must match ${this.normalized_shape}`)
+    assert(is_eq(this.normalized_shape, x.shape.slice(this.normalized_shape.length)), `last dimensions of ${x.shape} must match ${this.normalized_shape}`)
     x = x.layernorm(this.axis, this.eps)
     if (!this.elementwise_affine) return x
     return x.mul(this.weight!).add(this.bias!)

@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, isEq, isinstance, listStr, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, argfix, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, is_eq, isinstance, listStr, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
 import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
 import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from './engine/schedule.ts'
@@ -485,7 +485,7 @@ export class Tensor extends MathTrait<Tensor> {
   replace = (x: Tensor): Tensor => {
     // used for replacing a Tensor with a new version of it (potentially with a different device && dtype)
     assert(!x.requires_grad && this._ctx === undefined)
-    assert(isEq(this.shape, x.shape), `replace shape mismatch ${this.shape} !== ${x.shape}`)
+    assert(is_eq(this.shape, x.shape), `replace shape mismatch ${this.shape} !== ${x.shape}`)
     this.lazydata = x.lazydata
     return this
   }
@@ -502,7 +502,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign
-    assert(isEq(this.shape, x.shape), `assign shape mismatch ${this.shape} !== ${x.shape}`)
+    assert(is_eq(this.shape, x.shape), `assign shape mismatch ${this.shape} !== ${x.shape}`)
     assert(this.device === x.device, `assign device mismatch ${this.device} !== ${x.device}`)
     assert(this.dtype === x.dtype, `assign dtype mismatch ${this.dtype} !== ${x.dtype}`)
     // assert(!isinstance(this.lazydata, MultiLazyBuffer) || this.lazydata.axis === x.lazydata.axis, "axis must match on MultiLazyBuffer")
@@ -922,12 +922,12 @@ export class Tensor extends MathTrait<Tensor> {
   backward = (gradient?: Tensor, retain_graph = false): Tensor => {
     const toposorted = this._deepwalk()
     if (gradient === undefined) {
-      assert(isEq(this.shape, []), 'when no gradient === provided, backward must be called on a scalar tensor')
+      assert(is_eq(this.shape, []), 'when no gradient === provided, backward must be called on a scalar tensor')
       // fill in the first grad with one. don't use Tensor.ones because we don't need contiguous
       // this === "implicit gradient creation"
       gradient = new Tensor(1.0, { dtype: this.dtype, device: this.device, requires_grad: false })
     }
-    assert(isEq(this.shape, gradient.shape), `grad shape must match tensor shape, ${gradient.shape} !== ${this.shape}`)
+    assert(is_eq(this.shape, gradient.shape), `grad shape must match tensor shape, ${gradient.shape} !== ${this.shape}`)
     this.grad = gradient
     for (const t0 of toposorted.toReversed()) {
       if (t0.grad === undefined) throw new Error(`tensor ${t0} has no grad`)
@@ -938,7 +938,7 @@ export class Tensor extends MathTrait<Tensor> {
       const grads = (!Array.isArray(lazys) ? [lazys] : lazys).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
       for (const [t, g] of zip(t0._ctx!.parents!, grads)) {
         if (g !== undefined && t.requires_grad) {
-          assert(isEq(g.shape, t.shape), `grad shape must match tensor shape, ${listStr(g.shape)} !== ${listStr(t.shape)}`)
+          assert(is_eq(g.shape, t.shape), `grad shape must match tensor shape, ${listStr(g.shape)} !== ${listStr(t.shape)}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
         }
       }
@@ -971,7 +971,7 @@ export class Tensor extends MathTrait<Tensor> {
     const c = new_shape.filter((x) => x === -1).length
     if (c > 1) throw new Error(`only one dimension can be inferred using -1, getting ${new_shape}`)
     if (c) new_shape = new_shape.map((s) => s === -1 ? idiv(-prod(this.shape as number[]), prod(new_shape)) : s)
-    return !isEq(new_shape, this.shape) ? Reshape.apply(this, new_shape) : this
+    return !is_eq(new_shape, this.shape) ? Reshape.apply(this, new_shape) : this
   }
   /**
    * Returns a tensor that is expanded to the shape that is specified.
@@ -1004,7 +1004,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   permute = (...args: number[]): Tensor => {
     const order_arg = args.map((x) => this._resolve_dim(x))
-    if (!isEq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
+    if (!is_eq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
     return Permute.apply(this, order_arg)
   }
   /**
@@ -1045,7 +1045,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   shrink = (arg: ([sint, sint] | undefined)[]): Tensor => {
     const shrink_arg: [sint, sint][] = zip(arg, this.shape).map(([x, s]) => x || [0, s])
-    if (isEq(shrink_arg, this.shape.map((s) => [0, s]))) return this
+    if (is_eq(shrink_arg, this.shape.map((s) => [0, s]))) return this
     return Shrink.apply(this, shrink_arg)
   }
   /**
@@ -1244,7 +1244,7 @@ export class Tensor extends MathTrait<Tensor> {
       x = x.reshape(reshape_arg).mul(mask).sum(sum_axis, undefined, x.dtype)
 
       // special permute case
-      if (dims[0] !== 0 && dims.length !== 1 && !isEq(dims, range(dims[0], dims.at(-1)! + 1))) {
+      if (dims[0] !== 0 && dims.length !== 1 && !is_eq(dims, range(dims[0], dims.at(-1)! + 1))) {
         x = x.permute(...range(dims[0], dims[0] + big_shape.length), ...range(0, dims[0]), ...range(dims[0] + big_shape.length, x.ndim))
       }
       // for advanced setitem, returns whole tensor with indices replaced
@@ -2747,7 +2747,7 @@ export class Tensor extends MathTrait<Tensor> {
 
   // ***** broadcasted elementwise ops *****
   _broadcast_to = (new_shape: sint[]): Tensor => {
-    if (isEq(this.shape, new_shape)) return this
+    if (is_eq(this.shape, new_shape)) return this
     if (this.ndim > new_shape.length) throw new Error(`can not broadcast tensor to fewer dimensions. shape=${listStr(this.shape)} to new_shape=${listStr(new_shape)}`)
     // first unsqueeze left with 1s https://data-apis.org/array-api/latest/API_specification/broadcasting.html
     const [shape, _] = _align_left(this.shape, new_shape)
@@ -2779,7 +2779,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
 
   _to_const_val = (x: ConstType<Tensor>): ConstType<Tensor> => {
-    return isinstance(x, Tensor) && isinstance(x.lazydata, LazyBuffer) && x.lazydata.is_unrealized_unmasked_const() && !x.requires_grad && isEq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.base.arg : x
+    return isinstance(x, Tensor) && isinstance(x.lazydata, LazyBuffer) && x.lazydata.is_unrealized_unmasked_const() && !x.requires_grad && is_eq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.base.arg : x
   }
   /**
    * Adds `this` && `x`.

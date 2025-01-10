@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { assert, cache_fn, dataclass, get_key, isEq, listStr, range } from '../helpers.ts'
+import { assert, cache_fn, dataclass, get_key, is_eq, listStr, range } from '../helpers.ts'
 import { get_number_env, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
@@ -73,7 +73,7 @@ export class ShapeTracker {
   }
   get consecutive() {
     const v = this.views[0]
-    return this.views.length === 1 && isNone(v.mask) && isEq(v.strides, strides_for_shape(v.shape))
+    return this.views.length === 1 && isNone(v.mask) && is_eq(v.strides, strides_for_shape(v.shape))
   }
   get shape() {
     return this.views.at(-1)!.shape

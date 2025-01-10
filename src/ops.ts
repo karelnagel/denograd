@@ -1,5 +1,5 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { abs, all_same, argfix, assert, cache, checkCached, counter, dataclass, divmod, Enum, get_key, isEq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
+import { abs, all_same, argfix, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, isInf, isLessThan, isNone, isNotNone, isSubset, listStr, mathGcd, max, min, partition, permutations, raise, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -17,7 +17,7 @@ class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   neg = () => {
     const dtype = 'dtype' in this && this.dtype instanceof DType ? this.dtype : undefined
     if (isNone(dtype)) throw new Error(`MathTraits __neg__ requires a dtype, ${this}`)
-    return isEq(dtype.scalar(), dtypes.bool) ? this.logical_not() : this.mul(-1)
+    return dtype.scalar() === dtypes.bool ? this.logical_not() : this.mul(-1)
   }
   add = (x: ConstType<T>, reverse = false) => this._binop(Ops.ADD, x, reverse)
   mul = (x: ConstType<T>, reverse = false) => this._binop(Ops.MUL, x, reverse)
@@ -218,7 +218,7 @@ export class UOp extends MathTrait<UOp> {
   }
   @cache
   override toString(): string {
-    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${this.src.map((s) => s.key).join(',\n').split('\n').map((s) => '  ' + s).join('\n')}\n]`
+    const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${this.src.map((s) => s.toString()).join(',\n').split('\n').map((s) => '  ' + s).join('\n')}\n]`
     return `new UOp(${this.op.toString()}, ${this.dtype}, ${src}, ${listStr(this.arg)})`
   }
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
@@ -276,7 +276,7 @@ export class UOp extends MathTrait<UOp> {
     if (!dtypes.includes(this.dtype)) throw new Error(`eval with wrong dtype ${this}`)
     const simpleThis = this.simplify()
     const [vmin, vmax] = simpleThis._min_max
-    if (!isEq(vmin, vmax)) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleThis.render()}`)
+    if (is_eq(vmin, vmax)) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleThis.render()}`)
     // if ((vmin instanceof expectedType)) throw new Error(`vmin is wrong dtype ${typeof vmin} != ${expectedType}`)
     return vmin as InstanceType<T>
   }
@@ -318,7 +318,7 @@ export class UOp extends MathTrait<UOp> {
       if (this.op === Ops.CONST) return UOp.const(this.dtype.scalar(), this.arg)
       i = [i]
     }
-    if (this.dtype.vcount === i.length && isEq(i, range(i.length)) || isEq(this.dtype, dtypes.void)) return this
+    if (this.dtype.vcount === i.length && is_eq(i, range(i.length)) || this.dtype === dtypes.void) return this
     return new UOp(Ops.GEP, i.length > 1 ? this.dtype.scalar().vec(i.length) : this.dtype.scalar(), [this], i)
   }
   load = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.LOAD, kwargs?.dtype, kwargs?.src || [this, ...src], kwargs?.arg)
@@ -356,7 +356,7 @@ export class UOp extends MathTrait<UOp> {
     const ret = new UOp(Ops.VIEW, this.dtype, [this.base], new_st)
     // instant folding rules
     if (this.st?.size === 0 || (isNotNone(new_st.views.at(-1)!.mask) && new_st.views.at(-1)!.mask?.some((x) => sub(x[1], x[0]) === 0))) return ret.const_like(0)
-    if (new_st.contiguous && isEq(this.base.st?.shape, new_st.shape)) return this.base
+    if (new_st.contiguous && is_eq(this.base.st?.shape, new_st.shape)) return this.base
     return ret
   }
   reshape = (arg: sint[]) => this.view(this.st!.reshape(arg))
@@ -672,9 +672,9 @@ export class UPat extends MathTrait<UPat> {
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
-      (isNotNone(this.name) && !isEq(setDefault(store, this.name, uop), uop)) ||
+      (isNotNone(this.name) && setDefault(store, this.name, uop) !== uop) ||
       (isNotNone(this.dtype) && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
-      (isNotNone(this.arg) && !isEq(this.arg, uop.arg)) ||
+      (isNotNone(this.arg) && !is_eq(this.arg, uop.arg)) ||
       (this.allowed_len !== -1 && uop.src.length !== this.allowed_len)
     ) return []
     if (isNone(this.src)) return [store]
@@ -746,7 +746,7 @@ export class RewriteContext {
     const rn = this.replace.get(n)
     if (isNotNone(rn)) return rn
     const new_src = n.src.map((x) => this.rewrite(x))
-    const new_n = isEq(new_src, n.src) ? this.pm.rewrite(n, this.ctx) : new UOp(n.op, n.dtype, new_src, n.arg)
+    const new_n = is_eq(new_src, n.src) ? this.pm.rewrite(n, this.ctx) : new UOp(n.op, n.dtype, new_src, n.arg)
     const ret = isNone(new_n) ? n : this.rewrite(new_n)
     this.replace.set(n, ret)
     return ret
@@ -760,7 +760,7 @@ export class RewriteContext {
       ;[last_n, new_n] = [new_n, this.pm.rewrite(new_n, this.ctx)]
     }
     const new_src = last_n.src.map((x) => this.bottom_up_rewrite(x))
-    const ret = isEq(new_src, last_n.src) ? last_n : this.bottom_up_rewrite(new UOp(last_n.op, last_n.dtype, new_src, last_n.arg))
+    const ret = is_eq(new_src, last_n.src) ? last_n : this.bottom_up_rewrite(new UOp(last_n.op, last_n.dtype, new_src, last_n.arg))
     this.replace.set(n, ret)
     return ret
   }
@@ -986,14 +986,14 @@ const fold_unrolled_divs = ({ divs }: { divs: UOp }) => {
       s0 = s0.src[0]
     } else seenConst.push(0)
     if (isNone(ans)) ans = s0
-    if (!isEq(ans, s0)) return undefined
+    if (ans !== s0) return undefined
   }
   if (isNone(denominator)) return undefined
   // the first (denominator-len(seen_const)) terms may have been folded to 0 already
   for (const i of range(denominator - seenConst.length)) {
     if (isNotNone(ans) && 0 <= ans.vmin && add(ans.vmax, i) < denominator) seenConst.push(i)
   }
-  return isNotNone(ans) && isEq(seenConst.sort((a, b) => b - a), range(denominator)) ? ans : undefined
+  return isNotNone(ans) && is_eq(seenConst.sort((a, b) => b - a), range(denominator)) ? ans : undefined
 }
 const canonicalizeSimplex = (X: UOp): UOp | undefined => {
   // (X := a0*x0 + a1*x1 + ...) > 0 is equivalent to x0 + x1 + ... > 0 if xi >= 0 and ai > 0 for ints.
@@ -1085,7 +1085,7 @@ export const simplify_valid = (valid: UOp): UOp | undefined => {
   const valids = splitUOp(valid, Ops.AND).toArray()
   for (const stmt of valids.sort((a, b) => _validPriority(b, valids) - _validPriority(a, valids))) {
     ret.push(ret.length ? (uop_given_valid(ret.reduce((p, c) => p.bitwise_and(c)), stmt) || stmt) : stmt)
-    if (!isEq(ret.at(-1), stmt)) somethingChanged = true
+    if (ret.at(-1) !== stmt) somethingChanged = true
   }
   return somethingChanged ? ret.reduce((p, c) => p.bitwise_and(c)) : undefined
 }
@@ -1129,7 +1129,7 @@ export const symbolic_simple = new PatternMatcher([
   [UPat.var('x', dtypes.bool).maximum(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_or(y)],
   //   // *** cast ***
   [new UPat(Ops.CAST, undefined, UPat.cvar('c'), undefined, 'root'), ({ root, c }) => root.const_like(c.arg)],
-  [new UPat(Ops.CAST).named('root'), ({ root }) => isEq(root.dtype, root.src![0].dtype) ? root.src![0] : undefined], //24
+  [new UPat(Ops.CAST).named('root'), ({ root }) => root.dtype === root.src![0].dtype ? root.src![0] : undefined], //24
 ])
 
 export const symbolic = symbolic_simple.add(

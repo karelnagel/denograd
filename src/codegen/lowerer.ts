@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { all_int, assert, isEq, isinstance, len, min, partition, range, zip } from '../helpers.ts'
+import { all_int, assert, is_eq, isinstance, len, min, partition, range, zip } from '../helpers.ts'
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, prod, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 
@@ -37,7 +37,7 @@ export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[]
   const limited = max_sizes !== undefined ? _limit_dims(dims, max_sizes) : dims
   const raw_idxs = limited.map((s, i) => new UOp(Ops.SPECIAL, dtypes.int, [], [`${prefix}${i}`, s]))
   let ret = raw_idxs
-  if (!isEq(limited, dims)) {
+  if (!is_eq(limited, dims)) {
     ret = []
     const contraction = get_contraction(dims, limited)
     if (contraction === undefined) throw new Error(`get_contraction should !be undefined dims=${dims} limited=${limited}`)

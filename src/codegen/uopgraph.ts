@@ -1,5 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, isEq, isinstance, isNone, isNotNone, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
+import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, isNone, isNotNone, range, setDefault, TRANSCENDENTAL } from '../helpers.ts'
 import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, prod, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
@@ -346,7 +346,7 @@ export const do_expand = (root: UOp) => {
       //         # IF means OR on first arg to IF
       if (root.op === Ops.IF && i === 0) new_srcs.push(range(expand_sz).map((i) => src.src[0].gep(i)).reduce((acc, x) => acc.bitwise_or(x)))
       //         # just remove the expand
-      else if (isEq(expand_args, src.arg)) new_srcs.push(src.src[0])
+      else if (is_eq(expand_args, src.arg)) new_srcs.push(src.src[0])
       else {
         let lst = _swizzle_args(expand_args, src.arg, exclude_args)
         //         # if the base dtype is > 1, put those at the end
@@ -379,7 +379,7 @@ export const do_contract = (con: UOp) => {
   //   # CONTRACT may remove several axes from EXPAND
   assert(con.dtype.count === prod(con.arg.map((x: any) => x[1])), 'dtype is wrong')
   let idxs: number[] = []
-  const new_ex_args = ex.arg.filter((x: any) => !con.arg.some((arg: any[]) => isEq(arg, x)))
+  const new_ex_args = ex.arg.filter((x: any) => !con.arg.some((arg: any[]) => is_eq(arg, x)))
   for (const rpk of _choices_from_args(new_ex_args)) {
     idxs = [...idxs, ..._choices_from_args(con.arg).map((lrpk) => _expand_arg_to_idx(ex.arg, { ...rpk, ...lrpk }))]
   }
@@ -395,7 +395,7 @@ const _gate_srcs = cache_fn((u: UOp, gate: UOp): UOp => {
   if (u.op === Ops.BARRIER) return u
   if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) return new UOp(u.op, u.dtype, [...u.src.toReversed(), new UOp(Ops.IF, dtypes.void, [gate, u.src.at(-1)!])], u.arg)
   const replace_source = u.src.map((x) => _gate_srcs(x, gate))
-  return isEq(replace_source, u.src) ? u : new UOp(u.op, u.dtype, replace_source, u.arg)
+  return is_eq(replace_source, u.src) ? u : new UOp(u.op, u.dtype, replace_source, u.arg)
 })
 export const create_gate = (root: UOp): undefined | UOp => {
   let idx = root.src[0]

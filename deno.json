@@ -27,7 +27,8 @@
         "prefer-const",
         "ban-types",
         "no-class-assign",
-        "no-compare-neg-zero"
+        "no-compare-neg-zero",
+        "eqeqeq"
       ]
     }
   },

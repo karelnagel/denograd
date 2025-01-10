@@ -1,4 +1,4 @@
-import { assert, cache, cache_fn, checkCached, dataclass, get_env, get_key, intersection, isEq, isLessThan } from './helpers.ts'
+import { assert, cache, cache_fn, dataclass, get_env, get_key, intersection, isLessThan } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -33,7 +33,7 @@ export class DType {
   @cache
   vec(sz: number) {
     assert(this.count === 1, `can't vectorize ${this} with size ${sz}`)
-    if (sz === 1 || isEq(this, dtypes.void)) return this // void doesn't vectorize, and sz=1 is scalar
+    if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
     return new DType(this.priority, this.itemsize * sz, `${INVERSE_DTYPES_DICT[this.name]}${sz}`, undefined, sz, this)
   }
   ptr = (local = false) => new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, undefined, this, local, 1)
@@ -237,7 +237,7 @@ export const promoLattice = new Map<DType, DType[]>([
 ])
 
 export const _get_recursive_parents = cache_fn((dtype: DType): DType[] => {
-  if (isEq(dtype, dtypes.float64)) return [dtypes.float64]
+  if (dtype === dtypes.float64) return [dtypes.float64]
   return [...new Set([dtype, ...promoLattice.get(dtype)!.flatMap(_get_recursive_parents)])]
 })
 
@@ -255,7 +255,7 @@ export const INVERSE_DTYPES_DICT: Record<string, string> = { ...Object.fromEntri
 export const sum_acc_dtype = (dt: DType) => {
   // default acc dtype for sum
   if (dtypes.is_unsigned(dt)) return least_upper_dtype(dt, dtypes.uint)
-  if (dtypes.is_int(dt) || isEq(dt, dtypes.bool)) return least_upper_dtype(dt, dtypes.int)
+  if (dtypes.is_int(dt) || dt === dtypes.bool) return least_upper_dtype(dt, dtypes.int)
   return least_upper_dtype(dt, dtypes.float)
 }
 

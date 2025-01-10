@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, isEq, isInt, isLessThan, isNone, isNotNone, listStr, next, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, is_eq, isInt, isLessThan, isNone, isNotNone, listStr, next, range, zip } from '../helpers.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, resolve, type sint, sint_to_uop, smax, smin, sub, sum, sym_infer, UOp, type Variable } from '../ops.ts'
 
 export const canonicalize_strides = cache_fn((shape: sint[], strides: sint[]): sint[] => {
@@ -56,7 +56,7 @@ export const _reshape_mask = cache_fn((_mask: undefined | [sint, sint][], old_sh
     } else {
       const next_mask = next(r_masks, [0, 1])
       // combine if the mask can unfold continuously
-      if (!isEq(mask, [0, old_dim]) && (next_mask[1] as number) - (next_mask[0] as number) !== 1) return undefined
+      if (!is_eq(mask, [0, old_dim]) && (next_mask[1] as number) - (next_mask[0] as number) !== 1) return undefined
       mask = [add(mul(next_mask[0], old_dim), l), add(mul(sub(next_mask[1], 1), old_dim), r)], old_dim = mul(old_dim, next(r_shape, 1))
     }
   }
@@ -123,7 +123,7 @@ export class View {
     // # canonicalize 0 in shape
     if (shape.includes(0)) return new View(shape, range(shape.length).map(() => 0), 0, undefined, true)
     // # canonicalize empty mask
-    if (isNotNone(mask) && zip(mask, shape).every(([m, s]) => isEq(m, [0, s]))) mask = undefined
+    if (isNotNone(mask) && zip(mask, shape).every(([m, s]) => is_eq(m, [0, s]))) mask = undefined
     // # if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
     // # then its stride can also be set to 0, albeit with a corresponding adjustment required to the offset
     const elim = mask?.map(([b, e]) => !resolve(lt(add(b, 1), e)))
@@ -140,7 +140,7 @@ export class View {
     // strides = tuple(x.ssimplify() if isinstance(x, UOp) else x for x in strides)
     // if mask: mask = tuple((s.ssimplify() if isinstance(s, UOp) else s, e.ssimplify() if isinstance(e, UOp) else e) for s,e in mask)
     // """
-    const contiguous = offset === 0 && isNone(mask) && isEq(strides, strides_for_shape(shape))
+    const contiguous = offset === 0 && isNone(mask) && is_eq(strides, strides_for_shape(shape))
     return new View(shape, strides, offset, mask, contiguous)
   }
   @cache
@@ -163,7 +163,7 @@ export class View {
   add(vm1: View): View | undefined {
     const vm2 = this
     if (vm2.contiguous) return vm1
-    if (vm1.contiguous && isEq(vm1.shape, vm2.shape)) return vm2
+    if (vm1.contiguous && is_eq(vm1.shape, vm2.shape)) return vm2
     if (vm1.contiguous && vm1.size() === vm2.size()) {
       const ret = vm2.reshape(vm1.shape)
       if (ret !== undefined) return ret
@@ -204,10 +204,10 @@ export class View {
     }
     if (resolve(merged_term.ne(0))) return undefined
     const vm2_shape = extents.toReversed().map(([s, _]) => s)
-    if (!isEq(vm2_shape, vm2.shape)) {
+    if (!is_eq(vm2_shape, vm2.shape)) {
       const reshaped_vm2 = vm2.reshape(vm2_shape)
       if (isNone(reshaped_vm2)) return undefined
-      if (!isEq(reshaped_vm2.shape, vm2.shape)) return reshaped_vm2.add(vm1)
+      if (!is_eq(reshaped_vm2.shape, vm2.shape)) return reshaped_vm2.add(vm1)
     }
     if (vm2.mask?.length) {
       //       # Try to project vm2's mask on to vm1.
@@ -234,7 +234,7 @@ export class View {
       }
       //       # If any of vm1 was masked off, try again with that mask in place.
       for (const [b, e, s] of zip(newb, newe, vm1.shape)) {
-        if (!isEq([b, e], [0, s])) {
+        if (!is_eq([b, e], [0, s])) {
           return vm2.add(View.create(vm1.shape, vm1.strides, vm1.offset, zip(newb, newe)))
         }
       }
@@ -248,7 +248,7 @@ export class View {
     let ret = View.create(this.shape)
     if (this.mask?.length) ret = ret.shrink(this.mask)
     ret = ret.stride(this.strides.map((x) => lt(x, 0) ? -1 : 1)).permute(argsort(this.strides.map((x) => gt(x, 0) ? -x : x)))
-    return isEq(prod(ret.shape), prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride !== (-1, 1)
+    return is_eq(prod(ret.shape), prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride !== (-1, 1)
   }
   @cache
   minify() {
@@ -296,12 +296,12 @@ export class View {
     assert(zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1), `can't expand ${listStr(this.shape)} into ${listStr(new_shape)}`)
     //     # NOTE: can the mask ever be (0,0)?
     //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
-    const mask = this.mask?.length ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!isEq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
+    const mask = this.mask?.length ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!is_eq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
     return View.create(new_shape, this.strides, this.offset, mask)
   }
   @cache
   permute(axis: number[]): View {
-    assert(isEq(axis.toSorted(), range(this.shape.length)), `invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
+    assert(is_eq(axis.toSorted(), range(this.shape.length)), `invalid permutation ${listStr(axis)} of len ${this.shape.length}`)
     return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, this.mask !== undefined ? axis.map((a) => this.mask![a]) : undefined)
   }
   @cache
@@ -316,7 +316,7 @@ export class View {
   }
   @cache
   reshape(new_shape: sint[]): View | undefined {
-    if (isEq(this.shape, new_shape)) return this
+    if (is_eq(this.shape, new_shape)) return this
 
     //     # TODO: this resolve shouldn't be needed
     assert(new_shape.every((x) => resolve(ge(x, 0))), `shape can't contain negative numbers ${listStr(new_shape)}`)

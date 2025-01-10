@@ -1,6 +1,6 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, cache, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, isEq, isinstance, listStr, merge_maps, Metadata, range, setDefault } from '../helpers.ts'
+import { all_int, all_same, assert, cache, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, isinstance, listStr, merge_maps, Metadata, range, setDefault } from '../helpers.ts'
 import { can_pad, ge, lt, prod, resolve, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -438,7 +438,7 @@ export const fold_img_cast = (ctx: Map<UOp, UOp>, xb: UOp, view: UOp, b: UOp, to
 }
 export const init_big_graph = (ctx: Map<UOp, UOp>, sink: UOp): UOp | undefined => {
   const new_src = sink.src.filter((x) => is_scheduled(x.base) && uval(x.base).op !== Ops.CONST).map((x) => x.base)
-  return isEq(new_src, sink.src) ? undefined : new_src.length === 0 ? new UOp(Ops.NOOP) : UOp.sink(...new_src)
+  return is_eq(new_src, sink.src) ? undefined : new_src.length === 0 ? new UOp(Ops.NOOP) : UOp.sink(...new_src)
 }
 export const do_realize = new PatternMatcher<Record<string, UOp> & { ctx: Map<UOp, UOp> }, UOp | undefined>([
   //   // always realize sinked ops

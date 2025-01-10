@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { bytesToString, DEBUG, isEq, isinstance, stringToBytes } from '../helpers.ts'
+import { bytesToString, DEBUG, is_eq, isinstance, stringToBytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export const safe_dtypes = {
@@ -132,7 +132,7 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
       if (DEBUG >= 1) console.log(`WARNING: !loading ${k}`)
       continue
     }
-    if (!isEq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
+    if (!is_eq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
     //     // if isinstance((mlb:=v.lazydata), MultiLazyBuffer):
     //     //   if isinstance(state_dict[k].lazydata, MultiLazyBuffer): v.replace(state_dict[k]).realize()
     //     //   else: v.replace(state_dict[k].shard(mlb.device, mlb.axis)).realize()

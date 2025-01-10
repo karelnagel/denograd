@@ -128,11 +128,12 @@ export const isLessThan = (a: any, b: any): boolean => {
   }
   return a < b
 }
-export const isEq = (one: any, two: any): boolean => {
-  if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => isEq(o, two[i]))
-  // if (typeof one === 'object' && typeof two === 'object') return JSON.stringify(one) === JSON.stringify(two)//should not be needed after having cahces for classes
+const CONSTS = ['number', 'bigint', 'boolean']
+export const is_eq = (one: any, two: any): boolean => {
+  if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => is_eq(o, two[i]))
   // deno-lint-ignore eqeqeq
-  return one == two // this uses == instead of ===, cause in python 0==False, but in js 0!==false, but 0==false
+  if (CONSTS.includes(typeof one) && CONSTS.includes(typeof two)) return one == two
+  return one === two
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
@@ -222,7 +223,7 @@ export const argfix = (...x: any[]) => {
 }
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
-export const all_same = <T>(items: T[]) => items.every((x) => isEq(x, items[0]))
+export const all_same = <T>(items: T[]) => items.every((x) => is_eq(x, items[0]))
 export const isInt = (x: any): x is number => Number.isInteger(x)
 export const all_int = (t: any[]): t is number[] => t.every((s) => Number.isInteger(s))
 export const colored = (st: string, color?: string, background = false) => {

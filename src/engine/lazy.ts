@@ -1,6 +1,6 @@
 import { Buffer, DeviceType } from '../device.ts'
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, to_dtype } from '../dtype.ts'
-import { _METADATA, all_int, all_same, assert, DEBUG, get_key, get_number_env, isEq, isinstance, LAZYCACHE, listStr, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
+import { _METADATA, all_int, all_same, assert, DEBUG, get_number_env, is_eq, isinstance, LAZYCACHE, listStr, Metadata, range, SPLIT_REDUCEOP } from '../helpers.ts'
 import { exec_alu, GroupOp, identity_element, mod, ne, prod, python_alu, resolve } from '../ops.ts'
 import { ConstLike } from '../ops.ts'
 import { idiv, MathTrait, Ops, sint, UOp } from '../ops.ts'
@@ -166,7 +166,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
   override alu = (op: Ops, ...in_srcs: LazyBuffer[]): LazyBuffer => {
     const srcs: LazyBuffer[] = []
     for (const s of [this, ...in_srcs]) {
-      if (isEq(s, s.base) && s.base.contiguous_child) {
+      if (s === s.base && s.base.contiguous_child) {
         const root = s.base.contiguous_child[0].deref()
         if (root !== undefined) srcs.push(root._view(s.base.contiguous_child[1]))
       } else {
@@ -240,7 +240,7 @@ export class LazyBuffer extends MathTrait<LazyBuffer> {
     if (this.st.size === 0 || (new_st.views.at(-1)!.mask !== undefined && new_st.views.at(-1)!.mask!.some((x) => (x[1] as number) - (x[0] as number) === 0))) {
       return this.const_with_shape(0, new_st.shape)
     }
-    if (new_st.contiguous && isEq(this.base.shape, new_st.shape)) return this.base
+    if (new_st.contiguous && is_eq(this.base.shape, new_st.shape)) return this.base
     return create_lazybuffer(this.device, new_st, this.dtype, undefined, undefined, undefined, this.base)
   }
   reshape = (arg: sint[]) => this._view(this.st.reshape(arg))
