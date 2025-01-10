@@ -195,7 +195,7 @@ Deno.test(
   compare(
     [
       [UOp.bool(true), UOp.bool(false), UOp.bool(true)],
-      [[UOp.int(10), UOp.bool(false), UOp.float(444)]],
+      [UOp.int(10), UOp.bool(false), UOp.float(444)],
       [UOp.int(10), UOp.bool(true), UOp.float(444)],
       [UOp.int(10), UOp.float(444), UOp.float(3324)],
       [555, 3434, 0, -3],
@@ -211,7 +211,7 @@ Deno.test(
   compare(
     [
       [UOp.bool(true), UOp.bool(false), UOp.bool(true)],
-      [[UOp.int(10), UOp.bool(false), UOp.float(444)]],
+      [UOp.int(10), UOp.bool(false), UOp.float(444)],
       [UOp.int(10), UOp.bool(true), UOp.float(444)],
       [UOp.int(10), UOp.float(444), UOp.float(3324)],
       [555, 3434, 0, -3],

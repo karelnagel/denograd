@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, argfix, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, is_eq, isinstance, listStr, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytesToBigInt, DEBUG, dedup, fully_flatten, get_env, IMAGE, intToBytes, is_eq, isinstance, listStr, max, Metadata, range, sha256, Slice, slice, WINO, zip } from './helpers.ts'
 import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, UOp, Variable } from './ops.ts'
 import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
 import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from './engine/schedule.ts'
@@ -319,7 +319,7 @@ const _align_left = (...shapes: sint[][]): sint[][] => {
   return shapes.map((shape) => [...range(max_dim - shape.length).map(() => 1), ...shape])
 }
 export const _broadcast_shape = (shapes: sint[][]): sint[] => {
-  return zip(..._align_left(...shapes)).map((nth_dim_sizes) => nth_dim_sizes.includes(0) ? 0 : smax(nth_dim_sizes))
+  return zip(..._align_left(...shapes)).map((nth_dim_sizes) => nth_dim_sizes.includes(0) ? 0 : smax(...nth_dim_sizes))
 }
 type ReductionStr = 'mean' | 'sum' | 'none'
 
@@ -615,7 +615,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    * """
    */
-  static empty = (shape: number[], opts: TensorOptions = {}) => Tensor._metaop(Ops.EMPTY, argfix(shape), opts)
+  static empty = (shape: number[], opts: TensorOptions = {}) => Tensor._metaop(Ops.EMPTY, shape, opts)
 
   /**
    * Create a Tensor from a URL.
@@ -741,8 +741,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   static full = (shape: sint[], fill_value: ConstType, opts?: TensorOptions): Tensor => {
-    const new_shape: number[] = argfix(shape)
-    return new Tensor(fill_value, opts).reshape(range(new_shape.length).map(() => 1)).expand(new_shape)
+    return new Tensor(fill_value, opts).reshape(range(shape.length).map(() => 1)).expand(shape)
   }
   /**
    * Creates a tensor with the given shape, filled with zeros.
@@ -759,7 +758,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
 
   static zeros = (shape: sint[], opts?: TensorOptions): Tensor => {
-    return Tensor.full(argfix(shape), 0.0, { dtype: dtypes.float, ...opts })
+    return Tensor.full(shape, 0.0, { dtype: dtypes.float, ...opts })
   }
 
   /**
@@ -776,7 +775,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   static ones = (shape: sint[], opts?: TensorOptions): Tensor => {
-    return Tensor.full(argfix(shape), 1.0, { dtype: dtypes.float, ...opts })
+    return Tensor.full(shape, 1.0, { dtype: dtypes.float, ...opts })
   }
   /**
    * Returns a 1-D tensor of size `ceil((stop - start) / step)` with values from `[start, stop)`, with spacing between values given by `step`.
@@ -886,7 +885,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   static glorot_uniform = (shape: number[], opts: TensorOptions): Tensor => {
-    return Tensor.uniform(shape, -1.0, 1.0, opts).mul((6 / (argfix(shape)[0] + prod(argfix(shape).slice(1)))) ** 0.5)
+    return Tensor.uniform(shape, -1.0, 1.0, opts).mul((6 / (shape[0] + prod(shape.slice(1)))) ** 0.5)
   }
 
   // ***** toposort && backward pass *****
@@ -966,7 +965,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   reshape = (shape: (sint | undefined)[]): Tensor => {
     // resolve undefined && args
-    let new_shape: number[] = argfix(shape).map((s, i) => s !== undefined ? s : this.shape.at(i)!)
+    let new_shape = shape.map((s, i) => s !== undefined ? s : this.shape.at(i)!)
     // resolve -1
     const c = new_shape.filter((x) => x === -1).length
     if (c > 1) throw new Error(`only one dimension can be inferred using -1, getting ${new_shape}`)
@@ -985,7 +984,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   expand = (shape: sint[]): Tensor => {
-    const new_shape = zip(..._align_left(this.shape, argfix(shape))).map(([from, to]) => to === -1 || to === undefined ? from : to)
+    const new_shape = zip(..._align_left(this.shape, shape)).map(([from, to]) => to === -1 || to === undefined ? from : to)
     return this._broadcast_to(new_shape)
   }
 
@@ -1023,7 +1022,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   flip = (axis: number[]): Tensor => {
-    const axis_arg = argfix(axis).map((x) => this._resolve_dim(x))
+    const axis_arg = axis.map((x) => this._resolve_dim(x))
     if (axis_arg.length !== dedup(axis_arg).length) throw new Error(`dim can appear at most once, getting ${axis_arg}`)
     return Flip.apply(this, axis = axis_arg)
   }
@@ -1313,7 +1312,6 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   repeat = (repeats: sint[]): Tensor => {
-    repeats = argfix(repeats)
     const base_shape = _align_left(this.shape, repeats)[0]
     const unsqueezed_shape = base_shape.flatMap((s) => [1, s] as [number, number])
     const expanded_shape = zip(repeats, base_shape).flat()
@@ -1628,7 +1626,7 @@ export class Tensor extends MathTrait<Tensor> {
   var = (axis?: number | number[], keepdim = false, correction = 1) => {
     const squares = (this.sub(this.mean(axis, true))).square()
     const n = prod(zip(this.shape, squares.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si))
-    return squares.sum(axis, keepdim).div(smax([0, sub(n, correction)]))
+    return squares.sum(axis, keepdim).div(smax(0, sub(n, correction)))
   }
   /**
    * Returns the standard deviation of the tensor along the specified axis || axes.
@@ -3136,7 +3134,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   batchnorm = (weight: undefined | Tensor, bias: undefined | Tensor, mean: Tensor, invstd: Tensor, axis: number | number[] = 1): Tensor => {
-    const axis_ = argfix(axis)
+    const axis_ = Array.isArray(axis) ? axis : [axis]
     const shape = this.shape.map((s, ax) => axis_.includes(ax) ? s : 1)
     let x = this.sub(mean.reshape(shape))
     if (weight !== undefined) x = x.mul(weight.reshape(shape))

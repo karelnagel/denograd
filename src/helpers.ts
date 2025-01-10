@@ -92,12 +92,6 @@ export function product<T>(...arrays: T[][]): T[][] {
   }, [[]])
 }
 
-export const checkCached = <T>(key: any, cache: Record<string, T>, self: T): T => {
-  const k = get_key(key)
-  if (cache[k]) return cache[k]
-  cache[k] = self
-  return self
-}
 export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
   instance: any,
   classType: T | NumberConstructor | BooleanConstructor | ArrayConstructor | StringConstructor,
@@ -148,11 +142,6 @@ export function zip<T extends Array<any>>(...toZip: Iterableify<T>): T[] {
   return range(minLength).map((i) => iterators.map((arr) => arr[i]) as T)
 }
 
-export const setMap = <K, V>(map: Map<K, V>, key: K, fn: (x: V) => V) => {
-  const newVal = fn(map.get(key)!)
-  map.set(key, newVal)
-  return newVal
-}
 export function range(start: number, stop?: number, step = 1): number[] {
   const result: number[] = []
   if (stop === undefined) {
@@ -164,7 +153,7 @@ export function range(start: number, stop?: number, step = 1): number[] {
   else if (step < 0) { for (let i = start; i > stop; i += step) result.push(i) }
   return result
 }
-export const d = <T extends any[]>(...t: T) => t
+export const tuple = <T extends any[]>(...t: T) => t
 export const assert = (condition: boolean): condition is true => {
   if (!condition) throw new Error()
   return condition
@@ -206,13 +195,6 @@ if (process.platform === 'win32') process.stdout.write('')
 
 // TODO: probably should just filter out duplicates + use isEq
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
-export const argfix = (...x: any[]) => {
-  if (x.length && (Array.isArray(x[0]))) {
-    if (x.length !== 1) throw new Error(`bad arg ${x}`)
-    return [...x[0]]
-  }
-  return x
-}
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
 export const all_same = <T>(items: T[]) => items.every((x) => is_eq(x, items[0]))
@@ -225,7 +207,7 @@ export const colored = (st: string, color?: string, background = false) => {
   return `\u001b[${code}m${st}\u001b[0m`
 }
 export const colorizeFloat = (x: number) => colored(x.toFixed(2).padStart(7) + 'x', x < 0.75 ? 'green' : x > 1.15 ? 'red' : 'yellow')
-export const memsizeToStr = (_b: number) => [d(1e9, 'GB'), d(1e6, 'MB'), d(1e3, 'KB'), d(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
+export const memsizeToStr = (_b: number) => [tuple(1e9, 'GB'), tuple(1e6, 'MB'), tuple(1e3, 'KB'), tuple(1, 'B')].filter(([d]) => _b > d).map(([d, pr]) => `${(_b / d).toFixed(2)} ${pr}`)[0]
 export const ansistrip = (s: string) => s.replace(/\x1b\[(K|.*?m)/g, '')
 export const ansilen = (s: string) => ansistrip(s).length
 export const make_tuple = (x: number | number[], cnt: number): number[] => Array.isArray(x) ? [...x] : Array(cnt).fill(x)

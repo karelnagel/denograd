@@ -1,5 +1,5 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { abs, all_same, argfix, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, isInf, isLessThan, isSubset, listStr, mathGcd, max, min, partition, permutations, range, setDefault, setMap, sha256, sin, sqrt, trunc, zip } from './helpers.ts'
+import { abs, all_same, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, isInf, isLessThan, isSubset, listStr, mathGcd, max, min, partition, permutations, range, setDefault, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -205,8 +205,8 @@ const _suop = (lst: sint[], uop_fxn: (...x: UOp[]) => UOp, python_fxn: (...a: nu
   const [uops, nums] = partition(lst, (x) => x instanceof UOp) as [UOp[], number[]]
   return ssimplify((nums ? [...uops, python_fxn(...nums)] as UOp[] : []).reduce((acc, x) => uop_fxn(acc, x)))
 }
-export const smax = (...lst: (sint | sint[])[]) => _suop(argfix(...lst), (...x) => x.reduce((acc, x) => acc.maximum(x)), (...x) => max(x))
-export const smin = (...lst: (sint | sint[])[]) => _suop(argfix(...lst), (...x) => x.reduce((acc, x) => acc.minimum(x)), (...x) => min(x))
+export const smax = (...lst: sint[]) => _suop(lst, (...x) => x.reduce((acc, x) => acc.maximum(x)), (...x) => max(x))
+export const smin = (...lst: sint[]) => _suop(lst, (...x) => x.reduce((acc, x) => acc.minimum(x)), (...x) => min(x))
 
 export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uop
 export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.sym_infer(varVals) : uop
@@ -261,7 +261,7 @@ export class UOp extends MathTrait<UOp> {
   }
   @cache
   get full_shape(): sint[] {
-    return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map((x) => smax(x))
+    return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map((x) => smax(...x))
   }
   get shape() {
     return this.st!.shape
@@ -1044,7 +1044,7 @@ export const uop_given_valid = (valid: UOp, uop: UOp): UOp | undefined => {
   for (const stmt of splitUOp(valid, Ops.AND)) {
     try {
       const [expr, isUpper, c] = parseValid(stmt)
-      setMap(bounds, expr, (o) => o.map((o, i) => i === Number(isUpper) ? c : o))
+      bounds.set(expr, bounds.get(expr)!.map((o, i) => i === Number(isUpper) ? c : o))
     } catch {
       return uop
     } // give up if we cannot parse the valid
