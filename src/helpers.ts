@@ -114,7 +114,7 @@ export function* counter(start = 0) {
   let current = start
   while (true) yield current++
 }
-export const listStr = (x?: null | any[]): string => Array.isArray(x) ? `[${x.map(listStr).join(', ')}]` : `${x}`
+export const listStr = (x?: any[]): string => Array.isArray(x) ? `[${x.map(listStr).join(', ')}]` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const isLessThan = (a: any, b: any): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -390,7 +390,7 @@ export const diskcache_clear = () => {
   //   drop_tables = cur.execute("SELECT 'DROP TABLE IF EXISTS ' || quote(name) || ';' FROM sqlite_master WHERE type = 'table';").fetchall()
   //   cur.executescript("\n".join([s[0] for s in drop_tables] + ["VACUUM;"]))
 }
-export const diskcache_get = (table: string, key: any): any | null => {
+export const diskcache_get = (table: string, key: any): any | undefined => {
   //   if CACHELEVEL == 0: return None
   //   if isinstance(key, (str,int)): key = {"key": key}
   //   conn = db_connection()
@@ -400,7 +400,7 @@ export const diskcache_get = (table: string, key: any): any | null => {
   //   except sqlite3.OperationalError:
   //     return None  # table doesn't exist
   //   if (val:=res.fetchone()) is not None: return pickle.loads(val[0])
-  return null
+  return undefined
 }
 // _db_tables = set()
 export const diskcache_put = (table: string, key: any, val: any) => {
