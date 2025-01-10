@@ -313,10 +313,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   const reduce_for_op = new Map<UOp, UOp>()
   const reduce_of_const: UOp[] = []
   const double_reduces: UOp[] = []
-  let j = 0
   for (let [r, r_uop] of ctx.allbufs.entries()) {
-    console.log(++j, [...ctx.allbufs.entries()].length)
-
     r_uop = uval(r_uop)
     if (r_uop.op !== Ops.REDUCE_AXIS) continue
     if (FUSE_CONV_BW) {
