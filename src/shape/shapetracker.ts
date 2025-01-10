@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { assert, cache_fn, dataclass, isEq, listStr, range } from '../helpers.ts'
+import { assert, cache_fn, dataclass, get_key, isEq, listStr, range } from '../helpers.ts'
 import { get_number_env, isNone, isNotNone, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
@@ -44,7 +44,10 @@ const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (u
 
 @dataclass
 export class ShapeTracker {
-  constructor(public views: View[]) {}
+  key: string
+  constructor(public views: View[]) {
+    this.key = get_key(views)
+  }
   add = (st: ShapeTracker): ShapeTracker => {
     let ret = new ShapeTracker(this.views)
     for (const v of st.views) ret = new ShapeTracker([...ret.views, v]).simplify() // one view at a time = better simplification

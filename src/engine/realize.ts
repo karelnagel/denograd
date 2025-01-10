@@ -126,10 +126,10 @@ class BufferXfer extends BufferCopy {
 
 const method_cache: Record<string, CompiledRunner> = {}
 export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {
-  const ckey = get_key([device, ast.key, BEAM, NOOPT, false])
+  const ckey = get_key(device, ast.key, BEAM, NOOPT, false)
   const cret = method_cache[ckey]
   if (cret) return cret
-  const bkey = get_key([device.split(':')[0], ast.key, BEAM, NOOPT, true])
+  const bkey = get_key(device.split(':')[0], ast.key, BEAM, NOOPT, true)
   let ret
   const bret = method_cache[bkey]
   if (bret) {

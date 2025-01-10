@@ -214,7 +214,7 @@ export class UOp extends MathTrait<UOp> {
   key: string
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
-    this.key = get_key([this.op, this.dtype, this.arg, this.src])
+    this.key = get_key(this.op, this.dtype, this.arg, this.src)
   }
   @cache
   override toString(): string {
@@ -672,9 +672,9 @@ export class UPat extends MathTrait<UPat> {
   match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
     if (
       (isNotNone(this.op) && !this.op.includes(uop.op)) ||
-      (isNotNone(this.name) && setDefault(store, this.name, uop) !== uop) ||
+      (isNotNone(this.name) && !isEq(setDefault(store, this.name, uop), uop)) ||
       (isNotNone(this.dtype) && !this.dtype.includes(uop.dtype) && !this.dtype.includes(uop.dtype.scalar())) ||
-      (isNotNone(this.arg) && !isEq(this.arg ,uop.arg)) ||
+      (isNotNone(this.arg) && !isEq(this.arg, uop.arg)) ||
       (this.allowed_len !== -1 && uop.src.length !== this.allowed_len)
     ) return []
     if (isNone(this.src)) return [store]

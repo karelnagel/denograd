@@ -49,7 +49,7 @@ export abstract class Allocator<AllocRes = MemoryView> {
 export abstract class LRUAllocator extends Allocator {
   cache = new Map<string, { size: number; options?: BufferSpec; opaques: MemoryView[] }>()
   override alloc = (size: number, options?: BufferSpec) => {
-    const c = setDefault(this.cache, get_key([size, options]), { size, options, opaques: [] })
+    const c = setDefault(this.cache, get_key(size, options), { size, options, opaques: [] })
     if (c.opaques.length) return c.opaques.pop()!
     try {
       return this._super_alloc(size, options)
@@ -67,7 +67,7 @@ export abstract class LRUAllocator extends Allocator {
   // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
     if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
-      setDefault(this.cache, get_key([size, options]), { size, opaques: [], options }).opaques.push(opaque)
+      setDefault(this.cache, get_key(size, options), { size, opaques: [], options }).opaques.push(opaque)
     } else this._super_free(opaque, size, options)
   }
 }

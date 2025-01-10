@@ -570,9 +570,10 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
   return result
 }
 
-export const get_key = (o: any): string => {
-  const json = JSON.stringify(o, (key, value) => {
+export const get_key = (...args: any[]): string => {
+  const json = JSON.stringify(args, (key, value) => {
     if (typeof value?.key === 'string') return value.key
+    if (typeof value === 'string') return value
     return value
   })
   return sha256(json).toString('hex')
@@ -586,7 +587,7 @@ export function cache<This extends object, Args extends any[], Return>(
   const instanceCaches = new WeakMap<This, Record<string, Return>>()
   const staticCache: Record<string, Return> = {}
   return function (this: This, ...args: Args): Return {
-    const key = get_key([String(ctx.name), args])
+    const key = get_key(String(ctx.name), args)
     let cache = ctx.static ? staticCache : (instanceCaches.get(this) || instanceCaches.set(this, {}).get(this)!)
     if (key in cache) return cache[key]
     const res = target.call(this, ...args)
@@ -636,7 +637,7 @@ export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecorator
 
   return new Proxy(Base, {
     construct(target, argsList, newTarget) {
-      let key = get_key([ctx.name, ...argsList])
+      let key = get_key(ctx.name, ...argsList)
 
       const existing = cache.get(key)
       if (existing) return existing

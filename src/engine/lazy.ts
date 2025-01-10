@@ -12,7 +12,7 @@ export const create_lazybuffer = (device: DeviceType, st: ShapeTracker, dtype: D
   dtype = to_dtype(dtype)
   if (op === Ops.CONST) arg = !isinstance(arg, UOp) ? dtypes.as_const(arg, dtype) : arg, enable_cache = true
 
-  // const key = get_key([device, st, dtype, op, arg, srcs, base])
+  // const key = get_key(device, st, dtype, op, arg, srcs, base)
   // if (enable_cache && lazycache.has(key)) return lazycache.get(key)!
 
   const ret = new LazyBuffer(device, st, dtype, op, arg, srcs, base, _METADATA.value)

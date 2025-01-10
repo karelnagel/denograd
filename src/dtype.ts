@@ -14,7 +14,7 @@ export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, des
 export class DType {
   key: string
   constructor(public priority: number, public itemsize: number, public name: string, public fmt: undefined | FmtStr, public count: number, public _scalar?: DType, kwargs: any[] = []) {
-    this.key = get_key([priority, count, itemsize, name, _scalar, fmt, ...kwargs])
+    this.key = get_key(priority, count, itemsize, name, _scalar, fmt, ...kwargs)
   }
 
   static new = (priority: number, itemsize: number, name: string, fmt?: FmtStr) => new DType(priority, itemsize, name, fmt, 1, undefined)

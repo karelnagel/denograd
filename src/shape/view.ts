@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, isEq, isInt, isLessThan, isNone, isNotNone, listStr, next, range, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, dataclass, flatten, get_key, isEq, isInt, isLessThan, isNone, isNotNone, listStr, next, range, zip } from '../helpers.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, resolve, type sint, sint_to_uop, smax, smin, sub, sum, sym_infer, UOp, type Variable } from '../ops.ts'
 
 export const canonicalize_strides = cache_fn((shape: sint[], strides: sint[]): sint[] => {
@@ -79,7 +79,10 @@ export const un1d = (shape: sint[], offs: sint): sint[] => {
 
 @dataclass
 export class View {
-  constructor(public shape: sint[], public strides: sint[], public offset: sint, public mask?: [sint, sint][], public contiguous?: boolean) {}
+  key: string
+  constructor(public shape: sint[], public strides: sint[], public offset: sint, public mask?: [sint, sint][], public contiguous?: boolean) {
+    this.key = get_key(shape, strides, offset, mask, contiguous)
+  }
 
   @cache
   get t() {
