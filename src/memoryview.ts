@@ -222,7 +222,8 @@ export class MemoryView<F extends FmtStr = 'B'> {
     'I': Uint32Array,
     'q': BigInt64Array,
     'Q': BigUint64Array,
-    'e': Float16Array,
+    // TODO: add float16 back
+    'e': Float32Array,
     'f': Float32Array,
     'd': Float64Array,
     '?': Uint8Array,

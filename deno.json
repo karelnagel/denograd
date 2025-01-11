@@ -10,6 +10,10 @@
     "check": "deno check . ",
     "lint": "deno lint"
   },
+  "workspace": [
+    "./examples/react"
+  ],
+  "nodeModulesDir": "auto",
   "fmt": {
     "lineWidth": 10000,
     "semiColons": false,
@@ -40,5 +44,15 @@
   "exclude": [
     "./tinygrad"
   ],
-  "compilerOptions": {}
+  "compilerOptions": {
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable",
+      "deno.ns"
+    ],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "jsxImportSourceTypes": "@types/react"
+  }
 }

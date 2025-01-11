@@ -88,6 +88,7 @@ export class ViewOp extends Runner {
 }
 export class BufferCopy extends Runner {
   constructor(total_sz: number, dest_device: DeviceType, src_device: DeviceType) {
+    let name
     if (total_sz >= 1e6) name = `copy ${(total_sz / 1e6).toFixed(2)}M, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
     else name = `copy ${total_sz.toFixed(0).padStart(8)}, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
     super(colored(name, 'yellow'), dest_device, 0, total_sz)

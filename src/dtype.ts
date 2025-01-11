@@ -262,7 +262,8 @@ export const sum_acc_dtype = (dt: DType) => {
 export const truncate = new Map<DType, (x: any) => any>([
   [dtypes.bool, (x: boolean) => Boolean(x)],
   // TODO: bfloat16 (tinygrad)
-  [dtypes.float16, (x: number) => new Float16Array([x])[0]],
+  // TODO: add float16 back
+  [dtypes.float16, (x: number) => new Float32Array([x])[0]],
   [dtypes.float32, (x: number) => new Float32Array([x])[0]],
   [dtypes.float64, (x: number) => new Float64Array([x])[0]],
   [dtypes.uint8, (x: number) => new Uint8Array([x])[0]],
