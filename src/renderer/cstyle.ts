@@ -229,3 +229,53 @@ export class ClangRenderer extends CStyleLanguage {
     return root_render_kernel(this, { functionName, kernel, bufs, uops, prefix })
   }
 }
+
+// class MetalRenderer(CStyleLanguage):
+//   device = "METAL"
+//   shared_max = 32768
+//   tensor_cores = [TensorCore(dims=(8,8,8),threads=[(0,2),(1,4),(0,2),(1,2)],expanded_shape=(2,2,2,2),upcast_axes=([(1,2)],[(1,2)],[(1,2)]),
+//     st1_pattern=(((1,1),(0,1),(1,0),(0,3)),((0,0),(0,2),(1,3),(1,2))),st2_pattern=(((0,0),(1,1),(1,2),(0,2),(1,0)),((0,1),(0,3),(1,3))),
+//     dtype_in=di,dtype_out=do,reduce_axes=[(0,8)]) for di,do in [(dtypes.number,dtypes.number),(dtypes.half,dtypes.number),(dtypes.half,dtypes.half),
+//                                                                 (dtypes.bfloat16,dtypes.number),(dtypes.bfloat16,dtypes.bfloat16)]]
+//   const __init__ = () => { this.tensor_cores = MetalRenderer.tensor_cores if hasattr(os, 'uname') && os.uname().machine === "arm64" else []
+
+//   // language options
+//   kernel_prefix = "kernel "
+//   buffer_prefix = "device "
+//   smem_prefix = "threadgroup "
+//   arg_int_prefix = "constant number&"
+//   barrier = "threadgroup_barrier(mem_flags::mem_threadgroup);"
+//   float4 = "float4"
+//   code_for_workitem = {"g": lambda x: `gid.${chr(120+number(x))}`, "l": lambda x: `lid.${chr(120+number(x))}`}
+//   // uint3 used for gid/lid - TODO: this should probably be `ushort3 lid [[thread_position_in_threadgroup]]`
+//   extra_args = ['uint3 gid [[threadgroup_position_in_grid]]', 'uint3 lid [[thread_position_in_threadgroup]]']
+//   type_map = {dtypes.bfloat16: "bfloat"}
+
+//   // precise::sin
+//   code_for_op = {**CStyleLanguage.code_for_op, Ops.SIN: lambda x,dtype: `precise::sin(${x})`}
+
+//   // upcast to float32 all the ops that don't support bfloat16
+//   extra_matcher = PatternMatcher([
+//     // NOTE: this === copied from PTX
+//     (UPat((Ops.SQRT, Ops.EXP2, Ops.LOG2, Ops.SIN), dtype=dtypes.bfloat16, name="x"),
+//       lambda x: (UOp(x.op, dtypes.number, tuple(vv.cast(dtypes.number) for vv in x.src), x.arg).cast(dtypes.bfloat16))),
+//   ]) + extra_pm
+
+//   string_rewrite = PatternMatcher([
+//     (UPat(Ops.BITCAST, name="x"), lambda ctx,x: `as_type<${ctx.render_dtype(x.dtype)}>(${ctx[x.src[0]]})`),
+//   ]) + base_rewrite
+
+//   const render_kernel = (function_name, kernel, bufs, uops, prefix=undefined) => {
+//     prefix, wmma_args = ["//include <metal_stdlib>","using namespace metal;"], set([uop.arg for uop in uops if uop.op === Ops.WMMA])
+//     for arg in wmma_args: prefix.push(
+//   f
+// /**
+//  * {(dtype_out:=this.render_dtype(arg[3].vec(2)))} __{arg[0]}({(dtype_in:=this.render_dtype(arg[2].vec(2)))} a, {dtype_in} b, {dtype_out} c){{
+//  * simdgroup_{this.render_dtype(arg[2])}8x8 mat_a, mat_b; simdgroup_{this.render_dtype(arg[3])}8x8 mat_c;
+//  * mat_a.thread_elements()[0] = a[0]; mat_b.thread_elements()[0] = b[0]; mat_c.thread_elements()[0] = c[0];
+//  * mat_a.thread_elements()[1] = a[1]; mat_b.thread_elements()[1] = b[1]; mat_c.thread_elements()[1] = c[1];
+//  * simdgroup_multiply_accumulate(mat_c, mat_a, mat_b, mat_c);\n  return {dtype_out}(mat_c.thread_elements()[0], mat_c.thread_elements()[1]);\n}}
+//  */)
+//     return super().render_kernel(function_name, kernel, bufs, uops, prefix)
+
+// _nms = "xyzwabcdefghijkl"
