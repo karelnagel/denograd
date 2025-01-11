@@ -6,7 +6,6 @@ import { idiv, mul, Ops, prod, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
 import { CompiledRunner } from './realize.ts'
-import os from 'node:os'
 
 // const actions: Opt[] = [
 //   ...range(6).flatMap((axis) => [0, 2, 3, 4, 5, 7].map((amt) => new Opt(OptOps.UPCAST, axis, amt))),

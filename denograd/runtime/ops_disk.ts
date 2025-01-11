@@ -1,8 +1,7 @@
 import { Allocator, Compiled } from './allocator.ts'
-import { assert } from '../helpers.ts'
-import process from 'node:process'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
+import { Env } from '../env/index.ts'
 
 export class DiskBuffer {
   constructor(public device: DiskDevice, public size: number, public offset = 0) {
@@ -63,7 +62,7 @@ export class DiskDevice extends Compiled {
     if (this.size !== undefined) return
     this.size = size
 
-    if (process.platform !== 'win32' && this.filename.startsWith('shm:')) {
+    if (Env.platform !== 'win32' && this.filename.startsWith('shm:')) {
       throw new Error('Not implemented')
     } else {
       const fo = Deno.openSync(this.filename, { read: true, write: true, create: true })

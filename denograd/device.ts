@@ -1,8 +1,8 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
 import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, OSX } from './helpers.ts'
-import process from 'node:process'
 import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
+import { Env } from './env/index.ts'
 export * from './runtime/allocator.ts'
 // # **************** Device ****************
 
@@ -56,7 +56,7 @@ export class _Device {
 
     const device = this.get_available_devices()[0]
     if (!device) throw new Error('no usable devices')
-    process.env[device] = '1'
+    Env.env.set(device, '1')
     return device
   }
 }

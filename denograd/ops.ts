@@ -1,4 +1,5 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
+import { Env } from './env/index.ts'
 import { abs, all_same, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, min, partition, permutations, range, set_default, sin, sqrt, trunc, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
@@ -598,7 +599,7 @@ function getLocation(): [string, number] {
   return [file, Number(line)]
 }
 const lines = (fn: string): string[] => {
-  return Deno.readFileSync(fn).toString().split('\n')
+  return Env.readFileSync(fn).toString().split('\n')
 }
 
 export type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allow_any_len?: boolean; location?: any; custom_early_reject?: Ops[] }

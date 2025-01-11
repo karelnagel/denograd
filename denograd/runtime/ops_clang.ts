@@ -1,8 +1,9 @@
 import { Compiled, Compiler, MallocAllocator, Program } from './allocator.ts'
-import { cpu_objdump, cpu_time_execution, range } from '../helpers.ts'
+import { cpu_objdump, cpu_time_execution, range, temp } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
+import { Env } from '../env/index.ts'
 
 export class ClangCompiler extends Compiler {
   args
@@ -15,16 +16,16 @@ export class ClangCompiler extends Compiler {
 
   override compile = (src: string): Uint8Array => {
     // KAREL: TODO: try without files
-    const code = Deno.makeTempFileSync()
-    const bin = Deno.makeTempFileSync()
-    Deno.writeTextFileSync(code, src)
+    const code = temp()
+    const bin = temp()
+    Env.writeTextFileSync(code, src)
 
     const args = ['-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', code, '-o', bin]
-    const res = new Deno.Command('clang', { args }).outputSync()
+    const res = Env.execSync('clang', { args })
     if (!res.success) throw new Error(`Clang compiling failed, error: ${new TextDecoder().decode(res.stderr)}`)
 
-    const data = Deno.readFileSync(bin)
-    Deno.removeSync(code), Deno.removeSync(bin)
+    const data = Env.readFileSync(bin)
+    Env.removeSync(code), Env.removeSync(bin)
     return data
   }
   override disassemble = (lib: Uint8Array) => cpu_objdump(lib, this.objdumpTool)
@@ -37,8 +38,8 @@ export class ClangProgram extends Program {
     if (!name) throw new Error("Name can't be undefined")
   }
   override call = cpu_time_execution(async (bufs: MemoryView[], vals: any, wait = false) => {
-    const file = await Deno.makeTempFile()
-    await Deno.writeFile(file, this.lib)
+    const file = temp()
+    Env.writeFileSync(file, this.lib)
     const fxn = Deno.dlopen(file, {
       call: {
         parameters: range(bufs.length).map(() => 'buffer'),
@@ -47,7 +48,7 @@ export class ClangProgram extends Program {
         nonblocking: true,
       },
     })
-    await Deno.remove(file)
+    Env.removeSync(file)
     await fxn.symbols.call(...bufs.map((b) => b.buffer))
     fxn.close()
   })

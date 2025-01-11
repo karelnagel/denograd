@@ -20,6 +20,7 @@
     "npm:json5@^2.2.3": "2.2.3",
     "npm:linkedom@0.18": "0.18.5",
     "npm:nodejs-polars@0.14": "0.14.0",
+    "npm:pako@*": "2.1.0",
     "npm:react-dom@^18.3.1": "18.3.1_react@18.3.1",
     "npm:react@^18.3.1": "18.3.1",
     "npm:vite@*": "6.0.7_@types+node@22.5.4",
@@ -896,6 +897,9 @@
       "dependencies": [
         "boolbase"
       ]
+    },
+    "pako@2.1.0": {
+      "integrity": "sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug=="
     },
     "picocolors@1.1.1": {
       "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="

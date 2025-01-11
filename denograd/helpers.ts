@@ -1,9 +1,5 @@
 // deno-lint-ignore-file no-explicit-any no-control-regex camelcase
-import path from 'node:path'
-import process from 'node:process'
-import os from 'node:os'
-import { execSync } from 'node:child_process'
-import { BinaryLike, createHash, randomUUID } from 'node:crypto'
+import { Env } from './env/index.ts'
 
 // GENERAL HELPERS
 
@@ -72,10 +68,12 @@ export abstract class Enum {
     return this.value
   }
 }
-export const random_id = () => randomUUID().toString()
-export const sha256 = (x: BinaryLike) => createHash('sha256').update(x).digest()
+
+export const random_id = () => (Math.random() * 100000000).toFixed(0)
+export const sha256 = (data: string | Uint8Array) => bytes_to_hex(Env.hash(data))
 export const string_to_bytes = (text: string) => new TextEncoder().encode(text)
 export const bytes_to_string = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
+export const bytes_to_hex = (arr: Uint8Array) => Array.from(arr).map((byte) => byte.toString(16).padStart(2, '0')).join('')
 ;(BigInt.prototype as any).toJSON = function () {
   return this.toString()
 }
@@ -188,10 +186,10 @@ export function math_gcd(...numbers: number[]): number {
 }
 // TINYGRAD CODE
 // NOTE: it returns int 1 if x is empty regardless of the type of x
-export const OSX = process.platform === 'darwin'
-export const CI = !!process.env.CI
+export const OSX = Env.platform === 'darwin'
+export const CI = !!Env.env.get('CI')
 
-if (process.platform === 'win32') process.stdout.write('')
+if (Env.platform === 'win32') Env.writeStdout(string_to_bytes(''))
 
 // TODO: probably should just filter out duplicates + use isEq
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
@@ -262,9 +260,9 @@ export const getChild = (obj: any, key: string): any => key.split('.').reduce((c
 
 export const word_wrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + word_wrap(x.slice(wrap), wrap)
 export const to_function_name = (s: string) => ansistrip(s).split('').map((c) => /[A-Za-z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')).join('')
-export const get_env = (key: string, defaultVal = '') => process.env[key] || defaultVal
-export const get_number_env = (key: string, defaultVal?: number) => Number(process.env[key] || defaultVal)
-export const temp = (x: string): string => path.join(os.tmpdir(), x)
+export const get_env = (key: string, defaultVal = '') => Env.env.get(key) || defaultVal
+export const get_number_env = (key: string, defaultVal?: number) => Number(Env.env.get(key) || defaultVal)
+export const temp = (x?: string): string => `${Env.tmpdir()}/${x || random_id()}`
 
 export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [get_number_env('DEBUG', 0), get_number_env('IMAGE', 0), get_number_env('BEAM', 0), get_number_env('NOOPT', 0), get_number_env('JIT', 1)]
 export const [WINO, CAPTURING, TRACEMETA] = [get_number_env('WINO', 0), get_number_env('CAPTURING', 1), get_number_env('TRACEMETA', 1)]
@@ -294,7 +292,7 @@ class ContextVar<T> {
     this.value = value
   }
   set = (v: T): string => {
-    const token = randomUUID()
+    const token = random_id()
     this.value = v
     this.tokens[token] = v
     return token
@@ -347,8 +345,8 @@ export class GlobalCounters {
 
 // # *** universal database cache ***
 
-const cacheDir = get_env('XDG_CACHE_HOME', path.resolve(OSX ? path.join(os.homedir(), 'Library', 'Caches') : path.join(os.homedir(), '.cache')))
-export const CACHEDB = get_env('CACHEDB', path.resolve(path.join(cacheDir, 'tinygrad', 'cache.db')))
+const cacheDir = get_env('XDG_CACHE_HOME', OSX ? `${Env.homedir()}/Library/Caches` : `${Env.homedir()}/.cache`)
+export const CACHEDB = get_env('CACHEDB', `${cacheDir}/tinygrad/cache.db`)
 export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
 
 // VERSION = 16
@@ -451,12 +449,12 @@ export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Pr
 
 export const cpu_objdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
   const outputFile = temp('temp_output.so')
-  Deno.writeFileSync(outputFile, lib)
+  Env.writeFileSync(outputFile, lib)
   try {
-    const output = execSync(`${objdumpTool} -d ${outputFile}`, { encoding: 'utf-8' })
+    const output = Env.execSync(objdumpTool, { args: ['-d', outputFile] })
     console.log(output)
   } finally {
-    Deno.removeSync(outputFile)
+    Env.removeSync(outputFile)
   }
 }
 export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {
@@ -552,7 +550,7 @@ export const get_key = (...args: any[]): string => {
     if (typeof value === 'string') return value
     return value
   })
-  return sha256(json).toString('hex')
+  return sha256(json)
 }
 // DECORATORS
 

@@ -8,12 +8,10 @@ import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
 // // **** start with two base classes, Tensor && Function ****
-import { gunzip } from 'node:zlib'
-import { promisify } from 'node:util'
-const gunzipAsync = promisify(gunzip)
 import { make_tuple, round_up } from './helpers.ts'
 import { argsort } from './helpers.ts'
 import { MemoryView } from './memoryview.ts'
+import { Env } from './env/index.ts'
 
 export class Function {
   device: string | string[]
@@ -364,7 +362,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (dtype !== undefined) dtype = to_dtype(dtype)
     if (dtype !== undefined && !(dtype instanceof DType)) throw new Error(`invalid dtype ${dtype}`)
     if (device === undefined && typeof data === 'string') {
-      data = Deno.realPathSync(data)
+      data = Env.realPathSync(data)
       device = `DISK:${data}`
     } // keep it on the disk if device === undefined
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
@@ -395,7 +393,7 @@ export class Tensor extends MathTrait<Tensor> {
       else data = _frompy(data, dtype)
     } else if (typeof data === 'string') {
       dtype = dtype || dtypes.uint8
-      data = _metaop(Ops.EMPTY, [idiv(Deno.statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
+      data = _metaop(Ops.EMPTY, [idiv(Env.statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
     }
 
     //     // by this point, it has to be a LazyBuffer
@@ -629,7 +627,7 @@ export class Tensor extends MathTrait<Tensor> {
 
   static from_url = async (url: string, gunzip = false, opts?: TensorOptions): Promise<Tensor> => {
     let data = await fetch(url).then((data) => data.arrayBuffer())
-    if (gunzip) data = await gunzipAsync(data)
+    if (gunzip) data = Env.gunzipSync(data)
     return new Tensor(new Uint8Array(data), opts)
   }
   static _seed: number = Math.floor(Date.now() / 1000)
@@ -689,7 +687,7 @@ export class Tensor extends MathTrait<Tensor> {
 
     if (!Tensor._device_seeds[device]) {
       Tensor._device_seeds[device] = new Tensor(
-        [bytes_to_bigint(sha256(int_to_bytes(Object.keys(Tensor._device_seeds).length))) % (2n ** 32n), Tensor._seed],
+        [bytes_to_bigint(Env.hash(int_to_bytes(Object.keys(Tensor._device_seeds).length))) % (2n ** 32n), Tensor._seed],
         { device: device, dtype: dtypes.uint32, requires_grad: false },
       )
       Tensor._device_rng_counters[device] = new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false })
