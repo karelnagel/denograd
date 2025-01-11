@@ -5,6 +5,9 @@
 // from tinygrad.device import Compiled, Compiler, CompileError, LRUAllocator
 // from tinygrad.renderer.cstyle import MetalRenderer
 
+import { DeviceType } from '../device.ts'
+import { Compiled } from './allocator.ts'
+
 // class objc_id extends ctypes.c_void_p { // This prevents ctypes from converting response to plain number, && dict.fromkeys() can use it to dedup
 //   const __hash__ = () =>  hash(this.value)
 //   const __eq__ = (other) =>  this.value === other.value
@@ -185,19 +188,21 @@
 //   const _copyout = (dest:memoryview, src:MetalBuffer) => { dest[:] = this._as_buffer(src)
 //   const _offset = (buf:MetalBuffer, size:number, offset:number) =>  MetalBuffer(buf.buf, size, offset)
 
-// class MetalDevice(Compiled):
-//   const __init__ = (device:string) => {
-//     this.sysdevice = libmetal.MTLCreateSystemDefaultDevice()
-//     this.mtl_queue = msg(this.sysdevice, "newCommandQueueWithMaxCommandBufferCount:", 1024, restype=objc_instance)
-//     if this.mtl_queue === undefined: raise RuntimeError("Can!allocate a new command queue")
-//     this.mtl_buffers_in_flight: any[] = []
-//     this.mv_in_metal: memoryview[] = []
-//     this.timeline_signal = msg(this.sysdevice, "newSharedEvent", restype=objc_instance)
-//     this.timeline_value = 0
-
-//     super().__init__(device, MetalAllocator(this), MetalRenderer(), MetalCompiler() if getenv("METAL_DIRECT", 1) else Compiler(),
-//                      functools.partial(MetalProgram, this))
-//   const synchronize = () => {
-//     for cbuf in this.mtl_buffers_in_flight: wait_check(cbuf)
-//     this.mv_in_metal.clear()
-//     this.mtl_buffers_in_flight.clear()
+export class MetalDevice extends Compiled {
+  constructor(device: DeviceType) {
+    //     this.sysdevice = libmetal.MTLCreateSystemDefaultDevice()
+    //     this.mtl_queue = msg(this.sysdevice, "newCommandQueueWithMaxCommandBufferCount:", 1024, restype=objc_instance)
+    //     if this.mtl_queue === undefined: raise RuntimeError("Can!allocate a new command queue")
+    //     this.mtl_buffers_in_flight: any[] = []
+    //     this.mv_in_metal: memoryview[] = []
+    //     this.timeline_signal = msg(this.sysdevice, "newSharedEvent", restype=objc_instance)
+    //     this.timeline_value = 0
+    super(device)
+    //     super().__init__(device, MetalAllocator(this), MetalRenderer(), MetalCompiler() if getenv("METAL_DIRECT", 1) else Compiler(),
+    //                      functools.partial(MetalProgram, this))
+  }
+  //   const synchronize = () => {
+  //     for cbuf in this.mtl_buffers_in_flight: wait_check(cbuf)
+  //     this.mv_in_metal.clear()
+  //     this.mtl_buffers_in_flight.clear()
+}

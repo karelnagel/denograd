@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, assert, dedup, get_env, set_default, strip_parens } from '../helpers.ts'
+import { AMX, dedup, get_env, set_default, strip_parens } from '../helpers.ts'
 import { GroupOp, idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -58,14 +58,8 @@ export const extra_pm = new PatternMatcher<Record<string, UOp>, UOp | undefined>
 
 export const uops_to_dtypes = (uops: UOp[]): DType[] => dedup(uops.filter((u) => !(u.dtype instanceof ImageDType || u.dtype instanceof PtrDType)).map((u) => u.dtype))
 
-type RenderKernelArgs = { functionName: string; kernel: string[]; bufs: [string, [DType, boolean]][]; uops: UOp[]; prefix?: string[] }
-const root_render_kernel = (self: CStyleLanguage, { bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
-  const tmp = bufs.some(([_, [dtype]]) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
-  const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.render_dtype(dtype, mutable) + self.buffer_suffix : dtype === dtypes.int ? self.arg_int_prefix : undefined])
-  const prg = [`${self.kernel_prefix}void ${self.get_kernel_modifier(uops)}${functionName}(`, ...buftypes.map(([name, t]) => `${t} ${name}`).join(', '), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
-  return prefix === undefined ? prg : `${prefix.join('\n')}\n${prg}`
-}
-
+type RenderKernelArgs = { function_name: string; kernel: string[]; bufs: [string, [DType, boolean]][]; uops: UOp[]; prefix?: string[] }
+type CodeForOp = Map<Ops, (...a: (string | DType)[]) => string>
 export class CStyleLanguage extends Renderer {
   kernel_prefix = ''
   buffer_prefix = ''
@@ -75,14 +69,14 @@ export class CStyleLanguage extends Renderer {
   smem_prefix_for_cast = true
   arg_int_prefix = 'const int'
   barrier = ''
-  code_for_workitem: Record<'g' | 'l' | 'i', (...x: any[]) => string> = {} as any
+  code_for_workitem: Record<string, (...x: any[]) => string> = {} as any
   extra_args: string[] = []
   float4?: string
   type_map: Map<DType, string> = new Map()
   infinity = 'INFINITY'
   nan = 'NAN'
   r?: Map<UOp, string>
-  override code_for_op = new Map<Ops, (...a: (string | DType)[]) => string>([
+  override code_for_op: CodeForOp = new Map([
     [Ops.SQRT, (x, dtype) => `sqrt(${x})`],
     [Ops.RECIP, (x, dtype) => `(1/${x})`],
     [Ops.NEG, (x, dtype) => `-${x}`],
@@ -107,7 +101,12 @@ export class CStyleLanguage extends Renderer {
   override extra_matcher = extra_pm
 
   get_kernel_modifier = (uops: UOp[]) => ''
-  render_kernel = (args: RenderKernelArgs) => root_render_kernel(this, args)
+  render_kernel({ bufs, function_name, kernel, uops, prefix }: RenderKernelArgs): string {
+    const tmp = bufs.some(([_, [dtype]]) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
+    const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, (dtype instanceof ImageDType || dtype instanceof PtrDType) ? this.render_dtype(dtype, mutable) + this.buffer_suffix : dtype === dtypes.int ? this.arg_int_prefix : undefined])
+    const prg = [`${this.kernel_prefix}void ${this.get_kernel_modifier(uops)}${function_name}(`, ...buftypes.map(([name, t]) => `${t} ${name}`).join(', '), ...this.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
+    return prefix === undefined ? prg : `${prefix.join('\n')}\n${prg}`
+  }
   render_cast = (dt: DType, val: string): string => `(${this.render_dtype(dt)})(${val})`
   render_dtype = (dt: DType, mutable = true): string => {
     if (dt instanceof ImageDType) return `${mutable ? 'write_only' : 'read_only'} image2d_t`
@@ -188,7 +187,7 @@ export class CStyleLanguage extends Renderer {
     }
     delete this.r
     //  NOTE: this relies on bufs dict preserving order
-    return this.render_kernel({ functionName: name, kernel, bufs: [...bufs.values()], uops })
+    return this.render_kernel({ function_name: name, kernel, bufs: [...bufs.values()], uops })
   }
 }
 
@@ -211,7 +210,7 @@ export class ClangRenderer extends CStyleLanguage {
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 
-  override render_kernel = ({ bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
+  override render_kernel = ({ bufs, function_name, kernel, uops, prefix }: RenderKernelArgs): string => {
     prefix = uops_to_dtypes(uops).filter((dt) => dt.count > 1).map((dt) => this.render_vector_prefix(dt))
     // https://github.com/corsix/amx
     for (const [name, [N, M, _], dtypeIn] of dedup(uops.filter((uop) => uop.op === Ops.WMMA).map((uop) => uop.arg))) {
@@ -226,56 +225,64 @@ export class ClangRenderer extends CStyleLanguage {
         `${out} __$${this.render_dtype(dtypeIn.vec(N))} data1, ${this.render_dtype(dtypeIn.vec(M))} data2, ${out} data0){{ AMX_SET(0);\n  for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(4, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }} AMX(0, (int *)(&data2), 0ull<<62); AMX(1, (int *)(&data1), 0ull<<62); AMX(12, 0, 0ull); for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(5, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }}\n  AMX_SET(1);\n  return data0;\n}}`,
       ]
     }
-    return root_render_kernel(this, { functionName, kernel, bufs, uops, prefix })
+    return super.render_kernel({ function_name, kernel, bufs, uops, prefix })
   }
 }
 
-// class MetalRenderer(CStyleLanguage):
-//   device = "METAL"
-//   shared_max = 32768
-//   tensor_cores = [TensorCore(dims=(8,8,8),threads=[(0,2),(1,4),(0,2),(1,2)],expanded_shape=(2,2,2,2),upcast_axes=([(1,2)],[(1,2)],[(1,2)]),
-//     st1_pattern=(((1,1),(0,1),(1,0),(0,3)),((0,0),(0,2),(1,3),(1,2))),st2_pattern=(((0,0),(1,1),(1,2),(0,2),(1,0)),((0,1),(0,3),(1,3))),
-//     dtype_in=di,dtype_out=do,reduce_axes=[(0,8)]) for di,do in [(dtypes.number,dtypes.number),(dtypes.half,dtypes.number),(dtypes.half,dtypes.half),
-//                                                                 (dtypes.bfloat16,dtypes.number),(dtypes.bfloat16,dtypes.bfloat16)]]
-//   const __init__ = () => { this.tensor_cores = MetalRenderer.tensor_cores if hasattr(os, 'uname') && os.uname().machine === "arm64" else []
+export class MetalRenderer extends CStyleLanguage {
+  override device = 'METAL' as const
+  override shared_max = 32768
+  override tensor_cores = [[dtypes.float, dtypes.float], [dtypes.half, dtypes.float], [dtypes.half, dtypes.half], [dtypes.bfloat16, dtypes.float], [dtypes.bfloat16, dtypes.bfloat16]]
+    .map((x) => new TensorCore({ dims: [8, 8, 8], threads: [[0, 2], [1, 4], [0, 2], [1, 2]], expanded_shape: [2, 2, 2, 2], upcast_axes: [[[1, 2]], [[1, 2]], [[1, 2]]], st1_pattern: [[[1, 1], [0, 1], [1, 0], [0, 3]], [[0, 0], [0, 2], [1, 3], [1, 2]]], st2_pattern: [[[0, 0], [1, 1], [1, 2], [0, 2], [1, 0]], [[0, 1], [0, 3], [1, 3]]], dtype_in: x[0], dtype_out: x[1], reduce_axes: [[0, 8]] }))
+  constructor() {
+    super()
+    this.tensor_cores = (Deno.build.os === 'darwin' && Deno.build.arch === 'aarch64') ? this.tensor_cores : []
+  }
+  //   // language options
+  override kernel_prefix = 'kernel '
+  override buffer_prefix = 'device '
+  override smem_prefix = 'threadgroup '
+  override arg_int_prefix = 'constant number&'
+  override barrier = 'threadgroup_barrier(mem_flags::mem_threadgroup);'
+  override float4 = 'float4'
+  override code_for_workitem = {
+    'g': (x: string) => `gid.${String.fromCodePoint(120 + Number(x))}`,
+    'l': (x: string) => `lid.${String.fromCodePoint(120 + Number(x))}`,
+  }
+  // uint3 used for gid/lid - TODO: this should probably be `ushort3 lid [[thread_position_in_threadgroup]]`
+  override extra_args = ['uint3 gid [[threadgroup_position_in_grid]]', 'uint3 lid [[thread_position_in_threadgroup]]']
+  override type_map = new Map([[dtypes.bfloat16, 'bfloat']])
 
-//   // language options
-//   kernel_prefix = "kernel "
-//   buffer_prefix = "device "
-//   smem_prefix = "threadgroup "
-//   arg_int_prefix = "constant number&"
-//   barrier = "threadgroup_barrier(mem_flags::mem_threadgroup);"
-//   float4 = "float4"
-//   code_for_workitem = {"g": lambda x: `gid.${chr(120+number(x))}`, "l": lambda x: `lid.${chr(120+number(x))}`}
-//   // uint3 used for gid/lid - TODO: this should probably be `ushort3 lid [[thread_position_in_threadgroup]]`
-//   extra_args = ['uint3 gid [[threadgroup_position_in_grid]]', 'uint3 lid [[thread_position_in_threadgroup]]']
-//   type_map = {dtypes.bfloat16: "bfloat"}
+  // precise::sin
+  override code_for_op: CodeForOp = new Map([...new CStyleLanguage().code_for_op, [Ops.SIN, (x, dtype) => `precise::sin(${x})`]])
 
-//   // precise::sin
-//   code_for_op = {**CStyleLanguage.code_for_op, Ops.SIN: lambda x,dtype: `precise::sin(${x})`}
+  //   // upcast to float32 all the ops that don't support bfloat16
+  override extra_matcher = new PatternMatcher([
+    //     // NOTE: this === copied from PTX
+    [new UPat([Ops.SQRT, Ops.EXP2, Ops.LOG2, Ops.SIN], dtypes.bfloat16).named('x'), ({ x }) => new UOp(x.op, dtypes.float, x.src.map((vv) => vv.cast(dtypes.float)), x.arg).cast(dtypes.bfloat16)],
+  ]).add(extra_pm)
 
-//   // upcast to float32 all the ops that don't support bfloat16
-//   extra_matcher = PatternMatcher([
-//     // NOTE: this === copied from PTX
-//     (UPat((Ops.SQRT, Ops.EXP2, Ops.LOG2, Ops.SIN), dtype=dtypes.bfloat16, name="x"),
-//       lambda x: (UOp(x.op, dtypes.number, tuple(vv.cast(dtypes.number) for vv in x.src), x.arg).cast(dtypes.bfloat16))),
-//   ]) + extra_pm
+  override string_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<string, UOp>, string>([
+    [new UPat(Ops.BITCAST).named('x'), ({ ctx, x }) => `as_type<${ctx.render_dtype(x.dtype)}>(${ctx.get(x.src[0])})`],
+  ]).add(base_rewrite)
 
-//   string_rewrite = PatternMatcher([
-//     (UPat(Ops.BITCAST, name="x"), lambda ctx,x: `as_type<${ctx.render_dtype(x.dtype)}>(${ctx[x.src[0]]})`),
-//   ]) + base_rewrite
-
-//   const render_kernel = (function_name, kernel, bufs, uops, prefix=undefined) => {
-//     prefix, wmma_args = ["//include <metal_stdlib>","using namespace metal;"], set([uop.arg for uop in uops if uop.op === Ops.WMMA])
-//     for arg in wmma_args: prefix.push(
-//   f
-// /**
-//  * {(dtype_out:=this.render_dtype(arg[3].vec(2)))} __{arg[0]}({(dtype_in:=this.render_dtype(arg[2].vec(2)))} a, {dtype_in} b, {dtype_out} c){{
-//  * simdgroup_{this.render_dtype(arg[2])}8x8 mat_a, mat_b; simdgroup_{this.render_dtype(arg[3])}8x8 mat_c;
-//  * mat_a.thread_elements()[0] = a[0]; mat_b.thread_elements()[0] = b[0]; mat_c.thread_elements()[0] = c[0];
-//  * mat_a.thread_elements()[1] = a[1]; mat_b.thread_elements()[1] = b[1]; mat_c.thread_elements()[1] = c[1];
-//  * simdgroup_multiply_accumulate(mat_c, mat_a, mat_b, mat_c);\n  return {dtype_out}(mat_c.thread_elements()[0], mat_c.thread_elements()[1]);\n}}
-//  */)
-//     return super().render_kernel(function_name, kernel, bufs, uops, prefix)
-
-// _nms = "xyzwabcdefghijkl"
+  override render_kernel = ({ bufs, function_name, kernel, uops, prefix }: RenderKernelArgs) => {
+    prefix = ['//include <metal_stdlib>', 'using namespace metal;']
+    const wmma_args = new Set(uops.filter((uop) => uop.op === Ops.WMMA).map((uop) => uop.arg))
+    for (const arg of wmma_args) {
+      const dtype_out = this.render_dtype(arg[3].vec(2))
+      const dtype_in = this.render_dtype(arg[2].vec(2))
+      prefix.push(
+        `${dtype_out} __${arg[0]}(${dtype_in} a, ${dtype_in} b, ${dtype_out} c){
+  simdgroup_${this.render_dtype(arg[2])}8x8 mat_a, mat_b; simdgroup_${this.render_dtype(arg[3])}8x8 mat_c;
+  mat_a.thread_elements()[0] = a[0]; mat_b.thread_elements()[0] = b[0]; mat_c.thread_elements()[0] = c[0];
+  mat_a.thread_elements()[1] = a[1]; mat_b.thread_elements()[1] = b[1]; mat_c.thread_elements()[1] = c[1];
+  simdgroup_multiply_accumulate(mat_c, mat_a, mat_b, mat_c);
+  return ${dtype_out}(mat_c.thread_elements()[0], mat_c.thread_elements()[1]);
+}`,
+      )
+    }
+    return super.render_kernel({ function_name, kernel, bufs, uops, prefix })
+  }
+  _nms = 'xyzwabcdefghijkl'
+}
