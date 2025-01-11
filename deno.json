@@ -1,5 +1,5 @@
 {
-  "name": "@denograd/core",
+  "name": "@denograd/denograd",
   "version": "0.0.1",
   "exports": "./src/mod.ts",
   "license": "MIT",

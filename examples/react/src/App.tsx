@@ -1,15 +1,18 @@
-// @deno-types="@types/react"
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Tensor } from "@denograd/denograd";
 
-function App() {
-  const [count, setCount] = useState(0);
-
+export const App = () => {
+  const [res, setRes] = useState();
+  useEffect(() =>
+    new Tensor([4])
+      .add(new Tensor([5]))
+      .tolist()
+      .then((res) => setRes(res))
+  );
   return (
     <>
       <h1>Vite + React</h1>
-      <button onClick={() => setCount((count) => count + 1)}>count is {count}</button>
+      4+5={res}
     </>
   );
-}
-
-export default App;
+};

@@ -31,7 +31,7 @@ const llama = new Llama({ device: 'CLOUD', host: process.env.CLOUD_HOST })
 Create, run and train your own models:
 
 ```ts
-import { nn, Tensor } from '@denograd/core'
+import { nn, Tensor } from '@denograd/denograd'
 import { range, tqdm } from '@denograd/helpers'
 import { mnist } from '@denograd/datasets'
 
