@@ -207,7 +207,7 @@ export class ClangRenderer extends CStyleLanguage {
     ...new CStyleLanguage().code_for_op.entries().filter(([k, v]) => ![Ops.EXP2, Ops.SIN, Ops.LOG2].includes(k)),
     [Ops.SQRT, (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`],
   ])
-  override tensor_cores = !AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore([sz, sz, 1], dt, dt, [], [], [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]]))
+  override tensor_cores = !AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], dtype_in: dt, dtype_out: dt, threads: [], reduce_axes: [], upcast_axes: [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]] }))
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 

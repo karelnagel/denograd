@@ -10,7 +10,6 @@ import { IndexContext } from '../src/codegen/lowerer.ts'
 import { Kernel, Opt, OptOps } from '../src/codegen/kernel.ts'
 import { ClangRenderer } from '../src/renderer/cstyle.ts'
 import { BasicBlock } from '../src/codegen/linearize.ts'
-import { TensorCore } from '../src/renderer/index.ts'
 import { ProgramSpec } from '../src/renderer/index.ts'
 import { LazyBuffer } from '../src/engine/lazy.ts'
 import { CompiledRunner, ExecItem, Runner } from '../src/engine/realize.ts'
@@ -121,7 +120,6 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   // ************ RENDERER ************
   if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
   if (o instanceof PythonRenderer) return t`PythonRenderer()`
-  if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, reduce_axes=${o.reduce_axes}, upcast_axes=${o.upcast_axes}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out})`
   if (o instanceof ProgramSpec) {
     return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${new SkipFormatting(await pyStr(o.globals, true))},outs=${new SkipFormatting(await pyStr(o.outs, true))}, _ran_post_init=${o._ran_post_init})`
   }
