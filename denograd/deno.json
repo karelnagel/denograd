@@ -1,4 +1,5 @@
 {
+    "name": "@denograd/denograd",
     "version": "0.0.1",
     "exports": "./denograd/mod.ts"
 }

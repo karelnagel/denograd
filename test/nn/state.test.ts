@@ -4,7 +4,7 @@ import { get_parameters, get_state_dict, safe_load } from '../../denograd/nn/sta
 import { zip } from '../../denograd/helpers.ts'
 import { safe_save } from '../../denograd/nn/state.ts'
 import { python } from '../helpers.ts'
-import { MNIST } from '../../beautiful_mnist.ts'
+import { MNIST } from '../../models/mnist.ts'
 
 Deno.test('get_state_dict', () => {
   const model = new MNIST()
