@@ -1,12 +1,12 @@
 // model based off https://towardsdatascience.com/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
 
-import { Layer, Tensor } from './src/tensor.ts'
-import { mnist } from './src/nn/datasets.ts'
-import { get_env, get_number_env, range } from './src/helpers.ts'
-import { Tqdm } from './src/tqdm.ts'
-import { BatchNorm, Conv2d, Linear, Model } from './src/nn/index.ts'
-import { get_parameters } from './src/nn/state.ts'
-import { Adam } from './src/nn/optim.ts'
+import { Layer, Tensor } from './denograd/tensor.ts'
+import { mnist } from './denograd/nn/datasets.ts'
+import { get_env, get_number_env, range } from './denograd/helpers.ts'
+import { Tqdm } from './denograd/tqdm.ts'
+import { BatchNorm, Conv2d, Linear, Model } from './denograd/nn/index.ts'
+import { get_parameters } from './denograd/nn/state.ts'
+import { Adam } from './denograd/nn/optim.ts'
 
 export class MNIST extends Model {
   layers: Layer[] = [

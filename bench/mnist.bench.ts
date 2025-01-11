@@ -1,7 +1,7 @@
 import { expect } from 'expect/expect'
 import { MNIST } from '../beautiful_mnist.ts'
-import { mnist } from '../src/nn/datasets.ts'
-import { Tensor } from '../src/tensor.ts'
+import { mnist } from '../denograd/nn/datasets.ts'
+import { Tensor } from '../denograd/tensor.ts'
 import { py_bench } from '../test/helpers.ts'
 
 Deno.bench({

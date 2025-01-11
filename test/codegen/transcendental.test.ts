@@ -1,6 +1,6 @@
-import { _lazy_map_numbers, exponent_bias, exponent_mask, ilogb2k, ldexp2k, ldexp3k, pow2if, rintk, shl, shr, sin_poly, xexp2, xlog2 } from '../../src/codegen/transcendental.ts'
-import { dtypes } from '../../src/dtype.ts'
-import { UOp } from '../../src/ops.ts'
+import { _lazy_map_numbers, exponent_bias, exponent_mask, ilogb2k, ldexp2k, ldexp3k, pow2if, rintk, shl, shr, sin_poly, xexp2, xlog2 } from '../../denograd/codegen/transcendental.ts'
+import { dtypes } from '../../denograd/dtype.ts'
+import { UOp } from '../../denograd/ops.ts'
 import { compare } from '../helpers.ts'
 
 Deno.test(

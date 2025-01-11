@@ -1,7 +1,4 @@
 {
-  "name": "@denograd/denograd",
-  "version": "0.0.1",
-  "exports": "./src/mod.ts",
   "license": "MIT",
   "tasks": {
     "test": "deno test -A --parallel",
@@ -11,7 +8,8 @@
     "lint": "deno lint"
   },
   "workspace": [
-    "./examples/react"
+    "./examples/react",
+    "./denograd"
   ],
   "nodeModulesDir": "auto",
   "fmt": {
@@ -38,8 +36,7 @@
   },
   "imports": {
     "expect": "jsr:@std/expect",
-    "assert": "jsr:@std/assert",
-    "json5": "npm:json5@^2.2.3"
+    "assert": "jsr:@std/assert"
   },
   "exclude": [
     "./tinygrad"

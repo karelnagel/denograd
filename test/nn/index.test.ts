@@ -1,7 +1,7 @@
-import { BatchNorm, Conv2d } from '../../src/nn/index.ts'
-import { Tensor } from '../../src/tensor.ts'
+import { BatchNorm, Conv2d } from '../../denograd/nn/index.ts'
+import { Tensor } from '../../denograd/tensor.ts'
 import { compare } from '../helpers.ts'
-import { Linear } from '../../src/nn/index.ts'
+import { Linear } from '../../denograd/nn/index.ts'
 
 Deno.test(
   'Conv2d.init',

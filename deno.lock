@@ -1013,8 +1013,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@*",
-      "jsr:@std/expect@*",
-      "npm:json5@^2.2.3"
+      "jsr:@std/expect@*"
     ],
     "members": {
       "examples/react": {

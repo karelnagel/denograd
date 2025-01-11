@@ -1,7 +1,7 @@
-import { can_pad, div_and_mod_folding, Ops, resolve, smax, smin, UOp, UPat } from '../src/ops.ts'
+import { can_pad, div_and_mod_folding, Ops, resolve, smax, smin, UOp, UPat } from '../denograd/ops.ts'
 import { compare, tryCatch } from './helpers.ts'
-import { dtypes } from '../src/dtype.ts'
-import { ShapeTracker } from '../src/shape/shapetracker.ts'
+import { dtypes } from '../denograd/dtype.ts'
+import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
 
 Deno.test(
   'can_pad',

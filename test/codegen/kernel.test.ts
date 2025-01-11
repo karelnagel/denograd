@@ -1,11 +1,11 @@
-import { _assert_valid_uop, Kernel, Opt, OptOps, verify_ast } from '../../src/codegen/kernel.ts'
-import { KernelInfo, Ops, UOp } from '../../src/ops.ts'
+import { _assert_valid_uop, Kernel, Opt, OptOps, verify_ast } from '../../denograd/codegen/kernel.ts'
+import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
 import { compare, tryCatch } from '../helpers.ts'
-import { Renderer } from '../../src/renderer/index.ts'
-import { DType, dtypes, PtrDType } from '../../src/dtype.ts'
-import { ShapeTracker } from '../../src/shape/shapetracker.ts'
-import { View } from '../../src/shape/view.ts'
-import { ClangRenderer } from '../../src/renderer/cstyle.ts'
+import { Renderer } from '../../denograd/renderer/index.ts'
+import { DType, dtypes, PtrDType } from '../../denograd/dtype.ts'
+import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
+import { View } from '../../denograd/shape/view.ts'
+import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 
 Deno.test(
   'Opt.real_axis',

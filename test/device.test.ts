@@ -1,4 +1,4 @@
-import { Device, DeviceType } from '../src/device.ts'
+import { Device, DeviceType } from '../denograd/device.ts'
 import { compare } from './helpers.ts'
 
 Deno.test(

@@ -1,7 +1,7 @@
-import { Ops, sint, UOp } from '../../src/ops.ts'
+import { Ops, sint, UOp } from '../../denograd/ops.ts'
 import { compare, tryCatch } from '../helpers.ts'
-import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape, un1d, View } from '../../src/shape/view.ts'
-import { dtypes } from '../../src/dtype.ts'
+import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape, un1d, View } from '../../denograd/shape/view.ts'
+import { dtypes } from '../../denograd/dtype.ts'
 
 Deno.test(
   'canonicalize_strides',

@@ -1,8 +1,8 @@
 import { expect } from 'expect/expect'
-import { Tensor } from '../../src/tensor.ts'
-import { get_parameters, get_state_dict, safe_load } from '../../src/nn/state.ts'
-import { zip } from '../../src/helpers.ts'
-import { safe_save } from '../../src/nn/state.ts'
+import { Tensor } from '../../denograd/tensor.ts'
+import { get_parameters, get_state_dict, safe_load } from '../../denograd/nn/state.ts'
+import { zip } from '../../denograd/helpers.ts'
+import { safe_save } from '../../denograd/nn/state.ts'
 import { python } from '../helpers.ts'
 import { MNIST } from '../../beautiful_mnist.ts'
 

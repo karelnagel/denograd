@@ -1,7 +1,7 @@
-import { _choices_from_args, _expand_arg_to_idx, _swizzle_args, create_gate, delete_redundant_gates, do_contract, do_expand, fix_unfoldable_image_load, fold_expanded, full_graph_rewrite, loop_collapse, move_mask, no_vectorized_alu, no_vectorized_load_store, simplify_valid_load, threefry2x32 } from '../../src/codegen/uopgraph.ts'
-import { dtypes } from '../../src/dtype.ts'
-import { KernelInfo, Ops, UOp } from '../../src/ops.ts'
-import { ClangRenderer } from '../../src/renderer/cstyle.ts'
+import { _choices_from_args, _expand_arg_to_idx, _swizzle_args, create_gate, delete_redundant_gates, do_contract, do_expand, fix_unfoldable_image_load, fold_expanded, full_graph_rewrite, loop_collapse, move_mask, no_vectorized_alu, no_vectorized_load_store, simplify_valid_load, threefry2x32 } from '../../denograd/codegen/uopgraph.ts'
+import { dtypes } from '../../denograd/dtype.ts'
+import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
+import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 import { compare, tryCatch } from '../helpers.ts'
 
 Deno.test(

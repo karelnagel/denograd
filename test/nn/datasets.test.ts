@@ -1,5 +1,5 @@
 import { expect } from 'expect'
-import { mnist } from '../../src/nn/datasets.ts'
+import { mnist } from '../../denograd/nn/datasets.ts'
 
 Deno.test(
   'mnist',

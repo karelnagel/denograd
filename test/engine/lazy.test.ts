@@ -1,10 +1,10 @@
-import { DeviceType } from '../../src/device.ts'
-import { DType, dtypes } from '../../src/dtype.ts'
-import { create_lazybuffer, LazyBuffer } from '../../src/engine/lazy.ts'
-import { Metadata } from '../../src/helpers.ts'
-import { Ops } from '../../src/ops.ts'
-import { ShapeTracker } from '../../src/shape/shapetracker.ts'
-import { View } from '../../src/shape/view.ts'
+import { DeviceType } from '../../denograd/device.ts'
+import { DType, dtypes } from '../../denograd/dtype.ts'
+import { create_lazybuffer, LazyBuffer } from '../../denograd/engine/lazy.ts'
+import { Metadata } from '../../denograd/helpers.ts'
+import { Ops } from '../../denograd/ops.ts'
+import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
+import { View } from '../../denograd/shape/view.ts'
 import { compare, tryCatch } from '../helpers.ts'
 
 Deno.test(

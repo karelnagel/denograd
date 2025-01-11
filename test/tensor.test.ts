@@ -1,6 +1,6 @@
-import { DType, dtypes } from '../src/dtype.ts'
-import { Ops, sint } from '../src/ops.ts'
-import { Tensor, TensorOptions } from '../src/tensor.ts'
+import { DType, dtypes } from '../denograd/dtype.ts'
+import { Ops, sint } from '../denograd/ops.ts'
+import { Tensor, TensorOptions } from '../denograd/tensor.ts'
 import { compare, tryCatch } from './helpers.ts'
 
 Deno.test(

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Tensor } from "@denograd/denograd";
+import { Tensor } from "../../../denograd/mod.ts";
 
 export const App = () => {
   const [res, setRes] = useState();

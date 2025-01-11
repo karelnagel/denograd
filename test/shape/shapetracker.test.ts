@@ -1,6 +1,6 @@
-import { sint, UOp } from '../../src/ops.ts'
-import { ShapeTracker } from '../../src/shape/shapetracker.ts'
-import { View } from '../../src/shape/view.ts'
+import { sint, UOp } from '../../denograd/ops.ts'
+import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
+import { View } from '../../denograd/shape/view.ts'
 import { compare, tryCatch } from '../helpers.ts'
 
 Deno.test(

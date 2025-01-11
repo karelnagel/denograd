@@ -1,4 +1,4 @@
-import * as helpers from '../src/helpers.ts'
+import * as helpers from '../denograd/helpers.ts'
 import { compare } from './helpers.ts'
 
 Deno.test('argsort', compare([[[1, 2, 3]], [[1, 4, 2]]], helpers.argsort, 'out(tiny.helpers.argsort(*data))'))
