@@ -21,16 +21,15 @@ export class BufferSpec {
 
 // # TODO: size, dest, src are the same type. can we enforce this?
 export abstract class Allocator<AllocRes = MemoryView> {
-  // using instead of super.alloc()
-  _super_alloc = (size: number, options?: BufferSpec): AllocRes => {
+  //   # overriden in LRUAllocator
+  alloc(size: number, options?: BufferSpec): AllocRes {
     if (typeof size === 'number' && size <= 0) throw new Error(`alloc size must be positve, getting {size}`)
     return this._alloc(size, options !== undefined ? options : new BufferSpec())
   }
-  //   # overriden in LRUAllocator
-  alloc = (size: number, options?: BufferSpec) => this._super_alloc(size, options)
 
-  _super_free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._free(opaque, options !== undefined ? options : new BufferSpec())
-  free = (opaque: MemoryView, size: number, options?: BufferSpec) => this._super_free(opaque, size, options)
+  free(opaque: MemoryView, size: number, options?: BufferSpec) {
+    return this._free(opaque, options !== undefined ? options : new BufferSpec())
+  }
 
   //   # implemented by the runtime
   abstract _alloc: (size: number, options: BufferSpec) => AllocRes
@@ -52,15 +51,15 @@ export abstract class LRUAllocator extends Allocator {
     const c = set_default(this.cache, [size, options] as const, [])
     if (c.length) return c.pop()!
     try {
-      return this._super_alloc(size, options)
+      return super.alloc(size, options)
     } catch {
       this.free_cache()
-      return this._super_alloc(size, options)
+      return super.alloc(size, options)
     }
   }
   free_cache = () => {
     for (const [[size, options], opaques] of this.cache.entries()) {
-      for (const opaque of opaques) this._super_free(opaque, size, options)
+      for (const opaque of opaques) super.free(opaque, size, options)
       opaques.splice(0, opaques.length)
     }
   }
@@ -68,7 +67,7 @@ export abstract class LRUAllocator extends Allocator {
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
     if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
       set_default(this.cache, [size, options] as const, []).push(opaque)
-    } else this._super_free(opaque, size, options)
+    } else super.free(opaque, size, options)
   }
 }
 
