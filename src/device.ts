@@ -7,7 +7,7 @@ export * from './runtime/allocator.ts'
 // # **************** Device ****************
 
 const DEVICES = {
-  // METAL: () => import('./runtime/ops_metal.ts').then((o) => o.MetalDevice),
+  METAL: await import('./runtime/ops_metal.ts').then((o) => o.MetalDevice),
   // AMD: () => import('./runtime/ops_amd.ts').then((o) => o.AMDDevice),
   // NV: () => import('./runtime/ops_nv.ts').then((o) => o.NVDevice),
   // CUDA: () => import('./runtime/ops_cuda.ts').then((o) => o.CUDADevice),

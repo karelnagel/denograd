@@ -14,15 +14,14 @@ export const main = async () => {
   code = code.replaceAll('.startswith(', '.startsWith(')
   // code = code.replace(/len\(((?:[^()]|\([^()]*\))*)\)/g, '$1.length')
   // code = code.replace(/enumerate\(((?:[^()]|\([^()]*\))*)\)/g, '$1.entries()')
-  code = code.replace(/assert (.*?)\n/g, 'assert($1)\n')
 
   code = code.replace(/\s*"""([\s\S]*?)"""/g, (_, content) => {
     const clean = content.trim().split('\n').map((line: string) => line.trim()).join('\n * ')
     return `\n/**\n * ${clean}\n */`
   })
 
-  code = code.replace(/for (.*?) in (.*?): /g, 'for (const $1 of $2){ ')
-  code = code.replace(/for (.*?) in (.*?):\n/g, 'for (const $1 of $2){\n')
+  // code = code.replace(/for (.*?) in (.*?): /g, 'for (const $1 of $2){ ')
+  // code = code.replace(/for (.*?) in (.*?):\n/g, 'for (const $1 of $2){\n')
 
   code = code.replace(/while (.*?): /g, 'while ($1){ ')
   code = code.replace(/while (.*?):\n/g, 'while ($1){\n')

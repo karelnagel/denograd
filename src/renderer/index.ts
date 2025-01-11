@@ -7,21 +7,22 @@ export type TC = [number, number]
 
 @dataclass
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
-  constructor(
-    public dims: [number, number, number],
-    public dtype_in: DType,
-    public dtype_out: DType,
-    public threads: TC[],
-    public reduce_axes: TC[],
-    public upcast_axes: [TC[], TC[], TC[]],
-  ) {}
+  public dims!: [number, number, number]
+  public dtype_in!: DType
+  public dtype_out!: DType
+  public threads!: TC[]
+  public reduce_axes!: TC[]
+  public upcast_axes!: [TC[], TC[], TC[]]
+  public expanded_shape?: number[]
+  public st1_pattern?: TC[][] | TC[] // pattern to fix shapetracker for A
+  public st2_pattern?: TC[][] | TC[] // pattern to fix shapetracker for B
+  public opts_seq!: [string, string] // upcast input, local the thread pattern
+  constructor(inp: { dims: [number, number, number]; dtype_in: DType; dtype_out: DType; threads: TC[]; reduce_axes: TC[]; upcast_axes: [TC[], TC[], TC[]]; expanded_shape?: number[]; st1_pattern?: TC[][] | TC[]; st2_pattern?: TC[][] | TC[]; opts_seq?: [string, string] }) {
+    Object.assign(this, { ...inp, opts_seq: ['UP', 'LC'] })
+  }
   early_upcast_axes = (): TC[] => { // list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
     return range(2).map((dim) => [dim, prod(this.threads.filter(([d]) => d === dim).map(([d, sz]) => sz))]).filter(([d, sz]) => this.dims[d] > sz).map(([d, sz]) => [d, idiv(this.dims[d], sz)])
   }
-  st1_pattern?: TC[][] | TC[] // pattern to fix shapetracker for A
-  st2_pattern?: TC[][] | TC[] // pattern to fix shapetracker for B
-  expanded_shape?: number[]
-  opts_seq: [string, string] = ['UP', 'LC'] // upcast input, local the thread pattern
   toString = () => ['WMMA', ...this.dims.map((d) => d.toString()), this.dtype_in.name, this.dtype_out.name].join('_')
 }
 
