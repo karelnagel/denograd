@@ -3,6 +3,7 @@ import { DeviceType } from '../device.ts'
 import { Environment } from './abstract.ts'
 
 export class WebEnv extends Environment {
+  name = 'WEB'
   platform = 'web' as const
   override cpuDevice: DeviceType = 'PYTHON'
   override supportedDevices: DeviceType[] = ['PYTHON']

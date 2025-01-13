@@ -1,8 +1,7 @@
 import { DeviceType } from '../device.ts'
-import type { Env } from './index.ts'
 
 export abstract class Environment {
-  constructor(public name: Env) {}
+  abstract name: string
   abstract platform: 'aix' | 'android' | 'haiku' | 'cygwin' | 'netbsd' | 'darwin' | 'freebsd' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'web'
   cpuDevice: DeviceType = 'CLANG'
   supportedDevices: undefined | DeviceType[]
