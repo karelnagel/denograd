@@ -38,8 +38,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
       old_blocks.set(u.arg.ctx, u)
     } else if (!DONT_PLACE_IN_BLOCK.includes(u.op) && new Set(children.get(u)).isSubsetOf(in_this_block)) {
       //       # if it can go in blocks and all its children are in the block, we add it to the block
-      const block_ctx = block_ctxs.get(u)
-      if (!block_ctx) throw new Error(`No block_ctx, ${u}, ${block_ctxs}`)
+      const block_ctx = block_ctxs.get(u)!
       if (is_eq(block_ctx, x.arg.ctx)) {
         //         # if it's the same context, we place the UOp in this block and append the parents to its srcs
         new_srcs = [...new_srcs, ...u.src]
