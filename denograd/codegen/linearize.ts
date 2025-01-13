@@ -38,7 +38,8 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
       old_blocks.set(u.arg.ctx, u)
     } else if (!DONT_PLACE_IN_BLOCK.includes(u.op) && new Set(children.get(u)).isSubsetOf(in_this_block)) {
       //       # if it can go in blocks and all its children are in the block, we add it to the block
-      const block_ctx = block_ctxs.get(u)!
+      const block_ctx = block_ctxs.get(u)
+      if (!block_ctx) throw new Error(`No block_ctx, ${u}, ${block_ctxs}`)
       if (is_eq(block_ctx, x.arg.ctx)) {
         //         # if it's the same context, we place the UOp in this block and append the parents to its srcs
         new_srcs = [...new_srcs, ...u.src]
@@ -61,16 +62,12 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
       lst = [...lst, ...old_block.arg.lst]
     }
     let new_block = new UOp(Ops.BLOCK, dtypes.void, dedup(srcs), new BasicBlock(rng, lst))
-    try {
-      let lrng = [...rng]
-      for (const r of rng.toReversed()) {
-        if (!x.arg.ctx.includes(r) && r.op !== Ops.BLOCKSTART) {
-          lrng = lrng.filter((x) => x !== r)
-          new_block = new UOp(Ops.BLOCKEND, undefined, [new_block], new BasicBlock(lrng, [new UOp(r.op === Ops.IF ? Ops.ENDIF : Ops.ENDRANGE, undefined, [r])], r))
-        }
+    let lrng = [...rng]
+    for (const r of rng.toReversed()) {
+      if (!x.arg.ctx.includes(r) && r.op !== Ops.BLOCKSTART) {
+        lrng = lrng.filter((x) => x !== r)
+        new_block = new UOp(Ops.BLOCKEND, undefined, [new_block], new BasicBlock(lrng, [new UOp(r.op === Ops.IF ? Ops.ENDIF : Ops.ENDRANGE, undefined, [r])], r))
       }
-    } catch {
-      console.log(rng, lst)
     }
     new_srcs.push(new_block)
   }

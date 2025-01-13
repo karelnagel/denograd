@@ -1,10 +1,15 @@
-import { Environment } from './abstract.ts'
+// deno-lint-ignore-file no-process-globals
+import type { Environment } from './abstract.ts'
 
-let Class
-if (typeof Deno !== 'undefined') Class = await import('./deno.ts').then((x) => x.DenoEnv)
-//  else if (typeof Bun !== undefined) Class = await import("./bun.ts").then(x=>x.BunEnv)
-// else if (typeof process !== undefined) Class = await import('./node.ts').then((x) => x.NodeEnv)
-else if (typeof window !== 'undefined') Class = await import('./web.ts').then((x) => x.WebEnv)
-else throw new Error('Unknown environment')
+const ENVS = {
+  DENO: () => import('./deno.ts').then((x) => x.DenoEnv),
+  BUN: () => import('./deno.ts').then((x) => x.DenoEnv),
+  NODE: () => import('./deno.ts').then((x) => x.DenoEnv),
+  WEB: () => import('./web.ts').then((x) => x.WebEnv),
+}
 
-export const Env: Environment = new Class()
+export type Env = keyof typeof ENVS
+const env: Env | undefined = typeof Deno !== 'undefined' ? 'DENO' : typeof Bun !== 'undefined' ? 'BUN' : typeof process !== 'undefined' ? 'NODE' : typeof window !== 'undefined' ? 'WEB' : undefined
+if (!env) throw new Error('Unknown environment')
+
+export const Env: Environment = await ENVS[env]().then((Environment) => new Environment(env))
