@@ -61,7 +61,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
       lst = [...lst, ...old_block.arg.lst]
     }
     let new_block = new UOp(Ops.BLOCK, dtypes.void, dedup(srcs), new BasicBlock(rng, lst))
-    let lrng = [...rng]
+    let lrng = [...(rng || [])]
     for (const r of rng.toReversed()) {
       if (!x.arg.ctx.includes(r) && r.op !== Ops.BLOCKSTART) {
         lrng = lrng.filter((x) => x !== r)
