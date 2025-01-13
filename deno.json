@@ -1,5 +1,4 @@
 {
-  "license": "MIT",
   "tasks": {
     "test": "deno test -A --parallel",
     "bench": "deno bench -A",
