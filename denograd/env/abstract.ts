@@ -3,6 +3,7 @@ import { DeviceType } from '../device.ts'
 export abstract class Environment {
   abstract name: 'deno' | 'web' //| 'node' | 'bun'
   abstract platform: 'aix' | 'android' | 'haiku' | 'cygwin' | 'netbsd' | 'darwin' | 'freebsd' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'web'
+  cpuDevice: DeviceType = 'CLANG'
   supportedDevices: undefined | DeviceType[]
   notImplemented = () => {
     throw new Error(`This feature is not available in ${this.name} environment`)

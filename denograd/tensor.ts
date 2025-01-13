@@ -450,7 +450,7 @@ export class Tensor extends MathTrait<Tensor> {
     return [memory_planner(schedule), var_vals]
   }
   _debug_ast = () => {
-    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to('CLANG').lazydata.lbs)
+    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to(Env.cpuDevice).lazydata.lbs)
     return schedule.map((s) => s.ast)
   }
   _debug = () => {
@@ -518,10 +518,10 @@ export class Tensor extends MathTrait<Tensor> {
   _data = async (): Promise<MemoryView> => {
     if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
-    const cpu = await this.cast(this.dtype.base).contiguous().to('CLANG').realize()
+    const cpu = await this.cast(this.dtype.base).contiguous().to(Env.cpuDevice).realize()
     const buf = cpu.lazydata!.base.realized
-    if (this.device !== 'CLANG') buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
-    return buf!.as_buffer(this.device !== 'CLANG' ? true : false)
+    if (this.device !== Env.cpuDevice) buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
+    return buf!.as_buffer(this.device !== Env.cpuDevice ? true : false)
   }
   /**
    * Returns the data of this tensor as a memoryview.
@@ -680,7 +680,7 @@ export class Tensor extends MathTrait<Tensor> {
     let device = _device
 
     // when using MOCKGPU && NV generate rand on CLANG
-    if (get_env('MOCKGPU') && device.startsWith('NV')) device = 'CLANG'
+    if (get_env('MOCKGPU') && device.startsWith('NV')) device = Env.cpuDevice
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     let had_counter

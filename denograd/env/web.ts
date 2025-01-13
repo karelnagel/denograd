@@ -4,6 +4,7 @@ import { Environment } from './abstract.ts'
 export class WebEnv extends Environment {
   name = 'web' as const
   platform = 'web' as const
+  override cpuDevice: DeviceType = 'PYTHON'
   override supportedDevices: DeviceType[] = ['PYTHON']
   env = {
     get: (key: string) => (import.meta as any).env?.[key],
