@@ -222,8 +222,8 @@ export class MemoryView<F extends FmtStr = 'B'> {
     'I': Uint32Array,
     'q': BigInt64Array,
     'Q': BigUint64Array,
-    // TODO: add float16 back
-    'e': Float32Array,
+    // @ts-ignore Float16Array exists in deno
+    'e': typeof Float16Array !== 'undefined' ? Float16Array : Float32Array,
     'f': Float32Array,
     'd': Float64Array,
     '?': Uint8Array,

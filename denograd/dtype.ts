@@ -3,7 +3,6 @@ import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
 export type ConstType<This = never> = number | bigint | boolean | This
-export type TypedArrays = Uint8Array | Int8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | BigInt64Array | BigUint64Array | Float32Array | Float64Array
 
 export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, destFmt: FmtStr) => {
   const src = new MemoryView.ARRAYS[srcFmt](data as any)
@@ -262,8 +261,8 @@ export const sum_acc_dtype = (dt: DType) => {
 export const truncate = new Map<DType, (x: any) => any>([
   [dtypes.bool, (x: boolean) => Boolean(x)],
   // TODO: bfloat16 (tinygrad)
-  // TODO: add float16 back
-  [dtypes.float16, (x: number) => new Float32Array([x])[0]],
+  // @ts-ignore Float16Array exists in deno
+  [dtypes.float16, (x: number) => new (typeof Float16Array !== 'undefined' ? Float16Array : Float32Array)([x])[0]],
   [dtypes.float32, (x: number) => new Float32Array([x])[0]],
   [dtypes.float64, (x: number) => new Float64Array([x])[0]],
   [dtypes.uint8, (x: number) => new Uint8Array([x])[0]],
