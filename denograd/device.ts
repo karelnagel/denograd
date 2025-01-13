@@ -4,9 +4,10 @@ import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 export * from './runtime/allocator.ts'
+
 // # **************** Device ****************
 
-const DEVICES = {
+const IMPORTS = {
   // METAL: () => import('./runtime/ops_metal.ts').then((o) => o.MetalDevice),
   // AMD: () => import('./runtime/ops_amd.ts').then((o) => o.AMDDevice),
   // NV: () => import('./runtime/ops_nv.ts').then((o) => o.NVDevice),
@@ -14,12 +15,21 @@ const DEVICES = {
   // QCOM: () => import('./runtime/ops_qcom.ts').then((o) => o.QCOMDevice),
   // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
-  CLANG: await import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
-  DISK: await import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
-  PYTHON: await import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
+  CLANG: () => import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
+  DISK: () => import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
+  PYTHON: () => import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
-export type AllDevices = keyof typeof DEVICES
+
+export type AllDevices = keyof typeof IMPORTS
 export type DeviceType = AllDevices | `${AllDevices}:${string}`
+
+// Importing all the supported devices for current environment
+const DEVICES: { [key in AllDevices]?: typeof Compiled } = {}
+for (const device in IMPORTS) {
+  if (Env.supportedDevices === undefined || Env.supportedDevices.includes(device as AllDevices)) {
+    DEVICES[device as AllDevices] = await IMPORTS[device as AllDevices]()
+  }
+}
 
 export class _Device {
   @cache
@@ -31,7 +41,7 @@ export class _Device {
   canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
   get = (device: DeviceType): Compiled => {
     const ix = this.canonicalize(device)
-    const Device = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]
+    const Device = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]!
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
     return new Device(ix)
   }

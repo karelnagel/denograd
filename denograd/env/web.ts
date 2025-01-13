@@ -1,8 +1,10 @@
+import { DeviceType } from '../device.ts'
 import { Environment } from './abstract.ts'
 
 export class WebEnv extends Environment {
   name = 'web' as const
   platform = 'web' as const
+  override supportedDevices: DeviceType[] = ['PYTHON']
   env = {
     get: (key: string) => (import.meta as any).env?.[key],
     set: (key: string, value: string) => {

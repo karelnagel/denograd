@@ -63,10 +63,12 @@ export class MathTrait<T extends MathTrait<any>> extends SimpleMathTrait<T> {
 export class Ops<Name extends string = string, Value extends number = number> extends Enum {
   private static VALUES: Ops[] = []
   static values = () => [...Ops.VALUES]
+  key: string
   constructor(name: Name, value: Value) {
     super(name, value)
     Ops.VALUES.push(this)
     assert(value === Ops.VALUES.length)
+    this.key = get_key(name, value)
   }
   // uops that aren't rendered
   static readonly SINK = new Ops('SINK', 1)
