@@ -595,7 +595,9 @@ export const flops_mem = (uops: UOp[], ignoreIndexing = false): [UOp, UOp] => {
 }
 // # ***** pattern matcher *****
 function getLocation(): [string, number] {
-  const [file, line] = new Error().stack!.split('\n')[2]?.split('file://')[1]?.split(')')[0]?.split(':')
+  // TODO: Doesn't work in browser
+  // const [file, line] = new Error().stack!.split('\n')[2]?.split('file://')[1]?.split(')')[0]?.split(':')
+  const [file, line] = ['todo.ts', 1]
   return [file, Number(line)]
 }
 const lines = (fn: string): string[] => {

@@ -16,6 +16,6 @@ export abstract class Environment {
   abstract tmpdir: () => string
   abstract homedir: () => string
   abstract env: { get: (k: string) => string | undefined; set: (k: string, v: string) => void }
-  abstract hash: (v: string | Uint8Array) => Uint8Array
+  abstract sha256: (v: string | Uint8Array) => Uint8Array
   abstract gunzipSync: (v: ArrayBuffer) => ArrayBuffer
 }

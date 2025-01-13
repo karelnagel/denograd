@@ -70,7 +70,12 @@ export abstract class Enum {
 }
 
 export const random_id = () => (Math.random() * 100000000).toFixed(0)
-export const sha256 = (data: string | Uint8Array) => bytes_to_hex(Env.hash(data))
+export function hash(input: string) {
+  let hash = 5381
+  for (let i = 0; i < input.length; i++) hash = (hash * 33) ^ input.charCodeAt(i)
+  return (hash >>> 0).toString(16)
+}
+
 export const string_to_bytes = (text: string) => new TextEncoder().encode(text)
 export const bytes_to_string = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
 export const bytes_to_hex = (arr: Uint8Array) => Array.from(arr).map((byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -550,7 +555,7 @@ export const get_key = (...args: any[]): string => {
     if (typeof value === 'string') return value
     return value
   })
-  return sha256(json)
+  return hash(json)
 }
 // DECORATORS
 

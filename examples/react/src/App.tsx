@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
-import { Tensor } from "../../../denograd/mod.ts";
+import { useState } from "react";
+import { Tensor } from "@denograd/denograd";
 
 export const App = () => {
   const [res, setRes] = useState();
-  useEffect(() =>
+  const calc = () =>
     new Tensor([4])
       .add(new Tensor([5]))
       .tolist()
-      .then((res) => setRes(res))
-  );
+      .then((x) => setRes(x));
   return (
     <>
       <h1>Vite + React</h1>
-      4+5={res}
+      <button onClick={calc}>calc</button>
+      <p>res: {JSON.stringify(res)}</p>
     </>
   );
 };
