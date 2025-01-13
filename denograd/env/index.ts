@@ -7,8 +7,8 @@ const ENVS = {
   NODE: () => import('./deno.ts').then((x) => x.DenoEnv),
   WEB: () => import('./web.ts').then((x) => x.WebEnv),
 }
-
 export type Env = keyof typeof ENVS
+declare const Bun: unknown;
 const env: Env | undefined = typeof Deno !== 'undefined' ? 'DENO' : typeof Bun !== 'undefined' ? 'BUN' : typeof process !== 'undefined' ? 'NODE' : typeof window !== 'undefined' ? 'WEB' : undefined
 if (!env) throw new Error('Unknown environment')
 
