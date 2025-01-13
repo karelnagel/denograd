@@ -52,7 +52,6 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   if (to_append.length === 0 && new_blocks.size === 0) return undefined
 
   for (let [rng, lst] of new_blocks.entries()) {
-    console.log(rng,lst)
     let srcs = flatten(lst.map((y) => y.src))
     const old_block = old_blocks.get(rng)
     old_blocks.delete(rng)

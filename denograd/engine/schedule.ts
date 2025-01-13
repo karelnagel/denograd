@@ -165,7 +165,8 @@ export const _append_st_vars = (ctx: ScheduleItemContext, x: UOp): UOp | undefin
   const [st, var_vals] = x.st!.simplify().unbind()
   var_vals.forEach((v, k) => ctx.var_vals.set(k, v))
   ctx.sts.add(st)
-  return st !== x.st ? st.to_uop() : undefined
+  // TODO: for some reason in web it won't check correctly otherwise
+  return st.key !== x.st?.key ? st.to_uop() : undefined
 }
 export const _append_buf = (ctx: ScheduleItemContext, x: UOp): UOp => {
   ctx.bufs.push(x)

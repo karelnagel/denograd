@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-process-globals
 import { DeviceType } from '../device.ts'
 import { Environment } from './abstract.ts'
 
@@ -9,7 +10,7 @@ export class WebEnv extends Environment {
   env = {
     get: (key: string) => (import.meta as any).env?.[key],
     set: (key: string, value: string) => {
-      ;(import.meta as any).env[key] = value
+      ;((import.meta as any).env || process?.env)[key] = value
     },
   }
   readFileSync = (path: string) => this.notImplemented()
