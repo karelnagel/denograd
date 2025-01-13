@@ -61,12 +61,16 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
       lst = [...lst, ...old_block.arg.lst]
     }
     let new_block = new UOp(Ops.BLOCK, dtypes.void, dedup(srcs), new BasicBlock(rng, lst))
-    let lrng = [...(rng || [])]
-    for (const r of rng.toReversed()) {
-      if (!x.arg.ctx.includes(r) && r.op !== Ops.BLOCKSTART) {
-        lrng = lrng.filter((x) => x !== r)
-        new_block = new UOp(Ops.BLOCKEND, undefined, [new_block], new BasicBlock(lrng, [new UOp(r.op === Ops.IF ? Ops.ENDIF : Ops.ENDRANGE, undefined, [r])], r))
+    try {
+      let lrng = [...rng]
+      for (const r of rng.toReversed()) {
+        if (!x.arg.ctx.includes(r) && r.op !== Ops.BLOCKSTART) {
+          lrng = lrng.filter((x) => x !== r)
+          new_block = new UOp(Ops.BLOCKEND, undefined, [new_block], new BasicBlock(lrng, [new UOp(r.op === Ops.IF ? Ops.ENDIF : Ops.ENDRANGE, undefined, [r])], r))
+        }
       }
+    } catch {
+      console.log(rng, lst)
     }
     new_srcs.push(new_block)
   }
