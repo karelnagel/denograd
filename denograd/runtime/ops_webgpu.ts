@@ -50,7 +50,7 @@ class WebGPUProgram extends Program {
     const bind_group = this.dev.createBindGroup({ layout: bind_group_layout, entries: bindings })
     const compute_pipeline = this.dev.createComputePipeline({ layout: pipeline_layout, compute: { 'module': this.prg, entryPoint: this.name } })
     const command_encoder = this.dev.createCommandEncoder()
-    let query_set, query_buf, timestampWrites: GPUComputePassTimestampWrites
+    let query_set: undefined | GPUQuerySet, query_buf: undefined | GPUBuffer, timestampWrites: undefined | GPUComputePassTimestampWrites
     if (wait) {
       query_set = this.dev.createQuerySet({ type: 'timestamp', count: 2 })
       query_buf = this.dev.createBuffer({ size: 16, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC })
@@ -58,17 +58,18 @@ class WebGPUProgram extends Program {
     }
     const compute_pass = command_encoder.beginComputePass({ timestampWrites: wait ? timestampWrites! : undefined })
     compute_pass.setPipeline(compute_pipeline)
-    compute_pass.setBindGroup(0, bind_group, new Uint32Array(), 0, 999999) // last 2 not used
+    compute_pass.setBindGroup(0, bind_group, new Uint32Array(999999), 0, 999999) // last 2 not used
     compute_pass.dispatchWorkgroups(global_size[0], global_size[1], global_size[2]) // x y z
     compute_pass.end()
-    if (wait) {
-      command_encoder.resolveQuerySet(query_set!, 0, 2, query_buf!, 0)
-    }
+    if (wait) command_encoder.resolveQuerySet(query_set!, 0, 2, query_buf!, 0)
+
     this.dev.queue.submit([command_encoder.finish()])
+    if (!wait) return 0
+
     await query_buf!.mapAsync(GPUMapMode.READ)
     const timestamps = new BigInt64Array(query_buf!.getMappedRange())
     query_buf!.unmap()
-    return wait ? Number((timestamps[1] - timestamps[0]) / 1_000_000_000n) : 0
+    return Number((timestamps[1] - timestamps[0]) / 1_000_000_000n)
   }
 }
 // # WebGPU buffers have to be 4-byte aligned
@@ -86,8 +87,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     this.dev.queue.writeBuffer(dest, 0, src.byteLength % 4 ? padded_src! : src.toBytes())
   }
   _copyout = (dest: MemoryView, src: GPUBuffer) => {
-    console.log(src)
-    throw new Error("")
+    // TODO
     //     buffer_data = self.dev.queue.read_buffer(src, 0)
     //     dest[:] = buffer_data[:dest.nbytes] if src._nbytes > dest.nbytes else buffer_data
   }
