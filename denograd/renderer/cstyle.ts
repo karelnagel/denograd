@@ -58,11 +58,11 @@ export const extra_pm = new PatternMatcher<Record<string, UOp>, UOp | undefined>
 
 export const uops_to_dtypes = (uops: UOp[]): DType[] => dedup(uops.filter((u) => !(u.dtype instanceof ImageDType || u.dtype instanceof PtrDType)).map((u) => u.dtype))
 
-type RenderKernelArgs = { functionName: string; kernel: string[]; bufs: [string, [DType, boolean]][]; uops: UOp[]; prefix?: string[] }
-const root_render_kernel = (self: CStyleLanguage, { bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
+export type RenderKernelArgs = { function_name: string; kernel: string[]; bufs: [string, [DType, boolean]][]; uops: UOp[]; prefix?: string[] }
+const root_render_kernel = (self: CStyleLanguage, { bufs, function_name, kernel, uops, prefix }: RenderKernelArgs): string => {
   const tmp = bufs.some(([_, [dtype]]) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
   const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.render_dtype(dtype, mutable) + self.buffer_suffix : dtype === dtypes.int ? self.arg_int_prefix : undefined])
-  const prg = [`${self.kernel_prefix}void ${self.get_kernel_modifier(uops)}${functionName}(`, ...buftypes.map(([name, t]) => `${t} ${name}`).join(', '), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
+  const prg = [`${self.kernel_prefix}void ${self.get_kernel_modifier(uops)}${function_name}(`, ...buftypes.map(([name, t]) => `${t} ${name}`).join(', '), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
   return prefix === undefined ? prg : `${prefix.join('\n')}\n${prg}`
 }
 
@@ -75,7 +75,7 @@ export class CStyleLanguage extends Renderer {
   smem_prefix_for_cast = true
   arg_int_prefix = 'const int'
   barrier = ''
-  code_for_workitem: Record<'g' | 'l' | 'i', (...x: any[]) => string> = {} as any
+  code_for_workitem: Record<string, (...x: any[]) => string> = {} as any
   extra_args: string[] = []
   float4?: string
   type_map: Map<DType, string> = new Map()
@@ -188,7 +188,7 @@ export class CStyleLanguage extends Renderer {
     }
     delete this.r
     //  NOTE: this relies on bufs dict preserving order
-    return this.render_kernel({ functionName: name, kernel, bufs: [...bufs.values()], uops })
+    return this.render_kernel({ function_name: name, kernel, bufs: [...bufs.values()], uops })
   }
 }
 
@@ -211,7 +211,7 @@ export class ClangRenderer extends CStyleLanguage {
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 
-  override render_kernel = ({ bufs, functionName, kernel, uops, prefix }: RenderKernelArgs): string => {
+  override render_kernel = ({ bufs, function_name, kernel, uops, prefix }: RenderKernelArgs): string => {
     prefix = uops_to_dtypes(uops).filter((dt) => dt.count > 1).map((dt) => this.render_vector_prefix(dt))
     // https://github.com/corsix/amx
     for (const [name, [N, M, _], dtypeIn] of dedup(uops.filter((uop) => uop.op === Ops.WMMA).map((uop) => uop.arg))) {
@@ -226,6 +226,6 @@ export class ClangRenderer extends CStyleLanguage {
         `${out} __$${this.render_dtype(dtypeIn.vec(N))} data1, ${this.render_dtype(dtypeIn.vec(M))} data2, ${out} data0){{ AMX_SET(0);\n  for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(4, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }} AMX(0, (int *)(&data2), 0ull<<62); AMX(1, (int *)(&data1), 0ull<<62); AMX(12, 0, 0ull); for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(5, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }}\n  AMX_SET(1);\n  return data0;\n}}`,
       ]
     }
-    return root_render_kernel(this, { functionName, kernel, bufs, uops, prefix })
+    return root_render_kernel(this, { function_name, kernel, bufs, uops, prefix })
   }
 }
