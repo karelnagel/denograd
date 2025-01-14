@@ -521,7 +521,7 @@ export class Tensor extends MathTrait<Tensor> {
     const cpu = await this.cast(this.dtype.base).contiguous().to(Env.cpuDevice).realize()
     const buf = cpu.lazydata!.base.realized
     if (this.device !== Env.cpuDevice) buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
-    return buf!.as_buffer(this.device !== Env.cpuDevice ? true : false)
+    return await buf!.as_buffer(this.device !== Env.cpuDevice ? true : false)
   }
   /**
    * Returns the data of this tensor as a memoryview.

@@ -34,8 +34,8 @@ export abstract class Allocator<AllocRes = MemoryView> {
   //   # implemented by the runtime
   abstract _alloc: (size: number, options: BufferSpec) => AllocRes
   abstract _free: (opaque: MemoryView, options: BufferSpec) => void // if opaque is a Python object, you don't need a free
-  abstract _copyin: (dest: any, src: MemoryView) => any
-  abstract _copyout: (dest: MemoryView, src: any) => any
+  abstract _copyin: (dest: AllocRes, src: MemoryView) => void
+  abstract _copyout: (dest: MemoryView, src: AllocRes) => Promise<void> | void
   // def _as_buffer( src) -> memoryview:
   // def _offset( buf, size:number, offset:number):
   // def _transfer( dest, src, sz:number, src_dev, dest_dev):
@@ -79,7 +79,7 @@ export class _MallocAllocator extends LRUAllocator {
   }
   _asBuffer = (src: ArrayBuffer): MemoryView => new MemoryView(src).flat()
   _copyin = (dest: MemoryView, src: MemoryView) => dest.set(src)
-  _copyout = (dest: MemoryView, src: MemoryView) => dest.set(src)
+  _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
   _free = () => {
     throw new Error('Not implemented')

@@ -86,10 +86,19 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     }
     this.dev.queue.writeBuffer(dest, 0, src.byteLength % 4 ? padded_src! : src.toBytes())
   }
-  _copyout = (dest: MemoryView, src: GPUBuffer) => {
-    // TODO
-    //     buffer_data = self.dev.queue.read_buffer(src, 0)
-    //     dest[:] = buffer_data[:dest.nbytes] if src._nbytes > dest.nbytes else buffer_data
+  _copyout = async (dest: MemoryView, src: GPUBuffer) => {
+    const size = round_up(dest.byteLength, 4)
+
+    const staging = this.dev.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
+
+    const encoder = this.dev.createCommandEncoder()
+    encoder.copyBufferToBuffer(src, 0, staging, 0, size)
+    this.dev.queue.submit([encoder.finish()])
+
+    await staging.mapAsync(GPUMapMode.READ)
+
+    dest.set(new Uint8Array(staging.getMappedRange()).subarray(0, dest.byteLength))
+    staging.unmap()
   }
   _free = (opaque: MemoryView, options: BufferSpec) => {
     throw new Error('not implemented')

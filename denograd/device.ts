@@ -134,17 +134,6 @@ export class Buffer {
     }
     return this
   }
-  __reduce__ = () => {
-    let buf
-    if (this._base !== undefined) {
-      return [Buffer, [this.device, this.size, this.dtype, undefined, undefined, undefined, 0, this.base, this.offset, this.is_allocated()]]
-    }
-    if (this.is_allocated()) {
-      buf = new Uint8Array(this.nbytes)
-      this.copyout(new MemoryView(buf))
-    }
-    return [Buffer, [this.device, this.size, this.dtype, undefined, this.options, buf, this.lb_refcount]]
-  }
   get nbytes() {
     return this.size * this.dtype.itemsize
   }
@@ -158,24 +147,24 @@ export class Buffer {
   toString = () => {
     return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}${this.base ? ` offset:${this.offset}` : ''}${this.options !== undefined ? ` ${this.options}` : ''}>`
   }
-  as_buffer = (allowZeroCopy = false, forceZeroCopy = false): MemoryView => {
+  as_buffer = async (allowZeroCopy = false, forceZeroCopy = false): Promise<MemoryView> => {
     // zero copy with as_buffer (disabled by default due to use after free)
     if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (this.options === undefined || this.options.image === undefined)) return (this.allocator._asBuffer as any)(this._buf)
     if (forceZeroCopy) throw new Error('force zero copy was passed, but copy is required')
-    return this.copyout(new MemoryView(new Uint8Array(this.nbytes)))
+    return await this.copyout(new MemoryView(new Uint8Array(this.nbytes)))
   }
   copyin = (mv: MemoryView): Buffer => {
     mv = mv.flat()
     if (mv.byteLength !== this.nbytes) throw new Error(`size mismatch, ${mv.byteLength} != ${this.dtype} ${this.size}`)
     if (!this.is_allocated()) throw new Error("can't copyin to unallocated buffer")
-    this.allocator?._copyin(this._buf, mv)
+    this.allocator?._copyin(this._buf!, mv)
     return this
   }
-  copyout = (mv: MemoryView): MemoryView => {
+  copyout = async (mv: MemoryView): Promise<MemoryView> => {
     mv = mv.flat()
     if (mv.byteLength !== this.nbytes) throw new Error(`size mismatch, {len(mv)=} != {this.dtype=} ${this.size}`)
     if (!this.is_allocated()) throw new Error("can't copyout unallocated buffer")
-    this.allocator?._copyout(mv, this._buf)
+    await this.allocator?._copyout(mv, this._buf!)
     return mv
   }
   view = (size: number, dtype: DType, offset: number): Buffer => {
