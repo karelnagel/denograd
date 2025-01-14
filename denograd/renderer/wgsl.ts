@@ -66,7 +66,7 @@ export class WGSLRenderer extends CStyleLanguage {
     [new UPat(Ops.LOAD, undefined, [UPat.var('b')], undefined, undefined, true), ({ ctx, b }) => ctx.get(b)],
     [new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]), ({ ctx, buf, idx }) => `${ctx.get(buf)}[${idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)}]`],
     // (load & mask) | var -> mask = v.src[0].src[1], var = v.src[1]
-    [new UPat(Ops.STORE, undefined, [UPat.var('b'), UPat.var('v')]), ({ ctx, b, v }) => b.src[0].dtype.itemsize < 4 ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `{ctx[b]} = {ctx[v]};`],
+    [new UPat(Ops.STORE, undefined, [UPat.var('b'), UPat.var('v')]), ({ ctx, b, v }) => b.src[0].dtype.itemsize < 4 ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`],
     //     # fix nan check: 'a != a -> is_nan()'
     [UPat.var('a').ne(UPat.var('a')), ({ ctx, a }) => `is_nan(${ctx.get(a)})`],
   ]).add(base_rewrite)
@@ -76,7 +76,7 @@ export class WGSLRenderer extends CStyleLanguage {
   render_buf_dt = (dt: DType, rw = true) => rw && dt.itemsize < 4 ? `atomic<${buffer_map.get(dt)}>` : buffer_map.get(dt.base)!
   override render_kernel = ({ function_name, kernel, bufs, uops, prefix }: RenderKernelArgs): string => {
     let local_size = uops.filter((u) => u.op === Ops.SPECIAL && u.arg[0][0] === 'l').map((u) => u.arg).toSorted((a, b) => is_less_than(a[0], b[0]) ? -1 : 1).map(([_, num]) => num)
-    if (!local_size) local_size = [1]
+    if (!local_size.length) local_size = [1]
     const bind_it = range(bufs.length).values()
     const external_local_bufs = kernel.filter((line) => line.includes('var<workgroup>')).map((line) => line.replace('\\s', ''))
     kernel = kernel.filter((line) => !line.includes('var<workgroup>'))
