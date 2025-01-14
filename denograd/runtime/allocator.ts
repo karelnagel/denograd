@@ -20,22 +20,22 @@ export class BufferSpec {
 }
 
 // # TODO: size, dest, src are the same type. can we enforce this?
-export abstract class Allocator<AllocRes = MemoryView> {
+export abstract class Allocator<Buf> {
   //   # overriden in LRUAllocator
-  alloc(size: number, options?: BufferSpec): AllocRes {
+  alloc(size: number, options?: BufferSpec): Buf {
     if (typeof size === 'number' && size <= 0) throw new Error(`alloc size must be positve, getting {size}`)
     return this._alloc(size, options !== undefined ? options : new BufferSpec())
   }
 
-  free(opaque: MemoryView, size: number, options?: BufferSpec) {
+  free(opaque: Buf, size: number, options?: BufferSpec) {
     return this._free(opaque, options !== undefined ? options : new BufferSpec())
   }
 
   //   # implemented by the runtime
-  abstract _alloc: (size: number, options: BufferSpec) => AllocRes
-  abstract _free: (opaque: MemoryView, options: BufferSpec) => void // if opaque is a Python object, you don't need a free
-  abstract _copyin: (dest: AllocRes, src: MemoryView) => void
-  abstract _copyout: (dest: MemoryView, src: AllocRes) => Promise<void> | void
+  abstract _alloc: (size: number, options: BufferSpec) => Buf
+  abstract _free: (opaque: Buf, options: BufferSpec) => void // if opaque is a Python object, you don't need a free
+  abstract _copyin: (dest: Buf, src: MemoryView) => void
+  abstract _copyout: (dest: MemoryView, src: Buf) => Promise<void> | void
   // def _as_buffer( src) -> memoryview:
   // def _offset( buf, size:number, offset:number):
   // def _transfer( dest, src, sz:number, src_dev, dest_dev):
@@ -45,7 +45,7 @@ export abstract class Allocator<AllocRes = MemoryView> {
  * The LRU Allocator is responsible for caching buffers.
  * It ensures that buffers are not freed until it is absolutely necessary, optimizing performance.
  */
-export abstract class LRUAllocator extends Allocator {
+export abstract class LRUAllocator extends Allocator<MemoryView> {
   cache = new ArrayMap<[number, BufferSpec?], MemoryView[]>()
   override alloc = (size: number, options?: BufferSpec) => {
     const c = set_default(this.cache, [size, options] as const, [])

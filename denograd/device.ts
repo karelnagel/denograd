@@ -72,11 +72,11 @@ export class _Device {
 }
 export const Device = new _Device()
 
-export class Buffer {
-  _base?: Buffer
+export class Buffer<Buf = unknown> {
+  _base?: Buffer<Buf>
   _lb_refcount?: number
-  _buf?: MemoryView
-  allocator?: Allocator
+  _buf?: Buf
+  allocator?: Allocator<Buf>
 
   constructor(
     public device: DeviceType,
@@ -86,7 +86,7 @@ export class Buffer {
     public options?: BufferSpec,
     public in_initial_value?: Uint8Array,
     lb_refcount = 0,
-    base?: Buffer,
+    base?: Buffer<Buf>,
     public offset = 0,
     public in_preallocate = false,
   ) {
@@ -107,7 +107,7 @@ export class Buffer {
     }
     if (in_preallocate) this.allocate()
   }
-  get base(): Buffer {
+  get base(): Buffer<Buf> {
     return this._base !== undefined ? this._base : this
   }
   get lb_refcount() {
@@ -115,8 +115,8 @@ export class Buffer {
   }
   ref = (cnt: number) => this.base._lb_refcount! += cnt
   is_allocated = () => !!this._buf
-  ensure_allocated = (): Buffer => !this.is_allocated() ? this.allocate() : this
-  allocate = (opaque?: any, external_ptr?: bigint): Buffer => {
+  ensure_allocated = (): Buffer<Buf> => !this.is_allocated() ? this.allocate() : this
+  allocate = (opaque?: Buf, external_ptr?: bigint): Buffer<Buf> => {
     if (this.is_allocated()) throw new Error("can't allocate already allocated buffer")
     this.allocator = Device.get(this.device).allocator
     if (external_ptr !== undefined) {
@@ -151,12 +151,12 @@ export class Buffer {
     if (forceZeroCopy) throw new Error('force zero copy was passed, but copy is required')
     return await this.copyout(new MemoryView(new Uint8Array(this.nbytes)))
   }
-  copyin = (mv: MemoryView): Buffer => {
+  copyin = (mv: MemoryView): Buf => {
     mv = mv.flat()
     if (mv.byteLength !== this.nbytes) throw new Error(`size mismatch, ${mv.byteLength} != ${this.dtype} ${this.size}`)
     if (!this.is_allocated()) throw new Error("can't copyin to unallocated buffer")
     this.allocator?._copyin(this._buf!, mv)
-    return this
+    return this._buf!
   }
   copyout = async (mv: MemoryView): Promise<MemoryView> => {
     mv = mv.flat()
@@ -165,7 +165,7 @@ export class Buffer {
     await this.allocator?._copyout(mv, this._buf!)
     return mv
   }
-  view = (size: number, dtype: DType, offset: number): Buffer => {
+  view = (size: number, dtype: DType, offset: number): Buffer<Buf> => {
     if (offset >= this.nbytes) throw new Error('offset must be less than nbytes')
     if (this._base !== undefined) return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this._base, this.offset + offset)
     return new Buffer(this.device, size, dtype, undefined, undefined, undefined, undefined, this, offset)

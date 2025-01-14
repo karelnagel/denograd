@@ -8,7 +8,7 @@ import { MemoryView } from '../memoryview.ts'
 // init webgpu
 const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
 if (!adapter) throw new Error('No adapter')
-const timestamp_supported = adapter!.features.has('timestamp-query')
+const timestamp_supported = adapter.features.has('timestamp-query')
 const wgpu_device = await adapter.requestDevice({ requiredFeatures: timestamp_supported ? ['timestamp-query'] : [] })
 
 const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
@@ -80,7 +80,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     dest.set(new Uint8Array(staging.getMappedRange()).subarray(0, dest.byteLength))
     staging.unmap()
   }
-  _free = (opaque: MemoryView, options: BufferSpec) => {
+  _free = (opaque: GPUBuffer, options: BufferSpec) => {
     throw new Error('not implemented')
   }
 }

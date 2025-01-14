@@ -255,7 +255,7 @@ export class PythonCompiler extends Compiler {
   override compile = (src: string): Uint8Array => string_to_bytes(atob(src))
 }
 
-export class PythonAllocator extends Allocator {
+export class PythonAllocator extends Allocator<MemoryView> {
   _alloc = (size: number, options: BufferSpec): MemoryView => {
     return new MemoryView(new Uint8Array(size))
   }
