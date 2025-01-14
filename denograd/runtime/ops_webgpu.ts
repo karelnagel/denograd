@@ -11,7 +11,7 @@ if (!adapter) throw new Error('No adapter')
 const timestamp_supported = adapter!.features.has('timestamp-query')
 const wgpu_device = await adapter.requestDevice({ requiredFeatures: timestamp_supported ? ['timestamp-query'] : [] })
 
-const create_uniform = (wgpu_device: GPUDevice, val: any): GPUBuffer => {
+const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
   const buf = wgpu_device.createBuffer({ size: 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST })
   if (isInt(val)) {
     const bytes = new Uint8Array(4)
@@ -35,15 +35,16 @@ class WebGPUProgram extends Program {
     this.dev = wgpu_device
     this.prg = this.dev.createShaderModule({ code: bytes_to_string(lib) })
   }
-  override call = async (bufs: any[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+  override call = async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     wait = wait && this.timestamp_supported
     let binding_layouts: GPUBindGroupLayoutEntry[] = [
       { 'binding': 0, 'visibility': GPUShaderStage.COMPUTE, 'buffer': { 'type': 'uniform' } },
       ...range(bufs.length + vals.length).map((i) => ({ 'binding': i + 1, 'visibility': GPUShaderStage.COMPUTE, 'buffer': { 'type': i >= bufs.length ? 'uniform' : 'storage' } } satisfies GPUBindGroupLayoutEntry)),
     ]
     let bindings: GPUBindGroupEntry[] = [
-      { 'binding': 0, 'resource': { 'buffer': create_uniform(this.dev, Infinity), 'offset': 0, 'size': 4 } },
-      ...[...bufs, ...vals].entries().map(([i, x]) => ({ 'binding': i + 1, 'resource': { 'buffer': i >= bufs.length ? create_uniform(this.dev, x) : x, 'offset': 0, 'size': i >= bufs.length ? 4 : x.size } } satisfies GPUBindGroupEntry)),
+      { binding: 0, resource: { buffer: create_uniform(this.dev, Infinity), offset: 0, size: 4 } },
+      ...bufs.map((x, i) => ({ binding: i + 1, resource: { buffer: x, offset: 0, size: x.size } })),
+      ...vals.map((x, i) => ({ binding: i + 1, resource: { buffer: create_uniform(this.dev, x), offset: 0, size: 4 } })),
     ]
     const bind_group_layout = this.dev.createBindGroupLayout({ entries: binding_layouts })
     const pipeline_layout = this.dev.createPipelineLayout({ bindGroupLayouts: [bind_group_layout] })
@@ -96,7 +97,6 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     this.dev.queue.submit([encoder.finish()])
 
     await staging.mapAsync(GPUMapMode.READ)
-
     dest.set(new Uint8Array(staging.getMappedRange()).subarray(0, dest.byteLength))
     staging.unmap()
   }
