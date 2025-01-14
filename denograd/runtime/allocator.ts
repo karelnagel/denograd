@@ -128,11 +128,11 @@ export class Compiled {
   }
 }
 
-export type ProgramCallInput = { global_size?: number[]; local_size?: number[]; vals?: number[] }
+export type ProgramCallArgs = { global_size?: number[]; local_size?: number[]; vals?: number[] }
 export class Program {
   constructor(public name: string, public lib: Uint8Array) {
   }
-  call = async (bufs: any[], vals: ProgramCallInput, wait: boolean): Promise<number> => {
+  call = async (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> => {
     throw new Error('not implemented')
   }
 }

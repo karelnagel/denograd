@@ -88,7 +88,7 @@ export class WGSLRenderer extends CStyleLanguage {
       ...(external_local_bufs || []),
       ...bufs.map(([name, [dtype, rw]]) => `@group(0) @binding(${bind_it.next().value! + 1})` + `${dtype instanceof PtrDType ? 'var<storage,read_write>' : 'var<uniform>'}` + `${name}:${dtype instanceof PtrDType ? `array<${this.render_buf_dt(dtype.base, rw)}>` : buffer_map.get(dtype)};`),
     ].join('\n')
-    prg += `\n@compute @workgroup_size(${local_size.map((x) => x.toString()).join(',')}) fn ${function_name}(@builtin(workgroup_id) gindex: vec3<u32>,`
+    prg += `\n@compute @workgroup_size(${local_size.join(',')}) fn ${function_name}(@builtin(workgroup_id) gindex: vec3<u32>,`
     return prg + '@builtin(local_invocation_id) lindex: vec3<u32>) {\n' + kernel.join('\n') + '\n}'
   }
 }
