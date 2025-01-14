@@ -1,7 +1,7 @@
 import * as _webgpu from 'https://esm.sh/@webgpu/types@0.1.52'
 import { bytes_to_string, cpu_time_execution, isInt, range, round_up } from '../helpers.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program, ProgramCallArgs } from './allocator.ts'
-import { DeviceType } from '../device.ts'
+import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import { MemoryView } from '../memoryview.ts'
 
@@ -22,11 +22,9 @@ const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
 
 class WebGPUProgram extends Program {
   prg: GPUShaderModule
-  timestamp_supported: boolean
   dev: GPUDevice
   constructor(name: string, lib: Uint8Array) {
     super(name, lib)
-    this.timestamp_supported = timestamp_supported
     this.dev = wgpu_device
     this.prg = this.dev.createShaderModule({ code: bytes_to_string(lib) })
   }

@@ -4,8 +4,7 @@ import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 export * from './runtime/allocator.ts'
-// TODO: use dynamic import
-import { WebGpuDevice } from './runtime/ops_webgpu.ts'
+
 // # **************** Device ****************
 const IMPORTS = {
   // METAL: () => import('./runtime/ops_metal.ts').then((o) => o.MetalDevice),
@@ -15,8 +14,7 @@ const IMPORTS = {
   // QCOM: () => import('./runtime/ops_qcom.ts').then((o) => o.QCOMDevice),
   // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
-  WEBGPU: () => WebGpuDevice,
-  // WEBGPU: () => import('./runtime/ops_webgpu.ts').then((o) => o.WebGpuDevice),
+  WEBGPU: () => import('./runtime/ops_webgpu.ts').then((o) => o.WebGpuDevice),
   CLANG: () => import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
   DISK: () => import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
   PYTHON: () => import('./runtime/ops_python.ts').then((o) => o.PythonDevice),

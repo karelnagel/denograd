@@ -1,8 +1,7 @@
-import { DeviceType } from '../device.ts'
+import type { DeviceType } from '../device.ts'
 import { DType, dtypes, PtrDType } from '../dtype.ts'
-import { is_less_than, range } from '../helpers.ts'
-import { PatternMatcher, strip_parens, UPat } from '../mod.ts'
-import { idiv, Ops, UOp } from '../ops.ts'
+import { is_less_than, range, strip_parens } from '../helpers.ts'
+import { idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { base_rewrite, CStyleLanguage, extra_pm, RenderKernelArgs } from './cstyle.ts'
 
 // # utility functions for handling packed load/store of < 4-byte data types: bool, char/uchar, short/ushort
