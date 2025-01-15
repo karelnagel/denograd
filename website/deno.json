@@ -1,0 +1,12 @@
+{
+    "imports": {
+        "astro": "npm:astro@^5.1.7",
+        "@astrojs/check": "npm:@astrojs/check@^0.9.4"
+    },
+    "tasks": {
+        "dev": "astro dev",
+        "build": "astro check && astro build",
+        "preview": "astro preview",
+        "astro": "astro"
+    }
+}

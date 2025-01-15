@@ -9,7 +9,8 @@
   "workspace": [
     "./examples/react",
     "./denograd",
-    "./models"
+    "./models",
+    "./website"
   ],
   "nodeModulesDir": "auto",
   "fmt": {
