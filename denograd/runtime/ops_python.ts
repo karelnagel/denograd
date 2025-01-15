@@ -266,7 +266,7 @@ export class PythonAllocator extends Allocator<MemoryView> {
   }
 }
 
-export class PythonDevice extends Compiled {
+export class PYTHON extends Compiled {
   constructor(device: DeviceType) {
     super(device, new PythonAllocator(), new PythonRenderer(), new PythonCompiler(), PythonProgram)
   }

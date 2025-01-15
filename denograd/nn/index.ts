@@ -49,7 +49,7 @@ export abstract class Model {
    * await model.load("./model.safetensors")
    * ```
    */
-  load = async (path: string) => await load_state_dict(this, await safe_load(path))
+  load = async (path: string | Tensor) => await load_state_dict(this, await safe_load(path))
   /**
    * Save model weights to a .safetensors file at the given path
    * ```ts

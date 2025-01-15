@@ -5,8 +5,8 @@ import { createHash } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
 
 export class DenoEnv extends Environment {
-  name = 'DENO'
-  platform = process.platform
+  NAME = 'DENO'
+  PLATFORM = process.platform
   env = Deno.env
   readFileSync = (path: string) => Deno.readFileSync(path)
   writeFileSync = (path: string, data: Uint8Array) => Deno.writeFileSync(path, data)

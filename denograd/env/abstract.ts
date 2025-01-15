@@ -1,12 +1,12 @@
-import { DeviceType } from '../device.ts'
+import type { DeviceType } from '../runtime/all.ts'
 
 export abstract class Environment {
-  abstract name: string
-  abstract platform: 'aix' | 'android' | 'haiku' | 'cygwin' | 'netbsd' | 'darwin' | 'freebsd' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'web'
-  cpuDevice: DeviceType = 'CLANG'
-  supportedDevices: undefined | DeviceType[]
+  abstract NAME: string
+  abstract PLATFORM: 'aix' | 'android' | 'haiku' | 'cygwin' | 'netbsd' | 'darwin' | 'freebsd' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'web'
+  DEVICES: DeviceType[] | undefined
+  CPU_DEVICE: DeviceType = 'CLANG'
   notImplemented = () => {
-    throw new Error(`This feature is not available in ${this.name} environment`)
+    throw new Error(`This feature is not available in ${this.NAME} environment`)
   }
   abstract readFileSync: (path: string) => Uint8Array
   readTextFileSync = (path: string) => new TextDecoder().decode(this.readFileSync(path))

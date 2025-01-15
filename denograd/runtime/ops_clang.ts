@@ -54,7 +54,7 @@ export class ClangProgram extends Program {
   })
 }
 
-export class ClangDevice extends Compiled {
+export class CLANG extends Compiled {
   constructor(device: DeviceType) {
     super(device, MallocAllocator, new ClangRenderer(), new ClangCompiler(), ClangProgram)
   }

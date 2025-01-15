@@ -3,14 +3,16 @@ import { DeviceType } from '../device.ts'
 import { Environment } from './abstract.ts'
 
 export class WebEnv extends Environment {
-  name = 'WEB'
-  platform = 'web' as const
-  override cpuDevice: DeviceType = 'PYTHON'
-  override supportedDevices: DeviceType[] = ['PYTHON', 'WEBGPU']
+  NAME = 'WEB'
+  PLATFORM = 'web' as const
+  override DEVICES: DeviceType[] = ['WEBGPU', 'PYTHON']
+  override CPU_DEVICE: DeviceType = 'PYTHON'
   env = {
-    get: (key: string) => (import.meta as any).env?.[key],
+    // @ts-ignore import.meta.env
+    get: (key: string) => (import.meta.env || process.env)[key] as string,
     set: (key: string, value: string) => {
-      ;((import.meta as any).env || process?.env)[key] = value
+      // @ts-ignore import.meta.env
+      ;(import.meta.env || process.env)[key] = value
     },
   }
   readFileSync = (path: string) => this.notImplemented()

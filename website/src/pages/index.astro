@@ -1,0 +1,11 @@
+---
+import Layout from "../components/Layout.astro";
+import { MnistExample } from "../components/MnistExample.tsx";
+---
+
+<Layout>
+  <div class="flex flex-col items-center pt-10 gap-10">
+    <h1 class="text-3xl font-bold">MNIST Inference Demo</h1>
+    <MnistExample client:only />
+  </div>
+</Layout>
