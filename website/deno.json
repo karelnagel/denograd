@@ -6,7 +6,9 @@
         "@astrojs/tailwind": "npm:@astrojs/tailwind",
         "@denograd/denograd": "../denograd/mod.ts",
         "@denograd/models": "../models/mod.ts",
-        "react": "npm:react"
+        "react": "npm:react",
+        "@types/react": "npm:@types/react@^18.3.12",
+        "@observablehq/plot": "npm:@observablehq/plot"
     },
     "tasks": {
         "dev": "astro dev",
