@@ -5,7 +5,11 @@ import { Canvas } from './Canvas.tsx'
 import { barY, Plot } from './Plot.tsx'
 
 const mnist = new MNIST()
-// await mnist.load('./mnist.safetensors')
+
+const res = await fetch('https://api.github.com/repos/karelnagel/denograd/contents/mnist.safetensors').then((x) => x.json())
+const data = new Uint8Array(atob(res.content).split('').map((c) => c.charCodeAt(0)))
+
+await mnist.load(new Tensor(data, { device: 'PYTHON' }))
 
 const EMPTY = Array(28).fill(0).map(() => Array(28).fill(0))
 

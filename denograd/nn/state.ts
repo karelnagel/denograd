@@ -118,24 +118,17 @@ export const get_parameters = (obj: any): Tensor[] => {
  * ```
  */
 export const load_state_dict = async (model: any, state_dict: Record<string, Tensor>, strict = true, verbose = true, consume = false) => {
-  // const start_mem_used = GlobalCounters.mem_used
-  // with Timing("loaded weights in ", lambda et_ns: `, ${(B:=(GlobalCounters.mem_used-start_mem_used))/1e9:.2f} GB loaded at ${B/et_ns:.2f} GB/s`):
   const model_state_dict = get_state_dict(model)
   if (DEBUG >= 1 && Object.keys(state_dict).length > Object.keys(model_state_dict).length) {
     console.log('WARNING: unused weights in state_dict', Object.keys(state_dict).filter((x) => !Object.keys(model_state_dict).includes(x)).toSorted())
   }
-  // const t = tqdm(Object.entries(model_state_dict), { label: 'Downloading' })
   const t = Object.entries(model_state_dict)
   for await (const [k, v] of t) {
-    // t.desc = `ram used: ${GlobalCounters.mem_used/1e9:5.2f} GB, ${k:50s}: `
     if (state_dict[k] === undefined && !strict) {
       if (DEBUG >= 1) console.log(`WARNING: !loading ${k}`)
       continue
     }
     if (!is_eq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
-    //     // if isinstance((mlb:=v.lazydata), MultiLazyBuffer):
-    //     //   if isinstance(state_dict[k].lazydata, MultiLazyBuffer): v.replace(state_dict[k]).realize()
-    //     //   else: v.replace(state_dict[k].shard(mlb.device, mlb.axis)).realize()
     else await v.replace(state_dict[k].to(v.device)).realize()
     if (consume) delete state_dict[k]
   }
