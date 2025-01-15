@@ -9,6 +9,7 @@
     "jsr:@std/fs@*": "1.0.5",
     "jsr:@std/internal@^1.0.5": "1.0.5",
     "jsr:@std/path@^1.0.7": "1.0.8",
+    "jsr:@std/webgpu@*": "0.224.7",
     "npm:@deno/vite-plugin@1": "1.0.2_vite@6.0.7__@types+node@22.5.4_@types+node@22.5.4",
     "npm:@observablehq/plot@*": "0.6.16",
     "npm:@observablehq/plot@0.6": "0.6.16",
@@ -63,6 +64,9 @@
     },
     "@std/path@1.0.8": {
       "integrity": "548fa456bb6a04d3c1a1e7477986b6cffbce95102d0bb447c67c4ee70e0364be"
+    },
+    "@std/webgpu@0.224.7": {
+      "integrity": "dd1251ffff121ff011c6fedaeda4cb2cd18902db93da704d342cf38ce7530585"
     }
   },
   "npm": {
@@ -1013,6 +1017,12 @@
     "yallist@3.1.1": {
       "integrity": "sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g=="
     }
+  },
+  "redirects": {
+    "https://esm.sh/@webgpu/types": "https://esm.sh/@webgpu/types@0.1.52"
+  },
+  "remote": {
+    "https://esm.sh/@webgpu/types@0.1.52": "fabf6997a3adf11e45d11e3c4d58d0634ab98f9d72f3116f3694123818ccd457"
   },
   "workspace": {
     "dependencies": [

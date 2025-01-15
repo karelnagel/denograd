@@ -53,14 +53,14 @@ Deno.test(
   async () => {
     Tensor.manual_seed(333)
     const model = new MNIST()
-    await model.load('./model.safetensors')
+    await model.load('./mnist.safetensors')
     const ts = [(model.layers[0] as any).weight, (model.layers.at(-1)! as any).weight]
     const py = await python([
       'from examples.beautiful_mnist import Model',
       'from tinygrad import nn',
       'tiny.Tensor.manual_seed(333)',
       'model = Model()',
-      "nn.state.load_state_dict(model, nn.state.safe_load('./model.safetensors'))",
+      "nn.state.load_state_dict(model, nn.state.safe_load('./mnist.safetensors'))",
       'out([model.layers[0].weight, model.layers[-1].weight])',
     ])
     expect(await asdict(ts)).toEqual(await asdict(py))

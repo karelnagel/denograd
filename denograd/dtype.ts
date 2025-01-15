@@ -1,4 +1,4 @@
-import { assert, cache, cache_fn, dataclass, get_env, get_key, intersection, is_less_than } from './helpers.ts'
+import { cache, cache_fn, get_env, get_key, intersection, is_less_than, WeakValueMap } from './helpers.ts'
 import { FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
@@ -9,11 +9,12 @@ export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, des
   return [...new MemoryView.ARRAYS[destFmt](src.buffer)]
 }
 
-@dataclass
 export class DType {
   key: string
+  static cache = new WeakValueMap<DType>()
   constructor(public priority: number, public itemsize: number, public name: string, public fmt: undefined | FmtStr, public count: number, public _scalar?: DType, kwargs: any[] = []) {
     this.key = get_key(priority, count, itemsize, name, _scalar, fmt, ...kwargs)
+    return DType.cache.setDefault(this.key, this)
   }
 
   static new = (priority: number, itemsize: number, name: string, fmt?: FmtStr) => new DType(priority, itemsize, name, fmt, 1, undefined)

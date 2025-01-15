@@ -2,7 +2,21 @@
 import { Env } from './env/index.ts'
 
 // GENERAL HELPERS
-
+export class WeakValueMap<V extends object> {
+  store = new Map<string, WeakRef<V>>()
+  finalizationGroup = new FinalizationRegistry<string>((key) => this.store.delete(key))
+  get = (key: string) => this.store.get(key)?.deref()
+  set = (key: string, value: V) => {
+    this.store.set(key, new WeakRef(value))
+    this.finalizationGroup.register(value, key)
+  }
+  setDefault = (key: string, def: V) => {
+    const res = this.get(key)
+    if (res) return res
+    this.set(key, def)
+    return def
+  }
+}
 type Value = number | bigint
 export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
@@ -276,9 +290,13 @@ export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [get_number_env('TC', 1), g
 export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [get_number_env('FUSE_ARANGE', 0), get_number_env('FUSE_CONV_BW', 0), get_number_env('LAZYCACHE', 1)]
 export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [get_number_env('SPLIT_REDUCEOP', 1), get_number_env('NO_MEMORY_PLANNER', 0), get_number_env('RING', 1)]
 
-@dataclass
 export class Metadata {
-  constructor(public name: string, public caller: string, public backward = false) {}
+  key: string
+  static cache = new WeakValueMap<Metadata>()
+  constructor(public name: string, public caller: string, public backward = false) {
+    this.key = get_key(name, caller, backward)
+    return Metadata.cache.setDefault(this.key, this)
+  }
   // def __hash__(self): return hash(self.name)
   //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
   //   def __str__(self): return self.name + (" bw" if self.backward else "")
@@ -594,45 +612,6 @@ export function debug<Args extends any[], Return>(target: (...args: Args) => Ret
     console.log(`'${name}' returned in ${performance.now() - start}ms: ${res}`)
     return res
   }
-}
-
-function create_weak_value_cache<V extends object>() {
-  const store = new Map<string, WeakRef<V>>()
-  const finalizationGroup = new FinalizationRegistry<string>((key) => store.delete(key))
-
-  return {
-    get: (key: string): V | undefined => store.get(key)?.deref(),
-    set: (key: string, value: V) => {
-      store.set(key, new WeakRef(value))
-      finalizationGroup.register(value, key)
-    },
-  }
-}
-
-type ClassType<T> = new (...args: any[]) => T
-
-export function dataclass<T extends ClassType<any>>(Base: T, ctx: ClassDecoratorContext): T {
-  const cache = create_weak_value_cache<InstanceType<T>>()
-
-  return new Proxy(Base, {
-    construct(target, argsList, newTarget) {
-      let key = get_key(ctx.name, ...argsList)
-
-      const existing = cache.get(key)
-      if (existing) return existing
-
-      const instance = Reflect.construct(target, argsList, newTarget)
-
-      if (typeof instance.key === 'string') {
-        key = instance.key
-        const existing = cache.get(key)
-        if (existing) return existing
-      }
-
-      cache.set(key, instance)
-      return instance
-    },
-  })
 }
 
 // in JS [1] !== [1], so this is for Maps where key needs to be array

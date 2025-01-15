@@ -29,7 +29,7 @@ Deno.bench({
   baseline: true,
   fn: async () => {
     const model = new MNIST()
-    await model.load('./model.safetensors')
+    await model.load('./mnist.safetensors')
   },
 })
 Deno.bench({
@@ -40,7 +40,7 @@ Deno.bench({
       'from examples.beautiful_mnist import Model',
       'from tinygrad import nn',
       'model = Model()',
-      "nn.state.load_state_dict(model, nn.state.safe_load('./model.safetensors'))",
+      "nn.state.load_state_dict(model, nn.state.safe_load('./mnist.safetensors'))",
     ])
   },
 })

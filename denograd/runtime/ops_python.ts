@@ -4,7 +4,7 @@ import { exec_alu, GroupOp, idiv, Ops, sum, UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
 import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate } from '../dtype.ts'
-import type { DeviceType, ProgramCallInput } from '../device.ts'
+import type { DeviceType, ProgramCallArgs } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 
 const _load = (m: MemoryView, i?: number) => {
@@ -64,7 +64,7 @@ export class PythonProgram extends Program {
     this.uops = deserialize(lib)
   }
   // KAREL: TODO: use Web workers maybe?
-  override call = cpu_time_execution(async (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallInput, wait = false) => {
+  override call = cpu_time_execution(async (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length
     for (const idxs of product(...global_size.toReversed().map((x) => range(x)))) {
@@ -255,16 +255,12 @@ export class PythonCompiler extends Compiler {
   override compile = (src: string): Uint8Array => string_to_bytes(atob(src))
 }
 
-export class PythonAllocator extends Allocator {
+export class PythonAllocator extends Allocator<MemoryView> {
   _alloc = (size: number, options: BufferSpec): MemoryView => {
     return new MemoryView(new Uint8Array(size))
   }
-  _copyin = (dest: MemoryView, src: MemoryView): MemoryView => {
-    return dest.set(src)
-  }
-  _copyout = (dest: MemoryView, src: MemoryView): MemoryView => {
-    return dest.set(src)
-  }
+  _copyin = (dest: MemoryView, src: MemoryView) => void dest.set(src)
+  _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _free = (opaque: MemoryView, options: BufferSpec) => {
     throw new Error("PYTHON doesn't have _free")
   }

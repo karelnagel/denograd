@@ -1,4 +1,4 @@
-import { Compiled, Compiler, MallocAllocator, Program } from './allocator.ts'
+import { Compiled, Compiler, MallocAllocator, Program, ProgramCallArgs } from './allocator.ts'
 import { cpu_objdump, cpu_time_execution, range, temp } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
@@ -37,7 +37,7 @@ export class ClangProgram extends Program {
     if (!lib?.length) throw new Error('Lib is empty')
     if (!name) throw new Error("Name can't be undefined")
   }
-  override call = cpu_time_execution(async (bufs: MemoryView[], vals: any, wait = false) => {
+  override call = cpu_time_execution(async (bufs: MemoryView[], vals: ProgramCallArgs, wait = false) => {
     const file = temp()
     Env.writeFileSync(file, this.lib)
     const fxn = Deno.dlopen(file, {

@@ -1,3 +1,4 @@
+import { expect } from 'expect/expect'
 import { Device, DeviceType } from '../denograd/device.ts'
 import { compare } from './helpers.ts'
 
@@ -16,11 +17,10 @@ Deno.test(
 
 Deno.test(
   'Device.get_available_devices',
-  compare(
-    [[]],
-    () => Device.get_available_devices(),
-    'out([*tiny.device.Device.get_available_devices()])',
-  ),
+  () => {
+    const devices = Device.get_available_devices()
+    expect(devices).toEqual(['CLANG', 'WEBGPU', 'PYTHON'])
+  },
 )
 
 Deno.test(

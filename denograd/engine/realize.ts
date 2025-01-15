@@ -93,23 +93,23 @@ export class BufferCopy extends Runner {
     else name = `copy ${total_sz.toFixed(0).padStart(8)}, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
     super(colored(name, 'yellow'), dest_device, 0, total_sz)
   }
-  copy = (dest: Buffer, src: Buffer) => {
+  copy = async (dest: Buffer, src: Buffer) => {
     const disk_supports_fast_copyout = src.device.startsWith('DISK') && 'io_uring' in (src.allocator as any).dev && (src.allocator as any).dev.fd !== undefined
     if (src.device.startsWith('DISK') && 'copy_from_disk' in dest.allocator! && disk_supports_fast_copyout && src.nbytes >= 4096) {
       throw new Error('KAREL: implement copy_from_disk')
       // dest.allocator.copy_from_disk(dest._buf, src._buf, src.nbytes)
     } else if (src.device.startsWith('DISK') && '_as_buffer' in dest.allocator!) {
       //       // fast(ish) path, uses readinto in diskbuffers
-      src.allocator!._copyout((dest.allocator._as_buffer as any)(dest._buf), src._buf)
+      await src.allocator!._copyout((dest.allocator._as_buffer as any)(dest._buf), src._buf!)
     } else {
-      dest.copyin(src.as_buffer(true)) // may allocate a CPU buffer depending on allow_zero_copy
+      dest.copyin(await src.as_buffer(true)) // may allocate a CPU buffer depending on allow_zero_copy
     }
   }
   override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false) => {
     const [dest, src] = rawbufs.slice(0, 2)
     if (dest.size !== src.size || dest.dtype !== src.dtype) throw new Error(`buffer copy mismatch, ${dest.size} !== ${src.size}, ${dest.dtype} !== ${src.dtype}`)
     const st = performance.now()
-    this.copy(dest, src)
+    await this.copy(dest, src)
     if (wait) {
       Device.get(dest.device).synchronize()
       return performance.now() - st
