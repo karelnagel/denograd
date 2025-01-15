@@ -48,7 +48,7 @@ export class WGSLRenderer extends CStyleLanguage {
 
   override string_rewrite = new PatternMatcher<{ ctx: WGSLRenderer } & Record<string, UOp>, string | undefined>([
     [new UPat(Ops.CONST, dtypes.bool).named('x'), ({ ctx, x }) => x.arg ? 'true' : 'false'],
-    [new UPat(Ops.CONST, [dtypes.uchar, dtypes.ushort, dtypes.uint32]).named('x'), ({ ctx, x }) => x.arg < 0 ? `bitcast<u32>(${x.arg})` : `${x.arg & 0xFFFFFFFF}u`],
+    [new UPat(Ops.CONST, [dtypes.uchar, dtypes.ushort, dtypes.uint32]).named('x'), ({ ctx, x }) => x.arg < 0 ? `bitcast<u32>(${x.arg})` : `${BigInt(x.arg) & 0xFFFFFFFFn}u`],
     [new UPat(Ops.DEFINE_LOCAL).named('x'), ({ ctx, x }) => `var<workgroup> ${ctx.get(x)}: array<${ctx.buf_map(x.dtype.base)}, ${x.arg[1]}>;`],
     [new UPat(Ops.BITCAST).named('x'), ({ ctx, x }) => `bitcast<${ctx.type_map.get(x.dtype)}>(${ctx.get(x.src[0])}${['&0xFF', '&0xFFFF', '', ''].at(x.dtype.itemsize - 1)})`],
     [UPat.load([UPat.var('b'), UPat.var('v'), UPat.var('g')]), ({ ctx, b, v, g }) => `select(${ctx.get(v)}, ${ctx.render_load(ctx.get(b)!, b.src[0].dtype)}, ${ctx.get(g)})`],
