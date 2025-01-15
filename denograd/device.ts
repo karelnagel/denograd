@@ -3,35 +3,13 @@ import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, OSX 
 import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
-export * from './runtime/allocator.ts'
-import { WebGpuDevice } from './runtime/ops_webgpu.ts'
-import { PythonDevice } from './runtime/ops_python.ts'
-// # **************** Device ****************
-const IMPORTS = {
-  // METAL: () => import('./runtime/ops_metal.ts').then((o) => o.MetalDevice),
-  // AMD: () => import('./runtime/ops_amd.ts').then((o) => o.AMDDevice),
-  // NV: () => import('./runtime/ops_nv.ts').then((o) => o.NVDevice),
-  // CUDA: () => import('./runtime/ops_cuda.ts').then((o) => o.CUDADevice),
-  // QCOM: () => import('./runtime/ops_qcom.ts').then((o) => o.QCOMDevice),
-  // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
-  // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
-  // CLANG: () => import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
-  WEBGPU: () => WebGpuDevice,
-  // DISK: () => import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
-  PYTHON: () => PythonDevice,
-}
+import { DEVICES, type DeviceType } from './runtime/all.ts'
 
-export type AllDevices = keyof typeof IMPORTS
-export type DeviceType = AllDevices | `${AllDevices}:${string}`
+export * from './runtime/allocator.ts'
+export type { AllDevices, DeviceType } from './runtime/all.ts'
+// # **************** Device ****************
 
 // Importing all the supported devices for current environment
-const DEVICES: { [key in AllDevices]?: typeof Compiled } = {}
-for (const device in IMPORTS) {
-  if (Env.supportedDevices === undefined || Env.supportedDevices.includes(device as AllDevices)) {
-    DEVICES[device as AllDevices] = await IMPORTS[device as AllDevices]()
-  }
-}
-
 export class _Device {
   @cache
   _canonicalize(device: DeviceType): DeviceType {

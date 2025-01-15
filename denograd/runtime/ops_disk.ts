@@ -4,7 +4,7 @@ import { MemoryView } from '../memoryview.ts'
 import { Env } from '../env/index.ts'
 
 export class DiskBuffer {
-  constructor(public device: DiskDevice, public size: number, public offset = 0) {
+  constructor(public device: DISK, public size: number, public offset = 0) {
   }
   toString = () => `<DiskBuffer size=${this.size} offset=${this.offset}>`
   _buf = (): MemoryView => {
@@ -15,7 +15,7 @@ export class DiskBuffer {
 // const [MAP_LOCKED, MAP_POPULATE] = [OSX ? 0 : 0x2000, mmap.MAP_POPULATE || (OSX ? 0 : 0x008000)]
 
 export class DiskAllocator extends Allocator<DiskBuffer> {
-  constructor(public dev: DiskDevice) {
+  constructor(public dev: DISK) {
     super()
   }
   override _alloc = (size: number, options: any) => {
@@ -43,14 +43,14 @@ export class DiskAllocator extends Allocator<DiskBuffer> {
   _offset = (buf: DiskBuffer, size: number, offset: number) => new DiskBuffer(buf.device, size, offset)
 }
 
-export class DiskDevice extends Compiled {
+export class DISK extends Compiled {
   static _tried_io_uring_init = false
   size?: number
   count = 0
   mem!: Uint8Array
   constructor(device: DeviceType) {
     super(device, undefined, undefined, undefined, undefined)
-    if (!DiskDevice._tried_io_uring_init) this._iouring_setup()
+    if (!DISK._tried_io_uring_init) this._iouring_setup()
     this.allocator = new DiskAllocator(this)
   }
   get filename() {
@@ -81,6 +81,6 @@ export class DiskDevice extends Compiled {
     throw new Error('Not called')
   }
   _iouring_setup = () => {
-    DiskDevice._tried_io_uring_init = true
+    DISK._tried_io_uring_init = true
   }
 }

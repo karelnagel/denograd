@@ -6,7 +6,6 @@ export class WebEnv extends Environment {
   name = 'WEB'
   platform = 'web' as const
   override cpuDevice: DeviceType = 'PYTHON'
-  override supportedDevices: DeviceType[] = ['PYTHON', 'WEBGPU']
   env = {
     get: (key: string) => (import.meta as any).env?.[key],
     set: (key: string, value: string) => {

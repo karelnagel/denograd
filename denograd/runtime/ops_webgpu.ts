@@ -101,7 +101,7 @@ class DummyAllocator extends Allocator<MemoryView> {
   }
 }
 
-export class WebGpuDevice extends Compiled {
+export class WEBGPU extends Compiled {
   constructor(device: DeviceType) {
     super(device, new DummyAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
