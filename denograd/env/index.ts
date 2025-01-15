@@ -2,10 +2,12 @@
 import type { Environment } from './abstract.ts'
 import { WebEnv } from './web.ts'
 
+// @ts-ignore import.meta.env
 if (typeof process !== 'undefined' && typeof import.meta.env === 'undefined') import.meta.env = { SSR: true }
 
 let Class
 // Server envs
+// @ts-ignore import.meta.env
 if (import.meta.env.SSR) {
   if (typeof Deno !== 'undefined') Class = await import('./deno.ts').then((x) => x.DenoEnv)
   // else if (typeof Bun !== 'undefined') Class = await import('./deno.ts').then((x) => x.DenoEnv)

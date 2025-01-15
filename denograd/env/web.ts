@@ -8,8 +8,10 @@ export class WebEnv extends Environment {
   override DEVICES: DeviceType[] = ['WEBGPU', 'PYTHON']
   override CPU_DEVICE: DeviceType = 'PYTHON'
   env = {
+    // @ts-ignore import.meta.env
     get: (key: string) => (import.meta.env || process.env)[key] as string,
     set: (key: string, value: string) => {
+      // @ts-ignore import.meta.env
       ;(import.meta.env || process.env)[key] = value
     },
   }
