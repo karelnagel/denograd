@@ -28,7 +28,7 @@ export const MnistExample = () => {
     setRes([])
   }
   return (
-    <div className='flex gap-20 items-center'>
+    <div className='flex flex-col md:flex-row gap-20 items-center'>
       <div className=' flex flex-col items-center gap-2'>
         <p className='text-xl font-bold'>Draw a digit here</p>
         <Canvas image={image} setImage={setImage} className='rounded-md' />
