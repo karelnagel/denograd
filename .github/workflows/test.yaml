@@ -22,6 +22,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - run: pip install wgsl
       - run: deno test -A --parallel --coverage=cov/
       - run: deno coverage --lcov cov/ > cov.lcov
       - uses: codecov/codecov-action@v5
