@@ -62,7 +62,7 @@ export class DISK extends Compiled {
     if (this.size !== undefined) return
     this.size = size
 
-    if (Env.platform !== 'win32' && this.filename.startsWith('shm:')) {
+    if (Env.PLATFORM !== 'win32' && this.filename.startsWith('shm:')) {
       throw new Error('Not implemented')
     } else {
       const fo = Deno.openSync(this.filename, { read: true, write: true, create: true })

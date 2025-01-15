@@ -3,11 +3,13 @@ import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, OSX 
 import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
-import { DEVICES, type DeviceType } from './runtime/all.ts'
+import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'
 
 export * from './runtime/allocator.ts'
 export type { AllDevices, DeviceType } from './runtime/all.ts'
+
 // # **************** Device ****************
+const DEVICES = Object.fromEntries(Object.entries(ALL_DEVICES).filter(([name]) => Env.DEVICES === undefined || Env.DEVICES.includes(name as DeviceType))) as typeof ALL_DEVICES
 
 // Importing all the supported devices for current environment
 export class _Device {

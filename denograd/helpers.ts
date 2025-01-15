@@ -205,10 +205,10 @@ export function math_gcd(...numbers: number[]): number {
 }
 // TINYGRAD CODE
 // NOTE: it returns int 1 if x is empty regardless of the type of x
-export const OSX = Env.platform === 'darwin'
+export const OSX = Env.PLATFORM === 'darwin'
 export const CI = !!Env.env.get('CI')
 
-if (Env.platform === 'win32') Env.writeStdout(string_to_bytes(''))
+if (Env.PLATFORM === 'win32') Env.writeStdout(string_to_bytes(''))
 
 // TODO: probably should just filter out duplicates + use isEq
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
