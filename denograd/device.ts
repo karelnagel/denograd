@@ -14,8 +14,8 @@ const IMPORTS = {
   // QCOM: () => import('./runtime/ops_qcom.ts').then((o) => o.QCOMDevice),
   // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
-  WEBGPU: () => import('./runtime/ops_webgpu.ts').then((o) => o.WebGpuDevice),
   CLANG: () => import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
+  WEBGPU: () => import('./runtime/ops_webgpu.ts').then((o) => o.WebGpuDevice),
   DISK: () => import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
   PYTHON: () => import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
 }
