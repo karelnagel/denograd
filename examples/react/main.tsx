@@ -1,8 +1,11 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
 import { useState } from "react";
-import { Tensor } from "@denograd/denograd";
+import { Tensor} from "@denograd/denograd";
 
 const LIST = [1, 2, 3, 4, 5];
-export const App = () => {
+const App = () => {
+  
   const [res, setRes] = useState(LIST);
   return (
     <>
@@ -14,3 +17,9 @@ export const App = () => {
     </>
   );
 };
+
+createRoot(document.getElementById("root") as HTMLElement).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
