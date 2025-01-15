@@ -24,6 +24,7 @@ export class WebEnv extends Environment {
   tmpdir = () => '/tmp'
   homedir = () => '/home'
   gunzipSync = (input: ArrayBuffer) => this.notImplemented()
-  sha256 = (data: string | Uint8Array) => this.notImplemented()
+  // TODO: find some sync implementation
+  sha256 = (data: Uint8Array) => data
   override readTextFileSync = (path: string) => this.notImplemented()
 }
