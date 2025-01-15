@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { assert, cache_fn, dataclass, get_key, is_eq, list_str, range } from '../helpers.ts'
+import { cache_fn, get_key, is_eq, list_str, range, WeakValueMap } from '../helpers.ts'
 import { get_number_env, merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, View } from './view.ts'
@@ -42,11 +42,12 @@ const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (u
   return ret
 })
 
-@dataclass
 export class ShapeTracker {
   key: string
+  static cache = new WeakValueMap<ShapeTracker>()
   constructor(public views: View[]) {
     this.key = get_key(views)
+    return ShapeTracker.cache.setDefault(this.key, this)
   }
   add = (st: ShapeTracker): ShapeTracker => {
     let ret = new ShapeTracker(this.views)

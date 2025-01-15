@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { ArrayMap, assert, dataclass, dedup, flatten, get_key, is_eq, is_less_than, isinstance, min, partition, set_default } from '../helpers.ts'
+import { ArrayMap, assert, dedup, flatten, get_key, is_eq, is_less_than, isinstance, min, partition, set_default, WeakValueMap } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
@@ -11,11 +11,12 @@ export const disp = (y: UOp): string => {
   return '<NONE>'
 }
 
-@dataclass
 export class BasicBlock {
   key: string
+  static cache = new WeakValueMap<BasicBlock>()
   constructor(public ctx: UOp[], public lst: UOp[], public end?: UOp) {
     this.key = get_key(ctx, lst, end)
+    return BasicBlock.cache.setDefault(this.key, this)
   }
   lt = (o: BasicBlock) => is_less_than([...this.ctx, ...this.lst].map((x) => x.tuplize), [...o.ctx, ...o.lst].map((x) => x.tuplize))
   toString = () => `${this.end !== undefined ? (disp(this.end) + ' ') : ''}` + `${this.ctx.map((y) => disp(y))} ${this.lst.length}` + '\n' + this.lst.map((x) => x.op.toString()).join('\n')

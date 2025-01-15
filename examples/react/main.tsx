@@ -85,14 +85,30 @@ const App = () => {
   const [image, setImage] = useState(EMPTY)
   const [res, setRes] = useState<number[]>([])
   useEffect(() => {
-    if (is_eq(image, EMPTY)) return
-    const img = new Tensor([[Array(28).fill(0).map(() => Array(28).fill(0))]])
-    mnist.call(img).tolist().then((res) => setRes(res))
+    const timer = setTimeout(() => {
+      if (is_eq(image, EMPTY)) return
+      const img = new Tensor([[image]])
+      mnist.call(img).tolist().then((res) => setRes(res[0]))
+    }, 200)
+    return () => clearTimeout(timer)
   }, [image])
   return (
     <>
       <Canvas image={image} setImage={setImage} />
-      <div>{JSON.stringify(res)}</div>
+      <div style={{ display: 'flex', gap: '4px', height: '400px', alignItems: 'center' }}>
+        {res.map((value: number, i: number) => (
+          <div
+            key={i}
+            style={{
+              width: '20px',
+              height: `${Math.abs(value * 100)}%`,
+              backgroundColor: value >= 0 ? '#4444ff' : '#ff4444',
+              transition: 'height 0.2s',
+            }}
+            title={`${Math.round(value * 100)}%`}
+          />
+        ))}
+      </div>
     </>
   )
 }

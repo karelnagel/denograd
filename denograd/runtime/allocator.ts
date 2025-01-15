@@ -1,13 +1,14 @@
 // deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { ArrayMap, assert, dataclass, diskcache_get, diskcache_put, get_env, get_number_env, set_default, string_to_bytes } from '../helpers.ts'
+import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, get_number_env, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 
 // **************** Buffer + Allocators ****************
-@dataclass
 export class BufferSpec {
+  key: string
+  static cache = new WeakValueMap<BufferSpec>()
   //   # TODO: move device, size, dtype here?
   constructor(
     public image?: ImageDType,
@@ -16,7 +17,10 @@ export class BufferSpec {
     public host = false,
     public nolru = false,
     public external_ptr?: bigint,
-  ) {}
+  ) {
+    this.key = get_key(image, uncached, cpu_access, host, nolru, external_ptr)
+    return BufferSpec.cache.setDefault(this.key, this)
+  }
 }
 
 // # TODO: size, dest, src are the same type. can we enforce this?

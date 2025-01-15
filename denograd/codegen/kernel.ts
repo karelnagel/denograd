@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, cache, cache_fn, colored, dataclass, DEBUG, dedup, Enum, get_env, isinstance, range, round_up, set_default, to_function_name, USE_TC, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, cache, cache_fn, colored, DEBUG, dedup, Enum, get_env, get_key, isinstance, range, round_up, set_default, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, idiv, KernelInfo, le, mul, ne, Ops, print_uops, prod, resolve, sint, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -36,9 +36,13 @@ export const check = (cond: boolean, msg = '') => {
 }
 type TensorCoreOptions = any
 
-@dataclass
 export class Opt {
-  constructor(public op: OptOps, public axis?: number, public amt?: number) {}
+  key: string
+  static cache = new WeakValueMap<Opt>()
+  constructor(public op: OptOps, public axis?: number, public amt?: number) {
+    this.key = get_key(op, axis, amt)
+    return Opt.cache.setDefault(this.key, this)
+  }
   toString = () => `Opt(op=${this.op}, axis=${this.axis}, amt=${this.amt})`
   real_axis = (k: Kernel): number => {
     if (this.axis === undefined) return -1

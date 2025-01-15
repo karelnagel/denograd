@@ -18,6 +18,6 @@ export class DenoEnv extends Environment {
   execSync = (command: string, { args }: { args?: string[] } = {}) => new Deno.Command(command, { args }).outputSync()
   tmpdir = () => os.tmpdir()
   homedir = () => os.homedir()
-  sha256 = (data: string | Uint8Array) => createHash('sha256').update(data).digest()
+  sha256 = (data:  Uint8Array) => data
   gunzipSync = (input: ArrayBuffer) => gunzipSync(input)
 }

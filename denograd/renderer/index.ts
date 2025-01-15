@@ -1,12 +1,13 @@
 import { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { assert, cache, dataclass, range } from '../helpers.ts'
+import { assert, cache, get_key, range, WeakValueMap } from '../helpers.ts'
 import { flops_mem, idiv, Ops, prod, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
 
-@dataclass
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
+  key: string
+  static cache = new WeakValueMap<TensorCore>()
   constructor(
     public dims: [number, number, number],
     public dtype_in: DType,
@@ -14,7 +15,10 @@ export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D 
     public threads: TC[],
     public reduce_axes: TC[],
     public upcast_axes: [TC[], TC[], TC[]],
-  ) {}
+  ) {
+    this.key = get_key(dims, dtype_in, dtype_out, threads, reduce_axes, upcast_axes)
+    return TensorCore.cache.setDefault(this.key, this)
+  }
   early_upcast_axes = (): TC[] => { // list of (TC dim,amt) that upcasts the threads remainders of dims [0,1]
     return range(2).map((dim) => [dim, prod(this.threads.filter(([d]) => d === dim).map(([d, sz]) => sz))]).filter(([d, sz]) => this.dims[d] > sz).map(([d, sz]) => [d, idiv(this.dims[d], sz)])
   }

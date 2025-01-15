@@ -1,6 +1,6 @@
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { abs, all_same, assert, cache, counter, dataclass, divmod, Enum, get_key, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, min, partition, permutations, range, set_default, sin, sqrt, trunc, zip } from './helpers.ts'
+import { abs, all_same, assert, cache, counter, divmod, Enum, get_key, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, min, partition, permutations, range, set_default, sin, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -216,12 +216,13 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
-@dataclass
 export class UOp extends MathTrait<UOp> {
+  static cache = new WeakValueMap<UOp>()
   key: string
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
     super()
     this.key = get_key(this.op, this.dtype, this.arg, this.src)
+    return UOp.cache.setDefault(this.key, this)
   }
   @cache
   override toString(): string {
@@ -516,9 +517,13 @@ export class UOp extends MathTrait<UOp> {
   }
 }
 
-@dataclass
 export class KernelInfo {
-  constructor(public local_dims = 0, public upcasted = 0, public dont_use_locals = false) {}
+  key: string
+  static cache = new WeakValueMap<KernelInfo>()
+  constructor(public local_dims = 0, public upcasted = 0, public dont_use_locals = false) {
+    this.key = get_key(local_dims, upcasted, dont_use_locals)
+    return KernelInfo.cache.setDefault(this.key, this)
+  }
   toString = () => `new KernelInfo(${this.local_dims}, ${this.upcasted}, ${this.dont_use_locals})`
 }
 
