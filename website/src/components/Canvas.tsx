@@ -6,6 +6,7 @@ const H = 280
 export const Canvas = ({ image, setImage, className }: { className?: string; image: Image; setImage: (img: Image) => void }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
+  const [lastPos, setLastPos] = useState<{x: number, y: number} | null>(null)
 
   useEffect(() => {
     const ctx = canvasRef.current!.getContext('2d')!
@@ -39,25 +40,48 @@ export const Canvas = ({ image, setImage, className }: { className?: string; ima
     setImage(newImg)
   }
 
+  const getCoordinates = (e: any) => {
+    const r = canvasRef.current!.getBoundingClientRect()
+    if ('touches' in e) {
+      return {
+        x: e.touches[0].clientX - r.left,
+        y: e.touches[0].clientY - r.top,
+      }
+    }
+    return {
+      x: e.clientX - r.left,
+      y: e.clientY - r.top,
+    }
+  }
+
   const start = (e: any) => {
     setIsDrawing(true)
-    const r = canvasRef.current!.getBoundingClientRect()
+    const pos = getCoordinates(e)
+    setLastPos(pos)
     const ctx = canvasRef.current?.getContext('2d')
-    ctx?.beginPath()
-    ctx?.moveTo(e.clientX - r.left, e.clientY - r.top)
+    if (!ctx) return
+    ctx.beginPath()
+    ctx.moveTo(pos.x, pos.y)
+    ctx.lineTo(pos.x, pos.y)
+    ctx.stroke()
   }
 
   const draw = (e: any) => {
-    if (!isDrawing) return
-    const r = canvasRef.current!.getBoundingClientRect()
+    if (!isDrawing || !lastPos) return
     const ctx = canvasRef.current?.getContext('2d')
-    ctx?.lineTo(e.clientX - r.left, e.clientY - r.top)
-    ctx?.stroke()
+    if (!ctx) return
+    const newPos = getCoordinates(e)
+    ctx.beginPath()
+    ctx.moveTo(lastPos.x, lastPos.y)
+    ctx.lineTo(newPos.x, newPos.y)
+    ctx.stroke()
+    setLastPos(newPos)
     updateImage()
   }
 
   const end = () => {
     setIsDrawing(false)
+    setLastPos(null)
     updateImage()
   }
 
@@ -67,11 +91,15 @@ export const Canvas = ({ image, setImage, className }: { className?: string; ima
       ref={canvasRef}
       width={H}
       height={H}
-      style={{ imageRendering: 'pixelated' }}
+      style={{ imageRendering: 'pixelated', touchAction: 'none' }}
       onMouseDown={start}
       onMouseMove={draw}
       onMouseUp={end}
       onMouseLeave={end}
+      onTouchStart={start}
+      onTouchMove={draw}
+      onTouchEnd={end}
+      onTouchCancel={end}
     />
   )
 }
