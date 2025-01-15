@@ -4,7 +4,8 @@ import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 export * from './runtime/allocator.ts'
-
+import { WebGpuDevice } from './runtime/ops_webgpu.ts'
+import { PythonDevice } from './runtime/ops_python.ts'
 // # **************** Device ****************
 const IMPORTS = {
   // METAL: () => import('./runtime/ops_metal.ts').then((o) => o.MetalDevice),
@@ -14,10 +15,10 @@ const IMPORTS = {
   // QCOM: () => import('./runtime/ops_qcom.ts').then((o) => o.QCOMDevice),
   // GPU: () => import('./runtime/ops_gpu.ts').then((o) => o.GPUDevice),
   // LLVM: () => import('./runtime/ops_llvm.ts').then((o) => o.LLVMDevice),
-  CLANG: () => import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
-  WEBGPU: () => import('./runtime/ops_webgpu.ts').then((o) => o.WebGpuDevice),
-  DISK: () => import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
-  PYTHON: () => import('./runtime/ops_python.ts').then((o) => o.PythonDevice),
+  // CLANG: () => import('./runtime/ops_clang.ts').then((o) => o.ClangDevice),
+  WEBGPU: () => WebGpuDevice,
+  // DISK: () => import('./runtime/ops_disk.ts').then((o) => o.DiskDevice),
+  PYTHON: () => PythonDevice,
 }
 
 export type AllDevices = keyof typeof IMPORTS
