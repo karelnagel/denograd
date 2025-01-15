@@ -1,9 +1,9 @@
-import { CSSProperties, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'preact/hooks'
 import { plot, PlotOptions } from '@observablehq/plot'
 export * from '@observablehq/plot'
 
-export const Plot = ({ style, className, options }: { options: PlotOptions; style?: CSSProperties; className?: string }) => {
-  const ref = useRef(null)
+export const Plot = ({ style, className, options }: { options: PlotOptions; style?: any; className?: string }) => {
+  const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!ref.current) return
     const graph = plot(options)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'preact/hooks'
 import { is_eq, Tensor } from '../../../denograd/mod.ts'
 import { MNIST } from '../../../models/mod.ts'
 import { Canvas } from './Canvas.tsx'
@@ -21,7 +21,7 @@ const loadModel = async () => {
 const EMPTY = Array(28).fill(0).map(() => Array(28).fill(0))
 
 export const MnistExample = () => {
-  const [mnist, setMnist] = useState()
+  const [mnist, setMnist] = useState<MNIST>()
   const [image, setImage] = useState(EMPTY)
   const [res, setRes] = useState([])
   useEffect(() => {
@@ -29,7 +29,7 @@ export const MnistExample = () => {
   }, [])
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (is_eq(image, EMPTY)) return
+      if (!mnist || is_eq(image, EMPTY)) return
       mnist.call(new Tensor([[image]])).reshape([10]).tolist().then(setRes)
     }, 200)
     return () => clearTimeout(timer)

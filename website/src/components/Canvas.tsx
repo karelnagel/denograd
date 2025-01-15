@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { is_eq } from '../../../denograd/helpers.ts'
 
 type Image = number[][]
@@ -8,7 +8,7 @@ export const Canvas = ({ image, setImage, className }: { className?: string; ima
   const [isDrawing, setIsDrawing] = useState(false)
 
   useEffect(() => {
-    const ctx = canvasRef.current!.getContext('2d')
+    const ctx = canvasRef.current!.getContext('2d')!
     ctx.fillStyle = 'white'
     ctx.fillRect(0, 0, H, H)
     ctx.lineCap = 'round'
@@ -19,7 +19,7 @@ export const Canvas = ({ image, setImage, className }: { className?: string; ima
   // Used for clearing the canvas only
   useEffect(() => {
     if (!is_eq(image, Array(28).fill(0).map(() => Array(28).fill(0)))) return
-    const ctx = canvasRef.current!.getContext('2d')
+    const ctx = canvasRef.current!.getContext('2d')!
     ctx.fillStyle = 'white'
     ctx.fillRect(0, 0, H, H)
   }, [image])
@@ -39,7 +39,7 @@ export const Canvas = ({ image, setImage, className }: { className?: string; ima
     setImage(newImg)
   }
 
-  const start = (e: React.MouseEvent) => {
+  const start = (e: any) => {
     setIsDrawing(true)
     const r = canvasRef.current!.getBoundingClientRect()
     const ctx = canvasRef.current?.getContext('2d')
@@ -47,7 +47,7 @@ export const Canvas = ({ image, setImage, className }: { className?: string; ima
     ctx?.moveTo(e.clientX - r.left, e.clientY - r.top)
   }
 
-  const draw = (e: React.MouseEvent) => {
+  const draw = (e: any) => {
     if (!isDrawing) return
     const r = canvasRef.current!.getBoundingClientRect()
     const ctx = canvasRef.current?.getContext('2d')

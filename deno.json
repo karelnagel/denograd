@@ -52,7 +52,7 @@
       "deno.ns"
     ],
     "jsx": "react-jsx",
-    "jsxImportSource": "react",
+    "jsxImportSource": "preact",
     "jsxImportSourceTypes": "@types/react"
   }
 }
