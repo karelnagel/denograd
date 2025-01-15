@@ -1,11 +1,16 @@
 {
     "imports": {
         "astro": "npm:astro@^5.1.7",
-        "@astrojs/check": "npm:@astrojs/check@^0.9.4"
+        "@astrojs/check": "npm:@astrojs/check@^0.9.4",
+        "@astrojs/react": "npm:@astrojs/react",
+        "@astrojs/tailwind": "npm:@astrojs/tailwind",
+        "@denograd/denograd": "../denograd/mod.ts",
+        "@denograd/models": "../models/mod.ts",
+        "react": "npm:react"
     },
     "tasks": {
         "dev": "astro dev",
-        "check":"astro check",
+        "check": "astro check",
         "build": "astro build",
         "preview": "astro preview",
         "astro": "astro"
