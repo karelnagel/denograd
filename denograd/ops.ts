@@ -654,12 +654,15 @@ export class UPat extends MathTrait<UPat> {
 
   //   # copied from UOp
   index = (idx: UPat, valid?: UPat) => new UPat(Ops.INDEX, this.dtype, valid !== undefined ? [this, idx, valid] : [this, idx])
+  static index = (self: UPat, idx: UPat, valid?: UPat) => self.index(idx, valid)
   view = (st?: ShapeTracker, kwargs: Partial<UPatInput> = {}) => new UPat(kwargs.op || Ops.VIEW, kwargs.dtype || this.dtype, kwargs.src || [this], kwargs.arg || st, kwargs.name, kwargs.allow_any_len, kwargs.location, kwargs.custom_early_reject)
   cast = (dtype?: DType) => new UPat(Ops.CAST, dtype, [this])
   bitcast = (dtype?: DType) => new UPat(Ops.BITCAST, dtype, [this])
   gep = (i: number) => new UPat(Ops.GEP, undefined, [this], [i])
   load = (src?: UPat[], kwargs: Partial<UPatInput> = {}) => new UPat(kwargs.op || Ops.LOAD, kwargs.dtype, kwargs.src || [this, ...(src || [])], kwargs.arg, kwargs.name, kwargs.allow_any_len, kwargs.location, kwargs.custom_early_reject)
+  static load = (src: UPat[], kwargs: Partial<UPatInput> = {}) => src[0].load(src.slice(1), kwargs)
   store = (src: UPat[], kwargs: Partial<UPatInput> = {}) => new UPat(kwargs.op || Ops.STORE, kwargs.dtype || dtypes.void, kwargs.src || [this, ...src], kwargs.arg, kwargs.name, kwargs.allow_any_len, kwargs.location, kwargs.custom_early_reject)
+  static store = (src: UPat[], kwargs: Partial<UPatInput> = {}) => src[0].store(src.slice(1), kwargs)
   assign = (x: UPat) => new UPat(Ops.ASSIGN, this.dtype, [this, x])
 
   override const_like = (b: ConstLike): UPat => UPat.const(this.dtype, b)
