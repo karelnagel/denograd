@@ -4,6 +4,8 @@ import { MnistExample } from "../components/MnistExample.tsx";
 ---
 
 <Layout>
-  <h1>MNIST Inference Demo</h1>
-  <MnistExample client:load />
+  <div class="flex flex-col items-center pt-10 gap-10">
+    <h1 class="text-3xl font-bold">MNIST Inference Demo</h1>
+    <MnistExample client:load />
+  </div>
 </Layout>

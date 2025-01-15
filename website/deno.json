@@ -8,7 +8,8 @@
         "@denograd/models": "../models/mod.ts",
         "react": "npm:react",
         "@types/react": "npm:@types/react@^18.3.12",
-        "@observablehq/plot": "npm:@observablehq/plot"
+        "@observablehq/plot": "npm:@observablehq/plot",
+        "tailwindcss": "npm:tailwindcss"
     },
     "tasks": {
         "dev": "astro dev",

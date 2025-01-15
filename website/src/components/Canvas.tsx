@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { is_eq } from '../../../denograd/helpers.ts'
 
 type Image = number[][]
-export const Canvas = ({ image, setImage }: { image: Image; setImage: (img: Image) => void }) => {
+const H = 280
+export const Canvas = ({ image, setImage, className }: { className?: string; image: Image; setImage: (img: Image) => void }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
 
   useEffect(() => {
     const ctx = canvasRef.current!.getContext('2d')
     ctx.fillStyle = 'white'
-    ctx.fillRect(0, 0, 280, 280)
+    ctx.fillRect(0, 0, H, H)
     ctx.lineCap = 'round'
     ctx.lineWidth = 20
     ctx.strokeStyle = 'black'
@@ -20,7 +21,7 @@ export const Canvas = ({ image, setImage }: { image: Image; setImage: (img: Imag
     if (!is_eq(image, Array(28).fill(0).map(() => Array(28).fill(0)))) return
     const ctx = canvasRef.current!.getContext('2d')
     ctx.fillStyle = 'white'
-    ctx.fillRect(0, 0, 280, 280)
+    ctx.fillRect(0, 0, H, H)
   }, [image])
 
   const updateImage = () => {
@@ -62,10 +63,11 @@ export const Canvas = ({ image, setImage }: { image: Image; setImage: (img: Imag
 
   return (
     <canvas
+      className={className}
       ref={canvasRef}
-      width={280}
-      height={280}
-      style={{ border: '1px solid black', imageRendering: 'pixelated' }}
+      width={H}
+      height={H}
+      style={{ imageRendering: 'pixelated' }}
       onMouseDown={start}
       onMouseMove={draw}
       onMouseUp={end}
