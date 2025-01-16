@@ -10,6 +10,8 @@ export class WeakValueMap<V extends object> {
     this.store.set(key, new WeakRef(value))
     this.finalizationGroup.register(value, key)
   }
+  delete = (key: string) => this.store.delete(key)
+  has = (key: string) => this.store.has(key)
   setDefault = (key: string, def: V) => {
     const res = this.get(key)
     if (res) return res
@@ -137,7 +139,7 @@ export const is_less_than = (a: any, b: any): boolean => {
   }
   return a < b
 }
-const CONSTS = ['number', 'bigint', 'boolean']
+export const CONSTS = ['number', 'bigint', 'boolean']
 export const is_eq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => is_eq(o, two[i]))
   // deno-lint-ignore eqeqeq
@@ -322,6 +324,7 @@ class ContextVar<T> {
     this.key = key
     this.value = value
   }
+  get = () => this.value
   set = (v: T): string => {
     const token = random_id()
     this.value = v

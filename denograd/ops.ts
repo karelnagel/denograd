@@ -1,6 +1,9 @@
+import { DeviceType } from './device.ts'
+import { Buffer } from './device.ts'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { abs, all_same, assert, cache, counter, divmod, Enum, get_key, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, min, partition, permutations, range, set_default, sin, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
+import { flatten, get_env } from './helpers.ts'
+import { _METADATA, abs, all_int, all_same, assert, cache, CONSTS, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -30,6 +33,7 @@ class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   bitwise_or = (x: ConstType<T>, reverse = false) => this._binop(Ops.OR, x, reverse)
   xor = (x: ConstType<T>, reverse = false) => this._binop(Ops.XOR, x, reverse)
   idiv = (x: ConstType<T>, reverse = false) => this._binop(Ops.IDIV, x, reverse)
+  mod = (x: ConstType<T>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this as any)
   sub = (x: ConstType<T>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg())
   div = (x: ConstType<T>, reverse = false) => reverse ? this.ufix(x).mul(this.alu(Ops.RECIP)) : this.mul(this.ufix(x).alu(Ops.RECIP))
 
@@ -47,7 +51,6 @@ export class MathTrait<T extends MathTrait<any>> extends SimpleMathTrait<T> {
   rshift = (x: ConstType<T>, reverse = false) => this._binop(Ops.SHR, x, reverse)
 
   //   # not in Tensor
-  mod = (x: ConstType<T>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this)
   maximum = (x: ConstType<T>) => this.alu(Ops.MAX, this.ufix(x))
   minimum = (x: ConstType<T>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg()).neg()
   where = (x: ConstType<T>, y: ConstType<T>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(x).ufix(y))
@@ -60,107 +63,120 @@ export class MathTrait<T extends MathTrait<any>> extends SimpleMathTrait<T> {
 }
 
 // # the order of these Ops controls the order of the toposort
-export class Ops<Name extends string = string, Value extends number = number> extends Enum {
+export class Ops<Name extends string = string> extends Enum {
   private static VALUES: Ops[] = []
   static values = () => [...Ops.VALUES]
   key: string
-  constructor(name: Name, value: Value) {
-    super(name, value)
+  constructor(name: Name) {
+    super(name, Ops.VALUES.length + 1)
     Ops.VALUES.push(this)
-    assert(value === Ops.VALUES.length)
-    this.key = get_key(name, value)
+    this.key = get_key(name, this.value)
   }
   // uops that aren't rendered
-  static readonly SINK = new Ops('SINK', 1)
-  static readonly CONTIGUOUS = new Ops('CONTIGUOUS', 2)
-  static readonly PRELOAD = new Ops('PRELOAD', 3)
+  static readonly SINK = new Ops('SINK')
+  static readonly CONTIGUOUS = new Ops('CONTIGUOUS')
+  static readonly DETACH = new Ops('DETACH')
+  static readonly PRELOAD = new Ops('PRELOAD')
+
+  // TODO: empty continues to exist because of tensor
+  static readonly EMPTY = new Ops('EMPTY')
 
   // MetaOps
-  static readonly COPY = new Ops('COPY', 4)
-  static readonly EMPTY = new Ops('EMPTY', 5)
-  static readonly BUFFER_VIEW = new Ops('BUFFER_VIEW', 6)
+  static readonly COPY = new Ops('COPY')
+  static readonly BUFFER_VIEW = new Ops('BUFFER_VIEW')
 
   // blocks in linearizer
-  static readonly BLOCK = new Ops('BLOCK', 7)
-  static readonly BLOCKSTART = new Ops('BLOCKSTART', 8)
-  static readonly BLOCKFORK = new Ops('BLOCKFORK', 9)
-  static readonly BLOCKEND = new Ops('BLOCKEND', 10)
+  static readonly BLOCK = new Ops('BLOCK')
+  static readonly BLOCKSTART = new Ops('BLOCKSTART')
+  static readonly BLOCKFORK = new Ops('BLOCKFORK')
+  static readonly BLOCKEND = new Ops('BLOCKEND')
+
+  // movement ops!
+  static readonly RESHAPE = new Ops('RESHAPE')
+  static readonly PERMUTE = new Ops('PERMUTE')
+  static readonly EXPAND = new Ops('EXPAND')
+  static readonly PAD = new Ops('PAD')
+  static readonly SHRINK = new Ops('SHRINK')
+  static readonly STRIDE = new Ops('STRIDE')
 
   // misc ops
-  static readonly EXPAND = new Ops('EXPAND', 11)
-  static readonly CONTRACT = new Ops('CONTRACT', 12)
-  static readonly VIEW = new Ops('VIEW', 13)
-  static readonly DEFINE_GLOBAL = new Ops('DEFINE_GLOBAL', 14)
-  static readonly BUFFER = new Ops('BUFFER', 15)
-  static readonly DEFINE_VAR = new Ops('DEFINE_VAR', 16)
-  static readonly DEFINE_LOCAL = new Ops('DEFINE_LOCAL', 17)
-  static readonly DEFINE_ACC = new Ops('DEFINE_ACC', 18)
-  static readonly VALID = new Ops('VALID', 19)
-  static readonly SPECIAL = new Ops('SPECIAL', 20)
-  static readonly NOOP = new Ops('NOOP', 21)
+  static readonly UNROLL = new Ops('UNROLL')
+  static readonly CONTRACT = new Ops('CONTRACT')
+  static readonly VIEW = new Ops('VIEW')
+  static readonly DEFINE_GLOBAL = new Ops('DEFINE_GLOBAL')
+  static readonly BUFFER = new Ops('BUFFER')
+  static readonly DEFINE_VAR = new Ops('DEFINE_VAR')
+  static readonly DEFINE_LOCAL = new Ops('DEFINE_LOCAL')
+  static readonly DEFINE_ACC = new Ops('DEFINE_ACC')
+  static readonly VALID = new Ops('VALID')
+  static readonly SPECIAL = new Ops('SPECIAL')
+  static readonly NOOP = new Ops('NOOP')
 
   // reduce
-  static readonly REDUCE_AXIS = new Ops('REDUCE_AXIS', 22)
+  static readonly REDUCE_AXIS = new Ops('REDUCE_AXIS')
 
   // helper ops
-  static readonly GEP = new Ops('GEP', 23)
-  static readonly VECTORIZE = new Ops('VECTORIZE', 24)
+  static readonly GEP = new Ops('GEP')
+  static readonly VECTORIZE = new Ops('VECTORIZE')
 
   // UnaryOps
-  static readonly CAST = new Ops('CAST', 25)
-  static readonly BITCAST = new Ops('BITCAST', 26)
-  static readonly EXP2 = new Ops('EXP2', 27)
-  static readonly LOG2 = new Ops('LOG2', 28)
-  static readonly SIN = new Ops('SIN', 29)
-  static readonly SQRT = new Ops('SQRT', 30)
-  static readonly RECIP = new Ops('RECIP', 31)
-  static readonly NEG = new Ops('NEG', 32)
+  static readonly CAST = new Ops('CAST')
+  static readonly BITCAST = new Ops('BITCAST')
+  static readonly EXP2 = new Ops('EXP2')
+  static readonly LOG2 = new Ops('LOG2')
+  static readonly SIN = new Ops('SIN')
+  static readonly SQRT = new Ops('SQRT')
+  static readonly RECIP = new Ops('RECIP')
+  static readonly NEG = new Ops('NEG')
 
   // load/store before math
-  static readonly LOAD = new Ops('LOAD', 33)
-  static readonly STORE = new Ops('STORE', 34)
+  static readonly LOAD = new Ops('LOAD')
+  static readonly STORE = new Ops('STORE')
 
   // early INDEX
-  static readonly INDEX = new Ops('INDEX', 35)
+  static readonly INDEX = new Ops('INDEX')
 
   // math ops
-  static readonly WMMA = new Ops('WMMA', 36)
+  static readonly WMMA = new Ops('WMMA')
 
   // BinaryOps
-  static readonly ADD = new Ops('ADD', 37)
-  static readonly MUL = new Ops('MUL', 38)
-  static readonly IDIV = new Ops('IDIV', 39)
-  static readonly MAX = new Ops('MAX', 40)
-  static readonly MOD = new Ops('MOD', 41)
-  static readonly CMPLT = new Ops('CMPLT', 42)
-  static readonly CMPNE = new Ops('CMPNE', 43)
-  static readonly XOR = new Ops('XOR', 44)
-  static readonly SHL = new Ops('SHL', 45)
-  static readonly SHR = new Ops('SHR', 46)
-  static readonly OR = new Ops('OR', 47)
-  static readonly AND = new Ops('AND', 48)
-  static readonly THREEFRY = new Ops('THREEFRY', 49)
-  static readonly SUB = new Ops('SUB', 50)
-  static readonly FDIV = new Ops('FDIV', 51)
+  static readonly ADD = new Ops('ADD')
+  static readonly MUL = new Ops('MUL')
+  static readonly IDIV = new Ops('IDIV')
+  static readonly MAX = new Ops('MAX')
+  static readonly MOD = new Ops('MOD')
+  static readonly CMPLT = new Ops('CMPLT')
+  static readonly CMPNE = new Ops('CMPNE')
+  static readonly XOR = new Ops('XOR')
+  static readonly SHL = new Ops('SHL')
+  static readonly SHR = new Ops('SHR')
+  static readonly OR = new Ops('OR')
+  static readonly AND = new Ops('AND')
+  static readonly THREEFRY = new Ops('THREEFRY')
+  static readonly SUB = new Ops('SUB')
+  static readonly FDIV = new Ops('FDIV')
 
   // TernaryOps
-  static readonly WHERE = new Ops('WHERE', 52)
-  static readonly MULACC = new Ops('MULACC', 53)
+  static readonly WHERE = new Ops('WHERE')
+  static readonly MULACC = new Ops('MULACC')
 
   // assignment ops
-  static readonly ASSIGN = new Ops('ASSIGN', 54)
-  static readonly BIND = new Ops('BIND', 55)
+  static readonly ASSIGN = new Ops('ASSIGN')
+  static readonly BIND = new Ops('BIND')
 
   // control flow ops
-  static readonly BARRIER = new Ops('BARRIER', 56)
-  static readonly RANGE = new Ops('RANGE', 57)
-  static readonly IF = new Ops('IF', 58)
-  static readonly ENDRANGE = new Ops('ENDRANGE', 59)
-  static readonly ENDIF = new Ops('ENDIF', 60)
+  static readonly BARRIER = new Ops('BARRIER')
+  static readonly RANGE = new Ops('RANGE')
+  static readonly IF = new Ops('IF')
+  static readonly ENDRANGE = new Ops('ENDRANGE')
+  static readonly ENDIF = new Ops('ENDIF')
 
   // consts last!
-  static readonly VCONST = new Ops('VCONST', 61)
-  static readonly CONST = new Ops('CONST', 62)
+  static readonly VCONST = new Ops('VCONST')
+  static readonly CONST = new Ops('CONST')
+
+  // device
+  static readonly DEVICE = new Ops('DEVICE')
 }
 
 export class GroupOp {
@@ -170,18 +186,28 @@ export class GroupOp {
   static ALU = [...this.Unary, ...this.Binary, ...this.Ternary]
 
   static Irreducible = [Ops.CONST, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.RANGE]
+  static Movement = [Ops.RESHAPE, Ops.EXPAND, Ops.PERMUTE, Ops.PAD, Ops.SHRINK, Ops.STRIDE]
 
   //   # meta ops
-  static Meta = [Ops.COPY, Ops.EMPTY, Ops.BUFFER_VIEW]
+  static Meta = [Ops.COPY, Ops.BUFFER_VIEW]
   static Buffer = [Ops.LOAD, Ops.PRELOAD, Ops.STORE, Ops.VALID]
   static Block = [Ops.BLOCK, Ops.BLOCKEND, Ops.BLOCKFORK, Ops.BLOCKSTART]
 
   //   # BinaryOps that can be flipped
   static Commutative = [Ops.ADD, Ops.MUL, Ops.MAX, Ops.CMPNE, Ops.XOR, Ops.AND, Ops.OR]
 
+  // BinaryOps where f(f(a,b),c) = f(a,f(b,c))
+  static Associative = [Ops.ADD, Ops.MUL, Ops.AND, Ops.OR]
+
+  // BinaryOps that satisfy f(x,x)=x see https://en.wikipedia.org/wiki/Idempotence
+  static Idempotent = [Ops.OR, Ops.AND, Ops.MAX]
+
   //   # do not preserve f(0) = 0
   static UnsafePad = [Ops.RECIP, Ops.LOG2, Ops.EXP2, Ops.IDIV]
 }
+
+// some BUFFER ops can be processed with only a view
+export const view_supported_devices = ['LLVM', 'CLANG', 'CUDA', 'NV', 'AMD', 'METAL', 'QCOM', 'DSP', 'DISK']
 
 // # https://en.wikipedia.org/wiki/Identity_element
 export const identity_element = (op: Ops, dt: DType) => dtypes.as_const(new Map([[Ops.ADD, 0], [Ops.MUL, 1], [Ops.MAX, dtypes.min(dt)]]).get(op)!, dt)
@@ -216,13 +242,34 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
+const buffers = new WeakValueMap<Buffer>()
+const all_metadata = new WeakValueMap<Metadata>()
+const forced_realize = new WeakValueMap<UOp>() // KAREL: maybe should just be Set<string>?
+
 export class UOp extends MathTrait<UOp> {
   static cache = new WeakValueMap<UOp>()
   key: string
-  constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any) {
+  children = new WeakValueMap<UOp>()
+  constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any, _buffer?: Buffer) {
     super()
     this.key = get_key(this.op, this.dtype, this.arg, this.src)
-    return UOp.cache.setDefault(this.key, this)
+    const ret = UOp.cache.get(this.key)
+    if (ret !== undefined) return ret
+
+    for (const s of src) s.children.set(this.key, this)
+    // NOTE: this will soon be set by Tensor once we remove function.py
+    const metadata = _METADATA.get()
+    if (metadata !== undefined) all_metadata.set(this.key, metadata)
+    // NOTE: this value is set by pickle when pickling a realized tensor
+    if (_buffer !== undefined) {
+      if (op !== Ops.BUFFER) throw new Error(`trying to set Buffer ${_buffer} for ${op}`)
+      buffers.set(this.key, _buffer)
+    }
+  }
+  del = () => {
+    if (this.op === Ops.BUFFER && buffers.get(this.key)) buffers.get(this.key)!.ref(-1)
+    for (const s of this.src) s.children.delete(this.key)
+    UOp.cache.delete(this.key)
   }
   @cache
   override toString(): string {
@@ -232,15 +279,19 @@ export class UOp extends MathTrait<UOp> {
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
-  __reduce__ = () => [UOp, [this.op, this.dtype, this.src, this.arg]] as const
   replace = (args: Partial<UOpInput>) => new UOp(args.op || this.op, args.dtype || this.dtype, args.src || this.src, args.arg || this.arg)
-  @cache
+
   get toposort(): Set<UOp> {
-    let nodes = new Set<UOp>()
-    // NOTE: this is a lot faster than the comprehension in parents
-    for (const parent of this.src) nodes = nodes.union(parent.toposort)
-    nodes.add(this)
-    return nodes
+    const _toposort = (u: UOp, cache: Set<UOp>): Set<UOp> => {
+      if (cache.has(u)) return new Set()
+      const nodes = new Set<UOp>()
+      //  NOTE: this is a lot faster than the comprehension in parents
+      for (const parent of u.src) _toposort(parent, cache).values().forEach((x) => nodes.add(x))
+      nodes.add(u)
+      cache.add(u)
+      return nodes
+    }
+    return _toposort(this, new Set())
   }
   @cache
   get tuplize(): any[] {
@@ -248,30 +299,36 @@ export class UOp extends MathTrait<UOp> {
   }
 
   //   # *** uop shape stuff ***
-  get has_st() {
-    return ![Ops.DEFINE_LOCAL, Ops.DEFINE_GLOBAL, Ops.BUFFER, Ops.CONST, Ops.DEFINE_VAR].includes(this.op)
-  }
   @cache
   get st(): undefined | ShapeTracker {
+    // these ops define a ShapeTracker from the arg
     if (this.op === Ops.VIEW) return this.arg
-    // buffer ops can have a non contiguous shapetracker
-    let src_sts = this.src.filter((x) => x.op === Ops.VIEW).map((x) => x.st!)
-    if (GroupOp.Buffer.includes(this.op) && src_sts.length !== 0) return src_sts[0]
-    src_sts = this.src.filter((x) => x.st !== undefined).map((x) => x.st!)
-    if (src_sts.length === 0) return undefined
-    if (!all_same(src_sts.map((x) => x.shape))) throw new Error(`UOp parents must have the same shape ${this} ${list_str(src_sts.map((x) => x.shape))}`)
-    // all other ops have a contiguous shapetracker
-    return ShapeTracker.from_shape([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op) ? src_sts[0].reduce(this.axis_arg) : src_sts[0].shape)
+    if (GroupOp.Movement.includes(this.op)) return this.src[0].st!.mop(this.op, this.arg)
+    // buffer ops return the ShapeTracker from sources
+    if (GroupOp.Buffer.includes(this.op)) return this.src.filter((x) => x.op === Ops.VIEW).map((x) => x.st)[0]
+    const src_sts = this.src.filter((x) => x.st !== undefined).map((x) => x.st!)
+    if (!src_sts.length) return undefined
+    if (!all_same(src_sts.map((x) => x.shape))) throw new Error(`UOp sources must have the same shape ${this} ${src_sts.map((x) => x.shape)}`)
+    let shape
+    if (this.op === Ops.BUFFER_VIEW) {
+      shape = src_sts[0].shape
+      if (this.dtype.itemsize !== this.src[0].dtype.itemsize) shape = [...shape.slice(0, -1), idiv(shape.at(-1)! as number * this.src[0].dtype.itemsize, this.dtype.itemsize)]
+    } // only reduce ops are allowed to change shape, everything else derives shape from sources
+    else if ([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op)) shape = src_sts[0].reduce(this.axis_arg)
+    else shape = src_sts[0].shape
+    return ShapeTracker.from_shape(shape)
   }
   @cache
   get full_shape(): sint[] {
-    return this.op === Ops.VIEW ? this.shape : zip(...this.src.filter((x) => x.has_st).map((x) => x.full_shape)).map((x) => smax(...x))
+    if (this.op === Ops.VIEW) return this.shape
+    //  TODO: this should check if st is None, it cannot because local reduce has implicit movement ops
+    return zip(...this.src.filter((x) => ![Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.CONST].includes(x.op)).map((x) => x.full_shape)).map((x) => smax(...x))
   }
   get shape() {
     return this.st!.shape
   }
-  get size() {
-    return this.op === Ops.BUFFER ? this.arg[1][1] : this.st!.size
+  get size(): number {
+    return this.op === Ops.BUFFER ? this.arg[1] : this.st!.size
   }
   //   # *** uop evaluation ***
 
@@ -297,10 +354,15 @@ export class UOp extends MathTrait<UOp> {
 
   //   # *** uop syntactic sugar ***
   get st_arg(): ShapeTracker {
-    if (!(GroupOp.Buffer.includes(this.op))) throw new Error(`st_arg called on ${this.op.toString()}`)
-    const ret = this.src[this.op === Ops.VALID ? 0 : 1]
-    if (ret.op !== Ops.VIEW) throw new Error(`st_arg trying to return ${ret}`)
-    return ret.arg
+    if (!GroupOp.Buffer.includes(this.op)) throw new Error(`st_arg called on ${this.op.toString()}`)
+    return this.st!
+  }
+  get const_arg(): ConstType {
+    let ret
+    if (this.base.op === Ops.CONST) ret = this.base.arg
+    else throw new Error(`const_arg called on ${this.base.op}`)
+    if (!CONSTS.includes(ret)) throw new Error(`const_arg trying to return ${ret}`)
+    return ret
   }
   get axis_arg() {
     if (![Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op)) throw new Error(`axis_arg called on ${this.op}`)
@@ -309,15 +371,27 @@ export class UOp extends MathTrait<UOp> {
     return ret
   }
   static sink = (...srcs: UOp[]) => new UOp(Ops.SINK, dtypes.void, [...srcs])
+  detach = () => new UOp(Ops.DETACH, this.dtype, [this])
   index = (idx: UOp, valid?: UOp) => new UOp(Ops.INDEX, this.dtype, valid !== undefined ? [this, idx, valid] : [this, idx])
-  override const_like = (b: ConstLike<UOp>) => (this.st === undefined ? UOp.const(this.dtype, b) : UOp.const_with_shape(this.dtype, b, this.shape)) as UOp
+  // constants can optionally have a DEVICE source
+  override const_like = (b: ConstLike<UOp>) => this._device !== undefined ? UOp.const(this.dtype, b) : UOp.metaop(Ops.CONST, this.shape, this.dtype, this.device, b)
   broadcast = (count: number) => {
     if (this.dtype.count !== 1) throw new Error(`dtype.count !==1`)
     if (count === 1) return this
     return new UOp(Ops.VECTORIZE, this.dtype.vec(count), range(count).map(() => this))
   }
-  cast = (dtype: DType) => new UOp(Ops.CAST, dtype, [this])
-  bitcast = (dtype: DType) => new UOp(Ops.BITCAST, dtype, [this])
+  cast = (dtype: DType, bitcast = false) => {
+    if (bitcast) return this.bitcast(dtype)
+    if (this._device !== undefined && this._device.startsWith('DISK')) throw new Error("CAST isn't supported on DISK")
+    return new UOp(Ops.CAST, dtype, [this])
+  }
+  bitcast = (dtype: DType) => {
+    if (this.st !== undefined && this.shape.length && (((this.shape.at(-1)! as number) * this.dtype.itemsize) % dtype.itemsize !== 0)) throw new Error(`unsupported size in bitcast ${dtype}`)
+    // shape changing bitcast can use a subbuffer on DISK
+    // TODO: this should be moved to realize.py
+    if (this._device !== undefined && this.device.startsWith('DISK')) return new UOp(Ops.BUFFER_VIEW, dtype, [this])
+    return new UOp(Ops.BITCAST, dtype, [this])
+  }
   gep = (i: number[] | number) => {
     if (!Array.isArray(i)) {
       // NOTE: these are just shortcuts to not have to create and fold later
@@ -344,52 +418,144 @@ export class UOp extends MathTrait<UOp> {
   static int = (b: number) => UOp.const(dtypes.int, b)
   static bool = (b: boolean) => UOp.const(dtypes.bool, b)
   static float = (b: number) => UOp.const(dtypes.float, b)
+  valid = (st: ShapeTracker) => {
+    if (![Ops.CONST, Ops.DEFINE_VAR].includes(this.op)) throw new Error(`can only create VALID from a constant, got ${this.op}`)
+    return new UOp(Ops.VALID, dtypes.bool, [st.to_uop()]).where(this, 0)
+  }
   static range = (dtype: DType, start: sint, end: sint, idx: number) => new UOp(Ops.RANGE, dtype, [sint_to_uop(start), sint_to_uop(end)], idx)
-  r = (op: Ops, axis: number[]) => new UOp(Ops.REDUCE_AXIS, this.dtype, [this], [op, axis])
-  assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
-  contiguous = () => new UOp(Ops.CONTIGUOUS, this.dtype, [this])
+  _reduce_op = (op: Ops, axis: number[]) => {
+    axis = axis.filter((x) => resolve(ne(this.shape[x], 1))).toSorted()
+    return axis.length === 0 ? this : new UOp(Ops.REDUCE_AXIS, this.dtype, [this], [op, axis])
+  }
+  r = (op: Ops, axis: number[]): UOp => {
+    const new_shape = this.st!.reduce(axis)
 
+    // TODO: can we split symbolic shape if the reduce axis is not symbolic?
+    if (!SPLIT_REDUCEOP || !all_int(this.shape) || this.shape.includes(0) || (idiv(prod(this.shape), prod(new_shape)) as number) < get_number_env('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
+      return this._reduce_op(op, axis)
+    }
+
+    // if there are few globals, make some reduces into globals by splitting into two kernels
+    // cap output buffer to 2**22: heuristic number of global outputs to achieve max occupancy with enough locals+upcasts for gemm
+    //   ~2**10 should be enough if GROUP is used
+    // 256 split maximum should be "negligible reduce" for low prod(new_shape), 8 split minimum.
+    // split is moved to the end to provide maximum locality for the second phase reduce.
+    const self_real_strides = this.st!.real_strides(true)
+    const split_candidates = range(Math.min(256, (2 ** get_number_env('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape) as number)), 8 - 1, -1)
+      .flatMap((x) => axis.filter((i) => (this.shape[i] as number) % x === 0 && self_real_strides[i] !== 0).map((i) => [i, x]))
+    if (!split_candidates.length) return this._reduce_op(op, axis)
+    const [dim_to_split, divisor] = split_candidates[0]
+    const splitted_shape = [...this.shape.slice(0, dim_to_split), divisor, idiv(this.shape[dim_to_split], divisor), ...this.shape.slice(dim_to_split + 1)]
+    const splitted = this.reshape(splitted_shape).permute([...range(splitted_shape.length).filter((x) => x !== dim_to_split), dim_to_split])
+    if (DEBUG >= 3) console.log(`split ${divisor}: ${this.shape} -> ${splitted.shape} -> ${new_shape}`)
+    return splitted._reduce_op(op, axis)._reduce_op(op, [new_shape.length]).reshape(new_shape) // reduce original axes, then split  assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
+  }
+  contiguous = () => {
+    // TODO: BUFFER_VIEW op should be deleted and subbuffer should be moved to realize.py
+    // NOTE: DISK uses subbuffer because DISK does not render kernels
+    if (this.device.startsWith('DISK')) return this.alu(Ops.BUFFER_VIEW)
+    // otherwise it's normal CONTIGUOUS
+    if (!this.st!.contiguous || this.size !== this.base.size || this.base.op === Ops.CONST) return this.alu(Ops.CONTIGUOUS)
+    forced_realize.set(this.base.key, this.base)
+    return this
+  }
   //   # *** from LazyBuffer ***
 
   static const_with_shape = (dtype: DType, val: ConstLike, shape: sint[]): UOp => {
     return new UOp(Ops.VALID, dtypes.bool, [ShapeTracker.from_shape([]).reshape(range(shape.length).map(() => 1)).expand(shape).to_uop()]).where(UOp.const(dtype, val), 0)
   }
-  //   # *** uop movement ops ***
-  get base(): UOp {
-    return this.op === Ops.VIEW && this.src.length === 1 && this.src[0].op !== Ops.BUFFER ? this.src[0] : this
+  static metaop = (op: Ops, shape: sint[], dtype: DType, device: string, arg?: any): UOp => {
+    // Tensor const is CONST(VIEW(DEVICE)) -> RESHAPE -> EXPAND
+    if (op === Ops.CONST) {
+      if (!CONSTS.includes(arg)) throw new Error(`trying to create CONST with arg=${arg}`)
+      return UOp.const(dtype, arg!)
+        .replace({ src: [new UOp(Ops.VIEW, dtypes.void, [new UOp(Ops.DEVICE, undefined, undefined, device)], ShapeTracker.from_shape([]))] })
+        .reshape(range(shape.length).map((x) => 1)).expand(shape)
+    }
+    // Tensor variable binding is BIND(VAR(VIEW(DEVICE)), CONST(VIEW(DEVICE)))
+    if (op === Ops.BIND) {
+      const [varr, val] = arg.unbind()
+      return varr.replace({ src: [new UOp(Ops.VIEW, dtypes.void, [new UOp(Ops.DEVICE, undefined, undefined, device)], ShapeTracker.from_shape(shape))] }).bind(val)
+    }
+    // otherwise it's just a VIEW(BUFFER)
+    const st = ShapeTracker.from_shape(shape)
+    return new UOp(Ops.VIEW, dtype, [UOp.new_buffer(device, st.size, dtype)], st)
+  }
+  copy_to_device = (device: string, clone = false): UOp => {
+    // no COPY
+    if (this.device === device && !clone) return this
+    // if it's a shrink, do the shrink before the copy with CONTIGUOUS
+    if (prod(this.shape) < prod(this.base.shape)) return this.contiguous().copy_to_device(device)
+    // COPY is COPY(DEVICE, copyin.base) -> VIEW(copyin.st)
+    return new UOp(Ops.COPY, this.base.dtype, [new UOp(Ops.DEVICE, undefined, undefined, device), this.base], clone).view(this.st!)
+  }
+  clone = (): UOp => this.copy_to_device(this.device, true)
+  is_unrealized_unmasked_const = () => this.base.op === Ops.CONST && this.st!.views.every((v) => v.mask === undefined)
+  get lbs() {
+    return [this]
+  }
+  get metadata() {
+    return all_metadata.get(this.key)
+  }
+  get forced_realize() {
+    return forced_realize.has(this.key)
   }
 
-  view = (new_st: ShapeTracker): UOp => {
-    if (this.st === undefined || this.base.st === undefined) throw new Error(`must have shape ${this}`)
-    const ret = new UOp(Ops.VIEW, this.dtype, [this.base], new_st)
-    // instant folding rules
-    if (this.st?.size === 0 || (new_st.views.at(-1)!.mask !== undefined && new_st.views.at(-1)!.mask?.some((x) => sub(x[1], x[0]) === 0))) return ret.const_like(0)
-    if (new_st.contiguous && is_eq(this.base.st?.shape, new_st.shape)) return this.base
+  //   # *** uop movement ops ***
+  get base(): UOp {
+    if (GroupOp.Movement.includes(this.op)) return this.src[0].base
+    return this.op === Ops.VIEW && this.src.length === 1 && this.src[0].op !== Ops.BUFFER ? this.src[0].base : this
+  }
+  view = (new_st: ShapeTracker) => new UOp(Ops.VIEW, this.dtype, [this.base], new_st)
+
+  _mop = (op: Ops, arg: any) => {
+    const ret = new UOp(op, this.dtype, [this], arg)
+    if (this.st === ret.st) return this // ignore NOOPs, also check ret.st
     return ret
   }
-  reshape = (arg: sint[]) => this.view(this.st!.reshape(arg))
-  pad = (arg: [sint, sint][]) => this.view(this.st!.pad(arg))
-  expand = (arg: sint[]) => this.view(this.st!.expand(arg))
-  permute = (arg: number[]) => this.view(this.st!.permute(arg))
-  shrink = (arg: [sint, sint][]) => this.view(this.st!.shrink(arg))
-  stride = (arg: number[]) => this.view(this.st!.stride(arg))
+  reshape = (arg: sint[]) => this._mop(Ops.RESHAPE, arg)
+  pad = (arg: [sint, sint][]) => this._mop(Ops.PAD, arg)
+  expand = (arg: sint[]) => this._mop(Ops.EXPAND, arg)
+  permute = (arg: sint[]) => this._mop(Ops.PERMUTE, arg)
+  shrink = (arg: [sint, sint][]) => this._mop(Ops.SHRINK, arg)
+  stride = (arg: sint[]) => this._mop(Ops.STRIDE, arg)
 
   //   # *** uop Buffer stuff ***
   static buffer_num = counter(0)
-  static new_buffer = (device: string, size: number, dtype: DType) => new UOp(Ops.BUFFER, dtype.ptr(), [], [UOp.buffer_num.next().value, [device, size, dtype]])
-  get device(): string {
+  static new_buffer = (device: string, size: number, dtype: DType) => new UOp(Ops.BUFFER, dtype, [new UOp(Ops.DEVICE, undefined, undefined, device)], [UOp.buffer_num.next().value, size])
+  get device(): DeviceType {
     return this._device!
   }
   @cache
-  get _device(): string | undefined {
-    const dsrcs = this.src.filter((x) => x._device !== undefined)
-    return this.op === Ops.BUFFER ? this.arg[1][0] : dsrcs.length !== 0 ? dsrcs[0]._device : undefined
+  get _device(): DeviceType | undefined {
+    if (this.op === Ops.DEVICE) return this.arg
+    return this.src.filter((x) => x._device !== undefined)[0]?._device
   }
   get buf_uop(): UOp {
     if (this.op === Ops.BUFFER) return this
-    if (![...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.op) || this.src[0].op !== Ops.BUFFER) throw new Error(`buf_uop called on ${this.op}`)
-    return this.src[0]
+    if (![...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.base.op)) throw new Error(`buf_uop called on ${this.op}`)
+    return this.src[0].buf_uop
   }
+  buf_uop_view = (): UOp => this.buf_uop.view(this.st!)
+  get buffer(): Buffer {
+    if (this.op === Ops.VIEW) {
+      if (!this.st!.contiguous) throw new Error("VIEW only works here if it's contiguous")
+      return this.src[0].buffer
+    }
+    if (this.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${this.op}`)
+    if (buffers.has(this.key)) return buffers.get(this.key)!
+    const ret = new Buffer(this.device, this.size, this.dtype instanceof ImageDType ? this.dtype : this.dtype.base)
+    buffers.set(this.key, ret)
+    return ret
+  }
+  get realized(): Buffer | undefined {
+    if (this.op === Ops.VIEW && this.src.length === 1 && this.src[0].op === Ops.BUFFER) return this.src[0].realized
+    return this.op === Ops.BUFFER ? this.buffer : undefined
+  }
+  get is_realized() {
+    return this.base.realized !== undefined
+  }
+
   //   # *** uop Variable stuff ***
 
   static variable = (name: string, minVal: ConstType<UOp> = dtypes.min(dtypes.int), maxVal: ConstType<UOp> = dtypes.max(dtypes.int), dtype = dtypes.int) => {
@@ -467,7 +633,9 @@ export class UOp extends MathTrait<UOp> {
         const vals = [mul(s0_vmin, s1_vmin), mul(s0_vmin, s1_vmax), mul(s0_vmax, s1_vmin), mul(s0_vmax, s1_vmax)]
         return [min(vals), max(vals)]
       }
-      if (this.op === Ops.MOD && s1_vmin > 0) return [0, sub(s1_vmax, 1)]
+      if (this.op === Ops.SHL && s1_vmin === s1_vmax && all_int([s0_vmin, s0_vmax, s1_vmin])) return [lshift(s0_vmin, s1_vmin), lshift(s0_vmax, s1_vmin)]
+      if (this.op === Ops.SHR && s1_vmin === s1_vmax && all_int([s0_vmin, s0_vmax, s1_vmin])) return [rshift(s0_vmin, s1_vmin), rshift(s0_vmax, s1_vmin)]
+      if (this.op === Ops.MOD && s1_vmin > 0) return s0_vmin >= 0 ? [0, sub(s1_vmax, 1)] : [-sub(s1_vmax, 1), sub(s1_vmax, 1)]
       if (this.op === Ops.IDIV) {
         if (s1_vmin === s1_vmax) { // min/max are equal in a CONST
           if (s1_vmin > 0) return [idiv(s0_vmin, s1_vmin), idiv(s0_vmax, s1_vmin)]
@@ -491,9 +659,9 @@ export class UOp extends MathTrait<UOp> {
     if (this.op === Ops.DEFINE_VAR && this.arg) return [this.arg[1], this.arg[2]]
     if (this.op === Ops.RANGE) return [this.src[0].vmin, (this.src[1].sub(1)).vmax]
     if (this.op === Ops.BIND) return this.src[0]._min_max // ignore the bound value
-    if ([Ops.EXPAND, Ops.VECTORIZE].includes(this.op)) return [min(this.src.map((x) => x.vmin)), max(this.src.map((x) => x.vmax))]
+    if ([Ops.UNROLL, Ops.VECTORIZE].includes(this.op)) return [min(this.src.map((x) => x.vmin)), max(this.src.map((x) => x.vmax))]
     // TODO: UOps.SPECIAL is UOps.DEFINE_VAR
-    if (this.op === Ops.SPECIAL) return [0, typeof this.arg[1] === 'number' ? (this.arg[1] - 1) : Number(dtypes.max(this.dtype))]
+    if (this.op === Ops.SPECIAL) return [0, typeof this.arg[1] === 'number' ? (this.arg[1] - 1) : this.arg[1].vmax]
     if (this.op === Ops.CONST) return [this.arg, this.arg]
     if (this.op === Ops.VCONST) return [min(this.arg), max(this.arg)]
     return [Number(dtypes.min(this.dtype)), Number(dtypes.max(this.dtype))]
@@ -520,7 +688,11 @@ export class UOp extends MathTrait<UOp> {
 export class KernelInfo {
   key: string
   static cache = new WeakValueMap<KernelInfo>()
-  constructor(public local_dims = 0, public upcasted = 0, public dont_use_locals = false) {
+  constructor(
+    public local_dims = 0, // number of local dimensions  (this is remapping RANGE to SPECIAL)
+    public upcasted = 0, // count that are upcasted     (this is remapping RANGE to UNROLL)
+    public dont_use_locals = false, // don't use local indexing
+  ) {
     this.key = get_key(local_dims, upcasted, dont_use_locals)
     return KernelInfo.cache.setDefault(this.key, this)
   }
@@ -554,7 +726,7 @@ export const python_alu = new Map<Ops, (...x: (number | bigint)[]) => number | b
   [Ops.SHL, (x, y) => lshift(x, y)],
   [Ops.MAX, (...args) => max(args)],
   [Ops.MOD, (x, y) => mul(mod(abs(trunc(x)), abs(trunc(y))), x < 0 ? -1 : 1)],
-  [Ops.IDIV, (x, y) => y !== 0 ? mul(idiv(abs(x), abs(y)), (mul(x, y) < 0) ? -1 : 1) : mul(x, Infinity)],
+  [Ops.IDIV, (x, y) => y !== 0 ? mul(idiv(abs(x), abs(y)), (mul(x, y) < 0) ? -1 : 1) : 0],
   [Ops.MULACC, (x, y, z) => add(mul(x, y), z)],
   [Ops.WHERE, (x, y, z) => x ? y : z],
 ])
@@ -573,33 +745,6 @@ export const print_uops = (uops: UOp[]) => {
   }
 }
 
-export const flops_mem = (uops: UOp[], ignoreIndexing = false): [UOp, UOp] => {
-  let flops = uops[0].const_like(0)
-  let mem = uops[0].const_like(0)
-  let mults = uops[0].const_like(1)
-  const multStack: UOp[] = []
-  let dontCount = new Set<UOp>()
-  if (ignoreIndexing) {
-    for (const u of uops) {
-      if ([Ops.LOAD, Ops.STORE].includes(u.op)) {
-        dontCount = dontCount.union(u.src[0].toposort)
-        if (u.src.length > 2) dontCount = dontCount.union(u.src[2].toposort)
-      } else if (u.op === Ops.IF) dontCount = dontCount.union(u.src[0].toposort)
-    }
-  }
-  for (const u of uops) {
-    if (u.op === Ops.RANGE) {
-      multStack.push(mults)
-      mults = (u.src[1].sub(u.src[0])).ssimplify().mul(mults)
-    } else if (u.op === Ops.ENDRANGE) mults = multStack.pop()!
-    else if (u.op === Ops.SPECIAL) mults = u.arg[1].mul(mults) // NOTE: we don't push to the mult_stack here, you can't end these
-    else if (u.op === Ops.LOAD) mem = (mults.mul(u.dtype.itemsize)).add(mem)
-    else if (u.op === Ops.STORE) mem = (mults.mul(u.src[1].dtype.itemsize)).add(mem)
-    else if (GroupOp.ALU.includes(u.op) && !dontCount.has(u)) flops = flops.add((mults.mul(u.op === Ops.MULACC ? 2 : 1)).mul(u.dtype.count))
-    else if (u.op === Ops.WMMA && !dontCount.has(u)) flops = add(flops, mul(idiv(mul(2, prod(u.arg[1])), u.arg[5]), mults))
-  }
-  return [flops, mem]
-}
 // # ***** pattern matcher *****
 function getLocation(): [string, number] {
   // TODO: Doesn't work in browser
@@ -649,12 +794,12 @@ export class UPat extends MathTrait<UPat> {
     }
   }
 
-  named = (name: string) => new UPat(this.op, this.dtype, this._in_src, this.arg, name, this.allowed_len === -1, undefined, this.custom_early_reject)
+  named = (name?: string) => new UPat(this.op, this.dtype, this._in_src, this.arg, name, this.allowed_len === -1, undefined, this.custom_early_reject)
 
   static any = (src: UPat[]) => new UPatAny(undefined, undefined, src)
 
   static var = (name?: string, dtype?: DType | DType[]) => new UPat(undefined, dtype, undefined, undefined, name)
-  static cvar = (name?: string, dtype?: DType, vec = true) => new UPat(vec ? [Ops.CONST, Ops.VCONST] : Ops.CONST, dtype, undefined, undefined, name)
+  static cvar = (name?: string, dtype?: DType, vec = true) => new UPat(vec ? [Ops.CONST, Ops.VCONST] : Ops.CONST, dtype).named(name)
   static const = (dtype?: DType | DType[], b?: ConstLike) => new UPat(Ops.CONST, dtype, undefined, b)
 
   //   # copied from UOp
@@ -712,13 +857,9 @@ export class UPat extends MathTrait<UPat> {
 }
 
 export class UPatAny extends UPat {
-  override match = (uop: UOp, store: Map<string, UOp>) => {
-    let ret: Map<string, UOp>[] = []
-    for (const x of this.src?.[0] || []) {
-      const match = x.match(uop, new Map(store))
-      if (match) ret = [...ret, ...match]
-    }
-    return ret
+  override match = (uop: UOp, store: Map<string, UOp>): Map<string, UOp>[] => {
+    const matches = this.src![0].map((x) => x.match(uop, new Map(store)))
+    return flatten(matches.filter((x) => x !== undefined))
   }
 }
 
@@ -738,10 +879,7 @@ export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, F
   rewrite = (uop: UOp, ctx?: any): Res | undefined => {
     const ler = new Set(uop.src.map((u) => u.op))
     for (const [p, fxn, early_reject, hasCtx] of this.pdict.get(uop.op) || []) {
-      const index = this.patterns.findIndex((pattern) => pattern[0] === p)
-      if (!is_subset(ler, early_reject)) {
-        continue
-      }
+      if (!is_subset(ler, early_reject)) continue
       for (const match of p.match(uop, new Map())) {
         const ret = hasCtx ? fxn({ ctx, ...Object.fromEntries(match) } as any) : fxn(Object.fromEntries(match) as any)
         if (ret !== undefined) return ret
@@ -751,21 +889,48 @@ export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, F
   }
 }
 
+const TRACK_MATCH_STATS = get_number_env('TRACK_MATCH_STATS', get_env('VIZ') ? 2 : 0)
+const match_stats = new Map<UPat, number[]>()
+export class TrackedGraphRewrite {
+  loc!: [string, number] // location that called graph_rewrite
+  sink!: UOp // the sink input to graph_rewrite
+  matches!: [UOp, UOp | undefined, UPat | undefined, number][] // before+after of all the matches
+}
+const tracked_keys: any[] = []
+const tracked_ctxs: TrackedGraphRewrite[][] = []
+const _name_cnt = new Map<string, number>()
+const track_rewrites = (named = false) => {
+  throw new Error('not implemented')
+}
+
+export class TrackedPatternMatcher extends PatternMatcher {
+  override rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
+    throw new Error('not implemented')
+  }
+}
+if (TRACK_MATCH_STATS) {
+  throw new Error('not implemented')
+}
+
+export const launch_viz = (env_str: string, data: string) => {
+  throw new Error('not implemented')
+}
+
 // # *** simple graph rewrite engine ***
 export class RewriteContext {
   pm: PatternMatcher
-  ctx: any
+  ctx?: any
   replace = new Map<UOp, UOp>()
-  constructor(pm: PatternMatcher, ctx: any) {
+  constructor(pm: PatternMatcher, ctx?: any) {
     this.pm = pm
     this.ctx = ctx
   }
-  rewrite = (n: UOp): UOp => {
+  top_down_rewrite = (n: UOp): UOp => {
     const rn = this.replace.get(n)
     if (rn !== undefined) return rn
-    const new_src = n.src.map((x) => this.rewrite(x))
+    const new_src = n.src.map((x) => this.top_down_rewrite(x))
     const new_n = is_eq(new_src, n.src) ? this.pm.rewrite(n, this.ctx) : new UOp(n.op, n.dtype, new_src, n.arg)
-    const ret = new_n === undefined ? n : this.rewrite(new_n)
+    const ret = new_n === undefined ? n : this.top_down_rewrite(new_n)
     this.replace.set(n, ret)
     return ret
   }
@@ -774,9 +939,7 @@ export class RewriteContext {
     if (rn !== undefined) return rn
     let new_n: UOp | undefined = n
     let last_n!: UOp
-    while (new_n !== undefined) {
-      ;[last_n, new_n] = [new_n, this.pm.rewrite(new_n, this.ctx)]
-    }
+    while (new_n !== undefined) [last_n, new_n] = [new_n, this.pm.rewrite(new_n, this.ctx)]
     const new_src = last_n.src.map((x) => this.bottom_up_rewrite(x))
     const ret = is_eq(new_src, last_n.src) ? last_n : this.bottom_up_rewrite(new UOp(last_n.op, last_n.dtype, new_src, last_n.arg))
     this.replace.set(n, ret)
@@ -784,7 +947,19 @@ export class RewriteContext {
   }
 }
 export const graph_rewrite = (sink: UOp, pm: PatternMatcher<any, any>, ctx?: any, bottom_up = false): UOp => {
-  return bottom_up ? new RewriteContext(pm, ctx).bottom_up_rewrite(sink) : new RewriteContext(pm, ctx).rewrite(sink)
+  if (TRACK_MATCH_STATS >= 2 && !bottom_up && tracked_ctxs.length !== 0) { // TODO: make viz work with bottom_up=True
+    // tracked_ctxs[-1].append(TrackedGraphRewrite(((frm:=sys._getframe(1)).f_code.co_filename, frm.f_lineno), sink))
+    throw new Error('not implemented')
+  }
+  return bottom_up ? new RewriteContext(pm, ctx).bottom_up_rewrite(sink) : new RewriteContext(pm, ctx).top_down_rewrite(sink)
+}
+export const graph_rewrite_map = (sink: UOp, pm: PatternMatcher, ctx?: any, bottom_up = false): Map<UOp, UOp> => {
+  if (TRACK_MATCH_STATS >= 2 && !bottom_up && tracked_ctxs.length !== 0) { // TODO: make viz work with bottom_up=True
+    //     tracked_ctxs[-1].append(TrackedGraphRewrite(((frm:=sys._getframe(1)).f_code.co_filename, frm.f_lineno), sink))
+    throw new Error('not implemented')
+  }
+  const rewrite_ctx = new RewriteContext(pm, ctx)
+  return new Map([...sink.toposort].toReversed().map((k) => [k, bottom_up ? rewrite_ctx.bottom_up_rewrite(k) : rewrite_ctx.top_down_rewrite(k)]))
 }
 // # ***** uop type spec *****
 
@@ -832,7 +1007,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
     new UPat(Ops.WHERE, undefined, [new UPat(undefined, dtypes.bool), new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'w'),
     ({ w, x, y }) => w.dtype === x.dtype && x.dtype === y.dtype,
   ],
-  [new UPat([Ops.CMPLT, Ops.CMPNE], dtypes.bool, [new UPat(undefined).named('x'), new UPat(undefined).named('y')]), ({ x, y }) => x.dtype === y.dtype],
+  [new UPat([Ops.CMPLT, Ops.CMPNE], dtypes.bool, [new UPat(undefined).named('x'), new UPat(undefined).named('y')]), ({ x, y }) => x.dtype.base === y.dtype.base],
 
   //   # and SHL/SHR, the shift distance can be an int
   [
@@ -840,14 +1015,14 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
     ({ a, x, y }) => a.dtype === x.dtype && [x.dtype, dtypes.uint].includes(y.dtype),
   ],
   [new UPat(Ops.IDIV).named('x'), ({ x }) => dtypes.is_int(x.dtype) ? undefined : false],
-  [new UPat(GroupOp.ALU).named('x'), ({ x }) => x.src!.every((y) => x.dtype === y.dtype)],
+  [new UPat(GroupOp.ALU).named('x'), ({ x }) => x.src!.every((y) => x.dtype.base === y.dtype.base)],
   [new UPat(Ops.ASSIGN, undefined, [new UPat([Ops.DEFINE_ACC, Ops.DEFINE_GLOBAL]), new UPat()]), () => true],
   [new UPat(Ops.ENDRANGE, dtypes.void, [new UPat(Ops.RANGE)]), () => true],
 
-  //   # all WMMA has 3 args, <x, w, acc>
-  [new UPat(Ops.WMMA, undefined, [new UPat(), new UPat(), new UPat()]), () => true],
+  // WMMA has a <a, b, acc>
+  [new UPat(Ops.WMMA, undefined, [new UPat(), new UPat(), new UPat()]).named('x'), ({ x }) => Array.isArray(x.arg) && x.arg.length === 8],
   [new UPat(Ops.CONTRACT).named('x'), ({ x }) => x.dtype.count === prod(x.arg.map((y: any) => y[1]))],
-  [new UPat(Ops.EXPAND).named('x'), ({ x }) => x.src![0].dtype.count === prod(x.arg.map((y: any) => y[1]))],
+  [new UPat(Ops.UNROLL).named('x'), ({ x }) => x.src![0].dtype.count === prod(x.arg.map((y: any) => y[1]))],
 
   //   # if has a <gate, barrier?>
 
@@ -866,24 +1041,18 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
 
   //   # PTX LOAD/STORE
   [new UPat([Ops.LOAD, Ops.STORE], undefined, [new UPat(undefined, dtypes.int64)], undefined, undefined, true), () => true],
-  [new UPat(Ops.BARRIER, dtypes.void, new UPat(Ops.STORE, undefined, [new UPat(undefined, dtypes.int64)], undefined, undefined, true)), () => true],
 ])
 
-export const type_verify = (uops: UOp[]) => {
+export const type_verify = (uops: UOp[], extra_specs: PatternMatcher<any, boolean | undefined>[] = []) => {
+  const specs = [spec, ...extra_specs]
   for (const [i, u] of uops.entries()) {
-    if (!spec.rewrite(u)) {
+    const spec_ret: (boolean | undefined)[] = specs.map((s) => s.rewrite(u))
+    if (spec_ret.some((ret) => ret === false) || spec_ret.every((ret) => ret === undefined)) {
       print_uops(uops)
-      throw new Error(`UOp verification failed at ${i} on ${u}`)
+      throw new Error(`UOp verification failed at ${i} on ${u.op} ${u.dtype} ${u.src.length} ${u.src.map((x) => x.op)} ${list_str(u.arg)}`)
     }
   }
 }
-// # *** uop helpers ***
-
-// def cast_float_to_bf16(x: UOp) -> UOp:
-//   assert x.dtype === dtypes.float, "cast float -> bf16 must start with float"
-//   x = x.bitcast(dtypes.uint)
-//   x = (-x & 0x7f800000).where(x + ((x >> 16) & 1) + 0x7fff, (x & 0xffff).where((x | 0x10000), x))
-//   return (x >> 16).cast(dtypes.ushort).bitcast(dtypes.bfloat16)
 
 // # *** most of symbolic lives here now ***
 
@@ -892,16 +1061,15 @@ export function* splitUOp(x: UOp, sep: Ops): Generator<UOp> {
   else yield x
 }
 
-export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | typeof Ops.IDIV, split_rem = false): undefined | UOp => {
-  // simplify x // c or x % c, None means no change, c must be > 0
-  assert(c > 0)
-  if (x.dtype.count > 1) return undefined
+export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | typeof Ops.IDIV, split_rem = false): undefined | UOp => {
+  // simplify x // y or x % y, None means no change
   // simple cancel div/mod case
-  const q = idiv(x.vmin, c)
-  if (q === idiv(x.vmax, c)) {
-    if (which === Ops.MOD) return x.sub(mul(q, c))
-    return x.const_like(q)
+  if (y.vmin !== 0 && y.vmax !== 0 && all_same([idiv(x.vmin, y.vmin), idiv(x.vmin, y.vmax), idiv(x.vmax, y.vmin), idiv(x.vmax, y.vmax)])) {
+    return which === Ops.MOD ? sub(x, mul(idiv(x.vmin, y.vmin), y)) : x.const_like(idiv(x.vmin, y.vmin))
   }
+  const c = y.arg
+  if ((y.op !== Ops.CONST) || (c <= 0) || (x.dtype.count > 1)) return undefined
+
   let svars: UOp[] = [], factors: number[] = [], quotients: number[] = [], remainders: number[] = [], gcd = c, div = 1, const2 = 0, offset: number | bigint = 0, something_changed = false
   for (let u of splitUOp(x, Ops.ADD)) {
     if (u.op === Ops.MOD && which === Ops.MOD && u.src[1].op === Ops.CONST && u.src[1].arg % c === 0) {
@@ -964,7 +1132,7 @@ export const div_and_mod_folding = (x: UOp, c: number, which: typeof Ops.MOD | t
   if (gcd !== 1) something_changed = true
   if (!something_changed) {
     if (which === Ops.IDIV && (1 < div && div < c)) {
-      const newx = div_and_mod_folding(x, div, Ops.IDIV)
+      const newx = div_and_mod_folding(x, UOp.const(dtypes.int, div), Ops.IDIV)
       if (newx !== undefined) return newx.idiv(idiv(c, div))
     }
     return undefined
@@ -1107,10 +1275,10 @@ export const simplify_valid = (valid: UOp): UOp | undefined => {
   }
   return somethingChanged ? ret.reduce((p, c) => p.bitwise_and(c)) : undefined
 }
-export const maxVarConst = ({ x, c1, c2 }: { x: UOp; c1: UOp; c2: UOp }) => {
-  if (x.vmin >= (0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
-  if (x.vmax <= (0)) return c1.arg >= c2.arg ? x.mul(c2) : x.mul(c1)
-}
+// export const max_var_const = ({ x, c1, c2 }: { x: UOp; c1: UOp; c2: UOp }) => {
+//   if (x.vmin >= (0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
+//   if (x.vmax <= (0)) return c1.arg >= c2.arg ? x.mul(c2) : x.mul(c1)
+// }
 export const sint_to_uop = (x: sint, dtype = dtypes.int) => (typeof x === 'number' || typeof x === 'bigint') ? UOp.const(dtype, x) : x
 
 export const symbolic_simple = new PatternMatcher([
@@ -1127,20 +1295,19 @@ export const symbolic_simple = new PatternMatcher([
   [(UPat.var('x').idiv(UPat.cvar('c1'))).mul(UPat.cvar('c3')).add(UPat.var('x').mod(UPat.cvar('c1')).mul(UPat.cvar('c2'))), ({ x, c1, c2, c3 }) => c1.arg * c2.arg === c3.arg ? x.mul(c2) : undefined], // (x%c1)*c2+(x//c1)*c3 = x*c2 if c1*c2==c3
   [UPat.var('x', dtypes.bool).bitwise_and(UPat.cvar('c', undefined, false)), ({ x, c }) => c.arg ? x : c],
   [UPat.var('x', dtypes.bool).bitwise_or(UPat.cvar('c', undefined, false)), ({ x, c }) => c.arg ? c : x],
-  [UPat.var('x').maximum(UPat.var('x')), ({ x }) => x],
-  [UPat.var('x').bitwise_and(UPat.var('x')), ({ x }) => x],
-  [UPat.var('x').bitwise_or(UPat.var('x')), ({ x }) => x],
+  [new UPat(GroupOp.Idempotent, undefined, [UPat.var('x'), UPat.var('x')]), ({ x }) => x],
   [UPat.var('x', dtypes.bool).logical_not().logical_not(), ({ x }) => x],
   [UPat.var('x', dtypes.bool).where(UPat.const(dtypes.bool, true), UPat.const(dtypes.bool, false)), ({ x }) => x],
   //   // ** zero folding **
-  [UPat.var('x').lt(UPat.var('x')), ({ x }) => UOp.const(dtypes.bool.vec(x.dtype.count), false)], // x < x -> False
+  [UPat.var('x').lt(UPat.var('x')), ({ x }) => x.const_like(false).cast(dtypes.bool.vec(x.dtype.count))], // x < x -> False
   [UPat.var('x', dtypes.ints).ne(UPat.var('x', dtypes.ints)), ({ x }) => UOp.const(dtypes.bool.vec(x.dtype.count), false)], // x != x -> False (only ints)
   //   // x*0 -> 0 or 0*x -> 0
   //   // if x is nan or inf it should render the nan value.
   //   // NOTE: this can be wrong for loaded NaN
   [UPat.var('x').mul(0), ({ x }) => x.const_like(typeof x.arg === 'number' && (isNaN(x.arg) || isInf(x.arg)) ? NaN : 0)],
   //   // ** constant folding **
-  [new UPat(GroupOp.ALU, undefined, new UPat([Ops.VCONST, Ops.CONST]), undefined, 'a'), ({ a }) => a.const_like(exec_alu(a.op, a.dtype, a.src?.map((x) => x.arg), false))],
+  // TODO: add const folding for Ops.THREEFRY
+  [new UPat(GroupOp.ALU, undefined, new UPat([Ops.VCONST, Ops.CONST])).named('a'), ({ a }) => a.op !== Ops.THREEFRY ? a.const_like(exec_alu(a.op, a.dtype, a.src.map((x) => x.arg), false)) : undefined],
   //   // bool MUL is AND, ADD/MAX is OR. prevents other rules to rewrite bool ADD/MUL incorrectly
   [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_and(y)],
   [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_or(y)],
@@ -1154,14 +1321,15 @@ export const symbolic = symbolic_simple.add(
   new PatternMatcher([
     // ** COMMUTATIVE flipping **
     [new UPat(GroupOp.Commutative).named('x'), ({ x }) => is_less_than(x.src[1].tuplize, x.src[0].tuplize) ? x.replace({ src: x.src.toReversed() }) : undefined],
-    //   // group like
-    [(UPat.var('x').add(UPat.var('y'))).add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, y, c }) => (x.add(x.mul(c))).add(y)],
     //   // ** boolean algebra **
     [UPat.var('x').bitwise_or(UPat.var('x').bitwise_and(UPat.var())), ({ x }) => x], // x|(x&y) -> x
     //   // ** combine terms **
     [UPat.var('x').mul(UPat.cvar('c0')).add(UPat.var('x').mul(UPat.cvar('c1'))), ({ x, c0, c1 }) => x.mul(c0.add(c1))], // (x*c0)+(x*c1) -> x*(c0+c1)
+    [(UPat.var('y').add(UPat.var('x').mul(UPat.cvar('c0')))).add(UPat.var('x').mul(UPat.cvar('c1'))), ({ x, y, c0, c1 }) => y.add(x.mul(c0.add(c1)))],
     [UPat.var('x').add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, c }) => x.mul(c.add(1))], // (x+x*c)-> x*(c+1)
+    [(UPat.var('y').add(UPat.var('x'))).add(UPat.var('x').mul(UPat.cvar('c'))), ({ x, y, c }) => y.add(x.mul(c.add(1)))],
     [UPat.var('x').add(UPat.var('x')), ({ x }) => x.mul(2)], // (x+x)-> x*2
+    [(UPat.var('y').add(UPat.var('x'))).add(UPat.var('x')), ({ y, x }) => y.add(x.mul(2))],
     [(UPat.var('x').div(UPat.var('x2'))).div(UPat.var('x3')), ({ x, x2, x3 }) => x.div(x2.mul(x3))], // (x/x2)/x3 -> x/(x2*x3)
     [UPat.var('x').add(UPat.cvar('c')).mul(-1, true), ({ x, c }) => x.neg().add(c.neg())], // -(x+c) -> -x + -c
     // //   // a conditional with the same results either way is a noop, also fold const conditionals
@@ -1178,12 +1346,9 @@ export const symbolic = symbolic_simple.add(
     [UPat.var('x').maximum(UPat.var('y')), ({ x, y }) => x.vmax <= y.vmin ? x.vmin >= y.vmax ? x : y : undefined],
     // TODO: why does this rule break beautiful_mnist?
     //((UPat.var("x")+UPat.var("z")).maximum(UPat.var("y")+UPat.var("z")), lambda x,y,z: x.maximum(y) + z),
-    [UPat.var('x').mul(UPat.cvar('c1')).maximum(UPat.var('x').mul(UPat.cvar('c2'))), ({ x, c1, c2 }) => maxVarConst({ x, c1, c2 })],
+    // [UPat.var('x').mul(UPat.cvar('c1')).maximum(UPat.var('x').mul(UPat.cvar('c2'))), ({ x, c1, c2 }) => max_var_const({ x, c1, c2 })],
     //   // ** two stage ALU folding **
-    [(UPat.var('x').add(UPat.cvar('c1'))).add(UPat.cvar('c2')), ({ x, c1, c2 }) => x.add(c1.add(c2))],
-    [(UPat.var('x').mul(UPat.cvar('c1'))).mul(UPat.cvar('c2')), ({ x, c1, c2 }) => x.mul(c1.mul(c2))],
-    [(UPat.var('x').bitwise_and(UPat.cvar('c1'))).bitwise_and(UPat.cvar('c2')), ({ x, c1, c2 }) => x.bitwise_and(c1.bitwise_and(c2))],
-    [(UPat.var('x').bitwise_or(UPat.cvar('c1'))).bitwise_or(UPat.cvar('c2')), ({ x, c1, c2 }) => x.bitwise_or(c1.bitwise_or(c2))],
+    ...GroupOp.Associative.map((op) => [UPat.var('x').alu(op, UPat.cvar('c1')).alu(op, UPat.cvar('c2')).named('f'), ({ f, x, c1, c2 }) => x.alu(f.op, c1.alu(f.op, c2))] as [UPat, (p: Record<string, UOp>) => UOp]),
     [(UPat.cvar('c0').add(UPat.var('x'))).lt(UPat.cvar('c1')), ({ x, c0, c1 }) => x.lt(c1.sub(c0))], // c0 + x < c1 -> x < c1 - c0
     [(UPat.var('x').idiv(UPat.cvar('c1'))).idiv(UPat.cvar('c2')), ({ x, c1, c2 }) => x.idiv(c1.mul(c2))], // (x//c1)//c2 -> x//(c1*c2)
     // //   // ** lt **
@@ -1209,10 +1374,10 @@ export const symbolic = symbolic_simple.add(
     }],
     // div folding
     [UPat.var('x').idiv(UPat.cvar('c')).add(UPat.cvar('a')).idiv(UPat.cvar('d')), ({ x, c, a, d }) => (x.add(a.mul(c))).idiv(c.mul(d))], // (x//c+a)//d -> (x+a*c)//(c*d)
-    [UPat.var('x', dtypes.sints).idiv(UPat.cvar('c', undefined, false)), ({ x, c }) => 0 < c.arg ? div_and_mod_folding(x, c.arg, Ops.IDIV) : undefined],
+    [UPat.var('x', dtypes.sints).idiv(UPat.var('y')), ({ x, y }) => div_and_mod_folding(x, y, Ops.IDIV)],
     // ** mod **
     // mod folding
-    [UPat.var('x').mod(UPat.cvar('c', undefined, false)), ({ x, c }) => 0 < c.arg ? div_and_mod_folding(x, c.arg, Ops.MOD) : undefined],
+    [UPat.var('x').mod(UPat.var('y')), ({ x, y }) => div_and_mod_folding(x, y, Ops.MOD)],
   ]),
 )
 
@@ -1243,6 +1408,27 @@ export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
 ])
 
 // # *** what was symbolic.py ***
+export type sint = number | UOp
+
+// *** uop swizzling ***
+export const merge_views = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
+  [new UPat(Ops.VIEW).named('s0').view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st!.add(s1.st!) })],
+  [new UPat(Ops.VIEW, undefined, [UPat.var('x')]).named('mv'), ({ mv, x }) => mv.st!.contiguous && x.st !== undefined && is_eq(x.shape, mv.shape) ? x : undefined],
+])
+
+// push VIEW to loads
+export const view_left = merge_views.add(
+  new PatternMatcher<Record<string, UOp>, UOp>([
+    // VIEW before elementwise ops
+    [
+      new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN]).named('e').view(undefined, { name: 'v' }),
+      ({ e, v }) => e.replace({ src: e.src.map((s) => s.st === undefined ? s : s === s.base ? s.view(v.st!) : s.base.view(s.st!.add(v.st!))) }),
+    ],
+    // early merge VIEW buffer ops
+    [new UPat(GroupOp.Buffer).named('b').view(undefined, { name: 'v' }), ({ b, v }) => b.replace({ src: b.src.map((s) => s.op === Ops.VIEW ? (s.st!.add(v.st!)).to_uop() : s) })],
+  ]),
+)
+
 export type Math = number | bigint | MathTrait<any>
 type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B : A extends bigint ? bigint : B extends bigint ? bigint : number
 const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
@@ -1280,22 +1466,3 @@ export const polyN = <T extends Math>(x: T, p: Math[]): T => p.reduce((acc, c) =
 export const prod = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => mul(acc, curr) as T, 1 as T)
 export const sum = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => add(acc, curr) as T, 0 as T)
 export const ceildiv = <A extends Math, B extends Math>(num: A, amt: B): Return<A, B> => neg(idiv(num, neg(amt))) as Return<A, B>
-
-export type sint = number | UOp
-
-// *** uop swizzling ***
-
-export const merge_views = new PatternMatcher<Record<string, UOp>, UOp>([[new UPat(Ops.VIEW).named('s0').view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st?.add(s1.st!) })]])
-
-// push VIEW to loads
-export const view_left = merge_views.add(
-  new PatternMatcher<Record<string, UOp>, UOp>([
-    // VIEW before elementwise ops
-    [
-      new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN]).named('e').view(undefined, { name: 'v' }),
-      ({ e, v }) => e.replace({ src: e.src.map((s) => !s.has_st ? s : s === s.base ? s.view(v.st!) : s.base.view(s.st!.add(v.st!))) }),
-    ],
-    // early merge VIEW buffer ops
-    [new UPat(GroupOp.Buffer).named('b').view(undefined, { name: 'v' }), ({ b, v }) => b.replace({ src: b.src.map((s) => s.op === Ops.VIEW ? (s.st!.add(v.st!)).to_uop() : s) })],
-  ]),
-)
