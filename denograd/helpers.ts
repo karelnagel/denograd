@@ -247,8 +247,12 @@ export const fully_flatten = (l: any): any[] => {
 // def fromimport(mod, frm): return getattr(__import__(mod, fromlist=[frm]), frm)
 export const strip_parens = (s: string) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
 export const round_up = (num: number, amt: number) => Math.ceil(num / amt) * amt
+export const lo32 = (x: any) => Number(BigInt(x) & 0xFFFFFFFFn) // Any is sint
+export const hi32 = (x: any) => Number(BigInt(x) >> 32n) // any is sint
 export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0] // TODO:make work with sint
 export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))] // TODO:make work with sint
+export const getbits = (value: number, start: number, end: number) => (value >> start) & ((1 << end - start + 1) - 1)
+export const i2u = (bits: number, value: number) => value >= 0 ? value : (1 << bits) + value
 export const merge_dicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
   const kvs = new Set(ds.flatMap((d) => Object.entries(d))) as Set<[T, U]>
   const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
@@ -274,6 +278,10 @@ export function merge_sets<V>(sets: Iterable<Set<V>>): Set<V> {
 }
 
 export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])
+export const get_single_element = <T>(x: T[]): T => {
+  if (x.length !== 1) throw new Error(`list ${x} must only have 1 element`)
+  return x[0]
+}
 export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
@@ -285,10 +293,10 @@ export const temp = (x?: string): string => `${Env.tmpdir()}/${x || random_id()}
 
 export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [get_number_env('DEBUG', 0), get_number_env('IMAGE', 0), get_number_env('BEAM', 0), get_number_env('NOOPT', 0), get_number_env('JIT', 1)]
 export const [WINO, CAPTURING, TRACEMETA] = [get_number_env('WINO', 0), get_number_env('CAPTURING', 1), get_number_env('TRACEMETA', 1)]
-export const [PROFILE, PROFILEPATH] = [get_number_env('PROFILE', 0), get_env('PROFILEPATH', temp('tinygrad_profile.json'))]
 export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [get_number_env('TC', 1), get_number_env('TC_OPT', 0), get_number_env('AMX', 0), get_number_env('TRANSCENDENTAL', 1)]
-export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [get_number_env('FUSE_ARANGE', 0), get_number_env('FUSE_CONV_BW', 0), get_number_env('LAZYCACHE', 1)]
+export const [FUSE_ARANGE, FUSE_CONV_BW] = [get_number_env('FUSE_ARANGE', 0), get_number_env('FUSE_CONV_BW', 0)]
 export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [get_number_env('SPLIT_REDUCEOP', 1), get_number_env('NO_MEMORY_PLANNER', 0), get_number_env('RING', 1)]
+export const [PICKLE_BUFFERS, PROFILE] = [get_number_env('PICKLE_BUFFERS', 1), get_env('PROFILE', get_env('VIZ'))]
 
 export class Metadata {
   key: string
@@ -338,42 +346,42 @@ export class GlobalCounters {
 
 // # **************** timer and profiler ****************
 
-// class Timing(contextlib.ContextDecorator):
-//   def __init__(self, prefix="", on_exit=None, enabled=True): self.prefix, self.on_exit, self.enabled = prefix, on_exit, enabled
-//   def __enter__(self): self.st = time.perf_counter_ns()
-//   def __exit__(self, *exc):
-//     self.et = time.perf_counter_ns() - self.st
-//     if self.enabled: print(f"{self.prefix}{self.et*1e-6:6.2f} ms"+(self.on_exit(self.et) if self.on_exit else ""))
-
-// def _format_fcn(fcn): return f"{fcn[0]}:{fcn[1]}:{fcn[2]}"
-// class Profiling(contextlib.ContextDecorator):
-//   def __init__(self, enabled=True, sort='cumtime', frac=0.2, fn=None, ts=1):
-//     self.enabled, self.sort, self.frac, self.fn, self.time_scale = enabled, sort, frac, fn, 1e3/ts
-//   def __enter__(self):
-//     import cProfile
-//     self.pr = cProfile.Profile()
-//     if self.enabled: self.pr.enable()
-//   def __exit__(self, *exc):
-//     if self.enabled:
-//       self.pr.disable()
-//       if self.fn: self.pr.dump_stats(self.fn)
-//       import pstats
-//       stats = pstats.Stats(self.pr).strip_dirs().sort_stats(self.sort)
-//       for fcn in stats.fcn_list[0:int(len(stats.fcn_list)*self.frac)]:    # type: ignore[attr-defined]
-//         (_primitive_calls, num_calls, tottime, cumtime, callers) = stats.stats[fcn]    # type: ignore[attr-defined]
-//         scallers = sorted(callers.items(), key=lambda x: -x[1][2])
-//         print(f"n:{num_calls:8d}  tm:{tottime*self.time_scale:7.2f}ms  tot:{cumtime*self.time_scale:7.2f}ms",
-//               colored(_format_fcn(fcn).ljust(50), "yellow"),
-//               colored(f"<- {(scallers[0][1][2]/tottime)*100:3.0f}% {_format_fcn(scallers[0][0])}", "BLACK") if scallers else '')
-
+export class Timing {
+  //   def __init__(self, prefix="", on_exit=None, enabled=True): self.prefix, self.on_exit, self.enabled = prefix, on_exit, enabled
+  //   def __enter__(self): self.st = time.perf_counter_ns()
+  //   def __exit__(self, *exc):
+  //     self.et = time.perf_counter_ns() - self.st
+  //     if self.enabled: print(f"{self.prefix}{self.et*1e-6:6.2f} ms"+(self.on_exit(self.et) if self.on_exit else ""))
+}
+export const _format_fcn = (fcn: any[]) => `${fcn[0]}:${fcn[1]}:${fcn[2]}`
+export class Profiling {
+  //   def __init__(self, enabled=True, sort='cumtime', frac=0.2, fn=None, ts=1):
+  //     self.enabled, self.sort, self.frac, self.fn, self.time_scale = enabled, sort, frac, fn, 1e3/ts
+  //   def __enter__(self):
+  //     import cProfile
+  //     self.pr = cProfile.Profile()
+  //     if self.enabled: self.pr.enable()
+  //   def __exit__(self, *exc):
+  //     if self.enabled:
+  //       self.pr.disable()
+  //       if self.fn: self.pr.dump_stats(self.fn)
+  //       import pstats
+  //       stats = pstats.Stats(self.pr).strip_dirs().sort_stats(self.sort)
+  //       for fcn in stats.fcn_list[0:int(len(stats.fcn_list)*self.frac)]:    # type: ignore[attr-defined]
+  //         (_primitive_calls, num_calls, tottime, cumtime, callers) = stats.stats[fcn]    # type: ignore[attr-defined]
+  //         scallers = sorted(callers.items(), key=lambda x: -x[1][2])
+  //         print(f"n:{num_calls:8d}  tm:{tottime*self.time_scale:7.2f}ms  tot:{cumtime*self.time_scale:7.2f}ms",
+  //               colored(_format_fcn(fcn).ljust(50), "yellow"),
+  //               colored(f"<- {(scallers[0][1][2]/tottime)*100:3.0f}% {_format_fcn(scallers[0][0])}", "BLACK") if scallers else '')
+}
 // # *** universal database cache ***
 
-const cacheDir = get_env('XDG_CACHE_HOME', OSX ? `${Env.homedir()}/Library/Caches` : `${Env.homedir()}/.cache`)
-export const CACHEDB = get_env('CACHEDB', `${cacheDir}/tinygrad/cache.db`)
+const cache_dir = get_env('XDG_CACHE_HOME', OSX ? `${Env.homedir()}/Library/Caches` : `${Env.homedir()}/.cache`)
+export const CACHEDB = get_env('CACHEDB', `${cache_dir}/tinygrad/cache.db`)
 export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
 
 // VERSION = 16
-// _db_connection = None
+const _db_connection = undefined
 export const db_connection = () => {
   //   global _db_connection
   //   if _db_connection is None:
@@ -403,7 +411,7 @@ export const diskcache_get = (table: string, key: any): any | undefined => {
   return undefined
 }
 // _db_tables = set()
-export const diskcache_put = (table: string, key: any, val: any) => {
+export const diskcache_put = (table: string, key: any, val: any, prepickled = false) => {
   //   if CACHELEVEL == 0: return val
   //   if isinstance(key, (str,int)): key = {"key": key}
   //   conn = db_connection()
@@ -426,18 +434,20 @@ export const diskcache = (func: any) => {
   //   return wrapper
 }
 // # *** http support ***
+export const CAPTURE_PROCESS_REPLAY = get_env('RUN_PROCESS_REPLAY') || get_env('CAPTURE_PROCESS_REPLAY')
 
-// def _ensure_downloads_dir() -> pathlib.Path:
-//   # if we are on a tinybox, use the raid array
-//   if pathlib.Path("/etc/tinybox-release").is_file():
-//     # try creating dir with sudo
-//     if not (downloads_dir := pathlib.Path("/raid/downloads")).exists():
-//       subprocess.run(["sudo", "mkdir", "-p", downloads_dir], check=True)
-//       subprocess.run(["sudo", "chown", "tiny:root", downloads_dir], check=True)
-//       subprocess.run(["sudo", "chmod", "775", downloads_dir], check=True)
-//     return downloads_dir
-//   return pathlib.Path(_cache_dir) / "tinygrad" / "downloads"
-
+export const _ensure_downloads_dir = (): string => {
+  throw new Error('Not implemented')
+  //   # if we are on a tinybox, use the raid array
+  //   if pathlib.Path("/etc/tinybox-release").is_file():
+  //     # try creating dir with sudo
+  //     if not (downloads_dir := pathlib.Path("/raid/downloads")).exists():
+  //       subprocess.run(["sudo", "mkdir", "-p", downloads_dir], check=True)
+  //       subprocess.run(["sudo", "chown", "tiny:root", downloads_dir], check=True)
+  //       subprocess.run(["sudo", "chmod", "775", downloads_dir], check=True)
+  //     return downloads_dir
+  //   return pathlib.Path(_cache_dir) / "tinygrad" / "downloads"
+}
 // def fetch(url:str, name:Optional[Union[pathlib.Path, str]]=None, subdir:Optional[str]=None, gunzip:bool=False,
 //           allow_caching=not getenv("DISABLE_HTTP_CACHE")) -> pathlib.Path:
 //   if url.startswith(("/", ".")): return pathlib.Path(url)
@@ -479,6 +489,17 @@ export const cpu_objdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
   } finally {
     Env.removeSync(outputFile)
   }
+}
+
+export const capstone_flatdump = (lib: Uint8Array) => {
+  throw new Error('Not implemented')
+  // import capstone
+  // match platform.machine():
+  //   case 'x86_64': cs = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+  //   case 'aarch64' | 'arm64': cs = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
+  //   case machine: raise NotImplementedError(f"Capstone disassembly isn't supported for {machine}")
+  // for instr in cs.disasm(lib, 0):
+  //   print(f"{instr.address:#08x}: {instr.mnemonic}\t{instr.op_str}")
 }
 export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {
   return { ...obj, ...replace } as T
