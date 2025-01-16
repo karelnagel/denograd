@@ -36,7 +36,7 @@ export class DType {
     if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
     return new DType(this.priority, this.itemsize * sz, `${INVERSE_DTYPES_DICT[this.name]}${sz}`, undefined, sz, this)
   }
-  ptr = (local = false) => new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, undefined, this, local, 1)
+  ptr = (size = -1, local = false) => new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, undefined, this, local, 1, size)
   scalar = () => this._scalar || this
 }
 
@@ -51,12 +51,10 @@ export class PtrDType extends DType {
     public _base: DType,
     public local: boolean,
     public v: number,
+    public size = -1,
     kwargs: any[] = [],
   ) {
-    super(priority, itemsize, name, fmt, count, _scalar, [_base, local, v, ...kwargs])
-    this._base = _base
-    this.local = local
-    this.v = v
+    super(priority, itemsize, name, fmt, count, _scalar, [_base, local, v, size, ...kwargs])
   }
   override get base() {
     return this._base
@@ -67,13 +65,13 @@ export class PtrDType extends DType {
     if (sz === 1) return this
     return new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz)
   }
-  override ptr = (local = false): PtrDType => {
+  override ptr = (size = -1, local = false): PtrDType => {
     throw new Error("can't make a pointer from a pointer")
   }
   override get vcount() {
     return this.v
   }
-  override toString = () => `${this.base.toString()}.ptr(${this.local ? 'true' : ''})${this.v !== 1 ? `.vec(${this.v})` : ''}`
+  override toString = () => `${this.base.toString()}.ptr(${this.size}${this.local ? ', true' : ''})${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
 
 export class ImageDType extends PtrDType {
@@ -87,11 +85,12 @@ export class ImageDType extends PtrDType {
     _base: DType,
     local: boolean,
     v: number,
+    size = -1,
     public shape: number[],
   ) {
-    super(priority, itemsize, name, fmt, count, _scalar, _base, local, v, [shape])
+    super(priority, itemsize, name, fmt, count, _scalar, _base, local, v, size, [shape])
   }
-  override ptr = (local = false) => {
+  override ptr = (size = -1, local = false) => {
     if (local) throw new Error("images can't be local")
     return this
   }
@@ -99,7 +98,7 @@ export class ImageDType extends PtrDType {
   override vec(sz: number): ImageDType {
     if (this.v !== 1) throw new Error(`can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
-    return new ImageDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz, this.shape)
+    return new ImageDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz, this.size, this.shape)
   }
   override toString = () => `dtypes.${this.name}((${this.shape.join(', ')}))${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
@@ -198,8 +197,8 @@ export class dtypes {
   static long = dtypes.int64
 
   // NOTE: these are image dtypes
-  static imageh = (...shp: number[]) => new ImageDType(100, 1, 'imageh', 'e', 2, undefined, dtypes.float32, false, 1, shp)
-  static imagef = (...shp: number[]) => new ImageDType(100, 4, 'imagef', 'f', 1, undefined, dtypes.float32, false, 1, shp)
+  static imageh = (...shp: number[]) => new ImageDType(100, 1, 'imageh', 'e', 2, undefined, dtypes.float32, false, 1, shp.reduce((acc, x) => acc * x, 1), shp)
+  static imagef = (...shp: number[]) => new ImageDType(100, 4, 'imagef', 'f', 1, undefined, dtypes.float32, false, 1, shp.reduce((acc, x) => acc * x, 1), shp)
 
   static default_float = dtypes.float32
   static default_int = dtypes.int32
