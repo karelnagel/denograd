@@ -242,7 +242,7 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
-const buffers = new WeakValueMap<Buffer>()
+export const buffers = new WeakValueMap<Buffer>()
 const all_metadata = new WeakValueMap<Metadata>()
 const forced_realize = new WeakValueMap<UOp>() // KAREL: maybe should just be Set<string>?
 
@@ -1467,3 +1467,4 @@ export const polyN = <T extends Math>(x: T, p: Math[]): T => p.reduce((acc, c) =
 export const prod = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => mul(acc, curr) as T, 1 as T)
 export const sum = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => add(acc, curr) as T, 0 as T)
 export const ceildiv = <A extends Math, B extends Math>(num: A, amt: B): Return<A, B> => neg(idiv(num, neg(amt))) as Return<A, B>
+export const pow = _meta((a, b, r) => (a as any).pow(b, r), (a, b) => a ** b)

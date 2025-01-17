@@ -63,7 +63,7 @@ export class ShapeTracker {
   }
   static from_shape = (shape: sint[]) => new ShapeTracker([View.create(shape)])
 
-  get contiguous() {
+  get contiguous():boolean {
     return this.views.length === 1 && this.views[0].contiguous
   }
   get consecutive() {
