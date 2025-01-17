@@ -1,20 +1,14 @@
 import { dtypes } from '../dtype.ts'
 import { cache_fn, get_key, is_eq, list_str, range, WeakValueMap } from '../helpers.ts'
 import { get_number_env, merge_maps, zip } from '../helpers.ts'
-import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
-import { strides_for_shape, View } from './view.ts'
+import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, sint_to_uop, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
+import { strides_for_shape, unravel, View } from './view.ts'
 
-// TODO: should be cached
 const views_to_indexed_uops = cache_fn((views: View[], _idxs?: UOp[]): [UOp, UOp] => {
   let [idx, valid] = views.at(-1)!.to_indexed_uops(_idxs)
   for (let view of views.slice(0, -1).toReversed()) {
     view = view.minify()
-    let [acc, idxs] = [1 as sint, [] as UOp[]]
-    for (const d of view.shape.toReversed()) {
-      idxs.push(mod(idiv(idx, acc), d) as UOp)
-      acc = mul(acc, d)
-    }
-    ;[idx, valid] = view.to_indexed_uops(idxs.toReversed(), valid)
+    ;[idx, valid] = view.to_indexed_uops(unravel(view.shape, idx).map((i) => sint_to_uop(i)), valid)
   }
   return [idx, valid]
 })
@@ -138,4 +132,16 @@ export class ShapeTracker {
     }
     return new ShapeTracker([...this.views, View.create(new_shape)])
   }
+  // deno-fmt-ignore
+  mop = (op: Ops, arg: any) => {
+    switch (op) {
+      case Ops.RESHAPE: return this.reshape(arg);
+      case Ops.PERMUTE: return this.permute(arg); 
+      case Ops.EXPAND: return this.expand(arg);
+      case Ops.SHRINK: return this.shrink(arg);
+      case Ops.STRIDE: return this.stride(arg); 
+      case Ops.PAD: return this.pad(arg);
+      default: throw new Error(`Invalid op ${op}`)
+    }
+    }
 }
