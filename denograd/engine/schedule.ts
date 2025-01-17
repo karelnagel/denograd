@@ -1,6 +1,6 @@
 import { Buffer } from '../device.ts'
 import { ConstType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, assert, cache, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, isinstance, list_str, merge_maps, Metadata, range, set_default } from '../helpers.ts'
+import { all_int, all_same, cache, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, isinstance, list_str, merge_maps, Metadata, range, set_default } from '../helpers.ts'
 import { can_pad, ge, lt, prod, resolve, sub, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
