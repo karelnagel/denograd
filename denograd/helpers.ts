@@ -99,11 +99,11 @@ export const bytes_to_hex = (arr: Uint8Array) => Array.from(arr).map((byte) => b
   return this.toString()
 }
 
-export function product<T>(...arrays: T[][]): T[][] {
-  if (arrays.length === 0) return [[]]
+export function product<T extends any[][], Out extends any[] = T>(...arrays: T): Out {
+  if (arrays.length === 0) return [[]] as Out
 
-  return arrays.reduce<T[][]>((acc, arr) => {
-    const result: T[][] = []
+  return arrays.reduce<any>((acc, arr) => {
+    const result = []
     for (const a of acc) {
       for (const b of arr) result.push([...a, b])
     }
