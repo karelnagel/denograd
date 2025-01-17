@@ -2,6 +2,11 @@
 import { Env } from './env/index.ts'
 
 // GENERAL HELPERS
+export class NotImplemented extends Error {
+  constructor() {
+    super('Not implemented!')
+  }
+}
 export class WeakValueMap<V extends object> {
   store = new Map<string, WeakRef<V>>()
   finalizationGroup = new FinalizationRegistry<string>((key) => this.store.delete(key))
@@ -440,7 +445,7 @@ export const diskcache = (func: any) => {
 export const CAPTURE_PROCESS_REPLAY = get_env('RUN_PROCESS_REPLAY') || get_env('CAPTURE_PROCESS_REPLAY')
 
 export const _ensure_downloads_dir = (): string => {
-  throw new Error('Not implemented')
+  throw new NotImplemented()
   //   # if we are on a tinybox, use the raid array
   //   if pathlib.Path("/etc/tinybox-release").is_file():
   //     # try creating dir with sudo
@@ -495,7 +500,7 @@ export const cpu_objdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
 }
 
 export const capstone_flatdump = (lib: Uint8Array) => {
-  throw new Error('Not implemented')
+  throw new NotImplemented()
   // import capstone
   // match platform.machine():
   //   case 'x86_64': cs = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)

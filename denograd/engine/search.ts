@@ -1,6 +1,6 @@
 import { Kernel, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, Compiler, Device, Program } from '../device.ts'
-import { get_env, get_number_env, isInf, range, zip } from '../helpers.ts'
+import { get_env, get_number_env, isInf, NotImplemented, range, zip } from '../helpers.ts'
 import { idiv, prod, sym_infer, UOp, Variable } from '../ops.ts'
 import { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -67,7 +67,7 @@ export const timeout_handler = (signum: any, frame: any) => {
 }
 
 export const _try_compile_linearized_w_idx = (x: [number, Kernel], compiler: Compiler): [number, [ProgramSpec, Uint8Array, number | undefined] | undefined] => {
-  throw new Error('not implemented')
+  throw new NotImplemented()
 }
 
 export const _ensure_buffer_alloc = (bufs: Buffer[]): Buffer[] => bufs.map((buf) => buf.ensure_allocated())
@@ -75,16 +75,16 @@ export const _ensure_buffer_alloc = (bufs: Buffer[]): Buffer[] => bufs.map((buf)
 // // *** external API ***
 
 export const bufs_from_lin = (lin: Kernel, allocate = true): Buffer[] => {
-  throw new Error('not implemented')
+  throw new NotImplemented()
 }
 // get dictionary of all possible actions
 export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, Kernel> => {
-  throw new Error('not implemented')
+  throw new NotImplemented()
 }
 
 export const [beam_pool, BEAM_DEBUG, CAPTURE_BEAM] = [undefined, get_env('BEAM_DEBUG'), get_env('CAPTURE_BEAM', '')]
 export const beam_search = (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = get_env('IGNORE_BEAM_CACHE')): Kernel => {
-  throw new Error('not implemented')
+  throw new NotImplemented()
 }
 
 export const optimize_local_size = async (_prg: Program, global_size: number[], rawbufs: Buffer[]): Promise<number[]> => {
@@ -107,5 +107,5 @@ export const optimize_local_size = async (_prg: Program, global_size: number[], 
   return ret[0][1]
 }
 export const time_linearizer = (lin: Kernel, rawbufs: Buffer[], allow_test_size = true, max_global_size = 65536, cnt = 3, disable_cache = false, clear_l2 = false): number => {
-  throw new Error('not implemented')
+  throw new NotImplemented()
 }

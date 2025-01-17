@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import { dtypes, least_upper_dtype } from '../dtype.ts'
-import { assert, dedup, get_env } from '../helpers.ts'
+import { dedup, get_env, NotImplemented } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export class Optimizer {
@@ -41,7 +41,7 @@ export class Optimizer {
     return [...this._step(), ...this.params, ...this.buffers]
   }
   _step = (): Tensor[] => {
-    throw new Error('Not implemented')
+    throw new NotImplemented()
   }
 }
 

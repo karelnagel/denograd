@@ -2,7 +2,7 @@ import { DeviceType } from './device.ts'
 import { Buffer } from './device.ts'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { flatten, get_env } from './helpers.ts'
+import { flatten, get_env, NotImplemented } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, CONSTS, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
@@ -12,10 +12,10 @@ export type ConstLike<This = never> = ConstType<This> | Variable | ConstType[]
 class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   //   # required to implement
   alu = (_arg: Ops, ..._src: T[]): T => {
-    throw new Error('Not implemented')
+    throw new NotImplemented()
   }
   const_like = (_b: ConstLike): T => {
-    throw new Error('Not implemented')
+    throw new NotImplemented()
   }
 
   //   # great functions you get!
@@ -901,20 +901,20 @@ const tracked_keys: any[] = []
 const tracked_ctxs: TrackedGraphRewrite[][] = []
 const _name_cnt = new Map<string, number>()
 const track_rewrites = (named = false) => {
-  throw new Error('not implemented')
+  throw new NotImplemented()
 }
 
 export class TrackedPatternMatcher extends PatternMatcher {
   override rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
 }
 if (TRACK_MATCH_STATS) {
-  throw new Error('not implemented')
+  throw new NotImplemented()
 }
 
 export const launch_viz = (env_str: string, data: string) => {
-  throw new Error('not implemented')
+  throw new NotImplemented()
 }
 
 // # *** simple graph rewrite engine ***
@@ -950,14 +950,14 @@ export class RewriteContext {
 export const graph_rewrite = (sink: UOp, pm: PatternMatcher<any, any>, ctx?: any, bottom_up = false): UOp => {
   if (TRACK_MATCH_STATS >= 2 && !bottom_up && tracked_ctxs.length !== 0) { // TODO: make viz work with bottom_up=True
     // tracked_ctxs[-1].append(TrackedGraphRewrite(((frm:=sys._getframe(1)).f_code.co_filename, frm.f_lineno), sink))
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
   return bottom_up ? new RewriteContext(pm, ctx).bottom_up_rewrite(sink) : new RewriteContext(pm, ctx).top_down_rewrite(sink)
 }
 export const graph_rewrite_map = (sink: UOp, pm: PatternMatcher, ctx?: any, bottom_up = false): Map<UOp, UOp> => {
   if (TRACK_MATCH_STATS >= 2 && !bottom_up && tracked_ctxs.length !== 0) { // TODO: make viz work with bottom_up=True
     //     tracked_ctxs[-1].append(TrackedGraphRewrite(((frm:=sys._getframe(1)).f_code.co_filename, frm.f_lineno), sink))
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
   const rewrite_ctx = new RewriteContext(pm, ctx)
   return new Map([...sink.toposort].toReversed().map((k) => [k, bottom_up ? rewrite_ctx.bottom_up_rewrite(k) : rewrite_ctx.top_down_rewrite(k)]))

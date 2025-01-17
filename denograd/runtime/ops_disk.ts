@@ -2,6 +2,7 @@ import { Allocator, Compiled } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 import { Env } from '../env/index.ts'
+import { NotImplemented } from '../helpers.ts'
 
 export class DISK extends Compiled {
   static _tried_io_uring_init = false
@@ -23,7 +24,7 @@ export class DISK extends Compiled {
     this.size = size
 
     if (Env.PLATFORM !== 'win32' && this.filename.startsWith('shm:')) {
-      throw new Error('Not implemented')
+      throw new NotImplemented()
     } else {
       const fo = Deno.openSync(this.filename, { read: true, write: true, create: true })
       this.mem = new Uint8Array(this.size)
@@ -84,6 +85,6 @@ export class DiskAllocator extends Allocator<DiskBuffer> {
   }
   _offset = (buf: DiskBuffer, size: number, offset: number) => new DiskBuffer(buf.device, size, offset)
   _copyout_sharded = (src: DiskBuffer, size: number, _get_free_buf: () => void, seg_len: number): [number, number, number, number][] => {
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
 }

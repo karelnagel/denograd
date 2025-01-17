@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, AMX, ansilen, assert, cache, cache_fn, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, diskcache_put, Enum, get_env, get_key, isinstance, isInt, product, range, round_up, set_default, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, all_same, AMX, ansilen, assert, cache, cache_fn, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, diskcache_put, Enum, get_env, get_key, isinstance, isInt, NotImplemented, product, range, round_up, set_default, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, idiv, KernelInfo, le, mod, mul, ne, Ops, print_uops, prod, resolve, sint, UOp, Variable, view_left } from '../ops.ts'
 import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -179,7 +179,7 @@ export class Kernel {
   }
 
   get upcast_in_mid_reduce_axes(): number[] {
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
 
   get global_dims() {
@@ -505,7 +505,7 @@ export class Kernel {
     return this
   }
   hand_coded_optimizations = (): Kernel => {
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
 
   //   # **** kernel outputs ****
@@ -539,7 +539,7 @@ export class Kernel {
       const axes = reduced_axes(this.first_reduce + this.group_for_reduces, this.shape_len)
       const grouped_axes = reduced_axes(this.first_reduce, this.first_reduce + this.group_for_reduces)
       if (this.tensor_core && (this.use_tensor_cores === 1 || this.use_tensor_cores === 3)) {
-        throw new Error('not implemented')
+        throw new NotImplemented()
       }
 
       ret = ret.replace({ arg: [op.arg[0], axes] })
@@ -589,7 +589,7 @@ export class Kernel {
     const src = this.opts.render(name, this.uops!)
 
     if (CAPTURE_PROCESS_REPLAY) {
-      throw new Error('not implemented')
+      throw new NotImplemented()
     }
 
     // group non-local bufs by the op type (LOAD ||STORE) && the buffer arg. take the max access of that buffer in bytes

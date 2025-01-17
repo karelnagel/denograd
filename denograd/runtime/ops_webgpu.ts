@@ -1,5 +1,5 @@
 import * as _webgpu from 'https://esm.sh/@webgpu/types@0.1.52'
-import { bytes_to_string, cpu_time_execution, isInt, range, round_up, zip } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, isInt, NotImplemented, range, round_up, zip } from '../helpers.ts'
 import { Allocator, BufferSpec, Compiled, Compiler, Program, ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
@@ -97,7 +97,7 @@ class DummyAllocator extends Allocator<MemoryView> {
   _copyin = (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _copyout = async (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _free = (opaque: MemoryView, options: BufferSpec) => {
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
 }
 

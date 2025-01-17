@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import { ImageDType } from '../dtype.ts'
-import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, get_number_env, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, get_number_env, NotImplemented, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -86,7 +86,7 @@ export class _MallocAllocator extends LRUAllocator {
   _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
   _free = () => {
-    throw new Error('Not implemented')
+    throw new NotImplemented()
   }
 }
 export const MallocAllocator = new _MallocAllocator()
@@ -137,6 +137,6 @@ export class Program {
   constructor(public name: string, public lib: Uint8Array) {
   }
   call = async (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> => {
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
 }
