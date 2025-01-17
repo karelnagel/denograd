@@ -35,7 +35,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   for (const u of x.src) {
     if (u.op === Ops.BLOCK) {
       //       # merge sibling blocks. NOTE: blocks must only have one output source
-      if (old_blocks.has(u.arg.ctx)) throw new Error('sibiling should never have been created')
+      if (old_blocks.has(u.arg.ctx)) throw new Error('sibling should never have been created')
       old_blocks.set(u.arg.ctx, u)
     } else if (!DONT_PLACE_IN_BLOCK.includes(u.op) && new Set(children.get(u)).isSubsetOf(in_this_block)) {
       //       # if it can go in blocks and all its children are in the block, we add it to the block
