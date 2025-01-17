@@ -111,7 +111,7 @@ export class CStyleLanguage extends Renderer {
   render_cast = (dt: DType, val: string): string => `(${this.render_dtype(dt)})(${val})`
   render_dtype = (dt: DType, mutable = true): string => {
     if (dt instanceof ImageDType) return `${mutable ? 'write_only' : 'read_only'} image2d_t`
-    if (dt instanceof PtrDType) return (dt.local && this.smem_prefix_for_cast ? this.smem_prefix : this.buffer_prefix) + this.render_dtype(dt.base) + (dt instanceof PtrDType ? '*' : '')
+    if (dt instanceof PtrDType) return (dt.local && this.smem_prefix_for_cast ? this.smem_prefix : this.buffer_prefix) + this.render_dtype(dt.base) + '*'
     const scalar = dt.scalar()
     return (this.type_map.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
   }
@@ -207,7 +207,9 @@ export class ClangRenderer extends CStyleLanguage {
     ...new CStyleLanguage().code_for_op.entries().filter(([k, v]) => ![Ops.EXP2, Ops.SIN, Ops.LOG2].includes(k)),
     [Ops.SQRT, (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`],
   ])
-  override tensor_cores = !AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore([sz, sz, 1], dt, dt, [], [], [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]]))
+  // LLVM legalizes double => half cast on systems that don't support it natively (like x86 cpus without AVX512-FP16) into a compiler-rt libcall.
+  override extra_matcher = new PatternMatcher([[UPat.var('x', dtypes.float64).cast(dtypes.float16), ({ x }) => x.cast(dtypes.float32).cast(dtypes.float16)]]).add(new CStyleLanguage().extra_matcher)
+  override tensor_cores = !AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: 1, elements_per_thread: [sz, sz, sz * sz], dtype_in: dt, dtype_out: dt, swizzle: [undefined, [[], [4, 5, 6, 7, 0, 1, 2, 3]]], opts: ['u0', 'u0', 'u0', 'u0', 'u1', 'u1', 'u1', 'u1'] }))
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 
@@ -223,9 +225,53 @@ export class ClangRenderer extends CStyleLanguage {
       const out = this.render_dtype(dtypeIn.vec(N * N))
       prefix = [
         ...prefix,
-        `${out} __$${this.render_dtype(dtypeIn.vec(N))} data1, ${this.render_dtype(dtypeIn.vec(M))} data2, ${out} data0){{ AMX_SET(0);\n  for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(4, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }} AMX(0, (int *)(&data2), 0ull<<62); AMX(1, (int *)(&data1), 0ull<<62); AMX(12, 0, 0ull); for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(5, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }}\n  AMX_SET(1);\n  return data0;\n}}`,
+        // 'static' in C roughly means that function symbol isn't exported. LLVM puts those symbols at the end of object file which allows Clang JIT
+        // to just jump at the start of a shellcode whithout having to deal with symbols or trampolines at all. This is better than having to inline
+        // wmma function every time it is called or wasting complexity on a symbol parsing and a memory page on trampoline.
+        `static ${out} __$${this.render_dtype(dtypeIn.vec(N))} data1, ${this.render_dtype(dtypeIn.vec(M))} data2, ${out} data0){{ AMX_SET(0);\n  for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(4, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }} AMX(0, (int *)(&data2), 0ull<<62); AMX(1, (int *)(&data1), 0ull<<62); AMX(12, 0, 0ull); for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(5, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }}\n  AMX_SET(1);\n  return data0;\n}}`,
       ]
     }
     return root_render_kernel(this, { function_name, kernel, bufs, uops, prefix })
   }
+}
+
+export class OpenCLRenderer extends CStyleLanguage {
+  constructor() {
+    super()
+    throw new Error('no implemented')
+  }
+}
+
+export class IntelRenderer extends OpenCLRenderer {
+  constructor() {
+    super()
+    throw new Error('no implemented')
+  }
+}
+export class MetalRenderer extends CStyleLanguage {
+  constructor() {
+    super()
+    throw new Error('no implemented')
+  }
+}
+export class CUDARenderer extends CStyleLanguage {
+  constructor() {
+    super()
+    throw new Error('no implemented')
+  }
+}
+export class AMDRenderer extends CStyleLanguage {
+  constructor() {
+    super()
+    throw new Error('no implemented')
+  }
+}
+export class NVRenderer extends CUDARenderer {
+  override device = 'NV' as any
+}
+export class HIPRenderer extends AMDRenderer {
+  override device = 'HIP' as any
+}
+export class QCOMRenderer extends OpenCLRenderer {
+  override device = 'QCOM' as any
 }
