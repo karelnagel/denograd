@@ -1,6 +1,7 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, range, set_default, TRANSCENDENTAL } from '../helpers.ts'
-import { graph_rewrite, GroupOp, idiv, Ops, PatternMatcher, prod, simplify_valid, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
+import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, partition, range, set_default, slice, TRANSCENDENTAL, zip } from '../helpers.ts'
+import { sub } from '../mod.ts'
+import { add, div, graph_rewrite, GroupOp, idiv, is_increasing, mul, Ops, parse_valid, PatternMatcher, prod, simplify_valid, sint, split_uop, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
 
@@ -47,7 +48,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
             )
           } else {
             // for non image, we upcast the index pointer
-            new_src[0] = new_src[0].cast(new_src[0].dtype.base.vec(fold_length).ptr((new_src[0].dtype as PtrDType).local))
+            new_src[0] = new_src[0].cast(new_src[0].dtype.base.vec(fold_length).ptr(idiv((new_src[0].dtype as PtrDType).size, fold_length), (new_src[0].dtype as PtrDType).local))
           }
           //           # generate the folded new_srcs
           if (is_load) {
@@ -94,55 +95,58 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
   const idx = uop_given_valid(valid, start_idx)
   if (idx === undefined) return buf.const_like(0)
   if (!isinstance(buf.dtype, ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
-  throw new Error('not implemented')
-  //   # wait for it to be image indexed before running simplification
-  // KAREL: not needed for mnist
-  //   # if start_idx.dtype.count != 2: return None
 
-  //   # # can drop valid if idx is out of bound when valid is False
-  //   # drop_stmt = []
-  //   # for stmt in split_uop(valid, Ops.AND):
-  //   #   X, is_upper_bound, c = parse_valid(stmt)
+  // wait for it to be image indexed before running simplification
+  if (start_idx.dtype.count !== 2) return undefined
 
-  //   #   # for X0 + X1 + ... >= 1, check if it's out of bound when Xi = 0 for all i
-  //   #   if not is_upper_bound and c == 1 and all(u.op in GroupOp.Irreducible and u.vmin == 0 for u in split_uop(X, Ops.ADD)):
-  //   #     testidx = functools.reduce(lambda nowidx,u: nowidx.substitute({u:u.const_like(0)}), split_uop(X, Ops.ADD), idx)
-  //   #     testidx = testidx.simplify()
-  //   #     if testidx.gep(0).vmax < 0 or testidx.gep(1).vmax < 0:
-  //   #       drop_stmt.append(stmt)
-  //   #       continue
+  // can drop valid if idx is out of bound when valid is False
+  let drop_stmt = []
+  for (const stmt of split_uop(valid, Ops.AND)) {
+    const [X, is_upper_bound, c] = parse_valid(stmt)
 
-  //   #   # if X <= c, check if it's out of bound when X = c+1
-  //   #   # if X >= c, check if it's out of bound when X = c-1
-  //   #   test_value = c + 1 if is_upper_bound else c - 1
-  //   #   for i,b in zip(idx.src, (buf.dtype.shape[1], buf.dtype.shape[0])):
-  //   #     if is_increasing(i):
-  //   #       rw = i.substitute({X:X.const_like(test_value)}).simplify()
-  //   #       if rw.vmin >= b or rw.vmax < 0:
-  //   #         drop_stmt.append(stmt)
-  //   #         break
-
-  //   # if not drop_stmt and idx is start_idx: return None
-  //   # new_valid = functools.reduce(operator.and_, ss) if (ss:=[s for s in split_uop(valid, Ops.AND) if s not in drop_stmt]) else None
-  //   # return buf.index(idx, new_valid)
+    // for X0 + X1 + ... >= 1, check if it's out of bound when Xi = 0 for all i
+    if (!is_upper_bound && c === 1 && split_uop(X, Ops.ADD).every((u) => GroupOp.Irreducible.includes(u.op) && u.vmin === 0)) {
+      const testidx = split_uop(X, Ops.ADD).reduce((nowidx, u) => nowidx.substitute(new Map([[u, u.const_like(0)]])), idx).simplify()
+      if (testidx.gep(0).vmax < 0 || testidx.gep(1).vmax < 0) {
+        drop_stmt.push(stmt)
+        continue
+      }
+    }
+    // if X <= c, check if it's out of bound when X = c+1
+    // if X >= c, check if it's out of bound when X = c-1
+    const test_value = is_upper_bound ? c + 1 : c - 1
+    for (const [i, b] of zip(idx.src, [buf.dtype.shape[1], buf.dtype.shape[0]])) {
+      if (is_increasing(i)) {
+        const rw = i.substitute(new Map([[X, X.const_like(test_value)]])).simplify()
+        if (rw.vmin >= b || rw.vmax < 0) {
+          drop_stmt.push(stmt)
+          break
+        }
+      }
+    }
+  }
+  if (!drop_stmt && idx === start_idx) return undefined
+  const ss = [...split_uop(valid, Ops.AND)].filter((s) => !drop_stmt.includes(s))
+  const new_valid = ss.length ? ss.reduce((acc, s) => acc.add(s)) : undefined
+  return buf.index(idx, new_valid)
 }
 // # ***** optional patterns *****
 
-const powers_of_two = Object.fromEntries(range(64).map((i) => [2 ** i, i]))
+const powers_of_two = new Map(range(64).map((i) => [2 ** i, i]))
 type Pat = [UPat, (a: Record<'d' | 'base' | 'const' | 'div' | 'mul' | 'x' | 'y' | 'a' | 'b' | 'c', UOp>) => UOp | undefined]
 export const get_late_rewrite_patterns = cache_fn((ops: Ops[], force_transcendental = false) => {
   let pat: Pat[] = ([[Ops.EXP2, xexp2], [Ops.LOG2, xlog2], [Ops.SIN, xsin]] as const).filter(([op, f]) => !ops.includes(op) || force_transcendental)
     .map(([op, f]) => [new UPat(op, TRANSCENDENTAL_SUPPORTED_DTYPES, [UPat.var('d')]), f] as const)
-  //   # rewrite MOD to AND (which should always be supported, but not for generic in tests)
+  // rewrite MOD to AND (which should always be supported, but not for generic in tests): x % (2**y) -> x & (2**y-1)
   if (ops.includes(Ops.AND)) {
-    pat = [...pat, [new UPat(Ops.MOD, undefined, [UPat.var('base'), UPat.cvar('const')]), (args: { base: UOp; const: UOp }) => powers_of_two[args.const.arg] ? args.base.bitwise_and(args.const.arg - 1) : undefined]]
+    pat = [...pat, [UPat.var('x', dtypes.ints).mod(UPat.cvar('c')), ({ x, c }) => powers_of_two.has(c.arg) ? x.bitwise_and(sub(c.arg, 1)) : undefined] satisfies Pat]
   }
-  //   # rewrite MUL/IDIV to SHL+SHR
+  // rewrite MUL/IDIV to SHL+SHR: x*(2**y) -> shl(x,y) and x//(2**y) -> shr(x,y)
   if (ops.includes(Ops.SHL) && ops.includes(Ops.SHR)) {
     pat = [
       ...pat,
-      [new UPat(Ops.MUL, dtypes.ints, [[UPat.cvar('const'), UPat.var('mul')]]), (a) => powers_of_two[a.const.arg] ? a.mul.lshift(powers_of_two[a.const.arg]) : undefined], // (x  * (2**y)) -> shl(x,y)
-      [new UPat(Ops.IDIV, undefined, [UPat.var('div'), UPat.cvar('const')]), (a) => powers_of_two[a.const.arg] ? a.div.rshift(powers_of_two[a.const.arg]) : undefined], // (x // (2**y)) -> shr(x,y)
+      [UPat.var('x', dtypes.ints).mul(UPat.cvar('c')), ({ c, x }) => powers_of_two.has(c.arg) ? x.lshift(powers_of_two.get(c.arg)!) : undefined],
+      [UPat.var('x', dtypes.ints).idiv(UPat.cvar('c')), ({ x, c }) => powers_of_two.has(c.arg) ? x.rshift(powers_of_two.get(c.arg)!) : undefined],
     ]
   }
   if (ops.includes(Ops.NEG)) {
@@ -173,6 +177,14 @@ export const threefry2x32 = (x: UOp, key: UOp) => {
   }
   return xr[1].cast(dtypes.uint64).mul(2n ** 32n).bitwise_or(xr[0].cast(dtypes.uint64))
 }
+
+// ***** other math rewrite ****
+
+export const sigmoid_like = (x: UOp, y: UOp) => {
+  const t = div(1, add(x, 1))
+  return t.mul(sub(1, t)).mul(y)
+}
+
 // # ***** main rewriter *****
 
 export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, idx2?: any, idx3?: any, extra?: any, vec?: any, ne?: any, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
@@ -206,19 +218,50 @@ export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, 
   if (extra !== undefined) ret = ret.add(acc.assign(acc.add(extra)))
   //   return ret
 }
-export const index_collapse = (idx: UOp, rng: UOp, buf: UOp, ld: UOp, acc: UOp, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
-  throw new Error()
-}
 
-// # TODO: there's a lot shared with no_vectorized_wmma here
+export const index_collapse = (idx: UOp, rng: UOp, buf: UOp, ld: UOp, acc: UOp, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
+  if (!acc.src.includes(rng)) return undefined
+  const new_load = buf.index(add.add(mul.mul(idx)), idx.ge(rng.src[0]).bitwise_and(idx.lt(rng.src[1]))).load([], { dtype: ld.dtype })
+  const new_acc = acc.replace({ src: [acc.src[0], ...acc.src.slice(1).filter((x) => x !== rng)] })
+  return new_acc.assign(new_acc.add(new_load))
+}
+// TODO: there's a lot shared with no_vectorized_wmma here
 export const gep_through_wmma = (gep: UOp, wmma: UOp) => {
-  throw new Error()
+  const out_sz: number = prod(wmma.arg[6].at(-1)!.map((x: number[]) => x[1]))
+  const wmma_idxs: number[] = slice(gep.arg, { step: out_sz })
+  for (const i of range(out_sz)) {
+    if (!is_eq(slice(gep.arg, { start: i, step: out_sz }).map((x: any) => sub(x, i)), wmma_idxs)) return undefined
+  }
+  const tsrcs: UOp[] = []
+  for (const [s, sz] of zip(wmma.src, wmma.arg[6] as number[][][])) {
+    let src_args: number[] = []
+    const ssz = prod(sz.map((x) => x[1]))
+    for (const w of wmma_idxs) src_args = [...src_args, ...range(mul(idiv(w, out_sz), ssz), add(mul(idiv(w, out_sz), ssz), ssz))]
+    tsrcs.push(s.gep(src_args))
+  }
+  return new UOp(Ops.WMMA, gep.dtype, [...tsrcs], wmma.arg)
 }
 export const no_vectorized_wmma = (wmma: UOp) => {
-  throw new Error()
+  const out_sz: number = prod(wmma.arg[6].at(-1)!.map((x: any) => x[1]))
+  if (wmma.dtype.count === out_sz) return undefined
+  let tsrcs: UOp[][] = []
+  for (const [s, sz] of zip(wmma.src, wmma.arg[6] as number[][][])) {
+    const ssz = prod(sz.map((x) => x[1]))
+    tsrcs.push(range(0, s.dtype.count, ssz).map((grp) => s.gep(range(grp, grp + ssz))))
+  }
+  const wmmas = zip(...tsrcs).map((tsrc) => new UOp(Ops.WMMA, wmma.dtype.scalar().vec(out_sz), tsrc, wmma.arg))
+  const wmma_ex = flatten(wmmas.map((e) => range(out_sz).map((i) => e.gep(i))))
+  return new UOp(Ops.VECTORIZE, wmma.dtype, wmma_ex)
 }
 export const reduce_collapse = (acc: UOp, ret: UOp, alu: UOp) => {
-  return undefined
+  const [reduce_parented, reduce_unparented] = partition(acc.src.slice(1), (x) => ret.toposort.has(x))
+  if (reduce_unparented.length === 0) return undefined
+  const new_acc = acc.replace({ src: [acc.src[0], ...reduce_parented] })
+  ret = new_acc.assign(new_acc.alu(alu.op, ret))
+  if (alu.op === Ops.ADD) {
+    for (const r of reduce_unparented) ret = ret.mul((r.src[1].sub(r.src[0])).cast(ret.dtype.scalar()).broadcast(ret.dtype.count))
+  }
+  return ret
 }
 export const [acc_pat, rng_pat] = [new UPat(Ops.DEFINE_ACC).named('acc'), new UPat(Ops.RANGE).named('rng')]
 export const rng_aug = UPat.any([rng_pat, UPat.var('add').add(rng_pat), UPat.var('mul').mul(rng_pat), UPat.var('add').add(UPat.var('mul').mul(rng_pat))])
@@ -233,8 +276,6 @@ export const sym = symbolic_flat.add(
   new PatternMatcher([
     //   # self ASSIGN is just self
     [new UPat(Ops.ASSIGN, undefined, [UPat.var('x'), UPat.var('x')]), ({ x }) => x],
-    //   # ASSIGN to global is just self
-    [new UPat(Ops.ASSIGN, undefined, [new UPat(Ops.DEFINE_GLOBAL), UPat.var('x')]), ({ x }) => x],
     //   # VECTORIZE/CONST, VECTORIZE/GEP
     [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.CONST), undefined, 'vec'), ({ vec }) => UOp.const(vec.dtype, vec.src.map((x) => x.arg))],
     [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.GEP, undefined, [new UPat(undefined).named('x')]), undefined, 'vec'), ({ vec, x }) => x.gep(vec.src.map((y) => y.arg[0]))],
@@ -278,7 +319,7 @@ export const sym = symbolic_flat.add(
     [UPat.var('x', dtypes.uint32).cast(dtypes.uint64).mul(UPat.var('y').where(UPat.const(dtypes.uint64, 1n << 32n), UPat.const(dtypes.uint64, 0))), ({ x, y }) => y.where(x, UOp.const(dtypes.uint32, 0)).cast(dtypes.uint64).mul(1n << 32n)],
     [(UPat.var('x', dtypes.uint64).bitwise_and(UPat.var('y').where(UPat.const(dtypes.uint64, 0xFFFFFFFF), UPat.const(dtypes.uint64, 0)))).cast(dtypes.uint32), ({ x, y }) => y.where(x.cast(dtypes.uint32), UOp.const(dtypes.uint32, 0))],
     // # arange loop folding
-    // [acc_pat.assign(UPat.any([arange_m, arange_m.add(UPat.var('extra'))]).add(acc_pat)), ({ compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul }) => loop_collapse(compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul)],
+    [acc_pat.assign(UPat.any([arange_m, arange_m.add(UPat.var('extra'))]).add(acc_pat)), ({ compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul }) => loop_collapse(compval, multconst, rng, acc, idx2, idx3, extra, vec, ne, add, mul)],
     // # indexing, with cast or where
     [acc_pat.assign(UPat.var('idx').eq(new UPat(Ops.RANGE).named('rng')).cast().mul(index_load).add(acc_pat)), ({ idx, rng, buf, ld, axx, add, mul }) => index_collapse(idx, rng, buf, ld, axx, add, mul)],
     [acc_pat.assign(UPat.var('idx').eq(new UPat(Ops.RANGE).named('rng')).where(index_load, UPat.const(undefined, 0.0)).add(acc_pat)), ({ idx, rng, buf, ld, acc, add, mul }) => index_collapse(idx, rng, buf, ld, acc, add, mul)],
@@ -302,12 +343,13 @@ export const sym = symbolic_flat.add(
       const a = root.src.filter((x) => x.op !== Ops.NOOP)
       return a.length !== root.src.length ? new UOp(Ops.SINK, root.dtype, a, root.arg) : undefined
     }],
-    //   # remove EXPANDs from SINK/BARRIER
+    //   # remove VECTORIZE from SINK/BARRIER
     [new UPat(Ops.BARRIER, undefined, [new UPat([Ops.VECTORIZE, Ops.SINK]).named('sink')]), ({ sink }) => new UOp(Ops.BARRIER, dtypes.void, sink.src)],
-    [
-      new UPat(Ops.SINK).named('root'),
-      ({ root }) => root.src.every((x) => [Ops.SINK, Ops.EXPAND].includes(x.op)) ? new UOp(Ops.SINK, root.dtype, root.src.flatMap((x) => [Ops.SINK, Ops.EXPAND].includes(x.op) ? x.src : [x]), root.arg) : undefined,
-    ],
+    [new UPat(Ops.SINK).named('root'), ({ root }) => root.src.some((x) => [Ops.SINK, Ops.UNROLL].includes(x.op)) ? new UOp(Ops.SINK, root.dtype, flatten(root.src.map((x) => [Ops.SINK, Ops.UNROLL].includes(x.op) ? x.src : [x])), root.arg) : undefined],
+    // # stable sigmoid
+    [UPat.var('x').mul(((UPat.var('x').add(1)).mul(UPat.var('x').add(1))).reciprocal()), ({ x }) => sigmoid_like(x, x.const_like(1))],
+    [UPat.var('x').mul(((UPat.var('x').add(1)).mul(UPat.var('x').add(1))).reciprocal().mul(UPat.var('y'))), ({ x, y }) => sigmoid_like(x, y)],
+    [UPat.var('x').mul(((UPat.var('x').add(1)).mul(UPat.var('x').add(1)).mul(UPat.var('x').add(1))).reciprocal()), ({ x }) => sigmoid_like(x, (x.add(1)).reciprocal())],
   ]),
 )
 
@@ -328,7 +370,7 @@ export const _swizzle_args = cache_fn((cargs: [number, number][], eargs: [number
   return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? { ...rpk, ...Object.fromEntries(exclude_args.map((x) => [x, 0])) } : rpk))
 })
 export const do_expand = (root: UOp) => {
-  const expands = root.src.filter((x) => x.op === Ops.EXPAND)
+  const expands = root.src.filter((x) => x.op === Ops.UNROLL)
   if (expands.length === 0) return undefined
   //   # NOTE: we 0 out the reduce axis for WMMA. in theory they should all be the same, but is this always correct?
   const exclude_args = root.op === Ops.WMMA ? dedup([...root.arg.at(-1)!, ...flatten(root.arg.at(-2)).map((y: any) => y[0])]) : []
@@ -342,7 +384,7 @@ export const do_expand = (root: UOp) => {
   const expand_sz = prod(expand_args.map((x) => x[1]))
   const new_srcs = []
   for (const [i, src] of root.src.entries()) {
-    if (src.op === Ops.EXPAND) {
+    if (src.op === Ops.UNROLL) {
       //         # IF means OR on first arg to IF
       if (root.op === Ops.IF && i === 0) new_srcs.push(range(expand_sz).map((i) => src.src[0].gep(i)).reduce((acc, x) => acc.bitwise_or(x)))
       //         # just remove the expand
@@ -353,13 +395,12 @@ export const do_expand = (root: UOp) => {
         if (src.dtype.count > 1) lst = lst.flatMap((i) => range(src.dtype.count).map((j) => i * src.dtype.count + j))
         new_srcs.push(src.src[0].gep([...lst]))
       }
-    } //       # non-EXPAND input
-    else {
-      // # for the first arg of IF, just pass them through ignoring EXPANDS
+    } else { // non-UNROLL input
+      // for the first arg of IF, just pass them through ignoring UNROLLS
       if (root.op === Ops.IF) new_srcs.push(src)
-      // # put any input dtype > 1 grouped together
+      // put any input dtype > 1 grouped together
       else if (src.dtype.count > 1) new_srcs.push(new UOp(Ops.VECTORIZE, src.dtype.scalar().vec(expand_sz * src.dtype.count), range(expand_sz).flatMap(() => range(src.dtype.count).map((i) => src.gep(i)))))
-      // # repeat the arg
+      // repeat the arg
       else new_srcs.push(src.broadcast(expand_sz))
     }
   }
@@ -370,20 +411,20 @@ export const do_expand = (root: UOp) => {
     new_arg = range(root.arg[0], new_srcs[0].dtype.count, idiv(new_srcs[0].dtype.count, expand_sz))
   }
   const nsrc = new UOp(root.op, root.dtype.scalar().vec(root.dtype.count * expand_sz), new_srcs, new_arg)
-  return new UOp(Ops.EXPAND, root.dtype, [nsrc], expand_args)
+  return new UOp(Ops.UNROLL, root.dtype, [nsrc], expand_args)
 }
 export const do_contract = (con: UOp) => {
   const ex = con.src[0]
-  //   # CONTRACT without EXPAND repeats the element VECTORIZED
-  if (ex.op !== Ops.EXPAND) return new UOp(Ops.VECTORIZE, con.dtype, range(con.dtype.count).flatMap(() => con.src))
-  //   # CONTRACT may remove several axes from EXPAND
+  //   # CONTRACT without UNROLL repeats the element VECTORIZED
+  if (ex.op !== Ops.UNROLL) return new UOp(Ops.VECTORIZE, con.dtype, range(con.dtype.count).flatMap(() => con.src))
+  //   # CONTRACT may remove several axes from UNROLL
   if (con.dtype.count !== prod(con.arg.map((x: any) => x[1]))) throw new Error('dtype is wrong')
   let idxs: number[] = []
   const new_ex_args = ex.arg.filter((x: any) => !con.arg.some((arg: any[]) => is_eq(arg, x)))
   for (const rpk of _choices_from_args(new_ex_args)) {
     idxs = [...idxs, ..._choices_from_args(con.arg).map((lrpk) => _expand_arg_to_idx(ex.arg, { ...rpk, ...lrpk }))]
   }
-  return new UOp(Ops.EXPAND, con.dtype, [ex.src[0].gep([...idxs])], new_ex_args)
+  return new UOp(Ops.UNROLL, con.dtype, [ex.src[0].gep([...idxs])], new_ex_args)
 }
 export const no_vectorized_alu = (alu: UOp) => {
   if (alu.dtype.vcount === 1) return undefined
@@ -405,23 +446,23 @@ export const create_gate = (root: UOp): undefined | UOp => {
 }
 export const expander = new PatternMatcher([
   //   # double expand
-  [new UPat(Ops.EXPAND, undefined, [new UPat(Ops.EXPAND).named('inner')], undefined, 'outer'), ({ outer, inner }) => new UOp(Ops.EXPAND, outer.dtype, [inner.src[0]], inner.arg + outer.arg)],
+  [new UPat(Ops.UNROLL, undefined, [new UPat(Ops.UNROLL).named('inner')], undefined, 'outer'), ({ outer, inner }) => new UOp(Ops.UNROLL, outer.dtype, [inner.src[0]], inner.arg + outer.arg)],
   //   # do expansion
-  [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.GEP, Ops.WMMA, Ops.LOAD, Ops.STORE, Ops.INDEX, Ops.ASSIGN, Ops.VECTORIZE, Ops.IF], undefined, undefined, undefined, 'root', undefined, undefined, [Ops.EXPAND]), ({ root }) => do_expand(root)],
+  [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.GEP, Ops.WMMA, Ops.LOAD, Ops.STORE, Ops.INDEX, Ops.ASSIGN, Ops.VECTORIZE, Ops.IF], undefined, undefined, undefined, 'root', undefined, undefined, [Ops.UNROLL]), ({ root }) => do_expand(root)],
   [new UPat(Ops.CONTRACT).named('con'), ({ con }) => do_contract(con)],
   //   # vectorize DEFINE_ACC
   [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.DEFINE_ACC).named('acc'), undefined, 'v'), ({ acc, v }) => acc.replace({ dtype: v.dtype })],
   //   # BARRIERs aren't actually expanded
   [
-    new UPat(Ops.BARRIER, undefined, [new UPat(Ops.EXPAND).named('ex')]),
-    ({ ex }) => new UOp(Ops.EXPAND, dtypes.void, range(ex.src.length).map((x) => new UOp(Ops.BARRIER, dtypes.void, ex.src)), ex.arg),
+    new UPat(Ops.BARRIER, undefined, [new UPat(Ops.UNROLL).named('ex')]),
+    ({ ex }) => new UOp(Ops.UNROLL, dtypes.void, range(ex.src.length).map((x) => new UOp(Ops.BARRIER, dtypes.void, ex.src)), ex.arg),
   ],
   //   # empty EXPAND is NOOP
-  [new UPat(Ops.EXPAND, undefined, [UPat.var('x')], []), ({ x }) => x],
+  [new UPat(Ops.UNROLL, undefined, [UPat.var('x')], []), ({ x }) => x],
   //   # EXPAND GEP (needed for WMMA, generalize this) -> vectorized ALU
   [
-    new UPat(Ops.EXPAND, undefined, range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i))), undefined, 'ex'),
-    ({ ex, x, y }) => new UOp(Ops.EXPAND, ex.dtype, range(AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
+    new UPat(Ops.UNROLL, undefined, range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i))), undefined, 'ex'),
+    ({ ex, x, y }) => new UOp(Ops.UNROLL, ex.dtype, range(AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
   ],
 ])
 

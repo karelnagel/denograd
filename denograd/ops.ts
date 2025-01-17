@@ -450,6 +450,7 @@ export class UOp extends MathTrait<UOp> {
     if (DEBUG >= 3) console.log(`split ${divisor}: ${this.shape} -> ${splitted.shape} -> ${new_shape}`)
     return splitted._reduce_op(op, axis)._reduce_op(op, [new_shape.length]).reshape(new_shape) // reduce original axes, then split  assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
   }
+  assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
   contiguous = () => {
     // TODO: BUFFER_VIEW op should be deleted and subbuffer should be moved to realize.py
     // NOTE: DISK uses subbuffer because DISK does not render kernels
@@ -1056,8 +1057,8 @@ export const type_verify = (uops: UOp[], extra_specs: PatternMatcher<any, boolea
 
 // # *** most of symbolic lives here now ***
 
-export function* splitUOp(x: UOp, sep: Ops): Generator<UOp> {
-  if (x.op === sep) { for (const s of x.src) yield* splitUOp(s, sep) }
+export function* split_uop(x: UOp, sep: Ops): Generator<UOp> {
+  if (x.op === sep) { for (const s of x.src) yield* split_uop(s, sep) }
   else yield x
 }
 
@@ -1071,7 +1072,7 @@ export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | type
   if ((y.op !== Ops.CONST) || (c <= 0) || (x.dtype.count > 1)) return undefined
 
   let svars: UOp[] = [], factors: number[] = [], quotients: number[] = [], remainders: number[] = [], gcd = c, div = 1, const2 = 0, offset: number | bigint = 0, something_changed = false
-  for (let u of splitUOp(x, Ops.ADD)) {
+  for (let u of split_uop(x, Ops.ADD)) {
     if (u.op === Ops.MOD && which === Ops.MOD && u.src[1].op === Ops.CONST && u.src[1].arg % c === 0) {
       u = u.src[0]
       something_changed = true
@@ -1150,7 +1151,7 @@ export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | type
 }
 
 const lt_folding = (x: UOp, c: number): UOp | undefined => {
-  const [p, np] = partition(splitUOp(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
+  const [p, np] = partition(split_uop(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
   const d = math_gcd(...np.map((u) => u.constFactor()), c)
   if (np && d > 1 && 0 <= p.map((u) => u.vmin).reduce((p, c) => add(c, p)) && p.map((u) => u.vmax).reduce((p, c) => add(p, c)) < d) {
     return np.reduce((p, c) => p.add(c), UOp.int(0)).divides(d)!.lt(idiv(c, d))
@@ -1160,7 +1161,7 @@ const lt_folding = (x: UOp, c: number): UOp | undefined => {
 const fold_unrolled_divs = ({ divs }: { divs: UOp }) => {
   // div pattern in unrolled arange
   // example: (x//4+(x+1)//4+(x+2)//4+(x+3)//4 -> x
-  let [addChain, denominator, seenConst, ans] = [splitUOp(divs, Ops.ADD), undefined as number | undefined, [] as number[], undefined as undefined | UOp]
+  let [addChain, denominator, seenConst, ans] = [split_uop(divs, Ops.ADD), undefined as number | undefined, [] as number[], undefined as undefined | UOp]
   for (const u of addChain) {
     if (!(u.op === Ops.IDIV && u.src[1].op === Ops.CONST)) return undefined
     if (denominator === undefined) denominator = u.src[1].arg
@@ -1181,11 +1182,11 @@ const fold_unrolled_divs = ({ divs }: { divs: UOp }) => {
   }
   return ans !== undefined && is_eq(seenConst.sort((a, b) => b - a), range(denominator)) ? ans : undefined
 }
-const canonicalizeSimplex = (X: UOp): UOp | undefined => {
+export const canonicalize_simplex = (X: UOp): UOp | undefined => {
   // (X := a0*x0 + a1*x1 + ...) > 0 is equivalent to x0 + x1 + ... > 0 if xi >= 0 and ai > 0 for ints.
   // returns x0 + x1 + ... in such case, or None if not
   let [changed, ret] = [false, [] as UOp[]]
-  for (let u of splitUOp(X, Ops.ADD)) {
+  for (let u of split_uop(X, Ops.ADD)) {
     // assumed the const is the last src of MUL
     if (u.op === Ops.MUL && u.src[1].op === Ops.CONST && u.src[1].arg > 0) {
       changed = true
@@ -1197,15 +1198,15 @@ const canonicalizeSimplex = (X: UOp): UOp | undefined => {
   return changed ? ret.reduce((p, c) => p.add(c)) : undefined
 }
 
-export const isIncreasing = (f: UOp): boolean => {
+export const is_increasing = (f: UOp): boolean => {
   // is f a monotonically increasing function regards its input
   if (GroupOp.Irreducible.includes(f.op)) return true
-  if (f.op === Ops.ADD) return isIncreasing(f.src[0]) && isIncreasing(f.src[1])
-  if ([Ops.MUL, Ops.IDIV].includes(f.op) && f.src[1].op === Ops.CONST && f.src[1].arg >= 0) return isIncreasing(f.src[0])
+  if (f.op === Ops.ADD) return is_increasing(f.src[0]) && is_increasing(f.src[1])
+  if ([Ops.MUL, Ops.IDIV].includes(f.op) && f.src[1].op === Ops.CONST && f.src[1].arg >= 0) return is_increasing(f.src[0])
   return false // False if not sure
 }
 
-const parseValid = (valid: UOp): [UOp, boolean, number] => {
+export const parse_valid = (valid: UOp): [UOp, boolean, number] => {
   // if it's X <= c, returns X, True, c
   // if it's X >= c, returns X, False, c
 
@@ -1222,9 +1223,9 @@ export const uop_given_valid = (valid: UOp, uop: UOp): UOp | undefined => {
 
   // first, parse valid into {expr: (lower_bound, upper_bound)}
   const bounds = new Map<UOp, ConstType[]>()
-  for (const stmt of splitUOp(valid, Ops.AND)) {
+  for (const stmt of split_uop(valid, Ops.AND)) {
     try {
-      const [expr, isUpper, c] = parseValid(stmt)
+      const [expr, isUpper, c] = parse_valid(stmt)
       bounds.set(expr, bounds.get(expr)!.map((o, i) => i === Number(isUpper) ? c : o))
     } catch {
       return uop
@@ -1237,9 +1238,9 @@ export const uop_given_valid = (valid: UOp, uop: UOp): UOp | undefined => {
 
     // every candidate is a set of contrained UOp based on valid, and if every item in a set simplifies the uop into a same output, we rewrite uop
     const candidates: [UOp, UOp][][] = []
-    if (expr.op === Ops.ADD && v[0] === 1 && splitUOp(expr, Ops.ADD).every((u) => GroupOp.Irreducible.includes(u.op))) {
+    if (expr.op === Ops.ADD && v[0] === 1 && split_uop(expr, Ops.ADD).every((u) => GroupOp.Irreducible.includes(u.op))) {
       // if the constraint is a simplex: X0 + X1 + ... > 0, we can check if all Xi > 0 simplify into the same output
-      candidates.push(splitUOp(expr, Ops.ADD).toArray().map((Xi) => [Xi, UOp.variable('fake', 1, Xi.vmax, Xi.dtype)]))
+      candidates.push(split_uop(expr, Ops.ADD).toArray().map((Xi) => [Xi, UOp.variable('fake', 1, Xi.vmax, Xi.dtype)]))
     }
     // try checking the whole clause
     if (uop.toposort.has(expr)) {
@@ -1257,10 +1258,10 @@ export const uop_given_valid = (valid: UOp, uop: UOp): UOp | undefined => {
   return uop
 }
 
-const _validPriority = (v: UOp, valids: UOp[]): number => {
+const _valid_priority = (v: UOp, valids: UOp[]): number => {
   // we want valid that's in other valids' parents to be first, so it's more likely the other valids get simplified
   try {
-    return valids.map((other) => other.toposort.has(parseValid(v)[0]) ? -1 : 0 as number).reduce((p, c) => p + c)
+    return valids.map((other) => other.toposort.has(parse_valid(v)[0]) ? -1 : 0 as number).reduce((p, c) => p + c)
   } catch {
     return 0
   }
@@ -1268,8 +1269,8 @@ const _validPriority = (v: UOp, valids: UOp[]): number => {
 export const simplify_valid = (valid: UOp): UOp | undefined => {
   const ret: UOp[] = []
   let somethingChanged = false
-  const valids = splitUOp(valid, Ops.AND).toArray()
-  for (const stmt of valids.sort((a, b) => _validPriority(b, valids) - _validPriority(a, valids))) {
+  const valids = split_uop(valid, Ops.AND).toArray()
+  for (const stmt of valids.sort((a, b) => _valid_priority(b, valids) - _valid_priority(a, valids))) {
     ret.push(ret.length ? (uop_given_valid(ret.reduce((p, c) => p.bitwise_and(c)), stmt) || stmt) : stmt)
     if (ret.at(-1) !== stmt) somethingChanged = true
   }
@@ -1369,7 +1370,7 @@ export const symbolic = symbolic_simple.add(
     // canonicalize a simplex with positive coefficients > 0
     // not x < 1 -> X > 0
     [UPat.var('x', dtypes.ints).lt(1).ne(true), ({ x }) => {
-      const newx = canonicalizeSimplex(x)
+      const newx = canonicalize_simplex(x)
       return newx !== undefined ? newx.lt(1).ne(true) : undefined
     }],
     // div folding

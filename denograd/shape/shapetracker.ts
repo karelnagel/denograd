@@ -1,7 +1,7 @@
 import { dtypes } from '../dtype.ts'
 import { cache_fn, get_key, is_eq, list_str, range, WeakValueMap } from '../helpers.ts'
 import { get_number_env, merge_maps, zip } from '../helpers.ts'
-import { graph_rewrite, idiv, mod, mul, Ops, simplify_valid, type sint, sint_to_uop, splitUOp, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
+import { graph_rewrite, Ops, simplify_valid, type sint, sint_to_uop, split_uop, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, unravel, View } from './view.ts'
 
 const views_to_indexed_uops = cache_fn((views: View[], _idxs?: UOp[]): [UOp, UOp] => {
@@ -23,7 +23,7 @@ const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (u
   if (newvalid !== undefined) valid = newvalid
   const newidx = uop_given_valid(valid, idx)
   if (newidx !== undefined) idx = graph_rewrite(newidx, symbolic_flat)
-  for (const c of splitUOp(idx, Ops.ADD)) {
+  for (const c of split_uop(idx, Ops.ADD)) {
     if (c.op === Ops.RANGE) ret[c.arg] = 1
     if (c.op === Ops.MUL && c.src[0].op === Ops.RANGE && c.src[1].op === Ops.CONST) ret[c.src[0].arg] = c.src[1].arg
     if (c.op === Ops.MUL && c.src[1].op === Ops.RANGE && c.src[0].op === Ops.CONST) ret[c.src[1].arg] = c.src[0].arg
