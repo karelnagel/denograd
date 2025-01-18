@@ -1,7 +1,7 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
 import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, partition, range, set_default, slice, TRANSCENDENTAL, zip } from '../helpers.ts'
 import { sub } from '../mod.ts'
-import { add, div, graph_rewrite, GroupOp, idiv, is_increasing, mul, Ops, parse_valid, PatternMatcher, prod, simplify_valid, sint, split_uop, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
+import { add, div, graph_rewrite, GroupOp, idiv, is_increasing, mul, Ops, parse_valid, PatternFn, PatternMatcher, prod, simplify_valid, sint, split_uop, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
 
@@ -133,10 +133,10 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
 // # ***** optional patterns *****
 
 const powers_of_two = new Map(range(64).map((i) => [2 ** i, i]))
-type Pat = [UPat, (a: Record<'d' | 'base' | 'const' | 'div' | 'mul' | 'x' | 'y' | 'a' | 'b' | 'c', UOp>) => UOp | undefined]
+type Pat = [UPat, PatternFn]
 export const get_late_rewrite_patterns = cache_fn((ops: Ops[], force_transcendental = false) => {
   let pat: Pat[] = ([[Ops.EXP2, xexp2], [Ops.LOG2, xlog2], [Ops.SIN, xsin]] as const).filter(([op, f]) => !ops.includes(op) || force_transcendental)
-    .map(([op, f]) => [new UPat(op, TRANSCENDENTAL_SUPPORTED_DTYPES, [UPat.var('d')]), f] as const)
+    .map(([op, f]) => [new UPat(op, TRANSCENDENTAL_SUPPORTED_DTYPES, [UPat.var('d')]), (x) => f(x as any)])
   // rewrite MOD to AND (which should always be supported, but not for generic in tests): x % (2**y) -> x & (2**y-1)
   if (ops.includes(Ops.AND)) {
     pat = [...pat, [UPat.var('x', dtypes.ints).mod(UPat.cvar('c')), ({ x, c }) => powers_of_two.has(c.arg) ? x.bitwise_and(sub(c.arg, 1)) : undefined] satisfies Pat]

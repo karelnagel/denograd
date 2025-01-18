@@ -6,7 +6,7 @@ import { Renderer, TensorCore } from './index.ts'
 
 const float = (x: number) => Number.isInteger(x) ? x + '.0' : x
 
-export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<string, UOp>, string | undefined>([
+export const base_rewrite = new PatternMatcher<CStyleLanguage, string | undefined>([
   [new UPat(Ops.DEFINE_ACC).named('x'), ({ ctx, x }) => ctx.get(x.src[0])],
   [new UPat(Ops.ASSIGN).named('x'), ({ ctx, x }) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
   [new UPat(Ops.IF).named('x'), ({ ctx, x }) => `if (${ctx.get(x.src[0])}) {`],
@@ -49,7 +49,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat(Ops.GEP).named('x'), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device === 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
 ])
 
-export const extra_pm = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
+export const extra_pm = new PatternMatcher([
   // insert a NOOP before BITCAST to force it to be rendered. not needed on all backends?
   [new UPat(Ops.BITCAST).named('x'), ({ x }) => x.src[0].op !== Ops.NOOP ? new UOp(Ops.BITCAST, x.dtype, [new UOp(Ops.NOOP, x.src[0].dtype, x.src)]) : undefined],
   // rewrite MAX to CMPLT + WHERE (max function is annoying on many cstyle backends)

@@ -864,10 +864,11 @@ export class UPatAny extends UPat {
   }
 }
 
-export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, Fn extends ((args: Args) => Res) = (args: Args) => Res> {
-  patterns: [UPat, Fn][]
-  pdict = new Map<Ops, ([UPat, Fn, Set<Ops>, boolean][])>()
-  constructor(patterns: [UPat, Fn][]) {
+export type PatternFn<Ctx = unknown, Res = UOp | undefined, Arg = UOp> = (args: Record<string, Arg> & { ctx: Ctx }) => Res
+export class PatternMatcher<Ctx = unknown, Res = UOp | undefined, Arg = UOp> {
+  patterns: [UPat, PatternFn<Ctx, Res, Arg>][]
+  pdict = new Map<Ops, ([UPat, PatternFn<Ctx, Res, Arg>, Set<Ops>, boolean][])>()
+  constructor(patterns: [UPat, PatternFn<Ctx, Res, Arg>][]) {
     this.patterns = patterns
     for (const [p, fxn] of this.patterns) {
       assert(p.op !== undefined)
@@ -875,7 +876,7 @@ export class PatternMatcher<Args = Record<string, UOp>, Res = UOp | undefined, F
     }
   }
 
-  add = <NewArgs, NewRes>(more: PatternMatcher<NewArgs, NewRes>) => new PatternMatcher<Args | NewArgs, Res | NewRes>([...this.patterns, ...more.patterns] as any)
+  add = <NewCtx, NewRes, NewArg>(more: PatternMatcher<NewCtx, NewRes, NewArg>) => new PatternMatcher<Ctx | NewCtx, Res | NewRes, Arg | NewArg>([...this.patterns, ...more.patterns] as any)
 
   rewrite = (uop: UOp, ctx?: any): Res | undefined => {
     const ler = new Set(uop.src.map((u) => u.op))
@@ -904,8 +905,8 @@ const track_rewrites = (named = false) => {
   throw new NotImplemented()
 }
 
-export class TrackedPatternMatcher extends PatternMatcher {
-  override rewrite = (uop: UOp, ctx?: any): UOp | undefined => {
+export class TrackedPatternMatcher<Ctx> extends PatternMatcher<Ctx> {
+  override rewrite = (uop: UOp, ctx?: Ctx): UOp | undefined => {
     throw new NotImplemented()
   }
 }
@@ -918,11 +919,11 @@ export const launch_viz = (env_str: string, data: string) => {
 }
 
 // # *** simple graph rewrite engine ***
-export class RewriteContext {
-  pm: PatternMatcher
-  ctx?: any
+export class RewriteContext<Ctx> {
+  pm: PatternMatcher<Ctx>
+  ctx?: Ctx
   replace = new Map<UOp, UOp>()
-  constructor(pm: PatternMatcher, ctx?: any) {
+  constructor(pm: PatternMatcher<Ctx>, ctx?: Ctx) {
     this.pm = pm
     this.ctx = ctx
   }
@@ -947,14 +948,14 @@ export class RewriteContext {
     return ret
   }
 }
-export const graph_rewrite = (sink: UOp, pm: PatternMatcher<any, any>, ctx?: any, bottom_up = false): UOp => {
+export const graph_rewrite = <Ctx>(sink: UOp, pm: PatternMatcher<Ctx>, ctx?: Ctx, bottom_up = false): UOp => {
   if (TRACK_MATCH_STATS >= 2 && !bottom_up && tracked_ctxs.length !== 0) { // TODO: make viz work with bottom_up=True
     // tracked_ctxs[-1].append(TrackedGraphRewrite(((frm:=sys._getframe(1)).f_code.co_filename, frm.f_lineno), sink))
     throw new NotImplemented()
   }
   return bottom_up ? new RewriteContext(pm, ctx).bottom_up_rewrite(sink) : new RewriteContext(pm, ctx).top_down_rewrite(sink)
 }
-export const graph_rewrite_map = (sink: UOp, pm: PatternMatcher, ctx?: any, bottom_up = false): Map<UOp, UOp> => {
+export const graph_rewrite_map = <Ctx>(sink: UOp, pm: PatternMatcher<Ctx>, ctx?: Ctx, bottom_up = false): Map<UOp, UOp> => {
   if (TRACK_MATCH_STATS >= 2 && !bottom_up && tracked_ctxs.length !== 0) { // TODO: make viz work with bottom_up=True
     //     tracked_ctxs[-1].append(TrackedGraphRewrite(((frm:=sys._getframe(1)).f_code.co_filename, frm.f_lineno), sink))
     throw new NotImplemented()
@@ -966,7 +967,7 @@ export const graph_rewrite_map = (sink: UOp, pm: PatternMatcher, ctx?: any, bott
 
 // # this is the matcher for the final rendered UOps
 // # matcher functions returns True or False (or None to not match)
-export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>([
+export const spec = new PatternMatcher<unknown, boolean | undefined>([
   [new UPat(Ops.DEFINE_GLOBAL).named('x'), ({ x }) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
   [new UPat(Ops.DEFINE_LOCAL).named('x'), ({ x }) => x.dtype instanceof PtrDType && x.dtype.local],
   [new UPat(Ops.DEFINE_ACC, undefined, [UPat.var('c')], undefined, 'x', true), ({ x, c }) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && c.dtype === x.dtype],
@@ -1044,7 +1045,7 @@ export const spec = new PatternMatcher<Record<string, UOp>, boolean | undefined>
   [new UPat([Ops.LOAD, Ops.STORE], undefined, [new UPat(undefined, dtypes.int64)], undefined, undefined, true), () => true],
 ])
 
-export const type_verify = (uops: UOp[], extra_specs: PatternMatcher<any, boolean | undefined>[] = []) => {
+export const type_verify = (uops: UOp[], extra_specs: PatternMatcher<unknown, boolean | undefined>[] = []) => {
   const specs = [spec, ...extra_specs]
   for (const [i, u] of uops.entries()) {
     const spec_ret: (boolean | undefined)[] = specs.map((s) => s.rewrite(u))
@@ -1383,7 +1384,7 @@ export const symbolic = symbolic_simple.add(
 )
 
 export const symbolic_flat = symbolic.add(
-  new PatternMatcher<Record<string, UOp>, UOp | undefined>([
+  new PatternMatcher<unknown, UOp | undefined>([
     // ** combine terms (opinionated) **
     [UPat.var('x').add(UPat.var('y')).mul(-1, true), ({ x, y }) => x.neg().add(y.neg())], // -(x+y) -> -x + -y
     //   # (x+y)*c -> x*c+y*c. only for int, float has inf*0=nan issue
@@ -1391,12 +1392,12 @@ export const symbolic_flat = symbolic.add(
   ]),
 )
 
-export const _substitute = new PatternMatcher<{ x: UOp; ctx: Map<UOp, UOp> }>([[new UPat(Ops.values()).named('x'), ({ ctx, x }) => ctx.get(x)]])
+export const _substitute = new PatternMatcher<Map<UOp, UOp>>([[new UPat(Ops.values()).named('x'), ({ ctx, x }) => ctx.get(x)]])
 
 // # for debug
 const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD, '%'], [Ops.SHL, '<<'], [Ops.SHR, '>>'], [Ops.MUL, '*'], [Ops.CMPLT, '<'], [Ops.CMPNE, '!='], [Ops.AND, '&'], [Ops.OR, '|'], [Ops.XOR, '^']])
 
-export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
+export const renderer = new PatternMatcher([
   [new UPat([Ops.DEFINE_VAR, Ops.SPECIAL]).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg[0])],
   [new UPat(Ops.RANGE).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, `ridx(${x.arg},)`)],
   [new UPat(Ops.CONST).named('x'), ({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg.toString())],
@@ -1412,14 +1413,14 @@ export const renderer = new PatternMatcher<Record<string, UOp>, UOp>([
 export type sint = number | UOp
 
 // *** uop swizzling ***
-export const merge_views = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
+export const merge_views = new PatternMatcher([
   [new UPat(Ops.VIEW).named('s0').view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st!.add(s1.st!) })],
   [new UPat(Ops.VIEW, undefined, [UPat.var('x')]).named('mv'), ({ mv, x }) => mv.st!.contiguous && x.st !== undefined && is_eq(x.shape, mv.shape) ? x : undefined],
 ])
 
 // push VIEW to loads
 export const view_left = merge_views.add(
-  new PatternMatcher<Record<string, UOp>, UOp>([
+  new PatternMatcher([
     // VIEW before elementwise ops
     [
       new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN]).named('e').view(undefined, { name: 'v' }),

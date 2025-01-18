@@ -171,7 +171,7 @@ export class ExecItem {
   }
 }
 // NOTE: ctx is the buffers
-export const si_lowerer = new PatternMatcher<{ ctx: Buffer[]; copy: UOp; sink: UOp }, [Runner, Buffer[]]>([
+export const si_lowerer = new PatternMatcher<Buffer[], [Runner, Buffer[]]>([
   [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => [get_runner(ctx[0].device, sink)].map((runner) => [runner, runner.p.globals.map((x) => ctx[x])] as [Runner, Buffer[]])[0]],
   [new UPat(Ops.BUFFER_VIEW), ({ ctx }) => [new ViewOp(ctx[0]), [...ctx]]],
   [

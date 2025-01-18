@@ -13,7 +13,7 @@ export const reduce_gradient = (ctx: UOp, ret: UOp) => {
   if (ret.arg[0] === Ops.MUL) return [ctx.mul(ret).expand(ret.src[0].shape).div(ret.src[0])]
 }
 // ctx is grad_output
-export const pm_gradient = new PatternMatcher<Record<string, UOp>, (UOp | undefined)[] | undefined>([
+export const pm_gradient = new PatternMatcher<UOp, (UOp | undefined)[] | undefined>([
   [new UPat(Ops.CAST).named('ret'), ({ ctx, ret }) => [ctx.cast(ret.src[0].dtype)]],
   [new UPat(Ops.RECIP).named('ret'), ({ ctx, ret }) => [ctx.neg().mul(ret).mul(ret)]],
   [new UPat(Ops.SIN).named('ret'), ({ ctx, ret }) => [ret.src[0].sub(Math.PI / 2, true).sin().mul(ctx)]],

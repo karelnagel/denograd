@@ -46,7 +46,7 @@ export class WGSLRenderer extends CStyleLanguage {
   override nan = 'nan()'
   override type_map = new Map([[dtypes.float, 'f32'], [dtypes.uchar, 'u32'], [dtypes.ushort, 'u32'], [dtypes.short, 'i32'], [dtypes.char, 'i32'], [dtypes.int32, 'i32'], [dtypes.uint32, 'u32'], [dtypes.bool, 'bool']])
 
-  override string_rewrite = new PatternMatcher<{ ctx: WGSLRenderer } & Record<string, UOp>, string | undefined>([
+  override string_rewrite = new PatternMatcher<WGSLRenderer, string | undefined>([
     [new UPat(Ops.CONST, dtypes.bool).named('x'), ({ ctx, x }) => x.arg ? 'true' : 'false'],
     [new UPat(Ops.CONST, [dtypes.uchar, dtypes.ushort, dtypes.uint32]).named('x'), ({ ctx, x }) => x.arg < 0 ? `bitcast<u32>(${x.arg})` : `${BigInt(x.arg) & 0xFFFFFFFFn}u`],
     [new UPat(Ops.DEFINE_LOCAL).named('x'), ({ ctx, x }) => `var<workgroup> ${ctx.get(x)}: array<${ctx.buf_map(x.dtype.base)}, ${x.arg[1]}>;`],

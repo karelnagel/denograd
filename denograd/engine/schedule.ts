@@ -1,15 +1,14 @@
 import { Buffer } from '../device.ts'
-import { ConstType, DType, dtypes, ImageDType } from '../dtype.ts'
+import { DType, dtypes, ImageDType } from '../dtype.ts'
 import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, isinstance, list_str, merge_maps, Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
 import { add, buffers, can_pad, ge, identity_element, lt, mul, pow, prod, resolve, sint, sub, symbolic_simple, type_verify, UPatInput } from '../ops.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape, View } from '../shape/view.ts'
-import { LazyBuffer } from './lazy.ts'
 
 // **** big graph spec
 
-export const tensor_uop_spec = new PatternMatcher<Record<string, UOp>, boolean>([
+export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
   [new UPat(Ops.DEVICE, dtypes.void, []).named('device'), ({ device }) => typeof device.arg === 'string'],
   [new UPat(Ops.BUFFER, undefined, [new UPat(Ops.DEVICE)]).named('buf'), ({ buf }) => Array.isArray(buf.arg) && buf.arg.length === 2 && all_int(buf.arg) && buf.dtype instanceof DType],
   [new UPat(GroupOp.Movement, undefined, [UPat.var('x')]).named('mv'), ({ mv, x }) =>
@@ -206,7 +205,7 @@ export const _append_buf = (ctx: ScheduleItemContext, x: UOp): UOp => {
   return new UOp(Ops.DEFINE_GLOBAL, x.dtype.ptr(x.size), [], ctx.bufs.length - 1)
 }
 
-export const to_si = new PatternMatcher<Record<string, UOp> & { ctx: ScheduleItemContext }>([
+export const to_si = new PatternMatcher<ScheduleItemContext>([
   // BUFFER -> DEFINE_GLOBAL
   [new UPat(Ops.BUFFER).named('x'), ({ ctx, x }) => _append_buf(ctx, x)],
   // simplify and unbind the final VIEWs
@@ -221,7 +220,7 @@ export const to_si = new PatternMatcher<Record<string, UOp> & { ctx: ScheduleIte
 ])
 
 // LOAD(BUFFER) -> the STORE value if it's we're doing the STORE in the same kernel
-export const multioutput = new PatternMatcher<{ ctx: Map<UOp, UOp>; b: UOp }>([[UPat.load([UPat.var('b'), new UPat()]), ({ ctx, b }) => ctx.get(b)]])
+export const multioutput = new PatternMatcher<Map<UOp, UOp>>([[UPat.load([UPat.var('b'), new UPat()]), ({ ctx, b }) => ctx.get(b)]])
 
 const schedule_uop = (pre: UOp, ctx: ScheduleContext): ScheduleItem => {
   // remove movement ops + substitute LOAD of fused STORE with just the value
@@ -432,7 +431,7 @@ const replace_contiguous = (ctx: ScheduleContext, alu: UOp) => {
   if (!is_eq(new_src, alu.src)) return alu.replace({ src: new_src })
 }
 export const ops_folding = symbolic_simple.add(
-  new PatternMatcher([
+  new PatternMatcher<ScheduleContext>([
     // op with size 0 is zero
     [new UPatScheduled(), ({ b, to_store, base }) => base.size === 0 ? base.const_like(0) : undefined],
     // if the uop folded to a CONST we can delete the BUFFER
@@ -479,7 +478,7 @@ const merge_realized = (ctx: ScheduleContext, v1: UOp, b1: UOp, v2: UOp, b2: UOp
   for (const luop of [...(ctx.tensor_uops.get(b1) || []), ...(ctx.tensor_uops.get(b2) || [])]) ctx.becomes_map.set(luop, b1.view(luop.st!))
   return v1
 }
-export const merge_bufs = new PatternMatcher([
+export const merge_bufs = new PatternMatcher<ScheduleContext>([
   // merge base
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b2'), new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b1'), new UPat()]).named('v1')]).named('v2'), ({ ctx, v1, b1, v2, b2 }) => merge(ctx, v1, b1, v2, b2)],
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b2'), new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b1')]).named('v1')]).named('v2'), ({ ctx, v1, b1, v2, b2 }) => merge_realized(ctx, v1, b1, v2, b2)],
@@ -510,10 +509,10 @@ const fold_img_cast = (ctx: ScheduleContext, xb: UOp, view: UOp, b: UOp, to_cast
   return to_cast.view(view.st!)
 }
 
-const sink_outputs = (ctx: ScheduleContext, sink: UOp) => {
+const sink_outputs = (ctx: ScheduleContext, sink: UOp): undefined => {
   for (const x of sink.src) realize(ctx, x.buf_uop, x)
 }
-export const do_realize = new PatternMatcher([
+export const do_realize = new PatternMatcher<ScheduleContext>([
   // always realize sinked ops
   [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => sink_outputs(ctx, sink)],
   // always realize meta ops
@@ -548,7 +547,7 @@ const store_or_fuse = (ctx: ScheduleContext, b: UOp, x: UOp, st: UOp) => {
   ctx.realizes.set(b, b.store([ShapeTracker.from_shape(st.shape).to_uop(), x]))
   return new UOp(Ops.LOAD, x.dtype, [b, st.st!.to_uop()])
 }
-export const break_sched = new PatternMatcher([
+export const break_sched = new PatternMatcher<ScheduleContext>([
   // CONST is always fused and generated
   [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('x'), ({ x, st }) => UOp.const(x.dtype.base, x.const_arg).valid(st.st!)],
   [new UPat(Ops.BIND, undefined, [UPat.var('varr'), UPat.var('val')]).named('bind'), ({ ctx, bind, varr, val }) => unbind_variable(ctx, bind, varr, val)],
@@ -559,7 +558,7 @@ export const break_sched = new PatternMatcher([
 
 // # **** Schedule context builder
 
-const append_uop = (ctx: ScheduleContext, view: UOp, buf_uop: UOp) => {
+const append_uop = (ctx: ScheduleContext, view: UOp, buf_uop: UOp): undefined => {
   ctx.allbufs.set(buf_uop, view)
   const op = uval(view)
   if (op.op === Ops.ASSIGN) ctx.assigns.add(buf_uop)
@@ -574,7 +573,7 @@ const append_uop = (ctx: ScheduleContext, view: UOp, buf_uop: UOp) => {
   }
   buf_uop.buffer.ref(1)
 }
-export const create_ctx = new PatternMatcher([[new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf_uop'), new UPat()]).named('view'), ({ ctx, view, buf_uop }) => append_uop(ctx, view, buf_uop)]])
+export const create_ctx = new PatternMatcher<ScheduleContext>([[new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf_uop'), new UPat()]).named('view'), ({ ctx, view, buf_uop }) => append_uop(ctx, view, buf_uop)]])
 // # **** movement ops
 
 export const remove_movement_ops = new PatternMatcher([
@@ -593,7 +592,7 @@ export const remove_movement_ops = new PatternMatcher([
 
 // @track_rewrites(named=true)
 export const create_schedule_with_vars = (outs: UOp[], skip_check = !DEBUG): [ScheduleItem[], Map<Variable, number>, Map<UOp, UOp>] => {
-  if (!skip_check) type_verify([...UOp.sink(...outs).toposort], tensor_uop_spec)
+  if (!skip_check) type_verify([...UOp.sink(...outs).toposort], [tensor_uop_spec])
   // to_uop is removing (many) of the movement ops
   const ctx = new ScheduleContext()
   let sink = add_buffers(UOp.sink(...outs), ctx, new Map())
