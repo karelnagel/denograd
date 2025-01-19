@@ -104,7 +104,18 @@ export const bytes_to_hex = (arr: Uint8Array) => Array.from(arr).map((byte) => b
   return this.toString()
 }
 
-export function product<T extends any[][], Out extends any[] = T>(...arrays: T): Out {
+export function product<T extends any[][], Out extends any[] = T>(...arrays: T): Out
+export function product<T extends any[], Out extends any[] = T[]>(array: T, repeat?: number): Out
+export function product<T extends any[][], Out extends any[] = T>(...args: [...T] | [T, number]): Out {
+  let arrays: T[]
+  if (args.length === 2 && typeof args[1] === 'number') {
+    // Handle repeat case
+    const [array, repeat] = args as any
+    arrays = Array(repeat).fill(array) as T[]
+  } else {
+    arrays = args as T[]
+  }
+
   if (arrays.length === 0) return [[]] as Out
 
   return arrays.reduce<any>((acc, arr) => {
