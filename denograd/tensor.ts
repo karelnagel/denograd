@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, NotImplemented, product, random_id, range, Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, min, NotImplemented, product, random_id, range, Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
 import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, sum, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
@@ -12,6 +12,7 @@ import { argsort } from './helpers.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 import { MultiLazyBuffer } from './multi.ts'
+import { compute_gradient } from './gradient.ts'
 
 const all_tensors = new WeakValueMap<Tensor>()
 
@@ -628,70 +629,66 @@ export class Tensor extends MathTrait<Tensor> {
   to = (device?: DeviceType | DeviceType[]): Tensor => {
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
     if (device === this.device) return this
-    if (typeof device !== 'string') {
-      throw new Error('Unimplemented shard()')
-      // return this.shard(device)
-    }
+    if (typeof device !== 'string') return this.shard(device)
     const ret = new Tensor(this.lazydata, { device, requires_grad: this.requires_grad })
     if (this.grad !== undefined) ret.grad = this.grad.to(device)
     if (this._ctx !== undefined) ret._ctx = this._ctx
     return ret
   }
+  /**
+   * Moves the tensor to the given device in place.
+   */
+  to_ = (device?: DeviceType | DeviceType[]) => {
+    const real = this.to(device)
+    if (this.grad !== undefined && real.grad !== undefined) this.grad.replace(real.grad)
+    return this.replace(real)
+  }
 
-  // def to_(self, device:Optional[Union[str, tuple[str, ...]]]):
-  //   """
-  //   Moves the tensor to the given device in place.
-  //   """
-  //   real = self.to(device)
-  //   if self.grad is not None and real.grad is not None: self.grad.replace(real.grad)
-  //   return self.replace(real)
+  /**
+   * Shards the tensor across the given devices. Optionally specify which axis to shard on.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.empty(2, 4)
+   * print(t.shard((t.device, t.device), axis=1).lazydata)
+   * ```
+   */
+  shard = (devices: DeviceType[], axis?: number): Tensor => {
+    if (this.lazydata instanceof MultiLazyBuffer) throw new Error("can't shard a MultiLazyBuffer")
+    devices = devices.map((x) => Device.canonicalize(x))
+    let lbs: (UOp | MultiLazyBuffer)[]
+    if (axis === undefined) lbs = devices.map(() => this.lazydata)
+    else {
+      axis = this._resolve_dim(axis)
+      const sz = ceildiv(this.shape[axis!], devices.length)
+      const sizes = range(devices.length).map((i) => max([0, min([sz, this.shape[axis!] - sz * i])]))
+      lbs = this.split(sizes, axis).map((t) => t.lazydata)
+    }
+    const sharded_lbs = zip(lbs, devices).map(([lb, d]) => lb.copy_to_device(d))
+    // NOTE: this contiguous is making it impossible for the scheduler to do late const folding
+    const mlb = new MultiLazyBuffer(sharded_lbs.map((lb) => lb.contiguous()), axis)
+    return new Tensor(mlb, { device: devices, requires_grad: this.requires_grad })
+  }
+  /**
+   * Shards the tensor across the given devices in place.
+   */
+  shard_ = (devices: DeviceType[], axis?: number) => {
+    return this.replace(this.shard(devices, axis))
+  }
+  static from_uop = (y: UOp, opts: TensorOptions = {}): Tensor => {
+    if (y.op === Ops.BIND) return new Tensor(y, { ...opts, requires_grad: false }) // this is the only UOp allowed in Tensor
+    if (y.op === Ops.CONST) return new Tensor(y.arg, { ...opts, requires_grad: false })
+    if (y.op === Ops.MUL) return Tensor.from_uop(y.src[0]).mul(Tensor.from_uop(y.src[1]))
+    if (y.op === Ops.ADD) return Tensor.from_uop(y.src[0]).add(Tensor.from_uop(y.src[1]))
+    throw new Error(`unhandled UOp ${y}`)
+  }
+  // ***** creation entrypoint *****
 
-  // def shard(self, devices:tuple[str, ...], axis:Optional[int]=None) -> Tensor:
-  //   """
-  //   Shards the tensor across the given devices. Optionally specify which axis to shard on.
-
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   t = Tensor.empty(2, 4)
-  //   print(t.shard((t.device, t.device), axis=1).lazydata)
-  //   ```
-  //   """
-  //   assert isinstance(self.lazydata, UOp), "can't shard a MultiLazyBuffer"
-  //   devices = tuple(Device.canonicalize(x) for x in devices)
-  //   if axis is None: lbs = [self.lazydata] * len(devices)
-  //   else:
-  //     axis = self._resolve_dim(axis)
-  //     sz = ceildiv(self.shape[axis], len(devices))
-  //     sizes = [max(0, min(sz, self.shape[axis] - sz*i)) for i in range(len(devices))]
-  //     lbs = [cast(UOp, t.lazydata) for t in self.split(sizes, axis)]
-  //   sharded_lbs = [lb.copy_to_device(d) for lb,d in zip(lbs, devices)]
-  //   # NOTE: this contiguous is making it impossible for the scheduler to do late const folding
-  //   mlb = MultiLazyBuffer([lb.contiguous() for lb in sharded_lbs], axis)
-  //   return Tensor(mlb, device=devices, requires_grad=self.requires_grad)
-
-  // def shard_(self, devices:tuple[str, ...], axis:Optional[int]=None):
-  //   """
-  //   Shards the tensor across the given devices in place.
-  //   """
-  //   return self.replace(self.shard(devices, axis))
-
-  // @staticmethod
-  // def from_uop(y:UOp, **kwargs) -> Tensor:
-  //   if y.op is Ops.BIND: return Tensor(y, **kwargs, requires_grad=False)   # this is the only UOp allowed in Tensor
-  //   if y.op is Ops.CONST: return Tensor(y.arg, **kwargs, requires_grad=False)
-  //   if y.op is Ops.MUL: return Tensor.from_uop(y.src[0]) * Tensor.from_uop(y.src[1])
-  //   if y.op is Ops.ADD: return Tensor.from_uop(y.src[0]) + Tensor.from_uop(y.src[1])
-  //   raise RuntimeError(f"unhandled UOp {y}")
-
-  // # ***** creation entrypoint *****
-
-  // @staticmethod
-  // def _metaop(op, shape, device:Optional[Union[tuple[str, ...], str]]=None, dtype:Optional[DTypeLike]=None, arg=None, **kwargs):
-  //   dtype = to_dtype(dtype) if dtype is not None else dtypes.default_float
-  //   if isinstance(device, tuple):
-  //     return Tensor(MultiLazyBuffer([UOp.metaop(op, shape, dtype, Device.canonicalize(d), arg) for d in device], None),
-  //                   device, dtype, **kwargs)
-  //   return Tensor(UOp.metaop(op, shape, dtype, Device.canonicalize(device), arg), device, dtype, **kwargs)
-
+  static _metaop = (op: Ops, shape: sint[], { dtype, device, ...opts }: TensorOptions, arg?: any) => {
+    dtype = dtype !== undefined ? to_dtype(dtype) : dtypes.default_float
+    if (Array.isArray(device)) {
+      return new Tensor(new MultiLazyBuffer(device.map((d) => UOp.metaop(op, shape, dtype, Device.canonicalize(d), arg)), undefined), { device, dtype, ...opts })
+    }
+    return new Tensor(UOp.metaop(op, shape, dtype, Device.canonicalize(device), arg), { device, dtype, ...opts })
+  }
   /**
    * Creates an empty tensor with the given shape.
    *
@@ -705,7 +702,19 @@ export class Tensor extends MathTrait<Tensor> {
    * """
    */
   static empty = (shape: number[], opts: TensorOptions = {}) => Tensor._metaop(Ops.EMPTY, shape, opts)
-
+  /**
+   * Exposes the pointer as a Tensor without taking ownership of the original data.
+   * The pointer must remain valid for the entire lifetime of the created Tensor.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   */
+  static from_blob = (ptr: bigint, shape: number[], opts: TensorOptions): Tensor => {
+    const r = Tensor._metaop(Ops.EMPTY, shape, opts)
+    ;(r.lazydata as UOp).buffer.allocate(undefined, ptr)
+    ;(r.lazydata as UOp).buf_uop_view()
+    return r
+  }
   /**
    * Create a Tensor from a URL.
    *
@@ -762,36 +771,31 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.numpy())
    * ```
    */
-  static rand = (shape: number[], contiguous = true, opts: TensorOptions = {}): Tensor => {
-    const dtype = to_dtype(opts.dtype || dtypes.default_float)
+  static rand = (shape: number[], contiguous = true, { device, dtype, ...opts }: TensorOptions = {}): Tensor => {
+    dtype = to_dtype(dtype || dtypes.default_float)
     if (!dtypes.is_float(dtype)) throw new Error(`rand only supports float dtypes, got ${dtype}`)
     if (!all_int(shape) || !shape.every((s) => s >= 0)) throw new Error(`invalid input ${shape}`)
-    if (opts.device !== undefined && typeof opts.device !== 'string') throw new Error(`rand only supports single device, got ${opts.device}`)
-    const _device = Device.canonicalize(opts.device)
-    let device = _device
+    if (device !== undefined && typeof device !== 'string') throw new Error(`rand only supports single device, got ${device}`)
+    device = Device.canonicalize(device)
+    const _device = device
+
+    // if shape has 0, return zero tensor
+    const numel = prod(shape)
+    if (numel === 0) return Tensor.zeros(shape, { device: _device, dtype: dtype, ...opts })
+    const num = ceildiv(numel * dtype.itemsize, 4)
 
     // when using MOCKGPU && NV generate rand on CLANG
     if (get_env('MOCKGPU') && device.startsWith('NV')) device = Env.CPU_DEVICE
 
     // generate per device seeds && rng counter if we haven't seen this device yet
-    let had_counter
-
     if (!Tensor._device_seeds[device]) {
       Tensor._device_seeds[device] = new Tensor(
         [bytes_to_bigint(Env.sha256(int_to_bytes(Object.keys(Tensor._device_seeds).length))) % (2n ** 32n), Tensor._seed],
         { device: device, dtype: dtypes.uint32, requires_grad: false },
       )
       Tensor._device_rng_counters[device] = new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false })
-      had_counter = false
-    } else had_counter = true
-
-    // if shape has 0, return zero tensor
-    const numel = prod(shape)
-    if (numel === 0) return Tensor.zeros(shape, { device: _device, dtype: dtype, requires_grad: opts.requires_grad })
-    const num = ceildiv(numel * dtype.itemsize, 4)
-
-    // increment rng counter for devices
-    if (had_counter) Tensor._device_rng_counters[device].assign(Tensor._device_rng_counters[device].add(num)).contiguous()
+    } // increment rng counter for devices
+    else Tensor._device_rng_counters[device].assign(Tensor._device_rng_counters[device].add(num)).contiguous()
 
     // threefry random bits
     const counts0 = Tensor.arange(ceildiv(num, 2), undefined, undefined, { device, dtype: dtypes.uint32, requires_grad: false }).add(Tensor._device_rng_counters[device])
@@ -898,6 +902,46 @@ export class Tensor extends MathTrait<Tensor> {
     return (Tensor.full([output_len], step, { ...opts, dtype })._cumalu(0, Ops.ADD).add(start - step)).cast(dtype)
   }
   /**
+   * Returns a 1-D tensor of `steps` evenly spaced values from `start` to `stop`, inclusive.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.linspace(0, 10, 5).numpy())
+   * ```
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.linspace(-1, 1, 5).numpy())
+   * ```
+   */
+  static linspace = (start: number, stop: number, steps: number, { dtype = dtypes.default_float, ...opts }: TensorOptions = {}): Tensor => {
+    if (steps < 0) throw new Error('number of steps must be non-negative')
+    dtype = to_dtype(dtype)
+    if (dtype === dtypes.bool) throw new Error('linspace with bool dtype is not supported')
+    if (steps === 1) return new Tensor([start], { dtype: dtype, ...opts })
+    return Tensor.arange(steps, undefined, undefined, opts).mul((stop - start) / (steps - 1)).add(start, true).cast(dtype)
+  }
+
+  /**
+   * Returns a 2-D tensor with `n` rows and `m` columns, with ones on the diagonal and zeros elsewhere.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.eye(3).numpy())
+   * ```
+   *  ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.eye(2, 4).numpy())
+   * ```
+   */
+  static eye = (n: number, m?: number, opts: TensorOptions = {}): Tensor => {
+    if (n < 0 || (m !== undefined && m < 0)) throw new Error(`cannot have negative n=${n}, m=${m}`)
+    const x = Tensor.ones([n, 1], opts).pad([undefined, [0, n]]).flatten().shrink([[0, n * n]]).reshape([n, n])
+    return m === undefined ? x : m > n ? x.pad([undefined, [0, m - n]]) : x.shrink([undefined, [0, m]])
+  }
+  /**
    * Creates a tensor with the same shape as `this`, filled with the given value.
    * If `dtype` !== specified, the dtype of `this` === used.
    *
@@ -911,6 +955,21 @@ export class Tensor extends MathTrait<Tensor> {
    */
   full_like = (fill_value: ConstType, opts?: TensorOptions): Tensor => {
     return Tensor.full(this.shape, fill_value, opts)
+  }
+
+  /**
+   * Creates a tensor with the same shape as `self`, filled with zeros.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.ones(2, 3)
+   * print(Tensor.zeros_like(t).numpy())
+   * ```
+   */
+  zeros_like = (opts: TensorOptions): Tensor => {
+    return this.full_like(0, opts)
   }
   /**
    * Creates a tensor with the same shape as `this`, filled with ones.
@@ -926,7 +985,45 @@ export class Tensor extends MathTrait<Tensor> {
   ones_like = (opts?: TensorOptions): Tensor => {
     return this.full_like(1, opts)
   }
+  /**
+   * Creates a tensor with the same shape and sharding as `self`, filled with random values from a uniform distribution over the interval `[0, 1)`.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.ones(2, 3)
+   * print(Tensor.rand_like(t).numpy())
+   * ```
+   */
+  rand_like = ({ dtype = this.dtype, contiguous = true, ...opts }: TensorOptions & { contiguous?: boolean } = {}): Tensor => {
+    if (Array.isArray(this.device) && this.lazydata instanceof MultiLazyBuffer) {
+      if (opts.device !== undefined) throw new Error('cannot specify `device` on `rand_like` of a multi device tensor')
+      if (this.lazydata.axis === undefined) return Tensor.rand(this.shape, undefined, { dtype: dtype, ...opts }).shard(this.device)
+      const rands = this.lazydata.lbs.map((lb) => Tensor.rand(lb.shape as number[], contiguous, { device: lb.device, dtype: dtype, ...opts }).lazydata)
+      return new Tensor(new MultiLazyBuffer(rands as UOp[], this.lazydata.axis), { device: this.device, dtype: dtype, ...opts })
+    }
+    return Tensor.rand(this.shape, undefined, { device: this.device, dtype: dtype, ...opts })
+  }
+
   // ***** rng hlops *****
+  /**
+   * Creates a tensor with the given shape, filled with random values from a normal distribution with mean `0` and standard deviation `1`.
+   * If `dtype` is not specified, the default type is used.
+   *
+   * You can pass in the `device` keyword argument to control device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.randn(2, 3).numpy())
+   * ```
+   */
+  static randn = (shape: number[], { dtype, requires_grad, ...opts }: TensorOptions = {}): Tensor => {
+    // https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
+    const src = Tensor.rand([2, ...shape], undefined, { ...opts, dtype: dtype || dtypes.float32 })
+    return (src.get(0).mul(2 * Math.PI).cos().mul(src.get(1).sub(1, true).log().mul(-2).sqrt()).cast(dtype || dtypes.default_float)).requires_grad_(requires_grad)
+  }
 
   /**
    * Creates a tensor with the given shape, filled with random integer values generated uniformly from the interval `[low, high)`.
@@ -940,11 +1037,25 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(Tensor.randint(2, 3, low=5, high=10).numpy())
    * ```
    */
-  static randint = (shape: number[], low = 0, high = 10, opts?: TensorOptions): Tensor => {
+  static randint = (shape: number[], low = 0, high = 10, { dtype = dtypes.int32, ...opts }: TensorOptions = {}): Tensor => {
     if (!Number.isInteger(low) || !Number.isInteger(high)) throw new Error(`${low} && ${high} must be integers`)
-    const dtype = to_dtype(opts?.dtype || dtypes.int32)
+    dtype = to_dtype(dtype)
     if (!dtypes.is_int(dtype)) throw new Error(`${dtype} must be int`)
     return Tensor.uniform(shape, low, high, { ...opts, dtype })
+  }
+  /**
+   * Creates a tensor with the given shape, filled with random values from a normal distribution with the given `mean` and standard deviation `std`.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.normal(2, 3, mean=10, std=2).numpy())
+   * ```
+   */
+  static normal = (shape: number[], mean = 0.0, std = 1.0, { requires_grad, ...opts }: TensorOptions): Tensor => {
+    return (Tensor.randn(shape, opts).mul(std, true)).add(mean).requires_grad_(requires_grad)
   }
   /**
    * Creates a tensor with the given shape, filled with random values from a uniform distribution over the interval `[low, high)`.
@@ -957,9 +1068,23 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(Tensor.uniform(2, 3, low=2, high=10).numpy())
    * ```
    */
-  static uniform = (shape: number[], low = 0.0, high = 1.0, { dtype, ...opts }: TensorOptions = {}): Tensor => {
-    if (!dtype) dtype = dtype || dtypes.default_float
-    return Tensor.rand(shape, undefined, opts).mul(high - low, true).cast(dtype).add(low)
+  static uniform = (shape: number[], low = 0.0, high = 1.0, { dtype, requires_grad, ...opts }: TensorOptions = {}): Tensor => {
+    return Tensor.rand(shape, undefined, opts).mul(high - low, true).cast(dtype || dtypes.default_float).add(low).requires_grad_(requires_grad)
+  }
+  /**
+   * Creates a tensor with the given shape, filled with random values from a uniform distribution
+   * over the interval `[-prod(shape)**-0.5, prod(shape)**-0.5)`.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.scaled_uniform(2, 3).numpy())
+   * ```
+   */
+  static scaled_uniform = (shape: number[], opts: TensorOptions): Tensor => {
+    return Tensor.uniform(shape, -1.0, 1.0, opts).mul(prod(shape) ** -0.5)
   }
 
   /**
@@ -977,8 +1102,79 @@ export class Tensor extends MathTrait<Tensor> {
     return Tensor.uniform(shape, -1.0, 1.0, opts).mul((6 / (shape[0] + prod(shape.slice(1)))) ** 0.5)
   }
 
-  // ***** toposort && backward pass *****
+  // https://pytorch.org/docs/stable/_modules/torch/nn/init.html#kaiming_uniform_
+  /**
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.kaiming_uniform(2, 3).numpy())
+   * ```
+   */
+  static kaiming_uniform = (shape: number[], a = 0.01, opts: TensorOptions): Tensor => {
+    const bound = Math.sqrt(3.0) * Math.sqrt(2.0 / (1 + a ** 2)) / Math.sqrt(prod(shape.slice(1)))
+    return Tensor.uniform(shape, -bound, bound, opts)
+  }
+  // https://pytorch.org/docs/stable/_modules/torch/nn/init.html#kaiming_normal_
+  /**
+   * <https://pytorch.org/docs/stable/_modules/torch/nn/init.html#kaiming_normal_>
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.kaiming_normal(2, 3).numpy())
+   * ```
+   */
+  static kaiming_normal = (shape: number[], a = 0.01, opts: TensorOptions): Tensor => {
+    const std = Math.sqrt(2.0 / (1 + a ** 2)) / Math.sqrt(prod(shape.slice(1)))
+    return Tensor.normal(shape, 0.0, std, opts)
+  }
 
+  multinomial = (num_samples = 1, replacement = false): Tensor => {
+    if (!(1 <= this.ndim && this.ndim <= 2 && num_samples > 0)) throw new Error(`ndim=${this.ndim} must be 1 or 2 dim, num_samples=${num_samples} must be positive`)
+    if (!replacement && num_samples !== 1) throw new Error('no replacement only supports num_samples = 1')
+    const weight = this.ndim === 1 ? this.unsqueeze(0) : this
+    const cw = weight.cumsum(1).float(), cdf = cw.div(cw.get({}, 1).unsqueeze(1))
+    const unif_samples = Tensor.rand([num_samples, cdf.shape[0], 1]).to(this.device)
+    const indices = (unif_samples.expand([-1, -1, cdf.shape[1]]).ge(cdf)).sum(2).permute(1, 0)
+    return (this.ndim === 1 ? indices.squeeze(0) : indices).cast(dtypes.int32)
+  }
+
+  // # ***** toposort and backward pass *****
+
+  /**
+   * Compute the gradient of the targets with respect to self.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * x = Tensor.eye(3)
+   * y = Tensor([[2.0,0,-2.0]])
+   * z = y.matmul(x).sum()
+   * dx, dy = z.gradient(x, y)
+   *
+   * print(dx.tolist())  # dz/dx
+   * print(dy.tolist())  # dz/dy
+   * ```
+   */
+  gradient = (targets: Tensor[], gradient?: Tensor): Tensor[] => {
+    if (gradient === undefined && this.shape.length !== 0) 'when no gradient is provided, backward must be called on a scalar tensor'
+    if (gradient === undefined) gradient = new Tensor(1.0, { dtype: this.dtype, device: this.device, requires_grad: false })
+    let rets: UOp[][] = []
+    for (const [i, [uop, grad]] of zip(this.lazydata.lbs, gradient.lazydata.lbs).entries()) {
+      const target_uops = targets.map((x) => x.lazydata.lbs[i])
+      const grads = compute_gradient(uop, grad, new Set(target_uops))
+      let ret: UOp[] = []
+      for (const x of target_uops) {
+        if (!grads.has(x)) throw new Error(`${x}\n\nnot found in\n\n${uop}`)
+        ret.push(grads.get(x)!)
+      }
+      rets.push(ret)
+    }
+    // create returned Tensors
+    if (this.lazydata instanceof UOp) return zip(targets, rets[0]).map(([t, u]) => new Tensor(u, { device: t.device }))
+    return zip(targets, zip(...rets)).map(([t, u]) => new Tensor(new MultiLazyBuffer(u, (t.lazydata as MultiLazyBuffer).axis, (t.lazydata as MultiLazyBuffer).real), { device: t.device }))
+  }
   _deepwalk = (): Tensor[] => {
     const _walk = (node: Tensor, visited: Set<Tensor>): Tensor[] => {
       let res: Tensor[] = []
@@ -1010,23 +1206,24 @@ export class Tensor extends MathTrait<Tensor> {
   backward = (gradient?: Tensor, retain_graph = false): Tensor => {
     const toposorted = this._deepwalk()
     if (gradient === undefined) {
-      if (!is_eq(this.shape, [])) throw new Error('when no gradient === provided, backward must be called on a scalar tensor')
+      if (!is_eq(this.shape, [])) throw new Error('when no gradient is provided, backward must be called on a scalar tensor')
       // fill in the first grad with one. don't use Tensor.ones because we don't need contiguous
       // this === "implicit gradient creation"
       gradient = new Tensor(1.0, { dtype: this.dtype, device: this.device, requires_grad: false })
     }
+    const toposort_uop = this.lazydata.toposort
     if (!is_eq(this.shape, gradient.shape)) throw new Error(`grad shape must match tensor shape, ${gradient.shape} !== ${this.shape}`)
     this.grad = gradient
     for (const t0 of toposorted.toReversed()) {
       if (t0.grad === undefined) throw new Error(`tensor ${t0} has no grad`)
-      const md = t0._ctx?.metadata
-      const token = _METADATA.set(md !== undefined ? { ...md, backward: true } : undefined)
-      const lazys = t0._ctx!.backward(t0.grad.lazydata)
+      const ctx = t0._ctx!, md = ctx.metadata, token = _METADATA.set(md !== undefined ? { ...md, backward: true } : undefined)
+      const lazys = ctx.backward(t0.grad.lazydata as UOp)
       _METADATA.reset(token)
       const grads = (!Array.isArray(lazys) ? [lazys] : lazys).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
-      for (const [t, g] of zip(t0._ctx!.parents!, grads)) {
+      for (const [t, g] of zip(ctx.parents!, grads)) {
         if (g !== undefined && t.requires_grad) {
           if (!is_eq(g.shape, t.shape)) throw new Error(`grad shape must match tensor shape, ${list_str(g.shape)} !== ${list_str(t.shape)}`)
+          if (!(toposort_uop.has(t.lazydata as UOp) || (t.lazydata instanceof MultiLazyBuffer && t.lazydata.lbs.map((x) => toposort_uop.has(x))))) throw new Error(`grad uop must have a path from self\ngrad uop: ${t.lazydata}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
         }
       }
