@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, NotImplemented, product, random_id, range, Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, NotImplemented, product, random_id, range, Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
 import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, sum, UOp, Variable } from './ops.ts'
-import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
-import { create_schedule_with_vars, ScheduleContext, ScheduleItem } from './engine/schedule.ts'
+import { BufferSpec, Device, DeviceType } from './device.ts'
+import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
 // // **** start with two base classes, Tensor && Function ****
@@ -483,19 +483,33 @@ export class Tensor extends MathTrait<Tensor> {
    * NOTE: A Tensor can only be scheduled once.
    */
   schedule_with_vars = (lst: Tensor[] = []): [ScheduleItem[], Map<Variable, number>] => {
-    const [schedule, var_vals] = create_schedule_with_vars([this, ...lst].flatMap((x) => x.lazydata.lbs))
+    const [schedule, var_vals, becomes_map] = create_schedule_with_vars(flatten([this, ...lst].map((x) => x.lazydata.lbs)))
+
+    // get all children of keys in becomes_map
+    const all_uops = new Set<UOp>()
+    const search_uops = [...becomes_map.keys()]
+    while (search_uops.length) {
+      const x = search_uops.shift()!
+      if (all_uops.has(x)) continue
+      all_uops.add(x)
+      x.children.values().filter((u) => u !== undefined)
+    }
+    // link the found UOps back to Tensors. exit early if there's no Tensors to realize
+    // NOTE: this uses all_tensors, but it's fast
+    const fixed_tensors: Tensor[] = all_tensors.values().filter((t) => t !== undefined && t.lazydata.lbs.some((x) => all_uops.has(x)))
+    if (fixed_tensors.length === 0) return [[], new Map()]
+
+    // potentially rewrite all the discovered Tensors
+    const sink = UOp.sink(...fixed_tensors.map((t) => t.lazydata instanceof MultiLazyBuffer ? UOp.sink(...t.lazydata.lbs) : t.lazydata))
+    const new_sink = sink.substitute(becomes_map)
+
+    // set the relevant lazydata to the realized UOps
+    for (const [t, s, ns] of zip(fixed_tensors, sink.src, new_sink.src)) {
+      if (s === ns) continue
+      if (t.lazydata instanceof MultiLazyBuffer) t.lazydata.lbs = [...ns.src]
+      else t.lazydata = ns
+    }
     return [memory_planner(schedule), var_vals]
-  }
-  _debug_ast = () => {
-    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).lazydata.lbs)
-    return schedule.map((s) => s.ast)
-  }
-  _debug = () => {
-    const ctx = new ScheduleContext()
-    const cache = new Map<LazyBuffer, UOp>()
-    const buffers = new Map<UOp, Buffer>()
-    const uop = to_uop(this.lazydata, ctx, buffers, cache)
-    return uop
   }
   /**
    * Creates the schedule needed to realize these Tensor(s).
@@ -519,7 +533,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   replace = (x: Tensor): Tensor => {
     // used for replacing a Tensor with a new version of it (potentially with a different device && dtype)
-    assert(!x.requires_grad && this._ctx === undefined)
+    assert(this._ctx === undefined)
     if (!is_eq(this.shape, x.shape)) throw new Error(`replace shape mismatch ${this.shape} !== ${x.shape}`)
     this.lazydata = x.lazydata
     return this
@@ -540,23 +554,23 @@ export class Tensor extends MathTrait<Tensor> {
     if (!is_eq(this.shape, x.shape)) throw new Error(`assign shape mismatch ${this.shape} !== ${x.shape}`)
     if (this.device !== x.device) throw new Error(`assign device mismatch ${this.device} !== ${x.device}`)
     if (this.dtype !== x.dtype) throw new Error(`assign dtype mismatch ${this.dtype} !== ${x.dtype}`)
-    // assert(!isinstance(this.lazydata, MultiLazyBuffer) || this.lazydata.axis === x.lazydata.axis, "axis must match on MultiLazyBuffer")
+    if (this.lazydata instanceof MultiLazyBuffer && this.lazydata.axis !== (x.lazydata as MultiLazyBuffer).axis) throw new Error('axis must match on MultiLazyBuffer')
     if (x.requires_grad) throw new Error("assign can't have grad") // this requires_grad === okay?
     if (!this.lazydata.is_realized) return this.replace(x)
-    this.lazydata = this.lazydata.assign(x.lazydata)
+    this.lazydata = this.lazydata.assign(x.lazydata as any)
     return this
   }
   /**
    * Returns a new tensor with the same data as this tensor, but detached from the autograd graph.
    */
   detach = (): Tensor => {
-    return new Tensor(this.lazydata, { device: this.device, requires_grad: false })
+    return new Tensor(this.lazydata.detach(), { device: this.device, requires_grad: false })
   }
   _data = async (): Promise<MemoryView> => {
     if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = await this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).realize()
-    const buf = cpu.lazydata!.base.realized
+    const buf = (cpu.lazydata as UOp).base.realized
     if (this.device !== Env.CPU_DEVICE) buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
     return await buf!.as_buffer(this.device !== Env.CPU_DEVICE ? true : false)
   }
@@ -624,19 +638,59 @@ export class Tensor extends MathTrait<Tensor> {
     return ret
   }
 
-  static from_uop = (y: UOp, opts?: TensorOptions): Tensor => {
-    if (y.op === Ops.BIND) return new Tensor(y, { ...opts, requires_grad: false }) // this is the only UOp allowed in Tensor
-    if (y.op === Ops.CONST) return new Tensor(y.arg, { ...opts, requires_grad: false })
-    if (y.op === Ops.MUL) return Tensor.from_uop(y.src[0]).mul(Tensor.from_uop(y.src[1]))
-    if (y.op === Ops.ADD) return Tensor.from_uop(y.src[0]).add(Tensor.from_uop(y.src[1]))
-    if (y.op === Ops.MAX) return Tensor.from_uop(y.src[0]).maximum(Tensor.from_uop(y.src[1]))
-    throw new Error(`unhandled UOp {y}`)
-  }
+  // def to_(self, device:Optional[Union[str, tuple[str, ...]]]):
+  //   """
+  //   Moves the tensor to the given device in place.
+  //   """
+  //   real = self.to(device)
+  //   if self.grad is not None and real.grad is not None: self.grad.replace(real.grad)
+  //   return self.replace(real)
 
-  static _metaop = (op: any, shape: number[], opts: TensorOptions = {}, arg?: any) => {
-    const dtype = opts.dtype !== undefined ? to_dtype(opts.dtype) : dtypes.default_float
-    return new Tensor(LazyBuffer.metaop(op, shape, dtype, Device.canonicalize(opts.device as DeviceType), arg), { ...opts, dtype })
-  }
+  // def shard(self, devices:tuple[str, ...], axis:Optional[int]=None) -> Tensor:
+  //   """
+  //   Shards the tensor across the given devices. Optionally specify which axis to shard on.
+
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   t = Tensor.empty(2, 4)
+  //   print(t.shard((t.device, t.device), axis=1).lazydata)
+  //   ```
+  //   """
+  //   assert isinstance(self.lazydata, UOp), "can't shard a MultiLazyBuffer"
+  //   devices = tuple(Device.canonicalize(x) for x in devices)
+  //   if axis is None: lbs = [self.lazydata] * len(devices)
+  //   else:
+  //     axis = self._resolve_dim(axis)
+  //     sz = ceildiv(self.shape[axis], len(devices))
+  //     sizes = [max(0, min(sz, self.shape[axis] - sz*i)) for i in range(len(devices))]
+  //     lbs = [cast(UOp, t.lazydata) for t in self.split(sizes, axis)]
+  //   sharded_lbs = [lb.copy_to_device(d) for lb,d in zip(lbs, devices)]
+  //   # NOTE: this contiguous is making it impossible for the scheduler to do late const folding
+  //   mlb = MultiLazyBuffer([lb.contiguous() for lb in sharded_lbs], axis)
+  //   return Tensor(mlb, device=devices, requires_grad=self.requires_grad)
+
+  // def shard_(self, devices:tuple[str, ...], axis:Optional[int]=None):
+  //   """
+  //   Shards the tensor across the given devices in place.
+  //   """
+  //   return self.replace(self.shard(devices, axis))
+
+  // @staticmethod
+  // def from_uop(y:UOp, **kwargs) -> Tensor:
+  //   if y.op is Ops.BIND: return Tensor(y, **kwargs, requires_grad=False)   # this is the only UOp allowed in Tensor
+  //   if y.op is Ops.CONST: return Tensor(y.arg, **kwargs, requires_grad=False)
+  //   if y.op is Ops.MUL: return Tensor.from_uop(y.src[0]) * Tensor.from_uop(y.src[1])
+  //   if y.op is Ops.ADD: return Tensor.from_uop(y.src[0]) + Tensor.from_uop(y.src[1])
+  //   raise RuntimeError(f"unhandled UOp {y}")
+
+  // # ***** creation entrypoint *****
+
+  // @staticmethod
+  // def _metaop(op, shape, device:Optional[Union[tuple[str, ...], str]]=None, dtype:Optional[DTypeLike]=None, arg=None, **kwargs):
+  //   dtype = to_dtype(dtype) if dtype is not None else dtypes.default_float
+  //   if isinstance(device, tuple):
+  //     return Tensor(MultiLazyBuffer([UOp.metaop(op, shape, dtype, Device.canonicalize(d), arg) for d in device], None),
+  //                   device, dtype, **kwargs)
+  //   return Tensor(UOp.metaop(op, shape, dtype, Device.canonicalize(device), arg), device, dtype, **kwargs)
 
   /**
    * Creates an empty tensor with the given shape.

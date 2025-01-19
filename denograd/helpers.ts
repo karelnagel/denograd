@@ -23,6 +23,23 @@ export class WeakValueMap<V extends object> {
     this.set(key, def)
     return def
   }
+  keys = () => this.store.keys()
+  values = () => {
+    const vals: V[] = []
+    for (const ref of this.store.values()) {
+      const val = ref.deref()
+      if (val !== undefined) vals.push(val)
+    }
+    return vals
+  }
+  entries = () => {
+    const entries: [string, V][] = []
+    for (const [key, ref] of this.store.entries()) {
+      const val = ref.deref()
+      if (val !== undefined) entries.push([key, val])
+    }
+    return entries
+  }
 }
 type Value = number | bigint
 export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
