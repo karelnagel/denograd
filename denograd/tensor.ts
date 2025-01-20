@@ -1826,83 +1826,86 @@ export class Tensor extends MathTrait<Tensor> {
     return this.reshape([...this.shape.slice(0, start_dim), prod(this.shape.slice(start_dim, end_dim + 1)), ...this.shape.slice(end_dim + 1)])
   }
 
-  // def unflatten(self, dim:int, sizes:tuple[int,...]):
-  //   """
-  //   Unflattens dimension `dim` of the tensor into multiple dimensions specified by `sizes`. `Tensor.flatten()` is the inverse of this function.
+  /**
+   * Unflattens dimension `dim` of the tensor into multiple dimensions specified by `sizes`. `Tensor.flatten()` is the inverse of this function.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.ones(3, 4, 1).unflatten(1, (2, 2)).shape)
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.ones(3, 4, 1).unflatten(1, (-1, 2)).shape)
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.ones(5, 12, 3).unflatten(-2, (2, 2, 3, 1, 1)).shape)
+   * ```
+   */
+  unflatten = (dim: number, sizes: number[]) => {
+    dim = this._resolve_dim(dim)
+    return this.reshape([...this.shape.slice(0, dim), ...sizes, ...this.shape.slice(dim + 1)])
+  }
 
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   print(Tensor.ones(3, 4, 1).unflatten(1, (2, 2)).shape)
-  //   ```
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   print(Tensor.ones(3, 4, 1).unflatten(1, (-1, 2)).shape)
-  //   ```
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   print(Tensor.ones(5, 12, 3).unflatten(-2, (2, 2, 3, 1, 1)).shape)
-  //   ```
-  //   """
-  //   dim = self._resolve_dim(dim)
-  //   return self.reshape(self.shape[:dim] + sizes + self.shape[dim+1:])
+  /**
+   * Rolls the tensor along specified dimension(s).
+   * The rolling operation is circular, meaning that elements that go beyond the edge are wrapped around to the beginning of the dimension.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(4)
+   * print(t.roll(shifts=1, dims=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.roll(shifts=-1, dims=0).numpy())
+   * ```
+   */
+  roll = (shifts: number | number[], dims: number | number[]): Tensor => {
+    dims = make_tuple(dims, 1).map((d) => this._resolve_dim(d))
+    let rolled: Tensor = this
+    for (let [dim, shift] of zip(dims, make_tuple(shifts, 1))) {
+      shift = shift % this.shape[dim]
+      rolled = Tensor.cat([rolled.get(...range(rolled.ndim).map((i) => i !== dim ? {} : { start: -shift })), rolled.get(...range(rolled.ndim).map((i) => i !== dim ? {} : { stop: -shift }))], dim)
+    }
+    return rolled
+  }
+  /**
+   * Rearranges input according to formula
+   *
+   * See: https://einops.rocks/api/rearrange/
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * x = Tensor([[1, 2], [3, 4]])
+   * print(Tensor.rearrange(x, "batch channel -> (batch channel)").numpy())
+   * ```
+   */
+  rearrange = (formula: string, sizes: any): Tensor => {
+    const parse_formula = (formula: string): [string[], [number, number][]] => {
+      const tokens = ` ${formula} `.replace('…', '...').replace('(', ' ( ').replace(')', ' ) ').replace(' ', '  ').replace(' 1 ', ' ( ) ').split(/\s+/).filter(Boolean)
+      const [lparens, rparens] = ['(', ')'].map((x) => tokens.map((ch, i) => ch === x ? i : -1).filter((i) => i !== -1))
+      const pairs = zip(lparens, rparens)
+      if (lparens.length !== rparens.length || !is_eq(flatten(pairs), flatten(pairs))) throw new Error('bracket mismatch')
+      return [tokens.filter((name) => !['(', ')'].includes(name)), pairs.map(([s, e], i) => [s - 2 * i, e - 1 - 2 * i])]
+    }
+    if (formula.split('->').length !== 2) throw new Error('need exactly one "->" in formula')
 
-  // def roll(self, shifts:Union[int, tuple[int, ...]], dims:Union[int, tuple[int, ...]]) -> Tensor:
-  //   """
-  //   Rolls the tensor along specified dimension(s).
-  //   The rolling operation is circular, meaning that elements that go beyond the edge are wrapped around to the beginning of the dimension.
+    let [[lhs, unflatten_dims], [rhs, flatten_dims]] = formula.split('->').map(parse_formula)
 
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   t = Tensor.arange(4)
-  //   print(t.roll(shifts=1, dims=0).numpy())
-  //   ```
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   print(t.roll(shifts=-1, dims=0).numpy())
-  //   ```
-  //   """
-  //   dims, rolled = tuple(self._resolve_dim(d) for d in make_tuple(dims, 1)), self
-  //   for dim, shift in zip(dims, make_tuple(shifts, 1)):
-  //     shift = shift % self.shape[dim]
-  //     rolled = Tensor.cat(rolled[tuple(slice(None) if i != dim else slice(-shift, None) for i in range(rolled.ndim))],
-  //                         rolled[tuple(slice(None) if i != dim else slice(None, -shift) for i in range(rolled.ndim))], dim=dim)
-  //   return rolled
+    for (const name of sizes) if (lhs.includes(name)) throw new Error(`axis ${name} is not used in transform`)
+    if (!is_eq(lhs.toSorted(), rhs.toSorted()) || lhs.length !== new Set(lhs).size) throw new Error(`name mismatch in ${formula}`)
+    for (const name of flatten([lhs, rhs])) if (name !== '...' && name.includes(' ')) throw new Error(`invalid axis name ${name}`)
+    if (flatten(unflatten_dims.map(([s, e]) => lhs.slice(s, e))).includes('...')) throw new Error(`cannot have collapsed ellipsis (...) in lhs of ${formula}`)
+    if (lhs.filter((x) => x === '...').length > 1) throw new Error(`too many ellipses in ${formula}`)
 
-  // def rearrange(self, formula:str, **sizes) -> Tensor:
-  //   """
-  //   Rearranges input according to formula
+    // resolve ellipsis
+    let ell_len: number
+    if (lhs.includes('...')) ell_len = this.shape.length - lhs.length + 1 + sum(unflatten_dims.map(([s, e]) => e - s - 1))
+    ;[lhs, rhs] = [lhs, rhs].map((l) => [...l.slice(0, l.indexOf('...')), ...range(ell_len).map((j) => `...${j}`), ...(l.includes('...') ? l.slice(l.indexOf('...') + 1) : l)])
+    unflatten_dims = unflatten_dims.map(([s, e]) => [s + (lhs.slice(0, s).includes('...0') ? ell_len - 1 : 0), e + (lhs.slice(0, e).includes('...0') ? ell_len - 1 : 0)])
+    flatten_dims = flatten_dims.map(([s, e]) => [s + (rhs.slice(0, s).includes('...0') ? ell_len - 1 : 0), e + (rhs.slice(0, e).includes('...0') ? ell_len - 1 : 0)])
 
-  //   See: https://einops.rocks/api/rearrange/
-
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   x = Tensor([[1, 2], [3, 4]])
-  //   print(Tensor.rearrange(x, "batch channel -> (batch channel)").numpy())
-  //   ```
-  //   """
-  //   def parse_formula(formula: str):
-  //     tokens = f" {formula} ".replace("…", "...").replace("(", " ( ").replace(")", " ) ").replace(" ", "  ").replace(" 1 ", " ( ) ").split()
-  //     lparens, rparens = map(lambda x: [i for i, ch in enumerate(tokens) if ch == x], ("(", ")"))
-  //     pairs = list(zip(lparens, rparens))
-  //     assert len(lparens) == len(rparens) and sorted(flatten(pairs)) == flatten(pairs), "bracket mismatch"
-  //     return [name for name in tokens if name not in ("(", ")")], [(s - 2*i, e - 1 - 2*i) for i, (s, e) in enumerate(pairs)]
-
-  //   assert formula.count("->") == 1, 'need exactly one "->" in formula'
-
-  //   (lhs, unflatten_dims), (rhs, flatten_dims) = map(parse_formula, formula.split("->"))
-
-  //   for name in sizes: assert name in lhs, f"axis {name} is not used in transform"
-  //   assert sorted(lhs) == sorted(rhs) and len(lhs) == len(set(lhs)), f"name mismatch in {formula}"
-  //   for name in flatten((lhs, rhs)): assert name == "..." or (name.isidentifier() and "_" not in (name[0], name[-1])), f"invalid axis name {name}"
-  //   assert "..." not in flatten([lhs[s:e] for s, e in unflatten_dims]), f"cannot have collapsed ellipsis (...) in lhs of {formula}"
-  //   assert lhs.count("...") <= 1, f"too many ellipses in {formula}"
-
-  //   # resolve ellipsis
-  //   if "..." in lhs: ell_len = len(self.shape) - len(lhs) + 1 + sum(e - s - 1 for s, e in unflatten_dims)
-  //   lhs, rhs = map(lambda l: l[:(i:=l.index("..."))] + [f"...{j}" for j in range(ell_len)] + l[i + 1:] if "..." in l else l, (lhs, rhs))
-  //   unflatten_dims = [(s + (ell_len - 1 if "...0" in lhs[:s] else 0), e + (ell_len - 1 if "...0" in lhs[:e] else 0)) for s, e in unflatten_dims]
-  //   flatten_dims = [(s + (ell_len - 1 if "...0" in rhs[:s] else 0), e + (ell_len - 1 if "...0" in rhs[:e] else 0)) for s, e in flatten_dims]
-
-  //   # apply movement ops in order unflatten -> permute -> flatten/unsqueeze
-  //   t = functools.reduce(lambda x, dims: x.unflatten(dims[0], tuple(sizes.get(lhs[d], -1) for d in range(*dims))), unflatten_dims, self)
-  //   for i, name in enumerate(lhs): assert (name not in sizes) or sizes[name] == t.shape[i], f"size provided for dimension {name} incorrect"
-  //   t = t.permute([lhs.index(name) for name in rhs])
-  //   return functools.reduce(lambda x, dims: x.flatten(dims[0], dims[1] - 1) if dims[0]<dims[1] else x.unsqueeze(dims[0]), reversed(flatten_dims), t)
-
+    // apply movement ops in order unflatten -> permute -> flatten/unsqueeze
+    let t = unflatten_dims.reduce((x, dims) => x.unflatten(dims[0], range(...dims).map((d) => sizes.get(lhs[d], -1))), this as Tensor)
+    for (const [i, name] of lhs.entries()) if (sizes.includes(name) && sizes[name] !== t.shape[i]) throw new Error(`size provided for dimension ${name} incorrect`)
+    t = t.permute(...rhs.map((name) => lhs.indexOf(name)))
+    return flatten_dims.toReversed().reduce((x, dims) => dims[0] < dims[1] ? x.flatten(dims[0], dims[1] - 1) : x.unsqueeze(dims[0]), t)
+  }
   //     // ***** reduce ops *****
 
   _reduce = (fxn: typeof Function, axis?: number | number[], keepdim = false): Tensor => {
@@ -1988,6 +1991,8 @@ export class Tensor extends MathTrait<Tensor> {
   max = (axis?: number | number[], keepdim = false) => {
     return this._reduce(Max, axis, keepdim)
   }
+  _inverse = (): Tensor => this.is_floating_point() ? this.neg() : dtypes.is_int(this.dtype) ? this.bitwise_not() : this.logical_not()
+
   /**
    * Returns the minimum value of the tensor along the specified axis || axes.
    *
@@ -2009,8 +2014,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   min = (axis?: number | number[], keepdim = false) => {
-    if (dtypes.is_int(this.dtype) || this.dtype === dtypes.bool) return this.bitwise_not().max(axis, keepdim).bitwise_not()
-    return this.neg().max(axis, keepdim).neg()
+    return this._inverse().max(axis, keepdim)._inverse()
   }
 
   /**
