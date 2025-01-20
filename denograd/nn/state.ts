@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { bytes_to_string, DEBUG, is_eq, isinstance, string_to_bytes } from '../helpers.ts'
+import { bytes_to_string, DEBUG, is_eq, isinstance, NotImplemented, string_to_bytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export const safe_dtypes = {
@@ -135,13 +135,13 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
 }
 
 export const tar_extract = (t: Tensor): Record<string, Tensor> => {
-  throw new Error('Not implemented')
+  throw new NotImplemented()
 }
 
 export const ggml_data_to_tensor = (t: Tensor, n: number, ggml_type: number): Tensor => {
-  throw new Error('Not implemented')
+  throw new NotImplemented()
 }
 
 export const gguf_load = (tensor: Tensor): [Record<string, any>, Record<string, Tensor>] => {
-  throw new Error('Not implemented')
+  throw new NotImplemented()
 }

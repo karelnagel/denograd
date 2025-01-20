@@ -13,21 +13,24 @@ export const strides_for_shape = cache_fn((shape: sint[]): sint[] => {
   return canonicalize_strides(shape, [...strides].reverse())
 })
 
-export const _merge_dims = cache_fn((shape: sint[], strides: sint[], mask?: [sint, sint][]): [sint, sint, sint][] => {
-  // merge contiguous sub-parts or zero strided dims. ret = Tuple[(merged_size, stride, merged size w/o zero stride), ...]
+export const merge_dims = cache_fn((shape: sint[], strides: sint[], mask?: [sint, sint][]): [sint, sint, sint][] => {
+  // merge contiguous sub-parts or zero strided dims
+  // any stride 0, masked from dim=1, or contiguous part is merged into next dim.
+  // stride != 0 to stride == 0 starts a new merging block
+  // ret = tuple[(merged_size, stride, merged size w/o zero stride), ...]
   if (!shape.length) return []
   assert(shape.length === strides.length && (mask === undefined || shape.length === mask?.length))
   const ret = [[shape[0], strides[0], strides[0] !== 0 ? shape[0] : 0] as [sint, sint, sint]]
   // merge this dim to next dim if size is 1
   let merging = mask !== undefined ? sub(mask[0][1], mask[0][0]) === 1 : shape[0] === 1
-  for (let i = 1; i < shape.length; i++) {
-    const s = shape[i], st = strides[i]
-    const [last_s, last_st, last_pre_expand_s] = ret.at(-1)!
+  for (const [i, [s, st]] of zip(shape, strides).entries()) {
+    if (i === 0) continue // skipping the first, in py start=1
     // always merge 1
     if (s === 1) continue
+    const [last_s, last_st, last_pre_expand_s] = ret.at(-1)!
     // merge last dim with this dim if merging or strides matched
-    if (merging || last_st === mul(s, st)) ret[ret.length - 1] = [mul(last_s, s), st, st !== 0 ? (merging ? s : mul(last_pre_expand_s, s)) : 0]
-    else ret.push([s, st, st !== 0 ? s : 0])
+    if (merging || last_st === mul(s, st)) ret[ret.length - 1] = [mul(last_s, s), st, merging ? s : mul(last_pre_expand_s, s)]
+    else ret.push([s, st, s])
     // merge this dim to next dim if size is 1
     merging = mask !== undefined ? sub(mask[i][1], mask[i][0]) === 1 : s === 1
   }
@@ -36,45 +39,43 @@ export const _merge_dims = cache_fn((shape: sint[], strides: sint[], mask?: [sin
 
 export const _reshape_mask = cache_fn((_mask: undefined | [sint, sint][], old_shape: sint[], new_shape: sint[]): [sint, sint][] | undefined => {
   if (_mask === undefined) return new_shape.map((s) => [0, s])
-  if (_mask.some((m) => typeof m[0] !== 'number' || typeof m[1] !== 'number')) return undefined
-  if (_mask.some((m) => lt(sub(m[1], m[0]), 1))) return range(new_shape.length).map((x) => [0, 0]) //zero mask
+  if (!all_int(flatten(_mask))) return undefined
+
   const new_mask: [sint, sint][] = []
   // _mask is all int here
   const r_masks = _mask.toReversed().values(), r_shape = old_shape.toReversed().values(), r_new_shape = new_shape.toReversed().values()
   let curr_stride: sint = 1, old_dim = next(r_shape, 1), new_dim = next(r_new_shape, 1), mask = next(r_masks, [0, 1])
   while (new_mask.length < new_shape.length) {
     const [l, r] = mask, next_stride: sint = mul(new_dim, curr_stride)
-    if (old_dim >= next_stride) { // need to split mask.
-      if (old_dim === next_stride) { // simply copy the mask and get next batch for merging
-        new_mask.push([idiv(l, curr_stride), add(idiv(sub(r, 1), curr_stride), 1)])
-        curr_stride = 1, old_dim = next(r_shape, 1), new_dim = next(r_new_shape, 1), mask = next(r_masks, [0, 1])
-      } else { // mask can only be splitted if reshape doesn't cut across the mask.
-        if (((mod(l, next_stride) !== 0 || mod(r, next_stride) !== 0) && idiv(l, next_stride) !== idiv(sub(r, 1), next_stride)) || mod(old_dim, next_stride) !== 0) return undefined
-        new_mask.push([idiv(mod(l, next_stride), curr_stride), add(idiv(mod(sub(r, 1), next_stride), curr_stride), 1)])
-        curr_stride = next_stride, new_dim = next(r_new_shape, 1) // need to get mask for next dimension
-      }
+    // need to split mask.
+    if (old_dim === next_stride) { // simply copy the mask and get next batch for merging
+      new_mask.push([idiv(l, curr_stride), add(idiv(sub(r, 1), curr_stride), 1)])
+      curr_stride = 1, old_dim = next(r_shape, 1), new_dim = next(r_new_shape, 1), mask = next(r_masks, [0, 1])
+    } else if (old_dim > next_stride) {
+      if (old_dim as number % (next_stride as number) !== 0) return undefined
+      if ((mod(l, next_stride) !== 0 || mod(r, next_stride) !== 0) && idiv(l, next_stride) !== idiv(sub(r, 1), next_stride)) return undefined
+      new_mask.push([idiv(mod(l, next_stride), curr_stride), add(idiv(mod(sub(r, 1), next_stride), curr_stride), 1)])
+      curr_stride = next_stride, new_dim = next(r_new_shape, 1) // need to get mask for next dimension
     } else {
       const next_mask = next(r_masks, [0, 1])
       // combine if the mask can unfold continuously
-      if (!is_eq(mask, [0, old_dim]) && (next_mask[1] as number) - (next_mask[0] as number) !== 1) return undefined
+      if (!is_eq(mask, [0, old_dim]) && l !== r && (next_mask[1] as number) - (next_mask[0] as number) !== 1) return undefined
       mask = [add(mul(next_mask[0], old_dim), l), add(mul(sub(next_mask[1], 1), old_dim), r)], old_dim = mul(old_dim, next(r_shape, 1))
     }
   }
 
-  for (const mask of r_masks) { // if the old shape has leading 1s, need to make sure their mask is (0,1)
-    if (mask[0] !== 0 || mask[1] !== 1) return range(new_shape.length).map(() => [0, 0]) // invalid mask
-  }
   return new_mask.toReversed()
 })
 
-export const un1d = (shape: sint[], offs: sint): sint[] => {
-  const result: sint[] = []
-  for (const stride of strides_for_shape(shape)) {
-    const here = stride !== 0 ? idiv(offs, stride) : 0
-    result.push(here)
-    offs = sub(offs, mul(here, stride))
+export const unravel = (shape: sint[], offset: sint): sint[] => {
+  // find the position of offset on each dimension based on shape
+  // similar to unravel_index in numpy/torch
+  let acc: sint = 1, idxs = []
+  for (const d of shape.toReversed()) {
+    idxs.push(mod(idiv(offset, acc), d))
+    acc = mul(acc, d)
   }
-  return result
+  return idxs.toReversed()
 }
 
 export class View {
@@ -85,13 +86,6 @@ export class View {
     return View.cache.setDefault(this.key, this)
   }
 
-  @cache
-  get t() {
-    return [...this.shape, ...this.strides, this.offset, ...(this.mask !== undefined ? flatten(this.mask) : [])].map((x) => x instanceof UOp ? x.tuplize : [x])
-  }
-  lt(this: View, o: View) {
-    return is_less_than(this.t, o.t)
-  }
   toString() {
     return `new View(${list_str(this.shape)}, ${list_str(this.strides)}, ${this.offset}, ${list_str(this.mask)}, ${this.contiguous})`
   }
@@ -123,7 +117,7 @@ export class View {
     strides = strides?.length ? canonicalize_strides(shape, strides) : strides_for_shape(shape)
     // # canonicalize 0 in shape
     if (shape.includes(0)) return new View(shape, range(shape.length).map(() => 0), 0, undefined, true)
-    // # canonicalize empty mask
+    // # canonicalize no-op mask
     if (mask !== undefined && zip(mask, shape).every(([m, s]) => is_eq(m, [0, s]))) mask = undefined
     // # if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
     // # then its stride can also be set to 0, albeit with a corresponding adjustment required to the offset
@@ -136,7 +130,7 @@ export class View {
     // # simplify as we go
     if (offset instanceof UOp) offset = offset.ssimplify()
     shape = shape.map((x) => x instanceof UOp ? x.ssimplify() : x)
-    // # TODO: enabling stride simplification breaks it
+    // # TODO: enabling stride simplification breaks symbolic jit
     // """
     // strides = tuple(x.ssimplify() if isinstance(x, UOp) else x for x in strides)
     // if mask: mask = tuple((s.ssimplify() if isinstance(s, UOp) else s, e.ssimplify() if isinstance(e, UOp) else e) for s,e in mask)
@@ -176,13 +170,20 @@ export class View {
       const merged = vm2.add(vm1.shrink(vm1.mask))
       return merged && merged.pad(zip(vm1.mask, vm1.shape).map(([[b, e], s]) => [b, sub(s, e)]))
     }
+    if (vm1.mask?.length) {
+      const new_vm1 = vm1.shrink(vm1.mask), merged = vm2.add(new_vm1)
+      if (new_vm1 === vm1 || merged === undefined) return undefined
+      return merged.pad(zip(vm1.mask, vm1.shape).map(([[b, e], s]) => [b, sub(s, e)]))
+    }
+    if (!all_int(vm1.shape)) return undefined
+
     //     # Project vm1's offset and strides on to vm2.
-    const origin = un1d(vm2.shape, vm1.offset)
-    const terms: [number, sint][][] = origin.map((x) => [])
+    const origin = unravel(vm2.shape, vm1.offset)
+    const terms: [number, sint][][] = vm2.shape.map(() => [])
     const strides: sint[] = range(vm1.shape.length).map((x) => 0)
     for (const [d1, st] of vm1.strides.entries()) {
       if (st === 0) continue
-      for (let [d2, [o, s1]] of zip(origin, un1d(vm2.shape, add(vm1.offset, st))).entries()) {
+      for (let [d2, [o, s1]] of zip(origin, unravel(vm2.shape, add(vm1.offset, st))).entries()) {
         s1 = sub(s1, o)
         if (s1 === 0) continue
         terms[d2].push([d1, s1])
@@ -191,7 +192,6 @@ export class View {
     }
     //     # Merge dimensions in vm2 if required.
     //     # NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
-    if (!all_int(vm1.shape)) return undefined
     const idxs: UOp[] = [...vm1.shape.map((s, i) => UOp.variable(`idx${i}`, 0, s - 1))]
     let merged_size: sint = 1, merged_term = UOp.int(0)
     const extents: [sint, UOp][] = []
@@ -208,36 +208,26 @@ export class View {
     if (!is_eq(vm2_shape, vm2.shape)) {
       const reshaped_vm2 = vm2.reshape(vm2_shape)
       if (reshaped_vm2 === undefined) return undefined
+      // NOTE: this != to prevent infinite loop
       if (!is_eq(reshaped_vm2.shape, vm2.shape)) return reshaped_vm2.add(vm1)
     }
     if (vm2.mask?.length) {
       //       # Try to project vm2's mask on to vm1.
-      let [newb, newe, bad] = [range(vm1.shape.length).map((x) => 0), [...vm1.shape], false]
-      for (const [[b, e], o, term, [_, t]] of zip(vm2.mask, origin, terms, extents.toReversed())) {
+      let newb = range(vm1.shape.length).map((x) => 0), newe = [...vm1.shape], bad = false
+      for (const [[b, e], o, term, [_, t]] of zip(vm2.mask as [number, number][], origin as number[], terms, extents.toReversed())) {
         if (resolve(and(le(b, t.vmin), lt(t.vmax, e)), false)) continue
-        if (typeof o !== 'number' || typeof b !== 'number' || typeof e !== 'number') {
-          bad = true
-          continue
-        }
         if (term.length !== 1) {
           if (!term && newe.length) newe[0] = 0
           else bad = true
           continue
         }
-
         const [d1, s1] = term[0]
-        if (typeof s1 !== 'number' || typeof newe[d1] !== 'number') {
-          bad = true
-          continue
-        }
-        newb[d1] = Math.max(newb[d1], Math.ceil((s1 > 0 ? b - o : e - o - 1) / s1))
-        newe[d1] = Math.min(newe[d1], idiv(s1 < 0 ? b - o : e - o - 1, s1) + 1)
+        newb[d1] = Math.max(newb[d1], ceildiv((s1 as number) > 0 ? b - o : e - o - 1, s1) as number)
+        newe[d1] = Math.min(newe[d1], idiv((s1 as number) < 0 ? b - o : e - o - 1, s1 as number) + 1)
       }
       //       # If any of vm1 was masked off, try again with that mask in place.
-      for (const [b, e, s] of zip(newb, newe, vm1.shape)) {
-        if (!is_eq([b, e], [0, s])) {
-          return vm2.add(View.create(vm1.shape, vm1.strides, vm1.offset, zip(newb, newe)))
-        }
+      if (zip(newb, newe, vm1.shape).some(([b, e, s]) => !is_eq([b, e], [0, s]))) {
+        return vm2.add(View.create(vm1.shape, vm1.strides, vm1.offset, zip(newb, newe)))
       }
       //       # Otherwise if vm2's mask was violated, then cannot merge.
       if (bad) return undefined
@@ -253,7 +243,7 @@ export class View {
   }
   @cache
   minify() {
-    return this.reshape(_merge_dims(this.shape, this.strides, this.mask).map((x) => x[0])) || this
+    return this.reshape(merge_dims(this.shape, this.strides, this.mask).map((x) => x[0])) || this
   }
   __unsafe_resize(arg: [sint, sint][], mask?: [sint, sint][]): View {
     const offset = zip(this.strides, arg).reduce((acc, [s, x]) => add(acc, mul(s, x[0])), 0 as sint)
@@ -263,9 +253,7 @@ export class View {
       //       # merge the masks if we have two
       mask = mask !== undefined ? zip(nmask, mask).map(([[mx1, my1], [mx2, my2]]) => [smax(mx1, mx2), smin(my1, my2)] as [sint, sint]) : nmask
     }
-    const shape = arg.map(([x, y]) => sub(y, x))
-    if (mask !== undefined && zip(mask, shape).every(([m, s]) => m[0] === 0 && m[1] === s)) mask = undefined
-    return View.create(shape.map((s) => s instanceof UOp ? s.ssimplify() : s), this.strides, add(this.offset, offset), mask)
+    return View.create(arg.map(([x, y]) => sub(y, x)), this.strides, add(this.offset, offset), mask)
   }
   @cache
   pad(arg: [sint, sint][]): View {
@@ -295,7 +283,6 @@ export class View {
     }
     //     # TODO: this resolve might be wrong
     if (!zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1)) throw new Error(`can't expand ${list_str(this.shape)} into ${list_str(new_shape)}`)
-    //     # NOTE: can the mask ever be (0,0)?
     //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
     const mask = this.mask?.length ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!is_eq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
     return View.create(new_shape, this.strides, this.offset, mask)
@@ -319,18 +306,15 @@ export class View {
   reshape(new_shape: sint[]): View | undefined {
     if (is_eq(this.shape, new_shape)) return this
 
-    //     # TODO: this resolve shouldn't be needed
-    if (!new_shape.every((x) => resolve(ge(x, 0)))) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
-    if (this.shape.includes(0)) {
-      if (!new_shape.includes(0)) throw new Error(`cannot reshape 0 size to ${list_str(new_shape)}`)
-      return View.create(new_shape)
-    }
+    if (!new_shape.every((x) => x as number >= 0)) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
     //     # check for the same size
     const self_all_int = all_int(this.shape)
     if (self_all_int) {
       if (!new_shape.every((s) => s instanceof UOp || typeof s === 'number')) throw new Error(`${list_str(this.shape)} -> ${list_str(new_shape)} contains non (int, Variable) dim`)
       if (resolve(ne(prod(this.shape), prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${list_str(this.shape)} -> new_shape=${list_str(new_shape)}`)
     }
+
+    if (this.shape.includes(0)) return View.create(new_shape)
     if (new_shape.length === 0 && this.mask?.length && this.mask.some(([mx, my]) => mx === my)) return undefined
 
     //     # after the asserts, it's okay to check contiguous
@@ -347,20 +331,22 @@ export class View {
       return new View(new_shape, this.strides, this.offset, this.mask, this.contiguous)
     }
 
-    const strides: sint[] = [], r_new_shape = new_shape.toReversed()
-    for (let [merged_dim, new_stride, real_dim] of _merge_dims(this.shape, this.strides, this.mask).toReversed()) {
+    const r_strides: sint[] = [], r_new_shape = new_shape.toReversed()
+    for (let [merged_size, new_stride, real_size] of merge_dims(this.shape, this.strides, this.mask).toReversed()) {
+      // TODO: write with get_contraction
       let acc = 1 as sint
+      // TODO: third resolve shouldn't be needed
       let new_dim: sint
-      while (resolve(le(acc, merged_dim)) && resolve(ne(acc, merged_dim)) && resolve(gt(new_dim = r_new_shape.shift() || 0, 0))) {
-        strides.push(new_stride)
-        if (resolve(ne(new_dim, 1))) new_stride = mul(new_stride, resolve(acc = mul(acc, new_dim)) ? new_dim : 0)
+      while (resolve(le(acc, merged_size)) && resolve(ne(acc, merged_size)) && resolve(gt(new_dim = r_new_shape.shift() || 0, 0))) {
+        r_strides.push(mul(new_stride, acc))
+        acc = mul(acc, new_dim)
+        if (!resolve(lt(acc, real_size))) new_stride = 0
       }
-      if (resolve(ne(acc, merged_dim))) return undefined
+      if (resolve(ne(acc, merged_size))) return undefined
     }
-
+    const new_strides = [...range(new_shape.length - r_strides.length).map((_) => 0), ...r_strides.toReversed()]
     const new_mask = _reshape_mask(this.mask, this.shape, new_shape)
     if (new_mask !== undefined) {
-      const new_strides = [...range(new_shape.length - strides.length).map(() => 0), ...strides.toReversed()]
       const extra_offset = sub(
         this.mask?.length ? sum(zip(this.mask, this.strides).map(([m, s]) => mul(m[0], s))) : 0,
         sum(zip(new_mask, new_strides).map(([m, s]) => mul(m[0], s))),

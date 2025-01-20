@@ -547,7 +547,7 @@ Deno.test(
   compare<[Tensor, number, number]>(
     [
       [Tensor.full([8], 1), 0, -1],
-      [Tensor.new([[3, 3, 3, 3], [3, 3, 3, 3]]), 0, -1],
+      [new Tensor([[3, 3, 3, 3], [3, 3, 3, 3]]), 0, -1],
     ],
     (t, dim0, dim1) => t.transpose(dim0, dim1),
     'out(data[0].transpose(*data[1:]))',
