@@ -1,13 +1,13 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, min, NotImplemented, product, random_id, range, Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, CONSTS, DEBUG, dedup, flatten, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, min, NotImplemented, product, random_id, range, Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
 import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, sum, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
 // // **** start with two base classes, Tensor && Function ****
-import { make_tuple, round_up } from './helpers.ts'
+import { isInt, make_tuple, round_up } from './helpers.ts'
 import { argsort } from './helpers.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
@@ -1335,14 +1335,15 @@ export class Tensor extends MathTrait<Tensor> {
   }
   /**
    * Returns a tensor with padding applied based on the input `padding`.
+   *
    * `padding` supports two padding structures:
    *
-   * 1. Flat padding: (padding_left, padding_right, padding_top, padding_bottom, ...)
+   * 1. Flat padding: `(padding_left, padding_right, padding_top, padding_bottom, ...)`
    * - This structure matches PyTorch's pad.
    * - `padding` length must be even.
    *
-   * 2. Group padding: (..., (padding_top, padding_bottom), (padding_left, padding_right))
-   * - This structure matches pad for jax, numpy, tensorflow && others.
+   * 2. Group padding: `(..., (padding_top, padding_bottom), (padding_left, padding_right))`
+   * - This structure matches pad for JAX, NumPy, TensorFlow and others.
    * - For each axis, padding can be `undefined`, meaning no padding, || a tuple `(start, end)`.
    * - `padding` must have the same length as `this.ndim`.
    *
@@ -1365,83 +1366,46 @@ export class Tensor extends MathTrait<Tensor> {
    */
   pad = (padding: sint[] | ([sint, sint] | undefined)[], mode: 'constant' | 'reflect' | 'replicate' | 'circular' = 'constant', value: number | bigint | boolean = 0.0): Tensor => {
     if (!['constant', 'reflect', 'replicate', 'circular'].includes(mode)) throw new Error(`mode=${mode} !== supported`)
-    const flat = padding.every((p) => Number.isInteger(p) || p instanceof UOp)
-    if (flat && padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
-    // turn flat padding into group padding
-    let pX = flat ? [...range(this.ndim - idiv(padding.length, 2)).map(() => [0, 0] as [sint, sint]), ...zip(slice(padding as number[], { start: -2, step: -2 }), slice(padding as number[], { step: -2 }))] : padding as [sint, sint][]
-    if (pX.length !== this.ndim) throw new Error(`padding length is improper, ${list_str(padding)} ${this.ndim}`)
-    const X = this
-    pX = pX.map((p) => p || [0, 0] as [sint, sint])
-    const pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
+    // flat padding
+    let pX: [sint, sint][]
+    if (padding.every((p) => isInt(p) || p instanceof UOp)) {
+      if (padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
+      pX = _flat_to_grouped([...padding, ...range(this.ndim - idiv(padding.length, 2)).flatMap((x) => [0, 0])])
+    } // group padding
+    else pX = padding.map((p) => p === undefined ? [0, 0] : p)
+    if (pX.length !== this.ndim) throw new Error(`padding length is improper, padding=${padding} ndim=${this.ndim}`)
+    let X: Tensor = this, pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)])
     if (mode === 'constant') {
       const _constant = (x: Tensor, px: [sint, sint][], v: number | bigint | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
       return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX, value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads, value)
     }
-    throw new NotImplemented()
-    // assert(all_int(this.shape), `does !support symbolic shape ${this.shape}`)
-    // if mode === "circular":
-    //   if any(pB>sh || pA>sh for (const (pB,pA),sh of zip(pX, X.shape))){ raise ValueError('Padding value causes wrapping around more than once.')
-    //   if any(pB<0 || pA<0 for (const pB,pA of pX)){ raise NotImplementedError("Negative pads with circular pads !== supported")
-    //   orig_shape, X = X.shape, X.repeat(tuple(1 + boolean(pB) + boolean(pA) for pB,pA in pads))
-    //   return X.shrink(tuple((0 if pB === 0 else osh-pB, xsh if pA === 0 else xsh-osh+pA) for (pB,pA),osh,xsh in zip(pads, orig_shape, X.shape)))
-    // for (const d,(pB,pA) of enumerate(pads)){
-    //   if mode === "reflect":
-    //     if pB >= (s:=X.shape[d]) || pA>=s: raise ValueError(`Padding (${pB}, ${pA}) should be less than the input size=${s} for dim=${d}.`)
-    //     slcB, slcA, = slice(pB,0,-1), slice(s-2 if s-2>=0 else undefined, s-2-pA if s-2-pA>=0 else undefined, -1)
-    //     xB, xA = (X[[slc if i === d else slice(undefined) for i in range(X.ndim)]] if p > 0 else undefined for slc, p in ((slcB, pB), (slcA, pA)))
-    //   if mode === "replicate":
-    //     shrB, shrA, = tuple((0,1) if i==d else undefined for i in range(X.ndim)), tuple((X.shape[i]-1,X.shape[i]) if i==d else undefined for i in range(X.ndim))
-    //     xB, xA = (X.shrink(shr).expand(tuple(p if i==d else undefined for i in range(X.ndim))) if p > 0 else undefined for shr, p in ((shrB, pB), (shrA, pA)))
-    //   X = Tensor.cat(*(X_ for X_ in (xB, X, xA) if X_ !== undefined), dim=d)
-    // return X.shrink(tuple((-min(pB,0), min(pA+s,s)) for (pB,pA),s in zip(pX, X.shape)))
+    if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
+    if (mode === 'circular') {
+      if (zip(pX, X.shape).some(([[pB, pA], sh]) => pB as number > sh || pA as number > sh)) throw new Error('Padding value causes wrapping around more than once.')
+      if (pX.some(([pB, pA]) => pB as number < 0 || pA as number < 0)) throw new Error('Negative pads with circular pads is not supported')
+      const orig_shape = X.shape
+      X = X.repeat(pads.map(([pB, pA]) => (1 + Number(Boolean(pB)) + Number(Boolean(pA)))))
+      return X.shrink(zip(pads, orig_shape, X.shape).map(([[pB, pA], osh, xsh]) => [pB === 0 ? 0 : osh - (pB as number), pA === 0 ? xsh : xsh - osh + (pA as number)]))
+    }
+    for (const [d, [pB, pA]] of pads.entries()) {
+      let xB: Tensor | undefined, xA: Tensor | undefined
+      if (mode === 'reflect') {
+        const s = X.shape[d]
+        if ((pB as number) >= s || (pA as number) >= s) throw new Error(`Padding (${pB}, ${pA}) should be less than the input size=${s} for dim=${d}.`)
+        const slcB = { start: pB, stop: 0, step: -1 }, slcA = { start: s - 2 >= 0 ? s - 2 : undefined, stop: s - 2 - (pA as number) >= 0 ? s - 2 - (pA as number) : undefined, step: -1 }
+        ;[xB, xA] = [[slcB, pB], [slcA, pA]].map(([slc, p]) => (p as number) > 0 ? X.get(...range(X.ndim).map((i) => i === d ? slc : {})) : undefined)
+      }
+      if (mode === 'replicate') {
+        const shrB = range(X.ndim).map((i) => i === d ? [0, 1] as [number, number] : undefined), shrA = range(X.ndim).map((i) => i === d ? [X.shape[i] - 1, X.shape[i]] as [number, number] : undefined)
+        ;[xB, xA] = ([[shrB, pB], [shrA, pA]] as const).map(([shr, p]) => (p as number) > 0 ? X.shrink(shr).expand(range(X.ndim).map((i) => i === d ? p : undefined) as sint[]) : undefined)
+      } else throw new Error(`invalid mode ${mode}`)
+      X = Tensor.cat([xB, X, xA].filter((X_) => X_ !== undefined), d)
+    }
+    return X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-min([pB as number, 0]), min([(pA as number) + s, s])] as [sint, sint]))
   }
   // ***** movement high level ops *****
 
-  // Supported Indexing Implementations:
-  //   1. Int indexing (no copy)
-  //     - for all dims where there's number, shrink -> reshape
-  //     - negative indices are taken relative to the end of the sequence, so X.at(-2)! returns the 2nd-to-last element
-  //     - X = Tensor.rand(4,5,9); X[2,-2] shrinks the Tensor to X.shrink(((2, 3), (3, 4), (0, 9))) -> X.shape=(1,1,9)
-  //     - Then we reshape (collapse) the number dim away such that for X: (1,1,9) -> (9,)
-  //   2. Slice indexing (no copy)
-  //     - for all dims where slice === start:end:stride, shrink -> flip | undefined -> pad -> reshape -> shrink
-  //     - first shrink the Tensor to X.shrink(((start, end),))
-  //     - then we apply stride through flip | undefined -> pad -> reshape -> shrink
-  //       - flip where dim value === negative
-  //       - pad on dims to be multiple of strides, such that reshaping [dim_size_padded] -> [dim_size_padded // stride, stride] === possible
-  //       - shrink [dim_size_padded // stride, stride] -> [dim_size_padded // stride, 1]
-  //       - reshape [dim_size_padded // stride, 1] -> [dim_size_padded // stride] && now you have your stride
-  //   3. undefined indexing (no copy)
-  //     - reshape (inject) a dim at the dim where there's undefined
-  //   4. Tensor indexing (copy)
-  //     - use Tensor.arange === tensor_index to create masks for dims with Tensors (adds a dim for each mask)
-  //     - combine masks together with mul
-  //     - apply mask to this by mask * this
-  //     - sum reduce away the extra dims added from creating masks
-  // Tiny Things:
-  //   1. Supported indices: Union[number, slice, Tensor, undefined, List, Tuple, Ellipsis]
-  //     - for any list, Union[List, Tuple, number[]], must have homogeneous shape
-  //     - for any tuple, Union[List, []], must have homogeneous shape
-  //   2. Bool indexing !== supported
-  //   3. Out of bounds Tensor indexing results in 0
-  //     - e.g: Tensor([1, 2, 3])[Tensor([4, 3, 2])] -> [0, 0, 3] index 4 && 3 are out of bounds
-  /**
-   * # Examples
-   * ```ts
-   * X.get(2) // X[2]
-   * X.get(2, -2) // X[2, -2]
-   * X.get({ start: 1, stop: 4 }, { step: -1 }, { start: 2, stop: 7, step: 2 }) // X[1:4, ::-1, 2:7:2]
-   * X.get(undefined, {}, {}) // X[None, :, :]
-   * X.get(new Tensor(), new Tensor()) // X[Tensor(), Tensor()]
-   * X.get('...') // X[...]
-   * X.get({}, '...', [1, 3]) // X[:, ..., 1:3]
-   * X.get({}, '...', -1) // X[:, ..., -1]
-   * X.get([2, 5], '...') // X[[2,5], ...]
-   * X.get('...', { start: 1, stop: 4 }, { start: 0, stop: 2 }) // X[..., 1:4, 0:2]
-   * X.get(2, '...', undefined) // X[2, ..., None]
-   * ```
-   */
-  get = (...indices: TensorIndice[]): Tensor => {
+  _getitem = (indices: TensorIndice[], v?: Tensor): Tensor => {
     // turn scalar Tensors into const val for number indexing if possible
     let x = this as Tensor
     indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) as number : i)
@@ -1493,7 +1457,7 @@ export class Tensor extends MathTrait<Tensor> {
       if (strides.some((st) => Math.abs(st) !== 1)) {
         strides = strides.map((s) => Math.abs(s))
         // pad shape to multiple of stride/
-        if (!all_int(x.shape)) throw new Error('symbolic shape !supprted')
+        if (!all_int(x.shape)) throw new Error('symbolic shape not supported')
         x = x.pad(zip(x.shape, strides).map(([s, st]) => [0, round_up(s, st) - s] as [number, number]))
         x = x.reshape(zip(x.shape as number[], strides).flatMap(([s, st]) => [idiv(s, st), st]))
         x = x.shrink(x.shape.filter((_, i) => i % 2 === 0).flatMap((s) => [[0, s], [0, 1]])).reshape((x.shape as number[]).filter((_, i) => i % 2 === 0))
@@ -1533,16 +1497,94 @@ export class Tensor extends MathTrait<Tensor> {
         x = x.permute(...range(dims[0], dims[0] + big_shape.length), ...range(0, dims[0]), ...range(dims[0] + big_shape.length, x.ndim))
       }
       // for advanced setitem, returns whole tensor with indices replaced
-      // KAREL: not needed for mnist
-      // if v !== undefined:
-      //   vb = v.cast(this.dtype)._broadcast_to(_broadcast_shape(x.shape, v.shape))
-      //   // add back reduced dims from sum
-      //   for (const dim of sum_axis){ vb = vb.unsqueeze(dim)
-      //   // run _masked_setitem on tuple of axis that === to be reduced to match this.shape
-      //   x = _masked_setitem(this, vb, mask, tuple(range(dims[0], dims[0] + len(big_shape))))
+      if (v !== undefined) {
+        let vb = v.cast(this.dtype)._broadcast_to(_broadcast_shape([x.shape, v.shape]))
+        // add back reduced dims from sum
+        for (const dim of sum_axis) vb = vb.unsqueeze(dim)
+        // run _masked_setitem on tuple of axis that is to be reduced to match self.shape
+        x = _masked_setitem(this, vb, mask, range(dims[0], dims[0] + big_shape.length))
+      }
     }
 
     return x
+  }
+  /**
+   * Retrieve a sub-tensor using indexing.
+   *
+   * Supported Index Types: `int | slice | Tensor | None | List | Tuple | Ellipsis`
+   *
+   * Examples:
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(12).reshape(3, 4)
+   * print(t.numpy())
+   * ```
+   *
+   * - Int Indexing: Select an element or sub-tensor using integers for each dimension.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t[1, 2].numpy())
+   * ```
+   *
+   * - Slice Indexing: Select a range of elements using slice notation (`start:end:stride`).
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t[0:2, ::2].numpy())
+   * ```
+   *
+   * - Tensor Indexing: Use another tensor as indices for advanced indexing. Using `tuple` or `list` here also works.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t[Tensor([2, 0, 1]), Tensor([1, 2, 3])].numpy())
+   * ```
+   *
+   * - `None` Indexing: Add a new dimension to the tensor.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t[:, None].shape)
+   * ```
+   *
+   * NOTE: Out-of-bounds indexing results in a value of `0`.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([1, 2, 3])
+   * print(t[Tensor([4, 3, 2])].numpy())
+   * ```
+   */
+  get = (...indices: TensorIndice[]) => this._getitem(indices)
+
+  set = async (indices: TensorIndice[], v: Tensor | number[]) => {
+    if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
+      this._getitem(indices).assign(v)
+      return
+    }
+    // NOTE: check that setitem target is valid first
+    if (!this.lazydata.lbs.every((lb) => lb.st!.contiguous)) throw new Error('setitem target needs to be contiguous')
+    if (!(v instanceof Tensor || CONSTS.includes(typeof v))) throw new Error(`can't set a ${v.constructor.name} to a Tensor`)
+    if (!(v instanceof Tensor)) v = new Tensor(v, { device: this.device, dtype: this.dtype })
+    if (this.requires_grad || v.requires_grad) throw new Error('setitem with requires_grad is not supported')
+
+    const res = (await this.realize())._getitem(indices, v)
+    // if shapes match and data is not shared it's a copy and we assign to self
+    if (res.shape === this.shape && res.lazydata !== this.lazydata) this.assign(res).realize()
+    else {
+      v = v.cast(res.dtype)._broadcast_to(_broadcast_shape([res.shape, v.shape])).contiguous()
+      res.assign(v).realize()
+    }
+  }
+  /**
+   * Gathers values along an axis specified by `dim`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[1, 2], [3, 4]])
+   * print(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.gather(1, Tensor([[0, 0], [1, 0]])).numpy())
+   * ```
+   * """
+   */
+  gather = (dim: number, index: Tensor): Tensor => {
+    if (index.ndim !== this.ndim) throw new Error(`self.ndim must equal index.ndim, this.ndim=${this.ndim}, index.ndim=${index.ndim}`)
+    dim = this._resolve_dim(dim)
+    if (!zip(this.shape, index.shape).entries().filter(([d]) => d !== dim).every(([d, [s, i]]) => s >= i)) throw new Error('requires self.shape[d] >= index.shape[d] for all d != dim')
+    index = index.to(this.device)
+    const x = this.shrink([...index.shape.entries().map(([d, i]) => d !== dim ? [0, i] as [sint, sint] : undefined)]).unsqueeze(-1).transpose(-1, dim)
+    return (x.mul(index.unsqueeze(-1)._one_hot_along_dim(this.shape[dim]))).sum(-1, undefined, this.dtype)
   }
 
   /**
@@ -1581,9 +1623,23 @@ export class Tensor extends MathTrait<Tensor> {
    */
   stack = (args: Tensor[], dim = 0): Tensor => {
     // checks for shapes and number of dimensions delegated to cat
-    return this.unsqueeze(dim).cat(args.map((t) => t.unsqueeze(dim)), dim)
+    return Tensor.cat([this, ...args].map((t) => t.unsqueeze(dim)), dim)
   }
-  static stack = (tensors: Tensor[], dim = 0): Tensor => tensors[0].stack(tensors.slice(1), dim)
+
+  /**
+   * Repeat elements of a tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([1, 2, 3])
+   * print(t.repeat_interleave(2).numpy())
+   * ```
+   */
+  repeat_interleave = (repeats: number, dim?: number): Tensor => {
+    const x = dim === undefined ? this.flatten() : this
+    dim = dim === undefined ? 0 : this._resolve_dim(dim)
+    const shp = x.shape
+    return x.reshape([...shp.slice(0, dim + 1), 1, ...shp.slice(dim + 1)]).expand([...shp.slice(0, dim + 1), repeats, ...shp.slice(dim + 1)]).reshape([...shp.slice(0, dim), ...range(repeats).map(() => shp[dim]), ...shp.slice(dim + 1)])
+  }
 
   /**
    * Repeats tensor number of times along each dimension specified by `repeats`.
@@ -1610,6 +1666,86 @@ export class Tensor extends MathTrait<Tensor> {
     return dim < 0 ? dim + total : dim
   }
   /**
+   * Splits the tensor into chunks along the dimension specified by `dim`.
+   * If `sizes` is an integer, it splits into equally sized chunks if possible, otherwise the last chunk will be smaller.
+   * If `sizes` is a list, it splits into `len(sizes)` chunks with size in `dim` according to `size`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(10).reshape(5, 2)
+   * print(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * split = t.split(2)
+   * print("\\n".join([repr(x.numpy()) for x in split]))
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * split = t.split([1, 4])
+   * print("\\n".join([repr(x.numpy()) for x in split]))
+   * ```
+   */
+  split = (sizes: number | number[], dim = 0): Tensor[] => {
+    if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
+    dim = this._resolve_dim(dim)
+    if (typeof sizes === 'number') sizes = range(0, max([1, this.shape[dim]]), max([1, sizes])).map((i) => min([sizes as number, this.shape[dim] - i]))
+    if (sum(sizes) !== this.shape[dim]) throw new Error(`expect sizes to sum exactly to {self.shape[dim]}, but got {sum(sizes)}`)
+    return range(sizes.length).map((i) => [...range(dim).map(() => ({})), { start: sum(sizes.slice(0, i)), stop: sum(sizes.slice(0, i + 1)) }]).map((sl) => this.get(sl))
+  }
+
+  /**
+   * Splits the tensor into `chunks` number of chunks along the dimension `dim`.
+   * If the tensor size along `dim` is not divisible by `chunks`, all returned chunks will be the same size except the last one.
+   * The function may return fewer than the specified number of chunks.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * chunked = Tensor.arange(11).chunk(6)
+   * print("\\n".join([repr(x.numpy()) for x in chunked]))
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * chunked = Tensor.arange(12).chunk(6)
+   * print("\\n".join([repr(x.numpy()) for x in chunked]))
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * chunked = Tensor.arange(13).chunk(6)
+   * print("\\n".join([repr(x.numpy()) for x in chunked]))
+   * ```
+   */
+  chunk = (chunks: number, dim = 0): Tensor[] => {
+    if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
+    if (chunks <= 0) throw new Error(`expect chunks to be greater than 0, got: ${chunks}`)
+    dim = this._resolve_dim(dim)
+    return this.split(this.shape[dim] ? ceildiv(this.shape[dim], chunks) : range(chunks).map(() => 0), dim)
+  }
+
+  /**
+   * Generates coordinate matrices from coordinate vectors.
+   * Input tensors can be scalars or 1D tensors.
+   *
+   * `indexing` determines how the output grids are aligned.
+   * `ij` indexing follows matrix-style indexing and `xy` indexing follows Cartesian-style indexing.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * x, y = Tensor([1, 2, 3]), Tensor([4, 5, 6])
+   * grid_x, grid_y = x.meshgrid(y)
+   * print(grid_x.numpy())
+   * print(grid_y.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * grid_x, grid_y = x.meshgrid(y, indexing="xy")
+   * print(grid_x.numpy())
+   * print(grid_y.numpy())
+   * ```
+   */
+  meshgrid = (args: Tensor[], indexing: 'ij' | 'xy' = 'ij'): Tensor[] => {
+    if (!['ij', 'xy'].includes(indexing)) throw new Error(`indexing must be in ("ij", "xy"), got ${indexing}`)
+    let tensors = [this, ...args]
+    if (tensors.length === 1) return tensors
+    const basis = indexing === 'ij' ? range(tensors.length) : [1, 0, ...range(2, tensors.length)]
+    tensors = zip(basis, tensors).map(([i, t]) => t.reshape([-1, ...range(args.length - 1).map(() => 1)]))
+    const output_shape = _broadcast_shape(tensors.map((t) => t.shape))
+    return tensors.map((t) => t._broadcast_to(output_shape))
+  }
+
+  /**
    * Returns a tensor with specified dimensions of input of size 1 removed.
    * If `dim` is not specified, all dimensions with size 1 are removed.
    *
@@ -1627,7 +1763,7 @@ export class Tensor extends MathTrait<Tensor> {
   squeeze = (dim?: number): Tensor => {
     if (dim === undefined) return this.reshape(this.shape.filter((dim) => dim !== 1))
     dim = this._resolve_dim(dim)
-    return !this.ndim || this.shape.at(dim)! !== 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
+    return !this.ndim || this.shape[dim] !== 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
   }
 
   /**
@@ -1689,23 +1825,83 @@ export class Tensor extends MathTrait<Tensor> {
     start_dim = this._resolve_dim(start_dim), end_dim = this._resolve_dim(end_dim)
     return this.reshape([...this.shape.slice(0, start_dim), prod(this.shape.slice(start_dim, end_dim + 1)), ...this.shape.slice(end_dim + 1)])
   }
-  /**
-   * Unflattens dimension `dim` of the tensor into multiple dimensions specified by `sizes`. `Tensor.flatten()` is the inverse of this function.
-   *
-   *  ```python exec="true" source="above" session="tensor" result="python"
-   * print(Tensor.ones(3, 4, 1).unflatten(1, (2, 2)).shape)
-   * ```
-   * ```python exec="true" source="above" session="tensor" result="python"
-   * print(Tensor.ones(3, 4, 1).unflatten(1, (-1, 2)).shape)
-   * ```
-   * ```python exec="true" source="above" session="tensor" result="python"
-   * print(Tensor.ones(5, 12, 3).unflatten(-2, (2, 2, 3, 1, 1)).shape)
-   * ```
-   */
-  unflatten = (dim: number, sizes: number[]) => {
-    dim = this._resolve_dim(dim)
-    return this.reshape([...this.shape.slice(0, dim), ...sizes, ...this.shape.slice(dim + 1)])
-  }
+
+  // def unflatten(self, dim:int, sizes:tuple[int,...]):
+  //   """
+  //   Unflattens dimension `dim` of the tensor into multiple dimensions specified by `sizes`. `Tensor.flatten()` is the inverse of this function.
+
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   print(Tensor.ones(3, 4, 1).unflatten(1, (2, 2)).shape)
+  //   ```
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   print(Tensor.ones(3, 4, 1).unflatten(1, (-1, 2)).shape)
+  //   ```
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   print(Tensor.ones(5, 12, 3).unflatten(-2, (2, 2, 3, 1, 1)).shape)
+  //   ```
+  //   """
+  //   dim = self._resolve_dim(dim)
+  //   return self.reshape(self.shape[:dim] + sizes + self.shape[dim+1:])
+
+  // def roll(self, shifts:Union[int, tuple[int, ...]], dims:Union[int, tuple[int, ...]]) -> Tensor:
+  //   """
+  //   Rolls the tensor along specified dimension(s).
+  //   The rolling operation is circular, meaning that elements that go beyond the edge are wrapped around to the beginning of the dimension.
+
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   t = Tensor.arange(4)
+  //   print(t.roll(shifts=1, dims=0).numpy())
+  //   ```
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   print(t.roll(shifts=-1, dims=0).numpy())
+  //   ```
+  //   """
+  //   dims, rolled = tuple(self._resolve_dim(d) for d in make_tuple(dims, 1)), self
+  //   for dim, shift in zip(dims, make_tuple(shifts, 1)):
+  //     shift = shift % self.shape[dim]
+  //     rolled = Tensor.cat(rolled[tuple(slice(None) if i != dim else slice(-shift, None) for i in range(rolled.ndim))],
+  //                         rolled[tuple(slice(None) if i != dim else slice(None, -shift) for i in range(rolled.ndim))], dim=dim)
+  //   return rolled
+
+  // def rearrange(self, formula:str, **sizes) -> Tensor:
+  //   """
+  //   Rearranges input according to formula
+
+  //   See: https://einops.rocks/api/rearrange/
+
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   x = Tensor([[1, 2], [3, 4]])
+  //   print(Tensor.rearrange(x, "batch channel -> (batch channel)").numpy())
+  //   ```
+  //   """
+  //   def parse_formula(formula: str):
+  //     tokens = f" {formula} ".replace("…", "...").replace("(", " ( ").replace(")", " ) ").replace(" ", "  ").replace(" 1 ", " ( ) ").split()
+  //     lparens, rparens = map(lambda x: [i for i, ch in enumerate(tokens) if ch == x], ("(", ")"))
+  //     pairs = list(zip(lparens, rparens))
+  //     assert len(lparens) == len(rparens) and sorted(flatten(pairs)) == flatten(pairs), "bracket mismatch"
+  //     return [name for name in tokens if name not in ("(", ")")], [(s - 2*i, e - 1 - 2*i) for i, (s, e) in enumerate(pairs)]
+
+  //   assert formula.count("->") == 1, 'need exactly one "->" in formula'
+
+  //   (lhs, unflatten_dims), (rhs, flatten_dims) = map(parse_formula, formula.split("->"))
+
+  //   for name in sizes: assert name in lhs, f"axis {name} is not used in transform"
+  //   assert sorted(lhs) == sorted(rhs) and len(lhs) == len(set(lhs)), f"name mismatch in {formula}"
+  //   for name in flatten((lhs, rhs)): assert name == "..." or (name.isidentifier() and "_" not in (name[0], name[-1])), f"invalid axis name {name}"
+  //   assert "..." not in flatten([lhs[s:e] for s, e in unflatten_dims]), f"cannot have collapsed ellipsis (...) in lhs of {formula}"
+  //   assert lhs.count("...") <= 1, f"too many ellipses in {formula}"
+
+  //   # resolve ellipsis
+  //   if "..." in lhs: ell_len = len(self.shape) - len(lhs) + 1 + sum(e - s - 1 for s, e in unflatten_dims)
+  //   lhs, rhs = map(lambda l: l[:(i:=l.index("..."))] + [f"...{j}" for j in range(ell_len)] + l[i + 1:] if "..." in l else l, (lhs, rhs))
+  //   unflatten_dims = [(s + (ell_len - 1 if "...0" in lhs[:s] else 0), e + (ell_len - 1 if "...0" in lhs[:e] else 0)) for s, e in unflatten_dims]
+  //   flatten_dims = [(s + (ell_len - 1 if "...0" in rhs[:s] else 0), e + (ell_len - 1 if "...0" in rhs[:e] else 0)) for s, e in flatten_dims]
+
+  //   # apply movement ops in order unflatten -> permute -> flatten/unsqueeze
+  //   t = functools.reduce(lambda x, dims: x.unflatten(dims[0], tuple(sizes.get(lhs[d], -1) for d in range(*dims))), unflatten_dims, self)
+  //   for i, name in enumerate(lhs): assert (name not in sizes) or sizes[name] == t.shape[i], f"size provided for dimension {name} incorrect"
+  //   t = t.permute([lhs.index(name) for name in rhs])
+  //   return functools.reduce(lambda x, dims: x.flatten(dims[0], dims[1] - 1) if dims[0]<dims[1] else x.unsqueeze(dims[0]), reversed(flatten_dims), t)
 
   //     // ***** reduce ops *****
 
