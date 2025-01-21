@@ -458,9 +458,6 @@ export class Tensor extends MathTrait<Tensor> {
   bool = () => {
     throw new Error('__bool__ on Tensor !== defined')
   }
-  override mod = (x: ConstType<Tensor>, reverse?: boolean) => {
-    throw new Error("Tensor doesn't have mod, this is only here because I needed to extend MathTrait and not SimpleMathTrait")
-  }
   get length() {
     if (!this.shape.length) throw new Error('len() of a 0-d tensor')
     return this.shape[0]
@@ -3558,7 +3555,20 @@ export class Tensor extends MathTrait<Tensor> {
     const [numerator, denominator] = this._broadcasted(x, reverse)
     return numerator.cast(least_upper_float(numerator.dtype)).mul(denominator.cast(least_upper_float(denominator.dtype)).reciprocal())
   }
-
+  /**
+   * Mod `self` by `x`.
+   * Equivalent to `self % x`.
+   * Supports broadcasting to a common shape, type promotion, and integer inputs.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor([-4, 7, 5, 4, -7, 8]).mod(Tensor([2, -3, 8, -2, 3, 5])).numpy())
+   * ```
+   */
+  override mod = (x: ConstType<Tensor>, reverse = false): Tensor => {
+    const [a, b] = this._broadcasted(x, reverse)
+    const r = Mod.apply(a, b)
+    return r.add(b.mul(((r.lt(0)).bitwise_and(b.gt(0))).bitwise_or((r.gt(0)).bitwise_and(b.lt(0)))))
+  }
   /**
    * Computes bitwise xor of `this` && `x`.
    * Equivalent to `this ^ x`.
@@ -3620,8 +3630,7 @@ export class Tensor extends MathTrait<Tensor> {
   bitwise_not = (): Tensor => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
     if (this.dtype === dtypes.bool) return this.logical_not()
-    const max = (1n << BigInt(8 * this.dtype.itemsize)) - 1n
-    return dtypes.is_big_int(this.dtype) ? this.xor(max as any) : this.xor(Number(max))
+    return dtypes.is_big_int(this.dtype) ? this.xor(-1n) : this.xor(-1)
   }
 
   /**
@@ -3701,7 +3710,9 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   override maximum = (x: ConstType<Tensor>): Tensor => {
-    return (this.lt(x)).detach().where(x, this.eq(x).detach().where((this.mul(0.5).add(mul(x as any, 0.5) as number)).cast(this.dtype), this))
+    // NOTE: the mid-point is for backward, revisit after new gradient API
+    if (this.is_floating_point()) return (this.lt(x)).detach().where(x, (this.eq(x)).detach().where((this.mul(0.5).add(mul(x as number, 0.5))).cast(this.dtype), this))
+    return (this.lt(x)).detach().where(x, this)
   }
 
   /**
@@ -3715,7 +3726,8 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   override minimum = (x: ConstType<Tensor>): Tensor => {
-    return ((this.neg()).maximum(neg(x as number) as number)).neg()
+    let [t, x2] = this._broadcasted(x)
+    return t._inverse().maximum(x2._inverse())._inverse()
   }
 
   /**
@@ -3860,6 +3872,62 @@ export class Tensor extends MathTrait<Tensor> {
     if (num_classes === -1) num_classes = await this.max().add(1).item() as number
     return this.get('...', undefined)._one_hot_along_dim(num_classes).where(1, 0)
   }
+
+  //def scaled_dot_product_attention(self, key:Tensor, value:Tensor, attn_mask:Optional[Tensor]=None,
+  //     dropout_p:float=0.0, is_causal:bool=False) -> Tensor:
+  // """
+  // Computes scaled dot-product attention.
+  // `self` is the query tensor, `key` is the key tensor, and `value` is the value tensor.
+
+  // - Described: https://paperswithcode.com/method/scaled
+  // - Paper: https://arxiv.org/abs/1706.03762v7
+
+  // ```python exec="true" source="above" session="tensor" result="python"
+  // q = Tensor.randn(2, 4, 8)
+  // k = Tensor.randn(2, 4, 8)
+  // v = Tensor.randn(2, 4, 8)
+  // print(q.scaled_dot_product_attention(k, v).numpy())
+  // ```
+  // """
+  // # NOTE: it also works when `key` and `value` have symbolic shape.
+  // assert all_int(self.shape), f"does not support symbolic shape {self.shape}"
+  // if is_causal: attn_mask = Tensor.ones(self.shape[-2], key.shape[-2], requires_grad=False, device=self.device).tril(0).cast(dtypes.bool)
+  // if attn_mask is not None and attn_mask.dtype == dtypes.bool: attn_mask = (attn_mask == 0).where(-float("inf"), 0)
+  // qk = self.matmul(key.transpose(-2,-1), acc_dtype=least_upper_dtype(self.dtype, key.dtype, dtypes.float32)) / math.sqrt(self.shape[-1])
+  // return ((qk+attn_mask) if attn_mask is not None else qk).softmax(-1).cast(self.dtype).dropout(dropout_p) @ value
+
+  // def _do_reduction(self, reduction:ReductionStr="mean") -> Tensor:
+  // if reduction not in get_args(ReductionStr): raise ValueError(f"{reduction=} must be one of {get_args(ReductionStr)}")
+  // reductions: dict[str, Callable[[Tensor], Tensor]] = {"mean": Tensor.mean, "sum": Tensor.sum, "none": lambda x: x}
+  // return reductions[reduction](self)
+
+  // def binary_crossentropy(self, Y:Tensor, reduction:ReductionStr="mean") -> Tensor:
+  // """
+  // Computes the binary cross-entropy loss between `self` and `Y`.
+
+  // See: https://pytorch.org/docs/stable/generated/torch.nn.BCELoss.html
+
+  // ```python exec="true" source="above" session="tensor" result="python"
+  // t = Tensor([0.1, 0.9, 0.2])
+  // Y = Tensor([0, 1, 0])
+  // print(t.binary_crossentropy(Y).item())
+  // ```
+  // """
+  // return (-Y*self.log() - (1-Y)*(1-self).log())._do_reduction(reduction)
+
+  // def binary_crossentropy_logits(self, Y:Tensor, reduction:ReductionStr="mean") -> Tensor:
+  // """
+  // Computes the binary cross-entropy loss between `self` and `Y` where `self` is logits.
+
+  // See: https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html
+
+  // ```python exec="true" source="above" session="tensor" result="python"
+  // t = Tensor([-1, 2, -3])
+  // Y = Tensor([0, 1, 0])
+  // print(t.binary_crossentropy_logits(Y).item())
+  // ```
+  // """
+  // return (self.maximum(0) - Y * self + (1 + self.abs().neg().exp()).log())._do_reduction(reduction)
 
   /**
    * Computes the sparse categorical cross-entropy loss between `this` && `Y`.
