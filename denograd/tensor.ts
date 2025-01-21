@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, CONSTS, DEBUG, dedup, flatten, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, min, NotImplemented, product, random_id, range, Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, CONSTS, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, min, NotImplemented, product, random_id, range, Slice, slice, TRACEMETA, WeakValueMap, WINO, zip } from './helpers.ts'
 import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, sum, UOp, Variable } from './ops.ts'
 import { BufferSpec, Device, DeviceType } from './device.ts'
 import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
@@ -315,7 +315,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): UOp => {
   return ret.buf_uop_view()
 }
 
-const _get_winograd_matcols = (mat: number[], dims: number, shp: sint[], device: DeviceType | DeviceType[], dtype: DType): Tensor[][] => {
+const _get_winograd_matcols = (mat: number[][], dims: number, shp: sint[], device: DeviceType | DeviceType[], dtype: DType): Tensor[][] => {
   return range(mat[0].length).map((k) => range(dims).map((dim) => Tensor.cat(mat.map((m) => Tensor.full([...shp.slice(0, dim), 1, ...shp.slice(dim + 1)], Number(m[k]), { device: device, dtype: dtype }), dim))))
 }
 // winograd conv 3 kernel f(4x4,3x3) see: http://arxiv.org/abs/1509.09308
@@ -326,7 +326,7 @@ const _apply_winograd_matrix = (mat: number[][], t: Tensor, dims: number): Tenso
   // precalculate mat columns for each dim; prod(itertools.product(matcols)) gives the columns of kron(mat, mat, ...)
   const matcols = _get_winograd_matcols(mat, dims, t_.shape.slice(dims), t_.device, t_.dtype)
   // multiply each element of t_ by the corresponding stacked column of kron(mat, mat), producing only one view for each element of t
-  const ret = sum(product(range(mat[0].length), dims).map((mat_is) => range(t_[mat_is]).map(() => prod(zip(matcols, mat_is).map(([col, idx]) => col[idx])))))
+  const ret = sum(product(range(mat[0].length), dims).map((mat_is) => prod(zip(matcols, mat_is).map(([col, idx]) => col[idx])).mul(t.get(mat_is))))
   if (!(ret instanceof Tensor)) throw new Error("sum didn't return a Tensor")
   return ret
 }
@@ -341,7 +341,7 @@ export const _broadcast_shape = (shapes: sint[][]): sint[] => {
 const _masked_setitem = (target: Tensor, values: Tensor, mask: Tensor, axes: number[]) => {
   // apply mask to values (already broadcasted) and reduce such that if mask contains repeated indices the last one remains
   values = values.mul(mask)
-  for (const dim of axes) [mask, values] = zip(mask.split(1, dim), values.split(1, dim)).reduce(([x, y]) => [x[0].bitwiseOr(y[0]), y[0].where(y[1], x[1])])
+  for (const dim of axes) [mask, values] = zip(mask.split(1, dim), values.split(1, dim)).reduce(([x, y]) => [x.get(0).bitwise_or(y.get(0)), y.get(0).where(y.get(1), x.get(1))])
   // remove extra dims from reduce
   for (const dim of axes.toReversed()) [mask, values] = [mask.squeeze(dim), values.squeeze(dim)]
   // select from values for each True element in mask else select from self
@@ -446,7 +446,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
   override toString = () => {
     const ld = this.lazydata
-    const ld_repr = this.lazydata instanceof MultiLazyBuffer ? `${ld}` : `<UOp ${ld.device} ${list_str(ld.shape)} ${ld.dtype.toString().slice(7)} ${ld.base !== ld ? ld.st : list_str([ld.op, ld.realized])}>`
+    const ld_repr = ld instanceof MultiLazyBuffer ? `${ld}` : `<UOp ${ld.device} ${list_str(ld.shape)} ${ld.dtype.toString().slice(7)} ${ld.base !== ld ? ld.st : list_str([ld.op, ld.realized])}>`
     return `<Tensor ${ld_repr} on ${this.device} with grad ${this.grad?.lazydata}>`
   };
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
@@ -455,10 +455,6 @@ export class Tensor extends MathTrait<Tensor> {
 
   //   // Python has a non moving GC, so this should be okay
   // const __hash__ = () =>  id(this)
-
-  bool = () => {
-    throw new Error('__bool__ on Tensor !== defined')
-  }
   get length() {
     if (!this.shape.length) throw new Error('len() of a 0-d tensor')
     return this.shape[0]
@@ -540,7 +536,8 @@ export class Tensor extends MathTrait<Tensor> {
   assign_disk = async (x: Tensor | number[] | string | Uint8Array): Promise<Tensor> => {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     if (typeof this.device === 'string' && !this.device.startsWith('DISK')) throw new Error('This can be only used with DISK device')
-    ;(await this.contiguous().realize()).lazydata.base.realized!.copyin(await x._data())
+    const realized = await this.contiguous().realize()
+    ;(realized.lazydata as UOp).base.realized!.copyin(await x._data())
     return this
   }
   assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
@@ -1372,7 +1369,7 @@ export class Tensor extends MathTrait<Tensor> {
     } // group padding
     else pX = padding.map((p) => p === undefined ? [0, 0] : p)
     if (pX.length !== this.ndim) throw new Error(`padding length is improper, padding=${padding} ndim=${this.ndim}`)
-    let X: Tensor = this, pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)])
+    let X: Tensor = this, pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
     if (mode === 'constant') {
       const _constant = (x: Tensor, px: [sint, sint][], v: number | bigint | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
       return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX, value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads, value)
@@ -1619,10 +1616,11 @@ export class Tensor extends MathTrait<Tensor> {
    * print(t0.stack(t1, t2, dim=1).numpy())
    * ```
    */
-  stack = (args: Tensor[], dim = 0): Tensor => {
+  static stack = (args: Tensor[], dim = 0): Tensor => {
     // checks for shapes and number of dimensions delegated to cat
-    return Tensor.cat([this, ...args].map((t) => t.unsqueeze(dim)), dim)
+    return Tensor.cat(args.map((t) => t.unsqueeze(dim)), dim)
   }
+  stack = (args: Tensor[], dim = 0) => Tensor.stack([this, ...args], dim)
 
   /**
    * Repeat elements of a tensor.
@@ -2035,7 +2033,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   any = (axis?: number | number[], keepdim = false) => {
-    return this.boolean().max(axis, keepdim)
+    return this.bool().max(axis, keepdim)
   }
 
   /**
@@ -2456,7 +2454,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
-    if (IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype)
+    if (IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype as DType)
     const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
     const padding_ = this._resolve_pool_pads(padding, HW.length)
     if (!(groups * (cin as number) === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * (cin as number)} vs. ${cin_})`)
@@ -3945,56 +3943,55 @@ export class Tensor extends MathTrait<Tensor> {
     // NOTE: because of ignore_index, we can't use Tensor.mean (so can't use `_do_reduction` here)
     return (unreduced.sum().div(reduction === 'mean' ? loss_mask.sum() : (reduction === 'sum' ? unreduced.sum() : unreduced))).neg()
   }
-  //   def cross_entropy(self, Y:Tensor, reduction:ReductionStr="mean", label_smoothing:float=0.0) -> Tensor:
-  //   """
-  //   Compute the cross entropy loss between input logits and target.
+  /**
+   * Compute the cross entropy loss between input logits and target.
+   *
+   * NOTE: `self` are logits and `Y` are the target labels or class probabilities.
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.functional.cross_entropy.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[-1, 2, -3], [1, -2, 3]])
+   * Y = Tensor([1, 2])
+   * print(t.cross_entropy(Y).item())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[-1, 2, -3], [1, -2, 3]])
+   * Y = Tensor([1, 2])
+   *  ```
+   */
+  cross_entropy = (Y: Tensor, reduction: ReductionStr = 'mean', label_smoothing = 0.0): Tensor => {
+    if (!(0.0 <= label_smoothing && label_smoothing <= 1.0)) throw new Error('label_smoothing must be in [0.0, 1.0]')
+    if (Y.ndim < 2) throw new Error('not implemented cause Y.one_hot is async')
+    Y = Y.mul(1 - label_smoothing, true).add(label_smoothing / Y.shape[1])
+    let ret = this.log_softmax(1).mul(Y).sum(1).neg()
+    return ret._do_reduction(reduction)
+  }
 
-  //   NOTE: `self` are logits and `Y` are the target labels or class probabilities.
-
-  //   See: https://pytorch.org/docs/stable/generated/torch.nn.functional.cross_entropy.html
-
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   t = Tensor([[-1, 2, -3], [1, -2, 3]])
-  //   Y = Tensor([1, 2])
-  //   print(t.cross_entropy(Y).item())
-  //   ```
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   t = Tensor([[-1, 2, -3], [1, -2, 3]])
-  //   Y = Tensor([1, 2])
-  //   print(t.cross_entropy(Y, reduction='none').numpy())
-  //   ```
-  //   """
-  //   assert 0.0 <= label_smoothing <= 1.0, "label_smoothing must be in [0.0, 1.0]"
-  //   Y = Y.one_hot(num_classes=cast(int, self.shape[1])) if Y.ndim < 2 else Y
-  //   Y = (1 - label_smoothing)*Y + label_smoothing / cast(int, Y.shape[1])
-  //   ret = -self.log_softmax(axis=1).mul(Y).sum(axis=1)
-  //   return ret._do_reduction(reduction)
-
-  // def nll_loss(self, Y:Tensor, weight:Optional[Tensor]=None, ignore_index:Optional[int]=None, reduction:ReductionStr="mean") -> Tensor:
-  //   """
-  //   Compute the negative log likelihood loss between log-probabilities and target labels.
-
-  //   NOTE: `self` is log-probabilities and `Y` is the Y labels or class probabilities.
-
-  //   See: https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html
-
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   t = Tensor([[-1, 2, -3], [1, -2, 3]])
-  //   Y = Tensor([1, 2])
-  //   print(t.log_softmax().nll_loss(Y).item())
-  //   ```
-  //   ```python exec="true" source="above" session="tensor" result="python"
-  //   t = Tensor([[-1, 2, -3], [1, -2, 3]])
-  //   Y = Tensor([1, 2])
-  //   print(t.log_softmax().nll_loss(Y, reduction='none').numpy())
-  //   ```
-  //   """
-  //   weight = Tensor.ones_like(Y, requires_grad=False) if weight is None else weight[Y]
-  //   masked_weight = weight if ignore_index is None else weight * (Y != ignore_index)
-  //   nll = -self.gather(1, Y.unsqueeze(1)).squeeze(1) * masked_weight
-  //   return nll.sum() / masked_weight.sum() if reduction == "mean" else nll._do_reduction(reduction)
-
-  //     // ***** Tensor Properties *****
+  /**
+   * Compute the negative log likelihood loss between log-probabilities and target labels.
+   *
+   * NOTE: `self` is log-probabilities and `Y` is the Y labels or class probabilities.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[-1, 2, -3], [1, -2, 3]])
+   * Y = Tensor([1, 2])
+   * print(t.log_softmax().nll_loss(Y).item())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[-1, 2, -3], [1, -2, 3]])
+   * Y = Tensor([1, 2])
+   * print(t.log_softmax().nll_loss(Y, reduction='none').numpy())
+   * ```
+   */
+  nll_loss = (Y: Tensor, weight?: Tensor, ignore_index?: number, reduction: ReductionStr = 'mean'): Tensor => {
+    weight = weight === undefined ? Y.ones_like({ requires_grad: false }) : weight.get(Y)
+    const masked_weight = ignore_index === undefined ? weight : weight.mul(Y.ne(ignore_index))
+    const nll = this.gather(1, Y.unsqueeze(1)).squeeze(1).neg().mul(masked_weight)
+    return reduction === 'mean' ? nll.sum().div(masked_weight.sum()) : nll._do_reduction(reduction)
+  }
+  // ***** Tensor Properties *****
 
   /**
    * Returns the number of dimensions in the tensor.
@@ -4075,7 +4072,7 @@ export class Tensor extends MathTrait<Tensor> {
   llvm_bf16_cast = (dtype: DTypeLike) => {
     // hack for devices that don't support bfloat16
     assert(this.dtype === dtypes.bfloat16)
-    return this.to('LLVM' as any).bitcast(dtypes.uint16).cast(dtypes.uint32).mul(1 << 16).bitcast(dtypes.float32).cast(dtype)
+    return this.to('LLVM' as any).cast(dtype)
   }
 
   /**
@@ -4087,12 +4084,20 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
    * t = t.cast(dtypes.int32)
+   * print(t.dtype, t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = t.cast(dtypes.uint8)
    * console.log(t.dtype, t.numpy())
    * ```
    */
   cast = (dtype: DTypeLike): Tensor => {
     const dt = to_dtype(dtype)
-    return this.dtype === dt ? this : Cast.apply(this, dt)
+    if ([dtypes.uint8, dtypes.uint16].includes(dt) && dtypes.is_float(this.dtype)) {
+      // NOTE: values within the int32 range and outside the unsigned dtype range will cause values to wrap around
+      return Cast.apply(Cast.apply(this, { dtype: dtypes.int32 }), { dtype: dt })
+    }
+    return this.dtype === dt ? this : Cast.apply(self, { dtype: dt })
   }
   /**
    * Bitcasts `this` to the given `dtype` of the same itemsize.
@@ -4178,7 +4183,95 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.dtype, t.numpy())
    * ```
    */
-  boolean = (): Tensor => {
+  bool = (): Tensor => {
     return this.cast(dtypes.bool)
   }
+
+  // *** image Tensor function replacements ***
+
+  image_dot = (w: Tensor, acc_dtype?: DType): Tensor => {
+    // NOTE: we use a 1x1 conv2d to do the matmul. mxk @ kxn = (1,k,m,1).conv2d(n,k,1,1)
+    let x: Tensor = this, dx = this.ndim, dw = w.ndim
+    if (!(dx > 0 && dw > 0)) throw new Error(`both tensors need to be at least 1D, got ${dx}D and ${dw}D`)
+    if (x.shape.at(-1) !== w.shape.at(-min([w.ndim, 2]))) throw new Error(`cannot image_dot ${x.shape} and ${w.shape}`)
+
+    let bs = prod(this.shape.slice(0, -2)), groups = prod(w.shape.slice(0, -2)), cin = w.shape.at(-2)!, cout = w.shape.at(-1)!
+    const out_shape_t = [...this.shape.slice(0, -2), ...(this.shape.length > 1 ? [cout, -1] : [cout])]
+
+    // NOTE: with NHWC we can remove the transposes
+    // bs x groups*cin x H x W
+    const cx = this.transpose(this.ndim - 1, this.ndim - 2).reshape([idiv(bs, groups), groups * cin, -1, 1])
+    // groups*cout x cin x H, W
+    const cw = w.transpose(w.ndim - 1, w.ndim - 2).reshape([groups * cout, cin, 1, 1])
+    return cx.image_conv2d(cw, undefined, groups, undefined, undefined, undefined, acc_dtype).reshape(out_shape_t).transpose(this.ndim - 1, this.ndim - 2)
+  }
+  image_conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DType): Tensor => {
+    const base_image_type = get_number_env('FLOAT16', 0) ? dtypes.imageh : dtypes.imagef
+
+    let [bs, _, iy, ix] = this.shape, [cout, cin, H, W] = weight.shape
+    let x: Tensor = this, rcout = idiv(cout, groups), w = weight.reshape([groups, rcout, cin, H, W])
+
+    // hack for non multiples of 4 on cin
+    if (cin % 4 !== 0 && !(cin === 1 && groups % 4 === 0)) {
+      x = x.reshape([bs, groups, cin, iy, ix]) // do this always?
+      const added_input_channels = 4 - (cin % 4)
+      w = w.pad(range(w.ndim).map((i) => i === 2 ? [0, added_input_channels] as [sint, sint] : undefined))
+      x = x.pad(range(x.ndim).map((i) => i === 2 ? [0, added_input_channels] as [sint, sint] : undefined))
+      cin = cin + added_input_channels
+      x = x.reshape([bs, groups * cin, iy, ix])
+    }
+    // hack for non multiples of 4 on rcout
+    let added_output_channels = 0
+    if (rcout % 4 !== 0 && !(rcout === 1 && groups % 4 === 0)) {
+      added_output_channels = 4 - (rcout % 4)
+      rcout += added_output_channels
+      cout = groups * rcout
+      w = w.pad(range(w.ndim).map((i) => i === 1 ? [0, added_output_channels] as [sint, sint] : undefined))
+    }
+
+    // packed (note: flipping bs and iy would make the auto-padding work)
+    x = x.permute(0, 2, 3, 1)
+    const cin_last = iy === 1 && ix === 1
+    if (cin === 1) w = w.reshape([idiv(cout, 4), 4, H, W]).permute(0, 2, 3, 1)
+    else if (cin_last) w = w.reshape([idiv(cout, 4), 4, idiv(cin, 4), 4, H, W]).permute(0, 4, 2, 5, 1, 3)
+    else w = w.reshape([idiv(cout, 4), 4, idiv(cin, 4), 4, H, W]).permute(0, 4, 2, 5, 3, 1)
+
+    // contiguous creates the image, and early realize static weights (TODO: test for the static weight)
+    if (IMAGE >= 2) x = x.cast(base_image_type(bs * iy, idiv(ix * groups * cin, 4), 4)), w = w.cast(base_image_type(idiv(cout, 4), H * W * cin, 4))
+    x = x.contiguous(), w = w.contiguous()
+
+    // expand out
+    const rcin_hi = cin >= 4 ? idiv(cin, 4) : 1, rcin_lo = cin >= 4 ? 4 : 1
+    const cout_expand = [cin === 1 ? idiv(groups, 4) : groups, cin === 1 ? 4 : 1, rcout >= 4 ? idiv(rcout, 4) : 1, rcout >= 4 ? 4 : 1]
+    x = x.reshape([bs, iy, ix, groups, rcin_hi, rcin_lo])
+    if (cin_last) w = w.reshape([idiv(cout, 4), H, rcin_hi, W, 4, rcin_lo])
+    else w = w.reshape([idiv(cout, 4), H, rcin_hi, W, rcin_lo, 4]).permute(0, 1, 2, 3, 5, 4)
+
+    // prepare input
+    x = x.permute(0, 3, 4, 5, 1, 2).pad(this._resolve_pool_pads(padding, 2))._pool([H, W], stride, dilation) // -> (bs, groups, rcin_hi, rcin_lo, oy, ox, H, W)
+    const oy = x.shape[4], ox = x.shape[5]
+    x = x.permute(0, 4, 5, 1, 2, 3, 6, 7).reshape([bs, oy, ox, ...cout_expand.slice(0, 2), 1, 1, rcin_hi, rcin_lo, H, W])
+
+    // prepare weights
+    w = w.permute(0, 4, 2, 5, 1, 3).reshape([1, 1, 1, ...cout_expand, rcin_hi, rcin_lo, H, W])
+
+    // the conv!
+    let ret = (x.mul(w)).cast(IMAGE >= 2 ? base_image_type(bs * oy, idiv(ox * cout, 4), 4) : dtypes.float32).sum([-4, -3, -2, -1], undefined, acc_dtype)
+
+    // undo hack for non multiples of 4 on C.rcout
+    if (added_output_channels !== 0) {
+      ret = ret.reshape([bs, oy, ox, groups, rcout]).get({}, {}, {}, {}, { stop: -added_output_channels })
+      cout = groups * (rcout - added_output_channels)
+    }
+    // NCHW output
+    ret = ret.reshape([bs, oy, ox, cout]).permute(0, 3, 1, 2)
+    return bias === undefined ? ret : ret.add(bias.reshape([1, -1, 1, 1]))
+  }
+}
+
+export const _metadata_wrapper = (fn: any): any => {
+  throw new NotImplemented()
+}
+if (TRACEMETA >= 1) {
+  throw new NotImplemented()
 }
