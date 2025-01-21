@@ -319,7 +319,7 @@ const _get_winograd_matcols = (mat: number[], dims: number, shp: sint[], device:
   return range(mat[0].length).map((k) => range(dims).map((dim) => Tensor.cat(mat.map((m) => Tensor.full([...shp.slice(0, dim), 1, ...shp.slice(dim + 1)], Number(m[k]), { device: device, dtype: dtype }), dim))))
 }
 // winograd conv 3 kernel f(4x4,3x3) see: http://arxiv.org/abs/1509.09308
-const _apply_winograd_matrix = (mat: number[], t: Tensor, dims: number): Tensor => {
+const _apply_winograd_matrix = (mat: number[][], t: Tensor, dims: number): Tensor => {
   // multiply mat_1 @ mat_2 @ t with foldable constants, where mat_i acts on vector t along dimension i; roughly kron(mat, mat) @ t
   // due to realize-before-expand rule in lazy.py, we must operate in this order: reshape -> expand -> arithmetic
   const t_ = t.reshape([...t.shape.slice(0, dims), ...range(dims).map((x) => 1), ...t.shape.slice(dims)]).expand([...t.shape.slice(0, dims), ...range(dims).map((x) => mat.length), ...t.shape.slice(dims)]) // add output dims
@@ -1143,7 +1143,7 @@ export class Tensor extends MathTrait<Tensor> {
     return (this.ndim === 1 ? indices.squeeze(0) : indices).cast(dtypes.int32)
   }
 
-  // # ***** toposort and backward pass *****
+  // // ***** toposort and backward pass *****
 
   /**
    * Compute the gradient of the targets with respect to self.
@@ -1153,8 +1153,8 @@ export class Tensor extends MathTrait<Tensor> {
    * z = y.matmul(x).sum()
    * dx, dy = z.gradient(x, y)
    *
-   * print(dx.tolist())  # dz/dx
-   * print(dy.tolist())  # dz/dy
+   * print(dx.tolist())  // dz/dx
+   * print(dy.tolist())  // dz/dy
    * ```
    */
   gradient = (targets: Tensor[], gradient?: Tensor): Tensor[] => {
@@ -2375,21 +2375,22 @@ export class Tensor extends MathTrait<Tensor> {
       // `s*(o-1) + (d*(k-1)+1) - (i+pB+pA)` -> last_sliding_window_start + full_kernel_size - padded_input_shape
       // we decrease padding in the case that a sliding window starts in the end padded region, thereby decreasing `o_` in `_pool`
       // `smax(s*(o-1) - (pB+i-1), 0)` -> last_sliding_window_start - (pad_before + input_size - zero_offset)
-          pads[-1-dim*2] += s*(o-1) + (d*(k-1)+1) - (i+pB+pA) - smax(s*(o-1) - (pB+i-1), 0)
+      pads[-1 - dim * 2] += s * (o - 1) + (d * ((k as number) - 1) + 1) - (i + (pB as number) + (pA as number)) - (smax(s * (o - 1) - ((pB as number) + i - 1), 0) as number)
     }
     return pads
   }
   // NOTE: these work for more than 2D
   avg_pool2d = (kernel_size = [2, 2], stride?: number, dilation = 1, padding = 0, ceil_mode = false, count_include_pad = true) => {
-    //   axis = tuple(range(-len(k_ := make_tuple(kernel_size, 2)), 0))
-    //   def pool(x:Tensor, padding_:Sequence[int]) -> Tensor: return x.pad(padding_)._pool(k_, stride if stride is not None else k_, dilation)
-    //   reg_pads = self._resolve_pool_pads(padding, len(k_))
-    //   ceil_pads = self._apply_ceil_mode(reg_pads, k_, stride if stride is not None else k_, dilation)
-    //   if not count_include_pad:
-    //     pads = ceil_pads if ceil_mode else reg_pads
-    //     return pool(self, pads).sum(axis) / pool(self.ones_like(), pads).sum(axis)
-    //   if not ceil_mode: return pool(self, reg_pads).mean(axis)
-    //   return pool(self, ceil_pads).sum(axis) / pool(self.pad(reg_pads).ones_like(), tuple(cp-rp for cp,rp in zip(ceil_pads, reg_pads))).sum(axis)
+    const k_ = make_tuple(kernel_size, 2), axis = range(-k_.length, 0)
+    const pool = (x: Tensor, padding_: number[]): Tensor => x.pad(padding_)._pool(k_, stride !== undefined ? stride : k_, dilation)
+    const reg_pads = this._resolve_pool_pads(padding, k_.length)
+    const ceil_pads = this._apply_ceil_mode(reg_pads, k_, stride !== undefined ? stride : k_, dilation)
+    if (!count_include_pad) {
+      const pads = ceil_mode ? ceil_pads : reg_pads
+      return pool(this, pads).sum(axis).div(pool(this.ones_like(), pads).sum(axis))
+    }
+    if (!ceil_mode) return pool(this, reg_pads).mean(axis)
+    return pool(this, ceil_pads).sum(axis).div(pool(this.pad(reg_pads).ones_like(), zip(ceil_pads, reg_pads).map(([cp, rp]) => cp - rp)).sum(axis))
   }
   /**
    * Applies average pooling over a tensor.
@@ -2428,13 +2429,23 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   max_pool2d = (kernel_size = [2, 2], stride?: number, dilation = 1, padding = 0, ceil_mode = false) => {
-    // pads = self._resolve_pool_pads(padding, len(k_ := make_tuple(kernel_size, 2)))
-    // if ceil_mode: pads = self._apply_ceil_mode(pads, k_, stride if stride is not None else k_, dilation)
-    // return self.pad(pads, value=dtypes.min(self.dtype))._pool(k_, stride if stride is not None else k_, dilation).max(tuple(range(-len(k_), 0)))
+    let k_ = make_tuple(kernel_size, 2), pads = this._resolve_pool_pads(padding, k_.length)
+    if (ceil_mode) pads = this._apply_ceil_mode(pads, k_, stride !== undefined ? stride : k_, dilation)
+    return this.pad(pads, undefined, dtypes.min(this.dtype))._pool(k_, stride !== undefined ? stride : k_, dilation).max(range(-k_.length, 0))
   }
   static max_pool2d = (t: Tensor) => t.max_pool2d()
   /**
    * Applies a convolution over a tensor with a given `weight` && optional `bias`.
+   *
+   * 1. `int` (single value):
+   *   Applies the same padding value uniformly to all spatial dimensions.
+   *
+   * 2. `Tuple[int, ...]` (length = number of spatial dimensions):
+   *   Specifies a distinct padding value for each spatial dimension in the form `(padding_height, padding_width, ...)`.
+   *
+   * 3. `Tuple[int, ...]` (length = 2 * number of spatial dimensions):
+   *   Specifies explicit padding for each side of each spatial dimension in the form
+   *   `(padding_left, padding_right, padding_top, padding_bottom, ...)`.
    *
    * NOTE: unlike PyTorch, this implementation !== limited to only 2d convolutions && instead works for any number of dimensions.
    *
@@ -2446,15 +2457,11 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.conv2d(w).numpy())
    * ```
    */
-  conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
-    if (IMAGE) {
-      throw new Error('KAREL: implement image_conv2d')
-      // return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype)
-    }
+  conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
+    if (IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype)
     const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
+    const padding_ = this._resolve_pool_pads(padding, HW.length)
     if (!(groups * (cin as number) === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * (cin as number)} vs. ${cin_})`)
-    if (Array.isArray(padding) && !(padding.length === 2 * HW.length || padding.length === HW.length)) throw new Error(`Expected padding of length ${2 * HW.length} || ${HW.length}, but got ${padding.length} for tensor of shape ${this.shape}`)
-    const padding_ = this._padding2d(padding, HW.length)
 
     // conv2d === a pooling op (with padding)
     let x = this.pad(padding_)._pool(HW, stride, dilation) // (bs, groups*cin, oy, ox, H, W)
@@ -2467,38 +2474,76 @@ export class Tensor extends MathTrait<Tensor> {
       const ret = (x.mul(weight.reshape([1, groups, rcout, ...range(oyx.length).map(() => 1), cin, ...HW]))).sum(range(1 + oyx.length).map((i) => -1 - i), true, acc_dtype).reshape([bs, cout, ...oyx])
       return bias === undefined ? ret : ret.add(bias.reshape([1, -1, ...range(HW.length).map(() => 1)]))
     }
-    throw new NotImplemented()
-    // KAREL: not needed for mnist
-    // HWI, HWO = (6,) * len(HW), (4,) * len(HW)  // F(4x4,3x3) winograd tiles
-    // winograd_G = [[1/4, 0, 0], .at(-1/6, -1/6, -1/6)!, .at(-1/6, 1/6, -1/6)!, [1/24, 1/12, 1/6], [1/24, -1/12, 1/6], [0, 0, 1]]
-    // winograd_Bt = [[4, 0, -5, 0, 1, 0], [0, -4, -4, 1, 1, 0], [0, 4, -4, -1, 1, 0], [0, -2, -1, 2, 1, 0], [0, 2, -1, -2, 1, 0], [0, 4, 0, -5, 0, 1]]
-    // winograd_At = [[1, 1, 1, 1, 1, 0], [0, 1, -1, 2, -2, 0], [0, 1, 1, 4, 4, 0], [0, 1, -1, 8, -8, 1]] // applying At in pre-order doubles compile time
+    const HWI = range(HW.length).map(() => 6), HWO = range(HW.length).map(() => 4) // F(4x4,3x3) winograd tiles
+    const winograd_G = [[1 / 4, 0, 0], [-1 / 6, -1 / 6, -1 / 6], [-1 / 6, 1 / 6, -1 / 6], [1 / 24, 1 / 12, 1 / 6], [1 / 24, -1 / 12, 1 / 6], [0, 0, 1]]
+    const winograd_Bt = [[4, 0, -5, 0, 1, 0], [0, -4, -4, 1, 1, 0], [0, 4, -4, -1, 1, 0], [0, -2, -1, 2, 1, 0], [0, 2, -1, -2, 1, 0], [0, 4, 0, -5, 0, 1]]
+    const winograd_At = [[1, 1, 1, 1, 1, 0], [0, 1, -1, 2, -2, 0], [0, 1, 1, 4, 4, 0], [0, 1, -1, 8, -8, 1]] // applying At in pre-order doubles compile time
 
-    // // todo: stride === dilation
-    // // use padding to round up to 4x4 output tiles
-    // // (bs, cin_, tyx, HWI)
-    // d = this.pad(sum([[padding_[i*2], padding_[i*2+1] + (-(dim + sum(padding_[i * 2:(i + 1) * 2]) - 2) % 4)] for (const i, dim of enumerate(this.shape.at(-len(HW):)!)], []))._pool(HWI, HWO)  // noqa){ E501
-    // // move HW to the front: // (HWI, bs, cin_, tyx)
-    // d = d.permute(*range(len(d.shape)-len(HW),len(d.shape)), *range(len(d.shape)-len(HW)))
-    // tyx = d.shape.at(-len(HWI):)!  // dim of tiling
+    // todo: stride == dilation
+    // use padding to round up to 4x4 output tiles
+    // (bs, cin_, tyx, HWI)
+    let d = this.pad(this.shape.slice(-HW.length).flatMap((dim, i) => [padding_[i * 2], padding_[i * 2 + 1] + (-(dim + sum(padding_.slice(i * 2, (i + 1) * 2)) - 2) % 4)]))._pool(HWI, HWO)
+    // move HW to the front: // (HWI, bs, cin_, tyx)
+    d = d.permute(...range(d.shape.length - HW.length, d.shape.length), ...range(d.shape.length - HW.length))
+    const tyx = d.shape.slice(-HWI.length) // dim of tiling
 
-    // g = weight.permute(*range(len(weight.shape)-len(HW),len(weight.shape)), *range(len(weight.shape)-len(HW)))  // move HW to the front
+    const g = weight.permute(...range(weight.shape.length - HW.length, weight.shape.length), ...range(weight.shape.length - HW.length)) // move HW to the front
 
-    // // compute 6x6 winograd tiles: GgGt, BtdB
-    // // (HWI, groups * rcout, cin) -> (HWI, bs=1, groups, rcout, cin, tyx=(1,1))
-    // gfactors = _apply_winograd_matrix(winograd_G, g, len(HW)).reshape(*HWI, 1, groups, rcout, cin, *([1]*len(tyx)))
-    // // (HWI, bs, cin_, tyx) -> (HWI, bs, groups, 1 ,cin, *tyx)
-    // dfactors = _apply_winograd_matrix(winograd_Bt, d, len(HW)).reshape(*HWI, bs, groups, 1, cin, *tyx)
+    // compute 6x6 winograd tiles: GgGt, BtdB
+    // (HWI, groups * rcout, cin) -> (HWI, bs=1, groups, rcout, cin, tyx=(1,1))
+    const gfactors = _apply_winograd_matrix(winograd_G, g, HW.length).reshape([...HWI, 1, groups, rcout, cin, ...range(tyx.length).map(() => 1)])
+    // (HWI, bs, cin_, tyx) -> (HWI, bs, groups, 1 ,cin, *tyx)
+    const dfactors = _apply_winograd_matrix(winograd_Bt, d, HW.length).reshape([...HWI, bs, groups, 1, cin, ...tyx])
 
-    // // matmul; sum across cin: (HWI, bs, groups, rcout, *tyx); then HWI -> HWO: (HWO, bs, groups, rcout, *tyx)
-    // ret = _apply_winograd_matrix(winograd_At, (gfactors * dfactors).sum(axis=-1-len(HW), acc_dtype=acc_dtype), len(HW))
+    // matmul; sum across cin: (HWI, bs, groups, rcout, *tyx); then HWI -> HWO: (HWO, bs, groups, rcout, *tyx)
+    let ret = _apply_winograd_matrix(winograd_At, (gfactors.mul(dfactors)).sum(-1 - HW.length, undefined, acc_dtype), HW.length)
 
-    // // interleave tyx && HWO: (bs, groups, rcout, oy, HO, ox, WO)
-    // ret = ret.permute([*range(len(HW), len(ret.shape)-len(HW)), *[i+o for i in range(len(HW)) for o in [len(ret.shape)-len(HW),0]]])
-    // // merge groups && rcout, tyx && HWO: (bs, groups, cout, *yx), shrink to final
-    // ret = ret.reshape(bs, cout, *[c * HWO[i] for i, c in enumerate(tyx)]).shrink(tuple((0, s) for s in [bs, cout, *oyx]))
+    // interleave tyx and HWO: (bs, groups, rcout, oy, HO, ox, WO)
+    ret = ret.permute(...range(HW.length, ret.shape.length - HW.length), ...range(HW.length).flatMap((i) => [ret.shape.length - HW.length, 0].map((o) => i + o)))
+    // merge groups and rcout, tyx and HWO: (bs, groups, cout, *yx), shrink to final
+    ret = ret.reshape([bs, cout, ...tyx.map((c, i) => c * HWO[i])]).shrink([bs, cout, ...oyx].map((s) => [0, s]))
 
-    // return (ret if bias === undefined else ret.add(bias.reshape(1, -1, *[1 for _ in range(len(HW))]))).contiguous().contiguous_backward()
+    return (bias === undefined ? ret : ret.add(bias.reshape([1, -1, ...range(HW.length).map(() => 1)]))).contiguous().contiguous_backward()
+  }
+  /**
+   * Applies a transposed convolution over a tensor with a given `weight` and optional `bias`.
+   *
+   * This function supports three different types of `padding`
+   *
+   * 1. `int` (single value):
+   *   Applies the same padding value uniformly to all spatial dimensions.
+   *
+   * 2. `Tuple[int, ...]` (length = number of spatial dimensions):
+   *   Specifies a distinct padding value for each spatial dimension in the form `(padding_height, padding_width, ...)`.
+   *
+   * 3. `Tuple[int, ...]` (length = 2 * number of spatial dimensions):
+   *   Specifies explicit padding for each side of each spatial dimension in the form
+   *   `(padding_left, padding_right, padding_top, padding_bottom, ...)`.
+   *
+   * NOTE: unlike PyTorch, this implementation is not limited to only 2d transposed convolutions and instead works for any number of dimensions.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(9).reshape(1, 1, 3, 3)
+   * w = Tensor.ones(1, 1, 2, 2)
+   * print(t.conv_transpose2d(w).numpy())
+   * ```
+   */
+  conv_transpose2d = (weight: Tensor, bias?: Tensor, groups = 1, stride_ = 1, dilation_ = 1, padding_ = 0, output_padding_ = 0): Tensor => {
+    let x: Tensor = this, w = weight.unflatten(0, [groups, -1]).transpose(1, 2).flip(range(3, weight.shape.length + 1))
+    const HW = weight.shape.slice(2)
+    let padding = _flat_to_grouped(this._resolve_pool_pads(padding_, HW.length))
+    const [stride, dilation, output_padding] = [stride_, dilation_, output_padding_].map((x) => make_tuple(x, HW.length))
+    if (stride.some((s) => s > 1)) {
+      // handle strides: (k) -> reshape -> (k,1) -> pad -> (k,s) -> reshape -> (k*s) -> shrink (k-(s-1))
+      x = x.reshape([undefined, undefined, ...flatten(x.shape.slice(2).map((k) => [k, 1]))])
+      x = x.pad([undefined, undefined, ...flatten(stride.map((s) => [undefined, [0, s - 1] as [sint, sint]]))])
+      x = x.reshape([undefined, undefined, ...zip(slice(x.shape, { start: 2, step: 2 }), stride).map(([k, s]) => k * s)])
+      x = x.shrink([undefined, undefined, ...zip(x.shape.slice(2), stride).map(([k, s]) => [0, k - (s - 1)] as [sint, sint])])
+    }
+    const new_padding = flatten(zip(HW, dilation, padding, output_padding).toReversed().map(([k, d, [pB, pA], op]) => [(k - 1) * d - (pB as number), (k - 1) * d - (pA as number) + op]))
+    return x.conv2d(w.flatten(undefined, 1), bias, groups, undefined, dilation, new_padding)
   }
   /**
    * Performs dot product between two tensors.
@@ -2553,6 +2598,19 @@ export class Tensor extends MathTrait<Tensor> {
     const pooled = this.transpose(axis, -1).pad([pl_sz, -Number(_include_initial)], undefined, identity_element(op, this.dtype) as number)._pool([this.shape.at(axis)!])
     return (op === Ops.ADD ? pooled.sum(-1) : pooled.max(-1)).transpose(axis, -1)
   }
+  // def _split_cumalu(self, axis:int, op:Ops) -> Tensor:
+  // axis = self._resolve_dim(axis)
+  // if self.ndim == 0 or 0 in self.shape: return self
+  // # TODO: someday the optimizer will find this on it's own
+  // # for now this is a two stage cumsum
+  // SPLIT = 256
+  // if not isinstance(s:=self.shape[axis], int) or s <= SPLIT*2: return self._cumalu(axis, op)
+  // ret = self.transpose(axis,-1).pad((round_up(s, SPLIT)-s, 0), value=identity_element(op, self.dtype)).unflatten(-1, (-1, SPLIT))._cumalu(-1, op)
+  // base = ret[..., -1]._cumalu(-1, op, _include_initial=True)
+  // base = base.unsqueeze(-1).expand(*base.shape, ret.shape[-1])
+  // def fix(x:Tensor): return x.flatten(start_dim=-2)[..., -s:].transpose(axis,-1)
+  // return fix(ret) + fix(base) if op is Ops.ADD else fix(ret).maximum(fix(base))
+
   _split_cumalu = (axis: number, op: Ops): Tensor => {
     axis = this._resolve_dim(axis)
     if (this.ndim === 0 || this.shape.includes(0)) return this
@@ -2598,7 +2656,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
 
   static _tri = (r: sint, c: sint, diagonal = 0, opts?: TensorOptions): Tensor => {
-    if (typeof r !== 'number') throw new Error(`does not support symbolic, getting r={r}, c={c}`)
+    if (!isInt(r) || !isInt(c)) throw new Error(`does not support symbolic, getting r=${r}, c=${c}`)
     if (r === 0 || c === 0 || diagonal >= (c as number)) return Tensor.zeros([r, c], opts)
     if ((r as number) + diagonal <= 0) return Tensor.ones([r, c], opts)
     const s = sub(add(r, c), 1)
@@ -2655,6 +2713,78 @@ export class Tensor extends MathTrait<Tensor> {
     return Tensor._tri(this.shape.at(-2)!, this.shape.at(-1)!, diagonal + 1, { device: this.device, dtype: dtypes.bool }).where(0, this).cast(this.dtype)
   }
 
+  /**
+   * Downsamples or Upsamples to the input `size`, accepts 0 to N batch dimensions.
+   *
+   * The interpolation algorithm is selected with `mode` which currently only supports `linear`, `nearest` and `nearest-exact`.
+   * To run `bilinear` or `trilinear`, pass in a 2D or 3D size.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[1, 2, 3, 4], [21, 22, 23, 24], [41, 42, 43, 44]])
+   * print(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.interpolate(size=(2,3), mode="linear").numpy())
+   * ```
+   */
+  interpolate = (size: number[], mode: 'linear' = 'linear', align_corners = false): Tensor => {
+    //   assert isinstance(size, (tuple,list)) and all_int(size) and 0 < len(size) <= self.ndim, f"invalid {size=}"
+    //   assert mode in ("linear", "nearest", "nearest-exact"), "only supports linear, nearest or nearest-exact interpolate"
+    //   assert not (align_corners and mode != "linear"), "align_corners option can only be set with the interpolating mode linear"
+    //   x, expand = self, list(self.shape)
+    //   for i in range(-1,-len(size)-1,-1):
+    //     scale = (self.shape[i] - int(align_corners)) / (size[i] - int(align_corners))
+    //     arr, reshape = Tensor.arange(size[i], dtype=dtypes.float32, device=self.device), [1] * self.ndim
+    //     reshape[i] = expand[i] = size[i]
+    //     if mode == "linear":
+    //       index = (scale*arr if align_corners else (scale*(arr+0.5))-0.5).clip(0, self.shape[i]-1)
+    //       low, high, perc = [y.reshape(reshape).expand(expand) for y in (index.floor(), index.ceil(), index - index.floor())]
+    //       x = x.gather(i, low).lerp(x.gather(i, high), perc)
+    //     else:
+    //       index = (scale*(arr+0.5) if mode=="nearest-exact" else scale*arr).cast(dtypes.int32).reshape(reshape).expand(expand)
+    //       x = x.gather(i, index)
+    //   return x.cast(self.dtype)
+  }
+  /**
+   *
+   * Scatters `src` values along an axis specified by `dim`.
+   * Apply `add` or `multiply` reduction operation with `reduce`.
+
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * src = Tensor.arange(1, 11).reshape(2, 5)
+   * print(src.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * index = Tensor([[0, 1, 2, 0]])
+   * print(Tensor.zeros(3, 5, dtype=src.dtype).scatter(0, index, src).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * index = Tensor([[0, 1, 2], [0, 1, 4]])
+   * print(Tensor.zeros(3, 5, dtype=src.dtype).scatter(1, index, src).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.full((2, 4), 2.0).scatter(1, Tensor([[2], [3]]), 1.23, reduce='multiply').numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.full((2, 4), 2.0).scatter(1, Tensor([[2], [3]]), 1.23, reduce='add').numpy())
+   * ```
+   */
+  scatter = (dim: number, index: Tensor, src: Tensor | ConstType, reduce?: 'multiply' | 'add'): Tensor => {
+    if (!['add', 'multiply', undefined].includes(reduce)) throw new Error(`reduce=${reduce} must be one of None, 'multiply', or 'add'`)
+    index = index.to(this.device), dim = this._resolve_dim(dim)
+    src = src instanceof Tensor ? src.cast(this.dtype) : new Tensor(src, { device: this.device, dtype: this.dtype })._broadcast_to(index.shape)
+    if (index.ndim !== this.ndim || this.ndim !== src.ndim) throw new Error(`self.ndim, index.ndim and src.dim must all equal, ndim=${this.ndim} index.ndim=${index.ndim} src.ndim=${src.ndim}`)
+    if (!zip(this.shape, index.shape, src.shape).every(([self_, index_, src_], d) => (d === dim || self_ >= index_) && src_ >= index_)) throw new Error(`All dimensions of ${index.shape} should be <= to all dimensions of ${src.shape} and all dimensions except dimension ${dim} of ${this.shape}`)
+    // shrink src to index shape to shrink away the unused values
+    src = src.shrink(index.shape.map((s) => [0, s]))
+    // prepare src and mask for reduce with respect to dim
+    src = src.unsqueeze(-1).expand([...src.shape, this.shape[dim]]).transpose(-1, dim)
+    let mask = index.unsqueeze(-1)._one_hot_along_dim(this.shape[dim]).transpose(-1, dim) // pad src and mask to self.shape so that reduce can be done with padded values as no-ops
+    ;[src, mask] = [src, mask].map((x) => x.pad([...range(this.ndim).map((i) => i !== dim ? [0, this.shape[i] - x.shape[i]] as [sint, sint] : undefined), undefined]))
+    if (reduce === 'add') return mask.where(src, 0).sum(-1, undefined, this.dtype).add(this)
+    if (reduce === 'multiply') return mask.where(src, 1).prod(-1, undefined, this.dtype).mul(this)
+    return _masked_setitem(this, src, mask, [-1])
+  }
   // ***** unary ops *****
 
   /**
@@ -2760,7 +2890,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   sigmoid = () => {
-    return Sigmoid.apply(this.cast(least_upper_float(this.dtype)))
+    return ((this.mul(-1 / Math.log(2)).add(1, true)).exp2()).reciprocal()
   }
   /**
    * Applies the Hardsigmoid function element-wise.
@@ -3327,7 +3457,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
 
   _to_const_val = (x: ConstType<Tensor>): ConstType<Tensor> => {
-    return isinstance(x, Tensor) && isinstance(x.lazydata, LazyBuffer) && x.lazydata.is_unrealized_unmasked_const() && !x.requires_grad && is_eq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.base.arg : x
+    return isinstance(x, Tensor) && isinstance(x.lazydata, UOp) && x.lazydata.is_unrealized_unmasked_const() && !x.requires_grad && is_eq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.const_arg : x
   }
   /**
    * Adds `this` && `x`.
@@ -3396,10 +3526,10 @@ export class Tensor extends MathTrait<Tensor> {
    * Divides `this` by `x`.
    * Equivalent to `this // x`.
    * Supports broadcasting to a common shape, type promotion, && integer inputs.
-   * `idiv` performs integer division.
+   * `idiv` performs integer division (truncate towards zero).
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor([1, 4, 10]).idiv(Tensor([2, 3, 4])).numpy())
+   * print(Tensor([-4, 7, 5, 4, -7, 8]).idiv(Tensor([2, -3, 8, -2, 3, 5])).numpy())
    * ```
    */
   override idiv = (x: ConstType<Tensor>, reverse = false): Tensor => {
