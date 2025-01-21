@@ -1093,7 +1093,7 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(Tensor.glorot_uniform(2, 3).numpy())
    * ```
    */
-  static glorot_uniform = (shape: number[], opts: TensorOptions): Tensor => {
+  static glorot_uniform = (shape: number[], opts: TensorOptions = {}): Tensor => {
     return Tensor.uniform(shape, -1.0, 1.0, opts).mul((6 / (shape[0] + prod(shape.slice(1)))) ** 0.5)
   }
 
@@ -2526,7 +2526,7 @@ export class Tensor extends MathTrait<Tensor> {
    * print(t.conv_transpose2d(w).numpy())
    * ```
    */
-  conv_transpose2d = (weight: Tensor, bias?: Tensor, groups = 1, stride_ = 1, dilation_ = 1, padding_ = 0, output_padding_ = 0): Tensor => {
+  conv_transpose2d = (weight: Tensor, bias?: Tensor, groups = 1, stride_ = 1, dilation_ = 1, padding_: number | number[] = 0, output_padding_ = 0): Tensor => {
     let x: Tensor = this, w = weight.unflatten(0, [groups, -1]).transpose(1, 2).flip(range(3, weight.shape.length + 1))
     const HW = weight.shape.slice(2)
     let padding = _flat_to_grouped(this._resolve_pool_pads(padding_, HW.length))

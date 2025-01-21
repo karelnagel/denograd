@@ -1,7 +1,7 @@
 import { is_dtype_supported } from '../device.ts'
 import { dtypes } from '../dtype.ts'
 import { assert, flatten, is_eq, make_tuple, range, zip } from '../helpers.ts'
-import { div, idiv, mul, prod, sub } from '../ops.ts'
+import { div, idiv, mul, prod, sint, sub } from '../ops.ts'
 import { Layer, Tensor } from '../tensor.ts'
 import { get_state_dict } from './state.ts'
 import { load_state_dict, safe_load, safe_save } from './state.ts'
@@ -145,6 +145,7 @@ export const BatchNorm3d = BatchNorm
 export const Conv1d = (in_channels: number, out_channels: number, kernel_size: number, stride = 1, padding: number | string = 0, dilation = 1, groups = 1, bias = true): Conv2d => {
   return new Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
 }
+
 /**
  * Applies a 2D convolution over an input signal composed of several input planes.
  *
@@ -183,6 +184,52 @@ export class Conv2d {
   }
   call = (x: Tensor): Tensor => x.conv2d(this.weight, this.bias, this.groups, this.stride, this.dilation, this.padding)
 }
+
+/**
+ *
+ * Applies a 1D transposed convolution operator over an input signal composed of several input planes.
+
+ * See: https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose1d
+
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * conv = nn.ConvTranspose1d(1, 1, 3)
+ * t = Tensor.rand(1, 1, 4)
+ * print(t.numpy())
+ * ```
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * t = conv(t)
+ * print(t.numpy())
+ * ```
+ */
+export const ConvTranspose1d = (in_channels: number, out_channels: number, kernel_size: number, stride = 1, padding = 0, output_padding = 0, dilation = 1, groups = 1, bias = true): ConvTranspose2d => {
+  return new ConvTranspose2d(in_channels, out_channels, [kernel_size], stride, padding, output_padding, dilation, groups, bias)
+}
+
+/**
+ * Applies a 2D transposed convolution operator over an input image.
+ *
+ * See: https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d
+ *
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * conv = nn.ConvTranspose2d(1, 1, 3)
+ * t = Tensor.rand(1, 1, 4, 4)
+ * print(t.numpy())
+ * ```
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * t = conv(t)
+ * print(t.numpy())
+ * ```
+ */
+export class ConvTranspose2d extends Conv2d {
+  constructor(in_channels: number, out_channels: number, kernel_size: number | number[], stride = 1, padding = 0, public output_padding = 0, dilation = 1, groups = 1, bias = true) {
+    super(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+    const scale = 1 / Math.sqrt(in_channels * prod(this.kernel_size))
+    this.weight = Tensor.uniform([in_channels, idiv(out_channels, groups), ...this.kernel_size], -scale, scale)
+  }
+  override call = (x: Tensor): Tensor => {
+    return x.conv_transpose2d(this.weight, this.bias, this.groups, this.stride, this.dilation, this.padding, this.output_padding)
+  }
+}
 /**
  * Applies a linear transformation to the incoming data.
  *
@@ -208,6 +255,73 @@ export class Linear {
   }
   call = (x: Tensor): Tensor => x.linear(this.weight.transpose(), this.bias)
 }
+
+/**
+ *
+ * Applies Group Normalization over a mini-batch of inputs.
+
+ * - Described: https://paperswithcode.com/method/group-normalization
+ * - Paper: https://arxiv.org/abs/1803.08494v3
+
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * norm = nn.GroupNorm(2, 12)
+ * t = Tensor.rand(2, 12, 4, 4) * 2 + 1
+ * print(t.mean().item(), t.std().item())
+ * ```
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * t = norm(t)
+ * print(t.mean().item(), t.std().item())
+ * ```
+ */
+export class GroupNorm {
+  weight: Tensor | undefined
+  bias: Tensor | undefined
+  constructor(public num_groups: number, public num_channels: number, public eps = 1e-5, affine = true) {
+    this.weight = affine ? Tensor.ones([num_channels]) : undefined
+    this.bias = affine ? Tensor.zeros([num_channels]) : undefined
+  }
+  call = (x: Tensor): Tensor => {
+    // reshape for layernorm to work as group norm
+    // subtract mean and divide stddev
+    x = x.reshape([x.shape[0], this.num_groups, -1]).layernorm(undefined, this.eps).reshape(x.shape)
+
+    if (this.weight === undefined || this.bias === undefined) return x
+    // elementwise_affine on channels
+    return x.mul(this.weight.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)])).add(this.bias.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)]))
+  }
+}
+
+/**
+ * Applies Instance Normalization over a mini-batch of inputs.
+ *
+ * - Described: https://paperswithcode.com/method/instance-normalization
+ * - Paper: https://arxiv.org/abs/1607.08022v3
+ *
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * norm = nn.InstanceNorm(3)
+ * t = Tensor.rand(2, 3, 4, 4) * 2 + 1
+ * print(t.mean().item(), t.std().item())
+ * ```
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * t = norm(t)
+ * print(t.mean().item(), t.std().item())
+ * ```
+ */
+export class InstanceNorm {
+  weight: Tensor | undefined
+  bias: Tensor | undefined
+  constructor(public num_features: number, public eps = 1e-5, affine = true) {
+    this.weight = affine ? Tensor.ones([num_features]) : undefined
+    this.bias = affine ? Tensor.zeros([num_features]) : undefined
+  }
+
+  call = (x: Tensor): Tensor => {
+    x = x.reshape([x.shape[0], this.num_features, -1]).layernorm(undefined, this.eps).reshape(x.shape)
+    if (this.weight === undefined || this.bias === undefined) return x
+    return x.mul(this.weight.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)])).add(this.bias.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)]))
+  }
+}
+
 /**
  * Applies Layer Normalization over a mini-batch of inputs.
  *
@@ -290,4 +404,60 @@ export class RMSNorm {
   _norm = (x: Tensor): Tensor => x.mul((x.square().mean(-1, true).add(this.eps)).rsqrt())
 
   call = (x: Tensor): Tensor => this._norm(x.float()).cast(x.dtype).mul(this.weight)
+}
+/**
+ * A simple lookup table that stores embeddings of a fixed dictionary and size.
+ *
+ * See: https://pytorch.org/docs/stable/generated/torch.nn.Embedding
+ *
+ * ```python exec="true" source="above" session="tensor" result="python"
+ * emb = nn.Embedding(10, 3)
+ * print(emb(Tensor([1, 2, 3, 1])).numpy())
+ * ```
+ */
+export class Embedding {
+  weight: Tensor
+  arange: Tensor | undefined
+  constructor(public vocab_size: number, public embed_size: number) {
+    this.weight = Tensor.glorot_uniform([vocab_size, embed_size])
+  }
+
+  call = (idx: Tensor): Tensor => {
+    if (this.arange === undefined) this.arange = Tensor.arange(this.vocab_size, undefined, undefined, { requires_grad: false, device: this.weight.device }).unsqueeze(-1)
+    const big_shp = [...idx.shape, this.vocab_size, this.embed_size]
+    const arange = this.arange.expand(big_shp), idx2 = idx.reshape([...idx.shape, 1, 1]).expand(big_shp), vals = this.weight!.expand(big_shp)
+    return (arange.eq(idx2)).mul(vals).sum(-2, undefined, vals.dtype)
+  }
+}
+
+/**
+ * A long short-term memory (LSTM) cell.
+ *
+ * Args:
+ *   input_size: The number of expected features in the input `x`
+ *   hidden_size: The number of features in the hidden state `h`
+ *   bias: If ``False``, then the layer does not use bias weights `b_ih` and `b_hh`
+ */
+export class LSTMCell {
+  weight_ih: Tensor
+  weight_hh: Tensor
+  bias_ih: Tensor | undefined
+  bias_hh: Tensor | undefined
+  constructor(input_size: number, hidden_size: number, bias = true) {
+    const stdv = 1.0 / Math.sqrt(hidden_size)
+    this.weight_ih = Tensor.uniform([hidden_size * 4, input_size], -stdv, stdv)
+    this.weight_hh = Tensor.uniform([hidden_size * 4, hidden_size], -stdv, stdv)
+    this.bias_ih = bias ? Tensor.zeros([hidden_size * 4]) : undefined
+    this.bias_hh = bias ? Tensor.zeros([hidden_size * 4]) : undefined
+  }
+
+  call = (x: Tensor, hc?: [Tensor, Tensor]): [Tensor, Tensor] => {
+    if (hc === undefined) hc = range(2).map(() => Tensor.zeros([x.size(0) as sint, this.weight_hh.size(1) as sint], { dtype: x.dtype, device: x.device })) as [Tensor, Tensor]
+    const gates = x.linear(this.weight_ih.T, this.bias_ih).add(hc[0].linear(this.weight_hh.T, this.bias_hh))
+    let [i, f, g, o] = gates.chunk(4, 1)
+    i = i.sigmoid(), f = f.sigmoid(), g = g.tanh(), o = o.sigmoid()
+    const new_c = f.mul(hc[1]).add(i.mul(g))
+    const new_h = o.mul(new_c.tanh())
+    return [new_h.contiguous(), new_c.contiguous()]
+  }
 }
