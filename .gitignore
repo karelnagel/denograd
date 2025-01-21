@@ -7,3 +7,4 @@ dist/
 .astro/
 .env
 .DS_Store
+.venv/
