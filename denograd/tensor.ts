@@ -350,7 +350,8 @@ const _masked_setitem = (target: Tensor, values: Tensor, mask: Tensor, axes: num
 //  `(padding_left, padding_right, padding_top, padding_bottom, ...)` ->  `(..., (padding_top, padding_bottom), (padding_left, padding_right))`
 const _flat_to_grouped = (padding: sint[]): [sint, sint][] => zip(slice(padding, { start: -2, step: -2 }), slice(padding, { step: -2 }))
 
-type ReductionStr = 'mean' | 'sum' | 'none'
+const ReductionStr = ['mean', 'sum', 'none']
+type ReductionStr = typeof ReductionStr[number]
 
 export type TensorOptions = { device?: DeviceType | DeviceType[]; dtype?: DType; requires_grad?: boolean }
 const sliceGetIndices = (index: Slice, size: number): [number, number, number] => {
@@ -2595,18 +2596,6 @@ export class Tensor extends MathTrait<Tensor> {
     const pooled = this.transpose(axis, -1).pad([pl_sz, -Number(_include_initial)], undefined, identity_element(op, this.dtype) as number)._pool([this.shape.at(axis)!])
     return (op === Ops.ADD ? pooled.sum(-1) : pooled.max(-1)).transpose(axis, -1)
   }
-  // def _split_cumalu(self, axis:int, op:Ops) -> Tensor:
-  // axis = self._resolve_dim(axis)
-  // if self.ndim == 0 or 0 in self.shape: return self
-  // # TODO: someday the optimizer will find this on it's own
-  // # for now this is a two stage cumsum
-  // SPLIT = 256
-  // if not isinstance(s:=self.shape[axis], int) or s <= SPLIT*2: return self._cumalu(axis, op)
-  // ret = self.transpose(axis,-1).pad((round_up(s, SPLIT)-s, 0), value=identity_element(op, self.dtype)).unflatten(-1, (-1, SPLIT))._cumalu(-1, op)
-  // base = ret[..., -1]._cumalu(-1, op, _include_initial=True)
-  // base = base.unsqueeze(-1).expand(*base.shape, ret.shape[-1])
-  // def fix(x:Tensor): return x.flatten(start_dim=-2)[..., -s:].transpose(axis,-1)
-  // return fix(ret) + fix(base) if op is Ops.ADD else fix(ret).maximum(fix(base))
 
   _split_cumalu = (axis: number, op: Ops): Tensor => {
     axis = this._resolve_dim(axis)
@@ -2724,23 +2713,25 @@ export class Tensor extends MathTrait<Tensor> {
    * print(t.interpolate(size=(2,3), mode="linear").numpy())
    * ```
    */
-  interpolate = (size: number[], mode: 'linear' = 'linear', align_corners = false): Tensor => {
-    //   assert isinstance(size, (tuple,list)) and all_int(size) and 0 < len(size) <= self.ndim, f"invalid {size=}"
-    //   assert mode in ("linear", "nearest", "nearest-exact"), "only supports linear, nearest or nearest-exact interpolate"
-    //   assert not (align_corners and mode != "linear"), "align_corners option can only be set with the interpolating mode linear"
-    //   x, expand = self, list(self.shape)
-    //   for i in range(-1,-len(size)-1,-1):
-    //     scale = (self.shape[i] - int(align_corners)) / (size[i] - int(align_corners))
-    //     arr, reshape = Tensor.arange(size[i], dtype=dtypes.float32, device=self.device), [1] * self.ndim
-    //     reshape[i] = expand[i] = size[i]
-    //     if mode == "linear":
-    //       index = (scale*arr if align_corners else (scale*(arr+0.5))-0.5).clip(0, self.shape[i]-1)
-    //       low, high, perc = [y.reshape(reshape).expand(expand) for y in (index.floor(), index.ceil(), index - index.floor())]
-    //       x = x.gather(i, low).lerp(x.gather(i, high), perc)
-    //     else:
-    //       index = (scale*(arr+0.5) if mode=="nearest-exact" else scale*arr).cast(dtypes.int32).reshape(reshape).expand(expand)
-    //       x = x.gather(i, index)
-    //   return x.cast(self.dtype)
+  interpolate = (size: number[], mode: 'linear' | 'nearest' | 'nearest-exact' = 'linear', align_corners = false): Tensor => {
+    if (!(Array.isArray(size) && all_int(size) && 0 < size.length && size.length <= this.ndim)) throw new Error(`invalid size=${size}`)
+    if (!['linear', 'nearest', 'nearest-exact'].includes(mode)) throw new Error('only supports linear, nearest or nearest-exact interpolate')
+    if (align_corners && mode !== 'linear') throw new Error('align_corners option can only be set with the interpolating mode linear')
+    let x: Tensor = this, expand = [...this.shape]
+    for (const i of range(-1, -size.length - 1, -1)) {
+      const scale = (this.shape[i] - Number(align_corners)) / (size[i] - Number(align_corners))
+      const arr = Tensor.arange(size[i], undefined, undefined, { dtype: dtypes.float32, device: this.device }), reshape = range(this.ndim).map((x) => 1)
+      reshape[i] = expand[i] = size[i]
+      if (mode === 'linear') {
+        const index = (align_corners ? arr.mul(scale, true) : (arr.add(0.5).mul(scale, true)).sub(0.5)).clip(0, this.shape[i] - 1)
+        const [low, high, perc] = [index.floor(), index.ceil(), index.sub(index.floor())].map((y) => y.reshape(reshape).expand(expand))
+        x = x.gather(i, low).lerp(x.gather(i, high), perc)
+      } else {
+        const index = (mode === 'nearest-exact' ? (arr.add(0.5).mul(scale, true)) : arr.mul(scale, true)).cast(dtypes.int32).reshape(reshape).expand(expand)
+        x = x.gather(i, index)
+      }
+    }
+    return x.cast(this.dtype)
   }
   /**
    *
@@ -3873,62 +3864,62 @@ export class Tensor extends MathTrait<Tensor> {
     return this.get('...', undefined)._one_hot_along_dim(num_classes).where(1, 0)
   }
 
-  //def scaled_dot_product_attention(self, key:Tensor, value:Tensor, attn_mask:Optional[Tensor]=None,
-  //     dropout_p:float=0.0, is_causal:bool=False) -> Tensor:
-  // """
-  // Computes scaled dot-product attention.
-  // `self` is the query tensor, `key` is the key tensor, and `value` is the value tensor.
+  /**
+   *
+   * Computes scaled dot-product attention.
+   * `self` is the query tensor, `key` is the key tensor, and `value` is the value tensor.
+   *
+   * - Described: https://paperswithcode.com/method/scaled
+   * - Paper: https://arxiv.org/abs/1706.03762v7
 
-  // - Described: https://paperswithcode.com/method/scaled
-  // - Paper: https://arxiv.org/abs/1706.03762v7
-
-  // ```python exec="true" source="above" session="tensor" result="python"
-  // q = Tensor.randn(2, 4, 8)
-  // k = Tensor.randn(2, 4, 8)
-  // v = Tensor.randn(2, 4, 8)
-  // print(q.scaled_dot_product_attention(k, v).numpy())
-  // ```
-  // """
-  // # NOTE: it also works when `key` and `value` have symbolic shape.
-  // assert all_int(self.shape), f"does not support symbolic shape {self.shape}"
-  // if is_causal: attn_mask = Tensor.ones(self.shape[-2], key.shape[-2], requires_grad=False, device=self.device).tril(0).cast(dtypes.bool)
-  // if attn_mask is not None and attn_mask.dtype == dtypes.bool: attn_mask = (attn_mask == 0).where(-float("inf"), 0)
-  // qk = self.matmul(key.transpose(-2,-1), acc_dtype=least_upper_dtype(self.dtype, key.dtype, dtypes.float32)) / math.sqrt(self.shape[-1])
-  // return ((qk+attn_mask) if attn_mask is not None else qk).softmax(-1).cast(self.dtype).dropout(dropout_p) @ value
-
-  // def _do_reduction(self, reduction:ReductionStr="mean") -> Tensor:
-  // if reduction not in get_args(ReductionStr): raise ValueError(f"{reduction=} must be one of {get_args(ReductionStr)}")
-  // reductions: dict[str, Callable[[Tensor], Tensor]] = {"mean": Tensor.mean, "sum": Tensor.sum, "none": lambda x: x}
-  // return reductions[reduction](self)
-
-  // def binary_crossentropy(self, Y:Tensor, reduction:ReductionStr="mean") -> Tensor:
-  // """
-  // Computes the binary cross-entropy loss between `self` and `Y`.
-
-  // See: https://pytorch.org/docs/stable/generated/torch.nn.BCELoss.html
-
-  // ```python exec="true" source="above" session="tensor" result="python"
-  // t = Tensor([0.1, 0.9, 0.2])
-  // Y = Tensor([0, 1, 0])
-  // print(t.binary_crossentropy(Y).item())
-  // ```
-  // """
-  // return (-Y*self.log() - (1-Y)*(1-self).log())._do_reduction(reduction)
-
-  // def binary_crossentropy_logits(self, Y:Tensor, reduction:ReductionStr="mean") -> Tensor:
-  // """
-  // Computes the binary cross-entropy loss between `self` and `Y` where `self` is logits.
-
-  // See: https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html
-
-  // ```python exec="true" source="above" session="tensor" result="python"
-  // t = Tensor([-1, 2, -3])
-  // Y = Tensor([0, 1, 0])
-  // print(t.binary_crossentropy_logits(Y).item())
-  // ```
-  // """
-  // return (self.maximum(0) - Y * self + (1 + self.abs().neg().exp()).log())._do_reduction(reduction)
-
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * q = Tensor.randn(2, 4, 8)
+   * k = Tensor.randn(2, 4, 8)
+   * v = Tensor.randn(2, 4, 8)
+   * print(q.scaled_dot_product_attention(k, v).numpy())
+   * ```
+   */
+  scaled_dot_product_attention = (key: Tensor, value: Tensor, attn_mask?: Tensor, dropout_p = 0.0, is_causal = false): Tensor => {
+    // NOTE: it also works when `key` and `value` have symbolic shape.
+    if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
+    if (is_causal) attn_mask = Tensor.ones([this.shape.at(-2)!, key.shape.at(-2)!], { requires_grad: false, device: this.device }).tril(0).cast(dtypes.bool)
+    if (attn_mask !== undefined && attn_mask.dtype === dtypes.bool) attn_mask = (attn_mask.eq(0)).where(-Infinity, 0)
+    const qk = this.matmul(key.transpose(-2, -1), undefined, least_upper_dtype(this.dtype, key.dtype, dtypes.float32)).div(Math.sqrt(this.shape.at(-1)!))
+    return (attn_mask !== undefined ? (qk.add(attn_mask)) : qk).softmax(-1).cast(this.dtype).dropout(dropout_p).matmul(value)
+  }
+  _do_reduction = (reduction: ReductionStr = 'mean'): Tensor => {
+    if (!ReductionStr.includes(reduction)) throw new Error(`reduction=${reduction} must be one of ${ReductionStr}`)
+    const reductions: Record<ReductionStr, (x: Tensor) => Tensor> = { 'mean': (x) => x.mean(), 'sum': (x) => x.sum(), 'none': (x) => x }
+    return reductions[reduction](this)
+  }
+  /**
+   * Computes the binary cross-entropy loss between `self` and `Y`.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.BCELoss.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([0.1, 0.9, 0.2])
+   * Y = Tensor([0, 1, 0])
+   * print(t.binary_crossentropy(Y).item())
+   * ```
+   */
+  binary_crossentropy = (Y: Tensor, reduction: ReductionStr = 'mean'): Tensor => {
+    return (Y.neg().mul(this.log()).sub(Y.sub(1, true).mul(this.sub(1, true).log())))._do_reduction(reduction)
+  }
+  /**
+   *  Computes the binary cross-entropy loss between `self` and `Y` where `self` is logits.
+   *
+   *  See: https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html
+   *
+   *  ```python exec="true" source="above" session="tensor" result="python"
+   *  t = Tensor([-1, 2, -3])
+   *  Y = Tensor([0, 1, 0])
+   *  print(t.binary_crossentropy_logits(Y).item())
+   *  ```
+   */
+  binary_crossentropy_logits = (Y: Tensor, reduction: ReductionStr = 'mean'): Tensor => {
+    return (this.maximum(0).sub(Y.mul(this)).add((this.abs().neg().exp().add(1, true)).log()))._do_reduction(reduction)
+  }
   /**
    * Computes the sparse categorical cross-entropy loss between `this` && `Y`.
    *
@@ -3954,6 +3945,55 @@ export class Tensor extends MathTrait<Tensor> {
     // NOTE: because of ignore_index, we can't use Tensor.mean (so can't use `_do_reduction` here)
     return (unreduced.sum().div(reduction === 'mean' ? loss_mask.sum() : (reduction === 'sum' ? unreduced.sum() : unreduced))).neg()
   }
+  //   def cross_entropy(self, Y:Tensor, reduction:ReductionStr="mean", label_smoothing:float=0.0) -> Tensor:
+  //   """
+  //   Compute the cross entropy loss between input logits and target.
+
+  //   NOTE: `self` are logits and `Y` are the target labels or class probabilities.
+
+  //   See: https://pytorch.org/docs/stable/generated/torch.nn.functional.cross_entropy.html
+
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   t = Tensor([[-1, 2, -3], [1, -2, 3]])
+  //   Y = Tensor([1, 2])
+  //   print(t.cross_entropy(Y).item())
+  //   ```
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   t = Tensor([[-1, 2, -3], [1, -2, 3]])
+  //   Y = Tensor([1, 2])
+  //   print(t.cross_entropy(Y, reduction='none').numpy())
+  //   ```
+  //   """
+  //   assert 0.0 <= label_smoothing <= 1.0, "label_smoothing must be in [0.0, 1.0]"
+  //   Y = Y.one_hot(num_classes=cast(int, self.shape[1])) if Y.ndim < 2 else Y
+  //   Y = (1 - label_smoothing)*Y + label_smoothing / cast(int, Y.shape[1])
+  //   ret = -self.log_softmax(axis=1).mul(Y).sum(axis=1)
+  //   return ret._do_reduction(reduction)
+
+  // def nll_loss(self, Y:Tensor, weight:Optional[Tensor]=None, ignore_index:Optional[int]=None, reduction:ReductionStr="mean") -> Tensor:
+  //   """
+  //   Compute the negative log likelihood loss between log-probabilities and target labels.
+
+  //   NOTE: `self` is log-probabilities and `Y` is the Y labels or class probabilities.
+
+  //   See: https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html
+
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   t = Tensor([[-1, 2, -3], [1, -2, 3]])
+  //   Y = Tensor([1, 2])
+  //   print(t.log_softmax().nll_loss(Y).item())
+  //   ```
+  //   ```python exec="true" source="above" session="tensor" result="python"
+  //   t = Tensor([[-1, 2, -3], [1, -2, 3]])
+  //   Y = Tensor([1, 2])
+  //   print(t.log_softmax().nll_loss(Y, reduction='none').numpy())
+  //   ```
+  //   """
+  //   weight = Tensor.ones_like(Y, requires_grad=False) if weight is None else weight[Y]
+  //   masked_weight = weight if ignore_index is None else weight * (Y != ignore_index)
+  //   nll = -self.gather(1, Y.unsqueeze(1)).squeeze(1) * masked_weight
+  //   return nll.sum() / masked_weight.sum() if reduction == "mean" else nll._do_reduction(reduction)
+
   //     // ***** Tensor Properties *****
 
   /**
