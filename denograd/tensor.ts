@@ -2313,7 +2313,22 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   argmin = (axis = undefined, keepdim = false) => {
-    return this.neg().argmax(axis, keepdim)
+    return this._inverse().argmax(axis, keepdim)
+  }
+
+  /**
+   * Sums the product of the elements of the input tensors according to a formula based on the Einstein summation convention.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.einsum.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * x = Tensor([[1, 2], [3, 4]])
+   * y = Tensor([[5, 6], [7, 8]])
+   * print(Tensor.einsum("ij,ij->", x, y).numpy())
+   * ```
+   */
+  static einsum = (formula: string, operands: Tensor | Tensor[], acc_dtype?: DTypeLike): Tensor => {
+    throw new NotImplemented()
   }
 
   // ***** processing ops *****
@@ -2344,29 +2359,78 @@ export class Tensor extends MathTrait<Tensor> {
     x = x.shrink([...noop, ...zip(o_, k_).flatMap(([o, k]) => [[0, o], [0, k]] as [sint, sint][])])
     return x.permute(...range(noop.length), ...range(i_.length).map((i) => noop.length + i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1))
   }
-  _padding2d = (padding: number | number[], dims: number): number[] => {
-    return !Array.isArray(padding) ? range(2 * dims).map(() => padding) : (padding.length === 2 * dims ? padding : padding.flatMap((p) => range(2).map(() => p)).toReversed())
+  _resolve_pool_pads = (padding: number | number[], dims: number): number[] => {
+    if (Array.isArray(padding) && !(padding.length === 2 * dims || padding.length === dims)) throw new Error(`Padding must be an int or a sequence of length ${dims} or ${2 * dims}, but got padding=${padding} for shape=${this.shape} with dims=${dims}.`)
+    return !Array.isArray(padding) ? range(2 * dims).map(() => padding) : padding.length === 2 * dims ? padding : range(2).flatMap(() => padding).toReversed()
   }
-
+  _apply_ceil_mode = (pads: number[], k_: sint[], s_: number[] | number, d_: number | number[]): number[] => {
+    ;[d_, s_] = [d_, s_].map((x) => make_tuple(x, k_.length))
+    const i_ = this.shape.slice(-k_.length)
+    pads = [...pads]
+    const grouped_pads = _flat_to_grouped(pads)
+    // https://arxiv.org/pdf/1603.07285 section 5.1, relationship 15.
+    const o_ = zip(i_, d_, k_, s_, grouped_pads).map(([i, d, k, s, [pB, pA]]) => ceildiv(i + (pB as number) + (pA as number) - (d * ((k as number) - 1) + 1), s) + 1)
+    for (const [dim, [o, i, s, k, d, [pB, pA]]] of zip(o_, i_, s_, k_, d_, grouped_pads).entries()) {
+      // we have to do additional padding before `_pool` so that `o_` in `_pool` is calculated correctly
+      // `s*(o-1) + (d*(k-1)+1) - (i+pB+pA)` -> last_sliding_window_start + full_kernel_size - padded_input_shape
+      // we decrease padding in the case that a sliding window starts in the end padded region, thereby decreasing `o_` in `_pool`
+      // `smax(s*(o-1) - (pB+i-1), 0)` -> last_sliding_window_start - (pad_before + input_size - zero_offset)
+          pads[-1-dim*2] += s*(o-1) + (d*(k-1)+1) - (i+pB+pA) - smax(s*(o-1) - (pB+i-1), 0)
+    }
+    return pads
+  }
+  // NOTE: these work for more than 2D
+  avg_pool2d = (kernel_size = [2, 2], stride?: number, dilation = 1, padding = 0, ceil_mode = false, count_include_pad = true) => {
+    //   axis = tuple(range(-len(k_ := make_tuple(kernel_size, 2)), 0))
+    //   def pool(x:Tensor, padding_:Sequence[int]) -> Tensor: return x.pad(padding_)._pool(k_, stride if stride is not None else k_, dilation)
+    //   reg_pads = self._resolve_pool_pads(padding, len(k_))
+    //   ceil_pads = self._apply_ceil_mode(reg_pads, k_, stride if stride is not None else k_, dilation)
+    //   if not count_include_pad:
+    //     pads = ceil_pads if ceil_mode else reg_pads
+    //     return pool(self, pads).sum(axis) / pool(self.ones_like(), pads).sum(axis)
+    //   if not ceil_mode: return pool(self, reg_pads).mean(axis)
+    //   return pool(self, ceil_pads).sum(axis) / pool(self.pad(reg_pads).ones_like(), tuple(cp-rp for cp,rp in zip(ceil_pads, reg_pads))).sum(axis)
+  }
   /**
-   * Applies max pooling over a tensor.
+   * Applies average pooling over a tensor.
    *
-   * NOTE: unlike PyTorch, this implementation !== limited to only 2d pooling && instead works for any number of dimensions.
+   * This function supports three different types of `padding`:
    *
-   * See: https://paperswithcode.com/method/max-pooling
+   * 1. `int` (single value):
+   *   Applies the same padding value uniformly to all spatial dimensions.
+   *
+   * 2. `Tuple[int, ...]` (length = number of spatial dimensions):
+   *   Specifies a distinct padding value for each spatial dimension in the form `(padding_height, padding_width, ...)`.
+   *
+   * 3. `Tuple[int, ...]` (length = 2 * number of spatial dimensions):
+   *   Specifies explicit padding for each side of each spatial dimension in the form
+   *   `(padding_left, padding_right, padding_top, padding_bottom, ...)`.
+   *
+   * When `ceil_mode` is set to `true`, output shape will be determined using ceil division.
+   * When `count_include_pad` is set to `false`, zero padding will not be included in the averaging calculation.
+   *
+   * NOTE: unlike PyTorch, this implementation is not limited to only 2d pooling and instead works for any number of dimensions.
+   *
+   * See: https://paperswithcode.com/method/average-pooling
    *
    * ```python exec="true" source="above" session="tensor" result="python"
    * t = Tensor.arange(25).reshape(1, 1, 5, 5)
-   * console.log(t.max_pool2d().numpy())
+   * print(t.avg_pool2d().numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(t.max_pool2d(padding=1).numpy())
+   * print(t.avg_pool2d(ceil_mode=true).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.avg_pool2d(padding=1).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.avg_pool2d(padding=1, count_include_pad=false).numpy())
    * ```
    */
-  max_pool2d = (kernel_size = [2, 2], stride = undefined, dilation = 1, padding = 0) => {
-    const k_ = make_tuple(kernel_size, 2)
-    const padding_ = this._padding2d(padding, k_.length)
-    return this.pad(padding_, undefined, dtypes.min(this.dtype))._pool(k_, stride || k_, dilation).max(range(-k_.length, 0))
+  max_pool2d = (kernel_size = [2, 2], stride?: number, dilation = 1, padding = 0, ceil_mode = false) => {
+    // pads = self._resolve_pool_pads(padding, len(k_ := make_tuple(kernel_size, 2)))
+    // if ceil_mode: pads = self._apply_ceil_mode(pads, k_, stride if stride is not None else k_, dilation)
+    // return self.pad(pads, value=dtypes.min(self.dtype))._pool(k_, stride if stride is not None else k_, dilation).max(tuple(range(-len(k_), 0)))
   }
   static max_pool2d = (t: Tensor) => t.max_pool2d()
   /**
