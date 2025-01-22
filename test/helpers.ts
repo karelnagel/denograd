@@ -166,6 +166,7 @@ export const python = async <T = any>(code: string | string[], data?: any): Prom
 import tinygrad as tiny
 import math
 from tinygrad.renderer import cstyle
+from tinygrad.renderer import wgsl
 from tinygrad.ops import Ops
 from tinygrad.to_ts import to_ts
 from tinygrad.runtime.ops_python import PythonRenderer

@@ -20,7 +20,7 @@ export const pm_gradient = new PatternMatcher<UOp, (UOp | undefined)[] | undefin
   [new UPat(Ops.LOG2).named('ret'), ({ ctx, ret }) => [ctx.div(ret.src[0].mul(Math.log(2)))]],
   [new UPat(Ops.EXP2).named('ret'), ({ ctx, ret }) => [ret.mul(ctx).mul(Math.log(2))]],
   [new UPat(Ops.SQRT).named('ret'), ({ ctx, ret }) => [ctx.div(ret.mul(2))]],
-  [new UPat((Ops.CMPLT, Ops.CMPNE)), () => [undefined, undefined]],
+  [new UPat([Ops.CMPLT, Ops.CMPNE]), () => [undefined, undefined]],
   [new UPat(Ops.ADD), ({ ctx }) => [ctx, ctx]],
   [new UPat(Ops.MAX).named('ret'), ({ ctx, ret }) => [
     (ret.src[0].gt(ret.src[1])).where(ctx, (ret.src[0].ne(ret.src[1])).where(ctx.const_like(0), ctx.mul(0.5))),

@@ -185,7 +185,7 @@ export class GroupOp {
   static ALU = [...this.Unary, ...this.Binary, ...this.Ternary]
 
   static Irreducible = [Ops.CONST, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.RANGE]
-  static Movement = [Ops.RESHAPE, Ops.EXPAND, Ops.PERMUTE, Ops.PAD, Ops.SHRINK, Ops.STRIDE]
+  static Movement = [Ops.RESHAPE, Ops.PERMUTE, Ops.EXPAND, Ops.PAD, Ops.SHRINK, Ops.STRIDE]
 
   //   # meta ops
   static Meta = [Ops.COPY, Ops.BUFFER_VIEW]
