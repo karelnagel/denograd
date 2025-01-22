@@ -127,7 +127,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
 
   // ************ DTYPE ************
   if (o instanceof ImageDType) return `tiny.dtype.dtypes.${o.name}(${await pyStr(o.shape)})${o.v !== 1 ? `.vec(${o.v})` : ''}`
-  if (o instanceof PtrDType) return `${await pyStr(o.base)}.ptr(${o.local ? 'local=True' : ''})${o.v !== 1 ? `.vec(${o.v})` : ''}`
+  if (o instanceof PtrDType) return `${await pyStr(o.base)}.ptr(${o.size}${o.local ? ', local=True' : ''})${o.v !== 1 ? `.vec(${o.v})` : ''}`
   if (o instanceof DType) return `tiny.dtype.dtypes.${INVERSE_DTYPES_DICT[o.scalar().name]}${o.count > 1 ? `.vec(${o.count})` : ''}`
 
   // ************ OPS ************
