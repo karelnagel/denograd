@@ -32,13 +32,13 @@ Deno.test(
   'DType.ptr',
   compare(
     [
-      [dtypes.int, true],
-      [dtypes.float, false],
-      [dtypes.float, true],
-      [dtypes.bool, false],
+      [dtypes.int, 4, true],
+      [dtypes.float, 3, false],
+      [dtypes.float, 4, true],
+      [dtypes.bool, 1, false],
     ],
-    (d: DType, local: boolean) => d.ptr(4, local),
-    'out(data[0].ptr(data[1]))',
+    (d: DType, size: number, local: boolean) => d.ptr(size, local),
+    'out(data[0].ptr(data[1],data[2]))',
   ),
 )
 
@@ -202,5 +202,5 @@ Deno.test(
 Deno.test('DType.dataclass', () => {
   expect(new DType(3, 3, 'sdf', '?', 3, undefined)).toBe(new DType(3, 3, 'sdf', '?', 3, undefined))
   expect(dtypes.int16).toBe(DType.new(3, 2, 'short', 'h'))
-  expect(dtypes.int16.ptr(4, true)).toBe(new PtrDType(3, 2, 'short', 'h', 1, undefined, new DType(3, 2, 'short', 'h', 1), true, 1))
+  expect(dtypes.int16.ptr(4, true)).toBe(new PtrDType(3, 2, 'short', 'h', 1, undefined, new DType(3, 2, 'short', 'h', 1), true, 1, 4))
 })
