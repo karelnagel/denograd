@@ -1,7 +1,7 @@
 import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, dedup, get_env, set_default, strip_parens } from '../helpers.ts'
-import { GroupOp, idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
+import { AMX, dedup, get_env, idiv, set_default, strip_parens } from '../helpers.ts'
+import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
 const float = (x: number) => Number.isInteger(x) ? x + '.0' : x

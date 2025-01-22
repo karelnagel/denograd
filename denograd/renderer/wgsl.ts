@@ -1,7 +1,7 @@
 import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, PtrDType } from '../dtype.ts'
-import { is_less_than, range, strip_parens } from '../helpers.ts'
-import { idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
+import { idiv, is_less_than, range, strip_parens } from '../helpers.ts'
+import { Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { base_rewrite, CStyleLanguage, extra_pm, type RenderKernelArgs } from './cstyle.ts'
 
 const sign_extend = (val: UOp, sext_am: number) => {

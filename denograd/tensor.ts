@@ -1,7 +1,8 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
 import { _METADATA, all_int, all_same, assert, bytes_to_bigint, CONSTS, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
-import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, Ops, polyN, prod, resolve, type sint, smax, smin, sub, sum, UOp, type Variable } from './ops.ts'
+import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
+import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, type DeviceType } from './device.ts'
 import { create_schedule_with_vars, type ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'

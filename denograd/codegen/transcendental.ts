@@ -1,6 +1,6 @@
 import { type DType, dtypes } from '../dtype.ts'
-import { assert, range } from '../helpers.ts'
-import { polyN, UOp } from '../ops.ts'
+import { assert, range,polyN } from '../helpers.ts'
+import {  UOp } from '../ops.ts'
 
 export const TRANSCENDENTAL_SUPPORTED_DTYPES = [dtypes.float16, dtypes.float32, dtypes.float64]
 

@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any no-control-regex camelcase
 import { Env } from './env/index.ts'
+import type { MathTrait } from './ops.ts'
 
 // GENERAL HELPERS
 export class NotImplemented extends Error {
@@ -695,3 +696,42 @@ export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) =>
   console.log(`${name} took ${Math.round(performance.now() - s) / 1000}s and returned ${res}`)
   return res
 }
+
+export type Math = number | bigint | MathTrait<any>
+type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B : A extends bigint ? bigint : B extends bigint ? bigint : number
+const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
+  if (!bigintFn) bigintFn = numberFn as unknown as (a: bigint, b: bigint) => bigint
+  return <A extends Math, B extends Math>(a: A, b: B): Return<A, B> => {
+    if (typeof a !== 'number' && typeof a !== 'bigint') return mathFn(a, b, false) as Return<A, B>
+    else if (typeof b !== 'number' && typeof b !== 'bigint') return mathFn(b, a, true) as Return<A, B>
+    else if (typeof a === 'bigint' || typeof b === 'bigint') return bigintFn(BigInt(a), BigInt(b)) as Return<A, B>
+    else return numberFn(a as any, b as any) as Return<A, B>
+  }
+}
+
+export const add = _meta((a, b, r) => a.add(b, r), (a, b) => a + b)
+export const sub = _meta((a, b, r) => a.sub(b, r), (a, b) => a - b)
+export const mul = _meta((a, b, r) => a.mul(b, r), (a, b) => a * b)
+export const div = _meta((a, b, r) => a.div(b, r), (a, b) => a / b)
+export const idiv = _meta((a, b, r) => a.idiv(b, r), (a, b) => Math.floor(a / b), (a, b) => a / b)
+export const neg = <A extends Math>(a: A): Return<A, A> => ((typeof a !== 'number' && typeof a !== 'bigint') ? a.neg() : typeof a === 'bigint' ? a * -1n : a * -1)
+export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => a % b)
+
+export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => a & b)
+export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => a | b)
+export const xor = _meta((a, b, r) => a.xor(b, r), (a, b) => a ^ b)
+export const lshift = _meta((a, b, r) => a.lshift(b, r), (a, b) => a << b)
+export const rshift = _meta((a, b, r) => a.rshift(b, r), (a, b) => a >> b)
+
+export const lt = _meta((a, b, r) => !r ? a.lt(b) : a.const_like(b as any).lt(a), (a, b) => Number(a < b), (a, b) => BigInt(a < b))
+export const gt = _meta((a, b, r) => !r ? a.gt(b) : a.const_like(b as any).gt(a), (a, b) => Number(a > b), (a, b) => BigInt(a > b))
+export const le = _meta((a, b, r) => !r ? a.le(b) : a.const_like(b as any).le(a), (a, b) => Number(a <= b), (a, b) => BigInt(a <= b))
+export const ge = _meta((a, b, r) => !r ? a.ge(b) : a.const_like(b as any).ge(a), (a, b) => Number(a >= b), (a, b) => BigInt(a >= b))
+export const ne = _meta((a, b, r) => !r ? a.ne(b) : a.const_like(b as any).ne(a), (a, b) => Number(a !== b), (a, b) => BigInt(a !== b))
+export const eq = _meta((a, b, r) => !r ? a.eq(b) : a.const_like(b as any).eq(a), (a, b) => Number(a === b), (a, b) => BigInt(a === b))
+
+export const polyN = <T extends Math>(x: T, p: Math[]): T => p.reduce((acc, c) => add(mul(acc, x), c), 0) as T
+export const prod = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => mul(acc, curr) as T, 1 as T)
+export const sum = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => add(acc, curr) as T, 0 as T)
+export const ceildiv = <A extends Math, B extends Math>(num: A, amt: B): Return<A, B> => neg(idiv(num, neg(amt))) as Return<A, B>
+export const pow = _meta((a, b, r) => (a as any).pow(b, r), (a, b) => a ** b)

@@ -1,7 +1,7 @@
 import type { DeviceType } from './device.ts'
 import type { DType } from './dtype.ts'
-import { all_same, NotImplemented, range, zip } from './helpers.ts'
-import { add, type ConstLike, MathTrait, type Ops, type sint, sum, UOp } from './ops.ts'
+import { add, all_same, NotImplemented, range, sum, zip } from './helpers.ts'
+import { type ConstLike, MathTrait, type Ops, type sint, UOp } from './ops.ts'
 
 const all_reduce = (bop: Ops, lbs: UOp[]): UOp[] => {
   throw new NotImplemented()
