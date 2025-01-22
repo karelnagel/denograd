@@ -10,9 +10,8 @@ import { IndexContext } from '../denograd/codegen/lowerer.ts'
 import { Kernel, Opt, OptOps } from '../denograd/codegen/kernel.ts'
 import { ClangRenderer } from '../denograd/renderer/cstyle.ts'
 import { BasicBlock } from '../denograd/codegen/linearize.ts'
-import { TensorCore } from '../denograd/renderer/index.ts'
+import { Estimates, TensorCore } from '../denograd/renderer/index.ts'
 import { ProgramSpec } from '../denograd/renderer/index.ts'
-import { LazyBuffer } from '../denograd/engine/lazy.ts'
 import { CompiledRunner, ExecItem, Runner } from '../denograd/engine/realize.ts'
 import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../denograd/engine/schedule.ts'
 import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, DeviceType, LRUAllocator } from '../denograd/device.ts'
@@ -91,22 +90,18 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   }
 
   // ************ ENGINE ************
-  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${o.op}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`
-
   if (o instanceof CompiledRunner) return t`tiny.engine.realize.CompiledRunner(${o.p}, ${o.lib})`
-  if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.op_estimate}, ${o.mem_estimate}, ${o.lds_estimate})`
+  if (o instanceof Estimates) return t`tiny.renderer.Estimates(${o.ops}, ${o.lds}, ${o.mem})`
+  if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.estimates})`
   if (o instanceof ExecItem) return t`tiny.engine.realize.ExecItem(${o.prg}, ${o.bufs}, ${o.metadata})`
 
   if (o instanceof ScheduleItem) return t`tiny.engine.schedule.ScheduleItem(${o.ast}, ${o.bufs}, ${o.metadata}, ${o.assign_preloads})`
-  if (o instanceof ScheduleContext) return t`tiny.engine.schedule.ScheduleContext(${o.lazybufs}, ${o.var_vals}, ${o.assigns}, ${o.realizes}, ${o.allbufs}, ${o.ops_metadata}, ${o.children})`
-  if (o instanceof ScheduleItemContext) return t`tiny.engine.schedule.ScheduleItemContext(${o.lazybufs}, ${o.ops_metadata}, ${o.assigns}, ${o.var_vals}, ${o.sinked}, ${o.sts}, ${o.bufs}, ${o.metadata}, ${o.assign_adj})`
+  if (o instanceof ScheduleContext) return t`tiny.engine.schedule.ScheduleContext(${o.tensor_uops}, ${o.var_vals}, ${o.assigns}, ${o.realizes}, ${o.allbufs}, ${o.ops_metadata}, ${o.contiguous}, ${o.children}, ${o.becomes_map})`
+  if (o instanceof ScheduleItemContext) return t`tiny.engine.schedule.ScheduleItemContext(${o.var_vals}, ${o.sts}, ${o.bufs})`
 
   // ************ DEVICE ************
   if (o instanceof _Device) return t`tiny.device._Device()`
   if (o instanceof BufferSpec) return t`tiny.device.BufferSpec(${o.image}, ${o.uncached}, ${o.cpu_access}, ${o.host}, ${o.nolru}, ${o.external_ptr})`
-  if (o instanceof Buffer) {
-    return t`tiny.device.Buffer(device=${o.device}, size=${o.size}, dtype=${o.dtype}, opaque=${o.in_opaque}, options=${o.options}, initial_value=${o.in_initial_value}, lb_refcount=${o._lb_refcount}, base=${o._base}, offset=${o.offset}, preallocate=${o.in_preallocate})`
-  }
   if (o instanceof _MallocAllocator) return t`tiny.device._MallocAllocator()`
   if (o instanceof LRUAllocator) return t`tiny.device.LRUAllocator()`
   if (o instanceof Allocator) return t`tiny.device.Allocator()`
@@ -121,9 +116,9 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   // ************ RENDERER ************
   if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
   if (o instanceof PythonRenderer) return t`PythonRenderer()`
-  if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, reduce_axes=${o.reduce_axes}, upcast_axes=${o.upcast_axes}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out})`
+  if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, elements_per_thread=${o.elements_per_thread}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out}, opts=${o.opts}, swizzle=${o.swizzle})`
   if (o instanceof ProgramSpec) {
-    return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${new SkipFormatting(await pyStr(o.globals, true))},outs=${new SkipFormatting(await pyStr(o.outs, true))}, _ran_post_init=${o._ran_post_init})`
+    return t`tiny.renderer.ProgramSpec(${o.name}, ${o.src}, ${o.device}, ${o.uops}, ${o.mem_estimate}, ${o.global_size}, ${o.local_size}, ${o.vars}, list(${o.globals}), list(${o.outs}), ${o._ran_post_init})`
   }
 
   // ************ SHAPE ************

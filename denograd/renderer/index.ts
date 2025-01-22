@@ -5,7 +5,15 @@ import { add, GroupOp, idiv, mul, Ops, prod, type sint, ssimplify, sym_infer, ty
 
 export type TC = [number, number]
 
-type TensorCoreArgs = { dims: [number, number, number]; threads: number; elements_per_thread: [number, number, number]; dtype_in: DType; dtype_out: DType; opts: string[]; swizzle: [[number[], number[]] | undefined, [number[], number[]] | undefined] }
+type TensorCoreArgs = {
+  dims: [number, number, number]
+  threads: number
+  elements_per_thread: [number, number, number]
+  dtype_in: DType
+  dtype_out: DType
+  opts: string[]
+  swizzle: [[number[], number[]] | undefined, [number[], number[]] | undefined]
+}
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
   key: string
   static cache = new WeakValueMap<TensorCore>()
