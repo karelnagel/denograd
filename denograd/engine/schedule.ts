@@ -20,7 +20,7 @@ export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
     ((mv.dtype instanceof ImageDType || x.dtype instanceof ImageDType) && x.dtype.base === mv.dtype.base && uop_is_realized(x))],
   // Tensor variable bindings
   [new UPat(Ops.BIND, dtypes.int, [new UPat(Ops.DEFINE_VAR), UPat.cvar(undefined, dtypes.int)], undefined), () => true],
-  [new UPat(Ops.DEFINE_VAR, undefined, [new UPat(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([]))], undefined), () => true],
+  [new UPat(Ops.DEFINE_VAR, undefined, new UPat(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([])), undefined), () => true],
   // Tensor const has an unmasked ShapeTracker of stride 0 and a device
   [
     new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW, undefined, [new UPat(Ops.DEVICE)]).named('st')]),
@@ -579,14 +579,14 @@ export const create_ctx = new PatternMatcher<ScheduleContext>([[new UPat(Ops.VIE
 
 export const remove_movement_ops = new PatternMatcher([
   // NOTE: movement ops are always applied to base
-  [new UPat(GroupOp.Movement, undefined, [UPat.any([UPat.var('x').view(), UPat.var('x')])]).named('mov'), ({ x, mov }) => x.view(mov.st!)],
+  [new UPat(GroupOp.Movement, undefined, UPat.any([UPat.var('x').view(), UPat.var('x')])).named('mov'), ({ x, mov }) => x.view(mov.st!)],
   // some masked views can collapse to 0, VIEW(x) -> CONST(VIEW)
   [new UPat(Ops.VIEW).named('view'), ({ view }) => {
     const vm = view.st!.views.at(-1)!.mask
     return vm !== undefined && vm.some((x) => sub(x[1], x[0]) === 0) ? view.const_like(0) : undefined
   }],
   // merge one src views.
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.VIEW, undefined, [new UPat()]).named('v1')]).named('v2'), ({ v1, v2 }) => v1.replace({ arg: add(v1.arg, v2.arg) })],
+  [new UPat(Ops.VIEW, undefined, new UPat(Ops.VIEW, undefined, [new UPat()]).named('v1')).named('v2'), ({ v1, v2 }) => v1.replace({ arg: add(v1.arg, v2.arg) })],
   // merge unmasked const views
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('const')]).named('view'), (x) => (x.st.st!.add(x.view.st!)).views.every((v) => v.mask === undefined) ? x.const.replace({ src: [x.st.replace({ arg: x.st.st!.add(x.view.st!) })] }) : undefined],
 ])
