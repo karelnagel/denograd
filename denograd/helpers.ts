@@ -42,13 +42,12 @@ export class WeakValueMap<V extends object> {
     return entries
   }
 }
-type Value = number | bigint
-export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
-export const min = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
-export const abs = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.abs(x) : x < 0n ? -x : x
-export const trunc = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.trunc(x) : x
-export const sqrt = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.sqrt(x) : bigint_sqrt(x)
-export const sin = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.sin(x) : bigint_sin(x)
+export const max = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
+export const min = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
+export const abs = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.abs(Number(x)) : x < 0n ? -x : x
+export const trunc = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.trunc(Number(x)) : x
+export const sqrt = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.sqrt(Number(x)) : bigint_sqrt(x)
+export const sin = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.sin(Number(x)) : bigint_sin(x)
 
 // no idea, AI generated
 export const bigint_sqrt = (v: bigint) => {
@@ -173,8 +172,8 @@ export const is_less_than = (a: any, b: any): boolean => {
   }
   return a < b
 }
-export const CONSTS = ['number', 'bigint', 'boolean']
-export const isConst = (x: any): x is boolean | number | bigint => CONSTS.includes(typeof x)
+export type ConstType<This = never> = number | bigint | boolean | This
+export const isConst = (x: any): x is ConstType => ['number', 'bigint', 'boolean'].includes(typeof x)
 export const is_eq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => is_eq(o, two[i]))
   // deno-lint-ignore eqeqeq
@@ -698,7 +697,7 @@ export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) =>
   return res
 }
 
-export type Math = number | bigint | MathTrait<any>
+export type Math = ConstType | MathTrait<any>
 type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B : A extends bigint ? bigint : B extends bigint ? bigint : number
 const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
   if (!bigintFn) bigintFn = numberFn as unknown as (a: bigint, b: bigint) => bigint
@@ -706,7 +705,7 @@ const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean)
     if (!isConst(a)) return mathFn(a, b, false) as Return<A, B>
     else if (!isConst(b)) return mathFn(b, a, true) as Return<A, B>
     else if (typeof a === 'bigint' || typeof b === 'bigint') return bigintFn(BigInt(a), BigInt(b)) as Return<A, B>
-    else return numberFn(a as any, b as any) as Return<A, B>
+    else return numberFn(Number(a), Number(b)) as Return<A, B>
   }
 }
 
@@ -715,7 +714,7 @@ export const sub = _meta((a, b, r) => a.sub(b, r), (a, b) => a - b)
 export const mul = _meta((a, b, r) => a.mul(b, r), (a, b) => a * b)
 export const div = _meta((a, b, r) => a.div(b, r), (a, b) => a / b)
 export const idiv = _meta((a, b, r) => a.idiv(b, r), (a, b) => Math.floor(a / b), (a, b) => a / b)
-export const neg = <A extends Math>(a: A): Return<A, A> => ((typeof a !== 'number' && typeof a !== 'bigint') ? a.neg() : typeof a === 'bigint' ? a * -1n : a * -1)
+export const neg = <A extends Math>(a: A): Return<A, A> => ((!isConst(a)) ? a.neg() : typeof a === 'bigint' ? a * -1n : Number(a) * -1)
 export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => a % b)
 
 export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => a & b)

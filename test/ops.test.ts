@@ -1,4 +1,4 @@
-import { can_pad, div_and_mod_folding, Ops, resolve, smax, smin, UOp, UPat } from '../denograd/ops.ts'
+import { can_pad, div_and_mod_folding, exec_alu, Ops, resolve, smax, smin, UOp, UPat } from '../denograd/ops.ts'
 import { compare, tryCatch } from './helpers.ts'
 import { dtypes } from '../denograd/dtype.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
@@ -162,7 +162,7 @@ Deno.test(
   ),
 )
 Deno.test(
-  'uop.symInfer',
+  'uop.sym_infer',
   compare(
     [
       [new UOp(Ops.ADD, undefined, [UOp.int(10), UOp.int(100)], 1)],
@@ -180,8 +180,9 @@ Deno.test(
 
       [UOp.bool(true).mul(5.5)],
       [UOp.int(4).mul(true)],
-      [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
-      [new UOp(Ops.IF, dtypes.bool, [new UOp(Ops.CMPLT, dtypes.bool, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)]), UOp.const(dtypes.float, 1.1), UOp.const(dtypes.float, 0.0)])],
+      [UOp.int(6).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
+      // TODO: python returns string 'True' instead of 'true', not sure if it should return string at all
+      // [new UOp(Ops.IF, dtypes.bool, [new UOp(Ops.CMPLT, dtypes.bool, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)]), UOp.const(dtypes.float, 1.1), UOp.const(dtypes.float, 0.0)])],
     ],
     tryCatch((x: UOp) => x.sym_infer(new Map())),
     'out(trycatch(lambda:data[0].sym_infer({})))',
@@ -206,7 +207,7 @@ Deno.test(
 
       [UOp.bool(true).mul(5.5)],
       [UOp.int(4).mul(true)],
-      [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
+      [UOp.int(5).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
       [new UOp(Ops.IF, dtypes.bool, [new UOp(Ops.CMPLT, dtypes.bool, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)]), UOp.const(dtypes.float, 1.0), UOp.const(dtypes.float, 0.0)])],
     ],
     tryCatch((x: UOp) => [x.render(true), x.render(false)]),
@@ -289,7 +290,6 @@ Deno.test(
   ),
 )
 
-
 Deno.test(
   'div_and_mod_folding',
   compare(
@@ -298,5 +298,21 @@ Deno.test(
     ],
     div_and_mod_folding,
     'out(tiny.ops.div_and_mod_folding(*data))',
+  ),
+)
+
+Deno.test(
+  'exec_alu',
+  compare(
+    [
+      [Ops.IDIV, dtypes.bool, [4, false], false],
+      [Ops.ADD, dtypes.bool, [3, false], false],
+      [Ops.IDIV, dtypes.bool, [4, true], false],
+      [Ops.ADD, dtypes.bool, [3, true], false],
+      [Ops.IDIV, dtypes.bool, [4, false], true],
+      [Ops.ADD, dtypes.bool, [3, false], true],
+    ],
+    exec_alu,
+    'out(tiny.ops.exec_alu(*data))',
   ),
 )

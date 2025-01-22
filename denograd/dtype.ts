@@ -1,8 +1,7 @@
-import { cache, cache_fn, get_env, get_key, intersection, is_less_than, WeakValueMap } from './helpers.ts'
+import { cache, cache_fn, type ConstType, get_env, get_key, intersection, is_less_than, WeakValueMap } from './helpers.ts'
 import { type FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
-
-export type ConstType<This = never> = number | bigint | boolean | This
+export type { ConstType } from './helpers.ts'
 
 export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, destFmt: FmtStr) => {
   const src = new MemoryView.ARRAYS[srcFmt](data as any)

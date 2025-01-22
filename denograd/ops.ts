@@ -1,8 +1,8 @@
 import type { Buffer, DeviceType } from './device.ts'
-import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
+import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { add, and, div, flatten, get_env, idiv, isConst, lshift, lt, mod, mul, ne, neg, NotImplemented, or, prod, rshift, sub, xor } from './helpers.ts'
-import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
+import { add, and, type ConstType, div, flatten, ge, get_env, idiv, is_less_than, isConst, lshift, lt, mod, mul, ne, neg, NotImplemented, or, prod, rshift, sub, xor } from './helpers.ts'
+import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -679,18 +679,18 @@ export class KernelInfo {
 }
 
 // # ***** ops in python *****
-const safe_exp2 = (x: number | bigint) => {
+const safe_exp2 = (x: ConstType) => {
   try {
-    return typeof x === 'number' ? 2 ** x : 2n ** x
+    return typeof x !== 'bigint' ? 2 ** Number(x) : 2n ** x
   } catch {
     return Infinity
   }
 }
-export const python_alu = new Map<Ops, (...x: (number | bigint)[]) => number | bigint>([
+export const python_alu = new Map<Ops, (...x: ConstType[]) => ConstType>([
   [Ops.LOG2, (x) => x === 0 ? x > 0 ? Math.log2(2) : -Infinity : NaN],
   [Ops.EXP2, safe_exp2],
-  [Ops.SQRT, (x) => x >= 0 ? sqrt(x) : NaN],
-  [Ops.RECIP, (x) => !is_eq(x, 0) ? div(1, x) : x >= 0 ? Infinity : -Infinity],
+  [Ops.SQRT, (x) => ge(x, 0) ? sqrt(x) : NaN],
+  [Ops.RECIP, (x) => ne(x, 0) ? div(1, x) : ge(x, 0) ? Infinity : -Infinity],
   [Ops.SIN, (x) => !isInf(x as number) ? sin(x) : NaN],
   [Ops.NEG, (x) => neg(x)],
   [Ops.ADD, (x, y) => add(x, y)],
@@ -704,13 +704,13 @@ export const python_alu = new Map<Ops, (...x: (number | bigint)[]) => number | b
   [Ops.SHR, (x, y) => rshift(x, y)],
   [Ops.SHL, (x, y) => lshift(x, y)],
   [Ops.MAX, (...args) => max(args)],
-  [Ops.MOD, (x, y) => mul(mod(abs(trunc(x)), abs(trunc(y))), x < 0 ? -1 : 1)],
-  [Ops.IDIV, (x, y) => y !== 0 ? mul(idiv(abs(x), abs(y)), (mul(x, y) < 0) ? -1 : 1) : 0],
+  [Ops.MOD, (x, y) => mul(mod(abs(trunc(x)), abs(trunc(y))), lt(x, 0) ? -1 : 1)],
+  [Ops.IDIV, (x, y) => ne(y, 0) ? mul(idiv(abs(x), abs(y)), (mul(x, y) < 0) ? -1 : 1) : 0],
   [Ops.MULACC, (x, y, z) => add(mul(x, y), z)],
   [Ops.WHERE, (x, y, z) => x ? y : z],
 ])
 
-export const exec_alu = (op: Ops, dtype: DType, operands: number[], truncateOutput = true): any => {
+export const exec_alu = (op: Ops, dtype: DType, operands: ConstType[], truncateOutput = true): any => {
   if (dtype.count > 1) return range(dtype.count).map((i) => exec_alu(op, dtype.scalar(), operands.map((x) => Array.isArray(x) ? x[i] : x)))
   const alu = python_alu.get(op)!(...operands)
   return truncateOutput ? truncate.get(dtype)!(alu) : alu
@@ -1292,7 +1292,7 @@ export const symbolic_simple = new PatternMatcher([
   [UPat.var('x', dtypes.bool).mul(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_and(y)],
   [UPat.var('x', dtypes.bool).add(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_or(y)],
   [UPat.var('x', dtypes.bool).maximum(UPat.var('y', dtypes.bool)), ({ x, y }) => x.bitwise_or(y)],
-  //   // *** cast ***
+  // *** cast ***
   [new UPat(Ops.CAST, undefined, UPat.cvar('c'), undefined, 'root'), ({ root, c }) => root.const_like(c.arg)],
   [new UPat(Ops.CAST).named('root'), ({ root }) => root.dtype === root.src![0].dtype ? root.src![0] : undefined], //24
 ])
