@@ -360,7 +360,7 @@ export class UOp extends MathTrait<UOp> {
     let ret
     if (this.base.op === Ops.CONST) ret = this.base.arg
     else throw new Error(`const_arg called on ${this.base.op}`)
-    if (!CONSTS.includes(ret)) throw new Error(`const_arg trying to return ${ret}`)
+    if (!CONSTS.includes(typeof ret)) throw new Error(`const_arg trying to return ${ret}`)
     return ret
   }
   get axis_arg() {
@@ -467,7 +467,7 @@ export class UOp extends MathTrait<UOp> {
   static metaop = (op: Ops, shape: sint[], dtype: DType, device: string, arg?: any): UOp => {
     // Tensor const is CONST(VIEW(DEVICE)) -> RESHAPE -> EXPAND
     if (op === Ops.CONST) {
-      if (!CONSTS.includes(arg)) throw new Error(`trying to create CONST with arg=${arg}`)
+      if (!CONSTS.includes(typeof arg)) throw new Error(`trying to create CONST with arg=${arg}`)
       return UOp.const(dtype, arg!)
         .replace({ src: [new UOp(Ops.VIEW, dtypes.void, [new UOp(Ops.DEVICE, undefined, undefined, device)], ShapeTracker.from_shape([]))] })
         .reshape(range(shape.length).map((x) => 1)).expand(shape)

@@ -118,7 +118,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o instanceof PythonRenderer) return t`PythonRenderer()`
   if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, elements_per_thread=${o.elements_per_thread}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out}, opts=${o.opts}, swizzle=${o.swizzle})`
   if (o instanceof ProgramSpec) {
-    return t`tiny.renderer.ProgramSpec(${o.name}, ${o.src}, ${o.device}, ${o.uops}, ${o.mem_estimate}, ${o.global_size}, ${o.local_size}, ${o.vars}, list(${o.globals}), list(${o.outs}), ${o._ran_post_init})`
+    return t`tiny.renderer.ProgramSpec(${o.name}, ${o.src}, ${o.device}, ${o.uops}, ${o.mem_estimate}, ${o.global_size}, ${o.local_size}, ${o.vars}, list(${o.globals}), list(${o.outs}), list(${o.ins}), ${o._ran_post_init})`
   }
 
   // ************ SHAPE ************
