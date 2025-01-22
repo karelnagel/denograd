@@ -3,7 +3,7 @@ import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_
 import { _METADATA, all_int, all_same, assert, bytes_to_bigint, CONSTS, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
-import { BufferSpec, Device, type DeviceType } from './device.ts'
+import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
 import { create_schedule_with_vars, type ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
@@ -312,7 +312,7 @@ export const _frompy = (x: any[] | Uint8Array, dtype: DType): UOp => {
     data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt })
   }
   //   // fake realize
-  ret.buffer!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
+  uop_buffer(ret)!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
   return ret.buf_uop_view()
 }
 
@@ -447,7 +447,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
   override toString = () => {
     const ld = this.lazydata
-    const ld_repr = ld instanceof MultiLazyBuffer ? `${ld}` : `<UOp ${ld.device} ${list_str(ld.shape)} ${ld.dtype.toString().slice(7)} ${ld.base !== ld ? ld.st : list_str([ld.op, ld.realized])}>`
+    const ld_repr = ld instanceof MultiLazyBuffer ? `${ld}` : `<UOp ${ld.device} ${list_str(ld.shape)} ${ld.dtype.toString().slice(7)} ${ld.base !== ld ? ld.st : list_str([ld.op, uop_realized(ld)])}>`
     return `<Tensor ${ld_repr} on ${this.device} with grad ${this.grad?.lazydata}>`
   };
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
@@ -538,7 +538,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     if (typeof this.device === 'string' && !this.device.startsWith('DISK')) throw new Error('This can be only used with DISK device')
     const realized = await this.contiguous().realize()
-    ;(realized.lazydata as UOp).base.realized!.copyin(await x._data())
+    uop_realized((realized.lazydata as UOp).base)!.copyin(await x._data())
     return this
   }
   assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
@@ -553,7 +553,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (this.dtype !== x.dtype) throw new Error(`assign dtype mismatch ${this.dtype} !== ${x.dtype}`)
     if (this.lazydata instanceof MultiLazyBuffer && this.lazydata.axis !== (x.lazydata as MultiLazyBuffer).axis) throw new Error('axis must match on MultiLazyBuffer')
     if (x.requires_grad) throw new Error("assign can't have grad") // this requires_grad === okay?
-    if (!this.lazydata.is_realized) return this.replace(x)
+    if (!uop_is_realized(this.lazydata)) return this.replace(x)
     this.lazydata = this.lazydata.assign(x.lazydata as any)
     return this
   }
@@ -567,7 +567,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = await this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).realize()
-    const buf = (cpu.lazydata as UOp).base.realized
+    const buf = uop_realized((cpu.lazydata as UOp).base)
     if (this.device !== Env.CPU_DEVICE) buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
     return await buf!.as_buffer(this.device !== Env.CPU_DEVICE ? true : false)
   }
@@ -707,7 +707,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   static from_blob = (ptr: bigint, shape: number[], opts: TensorOptions): Tensor => {
     const r = Tensor._metaop(Ops.EMPTY, shape, opts)
-    ;(r.lazydata as UOp).buffer.allocate(undefined, ptr)
+    uop_buffer(r.lazydata as UOp).allocate(undefined, ptr)
     ;(r.lazydata as UOp).buf_uop_view()
     return r
   }

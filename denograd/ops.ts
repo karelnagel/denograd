@@ -1,4 +1,4 @@
-import { Buffer, type DeviceType } from './device.ts'
+import type { Buffer, DeviceType } from './device.ts'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
 import { add, and, div, flatten, get_env, idiv, lshift, lt, mod, mul, ne, neg, NotImplemented, or, prod, rshift, sub, xor } from './helpers.ts'
@@ -537,24 +537,7 @@ export class UOp extends MathTrait<UOp> {
     return this.src[0].buf_uop
   }
   buf_uop_view = (): UOp => this.buf_uop.view(this.st!)
-  get buffer(): Buffer {
-    if (this.op === Ops.VIEW) {
-      if (!this.st!.contiguous) throw new Error("VIEW only works here if it's contiguous")
-      return this.src[0].buffer
-    }
-    if (this.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${this.op}`)
-    if (buffers.has(this.key)) return buffers.get(this.key)!
-    const ret = new Buffer(this.device, this.size, this.dtype instanceof ImageDType ? this.dtype : this.dtype.base)
-    buffers.set(this.key, ret)
-    return ret
-  }
-  get realized(): Buffer | undefined {
-    if (this.op === Ops.VIEW && this.src.length === 1 && this.src[0].op === Ops.BUFFER) return this.src[0].realized
-    return this.op === Ops.BUFFER ? this.buffer : undefined
-  }
-  get is_realized() {
-    return this.base.realized !== undefined
-  }
+
 
   //   # *** uop Variable stuff ***
 

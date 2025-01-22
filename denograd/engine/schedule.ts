@@ -1,4 +1,4 @@
-import type { Buffer } from '../device.ts'
+import { type Buffer, uop_buffer, uop_is_realized } from '../device.ts'
 import { DType, dtypes, ImageDType } from '../dtype.ts'
 import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, list_str, merge_maps, type Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
 import { buffers, can_pad, identity_element, resolve, type sint, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
@@ -17,7 +17,7 @@ export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
     (Array.isArray(mv.arg) && mv.dtype === x.dtype) ||
     // "make things that can't be images not images" can change the buffer dtype
     // this is fine as long as it's a realized buffer and base dtypes match.
-    ((mv.dtype instanceof ImageDType || x.dtype instanceof ImageDType) && x.dtype.base === mv.dtype.base && x.is_realized)],
+    ((mv.dtype instanceof ImageDType || x.dtype instanceof ImageDType) && x.dtype.base === mv.dtype.base && uop_is_realized(x))],
   // Tensor variable bindings
   [new UPat(Ops.BIND, dtypes.int, [new UPat(Ops.DEFINE_VAR), UPat.cvar(undefined, dtypes.int)], undefined), () => true],
   [new UPat(Ops.DEFINE_VAR, undefined, [new UPat(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([]))], undefined), () => true],
@@ -36,7 +36,7 @@ export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
   // NOTE: VIEW size exactly matches the underlying BUFFER, tensor doesn't apply movement ops to the VIEW
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf')]).named('view'), ({ view, buf }) => view.dtype === buf.dtype && view.size === buf.size && view.st!.contiguous],
   // ASSIGN changes the value of a realized buffer
-  [new UPat(Ops.ASSIGN, undefined, [UPat.var('target'), UPat.var('new_val')]).named('assign'), ({ assign, target, new_val }) => (target.op === Ops.BUFFER || target.is_realized) && (assign.dtype === target.dtype && target.dtype === new_val.dtype)],
+  [new UPat(Ops.ASSIGN, undefined, [UPat.var('target'), UPat.var('new_val')]).named('assign'), ({ assign, target, new_val }) => (target.op === Ops.BUFFER || uop_is_realized(target)) && (assign.dtype === target.dtype && target.dtype === new_val.dtype)],
   // TODO: BUFFER_VIEW is overloaded, it should be removed.
   // BUFFER_VIEW shares the device buffer with its source, it uses a subbuffer of the underlying source buffer
   [new UPat(Ops.BUFFER_VIEW, undefined, [UPat.var('x')]).named('root'), ({ root, x }) =>
@@ -103,7 +103,7 @@ const add_buffers = (buf: UOp, ctx: ScheduleContext, cache: Map<UOp, UOp>): UOp 
   // shapeless op is passthrough
   // realized is passthrough
   // constants are passthrough
-  if (buf.st === undefined || buf.base.is_realized || [Ops.CONST, Ops.BIND].includes(buf.base.op)) return buf
+  if (buf.st === undefined || uop_is_realized(buf.base) || [Ops.CONST, Ops.BIND].includes(buf.base.op)) return buf
   // view is passthrough
   if (buf !== buf.base) {
     const ret = add_buffers(buf.base, ctx, cache).view(buf.st)
@@ -253,7 +253,7 @@ const schedule_uop = (pre: UOp, ctx: ScheduleContext): ScheduleItem => {
   if (CAPTURE_PROCESS_REPLAY) {
     throw new NotImplemented()
   }
-  return new ScheduleItem(ast, si_ctx.bufs.filter((u) => u.size !== 0).map((u) => u.buffer), dedup([...pre.toposort].map((x) => ctx.ops_metadata.get(x)).filter((m) => m !== undefined)), dedup(assign_preloads))
+  return new ScheduleItem(ast, si_ctx.bufs.filter((u) => u.size !== 0).map((u) => uop_buffer(u)), dedup([...pre.toposort].map((x) => ctx.ops_metadata.get(x)).filter((m) => m !== undefined)), dedup(assign_preloads))
 }
 
 export const PROCESS_REPLAY_CAPTURE = new Map<string, Uint8Array>()
@@ -452,7 +452,7 @@ export const ops_folding = symbolic_simple.add(
     [new UPat(GroupOp.ALU).named('alu'), ({ ctx, alu }) => replace_contiguous(ctx, alu)],
     // remove CONST/BIND/BUFFER/VIEW from SINK
     [new UPat(Ops.SINK).named('root'), ({ root }) => {
-      const new_src = root.src.filter((x) => !x.is_realized && ![Ops.CONST, Ops.BIND].includes(x.base.op))
+      const new_src = root.src.filter((x) => !uop_is_realized(x) && ![Ops.CONST, Ops.BIND].includes(x.base.op))
       return !is_eq(new_src, root.src) ? new UOp(Ops.SINK, root.dtype, new_src, root.arg) : undefined
     }],
   ]),
@@ -570,9 +570,9 @@ const append_uop = (ctx: ScheduleContext, view: UOp, buf_uop: UOp): undefined =>
   // TODO: this should be a shrink on the buffer
   if (op.op === Ops.BUFFER_VIEW) {
     const x = op.src[0]
-    buffers.set(buf_uop.key, x.buf_uop.buffer.view(view.size, view.dtype, x.st!.views[0].offset as number * x.dtype.itemsize))
+    buffers.set(buf_uop.key, uop_buffer(x.buf_uop).view(view.size, view.dtype, x.st!.views[0].offset as number * x.dtype.itemsize))
   }
-  buf_uop.buffer.ref(1)
+  uop_buffer(buf_uop).ref(1)
 }
 export const create_ctx = new PatternMatcher<ScheduleContext>([[new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf_uop'), new UPat()]).named('view'), ({ ctx, view, buf_uop }) => append_uop(ctx, view, buf_uop)]])
 // # **** movement ops
@@ -622,7 +622,7 @@ export const create_schedule_with_vars = (outs: UOp[], skip_check = !DEBUG): [Sc
   const in_degree = new Map<ScheduleItem, number>()
   for (const si of prescheduled) {
     // realize outputs before a parent === assigned to
-    const parents_assigns = dedup([...si.assign_preloads].map((x) => schedule_targets.get(x.buffer)!).filter((xsi) => xsi && xsi !== si))
+    const parents_assigns = dedup([...si.assign_preloads].map((x) => schedule_targets.get(uop_buffer(x))!).filter((xsi) => xsi && xsi !== si))
     for (const assign of parents_assigns) {
       set_default(graph, si, []).push(assign)
       in_degree.set(assign, set_default(in_degree, assign, 0) + 1)

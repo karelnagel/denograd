@@ -4,6 +4,8 @@ import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.t
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'
+import { buffers, Ops, type UOp } from './ops.ts'
+import { MultiLazyBuffer } from './multi.ts'
 
 export * from './runtime/allocator.ts'
 export type { AllDevices, DeviceType } from './runtime/all.ts'
@@ -52,6 +54,27 @@ export class _Device {
   }
 }
 export const Device = new _Device()
+
+// NOTE: these 3 functions should actually be under UOp, but Buffer caused circular import
+export const uop_buffer = (uop: UOp): Buffer => {
+  if (uop.op === Ops.VIEW) {
+    if (!uop.st!.contiguous) throw new Error("VIEW only works here if it's contiguous")
+    return uop_buffer(uop.src[0])
+  }
+  if (uop.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${uop.op}`)
+  if (buffers.has(uop.key)) return buffers.get(uop.key)!
+  const ret = new Buffer(uop.device, uop.size, uop.dtype instanceof ImageDType ? uop.dtype : uop.dtype.base)
+  buffers.set(uop.key, ret)
+  return ret
+}
+export const uop_realized = (uop: UOp): Buffer | undefined => {
+  if (uop.op === Ops.VIEW && uop.src.length === 1 && uop.src[0].op === Ops.BUFFER) return uop_realized(uop.src[0])
+  return uop.op === Ops.BUFFER ? uop_buffer(uop) : undefined
+}
+export const uop_is_realized = (uop: UOp | MultiLazyBuffer) => {
+  if (uop instanceof MultiLazyBuffer) return uop.is_realized
+  return uop_realized(uop.base) !== undefined
+}
 
 export class Buffer<Buf extends object = object> {
   _base?: Buffer<Buf>

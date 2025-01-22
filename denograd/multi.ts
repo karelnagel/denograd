@@ -1,4 +1,4 @@
-import type { DeviceType } from './device.ts'
+import { type DeviceType, uop_realized } from './device.ts'
 import type { DType } from './dtype.ts'
 import { add, all_same, NotImplemented, range, sum, zip } from './helpers.ts'
 import { type ConstLike, MathTrait, type Ops, type sint, UOp } from './ops.ts'
@@ -89,7 +89,7 @@ export class MultiLazyBuffer extends MathTrait<MultiLazyBuffer> {
 
   //   # passthroughs
   get is_realized() {
-    return this.real_lbs.every((lb) => lb.base.realized !== undefined)
+    return this.real_lbs.every((lb) => uop_realized(lb.base) !== undefined)
   }
   cast = (dtype: DType, bitcast = false) => new MultiLazyBuffer(this.lbs.map((x) => x.cast(dtype, bitcast)), this.axis, this.real)
   override const_like = (b: ConstLike) => new MultiLazyBuffer(this.lbs.map((x) => x.const_like(b)), this.axis, this.real)
