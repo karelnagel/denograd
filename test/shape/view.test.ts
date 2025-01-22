@@ -1,6 +1,6 @@
 import { Ops, sint, UOp } from '../../denograd/ops.ts'
 import { compare, tryCatch } from '../helpers.ts'
-import { _merge_dims, _reshape_mask, canonicalize_strides, strides_for_shape, un1d, View } from '../../denograd/shape/view.ts'
+import {  _reshape_mask, canonicalize_strides, strides_for_shape, View } from '../../denograd/shape/view.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 
 Deno.test(
@@ -30,21 +30,6 @@ Deno.test(
   ),
 )
 
-Deno.test(
-  'merge_dims',
-  compare(
-    [
-      [[UOp.int(4), UOp.int(9), UOp.int(4)], [UOp.int(1), UOp.int(9), UOp.int(4)], [[UOp.int(23), UOp.int(44)], [UOp.int(323), UOp.int(23)], [UOp.int(43), UOp.int(43)]]],
-      [[UOp.int(4), UOp.int(9), 44], [4, 9, 4], [[UOp.int(23), UOp.int(44)], [UOp.int(323), UOp.int(23)], [UOp.int(43), UOp.int(43)]]],
-      [[UOp.int(4), UOp.int(9), 44], [4, 9, 4, 44], [[UOp.int(23), UOp.int(44)], [44, UOp.int(23)], [UOp.int(43), UOp.int(43)]]],
-      [[4, 34, 534], [3, 4, 6], [[23, 32], [43, 43], [43, 43]]],
-      [[7, 21, 123], [8, 2, 9], [[12, 45], [31, 55.4], [67, 89]]],
-      [[4, 34, 534], [3, 4, 6]],
-    ],
-    tryCatch(_merge_dims),
-    `out(trycatch(lambda: tiny.shape.view._merge_dims(*data)))`,
-  ),
-)
 
 Deno.test(
   '_reshape_mask',
@@ -63,21 +48,6 @@ Deno.test(
   ),
 )
 
-Deno.test(
-  'un1d',
-  compare(
-    [
-      [[4, 23, 545], UOp.int(44)],
-      [[2, 3, 4], UOp.int(15)],
-      [[3, 5], UOp.int(7)],
-      [[4], UOp.int(2)],
-      [[UOp.int(2), UOp.int(3)], UOp.int(4)],
-      [[UOp.int(4), UOp.int(5), UOp.int(6)], UOp.int(47)],
-    ],
-    un1d,
-    `out(tiny.shape.view.un1d(*data))`,
-  ),
-)
 
 Deno.test(
   'View.create',
@@ -110,14 +80,6 @@ const view2 = View.create([UOp.int(4), UOp.int(6)], [UOp.int(6), UOp.int(1)], UO
 const view3 = View.create([4, 4], [-4, -1], 0, undefined)
 const view4 = View.create([0, 3, 2], [6, -2, 1], 0, [[1, 3], [0, 4]])
 
-Deno.test(
-  'View.t',
-  compare(
-    [[view1], [view2], [view3], [view4]],
-    (view: View) => view.t,
-    'out(data[0].t)',
-  ),
-)
 
 Deno.test(
   'View.to_indexed_uops',

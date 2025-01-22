@@ -9,7 +9,7 @@ import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
 import { compare } from '../helpers.ts'
 
-export const kernelKeys = ['ast', 'opts', 'vars', 'bufs', 'applied_opts', 'group_for_reduces', 'upcasted', 'local_dims', 'tensor_core', 'tensor_core_opts', 'use_tensor_cores', 'bufs_for_tensor_core', 'dont_use_locals', 'sts', 'reduceops', 'full_buf_index', 'uops'] as const
+export const kernelKeys = ['ast', 'opts', 'vars', 'bufs', 'applied_opts', 'group_for_reduces', 'upcasted', 'local_dims', 'tensor_core', 'tensor_core_opts', 'use_tensor_cores', 'dont_use_locals', 'sts', 'reduceops', 'full_buf_index', 'uops'] as const
 export const tsKernel = (k: Kernel) => kernelKeys.map((key) => k[key])
 export const pyKernel = `out([getattr(k,key,None) for key in [${kernelKeys.map((k) => `"${k}"`)}]])`
 

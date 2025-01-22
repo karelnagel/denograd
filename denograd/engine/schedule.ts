@@ -491,7 +491,7 @@ export const merge_bufs = new PatternMatcher<ScheduleContext>([
 
 const realize = (ctx: ScheduleContext, b: UOp, to_store: UOp) => void ctx.realizes.set(b, to_store)
 
-const realize_view = (ctx: ScheduleContext, view: UOp, src: UOp, b: UOp) => {
+export const realize_view = (ctx: ScheduleContext, view: UOp, src: UOp, b: UOp) => {
   if (src.st === undefined) return undefined
   const st = view.st!
   // fold simple pads

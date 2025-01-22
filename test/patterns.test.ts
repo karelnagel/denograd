@@ -10,7 +10,7 @@ import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
 import { make_basic_blocks, pm_block_merge } from '../denograd/codegen/linearize.ts'
 import { pm_lowerer } from '../denograd/codegen/lowerer.ts'
 import { devectorize, expander, float4_folding, get_late_rewrite_patterns, load_store_indexing, migrate_indexing, pm_render, sym } from '../denograd/codegen/uopgraph.ts'
-import { append_bufs, append_load, break_sched, check_preload, do_realize, lazy, multioutput, ops_folding, to_si, view_right } from '../denograd/engine/schedule.ts'
+import { break_sched, do_realize, multioutput, ops_folding, to_si, view_right } from '../denograd/engine/schedule.ts'
 
 const ALL_PATTERN_MATCHERS: Record<string, { matcher: PatternMatcher<any, any>; uops?: UOp[] }> = {
   'tiny.ops.spec': {
@@ -245,17 +245,8 @@ const ALL_PATTERN_MATCHERS: Record<string, { matcher: PatternMatcher<any, any>; 
     matcher: view_right,
   },
 
-  'tiny.engine.schedule.append_bufs': {
-    matcher: append_bufs,
-  },
-  'tiny.engine.schedule.check_preload': {
-    matcher: check_preload,
-  },
   'tiny.engine.schedule.to_si': {
     matcher: to_si,
-  },
-  'tiny.engine.schedule.lazy': {
-    matcher: lazy,
   },
   'tiny.engine.schedule.multioutput': {
     matcher: multioutput,
