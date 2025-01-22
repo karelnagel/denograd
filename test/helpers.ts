@@ -181,6 +181,7 @@ def out(o):
 ${code}
 `
   const file = `/tmp/tiny_${random_id()}.py`
+  console.log(file)
   await Deno.writeTextFile(file, code.trim())
   const [stdout, ts] = (await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)

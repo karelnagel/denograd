@@ -161,7 +161,7 @@ export function* counter(start = 0) {
   let current = start
   while (true) yield current++
 }
-export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : `${x}`
+export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : typeof x === 'string' ? `'${x}'` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const is_less_than = (a: any, b: any): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
