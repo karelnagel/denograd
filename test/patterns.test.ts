@@ -26,7 +26,7 @@ const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
   'tiny.codegen.lowerer.pm_lowerer': pm_lowerer,
   'tiny.codegen.uopgraph.float4_folding': float4_folding,
   'tiny.codegen.uopgraph.get_late_rewrite_patterns((Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC))': get_late_rewrite_patterns([Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC]),
-  // 'tiny.codegen.uopgraph.sym': sym,
+  'tiny.codegen.uopgraph.sym': sym,
   'tiny.codegen.uopgraph.expander': expander,
   'tiny.codegen.uopgraph.devectorize': devectorize,
   'tiny.codegen.uopgraph.load_store_indexing': load_store_indexing,
@@ -41,15 +41,11 @@ const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
 }
 
 for (const [name, matcher] of entries(ALL_PATTERN_MATCHERS)) {
-  const pyImport = ``
-  const pyCode = name
-  Deno.test(`patterns_${name}`, async (t) => {
-    const TSPatterns = matcher.patterns.map((pattern) => pattern[0])
-    const PYPatterns = await python(`${pyImport}\nout([pattern[0] for pattern in ${pyCode}.patterns])`)
-    for (const [i, [ts, py]] of zip(TSPatterns, PYPatterns).entries()) {
-      await t.step(i.toString(), async () => {
-        expect(removeKeys(await asdict(ts), ['location'])).toEqual(removeKeys(await asdict(py), ['location']))
-      })
-    }
-  })
+  for (let i = 0; i < matcher.patterns.length; i++) {
+    Deno.test(`patterns_${name}_${i}`, async () => {
+      const ts = matcher.patterns[i][0]
+      const py = await python(`out(${name}.patterns[${i}][0])`)
+      expect(ts.toString()).toEqual(py.toString())
+    })
+  }
 }
