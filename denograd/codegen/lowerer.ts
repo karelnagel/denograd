@@ -1,7 +1,7 @@
-import { dtypes, PtrDType } from '../dtype.ts'
-import { all_int, assert, is_eq, isinstance, min, partition, range, zip } from '../helpers.ts'
-import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, prod, sint, sint_to_uop, smax, UOp, UPat } from '../ops.ts'
-import { Renderer } from '../renderer/index.ts'
+import { dtypes, type PtrDType } from '../dtype.ts'
+import { all_int, is_eq, isinstance, min, partition, range, zip } from '../helpers.ts'
+import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, prod, type sint, sint_to_uop, UOp, UPat } from '../ops.ts'
+import type { Renderer } from '../renderer/index.ts'
 
 // # returns the axes to create new_shape if new_shape can be created by combining axis from old_shape
 export const get_contraction = (old_shape: sint[], new_shape: sint[]): number[][] | undefined => {

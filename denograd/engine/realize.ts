@@ -1,10 +1,10 @@
 // deno-lint-ignore-file require-await
 import { Kernel } from '../codegen/kernel.ts'
-import { Buffer, Device, DeviceType, Program } from '../device.ts'
-import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, Metadata, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
-import { idiv, Ops, PatternMatcher, sym_infer, UOp, UPat, Variable } from '../ops.ts'
-import { Estimates, ProgramSpec, Renderer } from '../renderer/index.ts'
-import { ScheduleItem } from './schedule.ts'
+import { type Buffer, Device, type DeviceType, type Program } from '../device.ts'
+import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, type Metadata, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
+import { idiv, Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
+import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
+import type { ScheduleItem } from './schedule.ts'
 import { beam_search, bufs_from_lin, optimize_local_size } from './search.ts'
 
 // **************** Program Creation ****************

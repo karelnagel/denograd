@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { Device, DeviceType } from '../denograd/device.ts'
+import { Device, type DeviceType } from '../denograd/device.ts'
 import { compare } from './helpers.ts'
 
 Deno.test(

@@ -1,9 +1,8 @@
-import { DeviceType } from './device.ts'
-import { Buffer } from './device.ts'
+import { Buffer, type DeviceType } from './device.ts'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
 import { flatten, get_env, NotImplemented } from './helpers.ts'
-import { _METADATA, abs, all_int, all_same, assert, cache, CONSTS, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
+import { _METADATA, abs, all_int, all_same, assert, cache, CONSTS, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp

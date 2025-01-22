@@ -1,6 +1,6 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
 import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, NotImplemented, OSX, PROFILE } from './helpers.ts'
-import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
+import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'

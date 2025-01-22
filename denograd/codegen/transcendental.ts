@@ -1,4 +1,4 @@
-import { DType, dtypes } from '../dtype.ts'
+import { type DType, dtypes } from '../dtype.ts'
 import { assert, range } from '../helpers.ts'
 import { polyN, UOp } from '../ops.ts'
 

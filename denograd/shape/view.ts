@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, flatten, get_key, is_eq, is_less_than, isInt, list_str, next, range, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, flatten, get_key, is_eq, isInt, list_str, next, range, WeakValueMap, zip } from '../helpers.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, resolve, type sint, sint_to_uop, smax, smin, sub, sum, sym_infer, UOp, type Variable } from '../ops.ts'
 
 export const canonicalize_strides = cache_fn((shape: sint[], strides: sint[]): sint[] => {

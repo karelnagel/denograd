@@ -1,8 +1,8 @@
 // deno-lint-ignore-file require-await
 import { all_same, assert, bytes_to_string, cpu_time_execution, flatten, get_env, get_single_element, is_eq, isinstance, product, range, string_to_bytes, zip } from '../helpers.ts'
-import { exec_alu, GroupOp, idiv, Ops, sum, UOp } from '../ops.ts'
+import { exec_alu, GroupOp, idiv, Ops, sum, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
-import { Allocator, BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
+import { Allocator, type BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
 import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate } from '../dtype.ts'
 import type { DeviceType, ProgramCallArgs } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'

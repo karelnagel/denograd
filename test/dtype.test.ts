@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { _get_recursive_parents, DType, dtypes, FmtStr, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../denograd/dtype.ts'
+import { _get_recursive_parents, DType, dtypes, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../denograd/dtype.ts'
 import { compare, tryCatch } from './helpers.ts'
 import { PtrDType } from '../denograd/dtype.ts'
 

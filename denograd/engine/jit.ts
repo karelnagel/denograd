@@ -1,8 +1,8 @@
-import { Buffer } from '../device.ts'
-import { ArrayMap, NotImplemented } from '../helpers.ts'
-import { Variable } from '../ops.ts'
+import type { Buffer } from '../device.ts'
+import { type ArrayMap, NotImplemented } from '../helpers.ts'
+import type { Variable } from '../ops.ts'
 import { Estimates } from '../renderer/index.ts'
-import { ExecItem, Runner } from './realize.ts'
+import { type ExecItem, Runner } from './realize.ts'
 
 export class GraphException extends Error {}
 

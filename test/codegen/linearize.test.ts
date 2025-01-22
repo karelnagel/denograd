@@ -1,6 +1,6 @@
 import { append_to_block, BasicBlock, block_merge, block_reorder, disp, linearize_uop } from '../../denograd/codegen/linearize.ts'
 import { compare } from '../helpers.ts'
-import { DType, dtypes, PtrDType } from '../../denograd/dtype.ts'
+import { dtypes } from '../../denograd/dtype.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
 
 Deno.test(

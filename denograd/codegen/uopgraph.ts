@@ -1,8 +1,8 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
 import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, partition, range, set_default, slice, TRANSCENDENTAL, zip } from '../helpers.ts'
 import { sub } from '../mod.ts'
-import { add, div, graph_rewrite, GroupOp, idiv, is_increasing, mul, Ops, parse_valid, PatternFn, PatternMatcher, prod, simplify_valid, sint, split_uop, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
-import { Renderer } from '../renderer/index.ts'
+import { add, div, graph_rewrite, GroupOp, idiv, is_increasing, mul, Ops, parse_valid, type PatternFn, PatternMatcher, prod, simplify_valid, type sint, split_uop, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
+import type { Renderer } from '../renderer/index.ts'
 import { TRANSCENDENTAL_SUPPORTED_DTYPES, xexp2, xlog2, xsin } from './transcendental.ts'
 
 // if TYPE_CHECKING: from tinygrad.renderer import Renderer

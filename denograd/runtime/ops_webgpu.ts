@@ -1,6 +1,6 @@
-import * as _webgpu from 'https://esm.sh/@webgpu/types@0.1.52'
+import type * as _webgpu from 'https://esm.sh/@webgpu/types@0.1.52'
 import { bytes_to_string, cpu_time_execution, isInt, NotImplemented, range, round_up, zip } from '../helpers.ts'
-import { Allocator, BufferSpec, Compiled, Compiler, Program, ProgramCallArgs } from './allocator.ts'
+import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import { MemoryView } from '../memoryview.ts'

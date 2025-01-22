@@ -1,4 +1,4 @@
-import { DeviceType } from '../device.ts'
+import type { DeviceType } from '../device.ts'
 import { dtypes, least_upper_dtype } from '../dtype.ts'
 import { dedup, get_env, NotImplemented, zip } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'

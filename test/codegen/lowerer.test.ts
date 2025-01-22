@@ -1,5 +1,5 @@
 import { get_index, IndexContext, lower_load_store, lower_reduce_axis, rewrite_shapetracker_with_index } from '../../denograd/codegen/lowerer.ts'
-import { DType, dtypes, PtrDType } from '../../denograd/dtype.ts'
+import { dtypes } from '../../denograd/dtype.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'

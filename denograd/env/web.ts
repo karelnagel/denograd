@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-process-globals
-import { DeviceType } from '../device.ts'
+import type { DeviceType } from '../device.ts'
 import { Environment } from './abstract.ts'
 
 export class WebEnv extends Environment {

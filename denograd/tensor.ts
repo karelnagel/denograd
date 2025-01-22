@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-this-alias
-import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, CONSTS, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, min, NotImplemented, product, random_id, range, Slice, slice, TRACEMETA, WeakValueMap, WINO, zip } from './helpers.ts'
-import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, sum, UOp, Variable } from './ops.ts'
-import { BufferSpec, Device, DeviceType } from './device.ts'
-import { create_schedule_with_vars, ScheduleItem } from './engine/schedule.ts'
+import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, CONSTS, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, Ops, polyN, prod, resolve, type sint, smax, smin, sub, sum, UOp, type Variable } from './ops.ts'
+import { BufferSpec, Device, type DeviceType } from './device.ts'
+import { create_schedule_with_vars, type ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
 // // **** start with two base classes, Tensor && Function ****
@@ -4272,6 +4272,7 @@ export class Tensor extends MathTrait<Tensor> {
 export const _metadata_wrapper = (fn: any): any => {
   throw new NotImplemented()
 }
-if (TRACEMETA >= 1) {
-  throw new NotImplemented()
-}
+// TODO
+// if (TRACEMETA >= 1) {
+//   throw new NotImplemented()
+// }

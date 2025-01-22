@@ -1,13 +1,12 @@
 import { Opt, OptOps } from '../denograd/codegen/kernel.ts'
 import { IndexContext } from '../denograd/codegen/lowerer.ts'
 import { BasicBlock } from '../denograd/codegen/linearize.ts'
-import { DType, dtypes, PtrDType } from '../denograd/dtype.ts'
+import { dtypes } from '../denograd/dtype.ts'
 import { KernelInfo, Ops, spec, UOp, UPat } from '../denograd/ops.ts'
 import { ClangRenderer } from '../denograd/renderer/cstyle.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
 import { View } from '../denograd/shape/view.ts'
 import { compare } from './helpers.ts'
-import { Metadata } from '../denograd/helpers.ts'
 import { Tensor } from '../denograd/tensor.ts'
 
 Deno.test(

@@ -1,12 +1,12 @@
 import { Buffer } from '../../denograd/device.ts'
-import { DType, dtypes, PtrDType } from '../../denograd/dtype.ts'
+import { dtypes } from '../../denograd/dtype.ts'
 import { memory_planner } from '../../denograd/engine/memory.ts'
 import { ScheduleItem } from '../../denograd/engine/schedule.ts'
 import { Metadata } from '../../denograd/helpers.ts'
 import { Ops, UOp } from '../../denograd/ops.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
-import { compare, tryCatch } from '../helpers.ts'
+import { compare } from '../helpers.ts'
 
 Deno.test(
   '_internal_memory_planner',

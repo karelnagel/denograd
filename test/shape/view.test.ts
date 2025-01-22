@@ -1,6 +1,6 @@
-import { Ops, sint, UOp } from '../../denograd/ops.ts'
+import { Ops, type sint, UOp } from '../../denograd/ops.ts'
 import { compare, tryCatch } from '../helpers.ts'
-import {  _reshape_mask, canonicalize_strides, strides_for_shape, View } from '../../denograd/shape/view.ts'
+import { _reshape_mask, canonicalize_strides, strides_for_shape, View } from '../../denograd/shape/view.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 
 Deno.test(
@@ -30,7 +30,6 @@ Deno.test(
   ),
 )
 
-
 Deno.test(
   '_reshape_mask',
   compare(
@@ -47,7 +46,6 @@ Deno.test(
     `out(tiny.shape.view._reshape_mask(*data))`,
   ),
 )
-
 
 Deno.test(
   'View.create',
@@ -79,7 +77,6 @@ const view1 = View.create([4, 4], [4, 1], 0, undefined)
 const view2 = View.create([UOp.int(4), UOp.int(6)], [UOp.int(6), UOp.int(1)], UOp.int(8), [[UOp.int(1), UOp.int(3)], [UOp.int(2), UOp.int(5)]])
 const view3 = View.create([4, 4], [-4, -1], 0, undefined)
 const view4 = View.create([0, 3, 2], [6, -2, 1], 0, [[1, 3], [0, 4]])
-
 
 Deno.test(
   'View.to_indexed_uops',

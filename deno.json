@@ -23,11 +23,12 @@
       "exclude": [
         "no-explicit-any",
         "no-unused-vars",
-        "verbatim-module-syntax",
         "prefer-const",
-        "require-await"
+        "require-await",
+        "no-slow-types"
       ],
       "include": [
+        "verbatim-module-syntax",
         "prefer-const",
         "ban-types",
         "no-class-assign",

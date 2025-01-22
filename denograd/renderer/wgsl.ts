@@ -1,8 +1,8 @@
 import type { DeviceType } from '../device.ts'
-import { DType, dtypes, PtrDType } from '../dtype.ts'
+import { type DType, dtypes, PtrDType } from '../dtype.ts'
 import { is_less_than, range, strip_parens } from '../helpers.ts'
 import { idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
-import { base_rewrite, CStyleLanguage, extra_pm, RenderKernelArgs } from './cstyle.ts'
+import { base_rewrite, CStyleLanguage, extra_pm, type RenderKernelArgs } from './cstyle.ts'
 
 const sign_extend = (val: UOp, sext_am: number) => {
   return val.rshift(sext_am - 1).gt(0).where(UOp.const(dtypes.uint32, 0xffffffff).lshift(sext_am), UOp.const(dtypes.uint32, 0)).bitwise_or(val.bitcast(dtypes.uint32)).bitcast(dtypes.int)

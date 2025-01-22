@@ -1,8 +1,8 @@
-import { Buffer } from '../device.ts'
+import type { Buffer } from '../device.ts'
 import { DType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, isinstance, list_str, merge_maps, Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
-import { add, buffers, can_pad, ge, identity_element, lt, mul, pow, prod, resolve, sint, sub, symbolic_simple, type_verify, UPatInput } from '../ops.ts'
-import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, Variable, view_left } from '../ops.ts'
+import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, list_str, merge_maps, type Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
+import { add, buffers, can_pad, ge, identity_element, lt, mul, pow, prod, resolve, type sint, sub, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
+import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, type Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape, View } from '../shape/view.ts'
 

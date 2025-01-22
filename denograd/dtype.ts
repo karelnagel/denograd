@@ -1,5 +1,5 @@
 import { cache, cache_fn, get_env, get_key, intersection, is_less_than, WeakValueMap } from './helpers.ts'
-import { FmtStr, MemoryView } from './memoryview.ts'
+import { type FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 
 export type ConstType<This = never> = number | bigint | boolean | This

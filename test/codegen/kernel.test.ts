@@ -1,8 +1,8 @@
 import { _assert_valid_uop, Kernel, Opt, OptOps, verify_ast } from '../../denograd/codegen/kernel.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
 import { compare, tryCatch } from '../helpers.ts'
-import { Renderer } from '../../denograd/renderer/index.ts'
-import { DType, dtypes, PtrDType } from '../../denograd/dtype.ts'
+import type { Renderer } from '../../denograd/renderer/index.ts'
+import { dtypes } from '../../denograd/dtype.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
@@ -22,7 +22,7 @@ Deno.test(
     'out(data[0].real_axis(data[1]))',
   ),
 )
-export const kernelKeys = ['ast', 'opts', 'vars', 'bufs', 'applied_opts', 'group_for_reduces', 'upcasted', 'local_dims', 'tensor_core', 'tensor_core_opts', 'use_tensor_cores', 'dont_use_locals', 'sts', 'reduceops', 'full_buf_index',"uops"] as const
+export const kernelKeys = ['ast', 'opts', 'vars', 'bufs', 'applied_opts', 'group_for_reduces', 'upcasted', 'local_dims', 'tensor_core', 'tensor_core_opts', 'use_tensor_cores', 'dont_use_locals', 'sts', 'reduceops', 'full_buf_index', 'uops'] as const
 export const tsKernel = (k: Kernel) => kernelKeys.map((key) => k[key])
 export const pyKernel = `out([getattr(k,key,None) for key in [${kernelKeys.map((k) => `"${k}"`)}]])`
 

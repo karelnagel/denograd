@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { _substitute, merge_views, Ops, PatternMatcher, renderer, spec, symbolic_flat, UOp, UPat, view_left } from '../denograd/ops.ts'
+import { _substitute, merge_views, Ops, type PatternMatcher, renderer, spec, symbolic_flat, UOp, type UPat, view_left } from '../denograd/ops.ts'
 import { asdict, python, removeKeys, tryCatch } from './helpers.ts'
 import { base_rewrite, extra_pm } from '../denograd/renderer/cstyle.ts'
 import { entries, zip } from '../denograd/helpers.ts'

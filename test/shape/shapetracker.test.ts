@@ -1,4 +1,4 @@
-import { sint, UOp } from '../../denograd/ops.ts'
+import { type sint, UOp } from '../../denograd/ops.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
 import { compare, tryCatch } from '../helpers.ts'

@@ -1,5 +1,5 @@
 // deno-lint-ignore-file require-await
-import { ImageDType } from '../dtype.ts'
+import type { ImageDType } from '../dtype.ts'
 import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, get_number_env, NotImplemented, PROFILE, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
