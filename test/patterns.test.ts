@@ -53,16 +53,12 @@ const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
   'tiny.renderer.wgsl.WGSLRenderer().string_rewrite': new WGSLRenderer().string_rewrite,
 }
 
-const pyCache = new Map<string, any>()
 for (const [name, matcher] of entries(ALL_PATTERN_MATCHERS)) {
+  let py: any
   for (let i = 0; i < matcher.patterns.length; i++) {
     Deno.test(`patterns_${name}_${i}`, async () => {
       const ts = matcher.patterns[i][0]
-      let py = pyCache.get(name)
-      if (py === undefined) {
-        py = await python(`out(${name}.patterns)`)
-        pyCache.set(name, py)
-      }
+      if (!py) py = await python(`out(${name}.patterns)`)
       expect(ts.toString()).toEqual(py[i][0].toString())
     })
   }
