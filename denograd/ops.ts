@@ -189,17 +189,17 @@ export class GroupOp {
 
   //   # meta ops
   static Meta = [Ops.COPY, Ops.BUFFER_VIEW]
-  static Buffer = [Ops.LOAD, Ops.PRELOAD, Ops.STORE, Ops.VALID]
+  static Buffer = [Ops.LOAD, Ops.STORE, Ops.VALID, Ops.PRELOAD]
   static Block = [Ops.BLOCK, Ops.BLOCKEND, Ops.BLOCKFORK, Ops.BLOCKSTART]
 
   //   # BinaryOps that can be flipped
-  static Commutative = [Ops.ADD, Ops.MUL, Ops.MAX, Ops.CMPNE, Ops.XOR, Ops.AND, Ops.OR]
+  static Commutative = [Ops.ADD, Ops.MUL, Ops.MAX, Ops.CMPNE, Ops.XOR, Ops.OR, Ops.AND]
 
   // BinaryOps where f(f(a,b),c) = f(a,f(b,c))
-  static Associative = [Ops.ADD, Ops.MUL, Ops.AND, Ops.OR]
+  static Associative = [Ops.ADD, Ops.MUL, Ops.OR, Ops.AND]
 
   // BinaryOps that satisfy f(x,x)=x see https://en.wikipedia.org/wiki/Idempotence
-  static Idempotent = [Ops.OR, Ops.AND, Ops.MAX]
+  static Idempotent = [Ops.MAX, Ops.OR, Ops.AND]
 
   //   # do not preserve f(0) = 0
   static UnsafePad = [Ops.RECIP, Ops.LOG2, Ops.EXP2, Ops.IDIV]
@@ -471,8 +471,8 @@ export class UOp extends MathTrait<UOp> {
     }
     // Tensor variable binding is BIND(VAR(VIEW(DEVICE)), CONST(VIEW(DEVICE)))
     if (op === Ops.BIND) {
-      const [varr, val] = arg.unbind()
-      return varr.replace({ src: [new UOp(Ops.VIEW, dtypes.void, [new UOp(Ops.DEVICE, undefined, undefined, device)], ShapeTracker.from_shape(shape))] }).bind(val)
+      const [variable, val] = arg.unbind()
+      return variable.replace({ src: [new UOp(Ops.VIEW, dtypes.void, [new UOp(Ops.DEVICE, undefined, undefined, device)], ShapeTracker.from_shape(shape))] }).bind(val)
     }
     // otherwise it's just a VIEW(BUFFER)
     const st = ShapeTracker.from_shape(shape)
@@ -762,7 +762,6 @@ export class UPat extends MathTrait<UPat> {
 
     // NOTE: This is here because we can't differentaite between list and tuple so we use Upat[][] to achieve the same thing as list. but after this part the difference isn't needed anymore so we convert back to UPat[]
     if (Array.isArray(src) && src?.length === 1 && Array.isArray(src[0])) src = src[0]
-
     this.allowed_len = (allow_any_len || src instanceof UPat || src === undefined) ? -1 : src.length
     this.location = location || getLocation()
 
@@ -1401,7 +1400,7 @@ export const view_left = merge_views.add(
   new PatternMatcher([
     // VIEW before elementwise ops
     [
-      new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN]).named('e').view(undefined, { name: 'v' }),
+      new UPat([Ops.CAST, Ops.BITCAST, ...GroupOp.ALU, Ops.ASSIGN]).named('e').view(undefined, { name: 'v' }),
       ({ e, v }) => e.replace({ src: e.src.map((s) => s.st === undefined ? s : s === s.base ? s.view(v.st!) : s.base.view(s.st!.add(v.st!))) }),
     ],
     // early merge VIEW buffer ops

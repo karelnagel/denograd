@@ -436,7 +436,7 @@ export const ops_folding = symbolic_simple.add(
     // op with size 0 is zero
     [new UPatScheduled(), ({ b, to_store, base }) => base.size === 0 ? base.const_like(0) : undefined],
     // if the uop folded to a CONST we can delete the BUFFER
-    [new UPatScheduled({ op: Ops.CONST, name: 'constt' }), ({ b, base, constt }) => base.const_like(constt.const_arg)],
+    [new UPatScheduled({ op: Ops.CONST, name: 'const' }), (x) => x.base.const_like(x.const.const_arg)],
     // DETACH is a NOOP here
     [new UPat(Ops.DETACH).named('detach'), ({ detach }) => detach.src[0]],
     // reduce of size 0 is the identity element
@@ -517,7 +517,7 @@ export const do_realize = new PatternMatcher<ScheduleContext>([
   // always realize sinked ops
   [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => sink_outputs(ctx, sink)],
   // always realize meta ops
-  [new UPatScheduled({ op: [Ops.ASSIGN, Ops.CONTIGUOUS, ...GroupOp.Meta] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  [new UPatScheduled({ op: [Ops.CONTIGUOUS,Ops.ASSIGN, ...GroupOp.Meta] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
   // realize before expand or unsafe pad ops
   [new UPatScheduled({ name: 'src' }).view(undefined, { name: 'view' }), ({ ctx, view, src, b }) => realize_view(ctx, view, src, b)],
   // don't realize image to image casts
@@ -529,9 +529,9 @@ export const do_realize = new PatternMatcher<ScheduleContext>([
 
 // **** rewrite VIEW into LOAD/STORE/VALID or fuse the underlying UOp
 
-const unbind_variable = (ctx: ScheduleContext, bind: UOp, varr: UOp, val: UOp) => {
+const unbind_variable = (ctx: ScheduleContext, bind: UOp, variable: UOp, val: UOp) => {
   if (typeof val.src[1].const_arg !== 'number') throw new Error(`expected BIND value to be int ${val}`)
-  const ret = varr.replace({ src: [] })
+  const ret = variable.replace({ src: [] })
   ctx.var_vals.set(ret, val.src[1].const_arg)
   return ret.valid(bind.st!)
 }
@@ -551,7 +551,7 @@ const store_or_fuse = (ctx: ScheduleContext, b: UOp, x: UOp, st: UOp) => {
 export const break_sched = new PatternMatcher<ScheduleContext>([
   // CONST is always fused and generated
   [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('x'), ({ x, st }) => UOp.const(x.dtype.base, x.const_arg).valid(st.st!)],
-  [new UPat(Ops.BIND, undefined, [UPat.var('varr'), UPat.var('val')]).named('bind'), ({ ctx, bind, varr, val }) => unbind_variable(ctx, bind, varr, val)],
+  [new UPat(Ops.BIND, undefined, [UPat.var('var'), UPat.var('val')]).named('bind'), (x) => unbind_variable(x.ctx, x.bind, x.var, x.val)],
   // VIEW of BUFFER either becomes a LOAD/STORE or we fuse it
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b')]).named('st'), ({ ctx, b, st }) => load_realized(ctx, b, st)],
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), UPat.var('x')]).named('st'), ({ ctx, b, x, st }) => store_or_fuse(ctx, b, x, st)],
@@ -588,7 +588,7 @@ export const remove_movement_ops = new PatternMatcher([
   // merge one src views.
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.VIEW, undefined, [new UPat()]).named('v1')]).named('v2'), ({ v1, v2 }) => v1.replace({ arg: add(v1.arg, v2.arg) })],
   // merge unmasked const views
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('constt')]).named('view'), ({ st, constt, view }) => (st.st!.add(view.st!)).views.every((v) => v.mask === undefined) ? constt.replace({ src: [st.replace({ arg: st.st!.add(view.st!) })] }) : undefined],
+  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('const')]).named('view'), (x) => (x.st.st!.add(x.view.st!)).views.every((v) => v.mask === undefined) ? x.const.replace({ src: [x.st.replace({ arg: x.st.st!.add(x.view.st!) })] }) : undefined],
 ])
 
 // @track_rewrites(named=true)
