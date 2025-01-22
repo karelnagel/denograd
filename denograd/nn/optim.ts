@@ -1,6 +1,6 @@
 import { DeviceType } from '../device.ts'
 import { dtypes, least_upper_dtype } from '../dtype.ts'
-import { dedup, get_env, NotImplemented } from '../helpers.ts'
+import { dedup, get_env, NotImplemented, zip } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export class Optimizer {
@@ -38,9 +38,9 @@ export class Optimizer {
    */
   schedule_step = (): Tensor[] => {
     if (!Tensor.training) throw new Error(`Tensor.training=${Tensor.training}, Tensor.training must be enabled to use the optimizer. Consider setting Tensor.training=True before calling Optimizer.step().`)
-    return [...this._step(), ...this.params, ...this.buffers]
+    return [...this.schedule_step_with_grads(this.params.map((t) => t.grad!)), ...this.params, ...this.buffers]
   }
-  _step = (): Tensor[] => {
+  schedule_step_with_grads = (grads: Tensor[]): Tensor[] => {
     throw new NotImplemented()
   }
 }
@@ -58,14 +58,60 @@ export class OptimizerGroup extends Optimizer {
   }
   get = (i: number) => this.optimizers[i]
   override zero_grad = () => this.optimizers.map((o) => o.zero_grad())
-  override _step = (): Tensor[] => this.optimizers.flatMap((o) => o._step())
+  override schedule_step = (): Tensor[] => this.optimizers.flatMap((o) => o.schedule_step())
 }
+
 // LARS === essentially just trust ratio to SGD so if we just set the trust coeff 0.0 its just standard SGD.
+// """
+// Stochastic Gradient Descent (SGD) optimizer with optional momentum and weight decay.
+
+// `classic` is a boolean flag that determines whether to use the popular momentum update rule or the classic momentum update rule.
+
+// - Described: https://paperswithcode.com/method/sgd
+// """
 export const SGD = (params: Tensor[], lr = 0.001, momentum = 0.0, weight_decay = 0.0, nesterov = false, classic = false) => {
-  throw new Error()
+  return new LARS(params, lr, momentum, weight_decay, nesterov, classic, 0.0)
 }
-export class LARS {
+
+// """
+// Layer-wise Adaptive Rate Scaling (LARS) optimizer with optional momentum and weight decay.
+
+// - Described: https://paperswithcode.com/method/lars
+// - Paper: https://arxiv.org/abs/1708.03888v3
+// """
+export class LARS extends Optimizer {
+  b: Tensor[]
+  constructor(params: Tensor[], lr = 0.001, public momentum = 0.9, public weight_decay = 1e-4, public nesterov = false, public classic = true, public tcoef = 0.001) {
+    super(params, lr)
+    this.b = this.momentum ? this.params.map((t) => Tensor.zeros(t.shape, { dtype: t.dtype, device: t.device, requires_grad: false })) : []
+  }
+
+  override schedule_step_with_grads = (grads: Tensor[]): Tensor[] => {
+    for (let [i, [t, g]] of zip(this.params, grads).entries()) {
+      // contiguous is needed since the grads can allegedly form a "diamond"
+      // TODO: fix this in lazy.py
+      g = g.contiguous()
+      let r
+      if (this.tcoef !== 0) {
+        const r1 = t.detach().square().sum().sqrt()
+        const r2 = g.square().sum().sqrt()
+        r = (r1.gt(0)).where((r2.gt(0)).where(r1.mul(this.tcoef, true).div(r2.add(r1.mul(this.weight_decay, true))), 1.0), 1.0)
+      } else r = 1.0
+      g = g.add(t.detach().mul(this.weight_decay, true))
+      // classic momentum does post learning rate update
+      if (this.classic) g = g.mul(r).mul(this.lr)
+      if (this.momentum) {
+        this.b[i].assign(this.b[i].mul(this.momentum, true).add(g)) // NOTE: self.b[i] is zero on the first run, no if required
+        g = this.nesterov ? (g.add(this.b[i].mul(this.momentum))) : this.b[i]
+      }
+      // popular momentum does pre learning rate update
+      if (!this.classic) g = g.mul(r).mul(this.lr)
+      t.assign((t.detach().sub(g)).cast(t.dtype))
+    }
+    return this.b
+  }
 }
+
 // LAMB === essentially just the trust ratio part of LARS applied to Adam/W so if we just set the trust ratio to 1.0 its just Adam/W.
 /**
  * AdamW optimizer with optional weight decay.
@@ -76,6 +122,7 @@ export class LARS {
 export const AdamW = (params: Tensor[], lr = 0.001, b1 = 0.9, b2 = 0.999, eps = 1e-8, weight_decay = 0.01) => {
   return new LAMB(params, lr, b1, b2, eps, weight_decay, true)
 }
+
 /**
  * Adam optimizer.
  *
@@ -85,6 +132,7 @@ export const AdamW = (params: Tensor[], lr = 0.001, b1 = 0.9, b2 = 0.999, eps = 
 export const Adam = (params: Tensor[], lr = 0.001, b1 = 0.9, b2 = 0.999, eps = 1e-8) => {
   return new LAMB(params, lr, b1, b2, eps, 0.0, true)
 }
+
 /**
  * LAMB optimizer with optional weight decay.
  *
@@ -108,13 +156,12 @@ class LAMB extends Optimizer {
     this.m = this.params.map((t) => Tensor.zeros(t.shape, { dtype: dtypes.float32, device: t.device, requires_grad: false }).contiguous())
     this.v = this.params.map((t) => Tensor.zeros(t.shape, { dtype: dtypes.float32, device: t.device, requires_grad: false }).contiguous())
   }
-  override _step = (): Tensor[] => {
+  override schedule_step_with_grads = (grads: Tensor[]): Tensor[] => {
     this.b1_t = this.b1_t.mul(this.b1)
     this.b2_t = this.b2_t.mul(this.b2)
-    for (const [i, t] of this.params.entries()) {
-      if (t.grad === undefined) throw new Error('t.grad is undefined')
-      this.m[i].assign(this.m[i].mul(this.b1, true).add(t.grad.mul(1.0 - this.b1, true)))
-      this.v[i].assign(this.v[i].mul(this.b2, true).add((t.grad.mul(t.grad)).mul(1.0 - this.b2, true)))
+    for (const [i, [t, g]] of zip(this.params, grads).entries()) {
+      this.m[i].assign(this.m[i].mul(this.b1, true).add(g.mul(1.0 - this.b1, true)))
+      this.v[i].assign(this.v[i].mul(this.b2, true).add((g.mul(g)).mul(1.0 - this.b2, true)))
       const m_hat = this.m[i].div(this.b1_t.sub(1.0, true))
       const v_hat = this.v[i].div(this.b2_t.sub(1.0, true))
       const up = (m_hat.div(v_hat.sqrt().add(this.eps))).add(t.detach().mul(this.wd, true))
