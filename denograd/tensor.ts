@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, CONSTS, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -1550,7 +1550,7 @@ export class Tensor extends MathTrait<Tensor> {
     }
     // NOTE: check that setitem target is valid first
     if (!this.lazydata.lbs.every((lb) => lb.st!.contiguous)) throw new Error('setitem target needs to be contiguous')
-    if (!(v instanceof Tensor || CONSTS.includes(typeof v))) throw new Error(`can't set a ${v.constructor.name} to a Tensor`)
+    if (!(v instanceof Tensor || isConst(v))) throw new Error(`can't set a ${v.constructor.name} to a Tensor`)
     if (!(v instanceof Tensor)) v = new Tensor(v, { device: this.device, dtype: this.dtype })
     if (this.requires_grad || v.requires_grad) throw new Error('setitem with requires_grad is not supported')
 

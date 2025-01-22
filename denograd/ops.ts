@@ -1,8 +1,8 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { type ConstType, DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { add, and, div, flatten, get_env, idiv, lshift, lt, mod, mul, ne, neg, NotImplemented, or, prod, rshift, sub, xor } from './helpers.ts'
-import { _METADATA, abs, all_int, all_same, assert, cache, CONSTS, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
+import { add, and, div, flatten, get_env, idiv, isConst, lshift, lt, mod, mul, ne, neg, NotImplemented, or, prod, rshift, sub, xor } from './helpers.ts'
+import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_less_than, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
 export type Variable = UOp
@@ -360,7 +360,7 @@ export class UOp extends MathTrait<UOp> {
     let ret
     if (this.base.op === Ops.CONST) ret = this.base.arg
     else throw new Error(`const_arg called on ${this.base.op}`)
-    if (!CONSTS.includes(typeof ret)) throw new Error(`const_arg trying to return ${ret}`)
+    if (!isConst(ret)) throw new Error(`const_arg trying to return ${ret}`)
     return ret
   }
   get axis_arg() {
@@ -373,7 +373,7 @@ export class UOp extends MathTrait<UOp> {
   detach = () => new UOp(Ops.DETACH, this.dtype, [this])
   index = (idx: UOp, valid?: UOp) => new UOp(Ops.INDEX, this.dtype, valid !== undefined ? [this, idx, valid] : [this, idx])
   // constants can optionally have a DEVICE source
-  override const_like = (b: ConstLike<UOp>) => this._device !== undefined ? UOp.const(this.dtype, b) : UOp.metaop(Ops.CONST, this.shape, this.dtype, this.device, b)
+  override const_like = (b: ConstLike<UOp>) => this._device === undefined ? UOp.const(this.dtype, b) : UOp.metaop(Ops.CONST, this.shape, this.dtype, this.device, b)
   broadcast = (count: number) => {
     if (this.dtype.count !== 1) throw new Error(`dtype.count !==1`)
     if (count === 1) return this
@@ -461,13 +461,10 @@ export class UOp extends MathTrait<UOp> {
   }
   //   # *** from LazyBuffer ***
 
-  static const_with_shape = (dtype: DType, val: ConstLike, shape: sint[]): UOp => {
-    return new UOp(Ops.VALID, dtypes.bool, [ShapeTracker.from_shape([]).reshape(range(shape.length).map(() => 1)).expand(shape).to_uop()]).where(UOp.const(dtype, val), 0)
-  }
   static metaop = (op: Ops, shape: sint[], dtype: DType, device: string, arg?: any): UOp => {
     // Tensor const is CONST(VIEW(DEVICE)) -> RESHAPE -> EXPAND
     if (op === Ops.CONST) {
-      if (!CONSTS.includes(typeof arg)) throw new Error(`trying to create CONST with arg=${arg}`)
+      if (!isConst(arg)) throw new Error(`trying to create CONST with arg=${arg}`)
       return UOp.const(dtype, arg!)
         .replace({ src: [new UOp(Ops.VIEW, dtypes.void, [new UOp(Ops.DEVICE, undefined, undefined, device)], ShapeTracker.from_shape([]))] })
         .reshape(range(shape.length).map((x) => 1)).expand(shape)
@@ -537,7 +534,6 @@ export class UOp extends MathTrait<UOp> {
     return this.src[0].buf_uop
   }
   buf_uop_view = (): UOp => this.buf_uop.view(this.st!)
-
 
   //   # *** uop Variable stuff ***
 

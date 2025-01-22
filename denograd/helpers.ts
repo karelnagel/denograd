@@ -174,10 +174,11 @@ export const is_less_than = (a: any, b: any): boolean => {
   return a < b
 }
 export const CONSTS = ['number', 'bigint', 'boolean']
+export const isConst = (x: any): x is boolean | number | bigint => CONSTS.includes(typeof x)
 export const is_eq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => is_eq(o, two[i]))
   // deno-lint-ignore eqeqeq
-  if (CONSTS.includes(typeof one) && CONSTS.includes(typeof two)) return one == two
+  if (isConst(one) && isConst(two)) return one == two
   return one === two
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
@@ -702,8 +703,8 @@ type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B 
 const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
   if (!bigintFn) bigintFn = numberFn as unknown as (a: bigint, b: bigint) => bigint
   return <A extends Math, B extends Math>(a: A, b: B): Return<A, B> => {
-    if (typeof a !== 'number' && typeof a !== 'bigint') return mathFn(a, b, false) as Return<A, B>
-    else if (typeof b !== 'number' && typeof b !== 'bigint') return mathFn(b, a, true) as Return<A, B>
+    if (!isConst(a)) return mathFn(a, b, false) as Return<A, B>
+    else if (!isConst(b)) return mathFn(b, a, true) as Return<A, B>
     else if (typeof a === 'bigint' || typeof b === 'bigint') return bigintFn(BigInt(a), BigInt(b)) as Return<A, B>
     else return numberFn(a as any, b as any) as Return<A, B>
   }

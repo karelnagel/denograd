@@ -34,6 +34,31 @@ Deno.test(
   ),
 )
 Deno.test(
+  'UOp.st',
+  compare(
+    [
+      [new UOp(Ops.ADD, dtypes.float, [UOp.int(4), UOp.int(55)])],
+      [new UOp(Ops.ADD, dtypes.bool, [UOp.int(4), UOp.int(55)])],
+
+      [UOp.int(3).mul(UOp.bool(false))],
+      [UOp.float(3).add(UOp.int(4)).idiv(UOp.float(44))],
+      [UOp.int(3).add(UOp.bool(false), true)],
+    ],
+    (uop: UOp) => uop.simplify(),
+    'out(data[0].simplify())',
+  ),
+)
+Deno.test(
+  'UOp.const_like',
+  compare(
+    [
+      [new UOp(Ops.CONST, dtypes.int, [], 44), 0],
+    ],
+    (uop: UOp, b: number) => uop.const_like(b),
+    'out(data[0].const_like(data[1]))',
+  ),
+)
+Deno.test(
   'uop.parents',
   compare(
     [
@@ -264,18 +289,6 @@ Deno.test(
   ),
 )
 
-Deno.test(
-  'const_with_shape',
-  compare(
-    [
-      [dtypes.float, 3.14, [2, 2]],
-      [dtypes.int, 42, [3, 3]],
-      [dtypes.bool, true, [1, 4]],
-    ],
-    tryCatch(UOp.const_with_shape),
-    'out(trycatch(lambda: tiny.ops.UOp.const_with_shape(*data)))',
-  ),
-)
 
 Deno.test(
   'div_and_mod_folding',
