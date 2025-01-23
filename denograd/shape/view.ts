@@ -306,12 +306,11 @@ export class View {
   @cache
   reshape(new_shape: sint[]): View | undefined {
     if (is_eq(this.shape, new_shape)) return this
-
-    if (!new_shape.every((x) => x as number >= 0)) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
+    if (new_shape.some((x) => x as number < 0)) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
     //     # check for the same size
     const self_all_int = all_int(this.shape)
     if (self_all_int) {
-      if (!new_shape.every((s) => s instanceof UOp || typeof s === 'number')) throw new Error(`${list_str(this.shape)} -> ${list_str(new_shape)} contains non (int, Variable) dim`)
+      if (new_shape.some((s) => !(s instanceof UOp) && typeof s !== 'number')) throw new Error(`${list_str(this.shape)} -> ${list_str(new_shape)} contains non (int, Variable) dim`)
       if (resolve(ne(prod(this.shape), prod(new_shape)), false)) throw new Error(`size mismatched, can't reshape self.shape=${list_str(this.shape)} -> new_shape=${list_str(new_shape)}`)
     }
 
