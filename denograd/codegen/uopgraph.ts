@@ -272,6 +272,11 @@ export const index_load = UPat.var('buf').index(rng_aug).load(undefined, { name:
 export const arange_augrng = UPat.any([rng_aug, rng_aug.add(UPat.var('idx2')), rng_aug.add(UPat.var('idx2')).add(UPat.var('idx3')), new UPat(Ops.VECTORIZE, undefined, rng_aug, undefined, 'vec')])
 export const arange_m = ((arange_augrng.lt(UPat.cvar('compval'))).ne(new UPat(Ops.CONST, undefined, undefined, true, 'ne'))).where(UPat.cvar('multconst'), UPat.const(undefined, 0))
 
+// this moves the accumulation variable down an unrolled add chain which allows for more efficient accumulation using mulacc
+export const mulacc_unrolled = new PatternMatcher([
+  [UPat.var('x').add(UPat.var('y')).add(acc_pat), ({ x, y, acc }) => y.op !== Ops.DEFINE_ACC ? acc.add(x).add(y) : undefined],
+])
+
 // # this is symbolic 2.0
 export const sym = symbolic_flat.add(
   new PatternMatcher([

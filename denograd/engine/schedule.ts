@@ -1,13 +1,13 @@
 import { type Buffer, uop_buffer, uop_is_realized } from '../device.ts'
 import { DType, dtypes, ImageDType } from '../dtype.ts'
 import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, list_str, merge_maps, type Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
-import { buffers, can_pad, identity_element, resolve, type sint, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
+import { buffers, can_pad, graph_rewrite_map, identity_element, resolve, type sint, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
 import { add, ge, lt, mul, pow, prod, sub } from '../helpers.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, type Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape, View } from '../shape/view.ts'
 
-// **** big graph spec
+// **** Tensor UOp spec
 
 export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
   [new UPat(Ops.DEVICE, dtypes.void, []).named('device'), ({ device }) => typeof device.arg === 'string'],
@@ -21,10 +21,10 @@ export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
   // Tensor variable bindings
   [new UPat(Ops.BIND, dtypes.int, [new UPat(Ops.DEFINE_VAR), UPat.cvar(undefined, dtypes.int)], undefined), () => true],
   [new UPat(Ops.DEFINE_VAR, undefined, new UPat(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([])), undefined), () => true],
-  // Tensor const has an unmasked ShapeTracker of stride 0 and a device
+  // Tensor const has a device and an unmasked ShapeTracker of stride 0 or a ShapeTracker with symbolic shape
   [
     new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW, undefined, [new UPat(Ops.DEVICE)]).named('st')]),
-    ({ st }) => st.st!.views.length === 1 && st.st!.views[0].strides.every((s) => s === 0) && st.st!.views[0].mask === undefined,
+    ({ st }) => st.st!.views[0].mask === undefined && ((st.st!.views.length === 1 && st.st!.views[0].strides.every((s) => s === 0)) || !all_int(st.shape)),
   ],
   // DETACH and CONTIGUOUS change how we interpret the source UOp
   // CONTIGUOUS ensures the source UOp realizes
@@ -36,16 +36,10 @@ export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
   // NOTE: VIEW size exactly matches the underlying BUFFER, tensor doesn't apply movement ops to the VIEW
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf')]).named('view'), ({ view, buf }) => view.dtype === buf.dtype && view.size === buf.size && view.st!.contiguous],
   // ASSIGN changes the value of a realized buffer
-  [new UPat(Ops.ASSIGN, undefined, [UPat.var('target'), UPat.var('new_val')]).named('assign'), ({ assign, target, new_val }) => (target.op === Ops.BUFFER || uop_is_realized(target)) && (assign.dtype === target.dtype && target.dtype === new_val.dtype)],
-  // TODO: BUFFER_VIEW is overloaded, it should be removed.
-  // BUFFER_VIEW shares the device buffer with its source, it uses a subbuffer of the underlying source buffer
-  [new UPat(Ops.BUFFER_VIEW, undefined, [UPat.var('x')]).named('root'), ({ root, x }) =>
-    // BUFFER_VIEW can replace contiguous, keeping dtype the same
-    (root.dtype === x.dtype) ||
-    // it can also replace bitcast, this changes the dtype, but the itemsize stays the same
-    (root.dtype !== x.dtype && root.dtype.itemsize === x.dtype.itemsize) ||
-    // it can also represent shape changing bitcast (only on DISK)
-    (root.dtype !== x.dtype && root.dtype.itemsize !== x.dtype.itemsize && x.device.startsWith('DISK'))],
+  [
+    new UPat(Ops.ASSIGN, undefined, [UPat.var('target'), UPat.var('new_val')]).named('assign'),
+    ({ assign, target, new_val }) => uop_is_realized(target) && (assign.dtype === target.dtype && target.dtype === new_val.dtype),
+  ],
 ])
 
 // **** ScheduleItem return type
@@ -55,7 +49,6 @@ export class ScheduleItem {
     public ast: UOp,
     public bufs: Buffer[],
     public metadata: Metadata[],
-    public assign_preloads: UOp[],
   ) {}
   /**
    * Read/write || write only buffers in the schedule.
@@ -73,7 +66,7 @@ export class ScheduleItem {
   get output_idxs(): number[] {
     return this.ast.op === Ops.SINK ? this.ast.src.map((x) => x.src[0].arg) : [0]
   }
-  toString = () => `new ScheduleItem(${this.ast}, ${list_str(this.bufs)}, ${list_str(this.metadata)}, ${list_str([...this.assign_preloads])})`;
+  toString = () => `new ScheduleItem(${this.ast}, ${list_str(this.bufs)}, ${list_str(this.metadata)})`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
@@ -91,38 +84,39 @@ export class ScheduleContext {
     public ops_metadata = new Map<UOp, Metadata>(), // this maps fused ops to Metadata
     public contiguous = new Map<UOp, UOp>(), // this maps roots to places they are made contiguous
     public children = new Map<UOp, Map<UOp, undefined>>(),
+    public preloads = new Map<Buffer, Map<UOp, undefined>>(),
     public becomes_map = new Map<UOp, UOp>(),
   ) {}
 }
 
 // wrap tensor uops around a VIEW(BUFFER, <uop>)
 // this BUFFER preserves a link back to the uop on the tensor after the scheduler rewrites it.
-const add_buffers = (buf: UOp, ctx: ScheduleContext, cache: Map<UOp, UOp>): UOp => {
+const add_buffers = (buf: UOp, tensor_map: Map<UOp, UOp[]>, ctx: ScheduleContext, cache: Map<UOp, UOp>): UOp => {
   if (cache.has(buf)) return cache.get(buf)!
-  if (buf.op === Ops.SINK) return UOp.sink(...buf.src.map((x) => add_buffers(x, ctx, cache)))
-  // shapeless op is passthrough
-  // realized is passthrough
-  // constants are passthrough
-  if (buf.st === undefined || uop_is_realized(buf.base) || [Ops.CONST, Ops.BIND].includes(buf.base.op)) return buf
-  // view is passthrough
+  // SINK is passthrough
+  if (buf.op === Ops.SINK) return buf.replace({ src: buf.src.map((x) => add_buffers(x, tensor_map, ctx, cache)) })
+  // skip creating buffers for CONST/BIND/DEVICE/BUFFER
+  if (uop_is_realized(buf.base) || [Ops.CONST, Ops.BIND, Ops.DEVICE].includes(buf.base.op)) return buf
+  // VIEW is passthrough
   if (buf !== buf.base) {
-    const ret = add_buffers(buf.base, ctx, cache).view(buf.st)
+    const ret = add_buffers(buf.base, tensor_map, ctx, cache).view(buf.st!)
     cache.set(buf, ret)
     return ret
   }
   // make things that can't be images not images
   let dtype = buf.dtype
-  if (dtype instanceof ImageDType && (prod(buf.shape) !== prod(dtype.shape) || !buf.st.unit_stride_axes().some((x) => buf.shape[x] as number % 4 === 0))) {
+  if (dtype instanceof ImageDType && (prod(buf.shape) !== prod(dtype.shape) || !buf.st!.unit_stride_axes().some((x) => buf.shape[x] as number % 4 === 0))) {
     if (DEBUG >= 2) console.log(`forcing image ${dtype} with shape ${buf.shape} to ${dtype.base}`)
     dtype = buf.dtype.base
   }
   // ASSIGN already has a target buffer, otherwise we create a new one
+  if (Array.isArray(buf.device)) throw new Error(`buf device is str, not ${buf.device}`)
   const buf_uop = buf.op === Ops.ASSIGN ? buf.buf_uop : UOp.new_buffer(buf.device, buf.size, dtype)
-  const op = buf.replace({ dtype: dtype.base, src: buf.src.map((x) => add_buffers(x, ctx, cache)) })
-  // track the underlying tensor uop for this op
-  ctx.tensor_uops.set(buf_uop, [buf])
+  const op = buf.replace({ dtype: dtype, src: buf.src.map((x) => add_buffers(x, tensor_map, ctx, cache)) })
+  // track the underlying tensor uop for this buffer
+  ctx.tensor_uops.set(buf_uop, tensor_map.get(buf)!)
   // (early) bufferize
-  const ret = new UOp(Ops.VIEW, dtype.base, [buf_uop, buf.forced_realize ? op.alu(Ops.CONTIGUOUS) : op], buf.st)
+  const ret = new UOp(Ops.VIEW, dtype.base, [buf_uop, op], buf.st)
   cache.set(buf, ret)
   return ret
 }
@@ -212,12 +206,14 @@ export const to_si = new PatternMatcher<ScheduleItemContext>([
   // simplify and unbind the final VIEWs
   [new UPat(Ops.VIEW).named('x'), ({ x, ctx }) => _append_st_vars(ctx, x)],
   // don't need SINK on COPY or BUFFER_VIEW
-  [new UPat(Ops.SINK, undefined, [UPat.store([UPat.var('b'), new UPat(), new UPat(GroupOp.Meta).named('x')])]), ({ b, x }) => x.replace({ src: [b, ...x.src] })],
+  [new UPat(Ops.SINK, undefined, [UPat.store([UPat.var('b'), new UPat(), new UPat([Ops.COPY, Ops.BUFFER_VIEW]).named('x')])]), ({ b, x }) => x.replace({ src: [b, ...x.src] })],
   // don't need contiguous or assign anymore
   [new UPat(Ops.CONTIGUOUS, undefined, [UPat.var('x')]), ({ x }) => x],
   [new UPat(Ops.ASSIGN, undefined, [new UPat(), UPat.var('x')]), ({ x }) => x],
   // PRELOAD becomes LOAD
   [new UPat(Ops.PRELOAD).named('root'), ({ root }) => root.replace({ op: Ops.LOAD })],
+  // once images are loaded they become the base dtype
+  [new UPat(Ops.values().filter((x) => x !== Ops.DEFINE_GLOBAL)).named('x'), ({ x }) => x.dtype instanceof ImageDType ? x.replace({ dtype: x.dtype.base }) : undefined],
 ])
 
 // LOAD(BUFFER) -> the STORE value if it's we're doing the STORE in the same kernel
@@ -229,14 +225,15 @@ const schedule_uop = (pre: UOp, ctx: ScheduleContext): ScheduleItem => {
   // remove extra uops from SINK + substitue BUFFER with DEFINE_GLOBAL
   const si_ctx = new ScheduleItemContext(ctx.var_vals), ast = graph_rewrite(sink, to_si, si_ctx)
   // deal with ASSIGN
-  const assign_preloads: UOp[] = []
   if (ctx.assigns.size !== 0) {
+    const assign_preloads = ctx.preloads.get(uop_buffer(si_ctx.bufs[0]))!
+
     for (const x of [...sink.toposort].toReversed()) {
       // we only allow a kernel to depend on either the before ASSIGN or after ASSIGN version of a BUFFER
-      if (x.op === Ops.LOAD && assign_preloads.includes(x.buf_uop)) throw new Error('cycle detected in graph')
+      if (x.op === Ops.LOAD && assign_preloads.has(x.buf_uop)) throw new Error('cycle detected in graph')
       // PRELOAD tells the toposort this kernel should run before ASSIGN
       if (x.op === Ops.PRELOAD) {
-        assign_preloads.push(x.buf_uop)
+        assign_preloads.set(x.buf_uop, undefined)
         // if this kernel also assigns to the buffer, we only allow either contiguous or masked views for the LOAD
         const st = x.st_arg!
         if (store_bufs.has(x.buf_uop) && !st.contiguous) {
@@ -253,7 +250,7 @@ const schedule_uop = (pre: UOp, ctx: ScheduleContext): ScheduleItem => {
   if (CAPTURE_PROCESS_REPLAY) {
     throw new NotImplemented()
   }
-  return new ScheduleItem(ast, si_ctx.bufs.filter((u) => u.size !== 0).map((u) => uop_buffer(u)), dedup([...pre.toposort].map((x) => ctx.ops_metadata.get(x)).filter((m) => m !== undefined)), dedup(assign_preloads))
+  return new ScheduleItem(ast, si_ctx.bufs.map((u) => uop_buffer(u)), dedup([...pre.toposort].map((x) => ctx.ops_metadata.get(x)!).filter((m) => m !== undefined)))
 }
 
 export const PROCESS_REPLAY_CAPTURE = new Map<string, Uint8Array>()
@@ -266,7 +263,7 @@ export const is_scheduled = (u: UOp): boolean => u.op === Ops.VIEW && u.src.leng
 export const uval = (u: UOp): UOp => {
   if (!is_scheduled(u)) throw new Error(`must be a scheduled op ${u}`)
   const r = u.src[1]
-  return r.op === Ops.CONTIGUOUS && !(r.src[0].base.op === Ops.VIEW && r.src[0].base.src.length === 2) ? r.src[0] : r
+  return u.src[1]
 }
 /**
  * recursively search the uop for groupable children, realize the UOp if a child can't group
@@ -386,7 +383,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   }
   for (const rbuf of reduce_of_const) {
     const group = new Map(reduce_for_op.entries().filter(([tr, rop]) => rop === rbuf).map(([tr, rop]) => [tr, undefined]))
-    if (group.keys().flatMap((tr) => ctx.tensor_uops.get(tr)!.map((luop) => luop.forced_realize)).some(Boolean)) continue
+    if (group.keys().flatMap((tr) => ctx.tensor_uops.get(tr)!).some((tensor_uop) => tensor_uop.op === Ops.CONTIGUOUS)) continue
     const kernel_children = [...group.keys()].flatMap((tr) => [...ctx.children.get(tr)!.keys()]).filter((c) => ![Ops.COPY, Ops.BUFFER_VIEW].includes(uval(ctx.allbufs.get(c)!).op))
     if (kernel_children.length === 0) continue
     for (const [tr] of group) ctx.realizes.delete(tr)
@@ -395,15 +392,8 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   for (const ubuf of ctx.realizes.keys()) set_default(output_groups, reduce_for_op.get(ubuf) || ubuf, []).push(ubuf)
   return [...output_groups.values()]
 }
+
 // **** Schedule creation && BFS toposort
-
-// ** ops in the big graph can either be pre-realized || scheduled (fused/realized)
-
-export class UPatScheduled extends UPat {
-  constructor(args: Partial<UPatInput> = {}) {
-    super(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), new UPat(args.op, args.dtype, args.src, args.arg, args.name || 'to_store', args.allow_any_len, args.location, args.custom_early_reject)], undefined, 'base')
-  }
-}
 
 // ** this is schedule level const folding
 
@@ -418,11 +408,9 @@ const simplify_reduceop = (reduce: UOp, x: UOp): UOp | undefined => {
   else return undefined
   return reduce.const_like(ret)
 }
-const found_contiguous = (ctx: ScheduleContext, contig: UOp, base: UOp, b: UOp): undefined => {
-  if (contig.src[0].op === Ops.VIEW && contig.src[0].src.length) {
-    const old_base = contig.src[0].src[0]
-    if (old_base.op === Ops.VIEW && (contig.src[0].st!.invert(old_base.shape)) !== undefined) ctx.contiguous.set(old_base, base.view(contig.src[0].st!))
-  }
+const found_contiguous = (ctx: ScheduleContext, contig: UOp, src: UOp): undefined => {
+  const sti = src.st!
+  if (sti.invert(src.base.shape) !== undefined) ctx.contiguous.set(src.base, contig.view(sti))
 }
 const replace_contiguous = (ctx: ScheduleContext, alu: UOp) => {
   const new_src = [...alu.src]
@@ -431,68 +419,59 @@ const replace_contiguous = (ctx: ScheduleContext, alu: UOp) => {
   }
   if (!is_eq(new_src, alu.src)) return alu.replace({ src: new_src })
 }
-export const ops_folding = symbolic_simple.add(
+export const sym = symbolic_simple.add(
   new PatternMatcher<ScheduleContext>([
-    // op with size 0 is zero
-    [new UPatScheduled(), ({ b, to_store, base }) => base.size === 0 ? base.const_like(0) : undefined],
-    // if the uop folded to a CONST we can delete the BUFFER
-    [new UPatScheduled({ op: Ops.CONST, name: 'const' }), (x) => x.base.const_like(x.const.const_arg)],
+    // UOp with size 0 is zero
+    [
+      new UPat(Ops.values().filter((x) => x !== Ops.SINK)).named('root'),
+      ({ root }) => root.base.st !== undefined && root.size === 0 && !(root.base.op === Ops.CONST && root.base.arg === 0) ? root.const_like(0) : undefined,
+    ],
     // DETACH is a NOOP here
     [new UPat(Ops.DETACH).named('detach'), ({ detach }) => detach.src[0]],
     // reduce of size 0 is the identity element
     [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('x')]).named('reduce'), ({ reduce, x }) => x.size === 0 && reduce.size !== 0 ? reduce.const_like(identity_element(reduce.arg[0], reduce.dtype)) : undefined],
     // reduce of const is collapsed (TODO: make this a generic rule for stride0)
     [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.cvar('x')]).named('reduce'), ({ reduce, x }) => simplify_reduceop(reduce, x)],
-    // CONST doesn't need COPY
-    [new UPat(Ops.COPY, undefined, [new UPat(), UPat.cvar('x')]), ({ x }) => x],
+    // COPY(CONST) creates a new CONST on the destination device
+    [new UPat(Ops.COPY, undefined, [new UPat(), UPat.cvar('x')]).named('root'), ({ root, x }) => root.const_like(x.const_arg)],
     // no COPY to same device, except clone (arg is True)
-    [new UPatScheduled({ op: Ops.COPY, src: [new UPat(), new UPat(Ops.VIEW).named('copyin')], name: 'copy' }), ({ base, b, copyin, copy }) => copyin.device === copy.device && copy.arg !== true ? copyin : undefined],
+    [
+      new UPat(Ops.COPY, undefined, [new UPat(), UPat.var('copyin')]).named('copy'),
+      ({ copyin, copy }) => copyin.device === copy.device && copy.arg !== true ? copyin : undefined,
+    ],
+    // remove cast to image when it's already a contiguous image
+    [
+      new UPat(Ops.VIEW, undefined, [new UPat(Ops.CAST, undefined, [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONTIGUOUS).named('base')]).named('vm2')]).named('cast')]).named('vm1'),
+      ({ cast, base, vm1, vm2 }) => cast.dtype instanceof ImageDType && base.dtype instanceof ImageDType ? base.view(vm2.st!.add(vm1.st!)) : undefined,
+    ],
+    // remove contiguous if we can just view the buffer
+    [
+      new UPat(Ops.CONTIGUOUS, undefined, [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf')]).named('view')]).named('root'),
+      ({ root, view, buf }) => view.st!.contiguous && view.size === buf.size ? view : undefined,
+    ],
+    // double contiguous is one contiguous
+    [new UPat(Ops.CONTIGUOUS, undefined, [new UPat(Ops.CONTIGUOUS)]).named('root'), ({ root }) => root.src[0]],
     // support for using a contiguous permuted view instead of the parent view if one exists
-    [new UPatScheduled({ op: Ops.CONTIGUOUS, name: 'contig' }), ({ ctx, contig, base, b }) => found_contiguous(ctx, contig, base, b)],
-    [new UPat(GroupOp.ALU).named('alu'), ({ ctx, alu }) => replace_contiguous(ctx, alu)],
-    // remove CONST/BIND/BUFFER/VIEW from SINK
+    [new UPat(Ops.CONTIGUOUS, undefined, [new UPat(Ops.VIEW).named('src')]).named('contig'), ({ ctx, contig, src }) => found_contiguous(ctx, contig, src)],
+    [new UPat(GroupOp.ALU).named('alu'), ({ alu, ctx }) => replace_contiguous(ctx, alu)],
+    // remove CONST/BIND/BUFFER from SINK
     [new UPat(Ops.SINK).named('root'), ({ root }) => {
       const new_src = root.src.filter((x) => !uop_is_realized(x) && ![Ops.CONST, Ops.BIND].includes(x.base.op))
-      return !is_eq(new_src, root.src) ? new UOp(Ops.SINK, root.dtype, new_src, root.arg) : undefined
+      return new_src !== root.src ? new UOp(Ops.SINK, root.dtype, new_src, root.arg) : undefined
     }],
   ]),
 )
 
-// # ** buffer merging
-
-const merge = (ctx: ScheduleContext, v1: UOp, b1: UOp, v2: UOp, b2: UOp): UOp => {
-  if (!(v1.st !== undefined && v2.st !== undefined && v1.st === v2.st)) throw new Error(`implicit movementop ${v1.st} ${v2.st}`)
-  // if b2 is realized also realize b1
-  if (ctx.realizes.has(b2)) {
-    ctx.realizes.set(b1, b1)
-    ctx.realizes.delete(b2)
-  }
-  // ops referring to b2 now ref to b1
-  ctx.tensor_uops.set(b1, [...ctx.tensor_uops.get(b1)!, ...ctx.tensor_uops.get(b2)!])
-  ctx.tensor_uops.delete(b2)
-  // merge
-  return v1
-}
-
-const merge_realized = (ctx: ScheduleContext, v1: UOp, b1: UOp, v2: UOp, b2: UOp) => {
-  // early become
-  for (const luop of [...(ctx.tensor_uops.get(b1) || []), ...(ctx.tensor_uops.get(b2) || [])]) ctx.becomes_map.set(luop, b1.view(luop.st!))
-  return v1
-}
-export const merge_bufs = new PatternMatcher<ScheduleContext>([
-  // merge base
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b2'), new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b1'), new UPat()]).named('v1')]).named('v2'), ({ ctx, v1, b1, v2, b2 }) => merge(ctx, v1, b1, v2, b2)],
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b2'), new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b1')]).named('v1')]).named('v2'), ({ ctx, v1, b1, v2, b2 }) => merge_realized(ctx, v1, b1, v2, b2)],
-  // collapse view
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER), new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER), new UPat()]).view(undefined, { name: 'mv' })]), ({ mv }) => mv],
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER), new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER)]).view(undefined, { name: 'mv' })]), ({ mv }) => mv],
-])
-
 // ** this decides which ops get realized
 
+export class UPatScheduled extends UPat {
+  constructor(args: Partial<UPatInput> = {}) {
+    super(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), new UPat(args.op, args.dtype, args.src, args.arg, args.name || 'to_store', args.allow_any_len, args.location, args.custom_early_reject)], undefined, 'base')
+  }
+}
 const realize = (ctx: ScheduleContext, b: UOp, to_store: UOp) => void ctx.realizes.set(b, to_store)
 
-export const realize_view = (ctx: ScheduleContext, view: UOp, src: UOp, b: UOp) => {
+export const realize_before_view = (ctx: ScheduleContext, view: UOp, src: UOp, b: UOp) => {
   if (src.st === undefined) return undefined
   const st = view.st!
   // fold simple pads
@@ -504,27 +483,35 @@ export const realize_view = (ctx: ScheduleContext, view: UOp, src: UOp, b: UOp) 
   // otherwise safety check pads
   return (st.views.every((v) => v.mask === undefined) || can_pad(src, ctx.realizes, new Set())) ? undefined : realize(ctx, b, src)
 }
-const fold_img_cast = (ctx: ScheduleContext, xb: UOp, view: UOp, b: UOp, to_cast: UOp): UOp | undefined => {
-  if (!(xb.dtype instanceof ImageDType) || !ctx.realizes.has(b) || !ctx.realizes.has(xb) || GroupOp.Meta.includes(uval(to_cast).op)) return undefined
+const fold_img_cast = (ctx: ScheduleContext, xb: UOp, view: UOp, b: UOp, x: UOp): UOp | undefined => {
+  if (!(xb.dtype instanceof ImageDType) || !ctx.realizes.has(b) || !ctx.realizes.has(xb) || uval(x.base).op === Ops.COPY) return undefined
   ctx.realizes.delete(b)
-  return to_cast.view(view.st!)
+  return x.view(view.st!)
 }
 
-const sink_outputs = (ctx: ScheduleContext, sink: UOp): undefined => {
-  for (const x of sink.src) realize(ctx, x.buf_uop, x)
+export const create_subbuffer = (base: UOp, b: UOp, root: UOp, x: UOp) => {
+  if (Array.isArray(b.device) || !b.device.startsWith('DISK')) return undefined
+  buffers.set(b.key, uop_buffer(x.buf_uop).view(b.size, b.dtype, x.st!.views[0].offset as number * x.dtype.itemsize))
+  return base.replace({ src: [b, root.replace({ op: Ops.BUFFER_VIEW })] })
 }
+
 export const do_realize = new PatternMatcher<ScheduleContext>([
-  // always realize sinked ops
-  [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => sink_outputs(ctx, sink)],
-  // always realize meta ops
-  [new UPatScheduled({ op: [Ops.CONTIGUOUS,Ops.ASSIGN, ...GroupOp.Meta] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  // always realize SINK parents
+  [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => void sink.src.forEach((x) => ctx.realizes.set(x.buf_uop, x))],
+  // always realize ASSIGN/CONTIGUOUS/COPY/BUFFER_VIEW
+  [new UPatScheduled({ op: [Ops.ASSIGN, Ops.CONTIGUOUS, Ops.COPY, Ops.BUFFER_VIEW] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
   // realize before expand or unsafe pad ops
-  [new UPatScheduled({ name: 'src' }).view(undefined, { name: 'view' }), ({ ctx, view, src, b }) => realize_view(ctx, view, src, b)],
+  [new UPat(Ops.VIEW, undefined, [new UPatScheduled({ name: 'src' })]).named('view'), ({ ctx, view, src, b }) => realize_before_view(ctx, view, src, b)],
   // don't realize image to image casts
-  [new UPatScheduled({ op: Ops.CAST, src: [new UPat(Ops.VIEW, undefined, [UPat.var('xb'), new UPat()]).named('to_cast')], dtype: dtypes.float }).view(undefined, { name: 'view' }), ({ ctx, xb, view, b, to_cast }) => fold_img_cast(ctx, xb, view, b, to_cast)],
+  [
+    new UPat(Ops.VIEW, undefined, [new UPatScheduled({ op: Ops.CAST, src: [new UPat(Ops.VIEW, undefined, [UPat.var('xb'), new UPat()]).named('x')], dtype: dtypes.float })]).named('view'),
+    ({ ctx, xb, view, b, x }) => fold_img_cast(ctx, xb, view, b, x),
+  ],
   // realize before COPY or BUFFER_VIEW
   [new UPat(Ops.COPY, undefined, [new UPat(), UPat.any([new UPatScheduled(), new UPatScheduled().view()])]), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
   [new UPat(Ops.BUFFER_VIEW, undefined, [UPat.any([new UPatScheduled(), new UPatScheduled().view()])]), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  // substitute BITCAST/CONTIGUOUS with BUFFER_VIEW on DISK
+  [new UPatScheduled({ op: [Ops.BITCAST, Ops.CONTIGUOUS], name: 'root', src: [UPat.var('x')] }), ({ base, b, root, x }) => create_subbuffer(base, b, root, x)],
 ])
 
 // **** rewrite VIEW into LOAD/STORE/VALID or fuse the underlying UOp
@@ -542,7 +529,7 @@ const load_realized = (ctx: ScheduleContext, b: UOp, st: UOp) => {
 }
 
 const store_or_fuse = (ctx: ScheduleContext, b: UOp, x: UOp, st: UOp) => {
-  const m = ctx.tensor_uops.get(b)![0].metadata
+  const m = ctx.tensor_uops.get(b)!.at(-1)!.metadata
   if (m !== undefined) ctx.ops_metadata.set(x, m)
   if (!ctx.realizes.has(b)) return x // collapse BUFFER
   ctx.realizes.set(b, b.store([ShapeTracker.from_shape(st.shape).to_uop(), x]))
@@ -550,7 +537,7 @@ const store_or_fuse = (ctx: ScheduleContext, b: UOp, x: UOp, st: UOp) => {
 }
 export const break_sched = new PatternMatcher<ScheduleContext>([
   // CONST is always fused and generated
-  [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('x'), ({ x, st }) => UOp.const(x.dtype.base, x.const_arg).valid(st.st!)],
+  [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('x'), ({ x, st }) => UOp.const(x.dtype, x.const_arg).valid(st.st!)],
   [new UPat(Ops.BIND, undefined, [UPat.var('var'), UPat.var('val')]).named('bind'), (x) => unbind_variable(x.ctx, x.bind, x.var, x.val)],
   // VIEW of BUFFER either becomes a LOAD/STORE or we fuse it
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b')]).named('st'), ({ ctx, b, st }) => load_realized(ctx, b, st)],
@@ -565,12 +552,6 @@ const append_uop = (ctx: ScheduleContext, view: UOp, buf_uop: UOp): undefined =>
   if (op.op === Ops.ASSIGN) ctx.assigns.add(buf_uop)
   for (const x of op.base.src) {
     if (is_scheduled(x.base)) set_default(ctx.children, x.base.buf_uop, new Map()).set(buf_uop, undefined)
-  }
-  // BUFFER_VIEW overrides the underlying buffer
-  // TODO: this should be a shrink on the buffer
-  if (op.op === Ops.BUFFER_VIEW) {
-    const x = op.src[0]
-    buffers.set(buf_uop.key, uop_buffer(x.buf_uop).view(view.size, view.dtype, x.st!.views[0].offset as number * x.dtype.itemsize))
   }
   uop_buffer(buf_uop).ref(1)
 }
@@ -592,37 +573,47 @@ export const remove_movement_ops = new PatternMatcher([
 ])
 
 // @track_rewrites(named=true)
-export const create_schedule_with_vars = (outs: UOp[], skip_check = !DEBUG): [ScheduleItem[], Map<Variable, number>, Map<UOp, UOp>] => {
-  if (!skip_check) type_verify([...UOp.sink(...outs).toposort], [tensor_uop_spec])
-  // to_uop is removing (many) of the movement ops
-  const ctx = new ScheduleContext()
-  let sink = add_buffers(UOp.sink(...outs), ctx, new Map())
-  // const folding and fusion
-  sink = graph_rewrite(sink, remove_movement_ops.add(ops_folding).add(do_realize), ctx)
-  sink = graph_rewrite(sink, merge_bufs, ctx)
-  // create the scheduler context
-  graph_rewrite(sink, create_ctx, ctx)
+export const create_schedule_with_vars = (big_sink: UOp, skip_check = !DEBUG): [ScheduleItem[], Map<Variable, number>, Map<UOp, UOp>] => {
+  if (!skip_check) type_verify([...big_sink.toposort], [tensor_uop_spec])
+  const ctx = new ScheduleContext(), tensor_map = graph_rewrite_map(big_sink, remove_movement_ops.add(sym), ctx)
+  const rev_tensor_map = new Map<UOp, UOp[]>()
+  for (const [k, v] of tensor_map.entries()) set_default(rev_tensor_map, v, []).push(k)
+  // add BUFFER uops
+  let sink = add_buffers(tensor_map.get(big_sink)!, rev_tensor_map, ctx, new Map())
+  // add realizes
+  sink = graph_rewrite(sink, do_realize.add(create_ctx), ctx)
   // group realizes into kernels
   const store_groups = group_realizes(ctx)
   graph_rewrite(sink, break_sched, ctx)
   // preschedule realize groups
   const prescheduled: ScheduleItem[] = []
   for (const store_uops of store_groups) {
-    const stores = store_uops.filter((u) => ctx.realizes.get(u)!.op === Ops.STORE).map((u) => ctx.realizes.get(u)!)
-    if (stores.length === 0) continue
-    prescheduled.push(schedule_uop(UOp.sink(...stores), ctx))
+    const small_sink = UOp.sink(...store_uops.map((u) => ctx.realizes.get(u)!))
+    if (!small_sink.src.every((x) => x.op === Ops.STORE)) throw new Error(`expected all realized BUFFERs to get a STORE ${sink}`)
+    prescheduled.push(schedule_uop(small_sink, ctx))
     // can only schedule once
     for (const buf_uop of store_uops) {
-      for (const luop of ctx.tensor_uops.get(buf_uop)!) ctx.becomes_map.set(luop, buf_uop.view(luop.st!))
+      for (const tensor_uop of ctx.tensor_uops.get(buf_uop)!) ctx.becomes_map.set(tensor_uop, buf_uop.view(tensor_uop.st!))
     }
   }
+
+  // tensors can become an existing buffer or simplify to a const, no ScheduleItem needed
+  for (const [k, v] of tensor_map.entries()) {
+    // NOOP
+    if (k.base === v.base) continue
+    // NOTE: only the base tensors get a BUFFER UOp
+    if (uop_is_realized(v) && k === k.base) ctx.becomes_map.set(k, v.view(k.st!))
+    // otherwise if it simplified to a CONST the UOp just becomes that CONST
+    else if (v.op === Ops.CONST) ctx.becomes_map.set(k, v)
+  }
+
   // add kernel children
   const schedule_targets = new Map(prescheduled.flatMap((si) => si.outputs.map((out) => [out, si])))
   const graph = new Map<ScheduleItem, ScheduleItem[]>()
   const in_degree = new Map<ScheduleItem, number>()
   for (const si of prescheduled) {
     // realize outputs before a parent === assigned to
-    const parents_assigns = dedup([...si.assign_preloads].map((x) => schedule_targets.get(uop_buffer(x))!).filter((xsi) => xsi && xsi !== si))
+    const parents_assigns = dedup([...ctx.preloads.get(si.bufs[0])!.keys()].map((x) => schedule_targets.get(uop_buffer(x))!).filter((xsi) => xsi && xsi !== si))
     for (const assign of parents_assigns) {
       set_default(graph, si, []).push(assign)
       in_degree.set(assign, set_default(in_degree, assign, 0) + 1)

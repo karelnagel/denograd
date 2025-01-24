@@ -210,11 +210,17 @@ export class PythonProgram extends Program {
               const a_elem: Fn = (x, k, row, goff) => x[k % 2 + idiv(row, 8) * 2 + idiv(k, 8) * 4][goff + idiv(k, 2) % 4 + (row % 8) * 4]
               const b_elem: Fn = (x, col, k, goff) => x[k % 2 + idiv(k, 8) * 2][goff + idiv(k, 2) % 4 + col * 4]
               ul[i] = wmma_helper(32, 16, 8, 4, 4, a_elem, b_elem, c_map)
-            } else if (is_eq(arg[1], [8, 16, 8])) {
+            } else if (is_eq(arg[1], [8, 16, 8]) && arg[2] === dtypes.half) {
               const a_elem: Fn = (x, k, row, goff) => x[k % 2 + idiv(row, 8) * 2][goff + idiv(k, 2) + (row % 8) * 4]
               const b_elem: Fn = (x, col, k, goff) => x[k % 2][goff + idiv(k, 2) + col * 4]
               ul[i] = wmma_helper(32, 8, 4, 2, 4, a_elem, b_elem, c_map)
-            } else throw new Error(`unimplemented tensor core ${arg}`)
+            } else if (is_eq(arg[1],[8,16,8]) && arg[2] ===dtypes.float){
+              const  a_elem:Fn=(x, k, row, goff)=> x[idiv(k,4)*2 + idiv(row,8)][goff + k%4 + (row%8)*4]
+                const  b_elem:Fn=(x, col, k, goff)=> x[idiv(k,4)][goff + k%4 + col*4]
+                ul[i] = wmma_helper(32, 8, 4, 2, 4, a_elem, b_elem, c_map)
+  
+            }
+            else throw new Error(`unimplemented tensor core ${arg}`)
           } else if (arg[4] === 'INTEL') {
             // A (16 elements on 8 threads)
             const a_elem: Fn = (x, k, row, goff) => x[k % 2 + row * 2][goff + idiv(k, 2)]

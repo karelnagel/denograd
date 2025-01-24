@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WINO, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -12,10 +12,38 @@ import { isInt, make_tuple, round_up } from './helpers.ts'
 import { argsort } from './helpers.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
-import { MultiLazyBuffer } from './multi.ts'
 import { compute_gradient } from './gradient.ts'
+import { get_multi_map } from './multi.ts'
 
-const all_tensors = new WeakValueMap<Tensor>()
+const all_tensors = new Set<WeakRef<Tensor>>()
+
+const _apply_map_to_tensors = (applied_map: Map<UOp, UOp>): undefined => {
+  // get all children of keys in applied_map
+  const all_uops = new Set<UOp>()
+  let search_uops = [...applied_map.keys()]
+  while (search_uops.length) {
+    let x = search_uops.shift()!
+    if (all_uops.has(x)) continue
+    all_uops.add(x)
+    search_uops = [...search_uops, ...x.children.values().filter((u) => u !== undefined)]
+  }
+
+  // link the found UOps back to Tensors. exit early if there's no Tensors to realize
+  // NOTE: this uses all_tensors, but it's fast
+  const fixed_tensors = [...all_tensors].map((tref) => tref.deref()!).filter((t) => t !== undefined && all_uops.has(t.lazydata))
+
+  if (fixed_tensors.length) {
+    // potentially rewrite all the discovered Tensors
+    const sink = UOp.sink(...fixed_tensors.map((t) => t.lazydata))
+    const new_sink = sink.substitute(applied_map)
+
+    // set the relevant lazydata to the realized UOps
+    for (const [t, s, ns] of zip(fixed_tensors, sink.src, new_sink.src)) {
+      if (s === ns) continue
+      t.lazydata = ns
+    }
+  }
+}
 
 type ReplaceUOpsWithTensor<Args extends any[]> = { [K in keyof Args]: Args[K] extends UOp ? Tensor : Args[K] }
 // Has to be a function cause you can't use generics for static functions
@@ -298,8 +326,8 @@ export class Flip extends CreateFunction<[UOp, number[]]>() {
 // ************* function.py end *************
 
 export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: DeviceType | DeviceType[], arg?: any) => {
-  if (isinstance(device, String)) return UOp.metaop(op, shape, dtype, device, arg)
-  return new MultiLazyBuffer(device.map((d) => UOp.metaop(op, shape, dtype, d, arg)), undefined)
+  if (typeof device === 'string') return UOp.metaop(op, shape, dtype, device, arg)
+  return UOp.multi(device.map((d) => UOp.metaop(op, shape, dtype, d, arg)), undefined)
 }
 export const get_shape = (x: any): number[] => {
   //   // NOTE:string === special because __getitem__ on a string === still a string
@@ -383,7 +411,7 @@ export type Layer = ((x: Tensor) => Tensor) | { call: (x: Tensor) => Tensor }
  * ```
  */
 export class Tensor extends MathTrait<Tensor> {
-  lazydata!: UOp | MultiLazyBuffer
+  lazydata!: UOp
   requires_grad?: boolean
   // tensors can have gradients if you have called .backward
   grad?: Tensor
@@ -393,11 +421,12 @@ export class Tensor extends MathTrait<Tensor> {
   static training = false
   static no_grad = false
   key: string
-  del = () => all_tensors.delete(this.key)
-  constructor(data?: ConstType | UOp | Uint8Array | any[] | UOp | MultiLazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
+  // KAREL: TODO: this probably won't work correctly
+  del = () => all_tensors.delete(new WeakRef(this))
+  constructor(data?: ConstType | UOp | Uint8Array | any[] | UOp | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
     super()
     this.key = random_id()
-    all_tensors.set(this.key, this)
+    all_tensors.add(new WeakRef(this))
     if (skip_constructor) return
     if (dtype !== undefined) dtype = to_dtype(dtype)
     if (dtype !== undefined && !(dtype instanceof DType)) throw new Error(`invalid dtype ${dtype}`)
@@ -412,7 +441,7 @@ export class Tensor extends MathTrait<Tensor> {
     this.requires_grad = requires_grad
 
     //     // create a LazyBuffer from the different types of inputs
-    if (data instanceof UOp || data instanceof MultiLazyBuffer) {
+    if (data instanceof UOp) {
       if (dtype !== undefined && dtype !== data.dtype) throw new Error("dtype doesn't match, && casting isn't supported")
       // NOTE: this is here because LazyBuffer = UOp
       if (data instanceof UOp && data.op === Ops.BIND) data = _metaop(Ops.BIND, [], dtype || data.dtype, device, data)
@@ -436,11 +465,11 @@ export class Tensor extends MathTrait<Tensor> {
     }
 
     // by this point, it has to be a LazyBuffer
-    if (!(data instanceof UOp || data instanceof MultiLazyBuffer)) throw new Error(`can't create Tensor from ${data} with type ${typeof data}`)
+    if (!(data instanceof UOp)) throw new Error(`can't create Tensor from ${data} with type ${typeof data}`)
 
     // data might be on a different device
     if (typeof device === 'string') this.lazydata = data.device === device ? data : data.copy_to_device(device)
-    else if (data instanceof UOp) this.lazydata = new Tensor(data).shard(device).lazydata
+    else if (data instanceof UOp && typeof data.device === 'string') this.lazydata = new Tensor(data).shard(device).lazydata
     else {
       if (data.device !== device) throw new Error(`MultiLazyBuffer device mismatch, ${data.device} != ${device}`)
       this.lazydata = data
@@ -452,7 +481,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
   override toString = () => {
     const ld = this.lazydata
-    const ld_repr = ld instanceof MultiLazyBuffer ? `${ld}` : `<UOp ${ld.device} ${list_str(ld.shape)} ${ld.dtype.toString().slice(7)} ${ld.base !== ld ? ld.st : list_str([ld.op, uop_realized(ld)])}>`
+    const ld_repr = `<UOp ${ld.device} ${list_str(ld.shape)} ${ld.dtype.toString().slice(7)} ${ld.base !== ld ? ld.st : list_str([ld.op, uop_realized(ld)])}>`
     return `<Tensor ${ld_repr} on ${this.device} with grad ${this.grad?.lazydata}>`
   };
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
@@ -484,34 +513,19 @@ export class Tensor extends MathTrait<Tensor> {
    * NOTE: A Tensor can only be scheduled once.
    */
   schedule_with_vars = (lst: Tensor[] = []): [ScheduleItem[], Map<Variable, number>] => {
-    const [schedule, var_vals, becomes_map] = create_schedule_with_vars(flatten([this, ...lst].map((x) => x.lazydata.lbs)))
+    let big_sink = UOp.sink(...[this, ...lst].map((x) => x.lazydata))
 
-    // get all children of keys in becomes_map
-    const all_uops = new Set<UOp>()
-    let search_uops = [...becomes_map.keys()]
-    while (search_uops.length) {
-      const x = search_uops.shift()!
-      if (all_uops.has(x)) continue
-      all_uops.add(x)
-      search_uops = [...search_uops, ...x.children.values().filter((u) => u !== undefined)]
+    // TODO: move this to scheduler tensor_map pass
+    if ([...big_sink.toposort].some((x) => x.op === Ops.MULTI)) {
+      // multi fixup
+      _apply_map_to_tensors(get_multi_map(big_sink))
+      big_sink = UOp.sink(...flatten([this, ...lst].map((x) => x.lazydata.op === Ops.MULTI ? x.lazydata.src : [x.lazydata])))
     }
-    // link the found UOps back to Tensors. exit early if there's no Tensors to realize
-    // NOTE: this uses all_tensors, but it's fast
-    const fixed_tensors: Tensor[] = all_tensors.values().filter((t) => t !== undefined && t.lazydata.lbs.some((x) => all_uops.has(x)))
-    if (fixed_tensors.length === 0) return [[], new Map()]
-
-    // potentially rewrite all the discovered Tensors
-    const sink = UOp.sink(...fixed_tensors.map((t) => t.lazydata instanceof MultiLazyBuffer ? UOp.sink(...t.lazydata.lbs) : t.lazydata))
-    const new_sink = sink.substitute(becomes_map)
-
-    // set the relevant lazydata to the realized UOps
-    for (const [t, s, ns] of zip(fixed_tensors, sink.src, new_sink.src)) {
-      if (s === ns) continue
-      if (t.lazydata instanceof MultiLazyBuffer) t.lazydata.lbs = [...ns.src]
-      else t.lazydata = ns
-    }
+    const [schedule, var_vals, becomes_map] = create_schedule_with_vars(big_sink)
+    _apply_map_to_tensors(becomes_map)
     return [memory_planner(schedule), var_vals]
   }
+
   _debug_ast = () => {
     const [schedule] = this.schedule_with_vars()
     return schedule.map((x) => x.ast)
@@ -560,7 +574,6 @@ export class Tensor extends MathTrait<Tensor> {
     if (!is_eq(this.shape, x.shape)) throw new Error(`assign shape mismatch ${this.shape} !== ${x.shape}`)
     if (this.device !== x.device) throw new Error(`assign device mismatch ${this.device} !== ${x.device}`)
     if (this.dtype !== x.dtype) throw new Error(`assign dtype mismatch ${this.dtype} !== ${x.dtype}`)
-    if (this.lazydata instanceof MultiLazyBuffer && this.lazydata.axis !== (x.lazydata as MultiLazyBuffer).axis) throw new Error('axis must match on MultiLazyBuffer')
     if (x.requires_grad) throw new Error("assign can't have grad") // this requires_grad === okay?
     if (!uop_is_realized(this.lazydata)) return this.replace(x)
     this.lazydata = this.lazydata.assign(x.lazydata as any)
@@ -577,6 +590,7 @@ export class Tensor extends MathTrait<Tensor> {
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = await this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).realize()
     const buf = uop_realized((cpu.lazydata as UOp).base)
+    if (buf === undefined) throw new Error(`${cpu.lazydata.base} was not realized`)
     if (this.device !== Env.CPU_DEVICE) buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
     return await buf!.as_buffer(this.device !== Env.CPU_DEVICE ? true : false)
   }
@@ -657,19 +671,9 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   shard = (devices: DeviceType[], axis?: number): Tensor => {
-    if (this.lazydata instanceof MultiLazyBuffer) throw new Error("can't shard a MultiLazyBuffer")
+    if (Array.isArray(this.device)) throw new Error("can't shard a MultiLazyBuffer")
     devices = devices.map((x) => Device.canonicalize(x))
-    let lbs: (UOp | MultiLazyBuffer)[]
-    if (axis === undefined) lbs = devices.map(() => this.lazydata)
-    else {
-      axis = this._resolve_dim(axis)
-      const sz = ceildiv(this.shape[axis!], devices.length)
-      const sizes = range(devices.length).map((i) => max([0, min([sz, this.shape[axis!] - sz * i])]))
-      lbs = this.split(sizes, axis).map((t) => t.lazydata)
-    }
-    const sharded_lbs = zip(lbs, devices).map(([lb, d]) => lb.copy_to_device(d))
-    // NOTE: this contiguous is making it impossible for the scheduler to do late const folding
-    const mlb = new MultiLazyBuffer(sharded_lbs.map((lb) => lb.contiguous()), axis)
+    const mlb = this.lazydata.shard(devices, axis !== undefined ? this._resolve_dim(axis) : undefined)
     return new Tensor(mlb, { device: devices, requires_grad: this.requires_grad })
   }
   /**
@@ -690,7 +694,7 @@ export class Tensor extends MathTrait<Tensor> {
   static _metaop = (op: Ops, shape: sint[], { dtype, device, ...opts }: TensorOptions, arg?: any) => {
     dtype = dtype !== undefined ? to_dtype(dtype) : dtypes.default_float
     if (Array.isArray(device)) {
-      return new Tensor(new MultiLazyBuffer(device.map((d) => UOp.metaop(op, shape, dtype, Device.canonicalize(d), arg)), undefined), { device, dtype, ...opts })
+      return new Tensor(UOp.multi(device.map((d) => UOp.metaop(op, shape, dtype, Device.canonicalize(d), arg)), undefined), { device, dtype, ...opts })
     }
     return new Tensor(UOp.metaop(op, shape, dtype, Device.canonicalize(device), arg), { device, dtype, ...opts })
   }
@@ -1002,11 +1006,11 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   rand_like = ({ dtype = this.dtype, contiguous = true, ...opts }: TensorOptions & { contiguous?: boolean } = {}): Tensor => {
-    if (Array.isArray(this.device) && this.lazydata instanceof MultiLazyBuffer) {
+    if (Array.isArray(this.device)) {
       if (opts.device !== undefined) throw new Error('cannot specify `device` on `rand_like` of a multi device tensor')
       if (this.lazydata.axis === undefined) return Tensor.rand(this.shape, undefined, { dtype: dtype, ...opts }).shard(this.device)
-      const rands = this.lazydata.lbs.map((lb) => Tensor.rand(lb.shape as number[], contiguous, { device: lb.device, dtype: dtype, ...opts }).lazydata)
-      return new Tensor(new MultiLazyBuffer(rands as UOp[], this.lazydata.axis), { device: this.device, dtype: dtype, ...opts })
+      const rands = this.lazydata.src.map((lb) => Tensor.rand(lb.shape as number[], contiguous, { device: lb.device as DeviceType, dtype: dtype, ...opts }).lazydata)
+      return new Tensor(UOp.multi(rands, this.lazydata.axis), { device: this.device, dtype: dtype, ...opts })
     }
     return Tensor.rand(this.shape, undefined, { device: this.device, dtype: dtype, ...opts })
   }
@@ -1166,19 +1170,17 @@ export class Tensor extends MathTrait<Tensor> {
     if (gradient === undefined && this.shape.length !== 0) 'when no gradient is provided, backward must be called on a scalar tensor'
     if (gradient === undefined) gradient = new Tensor(1.0, { dtype: this.dtype, device: this.device, requires_grad: false })
     let rets: UOp[][] = []
-    for (const [i, [uop, grad]] of zip(this.lazydata.lbs, gradient.lazydata.lbs).entries()) {
-      const target_uops = targets.map((x) => x.lazydata.lbs[i])
-      const grads = compute_gradient(uop, grad, new Set(target_uops))
-      let ret: UOp[] = []
-      for (const x of target_uops) {
-        if (!grads.has(x)) throw new Error(`${x}\n\nnot found in\n\n${uop}`)
-        ret.push(grads.get(x)!)
-      }
-      rets.push(ret)
+    const target_uops = targets.map((x) => x.lazydata)
+    const grads = compute_gradient(this.lazydata, gradient.lazydata, new Set(target_uops))
+    const ret: UOp[] = []
+    for (const x of target_uops) {
+      const y = grads.get(x)
+      if (y === undefined) throw new Error(`${x}\n\nnot found in\n\n${this.lazydata}`)
+      ret.push(y)
     }
+    rets.push(ret)
     // create returned Tensors
-    if (this.lazydata instanceof UOp) return zip(targets, rets[0]).map(([t, u]) => new Tensor(u, { device: t.device }))
-    return zip(targets, zip(...rets)).map(([t, u]) => new Tensor(new MultiLazyBuffer(u, (t.lazydata as MultiLazyBuffer).axis, (t.lazydata as MultiLazyBuffer).real), { device: t.device }))
+    return zip(targets, rets[0]).map(([t, u]) => new Tensor(u, { device: t.device }))
   }
   _deepwalk = (): Tensor[] => {
     const _walk = (node: Tensor, visited: Set<Tensor>): Tensor[] => {
@@ -1228,7 +1230,7 @@ export class Tensor extends MathTrait<Tensor> {
       for (const [t, g] of zip(ctx.parents!, grads)) {
         if (g !== undefined && t.requires_grad) {
           if (!is_eq(g.shape, t.shape)) throw new Error(`grad shape must match tensor shape, ${list_str(g.shape)} !== ${list_str(t.shape)}`)
-          if (!(toposort_uop.has(t.lazydata as UOp) || (t.lazydata instanceof MultiLazyBuffer && t.lazydata.lbs.map((x) => toposort_uop.has(x))))) throw new Error(`grad uop must have a path from self\ngrad uop: ${t.lazydata}`)
+          if (!toposort_uop.has(t.lazydata)) throw new Error(`grad uop must have a path from self\ngrad uop: ${t.lazydata}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
         }
       }
@@ -1558,7 +1560,7 @@ export class Tensor extends MathTrait<Tensor> {
       return
     }
     // NOTE: check that setitem target is valid first
-    if (!this.lazydata.lbs.every((lb) => lb.st!.contiguous)) throw new Error('setitem target needs to be contiguous')
+    if (!this.lazydata.st!.contiguous) throw new Error('setitem target needs to be contiguous')
     if (!(v instanceof Tensor || isConst(v))) throw new Error(`can't set a ${v.constructor.name} to a Tensor`)
     if (!(v instanceof Tensor)) v = new Tensor(v, { device: this.device, dtype: this.dtype })
     if (this.requires_grad || v.requires_grad) throw new Error('setitem with requires_grad is not supported')
@@ -2163,8 +2165,8 @@ export class Tensor extends MathTrait<Tensor> {
     return this.std(axis, keepdim, correction), this.mean(axis, keepdim)
   }
   _softmax = (axis: number | number[], dtype?: DTypeLike): [Tensor, Tensor, Tensor] => {
-    const x = dtype !== undefined ? this.cast(dtype) : this
-    const m = x.sub(x.max(axis, true).detach())
+    let m = this.sub(this.max(axis, true).detach())
+    if (dtype !== undefined) m = m.cast(dtype)
     const e = m.exp()
     return [m, e, e.sum(axis, true)]
   }
@@ -3452,8 +3454,9 @@ export class Tensor extends MathTrait<Tensor> {
     return [x._broadcast_to(out_shape), y._broadcast_to(out_shape)]
   }
 
+  // TODO: tensor should stop checking if things are const
   _to_const_val = (x: ConstType<Tensor>): ConstType<Tensor> => {
-    return isinstance(x, Tensor) && isinstance(x.lazydata, UOp) && x.lazydata.is_unrealized_unmasked_const() && !x.requires_grad && is_eq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.const_arg : x
+    return x instanceof Tensor && x.lazydata instanceof UOp && x.lazydata.base.op === Ops.CONST && x.lazydata.st!.views[0].mask !== undefined && !x.requires_grad && is_eq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.const_arg : x
   }
   /**
    * Adds `this` && `x`.
@@ -3890,10 +3893,17 @@ export class Tensor extends MathTrait<Tensor> {
   scaled_dot_product_attention = (key: Tensor, value: Tensor, attn_mask?: Tensor, dropout_p = 0.0, is_causal = false): Tensor => {
     // NOTE: it also works when `key` and `value` have symbolic shape.
     if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
-    if (is_causal) attn_mask = Tensor.ones([this.shape.at(-2)!, key.shape.at(-2)!], { requires_grad: false, device: this.device }).tril(0).cast(dtypes.bool)
-    if (attn_mask !== undefined && attn_mask.dtype === dtypes.bool) attn_mask = (attn_mask.eq(0)).where(-Infinity, 0)
-    const qk = this.matmul(key.transpose(-2, -1), undefined, least_upper_dtype(this.dtype, key.dtype, dtypes.float32)).div(Math.sqrt(this.shape.at(-1)!))
-    return (attn_mask !== undefined ? (qk.add(attn_mask)) : qk).softmax(-1).cast(this.dtype).dropout(dropout_p).matmul(value)
+    let qk = this.matmul(key.transpose(-2, -1), undefined, least_upper_dtype(this.dtype, key.dtype, dtypes.float32)).div(Math.sqrt(this.shape.at(-1)!))
+    // handle attention mask
+    if (is_causal) {
+      if (attn_mask !== undefined) throw new Error('cannot set attn_mask when is_causal=True')
+      attn_mask = qk.ones_like({ requires_grad: false, device: this.device, dtype: dtypes.bool }).tril()
+    }
+    if (attn_mask !== undefined) {
+      if (attn_mask.dtype === dtypes.bool) attn_mask = attn_mask.where(0, -Infinity)
+      qk = qk.add(attn_mask)
+    }
+    return qk.softmax(-1).cast(this.dtype).dropout(dropout_p).matmul(value)
   }
   _do_reduction = (reduction: ReductionStr = 'mean'): Tensor => {
     if (!ReductionStr.includes(reduction)) throw new Error(`reduction=${reduction} must be one of ${ReductionStr}`)
@@ -4127,8 +4137,8 @@ export class Tensor extends MathTrait<Tensor> {
     if (this.requires_grad) throw new Error("can't backprop through bitcast")
     const dt = to_dtype(dtype)
     const ns = dt.itemsize, os = this.dtype.itemsize
-    if ((typeof this.device !== 'string' || !this.device.startsWith('DISK')) && ns !== os) {
-      if (((this.shape.at(-1)! as number) * os) % ns !== 0) throw new Error('unsupported size in bitcast')
+    if (ns !== os && (this.shape.at(-1)! * os) % ns !== 0) throw new Error('unsupported size in bitcast')
+    if ((Array.isArray(this.device) || !this.device.startsWith('DISK')) && ns !== os) {
       const [new_uint, old_uint] = [to_dtype(`uint${8 * ns}`), to_dtype(`uint${8 * os}`)]
       const tmp = this.bitcast(old_uint)
       if (ns > os) return range(idiv(ns, os)).map((i) => tmp.get('...', { start: i, step: idiv(ns, os) }).cast(new_uint).lshift(8 * i * os)).reduce((acc, x) => acc.add(x)).bitcast(dtype)

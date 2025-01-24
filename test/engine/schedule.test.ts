@@ -1,5 +1,5 @@
 import { dtypes } from '../../denograd/dtype.ts'
-import { _append_st_vars, apply_swizzle, create_schedule_with_vars, get_isolated_children, group_realizes, realize_view, recursive_group } from '../../denograd/engine/schedule.ts'
+import { _append_st_vars, apply_swizzle, create_schedule_with_vars, get_isolated_children, group_realizes, recursive_group } from '../../denograd/engine/schedule.ts'
 import { counter } from '../../denograd/helpers.ts'
 import { Ops, UOp } from '../../denograd/ops.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
@@ -90,28 +90,12 @@ Deno.test(
 // )
 
 Deno.test(
-  'realize_view',
+  'create_schedule_with_vars',
   compare(
     [
       // TODO add tests
     ],
-    realize_view,
-    'out(tiny.engine.schedule.realize_view(*data))',
-  ),
-)
-
-Deno.test(
-  'create_schedule_with_vars',
-  compare(
-    [
-      [[new UOp(Ops.VIEW, dtypes.uchar, [new UOp(Ops.COPY, dtypes.uchar, [new UOp(Ops.DEVICE, dtypes.void, [], `CLANG`), new UOp(Ops.BUFFER_VIEW, dtypes.uchar, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.VIEW, dtypes.uchar, [new UOp(Ops.BUFFER, dtypes.uchar, [new UOp(Ops.DEVICE, dtypes.void, [], `DISK:/Users/karel/Documents/denograd/mnist.safetensors`)], [6, 353816])], new ShapeTracker([new View([353816], [1], 0, undefined, true)]))], [[0, 8]])], undefined)], false)], new ShapeTracker([new View([8], [1], 0, undefined, true)]))]],
-      [[new UOp(Ops.VIEW, dtypes.uchar, [new UOp(Ops.COPY, dtypes.uchar, [new UOp(Ops.DEVICE, dtypes.void, [], `CLANG`), new UOp(Ops.BUFFER_VIEW, dtypes.uchar, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.VIEW, dtypes.uchar, [new UOp(Ops.BUFFER, dtypes.uchar, [new UOp(Ops.DEVICE, dtypes.void, [], `DISK:/Users/karel/Documents/denograd/mnist.safetensors`)], [6, 353816])], new ShapeTracker([new View([353816], [1], 0, undefined, true)]))], [[8, 1632]])], undefined)], false)], new ShapeTracker([new View([1624], [1], 0, undefined, true)]))]],
-      [[new UOp(Ops.VIEW, dtypes.float, [new UOp(Ops.COPY, dtypes.float, [new UOp(Ops.DEVICE, dtypes.void, [], `CLANG`), new UOp(Ops.BUFFER_VIEW, dtypes.float, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.VIEW, dtypes.uchar, [new UOp(Ops.BUFFER, dtypes.uchar, [new UOp(Ops.DEVICE, dtypes.void, [], `DISK:/Users/karel/Documents/denograd/mnist.safetensors`)], [6, 353816])], new ShapeTracker([new View([353816], [1], 0, undefined, true)]))], [[1632, 353816]])], [[3200, 3328]])], undefined)], false)], new ShapeTracker([new View([32], [1], 0, undefined, true)]))]],
-      [[new UOp(Ops.VIEW, dtypes.long, [new UOp(Ops.COPY, dtypes.long, [new UOp(Ops.DEVICE, dtypes.void, [], `CLANG`), new UOp(Ops.BUFFER_VIEW, dtypes.long, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.VIEW, dtypes.uchar, [new UOp(Ops.BUFFER, dtypes.uchar, [new UOp(Ops.DEVICE, dtypes.void, [], `DISK:/Users/karel/Documents/denograd/mnist.safetensors`)], [6, 353816])], new ShapeTracker([new View([353816], [1], 0, undefined, true)]))], [[1632, 353816]])], [[328584, 328592]])], undefined)], false)], new ShapeTracker([new View([1], [0], 0, undefined, true)]))]],
-      [[new UOp(Ops.VIEW, dtypes.long, [new UOp(Ops.COPY, dtypes.long, [new UOp(Ops.DEVICE, dtypes.void, [], `CLANG`), new UOp(Ops.BUFFER_VIEW, dtypes.long, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.VIEW, dtypes.uchar, [new UOp(Ops.BUFFER, dtypes.uchar, [new UOp(Ops.DEVICE, dtypes.void, [], `DISK:/Users/karel/Documents/denograd/mnist.safetensors`)], [6, 353816])], new ShapeTracker([new View([353816], [1], 0, undefined, true)]))], [[1632, 353816]])], [[106112, 106120]])], undefined)], false)], new ShapeTracker([new View([1], [0], 0, undefined, true)]))]],
-      [[new UOp(Ops.VIEW, dtypes.float, [new UOp(Ops.COPY, dtypes.float, [new UOp(Ops.DEVICE, dtypes.void, [], `CLANG`), new UOp(Ops.BUFFER_VIEW, dtypes.float, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.SHRINK, dtypes.uchar, [new UOp(Ops.VIEW, dtypes.uchar, [new UOp(Ops.BUFFER, dtypes.uchar, [new UOp(Ops.DEVICE, dtypes.void, [], `DISK:/Users/karel/Documents/denograd/mnist.safetensors`)], [6, 353816])], new ShapeTracker([new View([353816], [1], 0, undefined, true)]))], [[1632, 353816]])], [[105728, 105856]])], undefined)], false)], new ShapeTracker([new View([32], [1], 0, undefined, true)]))]]
-          ],
-    (outs: UOp[]) => {
+    (outs: UOp) => {
       UOp.buffer_num = counter(0)
       return create_schedule_with_vars(outs)
     },

@@ -1,6 +1,5 @@
 import { dtypes } from '../dtype.ts'
 import { bytes_to_string, DEBUG, is_eq, isinstance, NotImplemented, round_up, string_to_bytes } from '../helpers.ts'
-import { MultiLazyBuffer } from '../multi.ts'
 import { Tensor } from '../tensor.ts'
 
 export const safe_dtypes = {
@@ -134,9 +133,9 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
       continue
     }
     if (!is_eq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
-    if (v.lazydata instanceof MultiLazyBuffer) {
-      if (state_dict[k].lazydata instanceof MultiLazyBuffer) v.replace(state_dict[k]).realize()
-      else v.replace(state_dict[k].shard(v.lazydata.device, v.lazydata.axis)).realize()
+    if (Array.isArray(v.device)) {
+      if (Array.isArray(state_dict[k].device)) v.replace(state_dict[k]).realize()
+      else v.replace(state_dict[k].shard(v.device, v.lazydata.axis)).realize()
     } else await v.replace(state_dict[k].to(v.device)).realize()
     if (consume) delete state_dict[k]
   }

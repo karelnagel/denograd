@@ -1,7 +1,8 @@
+// deno-lint-ignore-file no-this-alias
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { add, and, type ConstType, div, flatten, ge, get_env, idiv, is_less_than, isConst, lshift, lt, mod, mul, ne, neg, NotImplemented, or, prod, rshift, sub, xor } from './helpers.ts'
+import { accumulate, add, and, type ConstType, div, flatten, ge, get_env, idiv, is_less_than, isConst, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, prod, rshift, sub, sum, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
@@ -176,6 +177,7 @@ export class Ops<Name extends string = string> extends Enum {
 
   // device
   static readonly DEVICE = new Ops('DEVICE')
+  static readonly MULTI = new Ops('MULTI')
 }
 
 export class GroupOp {
@@ -187,8 +189,6 @@ export class GroupOp {
   static Irreducible = [Ops.CONST, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.RANGE]
   static Movement = [Ops.RESHAPE, Ops.PERMUTE, Ops.EXPAND, Ops.PAD, Ops.SHRINK, Ops.STRIDE]
 
-  //   # meta ops
-  static Meta = [Ops.COPY, Ops.BUFFER_VIEW]
   static Buffer = [Ops.LOAD, Ops.STORE, Ops.VALID, Ops.PRELOAD]
   static Block = [Ops.BLOCK, Ops.BLOCKEND, Ops.BLOCKFORK, Ops.BLOCKSTART]
 
@@ -243,7 +243,6 @@ type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
 export const buffers = new WeakValueMap<Buffer>()
 const all_metadata = new WeakValueMap<Metadata>()
-const forced_realize = new WeakValueMap<UOp>() // KAREL: maybe should just be Set<string>?
 
 export class UOp extends MathTrait<UOp> {
   static cache = new WeakValueMap<UOp>()
@@ -301,6 +300,9 @@ export class UOp extends MathTrait<UOp> {
   //   # *** uop shape stuff ***
   @cache
   get st(): undefined | ShapeTracker {
+    if (this.op === Ops.MULTI) {
+      return ShapeTracker.from_shape(this.real_lbs[0].shape.map((s, a) => a === this.axis ? sum(this.real_lbs.map((y) => y.shape[a])) : s))
+    }
     // these ops define a ShapeTracker from the arg
     if (this.op === Ops.VIEW) return this.arg
     if (GroupOp.Movement.includes(this.op)) return this.src[0].st!.mop(this.op, this.arg)
@@ -310,7 +312,7 @@ export class UOp extends MathTrait<UOp> {
     if (!src_sts.length) return undefined
     if (!all_same(src_sts.map((x) => x.shape))) throw new Error(`UOp sources must have the same shape ${this} ${src_sts.map((x) => x.shape)}`)
     let shape
-    if (this.op === Ops.BUFFER_VIEW) {
+    if ([Ops.BUFFER_VIEW, Ops.BITCAST].includes(this.op)) {
       shape = src_sts[0].shape
       if (this.dtype.itemsize !== this.src[0].dtype.itemsize) shape = [...shape.slice(0, -1), idiv(shape.at(-1)! as number * this.src[0].dtype.itemsize, this.dtype.itemsize)]
     } // only reduce ops are allowed to change shape, everything else derives shape from sources
@@ -373,25 +375,19 @@ export class UOp extends MathTrait<UOp> {
   static sink = (...srcs: UOp[]) => new UOp(Ops.SINK, dtypes.void, [...srcs])
   detach = () => new UOp(Ops.DETACH, this.dtype, [this])
   index = (idx: UOp, valid?: UOp) => new UOp(Ops.INDEX, this.dtype, valid !== undefined ? [this, idx, valid] : [this, idx])
-  // constants can optionally have a DEVICE source
-  override const_like = (b: ConstLike<UOp>) => this._device === undefined ? UOp.const(this.dtype, b) : UOp.metaop(Ops.CONST, this.shape, this.dtype, this.device, b)
+  override const_like = (b: ConstLike<UOp>) => {
+    // constants can optionally have a DEVICE source
+    if (this._device === undefined) return UOp.const(this.dtype, b)
+    if (Array.isArray(this.device)) return UOp.multi(this.device.map((d) => UOp.metaop(Ops.CONST, this.shape, this.dtype, d, b)), undefined)
+    return UOp.metaop(Ops.CONST, this.shape, this.dtype, this.device, b)
+  }
   broadcast = (count: number) => {
     if (this.dtype.count !== 1) throw new Error(`dtype.count !==1`)
     if (count === 1) return this
     return new UOp(Ops.VECTORIZE, this.dtype.vec(count), range(count).map(() => this))
   }
-  cast = (dtype: DType, bitcast = false) => {
-    if (bitcast) return this.bitcast(dtype)
-    if (this._device !== undefined && this._device.startsWith('DISK')) throw new Error("CAST isn't supported on DISK")
-    return new UOp(Ops.CAST, dtype, [this])
-  }
-  bitcast = (dtype: DType) => {
-    if (this.st !== undefined && this.shape.length && (((this.shape.at(-1)! as number) * this.dtype.itemsize) % dtype.itemsize !== 0)) throw new Error(`unsupported size in bitcast ${dtype}`)
-    // shape changing bitcast can use a subbuffer on DISK
-    // TODO: this should be moved to realize.py
-    if (this._device !== undefined && this.device.startsWith('DISK')) return new UOp(Ops.BUFFER_VIEW, dtype, [this])
-    return new UOp(Ops.BITCAST, dtype, [this])
-  }
+  cast = (dtype: DType) => new UOp(Ops.CAST, dtype, [this])
+  bitcast = (dtype: DType) => new UOp(Ops.BITCAST, dtype, [this])
   gep = (i: number[] | number) => {
     if (!Array.isArray(i)) {
       // NOTE: these are just shortcuts to not have to create and fold later
@@ -431,7 +427,8 @@ export class UOp extends MathTrait<UOp> {
     const new_shape = this.st!.reduce(axis)
 
     // TODO: can we split symbolic shape if the reduce axis is not symbolic?
-    if (!SPLIT_REDUCEOP || !all_int(this.shape) || this.shape.includes(0) || (idiv(prod(this.shape), prod(new_shape)) as number) < get_number_env('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
+    // TODO: this shouldn't be here, it belongs in scheduler! that's why it broke multi
+    if (!SPLIT_REDUCEOP || Array.isArray(this._device) || !all_int(this.shape) || this.shape.includes(0) || (idiv(prod(this.shape), prod(new_shape)) as number) < get_number_env('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
       return this._reduce_op(op, axis)
     }
 
@@ -451,15 +448,51 @@ export class UOp extends MathTrait<UOp> {
     return splitted._reduce_op(op, axis)._reduce_op(op, [new_shape.length]).reshape(new_shape) // reduce original axes, then split  assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
   }
   assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
-  contiguous = () => {
-    // TODO: BUFFER_VIEW op should be deleted and subbuffer should be moved to realize.py
-    // NOTE: DISK uses subbuffer because DISK does not render kernels
-    if (this.device.startsWith('DISK')) return this.alu(Ops.BUFFER_VIEW)
-    // otherwise it's normal CONTIGUOUS
-    if (!this.st!.contiguous || this.size !== this.base.size || this.base.op === Ops.CONST) return this.alu(Ops.CONTIGUOUS)
-    forced_realize.set(this.base.key, this.base)
-    return this
+  contiguous = () => this.alu(Ops.CONTIGUOUS)
+
+  // *** from MultiLazyBuffer ***
+
+  static multi = (more: UOp[], axis?: number, real?: boolean[]) => {
+    const parents = [...more]
+    if (!all_same(parents.map((x) => x.dtype))) throw new Error('multi parents must have the same dtype')
+    return new UOp(Ops.MULTI, more[0].dtype, parents, [axis, real !== undefined ? real : range(parents.length).map(() => true)])
   }
+
+  get bounds() {
+    if (this.axis === undefined) throw new Error('bounds is not defined when axis is None')
+    return pairwise(accumulate(this.src.map((lb) => lb.shape[this.axis]), undefined, 0))
+  }
+  get axis() {
+    assert(this.op === Ops.MULTI)
+    return this.arg[0]
+  }
+  get real() {
+    assert(this.op === Ops.MULTI)
+    return this.arg[1]
+  }
+  get real_lbs() {
+    return zip(this.src, this.real).filter(([lb, r]) => r).map(([lb]) => lb)
+  }
+
+  shard = (devices: DeviceType[], axis?: number): UOp => {
+    let lbs: UOp[]
+    if (axis === undefined) lbs = range(devices.length).map(() => this)
+    else {
+      if (this.shape[axis] as number % devices.length !== 0) throw new Error(`multi axis uneven: this.shape[axis]=${this.shape[axis]} axis=${axis} devices.length=${devices.length}`)
+      let sz = idiv(this.shape[axis] as number, devices.length)
+      const sizes = range(devices.length).map((i) => max([0, min([sz, this.shape[axis!] as number - sz * i])]))
+      lbs = []
+      let off = 0
+      for (sz of sizes) {
+        lbs.push(this.shrink(this.shape.map((s, i) => i !== axis ? [0, s] : [off, off + sz])))
+      }
+      off += sz
+    }
+    const sharded_lbs = zip(lbs, devices).map(([lb, d]) => lb.copy_to_device(d))
+    // NOTE: this contiguous is making it impossible for the scheduler to do late const folding
+    return UOp.multi(sharded_lbs.map((lb) => lb.contiguous()), axis)
+  }
+
   //   # *** from LazyBuffer ***
 
   static metaop = (op: Ops, shape: sint[], dtype: DType, device: string, arg?: any): UOp => {
@@ -479,24 +512,23 @@ export class UOp extends MathTrait<UOp> {
     const st = ShapeTracker.from_shape(shape)
     return new UOp(Ops.VIEW, dtype, [UOp.new_buffer(device, st.size, dtype)], st)
   }
-  copy_to_device = (device: string, clone = false): UOp => {
-    // no COPY
-    if (this.device === device && !clone) return this
+  copy_to_device = (device: DeviceType | DeviceType[], clone = false): UOp => {
     // if it's a shrink, do the shrink before the copy with CONTIGUOUS
     if (prod(this.shape) < prod(this.base.shape)) return this.contiguous().copy_to_device(device)
     // COPY is COPY(DEVICE, copyin.base) -> VIEW(copyin.st)
-    return new UOp(Ops.COPY, this.base.dtype, [new UOp(Ops.DEVICE, undefined, undefined, device), this.base], clone).view(this.st!)
+    let ret = new UOp(Ops.COPY, this.base.dtype, [new UOp(Ops.DEVICE, undefined, undefined, device), this.base], clone)
+    let op_arg: [Ops, any][] = []
+    let mop: UOp = this
+    while (mop !== this.base) {
+      op_arg.push([mop.op, mop.arg])
+      mop = mop.src[0]
+    }
+    for (const [op, arg] of op_arg.toReversed()) ret = new UOp(op, ret.dtype, [ret], arg)
+    return ret
   }
   clone = (): UOp => this.copy_to_device(this.device, true)
-  is_unrealized_unmasked_const = () => this.base.op === Ops.CONST && this.st!.views.every((v) => v.mask === undefined)
-  get lbs() {
-    return [this]
-  }
   get metadata() {
     return all_metadata.get(this.key)
-  }
-  get forced_realize() {
-    return forced_realize.has(this.key)
   }
 
   //   # *** uop movement ops ***
@@ -521,12 +553,13 @@ export class UOp extends MathTrait<UOp> {
   //   # *** uop Buffer stuff ***
   static buffer_num = counter(0)
   static new_buffer = (device: string, size: number, dtype: DType) => new UOp(Ops.BUFFER, dtype, [new UOp(Ops.DEVICE, undefined, undefined, device)], [UOp.buffer_num.next().value, size])
-  get device(): DeviceType {
+  get device(): DeviceType | DeviceType[] {
     return this._device!
   }
   @cache
-  get _device(): DeviceType | undefined {
+  get _device(): DeviceType | DeviceType[] | undefined {
     if (this.op === Ops.DEVICE) return this.arg
+    if (this.op === Ops.MULTI) return this.src.map((x) => x.device as DeviceType)
     return this.src.filter((x) => x._device !== undefined)[0]?._device
   }
   get buf_uop(): UOp {
@@ -1193,7 +1226,7 @@ export const parse_valid = (valid: UOp): [UOp, boolean, number] => {
   const s0 = valid.src[0]
   if (valid.op === Ops.CMPNE && valid.src[1].op === Ops.CONST && valid.src[1].arg === 1 && s0.op === Ops.CMPLT && s0.src[1].op === Ops.CONST) return [s0.src[0], false, s0.src[1].arg]
   // X < c -> X <= c-1
-  if (valid.op === Ops.CMPLT && valid.src[1].op === Ops.CONST) return [valid.src[0], true, valid.src[1].arg - 1]
+  if (valid.op === Ops.CMPLT && valid.src[1].op === Ops.CONST && dtypes.is_int(valid.src[0].dtype)) return [valid.src[0], true, valid.src[1].arg - 1]
   throw new Error(`not able to parse ${valid}`)
 }
 

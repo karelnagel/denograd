@@ -5,7 +5,6 @@ import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'
 import { buffers, Ops, type UOp } from './ops.ts'
-import { MultiLazyBuffer } from './multi.ts'
 
 export * from './runtime/allocator.ts'
 export type { AllDevices, DeviceType } from './runtime/all.ts'
@@ -63,6 +62,7 @@ export const uop_buffer = (uop: UOp): Buffer => {
   }
   if (uop.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${uop.op}`)
   if (buffers.has(uop.key)) return buffers.get(uop.key)!
+  if (Array.isArray(uop.device)) throw new Error(`buffer not supported on multi ${uop.device}`)
   const ret = new Buffer(uop.device, uop.size, uop.dtype instanceof ImageDType ? uop.dtype : uop.dtype.base)
   buffers.set(uop.key, ret)
   return ret
@@ -71,9 +71,8 @@ export const uop_realized = (uop: UOp): Buffer | undefined => {
   if (uop.op === Ops.VIEW && uop.src.length === 1 && uop.src[0].op === Ops.BUFFER) return uop_realized(uop.src[0])
   return uop.op === Ops.BUFFER ? uop_buffer(uop) : undefined
 }
-export const uop_is_realized = (uop: UOp | MultiLazyBuffer) => {
-  if (uop instanceof MultiLazyBuffer) return uop.is_realized
-  return uop_realized(uop.base) !== undefined
+export const uop_is_realized = (uop: UOp) => {
+  return uop.base.op === Ops.MULTI ? uop.base.real_lbs.every((x) => uop_realized(x.base) !== undefined) : uop_realized(uop.base) !== undefined
 }
 
 export class Buffer<Buf extends object = object> {
@@ -142,8 +141,8 @@ export class Buffer<Buf extends object = object> {
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used -= this.nbytes
       this.allocator!.free(this._buf!, this.nbytes, this.options)
       if ('del' in this._buf! && typeof this._buf.del === 'function') this._buf.del()
-      delete this._buf
     }
+    delete this._buf
   }
   get nbytes() {
     return this.size * this.dtype.itemsize

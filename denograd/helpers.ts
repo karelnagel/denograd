@@ -327,12 +327,14 @@ export const get_env = (key: string, defaultVal = '') => Env.env.get(key) || def
 export const get_number_env = (key: string, defaultVal?: number) => Number(Env.env.get(key) || defaultVal)
 export const temp = (x?: string): string => `${Env.tmpdir()}/${x || random_id()}`
 
-export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [get_number_env('DEBUG', 0), get_number_env('IMAGE', 0), get_number_env('BEAM', 0), get_number_env('NOOPT', 0), get_number_env('JIT', 1)]
-export const [WINO, CAPTURING, TRACEMETA] = [get_number_env('WINO', 0), get_number_env('CAPTURING', 1), get_number_env('TRACEMETA', 1)]
-export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [get_number_env('TC', 1), get_number_env('TC_OPT', 0), get_number_env('AMX', 0), get_number_env('TRANSCENDENTAL', 1)]
-export const [FUSE_ARANGE, FUSE_CONV_BW] = [get_number_env('FUSE_ARANGE', 0), get_number_env('FUSE_CONV_BW', 0)]
-export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [get_number_env('SPLIT_REDUCEOP', 1), get_number_env('NO_MEMORY_PLANNER', 0), get_number_env('RING', 1)]
-export const [PICKLE_BUFFERS, PROFILE] = [get_number_env('PICKLE_BUFFERS', 1), get_env('PROFILE', get_env('VIZ'))]
+// TODO JIT should be automatic
+export const DEBUG = get_number_env('DEBUG', 0), IMAGE = get_number_env('IMAGE', 0), BEAM = get_number_env('BEAM', 0), NOOPT = get_number_env('NOOPT', 0), JIT = get_number_env('JIT', 1)
+export const WINO = get_number_env('WINO', 0), CAPTURING = get_number_env('CAPTURING', 1), TRACEMETA = get_number_env('TRACEMETA', 1)
+export const USE_TC = get_number_env('TC', 1), TC_OPT = get_number_env('TC_OPT', 0), AMX = get_number_env('AMX', 0), TRANSCENDENTAL = get_number_env('TRANSCENDENTAL', 1)
+export const FUSE_ARANGE = get_number_env('FUSE_ARANGE', 0), FUSE_CONV_BW = get_number_env('FUSE_CONV_BW', 0)
+export const SPLIT_REDUCEOP = get_number_env('SPLIT_REDUCEOP', 1), NO_MEMORY_PLANNER = get_number_env('NO_MEMORY_PLANNER', 0), RING = get_number_env('RING', 1)
+export const PICKLE_BUFFERS = get_number_env('PICKLE_BUFFERS', 1), PROFILE = get_env('PROFILE', get_env('VIZ')), LRU = get_number_env('LRU', 1)
+export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
 
 export class Metadata {
   key: string
@@ -415,7 +417,6 @@ export class Profiling {
 
 const cache_dir = get_env('XDG_CACHE_HOME', OSX ? `${Env.homedir()}/Library/Caches` : `${Env.homedir()}/.cache`)
 export const CACHEDB = get_env('CACHEDB', `${cache_dir}/tinygrad/cache.db`)
-export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
 
 // VERSION = 16
 const _db_connection = undefined
@@ -735,3 +736,41 @@ export const prod = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => mul(a
 export const sum = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => add(acc, curr) as T, 0 as T)
 export const ceildiv = <A extends Math, B extends Math>(num: A, amt: B): Return<A, B> => neg(idiv(num, neg(amt))) as Return<A, B>
 export const pow = _meta((a, b, r) => (a as any).pow(b, r), (a, b) => a ** b)
+
+export function* pairwise<T>(iterable: Iterable<T>): Generator<[T, T], void, unknown> {
+  let previous: T | undefined
+  let hasPrevious = false
+
+  for (const item of iterable) {
+    if (!hasPrevious) {
+      previous = item
+      hasPrevious = true
+    } else {
+      yield [previous as T, item]
+      previous = item
+    }
+  }
+}
+
+export function* accumulate<T>(iterable: Iterable<T>, func?: (acc: T, val: T) => T, initialValue?: T): Generator<T, void, unknown> {
+  const operation = func ?? ((a, b) => (a as unknown as number) + (b as unknown as number)) as (acc: T, val: T) => T
+  let accumulator: T
+  let started = false
+
+  for (const value of iterable) {
+    if (!started) {
+      // If an initialValue is provided, set the accumulator to that,
+      // then apply the first item. Otherwise, use the first item as the initial accumulator.
+      if (initialValue !== undefined) {
+        accumulator = operation(initialValue, value)
+      } else {
+        accumulator = value
+      }
+      started = true
+      yield accumulator
+    } else {
+      accumulator = operation(accumulator!, value)
+      yield accumulator
+    }
+  }
+}

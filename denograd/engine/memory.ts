@@ -53,5 +53,6 @@ export const memory_planner = (schedule: ScheduleItem[]): ScheduleItem[] => {
     schedule.map((si) => si.bufs),
     schedule.filter((si) => si.ast.op !== Ops.SINK).flatMap((si) => si.bufs),
   )
-  return schedule.map((si) => new ScheduleItem(si.ast, si.bufs.map((x) => assigned.get(x) || x), si.metadata, si.assign_preloads))
+
+  return schedule.map((si) => new ScheduleItem(si.ast, si.bufs.map((x) => assigned.get(x) || x), si.metadata))
 }

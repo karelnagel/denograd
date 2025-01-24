@@ -7,11 +7,10 @@ import { symbolic_simple } from '../denograd/ops.ts'
 import { symbolic } from '../denograd/ops.ts'
 import { make_basic_blocks, pm_block_merge } from '../denograd/codegen/linearize.ts'
 import { pm_lowerer } from '../denograd/codegen/lowerer.ts'
-import { devectorize, expander, float4_folding, get_late_rewrite_patterns, load_store_indexing, migrate_indexing, pm_render, sym } from '../denograd/codegen/uopgraph.ts'
-import { break_sched, create_ctx, do_realize, multioutput, ops_folding, remove_movement_ops, tensor_uop_spec, to_si, view_right } from '../denograd/engine/schedule.ts'
+import { devectorize, expander, float4_folding, get_late_rewrite_patterns, load_store_indexing, migrate_indexing, mulacc_unrolled, pm_render, sym } from '../denograd/codegen/uopgraph.ts'
+import { break_sched, create_ctx, do_realize, multioutput, remove_movement_ops, tensor_uop_spec, to_si, view_right, sym as schedule_sym } from '../denograd/engine/schedule.ts'
 import { pm_gradient } from '../denograd/gradient.ts'
 import { si_lowerer } from '../denograd/engine/realize.ts'
-import { merge_bufs } from '../denograd/engine/schedule.ts'
 import { wgsl_matcher, WGSLRenderer } from '../denograd/renderer/wgsl.ts'
 
 const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
@@ -40,17 +39,17 @@ const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
   'tiny.engine.schedule.view_right': view_right,
   'tiny.engine.schedule.to_si': to_si,
   'tiny.engine.schedule.multioutput': multioutput,
-  'tiny.engine.schedule.ops_folding': ops_folding,
+  'tiny.engine.schedule.sym': schedule_sym,
   'tiny.engine.schedule.do_realize': do_realize,
   'tiny.engine.schedule.break_sched': break_sched,
   'tiny.engine.realize.si_lowerer': si_lowerer,
   'tiny.engine.schedule.tensor_uop_spec': tensor_uop_spec,
-  'tiny.engine.schedule.merge_bufs': merge_bufs,
   'tiny.engine.schedule.create_ctx': create_ctx,
   'tiny.engine.schedule.remove_movement_ops': remove_movement_ops,
   'tiny.renderer.wgsl.wgsl_matcher': wgsl_matcher,
   'tiny.renderer.cstyle.ClangRenderer().extra_matcher': new ClangRenderer().extra_matcher,
   'tiny.renderer.wgsl.WGSLRenderer().string_rewrite': new WGSLRenderer().string_rewrite,
+  'tiny.codegen.uopgraph.mulacc_unrolled': mulacc_unrolled,
 }
 
 for (const [name, matcher] of entries(ALL_PATTERN_MATCHERS)) {

@@ -96,7 +96,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.estimates})`
   if (o instanceof ExecItem) return t`tiny.engine.realize.ExecItem(${o.prg}, ${o.bufs}, ${o.metadata})`
 
-  if (o instanceof ScheduleItem) return t`tiny.engine.schedule.ScheduleItem(${o.ast}, ${o.bufs}, ${o.metadata}, ${o.assign_preloads})`
+  if (o instanceof ScheduleItem) return t`tiny.engine.schedule.ScheduleItem(${o.ast}, ${o.bufs}, ${o.metadata})`
   if (o instanceof ScheduleContext) return t`tiny.engine.schedule.ScheduleContext(${o.tensor_uops}, ${o.var_vals}, ${o.assigns}, ${o.realizes}, ${o.allbufs}, ${o.ops_metadata}, ${o.contiguous}, ${o.children}, ${o.becomes_map})`
   if (o instanceof ScheduleItemContext) return t`tiny.engine.schedule.ScheduleItemContext(${o.var_vals}, ${o.sts}, ${o.bufs})`
 

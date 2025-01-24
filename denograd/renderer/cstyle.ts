@@ -1,6 +1,6 @@
 import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, dedup, get_env, idiv, set_default, strip_parens } from '../helpers.ts'
+import { AMX, dedup, get_env, idiv, NotImplemented, set_default, strip_parens } from '../helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -238,32 +238,32 @@ export class ClangRenderer extends CStyleLanguage {
 export class OpenCLRenderer extends CStyleLanguage {
   constructor() {
     super()
-    throw new Error('no implemented')
+    throw new NotImplemented()
   }
 }
 
 export class IntelRenderer extends OpenCLRenderer {
   constructor() {
     super()
-    throw new Error('no implemented')
+    throw new NotImplemented()
   }
 }
 export class MetalRenderer extends CStyleLanguage {
   constructor() {
     super()
-    throw new Error('no implemented')
+    throw new NotImplemented()
   }
 }
 export class CUDARenderer extends CStyleLanguage {
   constructor() {
     super()
-    throw new Error('no implemented')
+    throw new NotImplemented()
   }
 }
 export class AMDRenderer extends CStyleLanguage {
   constructor() {
     super()
-    throw new Error('no implemented')
+    throw new NotImplemented()
   }
 }
 export class NVRenderer extends CUDARenderer {

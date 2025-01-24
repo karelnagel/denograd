@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import type { ImageDType } from '../dtype.ts'
-import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, get_number_env, NotImplemented, PROFILE, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, get_number_env, LRU, NotImplemented, PROFILE, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -69,7 +69,7 @@ export abstract class LRUAllocator extends Allocator<MemoryView> {
   }
   // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
-    if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
+    if (LRU && (options === undefined || !options.nolru)) {
       set_default(this.cache, [size, options] as const, []).push(opaque)
     } else super.free(opaque, size, options)
   }
