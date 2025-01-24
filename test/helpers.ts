@@ -1,6 +1,6 @@
 import { exec } from 'node:child_process'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../denograd/dtype.ts'
-import { bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
+import { ArrayMap, bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../denograd/ops.ts'
@@ -36,8 +36,9 @@ export const asdict = async (o: any): Promise<any> => {
   if (o instanceof UOp) return o.toString()
   if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: await asdict(await o.tolist()) }
 
-  if (o instanceof Map) {
-    const res = await Promise.all([...o.entries().map(async ([k, v]) => [await asdict(k), await asdict(v)])])
+  if (o instanceof Map || o instanceof ArrayMap) {
+    if (o instanceof ArrayMap) o = new Map(o.entries())
+    const res = await Promise.all([...o.entries().map(async ([k, v]: any) => [await asdict(k), await asdict(v)])])
     return typeof res.at(0)?.at(0) === 'object' ? res : Object.fromEntries(res) // If it's Map<string,...> then return object, otherwise array
   }
   if (typeof o === 'object') return Object.fromEntries(await Promise.all(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(async ([k, v]) => [k, await asdict(v)])))

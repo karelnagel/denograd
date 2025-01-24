@@ -264,6 +264,7 @@ export class UOp extends MathTrait<UOp> {
       if (op !== Ops.BUFFER) throw new Error(`trying to set Buffer ${_buffer} for ${op}`)
       buffers.set(this.key, _buffer)
     }
+    UOp.cache.set(this.key, this)
   }
   del = () => {
     if (this.op === Ops.BUFFER && buffers.get(this.key)) buffers.get(this.key)!.ref(-1)
