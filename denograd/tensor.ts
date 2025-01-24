@@ -18,7 +18,7 @@ import { compute_gradient } from './gradient.ts'
 const all_tensors = new WeakValueMap<Tensor>()
 
 type ReplaceUOpsWithTensor<Args extends any[]> = { [K in keyof Args]: Args[K] extends UOp ? Tensor : Args[K] }
-// Has to be a function cause you can't use generics for static functions 
+// Has to be a function cause you can't use generics for static functions
 function CreateFunction<Args extends any[] = [UOp]>() {
   return class Function {
     device: string | string[]
@@ -418,7 +418,7 @@ export class Tensor extends MathTrait<Tensor> {
       if (data instanceof UOp && data.op === Ops.BIND) data = _metaop(Ops.BIND, [], dtype || data.dtype, device, data)
     } else if (data === undefined) {
       data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
-    } else if (typeof data === 'number' || typeof data === 'boolean' || typeof data === 'bigint') {
+    } else if (isConst(data)) {
       data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
     } else if (data instanceof Uint8Array) {
       data = _frompy(data, dtype || dtypes.uint8)
@@ -3434,7 +3434,7 @@ export class Tensor extends MathTrait<Tensor> {
     let x: Tensor = this
     if (!isinstance(y, Tensor)) {
       // make y a Tensor
-      if (typeof y !== 'number' && typeof y !== 'boolean' && typeof y !== 'bigint') throw new Error(`invalid y type: ${typeof y}`)
+      if (!isConst(y)) throw new Error(`invalid y type: ${typeof y}`)
       let y_dtype
       if (isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_big_int(x.dtype)) || (dtypes.is_int(x.dtype) && Number.isInteger(y))) y_dtype = x.dtype
       else if (!isinstance(y, UOp)) y_dtype = dtypes.from_js(y)

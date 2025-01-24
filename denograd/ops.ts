@@ -33,7 +33,7 @@ class SimpleMathTrait<T extends SimpleMathTrait<T>> {
   xor = (x: ConstType<T>, reverse = false) => this._binop(Ops.XOR, x, reverse)
   idiv = (x: ConstType<T>, reverse = false) => this._binop(Ops.IDIV, x, reverse)
   mod = (x: ConstType<T>, reverse = false) => !reverse ? this.alu(Ops.MOD, this.ufix(x)) : this.ufix(x).alu(Ops.MOD, this as any)
-  sub = (x: ConstType<T>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg())
+  sub = (x: ConstType<T>, reverse = false) => reverse ? this.ufix(x).alu(Ops.ADD, this.neg()) : this.alu(Ops.ADD, isConst(x) ? this.ufix(-x) : x.neg())
   div = (x: ConstType<T>, reverse = false) => reverse ? this.ufix(x).mul(this.alu(Ops.RECIP)) : this.mul(this.ufix(x).alu(Ops.RECIP))
 
   lt = (x: ConstType<T>) => this.alu(Ops.CMPLT, this.ufix(x))
@@ -51,7 +51,7 @@ export class MathTrait<T extends MathTrait<any>> extends SimpleMathTrait<T> {
 
   //   # not in Tensor
   maximum = (x: ConstType<T>) => this.alu(Ops.MAX, this.ufix(x))
-  minimum = (x: ConstType<T>) => this.neg().maximum(typeof x === 'number' || typeof x === 'boolean' || typeof x === 'bigint' ? this.ufix(-x) : x.neg()).neg()
+  minimum = (x: ConstType<T>) => this.neg().maximum(isConst(x) ? this.ufix(-x) : x.neg()).neg()
   where = (x: ConstType<T>, y: ConstType<T>) => this.alu(Ops.WHERE, this.ufix(x), this.ufix(x).ufix(y))
   threefry = (seed: ConstType<T>) => this.alu(Ops.THREEFRY, this.ufix(seed))
   reciprocal = () => this.alu(Ops.RECIP)
@@ -1259,7 +1259,7 @@ export const simplify_valid = (valid: UOp): UOp | undefined => {
 //   if (x.vmin >= (0)) return c1.arg >= c2.arg ? x.mul(c1) : x.mul(c2)
 //   if (x.vmax <= (0)) return c1.arg >= c2.arg ? x.mul(c2) : x.mul(c1)
 // }
-export const sint_to_uop = (x: sint, dtype = dtypes.int) => (typeof x === 'number' || typeof x === 'bigint') ? UOp.const(dtype, x) : x
+export const sint_to_uop = (x: sint, dtype = dtypes.int) => isConst(x) ? UOp.const(dtype, x) : x
 
 export const symbolic_simple = new PatternMatcher([
   //   // ** this folding **
