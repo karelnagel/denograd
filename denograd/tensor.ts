@@ -507,6 +507,10 @@ export class Tensor extends MathTrait<Tensor> {
     }
     return [memory_planner(schedule), var_vals]
   }
+  _debug_ast = () => {
+    const [schedule] = this.schedule_with_vars()
+    return schedule.map((x) => x.ast)
+  }
   /**
    * Creates the schedule needed to realize these Tensor(s).
    */

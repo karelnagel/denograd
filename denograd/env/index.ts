@@ -20,3 +20,4 @@ else {
 if (!Class) throw new Error('Unknown environment')
 
 export const Env: Environment = new Class()
+if (Env.env.get('DEBUG')) console.log(`Using env ${Env.NAME}`)
