@@ -188,7 +188,7 @@ export const sigmoid_like = (x: UOp, y: UOp) => {
 
 // # ***** main rewriter *****
 
-export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, idx2?: any, idx3?: any, extra?: any, vec?: any, ne?: any, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
+export const loop_collapse = (compval: UOp, multconst: UOp, rng: UOp, acc: UOp, idx2?: UOp, idx3?: UOp, extra?: UOp, vec?: UOp, ne?: UOp, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
   if (get_env('DISABLE_LOOP_COLLAPSE') || !acc.src.includes(rng)) return undefined // must be the right REDUCE
   let [loop_start, loop_end] = rng.src
   if (loop_start.arg !== 0) {
@@ -196,8 +196,8 @@ export const loop_collapse = (compval: any, multconst: any, rng: UOp, acc: UOp, 
     if (DEBUG >= 1) console.log(`WARNING, NOT FOLDING: mul:${mul.arg} loop_start:${loop_start.arg}`)
     return undefined
   }
-  if (idx2 !== undefined) add = add + idx2
-  if (idx3 !== undefined) add = add + idx3
+  if (idx2 !== undefined) add = add.add(idx2)
+  if (idx3 !== undefined) add = add.add(idx3)
   if (vec !== undefined) {
     //     # add, mul, loop_start, loop_end
     const dvec = (x: UOp) => {
