@@ -50,8 +50,8 @@ Deno.test(
       [[true, false], {}],
       [new Uint8Array([2, 3]), { dtype: dtypes.float }],
     ],
-    (data, opts) => new Tensor(data, opts)._debug_ast(),
-    'out(tiny.Tensor(data[0], dtype=data[1].get("dtype"))._debug_ast())',
+    (data, opts) => new Tensor(data, opts),
+    'out(tiny.Tensor(data[0], dtype=data[1].get("dtype")))',
   ),
 )
 

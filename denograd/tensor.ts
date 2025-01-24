@@ -483,12 +483,12 @@ export class Tensor extends MathTrait<Tensor> {
 
     // get all children of keys in becomes_map
     const all_uops = new Set<UOp>()
-    const search_uops = [...becomes_map.keys()]
+    let search_uops = [...becomes_map.keys()]
     while (search_uops.length) {
       const x = search_uops.shift()!
       if (all_uops.has(x)) continue
       all_uops.add(x)
-      x.children.values().filter((u) => u !== undefined)
+      search_uops = [...search_uops, ...x.children.values().filter((u) => u !== undefined)]
     }
     // link the found UOps back to Tensors. exit early if there's no Tensors to realize
     // NOTE: this uses all_tensors, but it's fast
@@ -523,8 +523,8 @@ export class Tensor extends MathTrait<Tensor> {
   //   /**
   //    * Triggers the computation needed to create these Tensor(s).
   //    */
-  realize = async (lst?: Tensor[], do_update_stats = true): Promise<Tensor> => {
-    await run_schedule(...this.schedule_with_vars(lst || []), do_update_stats)
+  realize = async (lst: Tensor[] = [], do_update_stats = true): Promise<Tensor> => {
+    await run_schedule(...this.schedule_with_vars(lst), do_update_stats)
     return this
   }
   static realize = (lst: Tensor[], do_update_stats = true) => lst[0].realize(lst.slice(1), do_update_stats)
