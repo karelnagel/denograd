@@ -2886,7 +2886,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   sigmoid = () => {
-    return ((this.mul(-1 / Math.log(2)).add(1, true)).exp2()).reciprocal()
+    return this.mul(-1 / Math.log(2)).exp2().add(1, true).reciprocal()
   }
   /**
    * Applies the Hardsigmoid function element-wise.
