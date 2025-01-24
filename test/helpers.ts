@@ -170,7 +170,7 @@ import math
 from tinygrad.renderer import cstyle
 from tinygrad.renderer import wgsl
 from tinygrad.ops import Ops
-from tinygrad.to_ts import to_ts
+from to_ts import to_ts
 from tinygrad.runtime.ops_python import PythonRenderer
 
 def trycatch(fn):
@@ -186,7 +186,7 @@ ${code}
   const file = `/tmp/tiny_${random_id()}.py`
   console.log(file)
   await Deno.writeTextFile(file, code.trim())
-  const [stdout, ts] = (await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
+  const [stdout, ts] = (await execAsync(`PYTHONPATH=.:./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
   try {
     return eval(ts)
