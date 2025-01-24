@@ -441,7 +441,7 @@ export const sym = symbolic_simple.add(
     ],
     // remove cast to image when it's already a contiguous image
     [
-      new UPat(Ops.VIEW, undefined, [new UPat(Ops.CAST, undefined, [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONTIGUOUS).named('base')]).named('vm2')]).named('cast')]).named('vm1'),
+      new UPat(Ops.VIEW, undefined, [new UPat(Ops.CAST, undefined, new UPat(Ops.VIEW, undefined, new UPat(Ops.CONTIGUOUS).named('base')).named('vm2')).named('cast')]).named('vm1'),
       ({ cast, base, vm1, vm2 }) => cast.dtype instanceof ImageDType && base.dtype instanceof ImageDType ? base.view(vm2.st!.add(vm1.st!)) : undefined,
     ],
     // remove contiguous if we can just view the buffer
@@ -499,7 +499,7 @@ export const do_realize = new PatternMatcher<ScheduleContext>([
   // always realize SINK parents
   [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => void sink.src.forEach((x) => ctx.realizes.set(x.buf_uop, x))],
   // always realize ASSIGN/CONTIGUOUS/COPY/BUFFER_VIEW
-  [new UPatScheduled({ op: [Ops.ASSIGN, Ops.CONTIGUOUS, Ops.COPY, Ops.BUFFER_VIEW] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  [new UPatScheduled({ op: [ Ops.CONTIGUOUS,Ops.ASSIGN, Ops.COPY, Ops.BUFFER_VIEW] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
   // realize before expand or unsafe pad ops
   [new UPat(Ops.VIEW, undefined, [new UPatScheduled({ name: 'src' })]).named('view'), ({ ctx, view, src, b }) => realize_before_view(ctx, view, src, b)],
   // don't realize image to image casts

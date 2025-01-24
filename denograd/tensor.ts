@@ -15,7 +15,8 @@ import { Env } from './env/index.ts'
 import { compute_gradient } from './gradient.ts'
 import { get_multi_map } from './multi.ts'
 
-const all_tensors = new Set<WeakRef<Tensor>>()
+// KAREL: TODO: should be weakref
+const all_tensors = new Set<Tensor>()
 
 const _apply_map_to_tensors = (applied_map: Map<UOp, UOp>): undefined => {
   // get all children of keys in applied_map
@@ -30,7 +31,7 @@ const _apply_map_to_tensors = (applied_map: Map<UOp, UOp>): undefined => {
 
   // link the found UOps back to Tensors. exit early if there's no Tensors to realize
   // NOTE: this uses all_tensors, but it's fast
-  const fixed_tensors = [...all_tensors].map((tref) => tref.deref()!).filter((t) => t !== undefined && all_uops.has(t.lazydata))
+  const fixed_tensors = [...all_tensors].map((tref) => tref!).filter((t) => t !== undefined && all_uops.has(t.lazydata))
 
   if (fixed_tensors.length) {
     // potentially rewrite all the discovered Tensors
@@ -422,11 +423,11 @@ export class Tensor extends MathTrait<Tensor> {
   static no_grad = false
   key: string
   // KAREL: TODO: this probably won't work correctly
-  del = () => all_tensors.delete(new WeakRef(this))
+  del = () => all_tensors.delete(this)
   constructor(data?: ConstType | UOp | Uint8Array | any[] | UOp | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
     super()
     this.key = random_id()
-    all_tensors.add(new WeakRef(this))
+    all_tensors.add(this)
     if (skip_constructor) return
     if (dtype !== undefined) dtype = to_dtype(dtype)
     if (dtype !== undefined && !(dtype instanceof DType)) throw new Error(`invalid dtype ${dtype}`)
