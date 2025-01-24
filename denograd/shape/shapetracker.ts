@@ -1,8 +1,7 @@
-import { sym } from '../codegen/uopgraph.ts'
 import { dtypes } from '../dtype.ts'
 import { cache_fn, get_key, gt, is_eq, list_str, lt, range, WeakValueMap } from '../helpers.ts'
 import { get_number_env, merge_maps, zip } from '../helpers.ts'
-import { graph_rewrite, Ops, simplify_valid, type sint, sint_to_uop, split_uop, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
+import { graph_rewrite, Ops, simplify_valid, type sint, sint_to_uop, split_uop, symbolic_flat, UOp, uop_given_valid, type Variable,sym } from '../ops.ts'
 import { strides_for_shape, unravel, View } from './view.ts'
 
 export const overflow = (u: UOp) => gt(u.vmax, dtypes.max(dtypes.int)) || lt(u.vmin, dtypes.min(dtypes.int))

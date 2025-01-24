@@ -8,7 +8,7 @@ import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape } from '../shape/view.ts'
 import { linearize_uop } from './linearize.ts'
 import { get_contraction, rewrite_shapetracker_with_index } from './lowerer.ts'
-import { full_graph_rewrite } from './uopgraph.ts'
+import { full_graph_rewrite } from '../ops.ts'
 
 export class OptOps<Name extends string = string, Value extends number = number> extends Enum {
   private static VALUES: OptOps[] = []

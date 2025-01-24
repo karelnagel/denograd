@@ -457,7 +457,7 @@ export const sym = symbolic_simple.add(
     // remove CONST/BIND/BUFFER from SINK
     [new UPat(Ops.SINK).named('root'), ({ root }) => {
       const new_src = root.src.filter((x) => !uop_is_realized(x) && ![Ops.CONST, Ops.BIND].includes(x.base.op))
-      return new_src !== root.src ? new UOp(Ops.SINK, root.dtype, new_src, root.arg) : undefined
+      return !is_eq(new_src, root.src) ? new UOp(Ops.SINK, root.dtype, new_src, root.arg) : undefined
     }],
   ]),
 )
@@ -613,7 +613,8 @@ export const create_schedule_with_vars = (big_sink: UOp, skip_check = !DEBUG): [
   const in_degree = new Map<ScheduleItem, number>()
   for (const si of prescheduled) {
     // realize outputs before a parent === assigned to
-    const parents_assigns = dedup([...ctx.preloads.get(si.bufs[0])!.keys()].map((x) => schedule_targets.get(uop_buffer(x))!).filter((xsi) => xsi && xsi !== si))
+    // KAREL: TODO: check why there is no buf in preloads
+    const parents_assigns = dedup([...ctx.preloads.get(si.bufs[0])?.keys() || []].map((x) => schedule_targets.get(uop_buffer(x))!).filter((xsi) => xsi && xsi !== si))
     for (const assign of parents_assigns) {
       set_default(graph, si, []).push(assign)
       in_degree.set(assign, set_default(in_degree, assign, 0) + 1)
