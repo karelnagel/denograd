@@ -1,6 +1,5 @@
 import { dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, partition, range, set_default, slice, TRANSCENDENTAL, zip } from '../helpers.ts'
-import { sub } from '../mod.ts'
+import { all_same, AMX, assert, cache_fn, DEBUG, dedup, flatten, get_env, is_eq, isinstance, partition, range, set_default, slice, sub, TRANSCENDENTAL, zip } from '../helpers.ts'
 import { graph_rewrite, GroupOp, is_increasing, Ops, parse_valid, type PatternFn, PatternMatcher, simplify_valid, type sint, split_uop, symbolic_flat, symbolic_simple, UOp, uop_given_valid, UPat } from '../ops.ts'
 import { add, div, idiv, mul, prod } from '../helpers.ts'
 import type { Renderer } from '../renderer/index.ts'
