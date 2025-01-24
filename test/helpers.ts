@@ -14,7 +14,7 @@ import { Estimates, TensorCore } from '../denograd/renderer/index.ts'
 import { ProgramSpec } from '../denograd/renderer/index.ts'
 import { CompiledRunner, ExecItem, Runner } from '../denograd/engine/realize.ts'
 import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../denograd/engine/schedule.ts'
-import { _Device, _MallocAllocator, Allocator, BufferSpec, Compiler, LRUAllocator } from '../denograd/device.ts'
+import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRUAllocator } from '../denograd/device.ts'
 import { PythonRenderer } from '../denograd/runtime/ops_python.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
@@ -101,6 +101,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o instanceof ScheduleItemContext) return t`tiny.engine.schedule.ScheduleItemContext(${o.var_vals}, ${o.sts}, ${o.bufs})`
 
   // ************ DEVICE ************
+  if (o instanceof Buffer) return t`tiny.device.Buffer(${o.device}, ${o.size}, ${o.dtype}, None, ${o.options}, None, 0, ${o._base}, ${o.offset})`
   if (o instanceof _Device) return t`tiny.device._Device()`
   if (o instanceof BufferSpec) return t`tiny.device.BufferSpec(${o.image}, ${o.uncached}, ${o.cpu_access}, ${o.host}, ${o.nolru}, ${o.external_ptr})`
   if (o instanceof _MallocAllocator) return t`tiny.device._MallocAllocator()`
