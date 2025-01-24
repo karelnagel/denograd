@@ -589,7 +589,6 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   data = async (): Promise<MemoryView<any>> => {
-    console.log('dtype', this.dtype)
     if (this.dtype.base.fmt === undefined) throw new Error(`no fmt dtype for ${this.dtype.base}`)
     if (!all_int(this.shape)) throw new Error(`no data if shape === symbolic, ${this.shape}`)
     // if (TYPE_CHECKING ) assert(this.dtype.base.fmt !== "e")
