@@ -752,6 +752,8 @@ type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B 
 const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
   if (!bigintFn) bigintFn = numberFn as unknown as (a: bigint, b: bigint) => bigint
   return <A extends Math, B extends Math>(a: A, b: B): Return<A, B> => {
+    if (typeof a === 'string') throw new Error(`a is string, a=${a}`)
+    if (typeof b === 'string') throw new Error(`b is string, b=${b}`)
     if (!isConst(a)) return mathFn(a, b, false) as Return<A, B>
     else if (!isConst(b)) return mathFn(b, a, true) as Return<A, B>
     else if (typeof a === 'bigint' || typeof b === 'bigint') return bigintFn(BigInt(a), BigInt(b)) as Return<A, B>

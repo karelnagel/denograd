@@ -455,6 +455,7 @@ export class Tensor extends MathTrait<Tensor> {
     } else if (data instanceof Uint8Array) {
       data = _frompy(data, dtype || dtypes.uint8)
     } else if (Array.isArray(data)) {
+      if (data.some((x) => typeof x === 'string')) throw new Error(`There's a string in data: ${list_str(data)}`)
       if (dtype === undefined) {
         const d = fully_flatten(data)
         if (d.length && d.every((s) => typeof s === 'boolean')) dtype = dtypes.bool

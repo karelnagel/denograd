@@ -24,9 +24,7 @@ export const MnistExample = () => {
   const [mnist, setMnist] = useState<MNIST>()
   const [image, setImage] = useState(EMPTY)
   const [res, setRes] = useState([])
-  useEffect(() => {
-    loadModel().then(setMnist)
-  }, [])
+  useEffect(() => void loadModel().then(setMnist), [])
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!mnist || is_eq(image, EMPTY)) return
