@@ -15,14 +15,15 @@ export class ArrayMap<K, V, Internal extends [any, any] = [K, V]> {
   }
   get = (key: K): V | undefined => this.map.get(get_key(key))?.[1]
   set = (key: K, value: V): void => void this.map.set(get_key(key), [key, value] as Internal)
-  has = (key: K) => this.map.has(get_key(key))
+  has = (key: K): boolean => this.get(key) !== undefined
   entries = (): [K, V][] => [...this.map.values()]
   keys = () => this.entries().map((e) => e[0])
   values = () => this.entries().map((e) => e[1])
   delete = (k: K) => this.map.delete(get_key(k))
   clear = () => this.map.clear()
   setDefault = (key: K, defaultValue: V) => {
-    if (this.has(key)) return this.get(key)!
+    const res = this.get(key)
+    if (res !== undefined) return res
     this.set(key, defaultValue)
     return defaultValue
   }
@@ -33,6 +34,15 @@ export class WeakKeyMap<K extends object, V extends any> extends ArrayMap<K, V, 
   private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
   constructor(values?: [K, V][]) {
     super(values?.map(([k, v]) => [new WeakRef(k), v]))
+  }
+  override get = (key: K): V | undefined => {
+    const res = this.map.get(get_key(key))
+    if (res === undefined) return undefined
+    if (res[0].deref() !== undefined) return res[1]
+
+    // if key is gone then return undefined + delete from list
+    this.map.delete(get_key(key))
+    return undefined
   }
   override set = (key: K, value: V) => {
     this.map.set(get_key(key), [new WeakRef(key), value])
@@ -54,7 +64,16 @@ export class WeakValueMap<K, V extends object> extends ArrayMap<K, V, [K, WeakRe
   constructor(values?: [K, V][]) {
     super(values?.map(([k, v]) => [k, new WeakRef(v)]))
   }
-  override get = (key: K): V | undefined => this.map.get(get_key(key))?.[1].deref()
+  override get = (key: K): V | undefined => {
+    const res = this.map.get(get_key(key))
+    if (res === undefined) return undefined
+    const derefed = res[1].deref()
+    if (derefed !== undefined) return derefed
+
+    // if value is gone, remove from map
+    this.map.delete(get_key(key))
+    return undefined
+  }
   override set = (key: K, value: V) => {
     this.map.set(get_key(key), [key, new WeakRef(value)])
     this.finalizationGroup.register(value, get_key(key))
@@ -659,10 +678,13 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
 }
 
 export const get_key = (...args: any[]): string => {
-  if (args.length === 1 && typeof args[0]?.key === 'string') return args[0].key
+  if (args.length === 1) {
+    if (typeof args[0] === 'string') return args[0]
+    if (typeof args[0]?.key === 'string') return args[0].key
+  }
   const json = JSON.stringify(args, (key, value) => {
-    if (typeof value?.key === 'string') return value.key
     if (typeof value === 'string') return value
+    if (typeof value?.key === 'string') return value.key
     return value
   })
   return hash(json)
