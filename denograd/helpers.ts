@@ -20,6 +20,7 @@ export class ArrayMap<K, V, Internal extends [any, any] = [K, V]> {
   keys = () => this.entries().map((e) => e[0])
   values = () => this.entries().map((e) => e[1])
   delete = (k: K) => this.map.delete(get_key(k))
+  clear = () => this.map.clear()
   setDefault = (key: K, defaultValue: V) => {
     if (this.has(key)) return this.get(key)!
     this.set(key, defaultValue)
