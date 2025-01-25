@@ -5,16 +5,16 @@ import type { MathTrait } from './ops.ts'
 // Python Map/Set implementations
 
 // in JS [1] !== [1], so this is for Maps where key needs to be array
-export class ArrayMap<K, V> {
-  private map: Map<string, [K, V]>
-  constructor(values: [K, V][] = []) {
-    this.map = new Map(values.map(([key, value]) => [get_key(key), [key, value]]))
+export class ArrayMap<K, V, Internal extends [any, any] = [K, V]> {
+  map: Map<string, Internal>
+  constructor(values?: Internal[]) {
+    this.map = new Map(values?.map(([key, value]) => [get_key(key), [key, value] as Internal]))
   }
   get size() {
     return this.map.size
   }
   get = (key: K): V | undefined => this.map.get(get_key(key))?.[1]
-  set = (key: K, value: V) => this.map.set(get_key(key), [key, value])
+  set = (key: K, value: V): void => void this.map.set(get_key(key), [key, value] as Internal)
   has = (key: K) => this.map.has(get_key(key))
   entries = (): [K, V][] => [...this.map.values()]
   keys = () => this.entries().map((e) => e[0])
@@ -28,41 +28,30 @@ export class ArrayMap<K, V> {
 }
 
 // When key is garbage collected then the item is removed from the map
-export class WeakKeyMap<K extends object, V extends any> {
-  private map = new Map<string, [WeakRef<K>, V]>()
+export class WeakKeyMap<K extends object, V extends any> extends ArrayMap<K, V, [WeakRef<K>, V]> {
   private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
-
-  get = (key: K): V | undefined => this.map.get(get_key(key))?.[1]
-  set = (key: K, value: V) => {
+  constructor(values?: [K, V][]) {
+    super(values?.map(([k, v]) => [new WeakRef(k), v]))
+  }
+  override set = (key: K, value: V) => {
     this.map.set(get_key(key), [new WeakRef(key), value])
     this.finalizationGroup.register(key, get_key(key))
   }
-  delete = (key: K) => this.map.delete(get_key(key))
-  has = (key: K) => this.map.has(get_key(key))
-  keys = (): K[] => this.entries().map((e) => e[0])
-  values = (): V[] => this.entries().map((e) => e[1])
-  entries = (): [K, V][] => [...this.map.values()].map(([k, v]) => [k.deref(), v] as [K, V]).filter(([k, v]) => k !== undefined)
+  override entries = (): [K, V][] => [...this.map.values()].map(([k, v]) => [k.deref()!, v] satisfies [K, V]).filter(([k, v]) => k !== undefined)
 }
 
 // When value is garbage collected then the item is removed from the map
-export class WeakValueMap<K, V extends object> {
-  private map = new Map<string, [K, WeakRef<V>]>()
+export class WeakValueMap<K, V extends object> extends ArrayMap<K, V, [K, WeakRef<V>]> {
   private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
-  get = (key: K): V | undefined => this.map.get(get_key(key))?.[1].deref()
-  set = (key: K, value: V) => {
+  constructor(values?: [K, V][]) {
+    super(values?.map(([k, v]) => [k, new WeakRef(v)]))
+  }
+  override get = (key: K): V | undefined => this.map.get(get_key(key))?.[1].deref()
+  override set = (key: K, value: V) => {
     this.map.set(get_key(key), [key, new WeakRef(value)])
     this.finalizationGroup.register(value, get_key(key))
   }
-  delete = (key: K) => this.map.delete(get_key(key))
-  has = (key: K) => this.map.has(get_key(key))
-  setDefault = (key: K, defaultValue: V) => {
-    if (this.has(key)) return this.get(key)!
-    this.set(key, defaultValue)
-    return defaultValue
-  }
-  keys = (): K[] => this.entries().map((e) => e[0])
-  values = (): V[] => this.entries().map((e) => e[1])
-  entries = (): [K, V][] => [...this.map.values()].map(([k, v]) => [k, v.deref()] as [K, V]).filter(([k, v]) => v !== undefined)
+  override entries = (): [K, V][] => [...this.map.values()].map(([k, v]) => [k, v.deref()!] satisfies [K, V]).filter(([k, v]) => v !== undefined)
 }
 
 export class NotImplemented extends Error {

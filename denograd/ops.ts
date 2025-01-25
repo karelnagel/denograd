@@ -242,7 +242,6 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
-export class WeakKeyDictionary {}
 export const buffers = new WeakKeyMap<UOp, Buffer>()
 const all_metadata = new WeakKeyMap<UOp, Metadata>()
 
