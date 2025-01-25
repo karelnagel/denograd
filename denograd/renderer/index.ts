@@ -16,7 +16,7 @@ type TensorCoreArgs = {
 }
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
   key: string
-  static cache = new WeakValueMap<string,TensorCore>()
+  static cache = new WeakValueMap<string, TensorCore>()
 
   dims: [number, number, number]
   threads: number
@@ -28,7 +28,9 @@ export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D 
   constructor(args: TensorCoreArgs) {
     this.dims = args.dims, this.threads = args.threads, this.elements_per_thread = args.elements_per_thread, this.dtype_in = args.dtype_in, this.dtype_out = args.dtype_out, this.opts = args.opts, this.swizzle = args.swizzle
     this.key = get_key(args)
-    if (TensorCore.cache.has(this.key)) return TensorCore.cache.get(this.key)!
+    const cached = TensorCore.cache.get(this.key)
+    if (cached) return cached
+
     const local_axes = this.get_local_axes().length, upcast_axes = this.get_upcast_axes().length, reduce_axes = this.get_reduce_axes().length
     if (this.dims[0] * this.dims[1] !== 2 ** (local_axes + upcast_axes)) throw new Error(`N(${this.dims[0]}) x M(${this.dims[1]}) != local(${2 ** local_axes}) x upcast(${2 ** upcast_axes}) with opts(${this.opts})`)
     if (2 ** local_axes !== this.threads) throw new Error(`${this.threads} threads construct the warp but found ${2 ** local_axes} in ${this.opts}`)

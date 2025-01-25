@@ -92,7 +92,8 @@ export class ScheduleContext {
 // wrap tensor uops around a VIEW(BUFFER, <uop>)
 // this BUFFER preserves a link back to the uop on the tensor after the scheduler rewrites it.
 const add_buffers = (buf: UOp, tensor_map: Map<UOp, UOp[]>, ctx: ScheduleContext, cache: Map<UOp, UOp>): UOp => {
-  if (cache.has(buf)) return cache.get(buf)!
+  const cached = cache.get(buf)
+  if (cached) return cached
   // SINK is passthrough
   if (buf.op === Ops.SINK) return buf.replace({ src: buf.src.map((x) => add_buffers(x, tensor_map, ctx, cache)) })
   // skip creating buffers for CONST/BIND/DEVICE/BUFFER
@@ -299,7 +300,7 @@ export const recursive_group = (
   }
 }
 export const get_isolated_children = (r: UOp, reduce_for_op: Map<UOp, UOp>, children: Map<UOp, Map<UOp, undefined>>, allbufs: Map<UOp, UOp>, realizes: Map<UOp, UOp>, group: Map<UOp, undefined>): Map<UOp, undefined> => {
-  let [rc_parents, cache] = [[...group.keys()], new Set()]
+  let [rc_parents, cache] = [[...group.keys()], new Set<UOp>()]
   while (rc_parents.length) {
     const p = uval(allbufs.get(rc_parents.pop()!)!)
     if (cache.has(p)) continue
@@ -499,7 +500,7 @@ export const do_realize = new PatternMatcher<ScheduleContext>([
   // always realize SINK parents
   [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => void sink.src.forEach((x) => ctx.realizes.set(x.buf_uop, x))],
   // always realize ASSIGN/CONTIGUOUS/COPY/BUFFER_VIEW
-  [new UPatScheduled({ op: [ Ops.CONTIGUOUS,Ops.ASSIGN, Ops.COPY, Ops.BUFFER_VIEW] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  [new UPatScheduled({ op: [Ops.CONTIGUOUS, Ops.ASSIGN, Ops.COPY, Ops.BUFFER_VIEW] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
   // realize before expand or unsafe pad ops
   [new UPat(Ops.VIEW, undefined, [new UPatScheduled({ name: 'src' })]).named('view'), ({ ctx, view, src, b }) => realize_before_view(ctx, view, src, b)],
   // don't realize image to image casts
