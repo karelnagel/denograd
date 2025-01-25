@@ -148,7 +148,7 @@ Deno.test(
   compare(
     kernels,
     (k: Kernel) => {
-      Kernel.kernel_cnt = {}
+      Kernel.kernel_cnt.clear()
       return k.name
     },
     'out(data[0].name)',
@@ -181,7 +181,7 @@ Deno.test(
   compare(
     kernels,
     (k: Kernel) => {
-      Kernel.kernel_cnt = {}
+      Kernel.kernel_cnt.clear()
       return k.to_program()
     },
     'out(data[0].to_program())',

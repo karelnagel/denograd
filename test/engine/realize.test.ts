@@ -45,7 +45,7 @@ Deno.test(
   compare(
     kernelInputs,
     (renderer, ast) => {
-      Kernel.kernel_cnt = {}
+      Kernel.kernel_cnt.clear()
       return get_kernel(renderer, ast).to_program()
     },
     'out(tiny.engine.realize.get_kernel(*data).to_program())',
@@ -58,7 +58,7 @@ Deno.test(
   compare(
     () => kernelInputs().map(([r, ast]) => [r.device, ast] as [DeviceType, UOp]),
     (d, ast) => {
-      Kernel.kernel_cnt = {}
+      Kernel.kernel_cnt.clear()
       const runner = get_runner(d, ast)
       return [runner.p]
     },

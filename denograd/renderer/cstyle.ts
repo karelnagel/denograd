@@ -1,6 +1,6 @@
 import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, dedup, get_env, idiv, NotImplemented, set_default, strip_parens } from '../helpers.ts'
+import { AMX, dedup, DefaultMap, get_env, idiv, NotImplemented, set_default, strip_parens } from '../helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -128,7 +128,7 @@ export class CStyleLanguage extends Renderer {
     const bufs = new Map<UOp, [string, [DType, boolean]]>()
     const kernel = []
     let depth = 1
-    const c = new Map<string, number>()
+    const c = new DefaultMap<string, number>(undefined, () => 0)
     for (const u of uops) {
       if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_VAR].includes(u.op)) {
         r.set(u, u.op === Ops.DEFINE_GLOBAL ? `data${u.arg}` : u.arg[0])

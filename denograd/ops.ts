@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -1236,6 +1236,7 @@ export const uop_given_valid = (valid: UOp, uop: UOp): UOp | undefined => {
   // return None if valid is always False, otherwise the simplified uop (might be the same as input)
 
   // first, parse valid into {expr: (lower_bound, upper_bound)}
+  // KAREL: should be DefaultDict but for some reason I get segment fault with it
   const bounds = new Map<UOp, ConstType[]>()
   for (const stmt of split_uop(valid, Ops.AND)) {
     try {
@@ -1728,7 +1729,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
   const [is_load, is_image] = [new_srcs[0]?.op === Ops.LOAD, isinstance(buf.dtype, ImageDType)]
 
   //   # first, extract all the relevant offsets
-  const offsets_rootsrc = new Map<UOp, Map<string, number>>()
+  const offsets_rootsrc = new DefaultMap<UOp, Map<string, number>>(undefined, () => new Map())
   for (const [i, s] of new_srcs.entries()) {
     const idx = s!.src[0].src[1]
     let root_src: any, arg

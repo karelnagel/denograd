@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { ArrayMap, assert, dedup, flatten, get_key, is_eq, is_less_than, isinstance, min, partition, set_default, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, assert, dedup, DefaultMap, flatten, get_key, is_eq, is_less_than, isinstance, min, partition, set_default, WeakValueMap } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
@@ -124,8 +124,8 @@ export const pm_block_merge = new PatternMatcher<Map<UOp, UOp[]>>([[new UPat([Op
 // # NOTE: any toposort should be valid here, unlike last time this isn't required, it's just for speed
 export const block_reorder = (in_block: UOp): UOp => {
   const in_this_block = new Set(in_block.arg.lst)
-  const local_children = new Map<UOp, UOp[]>()
-  const in_degree = new Map<UOp, number>()
+  const local_children = new DefaultMap<UOp, UOp[]>(undefined, () => [])
+  const in_degree = new DefaultMap<UOp, number>(undefined, () => 0)
   const priorities = new Map<UOp, number>()
   //   # get local children and assign priorities
   for (const u of in_block.arg.lst.toReversed()) {

@@ -1,6 +1,6 @@
 import { type Buffer, uop_buffer, uop_is_realized } from '../device.ts'
 import { DType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, list_str, merge_maps, type Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
+import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, list_str, merge_maps, type Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
 import { buffers, can_pad, graph_rewrite_map, identity_element, resolve, type sint, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
 import { add, ge, lt, mul, pow, prod, sub } from '../helpers.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, type Variable, view_left } from '../ops.ts'
@@ -83,8 +83,8 @@ export class ScheduleContext {
     public allbufs = new Map<UOp, UOp>(), // this maps BUFFER uops the actual op
     public ops_metadata = new Map<UOp, Metadata>(), // this maps fused ops to Metadata
     public contiguous = new Map<UOp, UOp>(), // this maps roots to places they are made contiguous
-    public children = new Map<UOp, Map<UOp, undefined>>(),
-    public preloads = new Map<Buffer, Map<UOp, undefined>>(),
+    public children = new DefaultMap<UOp, Map<UOp, undefined>>(undefined, () => new Map()),
+    public preloads = new DefaultMap<Buffer, Map<UOp, undefined>>(undefined, () => new Map()),
     public becomes_map = new Map<UOp, UOp>(),
   ) {}
 }
@@ -273,7 +273,7 @@ export const recursive_group = (
   tr: UOp,
   st: ShapeTracker,
   r: UOp,
-  children: Map<UOp, Map<UOp, undefined>>,
+  children: DefaultMap<UOp, Map<UOp, undefined>>,
   allbufs: Map<UOp, UOp>,
   realizes: Map<UOp, UOp>,
   reduce_for_op: Map<UOp, UOp>,
@@ -299,7 +299,7 @@ export const recursive_group = (
     recursive_group(tr_next, st.add(st_childs[0]), r, children, allbufs, realizes, reduce_for_op, group, cache)
   }
 }
-export const get_isolated_children = (r: UOp, reduce_for_op: Map<UOp, UOp>, children: Map<UOp, Map<UOp, undefined>>, allbufs: Map<UOp, UOp>, realizes: Map<UOp, UOp>, group: Map<UOp, undefined>): Map<UOp, undefined> => {
+export const get_isolated_children = (r: UOp, reduce_for_op: Map<UOp, UOp>, children: DefaultMap<UOp, Map<UOp, undefined>>, allbufs: Map<UOp, UOp>, realizes: Map<UOp, UOp>, group: Map<UOp, undefined>): Map<UOp, undefined> => {
   let [rc_parents, cache] = [[...group.keys()], new Set<UOp>()]
   while (rc_parents.length) {
     const p = uval(allbufs.get(rc_parents.pop()!)!)
@@ -389,8 +389,8 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
     if (kernel_children.length === 0) continue
     for (const [tr] of group) ctx.realizes.delete(tr)
   }
-  const output_groups = new Map<UOp, UOp[]>()
-  for (const ubuf of ctx.realizes.keys()) set_default(output_groups, reduce_for_op.get(ubuf) || ubuf, []).push(ubuf)
+  const output_groups = new DefaultMap<UOp, UOp[]>(undefined, () => [])
+  for (const ubuf of ctx.realizes.keys()) output_groups.get(reduce_for_op.get(ubuf) || ubuf).push(ubuf)
   return [...output_groups.values()]
 }
 
@@ -610,21 +610,21 @@ export const create_schedule_with_vars = (big_sink: UOp, skip_check = !DEBUG): [
 
   // add kernel children
   const schedule_targets = new Map(prescheduled.flatMap((si) => si.outputs.map((out) => [out, si])))
-  const graph = new Map<ScheduleItem, ScheduleItem[]>()
-  const in_degree = new Map<ScheduleItem, number>()
+  const graph = new DefaultMap<ScheduleItem, ScheduleItem[]>(undefined, () => [])
+  const in_degree = new DefaultMap<ScheduleItem, number>(undefined, () => 0)
   for (const si of prescheduled) {
     // realize outputs before a parent === assigned to
     // KAREL: TODO: check why there is no buf in preloads
     const parents_assigns = dedup([...ctx.preloads.get(si.bufs[0])?.keys() || []].map((x) => schedule_targets.get(uop_buffer(x))!).filter((xsi) => xsi && xsi !== si))
     for (const assign of parents_assigns) {
       set_default(graph, si, []).push(assign)
-      in_degree.set(assign, set_default(in_degree, assign, 0) + 1)
+      in_degree.set(assign, in_degree.get(assign) + 1)
     }
     // realize outputs after all parents are realized
     const scheduled_parents = dedup(si.inputs.map((x) => schedule_targets.get(x)!).filter((xsi) => xsi !== undefined && !parents_assigns.includes(xsi)))
     for (const x of scheduled_parents) {
       set_default(graph, x, []).push(si)
-      in_degree.set(si, set_default(in_degree, si, 0) + 1)
+      in_degree.set(si, in_degree.get(si) + 1)
     }
   }
 

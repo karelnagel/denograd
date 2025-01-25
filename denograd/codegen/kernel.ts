@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, Enum, get_env, get_key, isinstance, isInt, NotImplemented, product, range, round_up, set_default, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, Enum, get_env, get_key, isinstance, isInt, NotImplemented, product, range, round_up, set_default, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, UOp, type Variable, view_left } from '../ops.ts'
 import { idiv, le, mod, mul, ne, prod } from '../helpers.ts'
 import { ProgramSpec, type Renderer, type TensorCore } from '../renderer/index.ts'
@@ -511,7 +511,7 @@ export class Kernel {
 
   //   # **** kernel outputs ****
 
-  static kernel_cnt: Record<string, number> = {}
+  static kernel_cnt = new DefaultMap<string, number>(undefined, () => 0)
   @cache
   get name(): string {
     //     # kernel name (before late upcast)
@@ -521,8 +521,8 @@ export class Kernel {
 
     //     # name the function something unique
     const function_name = to_function_name(name)
-    Kernel.kernel_cnt[function_name] = (Kernel.kernel_cnt[function_name] || 0) + 1
-    const num = Kernel.kernel_cnt[function_name] > 1 ? `n${Kernel.kernel_cnt[function_name] - 1}` : ''
+    Kernel.kernel_cnt.set(function_name, Kernel.kernel_cnt.get(function_name) + 1)
+    const num = Kernel.kernel_cnt.get(function_name) > 1 ? `n${Kernel.kernel_cnt.get(function_name) - 1}` : ''
     return name + colored(num, 'BLACK')
   }
   @cache

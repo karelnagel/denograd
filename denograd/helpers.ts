@@ -3,7 +3,19 @@ import { Env } from './env/index.ts'
 import type { MathTrait } from './ops.ts'
 
 // Python Map/Set implementations
+export class DefaultMap<K, V> extends Map<K, V> {
+  constructor(values: [K, V][] | undefined, private defaultFn: () => V) {
+    super(values)
+  }
+  override get(key: K): V {
+    let res = super.get(key)
+    if (res !== undefined) return res
 
+    res = this.defaultFn()
+    this.set(key, res)
+    return res
+  }
+}
 // in JS [1] !== [1], so this is for Maps where key needs to be array
 export class ArrayMap<K, V, Internal extends [any, any] = [K, V]> {
   map: Map<string, Internal>
