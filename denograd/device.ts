@@ -80,6 +80,13 @@ export class Buffer<Buf extends object = object> {
   _lb_refcount?: number
   _buf?: Buf
   allocator?: Allocator<Buf>
+  static register = new FinalizationRegistry((x: { allocator?: Allocator<any>; options?: BufferSpec; _base?: Buffer<any>; device: DeviceType; _buf: any; nbytes: number }) => {
+    // This is the deallocate() function
+    if (x._base === undefined && (x.options === undefined || x.options.external_ptr === undefined)) {
+      if (!x.device.startsWith('DISK')) GlobalCounters.mem_used -= x.nbytes
+      x.allocator?.free(x._buf, x.nbytes, x.options)
+    }
+  })
 
   constructor(
     public device: DeviceType,
@@ -93,6 +100,7 @@ export class Buffer<Buf extends object = object> {
     public offset = 0,
     preallocate = false,
   ) {
+    Buffer.register.register(this, { _base: this._base, _buf: this._buf, allocator: this.allocator, device: this.device, nbytes: this.nbytes, options: this.options })
     if (dtype instanceof ImageDType) this.options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
     else assert(dtype instanceof DType && !(dtype instanceof PtrDType))
     if (base === undefined) {
@@ -147,8 +155,6 @@ export class Buffer<Buf extends object = object> {
   get nbytes() {
     return this.size * this.dtype.itemsize
   }
-  del = () => (!this.is_allocated()) || this.deallocate()
-
   toString = () => {
     return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}${this.base ? ` offset:${this.offset}` : ''}${this.options !== undefined ? ` ${this.options}` : ''}>`
   }

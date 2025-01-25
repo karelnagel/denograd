@@ -411,6 +411,9 @@ export type Layer = ((x: Tensor) => Tensor) | { call: (x: Tensor) => Tensor }
  * ```
  */
 export class Tensor extends MathTrait<Tensor> {
+  static registry = new FinalizationRegistry((key: string) => {
+    all_tensors.delete(key)
+  })
   lazydata!: UOp
   requires_grad?: boolean
   // tensors can have gradients if you have called .backward
@@ -422,11 +425,11 @@ export class Tensor extends MathTrait<Tensor> {
   static no_grad = false
   key: string
   // KAREL: TODO: this probably won't work correctly
-  del = () => all_tensors.delete(this.key)
   constructor(data?: ConstType | UOp | Uint8Array | any[] | UOp | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
     super()
     this.key = random_id()
     all_tensors.set(this.key, this)
+    Tensor.registry.register(this, this.key)
     if (skip_constructor) return
     if (dtype !== undefined) dtype = to_dtype(dtype)
     if (dtype !== undefined && !(dtype instanceof DType)) throw new Error(`invalid dtype ${dtype}`)
