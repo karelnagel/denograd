@@ -16,7 +16,7 @@ type TensorCoreArgs = {
 }
 export class TensorCore { // D = A * B + C, A is (M x K), B is (K x N), C and D are (M x N)
   key: string
-  static cache = new WeakValueMap<TensorCore>()
+  static cache = new WeakValueMap<string,TensorCore>()
 
   dims: [number, number, number]
   threads: number

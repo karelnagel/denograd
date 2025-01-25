@@ -36,7 +36,7 @@ export const check = (cond: boolean, msg = '') => {
 
 export class Opt {
   key: string
-  static cache = new WeakValueMap<Opt>()
+  static cache = new WeakValueMap<string, Opt>()
   constructor(public op: OptOps, public axis?: number, public amt?: number) {
     this.key = get_key(op, axis, amt)
     return Opt.cache.setDefault(this.key, this)

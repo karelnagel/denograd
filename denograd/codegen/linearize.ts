@@ -13,7 +13,7 @@ export const disp = (y: UOp): string => {
 
 export class BasicBlock {
   key: string
-  static cache = new WeakValueMap<BasicBlock>()
+  static cache = new WeakValueMap<string, BasicBlock>()
   constructor(public ctx: UOp[], public lst: UOp[], public end?: UOp) {
     this.key = get_key(ctx, lst, end)
     return BasicBlock.cache.setDefault(this.key, this)

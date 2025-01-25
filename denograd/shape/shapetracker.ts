@@ -1,7 +1,7 @@
 import { dtypes } from '../dtype.ts'
 import { cache_fn, get_key, gt, is_eq, list_str, lt, range, WeakValueMap } from '../helpers.ts'
 import { get_number_env, merge_maps, zip } from '../helpers.ts'
-import { graph_rewrite, Ops, simplify_valid, type sint, sint_to_uop, split_uop, symbolic_flat, UOp, uop_given_valid, type Variable,sym } from '../ops.ts'
+import { graph_rewrite, Ops, simplify_valid, type sint, sint_to_uop, split_uop, sym, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, unravel, View } from './view.ts'
 
 export const overflow = (u: UOp) => gt(u.vmax, dtypes.max(dtypes.int)) || lt(u.vmin, dtypes.min(dtypes.int))
@@ -60,7 +60,7 @@ const views_to_real_strides = cache_fn((views: View[], ignore_valid = false): (u
 
 export class ShapeTracker {
   key: string
-  static cache = new WeakValueMap<ShapeTracker>()
+  static cache = new WeakValueMap<string, ShapeTracker>()
   constructor(public views: View[]) {
     this.key = get_key(views)
     return ShapeTracker.cache.setDefault(this.key, this)

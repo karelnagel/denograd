@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -15,8 +15,7 @@ import { Env } from './env/index.ts'
 import { compute_gradient } from './gradient.ts'
 import { get_multi_map } from './multi.ts'
 
-// KAREL: TODO: should be weakref
-const all_tensors = new Set<Tensor>()
+const all_tensors = new WeakValueMap<string, Tensor>()
 
 const _apply_map_to_tensors = (applied_map: Map<UOp, UOp>): undefined => {
   // get all children of keys in applied_map
@@ -26,12 +25,12 @@ const _apply_map_to_tensors = (applied_map: Map<UOp, UOp>): undefined => {
     let x = search_uops.shift()!
     if (all_uops.has(x)) continue
     all_uops.add(x)
-    search_uops = [...search_uops, ...x.children.values().filter((u) => u !== undefined)]
+    search_uops = [...search_uops, ...[...x.children.values()].map((c) => c).filter((u) => u !== undefined)]
   }
 
   // link the found UOps back to Tensors. exit early if there's no Tensors to realize
   // NOTE: this uses all_tensors, but it's fast
-  const fixed_tensors = [...all_tensors].map((tref) => tref!).filter((t) => t !== undefined && all_uops.has(t.lazydata))
+  const fixed_tensors = [...all_tensors.values()].map((tref) => tref).filter((t) => t !== undefined && all_uops.has(t.lazydata))
 
   if (fixed_tensors.length) {
     // potentially rewrite all the discovered Tensors
@@ -423,11 +422,11 @@ export class Tensor extends MathTrait<Tensor> {
   static no_grad = false
   key: string
   // KAREL: TODO: this probably won't work correctly
-  del = () => all_tensors.delete(this)
+  del = () => all_tensors.delete(this.key)
   constructor(data?: ConstType | UOp | Uint8Array | any[] | UOp | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
     super()
     this.key = random_id()
-    all_tensors.add(this)
+    all_tensors.set(this.key, this)
     if (skip_constructor) return
     if (dtype !== undefined) dtype = to_dtype(dtype)
     if (dtype !== undefined && !(dtype instanceof DType)) throw new Error(`invalid dtype ${dtype}`)

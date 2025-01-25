@@ -2,46 +2,75 @@
 import { Env } from './env/index.ts'
 import type { MathTrait } from './ops.ts'
 
-// GENERAL HELPERS
+// Python Map/Set implementations
+
+// in JS [1] !== [1], so this is for Maps where key needs to be array
+export class ArrayMap<K, V> {
+  private map: Map<string, [K, V]>
+  constructor(values: [K, V][] = []) {
+    this.map = new Map(values.map(([key, value]) => [get_key(key), [key, value]]))
+  }
+  get size() {
+    return this.map.size
+  }
+  get = (key: K): V | undefined => this.map.get(get_key(key))?.[1]
+  set = (key: K, value: V) => this.map.set(get_key(key), [key, value])
+  has = (key: K) => this.map.has(get_key(key))
+  entries = (): [K, V][] => [...this.map.values()]
+  keys = () => this.entries().map((e) => e[0])
+  values = () => this.entries().map((e) => e[1])
+  delete = (k: K) => this.map.delete(get_key(k))
+  setDefault = (key: K, defaultValue: V) => {
+    if (this.has(key)) return this.get(key)!
+    this.set(key, defaultValue)
+    return defaultValue
+  }
+}
+
+// When key is garbage collected then the item is removed from the map
+export class WeakKeyMap<K extends object, V extends any> {
+  private map = new Map<string, [WeakRef<K>, V]>()
+  private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
+
+  get = (key: K): V | undefined => this.map.get(get_key(key))?.[1]
+  set = (key: K, value: V) => {
+    this.map.set(get_key(key), [new WeakRef(key), value])
+    this.finalizationGroup.register(key, get_key(key))
+  }
+  delete = (key: K) => this.map.delete(get_key(key))
+  has = (key: K) => this.map.has(get_key(key))
+  keys = (): K[] => this.entries().map((e) => e[0])
+  values = (): V[] => this.entries().map((e) => e[1])
+  entries = (): [K, V][] => [...this.map.values()].map(([k, v]) => [k.deref(), v] as [K, V]).filter(([k, v]) => k !== undefined)
+}
+
+// When value is garbage collected then the item is removed from the map
+export class WeakValueMap<K, V extends object> {
+  private map = new Map<string, [K, WeakRef<V>]>()
+  private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
+  get = (key: K): V | undefined => this.map.get(get_key(key))?.[1].deref()
+  set = (key: K, value: V) => {
+    this.map.set(get_key(key), [key, new WeakRef(value)])
+    this.finalizationGroup.register(value, get_key(key))
+  }
+  delete = (key: K) => this.map.delete(get_key(key))
+  has = (key: K) => this.map.has(get_key(key))
+  setDefault = (key: K, defaultValue: V) => {
+    if (this.has(key)) return this.get(key)!
+    this.set(key, defaultValue)
+    return defaultValue
+  }
+  keys = (): K[] => this.entries().map((e) => e[0])
+  values = (): V[] => this.entries().map((e) => e[1])
+  entries = (): [K, V][] => [...this.map.values()].map(([k, v]) => [k, v.deref()] as [K, V]).filter(([k, v]) => v !== undefined)
+}
+
 export class NotImplemented extends Error {
   constructor() {
     super('Not implemented!')
   }
 }
-export class WeakValueMap<V extends object> {
-  store = new Map<string, WeakRef<V>>()
-  finalizationGroup = new FinalizationRegistry<string>((key) => this.store.delete(key))
-  get = (key: string) => this.store.get(key)?.deref()
-  set = (key: string, value: V) => {
-    this.store.set(key, new WeakRef(value))
-    this.finalizationGroup.register(value, key)
-  }
-  delete = (key: string) => this.store.delete(key)
-  has = (key: string) => this.store.has(key)
-  setDefault = (key: string, def: V) => {
-    const res = this.get(key)
-    if (res) return res
-    this.set(key, def)
-    return def
-  }
-  keys = () => this.store.keys()
-  values = () => {
-    const vals: V[] = []
-    for (const ref of this.store.values()) {
-      const val = ref.deref()
-      if (val !== undefined) vals.push(val)
-    }
-    return vals
-  }
-  entries = () => {
-    const entries: [string, V][] = []
-    for (const [key, ref] of this.store.entries()) {
-      const val = ref.deref()
-      if (val !== undefined) entries.push([key, val])
-    }
-    return entries
-  }
-}
+
 export const max = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
 export const abs = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.abs(Number(x)) : x < 0n ? -x : x
@@ -338,7 +367,7 @@ export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
 
 export class Metadata {
   key: string
-  static cache = new WeakValueMap<Metadata>()
+  static cache = new WeakValueMap<string, Metadata>()
   constructor(public name: string, public caller: string, public backward = false) {
     this.key = get_key(name, caller, backward)
     return Metadata.cache.setDefault(this.key, this)
@@ -671,24 +700,6 @@ export function debug<Args extends any[], Return>(target: (...args: Args) => Ret
     console.log(`'${name}' returned in ${performance.now() - start}ms: ${res}`)
     return res
   }
-}
-
-// in JS [1] !== [1], so this is for Maps where key needs to be array
-export class ArrayMap<K, V> {
-  private map: Record<string, [K, V]>
-  constructor(values: [K, V][] = []) {
-    this.map = Object.fromEntries(values.map(([key, value]) => [get_key(key), [key, value]]))
-  }
-  get size() {
-    return Object.keys(this.map).length
-  }
-  get = (key: K): V | undefined => this.map[get_key(key)]?.[1]
-  set = (key: K, value: V) => this.map[get_key(key)] = [key, value]
-  has = (key: K) => (get_key(key) in this.map)
-  entries = (): [K, V][] => Object.values(this.map)
-  keys = () => this.entries().map((e) => e[0])
-  values = () => this.entries().map((e) => e[1])
-  delete = (k: K) => delete this.map[get_key(k)]
 }
 
 export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) => {

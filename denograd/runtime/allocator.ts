@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import type { ImageDType } from '../dtype.ts'
-import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, get_number_env, LRU, NotImplemented, PROFILE, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, LRU, NotImplemented, PROFILE, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -8,7 +8,7 @@ import { MemoryView } from '../memoryview.ts'
 // **************** Buffer + Allocators ****************
 export class BufferSpec {
   key: string
-  static cache = new WeakValueMap<BufferSpec>()
+  static cache = new WeakValueMap<string,BufferSpec>()
   //   # TODO: move device, size, dtype here?
   constructor(
     public image?: ImageDType,

@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, rshift, slice, sub, sum, TRANSCENDENTAL, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -242,13 +242,14 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
-export const buffers = new WeakValueMap<Buffer>()
-const all_metadata = new WeakValueMap<Metadata>()
+export class WeakKeyDictionary {}
+export const buffers = new WeakKeyMap<UOp, Buffer>()
+const all_metadata = new WeakKeyMap<UOp, Metadata>()
 
 export class UOp extends MathTrait<UOp> {
-  static cache = new WeakValueMap<UOp>()
+  static cache = new WeakValueMap<string, UOp>()
   key: string
-  children = new WeakValueMap<UOp>()
+  children = new WeakValueMap<string, UOp>()
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any, _buffer?: Buffer) {
     super()
     this.key = get_key(this.op, this.dtype, this.arg, this.src)
@@ -258,16 +259,17 @@ export class UOp extends MathTrait<UOp> {
     for (const s of src) s.children.set(this.key, this)
     // NOTE: this will soon be set by Tensor once we remove function.py
     const metadata = _METADATA.get()
-    if (metadata !== undefined) all_metadata.set(this.key, metadata)
+    if (metadata !== undefined) all_metadata.set(this, metadata)
     // NOTE: this value is set by pickle when pickling a realized tensor
     if (_buffer !== undefined) {
       if (op !== Ops.BUFFER) throw new Error(`trying to set Buffer ${_buffer} for ${op}`)
-      buffers.set(this.key, _buffer)
+      buffers.set(this, _buffer)
     }
     UOp.cache.set(this.key, this)
   }
   del = () => {
-    if (this.op === Ops.BUFFER && buffers.get(this.key)) buffers.get(this.key)!.ref(-1)
+    if (this.op === Ops.BUFFER && buffers.get(this)) buffers.get(this)!.ref(-1)
+    // KAREL: this wont delete it
     for (const s of this.src) s.children.delete(this.key)
     UOp.cache.delete(this.key)
   }
@@ -529,7 +531,7 @@ export class UOp extends MathTrait<UOp> {
   }
   clone = (): UOp => this.copy_to_device(this.device, true)
   get metadata() {
-    return all_metadata.get(this.key)
+    return all_metadata.get(this)
   }
 
   //   # *** uop movement ops ***
@@ -701,7 +703,7 @@ export class UOp extends MathTrait<UOp> {
 
 export class KernelInfo {
   key: string
-  static cache = new WeakValueMap<KernelInfo>()
+  static cache = new WeakValueMap<string, KernelInfo>()
   constructor(
     public local_dims = 0, // number of local dimensions  (this is remapping RANGE to SPECIAL)
     public upcasted = 0, // count that are upcasted     (this is remapping RANGE to UNROLL)
