@@ -15,7 +15,7 @@ import { Env } from './env/index.ts'
 import { compute_gradient } from './gradient.ts'
 import { get_multi_map } from './multi.ts'
 
-const all_tensors = new WeakValueMap<string, Tensor>()
+export const all_tensors = new WeakValueMap<string, Tensor>()
 
 const _apply_map_to_tensors = (applied_map: Map<UOp, UOp>): undefined => {
   // get all children of keys in applied_map

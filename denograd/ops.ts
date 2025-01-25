@@ -243,7 +243,7 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
 export const buffers = new WeakKeyMap<UOp, Buffer>()
-const all_metadata = new WeakKeyMap<UOp, Metadata>()
+export const all_metadata = new WeakKeyMap<UOp, Metadata>()
 
 export class UOp extends MathTrait<UOp> {
   static register = new FinalizationRegistry<{ children: WeakValueMap<string, UOp>; key: string }>(({ children, key }) => {
