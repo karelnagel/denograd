@@ -37,7 +37,14 @@ export class WeakKeyMap<K extends object, V extends any> extends ArrayMap<K, V, 
     this.map.set(get_key(key), [new WeakRef(key), value])
     this.finalizationGroup.register(key, get_key(key))
   }
-  override entries = (): [K, V][] => [...this.map.values()].map(([k, v]) => [k.deref()!, v] satisfies [K, V]).filter(([k, v]) => k !== undefined)
+  override entries = (): [K, V][] => {
+    const res: [K, V][] = []
+    for (const [id, [k, v]] of this.map.entries()) {
+      const derefed = k.deref()
+      derefed ? res.push([derefed, v]) : this.map.delete(id)
+    }
+    return res
+  }
 }
 
 // When value is garbage collected then the item is removed from the map
@@ -51,7 +58,14 @@ export class WeakValueMap<K, V extends object> extends ArrayMap<K, V, [K, WeakRe
     this.map.set(get_key(key), [key, new WeakRef(value)])
     this.finalizationGroup.register(value, get_key(key))
   }
-  override entries = (): [K, V][] => [...this.map.values()].map(([k, v]) => [k, v.deref()!] satisfies [K, V]).filter(([k, v]) => v !== undefined)
+  override entries = (): [K, V][] => {
+    const res: [K, V][] = []
+    for (const [id, [k, v]] of this.map.entries()) {
+      const derefed = v.deref()
+      derefed ? res.push([k, derefed]) : this.map.delete(id)
+    }
+    return res
+  }
 }
 
 export class NotImplemented extends Error {

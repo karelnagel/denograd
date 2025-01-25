@@ -49,6 +49,24 @@ Deno.test(
 )
 
 Deno.test(
+  'mnist.call.ones',
+  compare(
+    [[]],
+    async () => {
+      Tensor.manual_seed(333)
+      const model = new MNIST()
+      return model.call(Tensor.ones([1, 1, 28, 28]))
+    },
+    [
+      'from tinygrad.nn.datasets import mnist',
+      'from examples.beautiful_mnist import Model',
+      'tiny.Tensor.manual_seed(333)',
+      'model = Model()',
+      'out(model(tiny.Tensor.ones(1, 1, 28, 28)))',
+    ],
+  ),
+)
+Deno.test(
   'mnist.load',
   async () => {
     Tensor.manual_seed(333)
