@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'preact/hooks'
-import { is_eq, Tensor } from '../../../denograd/mod.ts'
+import { Device, is_eq, Tensor } from '../../../denograd/mod.ts'
 import { MNIST } from '../../../models/mod.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
+
+console.log(`Using ${Device.DEFAULT} device`)
 
 const loadModel = async () => {
   const mnist = new MNIST()

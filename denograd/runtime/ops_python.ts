@@ -214,13 +214,11 @@ export class PythonProgram extends Program {
               const a_elem: Fn = (x, k, row, goff) => x[k % 2 + idiv(row, 8) * 2][goff + idiv(k, 2) + (row % 8) * 4]
               const b_elem: Fn = (x, col, k, goff) => x[k % 2][goff + idiv(k, 2) + col * 4]
               ul[i] = wmma_helper(32, 8, 4, 2, 4, a_elem, b_elem, c_map)
-            } else if (is_eq(arg[1],[8,16,8]) && arg[2] ===dtypes.float){
-              const  a_elem:Fn=(x, k, row, goff)=> x[idiv(k,4)*2 + idiv(row,8)][goff + k%4 + (row%8)*4]
-                const  b_elem:Fn=(x, col, k, goff)=> x[idiv(k,4)][goff + k%4 + col*4]
-                ul[i] = wmma_helper(32, 8, 4, 2, 4, a_elem, b_elem, c_map)
-  
-            }
-            else throw new Error(`unimplemented tensor core ${arg}`)
+            } else if (is_eq(arg[1], [8, 16, 8]) && arg[2] === dtypes.float) {
+              const a_elem: Fn = (x, k, row, goff) => x[idiv(k, 4) * 2 + idiv(row, 8)][goff + k % 4 + (row % 8) * 4]
+              const b_elem: Fn = (x, col, k, goff) => x[idiv(k, 4)][goff + k % 4 + col * 4]
+              ul[i] = wmma_helper(32, 8, 4, 2, 4, a_elem, b_elem, c_map)
+            } else throw new Error(`unimplemented tensor core ${arg}`)
           } else if (arg[4] === 'INTEL') {
             // A (16 elements on 8 threads)
             const a_elem: Fn = (x, k, row, goff) => x[k % 2 + row * 2][goff + idiv(k, 2)]
@@ -237,7 +235,8 @@ export class PythonProgram extends Program {
         } else if (GroupOp.ALU.includes(uop)) {
           if (!all_same(inp.map((x) => x.length))) throw new Error(`${inp.map((x) => x.length)} doesn't match on ${uop}`)
           if (!all_same([dtype, ...dtp]) && ![Ops.CMPNE, Ops.CMPLT, Ops.WHERE].includes(uop)) throw new Error(`dtype mismatch on ${uop}`)
-          ul[i] = zip(...inp).map((p) => exec_alu(uop, dtype, p))
+          // KAREL: TODO figure out why in web MNIST inp sometimes includes string
+          ul[i] = zip(...inp).map((p) => exec_alu(uop, dtype, p.map((x) => typeof x === 'string' ? Number(x) : x)))
         }
         if (!ul[i]) throw new Error(`${uop}, ${dtype}, ${idp}, ${arg}`)
         i += 1
