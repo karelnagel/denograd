@@ -17,7 +17,22 @@ export class DefaultMap<K, V> extends Map<K, V> {
   }
 }
 // in JS [1] !== [1], so this is for Maps where key needs to be array
-export class ArrayMap<K, V, Internal extends [any, any] = [K, V]> {
+type WeakArrayKey = { key: string } | ArrayKey[]
+type ArrayKey = { key: string } | ArrayKey[] | string | ConstType | undefined
+
+export const get_key = (...args: ArrayKey[]): string => {
+  const stringify = (item: ArrayKey): string => {
+    if (Array.isArray(item)) return `[${item.map(stringify).join(',')}]`
+    if (item === undefined) return 'undefined'
+    if (typeof item === 'string') return `"${item}"`
+    if (typeof item === 'bigint') return `${item}n`
+    if (typeof item === 'number' || typeof item === 'boolean') return `${item}`
+    if (typeof item?.key === 'string') return `${item.key}`
+    throw new Error(`No stringifier for ${item}, type: ${typeof item}, args:${JSON.stringify(args)}`)
+  }
+  return hash(stringify(args))
+}
+export class ArrayMap<K extends ArrayKey, V, Internal extends [any, any] = [K, V]> {
   map: Map<string, Internal>
   constructor(values?: Internal[]) {
     this.map = new Map(values?.map(([key, value]) => [get_key(key), [key, value] as Internal]))
@@ -42,7 +57,7 @@ export class ArrayMap<K, V, Internal extends [any, any] = [K, V]> {
 }
 
 // When key is garbage collected then the item is removed from the map
-export class WeakKeyMap<K extends object, V extends any> extends ArrayMap<K, V, [WeakRef<K>, V]> {
+export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<K, V, [WeakRef<K>, V]> {
   private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
   constructor(values?: [K, V][]) {
     super(values?.map(([k, v]) => [new WeakRef(k), v]))
@@ -71,7 +86,7 @@ export class WeakKeyMap<K extends object, V extends any> extends ArrayMap<K, V, 
 }
 
 // When value is garbage collected then the item is removed from the map
-export class WeakValueMap<K, V extends object> extends ArrayMap<K, V, [K, WeakRef<V>]> {
+export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap<K, V, [K, WeakRef<V>]> {
   private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
   constructor(values?: [K, V][]) {
     super(values?.map(([k, v]) => [k, new WeakRef(v)]))
@@ -246,7 +261,7 @@ export const is_eq = (one: any, two: any): boolean => {
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
-export function set_default<K, V>(map: Map<K, V> | ArrayMap<K, V>, key: K, defaultValue: V): V {
+export function set_default<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
   map.set(key, defaultValue)
   return defaultValue
@@ -689,18 +704,6 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
   return result
 }
 
-export const get_key = (...args: any[]): string => {
-  if (args.length === 1) {
-    if (typeof args[0] === 'string') return args[0]
-    if (typeof args[0]?.key === 'string') return args[0].key
-  }
-  const json = JSON.stringify(args, (key, value) => {
-    if (typeof value === 'string') return value
-    if (typeof value?.key === 'string') return value.key
-    return value
-  })
-  return hash(json)
-}
 // DECORATORS
 
 export function cache<This extends object, Args extends any[], Return>(

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 import type { ImageDType } from '../dtype.ts'
-import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, LRU, NotImplemented, PROFILE, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, LRU, NotImplemented, PROFILE, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -8,7 +8,7 @@ import { MemoryView } from '../memoryview.ts'
 // **************** Buffer + Allocators ****************
 export class BufferSpec {
   key: string
-  static cache = new WeakValueMap<string,BufferSpec>()
+  static cache = new WeakValueMap<string, BufferSpec>()
   //   # TODO: move device, size, dtype here?
   constructor(
     public image?: ImageDType,
@@ -52,7 +52,7 @@ export abstract class Allocator<Buf> {
 export abstract class LRUAllocator extends Allocator<MemoryView> {
   cache = new ArrayMap<[number, BufferSpec?], MemoryView[]>()
   override alloc = (size: number, options?: BufferSpec) => {
-    const c = set_default(this.cache, [size, options] as const, [])
+    const c = this.cache.setDefault([size, options], [])
     if (c.length) return c.pop()!
     try {
       return super.alloc(size, options)
@@ -70,7 +70,7 @@ export abstract class LRUAllocator extends Allocator<MemoryView> {
   // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
     if (LRU && (options === undefined || !options.nolru)) {
-      set_default(this.cache, [size, options] as const, []).push(opaque)
+      this.cache.setDefault([size, options], []).push(opaque)
     } else super.free(opaque, size, options)
   }
 }

@@ -46,7 +46,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
         to_append.push(u)
       } //         # if it's a different context, we create a new block with this UOp
 
-      else set_default(new_blocks, block_ctx, []).push(u)
+      else new_blocks.setDefault(block_ctx, []).push(u)
     } //       # otherwise, we keep it in the srcs
     else new_srcs.push(u)
   }

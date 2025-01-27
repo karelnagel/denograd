@@ -13,8 +13,10 @@ import { full_graph_rewrite } from '../ops.ts'
 export class OptOps<Name extends string = string, Value extends number = number> extends Enum {
   private static VALUES: OptOps[] = []
   static values = () => [...OptOps.VALUES]
+  key: string
   constructor(name: Name) {
     super(name, OptOps.VALUES.length + 1)
+    this.key = get_key(name, this.value)
     OptOps.VALUES.push(this)
   }
 
