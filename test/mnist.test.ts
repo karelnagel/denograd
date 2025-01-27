@@ -85,7 +85,7 @@ Deno.test(
   },
 )
 
-Deno.test.ignore(
+Deno.test(
   'mnist.train',
   compare(
     [[]],

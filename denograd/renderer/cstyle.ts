@@ -165,7 +165,7 @@ export class CStyleLanguage extends Renderer {
         r.set(u, `${prefix}${set_default(c, prefix, 0)}`)
       }
       let l = this.string_rewrite.rewrite(u, this)
-      if (l === undefined) throw new Error(`failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)
+      if (l === undefined) throw new Error(`failed to render: ${u}`)
 
       if ([Ops.ENDIF, Ops.ENDRANGE].includes(u.op)) depth -= 1
       if (

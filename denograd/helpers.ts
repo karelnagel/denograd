@@ -188,9 +188,12 @@ export abstract class Enum {
 
 export const random_id = () => (Math.random() * 100000000).toFixed(0)
 export function hash(input: string) {
-  let hash = 5381
-  for (let i = 0; i < input.length; i++) hash = (hash * 33) ^ input.charCodeAt(i)
-  return (hash >>> 0).toString(16)
+  let hash = 0xdeadbeef
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) + hash) + input.charCodeAt(i)
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
 }
 
 export const string_to_bytes = (text: string) => new TextEncoder().encode(text)

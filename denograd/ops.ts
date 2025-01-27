@@ -1064,7 +1064,7 @@ export const type_verify = (uops: UOp[], extra_specs: PatternMatcher<unknown, bo
     const spec_ret: (boolean | undefined)[] = specs.map((s) => s.rewrite(u))
     if (spec_ret.some((ret) => ret === false) || spec_ret.every((ret) => ret === undefined)) {
       print_uops(uops)
-      throw new Error(`UOp verification failed at ${i} on ${u.op} ${u.dtype} ${u.src.length} ${u.src.map((x) => x.op)} ${list_str(u.arg)}`)
+      throw new Error(`UOp verification failed at ${i} on ${u}`)
     }
   }
 }
