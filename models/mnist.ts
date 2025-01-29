@@ -7,6 +7,7 @@ import { Tqdm } from '../denograd/tqdm.ts'
 import { BatchNorm, Conv2d, Linear, Model } from '../denograd/nn/index.ts'
 import { get_parameters } from '../denograd/nn/state.ts'
 import { Adam } from '../denograd/nn/optim.ts'
+import { dtypes } from '../denograd/dtype.ts'
 
 export class MNIST extends Model {
   layers: Layer[] = [
@@ -32,12 +33,13 @@ if (import.meta.main) {
 
   const model = new MNIST()
 
-  await model.load('./mnist.safetensors').catch((x) => x)
+  // await model.load('./mnist.safetensors').catch((x) => x)
   const opt = Adam(get_parameters(model))
 
   const train_step = async (): Promise<Tensor> => {
     opt.zero_grad()
-    const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0])
+    const samples = Tensor.rand([get_number_env('BS', 512)],).cast(dtypes.int)
+    // const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0])
     const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
     await opt.step()
     return loss
