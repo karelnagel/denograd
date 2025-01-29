@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, Enum, get_env, get_key, isinstance, isInt, NotImplemented, product, range, round_up, set_default, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, Enum, ge, get_env, get_key, get_number_env, gt, isinstance, isInt, NotImplemented, product, range, round_up, set_default, sum, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, UOp, type Variable, view_left } from '../ops.ts'
 import { idiv, le, mod, mul, ne, prod } from '../helpers.ts'
 import { ProgramSpec, type Renderer, type TensorCore } from '../renderer/index.ts'
@@ -508,7 +508,143 @@ export class Kernel {
     return this
   }
   hand_coded_optimizations = (): Kernel => {
-    throw new NotImplemented()
+    this.required_optimizations()
+
+    // should use matvec - TODO: adjust/tune based on the wide vs tall/large vs small mat
+    const MV_BLOCKSIZE = get_number_env('MV_BLOCKSIZE', 4), MV_THREADS_PER_ROW = get_number_env('MV_THREADS_PER_ROW', 8), MV_ROWS_PER_THREAD = get_number_env('MV_ROWS_PER_THREAD', 4)
+    const mulop = this.reduceop!.src[0]
+    if (this.opts.has_local && get_number_env('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 && this.opts.has_shared && mulop.op === Ops.MUL && mulop.src[0].op === Ops.LOAD && mulop.src[1].op === Ops.LOAD) {
+      const st0 = this.sts[this.bufs.indexOf(mulop.src[0])], st1 = this.sts[this.bufs.indexOf(mulop.src[1])]
+      const strides0 = st0.real_strides(), strides1 = st1.real_strides()
+      const has_expanded_axis = (shape: sint[], strides: sint[]) => zip(shape, strides).some(([s, st]) => resolve(gt(s, 1)) && !resolve(ne(st, 0)))
+      if (strides0[this.first_reduce] === 1 && !(has_expanded_axis(st0.shape, strides0 as sint[]) && has_expanded_axis(st1.shape, strides1 as sint[]))) {
+        for (const global_idx of range(this.global_dims)) {
+          if (this.full_shape[this.first_reduce] as number % MV_THREADS_PER_ROW === 0 && this.full_shape[global_idx] as number % (MV_BLOCKSIZE * MV_ROWS_PER_THREAD) === 0) {
+            if (DEBUG >= 3) console.log(`MATVEC: ${this.full_shape} ${this.first_reduce} ${strides0} ${MV_BLOCKSIZE} ${MV_THREADS_PER_ROW} ${MV_ROWS_PER_THREAD}`)
+            if (MV_THREADS_PER_ROW > 1) this.apply_opt(new Opt(OptOps.GROUP, 0, MV_THREADS_PER_ROW))
+            if (MV_BLOCKSIZE > 1) this.apply_opt(new Opt(OptOps.LOCAL, global_idx, MV_BLOCKSIZE))
+            if (MV_ROWS_PER_THREAD > 1) this.apply_opt(new Opt(OptOps.UPCAST, global_idx, MV_ROWS_PER_THREAD))
+            return this
+          }
+        }
+      }
+    }
+    if (this.opts.has_local && this.opts.has_shared && all_int(this.sts[0].shape.slice(0, this.first_reduce))) {
+      // are we grouping? (requires local shape support)
+      if (!this.float4_axis(0) && this.first_reduce <= 2 && this.first_reduce + 1 <= this.shape_len && prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 2048) {
+        // TODO: use 1024 if it's allowed in a smarter way
+        for (const sz of (prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 32 ? [256, 16] : [16])) {
+          if (this.sts.every((st) => st.shape[this.first_reduce] as number % sz === 0 || st.shape[this.first_reduce] === 1)) {
+            // try: # may fail due to excessive smem usage
+            this.apply_opt(new Opt(OptOps.GROUPTOP, 0, sz))
+            break
+            // except KernelOptError: pass
+          }
+        }
+      }
+    }
+    // upcast float4 images
+    for (const [buf_index, buf] of this.bufs.entries()) {
+      const unit_stride_axes_mul_4 = this.sts[buf_index].unit_stride_axes(true).filter((i) => this.sts[buf_index].shape[i] as number % 4 === 0)
+      if (buf.src[0].dtype instanceof ImageDType) {
+        // assert len(unit_stride_axes_mul_4) >= 1, f"needs a unit stride axis in {this.bufs[buf_index]}"
+        if (unit_stride_axes_mul_4.length && unit_stride_axes_mul_4.every((x) => x < this.first_upcast)) {
+          if (unit_stride_axes_mul_4[0] < this.first_reduce) this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
+          else this.apply_opt(new Opt(OptOps.UNROLL, unit_stride_axes_mul_4[0] - this.first_reduce, 4))
+        }
+      }
+    }
+
+    // no more opt if we are grouping
+    if (this.group_for_reduces) return this
+
+    // **** below this line need to be optional and benchmarked ****
+
+    // TODO: doing extra upcasts with images doesn't work for some reason (maybe has to do with to_image_idx)
+    // to trigger the above bug, remove prod(this.full_shape[this.first_upcast:]) from the below
+    // expression and run test/test_ops.py with IMAGE=2
+    // if there are small dims with lots of valid masks, upcast them (they might be from Tensor.stack)
+    // this can be made much smarter
+    const to_upcast: number[] = []
+    // upcast leading axes first (hack-ish for winograd; we actually want to upcast masked axes with low stride first)
+    for (const axis of range(this.first_reduce)) {
+      // we might want to be able to split axes that are masked, or refuse to merge them in simplify_merge_adjacent
+      // for now skip upcasting here if there is a symbolic axis
+      if (typeof this.full_shape[axis] === 'number' && this.full_shape[axis] <= 7 && this.sts.some((st) => st.axis_is_masked(axis)) && prod(this.full_shape.slice(this.first_upcast) as number[]) * prod(to_upcast.map((j) => this.full_shape[j]) as number[]) * this.full_shape[axis] <= 7 * 7) {
+        if (DEBUG >= 4) console.log(`upcasting masked axis : ${axis}`)
+        to_upcast.push(axis)
+      }
+    }
+    // for axis in to_upcast[::-1]: this.apply_opt(Opt(OptOps.UPCAST, axis, 0))
+
+    // potentially do more upcasts of non reduce axes based on a heuristic
+    const upcasted_axis = new Set<number>()
+    while (resolve(ge(prod(this.sts[0].shape.slice(0, this.first_reduce)), 1024))) {
+      let xb_choices: [number, number, number, number][] = []
+      for (const [axis, upcast_amount] of product(range(this.first_reduce), [3, 4])) { // consider all the non reduce axes, and a 3 or 4 reduce
+        // if we haven't upcasted it, it's not symbolic, it mods, and buffer has stride 0 on axis while having no stride 0 in the upcasted axis already
+        if (!upcasted_axis.has(axis) && isInt(this.full_shape[axis]) && this.full_shape[axis] % upcast_amount === 0 && this.sts.some((st, buf_index) => st.views.at(-1)!.strides[axis] === 0 && !this.upcasted_axis(buf_index).some((x) => x[1] === 0))) {
+          xb_choices.push([sum(this.sts.map((st) => Number(st.views.at(-1)!.strides[axis] as number > 0))), sum(this.sts.map((st) => st.views.at(-1)!.strides[axis])) as number, axis, upcast_amount])
+        }
+      }
+      if (xb_choices.length) {
+        xb_choices = xb_choices.toSorted()
+        if (DEBUG >= 4) console.log(`float4 merging axis : ${xb_choices}`)
+        this.apply_opt(new Opt(OptOps.UPCAST, xb_choices[0][2], xb_choices[0][3]))
+        upcasted_axis.add(xb_choices[0][2])
+      } else break
+    }
+    // if last dim is small(ish) and it's a reduce dim, upcast the reduce (loop unrolling). no simplify needed since it's just an upcast.
+    if (this.first_reduce < this.first_upcast && (prod(this.full_shape.slice(this.first_upcast) as number[]) <= 4 || !this.upcasted_axis(this.full_buf_index).some(([_, _1, r]) => r)) && (this.upcasted === 0 || prod(this.full_shape.slice(-this.upcasted) as number[]) < 64)) {
+      const s = this.full_unupcasted_shape.at(-1)!
+      if (isInt(s) && s <= 32) { // NOTE: cannot loop unroll symbolic axis
+        this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, 0))
+        // if it's small, upcast a second reduce dimension too
+        if (this.first_reduce < this.first_upcast && s <= 3 && isInt(this.full_unupcasted_shape.at(-1)) && this.full_unupcasted_shape.at(-1) as number <= 3) {
+          this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, 0))
+        }
+      } else {
+        for (const splits of [4]) {
+          if (this.full_unupcasted_shape[-1] as number % splits === 0) {
+            this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, splits))
+            break
+          }
+        }
+      }
+    }
+    // if nothing at all is upcasted and it's easy to, do an upcast
+    // TODO: this is breaking the tests
+    for (const splits of [4]) {
+      if (this.upcasted === 0 && this.full_unupcasted_shape && this.full_unupcasted_shape.at(-1) as number % splits === 0) {
+        this.apply_opt(new Opt(OptOps.UPCAST, this.full_unupcasted_shape.length - 1, splits))
+      }
+    }
+
+    // **** local groups ****
+
+    if (this.opts.has_local) {
+      if (get_env('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) {
+        this.apply_opt(new Opt(OptOps.NOLOCALS))
+      } else {
+        // prioritize making expand axes local
+        const local_axis_ranking = range(this.full_shape.slice(0, this.first_reduce).length).map((axis) => [range(this.sts.length).some((buf_index) => this.sts[buf_index].views[-1].strides[axis] === 0), axis])
+        let to_local: [number, number][] = []
+        for (const [_, axis] of local_axis_ranking.toSorted((a, b) => b[0] === a[0] ? Number(b[1]) - Number(a[1]) : Number(b[0]) - Number(a[0]))) {
+          const local_size = prod(to_local.map(([_, sz]) => sz))
+          const local_sz = [...(axis === 0 ? [32] : []), 16, 8, 4, 3, 2].filter((x) => this.full_shape[Number(axis)] as number % x === 0 && local_size * x <= 128).shift() // KAREL: should be .next()
+          if (local_sz !== undefined) to_local.push([Number(axis), local_sz])
+        }
+        let deleted_shape = 0
+        for (let [axis, local_sz] of to_local.slice(0, 3).toSorted()) {
+          axis = axis - deleted_shape
+          let will_delete_shape = local_sz === this.full_shape[axis]
+          this.apply_opt(new Opt(OptOps.LOCAL, axis, local_sz))
+          if (will_delete_shape) deleted_shape += 1
+        }
+      }
+    }
+
+    return this
   }
 
   //   # **** kernel outputs ****
