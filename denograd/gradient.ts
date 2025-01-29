@@ -30,6 +30,7 @@ export const pm_gradient = new PatternMatcher<UOp, (UOp | undefined)[] | undefin
   [new UPat(Ops.WHERE).named('ret'), ({ ctx, ret }) => [undefined, ret.src[0].where(ctx, ctx.const_like(0)), ret.src[0].where(ctx.const_like(0), ctx)]],
   [new UPat(Ops.REDUCE_AXIS).named('ret'), ({ ctx, ret }) => reduce_gradient(ctx, ret)],
   [new UPat(Ops.CONTIGUOUS), ({ ctx }) => [ctx]],
+  [new UPat(Ops.CONTIGUOUS_BACKWARD), ({ ctx }) => [ctx.contiguous()]],
   [new UPat(Ops.RESHAPE).named('ret'), ({ ctx, ret }) => [ctx.reshape(ret.src[0].shape)]],
   [new UPat(Ops.PERMUTE).named('ret'), ({ ctx, ret }) => [ctx.permute(argsort(ret.arg))]],
   [new UPat(Ops.PAD).named('ret'), ({ ctx, ret }) => [ctx.shrink(zip(ret.src[0].shape, ret.arg as [sint, sint][]).map(([s, p]) => [p[0], add(s, p[0])]))]],

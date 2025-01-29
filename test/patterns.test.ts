@@ -8,7 +8,7 @@ import { symbolic } from '../denograd/ops.ts'
 import { make_basic_blocks, pm_block_merge } from '../denograd/codegen/linearize.ts'
 import { pm_lowerer } from '../denograd/codegen/lowerer.ts'
 import { devectorize, expander, float4_folding, get_late_rewrite_patterns, load_store_indexing, migrate_indexing, mulacc_unrolled, pm_render, sym } from '../denograd/ops.ts'
-import { break_sched, create_ctx, do_realize, multioutput, remove_movement_ops, tensor_uop_spec, to_si, view_right, sym as schedule_sym } from '../denograd/engine/schedule.ts'
+import { break_sched, create_ctx, do_realize, multioutput, remove_movement_ops, sym as schedule_sym, tensor_uop_spec, to_si, view_right } from '../denograd/engine/schedule.ts'
 import { pm_gradient } from '../denograd/gradient.ts'
 import { si_lowerer } from '../denograd/engine/realize.ts'
 import { wgsl_matcher, WGSLRenderer } from '../denograd/renderer/wgsl.ts'
@@ -28,14 +28,14 @@ const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
   'tiny.codegen.linearize.make_basic_blocks': make_basic_blocks,
   'tiny.codegen.linearize.pm_block_merge': pm_block_merge,
   'tiny.codegen.lowerer.pm_lowerer': pm_lowerer,
-  'tiny.codegen.uopgraph.float4_folding': float4_folding,
-  'tiny.codegen.uopgraph.get_late_rewrite_patterns((Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC))': get_late_rewrite_patterns([Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC]),
-  'tiny.codegen.uopgraph.sym': sym,
-  'tiny.codegen.uopgraph.expander': expander,
-  'tiny.codegen.uopgraph.devectorize': devectorize,
-  'tiny.codegen.uopgraph.load_store_indexing': load_store_indexing,
-  'tiny.codegen.uopgraph.migrate_indexing': migrate_indexing,
-  'tiny.codegen.uopgraph.pm_render': pm_render,
+  'tiny.codegen.rewriter.float4_folding': float4_folding,
+  'tiny.codegen.rewriter.get_late_rewrite_patterns((Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC))': get_late_rewrite_patterns([Ops.EXP2, Ops.LOG2, Ops.SIN, Ops.AND, Ops.SHL, Ops.NEG, Ops.MULACC]),
+  'tiny.codegen.rewriter.sym': sym,
+  'tiny.codegen.rewriter.expander': expander,
+  'tiny.codegen.rewriter.devectorize': devectorize,
+  'tiny.codegen.rewriter.load_store_indexing': load_store_indexing,
+  'tiny.codegen.rewriter.migrate_indexing': migrate_indexing,
+  'tiny.codegen.rewriter.pm_render': pm_render,
   'tiny.engine.schedule.view_right': view_right,
   'tiny.engine.schedule.to_si': to_si,
   'tiny.engine.schedule.multioutput': multioutput,
@@ -49,7 +49,7 @@ const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
   'tiny.renderer.wgsl.wgsl_matcher': wgsl_matcher,
   'tiny.renderer.cstyle.ClangRenderer().extra_matcher': new ClangRenderer().extra_matcher,
   'tiny.renderer.wgsl.WGSLRenderer().string_rewrite': new WGSLRenderer().string_rewrite,
-  'tiny.codegen.uopgraph.mulacc_unrolled': mulacc_unrolled,
+  'tiny.codegen.rewriter.mulacc_unrolled': mulacc_unrolled,
 }
 
 for (const [name, matcher] of entries(ALL_PATTERN_MATCHERS)) {

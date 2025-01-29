@@ -96,7 +96,7 @@ export class Contiguous extends CreateFunction() {
 }
 
 export class ContiguousBackward extends CreateFunction() {
-  override forward = (x: UOp): UOp => x
+  override forward = (x: UOp): UOp => x.contiguous_backward()
   override backward = (grad_output: UOp): UOp => grad_output.contiguous()
 }
 

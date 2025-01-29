@@ -76,6 +76,7 @@ export class Ops<Name extends string = string> extends Enum {
   // uops that aren't rendered
   static readonly SINK = new Ops('SINK')
   static readonly CONTIGUOUS = new Ops('CONTIGUOUS')
+  static readonly CONTIGUOUS_BACKWARD = new Ops('CONTIGUOUS_BACKWARD')
   static readonly DETACH = new Ops('DETACH')
   static readonly PRELOAD = new Ops('PRELOAD')
 
@@ -197,10 +198,10 @@ export class GroupOp {
   static Commutative = [Ops.ADD, Ops.MUL, Ops.MAX, Ops.CMPNE, Ops.XOR, Ops.OR, Ops.AND]
 
   // BinaryOps where f(f(a,b),c) = f(a,f(b,c))
-  static Associative = [Ops.ADD, Ops.MUL, Ops.OR, Ops.AND]
+  static Associative = [Ops.AND, Ops.ADD, Ops.MUL, Ops.OR]
 
   // BinaryOps that satisfy f(x,x)=x see https://en.wikipedia.org/wiki/Idempotence
-  static Idempotent = [Ops.MAX, Ops.OR, Ops.AND]
+  static Idempotent = [Ops.AND, Ops.MAX, Ops.OR]
 
   //   # do not preserve f(0) = 0
   static UnsafePad = [Ops.RECIP, Ops.LOG2, Ops.EXP2, Ops.IDIV]
@@ -451,6 +452,7 @@ export class UOp extends MathTrait<UOp> {
   }
   assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
   contiguous = () => this.alu(Ops.CONTIGUOUS)
+  contiguous_backward = () => this.alu(Ops.CONTIGUOUS_BACKWARD)
 
   // *** from MultiLazyBuffer ***
 
@@ -909,7 +911,7 @@ const match_stats = new Map<UPat, number[]>()
 export class TrackedGraphRewrite {
   loc!: [string, number] // location that called graph_rewrite
   sink!: UOp // the sink input to graph_rewrite
-  matches!: [UOp, UOp | undefined, UPat | undefined, number][] // before+after of all the matches
+  matches!: [UOp, UOp, UPat][] // before+after of all the matches
 }
 const tracked_keys: any[] = []
 const tracked_ctxs: TrackedGraphRewrite[][] = []
@@ -1426,22 +1428,26 @@ export const renderer = new PatternMatcher([
 // # *** what was symbolic.py ***
 export type sint = number | UOp
 
-// *** uop swizzling ***
+// *** UOp merge views and swizzling ***
+
 export const merge_views = new PatternMatcher([
-  [new UPat(Ops.VIEW).named('s0').view(undefined, { name: 's1' }), ({ s0, s1 }) => s0.replace({ arg: s0.st!.add(s1.st!) })],
-  [new UPat(Ops.VIEW, undefined, [UPat.var('x')]).named('mv'), ({ mv, x }) => mv.st!.contiguous && x.st !== undefined && is_eq(x.shape, mv.shape) ? x : undefined],
+  // VIEW(VIEW) merges to a single VIEW
+  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.VIEW).named('vm2')]).named('vm1'), ({ vm1, vm2 }) => vm2.replace({ arg: vm2.st!.add(vm1.st!) })],
+  [new UPat(Ops.VIEW, undefined, [UPat.var('x')]).named('vm'), ({ vm, x }) => vm.st!.contiguous && x.st !== undefined && is_eq(x.shape, vm.shape) ? x : undefined],
 ])
 
-// push VIEW to loads
+// push VIEW to parents
 export const view_left = merge_views.add(
   new PatternMatcher([
-    // VIEW before elementwise ops
+    // VIEW before elementwise/buffer ops
     [
-      new UPat([Ops.CAST, Ops.BITCAST, ...GroupOp.ALU, Ops.ASSIGN]).named('e').view(undefined, { name: 'v' }),
-      ({ e, v }) => e.replace({ src: e.src.map((s) => s.st === undefined ? s : s === s.base ? s.view(v.st!) : s.base.view(s.st!.add(v.st!))) }),
+      new UPat(Ops.VIEW, undefined, [new UPat([Ops.CAST, Ops.BITCAST, ...GroupOp.ALU, Ops.ASSIGN]).named('e')]).named('vm'),
+      ({ e, vm }) => e.replace({ src: e.src.map((s) => s.st === undefined ? s : s === s.base ? s.view(vm.st!) : s.base.view(s.st!.add(vm.st!))) }),
     ],
-    // early merge VIEW buffer ops
-    [new UPat(GroupOp.Buffer).named('b').view(undefined, { name: 'v' }), ({ b, v }) => b.replace({ src: b.src.map((s) => s.op === Ops.VIEW ? (s.st!.add(v.st!)).to_uop() : s) })],
+    [
+      new UPat(Ops.VIEW, undefined, [new UPat(GroupOp.Buffer).named('b')]).named('vm'),
+      ({ b, vm }) => b.replace({ src: b.src.map((s) => s.op === Ops.VIEW ? s.st!.add(vm.st!).to_uop() : s) }),
+    ],
   ]),
 )
 

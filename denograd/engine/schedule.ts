@@ -28,7 +28,7 @@ export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
   ],
   // DETACH and CONTIGUOUS change how we interpret the source UOp
   // CONTIGUOUS ensures the source UOp realizes
-  [new UPat([Ops.DETACH, Ops.CONTIGUOUS], undefined, [UPat.var('x')], undefined).named('root'), ({ root, x }) => root.dtype === x.dtype],
+  [new UPat([Ops.DETACH, Ops.CONTIGUOUS, Ops.CONTIGUOUS_BACKWARD], undefined, [UPat.var('x')]).named('root'), ({ root, x }) => root.dtype === x.dtype],
   // COPY
   // NOTE: the arg here specifies clone=True, which prevents folding same device copy
   [new UPat(Ops.COPY, undefined, [new UPat(Ops.DEVICE), UPat.var('x')]).named('copy'), ({ copy, x }) => typeof copy.arg === 'boolean' && copy.dtype === x.dtype],
@@ -162,10 +162,10 @@ const merge_double_reduce = (root: UOp, first_reduce: UOp): UOp => {
   if ([...first_reduce.src[0].toposort].some((x) => x.op === Ops.REDUCE_AXIS)) throw new Error("can't merge more than two reduceops at a time")
   return first_reduce.replace({ arg: [first_reduce.arg[0], [...root.axis_arg, ...first_reduce.axis_arg]] })
 }
-// push VIEW to stores
+// push VIEW to children
 export const view_right = merge_views.add(
   new PatternMatcher([
-    // STORE(.., ASSIGN(VIEW(BUFFER), new_val)) -> STORE(.., new_val).view()
+    // STORE(.., ASSIGN(VIEW(BUFFER), new_val)) -> VIEW(STORE(.., new_val))
     [new UPat(Ops.STORE, undefined, [UPat.var('b'), UPat.var('st'), UPat.var('target').assign(UPat.var('val'))]), ({ b, target, st, val }) => apply_swizzle(b.store([st, val]).view(target.st!))],
     // REDUCE(src.view(contiguous=False)) -> REDUCE(src.view(contiguous=True)).view()
     [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('src')]).named('r').view(undefined, { name: 'v' }), ({ v, r, src }) => v.st!.contiguous ? undefined : swizzle_r(r, src, v.st!)],
@@ -427,8 +427,8 @@ export const sym = symbolic_simple.add(
       new UPat(Ops.values().filter((x) => x !== Ops.SINK)).named('root'),
       ({ root }) => root.base.st !== undefined && root.size === 0 && !(root.base.op === Ops.CONST && root.base.arg === 0) ? root.const_like(0) : undefined,
     ],
-    // DETACH is a NOOP here
-    [new UPat(Ops.DETACH).named('detach'), ({ detach }) => detach.src[0]],
+    // DETACH and CONTIGUOUS_BACKWARD are NOOPs here
+    [new UPat([Ops.DETACH,Ops.CONTIGUOUS_BACKWARD]).named('x'), ({ x }) => x.src[0]],
     // reduce of size 0 is the identity element
     [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('x')]).named('reduce'), ({ reduce, x }) => x.size === 0 && reduce.size !== 0 ? reduce.const_like(identity_element(reduce.arg[0], reduce.dtype)) : undefined],
     // reduce of const is collapsed (TODO: make this a generic rule for stride0)
@@ -500,7 +500,7 @@ export const do_realize = new PatternMatcher<ScheduleContext>([
   // always realize SINK parents
   [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => void sink.src.forEach((x) => ctx.realizes.set(x.buf_uop, x))],
   // always realize ASSIGN/CONTIGUOUS/COPY/BUFFER_VIEW
-  [new UPatScheduled({ op: [Ops.CONTIGUOUS, Ops.ASSIGN, Ops.COPY, Ops.BUFFER_VIEW] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  [new UPatScheduled({ op: [Ops.BUFFER_VIEW,Ops.CONTIGUOUS, Ops.ASSIGN, Ops.COPY, ] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
   // realize before expand or unsafe pad ops
   [new UPat(Ops.VIEW, undefined, [new UPatScheduled({ name: 'src' })]).named('view'), ({ ctx, view, src, b }) => realize_before_view(ctx, view, src, b)],
   // don't realize image to image casts
@@ -559,7 +559,7 @@ const append_uop = (ctx: ScheduleContext, view: UOp, buf_uop: UOp): undefined =>
 export const create_ctx = new PatternMatcher<ScheduleContext>([[new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf_uop'), new UPat()]).named('view'), ({ ctx, view, buf_uop }) => append_uop(ctx, view, buf_uop)]])
 // # **** movement ops
 
-export const remove_movement_ops = new PatternMatcher([
+export const remove_movement_ops = merge_views.add(new PatternMatcher([
   // NOTE: movement ops are always applied to base
   [new UPat(GroupOp.Movement, undefined, UPat.any([UPat.var('x').view(), UPat.var('x')])).named('mov'), ({ x, mov }) => x.view(mov.st!)],
   // some masked views can collapse to 0, VIEW(x) -> CONST(VIEW)
@@ -567,11 +567,9 @@ export const remove_movement_ops = new PatternMatcher([
     const vm = view.st!.views.at(-1)!.mask
     return vm !== undefined && vm.some((x) => sub(x[1], x[0]) === 0) ? view.const_like(0) : undefined
   }],
-  // merge one src views.
-  [new UPat(Ops.VIEW, undefined, new UPat(Ops.VIEW, undefined, [new UPat()]).named('v1')).named('v2'), ({ v1, v2 }) => v1.replace({ arg: add(v1.arg, v2.arg) })],
   // merge unmasked const views
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('const')]).named('view'), (x) => (x.st.st!.add(x.view.st!)).views.every((v) => v.mask === undefined) ? x.const.replace({ src: [x.st.replace({ arg: x.st.st!.add(x.view.st!) })] }) : undefined],
-])
+]))
 
 // @track_rewrites(named=true)
 export const create_schedule_with_vars = (big_sink: UOp, skip_check = !DEBUG): [ScheduleItem[], Map<Variable, number>, Map<UOp, UOp>] => {
