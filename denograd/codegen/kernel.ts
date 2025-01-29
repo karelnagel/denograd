@@ -348,8 +348,9 @@ export class Kernel {
         // attempt to pad the tensor axes that require it
         try {
           for (const [axis, dim] of this.tensor_core_opts.axis_pads) this.apply_opt(new Opt(OptOps.PADTO, axis, dim), false) // PADTO might fail
-        } catch {
-          continue
+        } catch (e) {
+          if (e instanceof KernelOptError) continue
+          throw e
         }
         // tensor core -- unroll the reduce dim (K), upcast and local the inner and outer dims (N, M)
         for (const [dim, amt] of tc.get_reduce_axes()) this.apply_opt(new Opt(OptOps.UNROLL, this.tensor_core_opts.axes[2] - this.first_reduce, amt), false)
@@ -400,8 +401,9 @@ export class Kernel {
         }
       }
       return true
-    } catch {
-      return false
+    } catch (e) {
+      if (e instanceof KernelInfo) return false
+      throw e
     }
   }
   apply_opt = (opt: Opt, append_opt = true) => {
@@ -501,7 +503,7 @@ export class Kernel {
     if (isinstance(this.membufs[0].dtype, ImageDType)) {
       const unit_stride_axes_mul_4 = this.sts[0].unit_stride_axes(true).filter((i) => (this.sts[0].shape[i] as number) % 4 === 0)
       if (!unit_stride_axes_mul_4.length) throw new Error(`needs a unit stride axis in ${this.bufs[0]}`)
-      if (unit_stride_axes_mul_4.every((x) => x < this.first_upcast) && !this.upcast_in_mid_reduce_axes.includes(unit_stride_axes_mul_4[0])) {
+      if (unit_stride_axes_mul_4.every((x) => x < this.first_upcast)) {
         this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
       }
     }
@@ -512,8 +514,8 @@ export class Kernel {
 
     // should use matvec - TODO: adjust/tune based on the wide vs tall/large vs small mat
     const MV_BLOCKSIZE = get_number_env('MV_BLOCKSIZE', 4), MV_THREADS_PER_ROW = get_number_env('MV_THREADS_PER_ROW', 8), MV_ROWS_PER_THREAD = get_number_env('MV_ROWS_PER_THREAD', 4)
-    const mulop = this.reduceop!.src[0]
-    if (this.opts.has_local && get_number_env('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 && this.opts.has_shared && mulop.op === Ops.MUL && mulop.src[0].op === Ops.LOAD && mulop.src[1].op === Ops.LOAD) {
+    const mulop = this.reduceop?.src[0]
+    if (this.opts.has_local && get_number_env('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 && this.opts.has_shared && mulop && mulop.op === Ops.MUL && mulop.src[0].op === Ops.LOAD && mulop.src[1].op === Ops.LOAD) {
       const st0 = this.sts[this.bufs.indexOf(mulop.src[0])], st1 = this.sts[this.bufs.indexOf(mulop.src[1])]
       const strides0 = st0.real_strides(), strides1 = st1.real_strides()
       const has_expanded_axis = (shape: sint[], strides: sint[]) => zip(shape, strides).some(([s, st]) => resolve(gt(s, 1)) && !resolve(ne(st, 0)))
@@ -535,10 +537,12 @@ export class Kernel {
         // TODO: use 1024 if it's allowed in a smarter way
         for (const sz of (prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 32 ? [256, 16] : [16])) {
           if (this.sts.every((st) => st.shape[this.first_reduce] as number % sz === 0 || st.shape[this.first_reduce] === 1)) {
-            // try: # may fail due to excessive smem usage
-            this.apply_opt(new Opt(OptOps.GROUPTOP, 0, sz))
-            break
-            // except KernelOptError: pass
+            try { // may fail due to excessive smem usage
+              this.apply_opt(new Opt(OptOps.GROUPTOP, 0, sz))
+              break
+            } catch (e) {
+              if (!(e instanceof KernelOptError)) throw e
+            }
           }
         }
       }
@@ -575,7 +579,7 @@ export class Kernel {
         to_upcast.push(axis)
       }
     }
-    // for axis in to_upcast[::-1]: this.apply_opt(Opt(OptOps.UPCAST, axis, 0))
+    for (const axis of to_upcast.toReversed()) this.apply_opt(new Opt(OptOps.UPCAST, axis, 0))
 
     // potentially do more upcasts of non reduce axes based on a heuristic
     const upcasted_axis = new Set<number>()
@@ -588,7 +592,7 @@ export class Kernel {
         }
       }
       if (xb_choices.length) {
-        xb_choices = xb_choices.toSorted()
+        xb_choices = xb_choices.toSorted((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || a[3] - b[3])
         if (DEBUG >= 4) console.log(`float4 merging axis : ${xb_choices}`)
         this.apply_opt(new Opt(OptOps.UPCAST, xb_choices[0][2], xb_choices[0][3]))
         upcasted_axis.add(xb_choices[0][2])
@@ -605,7 +609,7 @@ export class Kernel {
         }
       } else {
         for (const splits of [4]) {
-          if (this.full_unupcasted_shape[-1] as number % splits === 0) {
+          if (this.full_unupcasted_shape.at(-1) as number % splits === 0) {
             this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, splits))
             break
           }
@@ -627,7 +631,7 @@ export class Kernel {
         this.apply_opt(new Opt(OptOps.NOLOCALS))
       } else {
         // prioritize making expand axes local
-        const local_axis_ranking = range(this.full_shape.slice(0, this.first_reduce).length).map((axis) => [range(this.sts.length).some((buf_index) => this.sts[buf_index].views[-1].strides[axis] === 0), axis])
+        const local_axis_ranking = range(this.full_shape.slice(0, this.first_reduce).length).map((axis) => [range(this.sts.length).some((buf_index) => this.sts[buf_index].views.at(-1)!.strides[axis] === 0), axis])
         let to_local: [number, number][] = []
         for (const [_, axis] of local_axis_ranking.toSorted((a, b) => b[0] === a[0] ? Number(b[1]) - Number(a[1]) : Number(b[0]) - Number(a[0]))) {
           const local_size = prod(to_local.map(([_, sz]) => sz))

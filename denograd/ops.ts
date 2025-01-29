@@ -1048,7 +1048,7 @@ export const spec = new PatternMatcher<unknown, boolean | undefined>([
   [new UPat(Ops.ENDIF, dtypes.void, [new UPat(Ops.IF)]), () => true],
   [new UPat(Ops.REDUCE_AXIS).named('x'), ({ x }) => Array.isArray(x.arg) && x.arg.length === 2 && [Ops.ADD, Ops.MUL, Ops.MAX].includes(x.arg[0])],
   [new UPat(Ops.GEP, undefined, [new UPat(undefined).named('src')], undefined, 'gep'), ({ gep, src }) => gep.dtype === src.dtype.scalar()],
-  [new UPat(Ops.VECTORIZE).named('x'), ({ x }) => x.src?.length > 1 && x.src?.length === x.dtype.count && x.src!.every((y) => x.dtype === y.dtype.vec(x.src?.length))],
+  [new UPat(Ops.VECTORIZE).named('x'), ({ x }) => x.src.length > 1 && x.src.length === x.dtype.count && x.src.every((y) => x.dtype === y.dtype.vec(x.src.length))],
   [new UPat([Ops.BITCAST, Ops.CAST], undefined, [new UPat()], undefined, 'x'), ({ x }) => x.arg === undefined],
   [new UPat(Ops.BARRIER, dtypes.void, new UPat(Ops.STORE, undefined, undefined, undefined, undefined, true)), () => true], // NOTE: all pointers must be local
   //   # NOTE: for testing, we let sinks be anything
@@ -2017,7 +2017,7 @@ export const sym = symbolic_flat.add(
     [new UPat(Ops.GEP, undefined, [new UPat(Ops.GEP).named('g2')], undefined, 'g1'), ({ g1, g2 }) => g2.src[0].gep(range(g1.dtype.count).map((i) => g2.arg[g1.arg[i]]))],
     [
       new UPat(Ops.GEP, undefined, [new UPat(Ops.VECTORIZE).named('vec')], undefined, 'gep'),
-      ({ gep, vec }) => new UOp(Ops.VECTORIZE, gep.dtype, gep.arg.length > 1 ? gep.arg.map((i: number) => vec.src[i]) : vec.src[gep.arg[0]]),
+      ({ gep, vec }) => gep.arg.length > 1 ? new UOp(Ops.VECTORIZE, gep.dtype, gep.arg.map((i: number) => vec.src[i])) : vec.src[gep.arg[0]],
     ],
     [new UPat(Ops.GEP, undefined, [UPat.cvar('c', undefined, false)], undefined, 'gep'), ({ gep, c }) => gep.const_like(c.arg)],
     [new UPat(Ops.GEP, undefined, [new UPat(Ops.VCONST).named('c')], undefined, 'gep'), ({ gep, c }) => gep.const_like(gep.arg.map((x: any) => c.arg[x]))],
