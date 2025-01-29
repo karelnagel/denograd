@@ -1,7 +1,7 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
 import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, Enum, ge, get_env, get_key, get_number_env, gt, isinstance, isInt, NotImplemented, product, range, round_up, set_default, sum, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
-import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, UOp, type Variable, view_left } from '../ops.ts'
+import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, type_verify, UOp, type Variable, view_left } from '../ops.ts'
 import { idiv, le, mod, mul, ne, prod } from '../helpers.ts'
 import { ProgramSpec, type Renderer, type TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
@@ -127,8 +127,10 @@ export class Kernel {
     this.simplify_merge_adjacent()
   }
   copy = () => {
-    // base linearizer params
     const ret = new Kernel(this.ast, this.opts)
+
+    // base linearizer params
+    ret.opts = this.opts, ret.ast = this.ast
 
     // things downstream of the AST
     ret.reduceops = this.reduceops, ret.vars = this.vars, ret.bufs = this.bufs, ret.full_buf_index = this.full_buf_index
@@ -149,7 +151,7 @@ export class Kernel {
   float4_axis = (i: number) => this.sts[i].unit_stride_axes().filter((x) => x >= this.first_upcast && (this.sts[i].shape[x] as number) % 4 === 0).map((x) => x - this.first_upcast)
 
   upcasted_axis = (i: number): [number, undefined | sint, boolean][] => {
-    const [upcasted_shape, upcasted_stride] = [this.sts[i].shape.slice(this.first_upcast), this.sts[i].real_strides().slice(this.first_upcast)]
+    const upcasted_shape = this.sts[i].shape.slice(this.first_upcast), upcasted_stride = this.sts[i].real_strides().slice(this.first_upcast)
     if (!all_int(upcasted_shape)) throw new Error(`cannot upcast a symbolic amount upcasted_shape=${upcasted_shape}`)
     return zip(upcasted_shape as number[], upcasted_stride, zip(this.sts[0].shape.slice(this.first_upcast), this.full_shape.slice(this.first_upcast)).map(([x, y]) => Boolean(ne(x, y))))
   }
@@ -257,17 +259,17 @@ export class Kernel {
     //     # TODO: this should be factored in to multi shape stride
     if (this.shape_len === 0) return false
     const all_ones = this.full_shape.map((s) => Number(s === 1))
-    this.local_dims = this.local_dims - all_ones.slice(this.first_reduce - this.local_dims, this.first_reduce).reduce((acc, x) => acc + x, 0)
-    this.upcasted = this.upcasted - all_ones.slice(this.first_upcast).reduce((acc, x) => acc + x, 0) // TODO: no necessary since upcasted axis can't be un-upcasted
-    this.reshape_and_permute((shape) => shape.filter((_, i) => !all_ones[i]), undefined)
-    return all_ones.some((x) => x)
+    this.local_dims = this.local_dims - sum(all_ones.slice(this.first_reduce - this.local_dims, this.first_reduce))
+    this.upcasted = this.upcasted - sum(all_ones.slice(this.first_upcast)) // TODO: no necessary since upcasted axis can't be un-upcasted
+    this.reshape_and_permute((shape) => [...shape.entries()].filter(([i, x]) => !all_ones[i]).map(([i, x]) => x), undefined)
+    return all_ones.some(Boolean)
   }
   simplify_merge_adjacent = () => {
     if (this.shape_len === 0) return
-    const [shapes, strides] = [this.sts.map((x) => x.shape), this.sts.map((x) => x.real_strides())]
+    const shapes = this.sts.map((x) => x.shape), strides = this.sts.map((x) => x.real_strides())
 
-    //     # if it's an image, insert fake strides such that this fusion doesn't happen across image axes
-    if (isinstance(this.membufs[0].dtype, ImageDType)) {
+    // if it's an image, insert fake strides such that this fusion doesn't happen across image axes
+    if (this.membufs[0].dtype instanceof ImageDType) {
       const base_shape = this.membufs[0].dtype.shape
       const shape_idx_groups = get_contraction(this.output_shape, base_shape)
       if (shape_idx_groups?.length) {
@@ -291,11 +293,11 @@ export class Kernel {
       const can_merge = []
       for (const [s, st, ret] of zip(shapes, strides, rets)) {
         //         # TODO: added the always mergeability of 1s,===this right? if so, add to shapetracker in the 1 case
-        const [si, sti, last_st] = [s[i], st[i], ret.at(-1)![1]]
+        const si = s[i], sti = st[i], last_st = ret.at(-1)![1]
         can_merge.push((sti !== undefined) && ((sti !== 0 && last_st === mul(si, sti)) || (sti === 0 && last_st === 0)))
       }
       //       # more can merge than this
-      const mergeable = can_merge.every((x) => x) && i !== this.first_reduce
+      const mergeable = can_merge.every(Boolean) && i !== this.first_reduce
       for (const [j, [s, st]] of zip(shapes, strides).entries()) {
         if (mergeable) rets[j][rets[j].length - 1] = [mul(rets[j].at(-1)![0], s[i]), st[i]]
         else rets[j].push([s[i], st[i]])
@@ -354,7 +356,7 @@ export class Kernel {
         }
         // tensor core -- unroll the reduce dim (K), upcast and local the inner and outer dims (N, M)
         for (const [dim, amt] of tc.get_reduce_axes()) this.apply_opt(new Opt(OptOps.UNROLL, this.tensor_core_opts.axes[2] - this.first_reduce, amt), false)
-        for (const opt of tc.opts) this.apply_opt(new Opt(opt[0] === 'u' ? OptOps.UPCAST : OptOps.LOCAL, this.tensor_core_opts.axes[Math.trunc(Number(opt[1]))], 2), false)
+        for (const opt of tc.opts) this.apply_opt(new Opt({ 'u': OptOps.UPCAST, 'l': OptOps.LOCAL }[opt[0] as 'u' | 'l'], this.tensor_core_opts.axes[Math.trunc(Number(opt[1]))], 2), false)
         this.tensor_core = tc
         this.use_tensor_cores = use_tensor_cores // TC=2 will do the shape ops without the WMMA
         return true
@@ -391,7 +393,7 @@ export class Kernel {
           // hand-coded TC opts
           for (const tc_dim of [1, 0].filter((tc_dim) => tc_opts.axes_exist[tc_dim])) { // attempt to upcast M and N
             const szs = [5, 4, 3, 2].filter((sz) => this.full_shape[tc_opts.axes[tc_dim]] as number % sz === 0)
-            if (szs) this.apply_opt(new Opt(OptOps.UPCAST, tc_opts.axes[tc_dim], szs[0]))
+            if (szs.length) this.apply_opt(new Opt(OptOps.UPCAST, tc_opts.axes[tc_dim], szs[0]))
           }
 
           if (tc_opts.axes_exist[0]) {
@@ -402,7 +404,7 @@ export class Kernel {
       }
       return true
     } catch (e) {
-      if (e instanceof KernelInfo) return false
+      if (e instanceof KernelOptError) return false
       throw e
     }
   }
@@ -500,12 +502,10 @@ export class Kernel {
     }
   }
   required_optimizations = (): Kernel => {
-    if (isinstance(this.membufs[0].dtype, ImageDType)) {
+    if (this.membufs[0].dtype instanceof ImageDType) {
       const unit_stride_axes_mul_4 = this.sts[0].unit_stride_axes(true).filter((i) => (this.sts[0].shape[i] as number) % 4 === 0)
       if (!unit_stride_axes_mul_4.length) throw new Error(`needs a unit stride axis in ${this.bufs[0]}`)
-      if (unit_stride_axes_mul_4.every((x) => x < this.first_upcast)) {
-        this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
-      }
+      if (unit_stride_axes_mul_4.every((x) => x < this.first_upcast)) this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
     }
     return this
   }
@@ -686,7 +686,7 @@ export class Kernel {
       }
 
       ret = ret.replace({ arg: [op.arg[0], axes] })
-      if (this.group_for_reduces && grouped_axes) {
+      if (this.group_for_reduces && grouped_axes.length) {
         const local_shape = [
           ...range(this.global_dims).map(() => 1),
           ...this.full_shape.slice(this.global_dims, this.global_dims + this.local_dims),
@@ -784,4 +784,5 @@ export const verify_ast = (ast: UOp): undefined => {
   for (const out of ast.src) _assert_valid_uop(out, out.st_arg, sts)
   const shape_dims = zip(...sts.values().map((x) => x.shape)).map((dims) => dedup(dims).toSorted())
   if (!shape_dims.every((x) => x.length === 1 || (x.length === 2 && x[0] === 1))) throw new Error(`shapes must have either 1 ||n in each dimension, ${shape_dims}`)
+  type_verify([...sts.keys()])
 }
