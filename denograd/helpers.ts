@@ -621,8 +621,10 @@ export const capstone_flatdump = (lib: Uint8Array) => {
   // for instr in cs.disasm(lib, 0):
   //   print(f"{instr.address:#08x}: {instr.mnemonic}\t{instr.op_str}")
 }
-export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {
-  return { ...obj, ...replace } as T
+export function replace<T>(instance: T, replacement: Partial<T>): T {
+  const newInstance = Object.create(Object.getPrototypeOf(instance))
+  Object.assign(newInstance, instance, replacement)
+  return newInstance
 }
 // # *** universal support for code object pickling
 

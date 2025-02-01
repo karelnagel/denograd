@@ -3,11 +3,7 @@ import type { DeviceType } from '../../denograd/device.ts'
 import { get_kernel, get_runner } from '../../denograd/engine/realize.ts'
 import type { UOp } from '../../denograd/ops.ts'
 import { compare } from '../helpers.ts'
-import { kernelInputs } from './kernel-inputs.ts'
-
-export const kernelKeys = ['ast', 'opts', 'vars', 'bufs', 'applied_opts', 'group_for_reduces', 'upcasted', 'local_dims', 'tensor_core', 'tensor_core_opts', 'use_tensor_cores', 'dont_use_locals', 'sts', 'reduceops', 'full_buf_index', 'uops'] as const
-export const tsKernel = (k: Kernel) => kernelKeys.map((key) => k[key])
-export const pyKernel = `out([getattr(k,key,None) for key in [${kernelKeys.map((k) => `"${k}"`)}]])`
+import { kernelInputs, pyKernel, tsKernel } from './kernel-inputs.ts'
 
 Deno.test(
   'realize.get_kernel',

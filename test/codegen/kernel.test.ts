@@ -6,7 +6,7 @@ import { dtypes } from '../../denograd/dtype.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
-import { kernelInputs } from '../engine/kernel-inputs.ts'
+import { kernelInputs, pyKernel, tsKernel } from '../engine/kernel-inputs.ts'
 
 Deno.test(
   'Opt.real_axis',
@@ -23,9 +23,6 @@ Deno.test(
     'out(data[0].real_axis(data[1]))',
   ),
 )
-export const kernelKeys = ['ast', 'opts', 'vars', 'bufs', 'applied_opts', 'group_for_reduces', 'upcasted', 'local_dims', 'tensor_core', 'tensor_core_opts', 'use_tensor_cores', 'dont_use_locals', 'sts', 'reduceops', 'full_buf_index', 'uops'] as const
-export const tsKernel = (k: Kernel) => kernelKeys.map((key) => k[key])
-export const pyKernel = `out([getattr(k,key,None) for key in [${kernelKeys.map((k) => `"${k}"`)}]])`
 
 const kernels = () => kernelInputs().map(([opts, ast]) => [new Kernel(ast, opts)] as [Kernel])
 Deno.test(
