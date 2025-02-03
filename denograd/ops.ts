@@ -259,7 +259,10 @@ export class UOp extends MathTrait<UOp> {
     super()
     this.key = get_key(this.op, this.dtype, this.arg, this.src)
     const ret = UOp.cache.get(this.key)
-    if (ret !== undefined) return ret
+    if (ret !== undefined) {
+      if (!is_eq(this.arg, ret.arg)) throw new Error(`Args aren't the same, \nthis=${this.arg}, ${this.arg.key} \nret=${ret.arg}, ${ret.arg.key}`)
+      return ret
+    }
 
     for (const s of src) s.children.set(this.key, this)
     // NOTE: this will soon be set by Tensor once we remove function.py

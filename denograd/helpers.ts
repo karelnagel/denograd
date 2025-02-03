@@ -97,7 +97,8 @@ export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<
 
 // When value is garbage collected then the item is removed from the map
 export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap<K, V, [K, WeakRef<V>]> {
-  private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
+  // TODO: fix the finalization
+  // private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
   constructor() {
     super()
   }
@@ -112,12 +113,12 @@ export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap
     return undefined
   }
   override set = (key: K, value: V) => {
-    const oldValue = this.get(key)
-    if (oldValue) this.finalizationGroup.unregister(oldValue)
+    // const oldValue = this.get(key)
+    // if (oldValue) this.finalizationGroup.unregister(oldValue)
 
     const stringKey = get_key(key)
     this.map.set(stringKey, [key, new WeakRef(value)])
-    this.finalizationGroup.register(value, stringKey, value)
+    // this.finalizationGroup.register(value, stringKey, value)
   }
   override entries = (): [K, V][] => {
     const res: [K, V][] = []
@@ -129,11 +130,11 @@ export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap
   }
   override delete = (k: K) => {
     const value = this.get(k)
-    if (value) this.finalizationGroup.unregister(value)
+    // if (value) this.finalizationGroup.unregister(value)
     return this.map.delete(get_key(k))
   }
   override clear = () => {
-    for (const value of this.values()) this.finalizationGroup.unregister(value)
+    // for (const value of this.values()) this.finalizationGroup.unregister(value)
     return this.map.clear()
   }
 }
