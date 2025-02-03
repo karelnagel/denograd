@@ -1,5 +1,5 @@
-import { FmtStr } from '../denograd/dtype.ts'
-import { _get_recursive_parents, bitcast } from '../denograd/dtype.ts'
+import type { FmtStr } from '../denograd/dtype.ts'
+import { type _get_recursive_parents, bitcast } from '../denograd/dtype.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
 import { compare } from './helpers.ts'
 

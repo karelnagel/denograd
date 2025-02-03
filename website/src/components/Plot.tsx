@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks'
-import { plot, PlotOptions } from '@observablehq/plot'
+import { plot, type PlotOptions } from '@observablehq/plot'
 export * from '@observablehq/plot'
 
 export const Plot = ({ style, className, options }: { options: PlotOptions; style?: any; className?: string }) => {

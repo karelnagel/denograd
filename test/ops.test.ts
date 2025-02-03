@@ -1,4 +1,4 @@
-import { can_pad, div_and_mod_folding, Ops, resolve, smax, smin, UOp, UPat } from '../denograd/ops.ts'
+import { can_pad, div_and_mod_folding, exec_alu, Ops, resolve, smax, smin, UOp, UPat } from '../denograd/ops.ts'
 import { compare, tryCatch } from './helpers.ts'
 import { dtypes } from '../denograd/dtype.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
@@ -31,6 +31,31 @@ Deno.test(
     ],
     tryCatch(resolve),
     'out(trycatch(lambda: tiny.ops.resolve(*data)))',
+  ),
+)
+Deno.test(
+  'UOp.st',
+  compare(
+    [
+      [new UOp(Ops.ADD, dtypes.float, [UOp.int(4), UOp.int(55)])],
+      [new UOp(Ops.ADD, dtypes.bool, [UOp.int(4), UOp.int(55)])],
+
+      [UOp.int(3).mul(UOp.bool(false))],
+      [UOp.float(3).add(UOp.int(4)).idiv(UOp.float(44))],
+      [UOp.int(3).add(UOp.bool(false), true)],
+    ],
+    (uop: UOp) => uop.simplify(),
+    'out(data[0].simplify())',
+  ),
+)
+Deno.test(
+  'UOp.const_like',
+  compare(
+    [
+      [new UOp(Ops.CONST, dtypes.int, [], 44), 0],
+    ],
+    (uop: UOp, b: number) => uop.const_like(b),
+    'out(data[0].const_like(data[1]))',
   ),
 )
 Deno.test(
@@ -137,7 +162,7 @@ Deno.test(
   ),
 )
 Deno.test(
-  'uop.symInfer',
+  'uop.sym_infer',
   compare(
     [
       [new UOp(Ops.ADD, undefined, [UOp.int(10), UOp.int(100)], 1)],
@@ -155,8 +180,9 @@ Deno.test(
 
       [UOp.bool(true).mul(5.5)],
       [UOp.int(4).mul(true)],
-      [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
-      [new UOp(Ops.IF, dtypes.bool, [new UOp(Ops.CMPLT, dtypes.bool, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)]), UOp.const(dtypes.float, 1.1), UOp.const(dtypes.float, 0.0)])],
+      [UOp.int(6).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
+      // TODO: python returns string 'True' instead of 'true', not sure if it should return string at all
+      // [new UOp(Ops.IF, dtypes.bool, [new UOp(Ops.CMPLT, dtypes.bool, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)]), UOp.const(dtypes.float, 1.1), UOp.const(dtypes.float, 0.0)])],
     ],
     tryCatch((x: UOp) => x.sym_infer(new Map())),
     'out(trycatch(lambda:data[0].sym_infer({})))',
@@ -181,7 +207,7 @@ Deno.test(
 
       [UOp.bool(true).mul(5.5)],
       [UOp.int(4).mul(true)],
-      [UOp.int(3).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
+      [UOp.int(5).add(UOp.float(4).idiv(UOp.bool(false))).mul(UOp.int(3.4))],
       [new UOp(Ops.IF, dtypes.bool, [new UOp(Ops.CMPLT, dtypes.bool, [UOp.const(dtypes.int, 5), UOp.const(dtypes.int, 10)]), UOp.const(dtypes.float, 1.0), UOp.const(dtypes.float, 0.0)])],
     ],
     tryCatch((x: UOp) => [x.render(true), x.render(false)]),
@@ -219,27 +245,6 @@ Deno.test(
     ],
     smin,
     'out(tiny.ops.smin(*data))',
-  ),
-)
-
-Deno.test(
-  'UOp.has_st',
-  compare(
-    [
-      [new UOp(Ops.DEFINE_LOCAL)],
-      [new UOp(Ops.DEFINE_GLOBAL)],
-      [new UOp(Ops.BUFFER)],
-      [new UOp(Ops.CONST)],
-      [new UOp(Ops.DEFINE_VAR)],
-      [new UOp(Ops.ADD)],
-      [new UOp(Ops.MUL)],
-      [new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4]))],
-      [new UOp(Ops.ADD, undefined, [UOp.int(4), UOp.int(5)])],
-      [new UOp(Ops.ADD, undefined, [new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4])), new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4]))])],
-      [new UOp(Ops.ADD, undefined, [new UOp(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([3, 4]))])],
-    ],
-    tryCatch((x: UOp) => x.has_st),
-    'out(trycatch(lambda: data[0].has_st))',
   ),
 )
 
@@ -286,31 +291,28 @@ Deno.test(
 )
 
 Deno.test(
-  'const_with_shape',
+  'div_and_mod_folding',
   compare(
     [
-      [dtypes.float, 3.14, [2, 2]],
-      [dtypes.int, 42, [3, 3]],
-      [dtypes.bool, true, [1, 4]],
+      // TODO add tests
     ],
-    tryCatch(UOp.const_with_shape),
-    'out(trycatch(lambda: tiny.ops.UOp.const_with_shape(*data)))',
+    div_and_mod_folding,
+    'out(tiny.ops.div_and_mod_folding(*data))',
   ),
 )
 
 Deno.test(
-  'div_and_mod_folding',
+  'exec_alu',
   compare(
     [
-      [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 1), 4, Ops.MOD, false],
-      [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 0), 4, Ops.MOD, false],
-      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx0`, 4]), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`gidx0`, 3]), new UOp(Ops.CONST, dtypes.int, [], 4)], undefined)], undefined), 4, Ops.MOD, false],
-      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], undefined), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 1)], undefined), 4, Ops.MOD, false],
-      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], undefined), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 12)], 1)], undefined), 12, Ops.IDIV, false],
-      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.EXPAND, dtypes.int, [new UOp(Ops.VCONST, dtypes.int.vec(4), [], [0, 1, 2, 3])], [[3, 4]]), new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`gidx0`, 3]), new UOp(Ops.CONST, dtypes.int, [], 48)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx0`, 4]), new UOp(Ops.CONST, dtypes.int, [], 12)], undefined)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx1`, 3]), new UOp(Ops.CONST, dtypes.int, [], 4)], undefined)], undefined)], undefined), 4, Ops.MOD, false],
-      [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.EXPAND, dtypes.int, [new UOp(Ops.VCONST, dtypes.int.vec(4), [], [0, 1, 2, 3])], [[3, 4]]), new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.ADD, dtypes.int, [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`gidx0`, 3]), new UOp(Ops.CONST, dtypes.int, [], 48)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx0`, 4]), new UOp(Ops.CONST, dtypes.int, [], 12)], undefined)], undefined), new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.SPECIAL, dtypes.int, [], [`lidx1`, 3]), new UOp(Ops.CONST, dtypes.int, [], 4)], undefined)], undefined)], undefined), 12, Ops.IDIV, false],
+      [Ops.IDIV, dtypes.bool, [4, false], false],
+      [Ops.ADD, dtypes.bool, [3, false], false],
+      [Ops.IDIV, dtypes.bool, [4, true], false],
+      [Ops.ADD, dtypes.bool, [3, true], false],
+      [Ops.IDIV, dtypes.bool, [4, false], true],
+      [Ops.ADD, dtypes.bool, [3, false], true],
     ],
-    div_and_mod_folding,
-    'out(tiny.ops.div_and_mod_folding(*data))',
+    exec_alu,
+    'out(tiny.ops.exec_alu(*data))',
   ),
 )

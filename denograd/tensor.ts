@@ -1,51 +1,88 @@
 // deno-lint-ignore-file no-this-alias
-import { ConstType, DType, DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { LazyBuffer } from './engine/lazy.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, fully_flatten, get_env, IMAGE, int_to_bytes, is_eq, isinstance, list_str, max, Metadata, range, Slice, slice, WINO, zip } from './helpers.ts'
-import { add, ceildiv, ge, gt, identity_element, idiv, le, MathTrait, mul, ne, neg, Ops, polyN, prod, resolve, sint, smax, smin, sub, UOp, Variable } from './ops.ts'
-import { Buffer, BufferSpec, Device, DeviceType } from './device.ts'
-import { create_schedule_with_vars, ScheduleContext, ScheduleItem, to_uop } from './engine/schedule.ts'
+import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
+import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
+import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
+import { create_schedule_with_vars, type ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
 // // **** start with two base classes, Tensor && Function ****
-import { make_tuple, round_up } from './helpers.ts'
+import { isInt, make_tuple, round_up } from './helpers.ts'
 import { argsort } from './helpers.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
+import { compute_gradient } from './gradient.ts'
+import { get_multi_map } from './multi.ts'
 
-export class Function {
-  device: string | string[]
-  needs_input_grad: (boolean | undefined)[]
-  requires_grad?: boolean
-  parents?: Tensor[]
-  metadata?: Metadata
-  constructor(device: string | string[], tensors: Tensor[], metadata?: Metadata) {
-    this.device = device
-    this.needs_input_grad = tensors.map((t) => t.requires_grad)
-    this.requires_grad = this.needs_input_grad.some((x) => x) ? true : this.needs_input_grad.includes(undefined) ? undefined : false
-    if (this.requires_grad) this.parents = tensors
-    this.metadata = metadata
-  }
-  forward = (..._args: any[]): LazyBuffer => {
-    throw new Error(`forward !implemented for ${this}`)
-  }
-  backward = (_grad_output: LazyBuffer): LazyBuffer | (LazyBuffer | undefined)[] => {
-    throw new Error(`backward !implemented for ${this}`)
+export const all_tensors = new WeakValueMap<string, Tensor>()
+
+const _apply_map_to_tensors = (applied_map: Map<UOp, UOp>): undefined => {
+  // get all children of keys in applied_map
+  const all_uops = new Set<UOp>()
+  let search_uops = [...applied_map.keys()]
+  while (search_uops.length) {
+    let x = search_uops.shift()!
+    if (all_uops.has(x)) continue
+    all_uops.add(x)
+    search_uops = [...search_uops, ...[...x.children.values()].map((c) => c).filter((u) => u !== undefined)]
   }
 
-  static apply(...args: any[]): Tensor {
-    if (!args.length) throw new Error('No args')
+  // link the found UOps back to Tensors. exit early if there's no Tensors to realize
+  // NOTE: this uses all_tensors, but it's fast
+  const fixed_tensors = [...all_tensors.values()].map((tref) => tref).filter((t) => t !== undefined && all_uops.has(t.lazydata))
 
-    const x = args.filter((x) => x instanceof Tensor)
-    const ctx = new this(x[0].device, x, _METADATA.value)
+  if (fixed_tensors.length) {
+    // potentially rewrite all the discovered Tensors
+    const sink = UOp.sink(...fixed_tensors.map((t) => t.lazydata))
+    const new_sink = sink.substitute(applied_map)
 
-    const ret = new Tensor(undefined, undefined, true)
-    ret.lazydata = ctx.forward(...args.map((v) => v instanceof Tensor ? v.lazydata : v))
-    ret.requires_grad = ctx.requires_grad
-    ret.grad = undefined
+    // set the relevant lazydata to the realized UOps
+    for (const [t, s, ns] of zip(fixed_tensors, sink.src, new_sink.src)) {
+      if (s === ns) continue
+      t.lazydata = ns
+    }
+  }
+}
 
-    ret._ctx = ctx.requires_grad && !Tensor.no_grad ? ctx : undefined // used by autograd engine
-    return ret
+type ReplaceUOpsWithTensor<Args extends any[]> = { [K in keyof Args]: Args[K] extends UOp ? Tensor : Args[K] }
+// Has to be a function cause you can't use generics for static functions
+function CreateFunction<Args extends any[] = [UOp]>() {
+  return class Function {
+    device: string | string[]
+    needs_input_grad: (boolean | undefined)[]
+    requires_grad?: boolean
+    parents?: Tensor[]
+    metadata?: Metadata
+    constructor(device: string | string[], tensors: Tensor[], metadata?: Metadata) {
+      this.device = device
+      this.needs_input_grad = tensors.map((t) => t.requires_grad)
+      this.requires_grad = this.needs_input_grad.some((x) => x) ? true : this.needs_input_grad.includes(undefined) ? undefined : false
+      if (this.requires_grad) this.parents = tensors
+      this.metadata = metadata
+    }
+    forward = (..._args: Args): UOp => {
+      throw new Error(`forward !implemented for ${this}`)
+    }
+    backward = (_grad_output: UOp): UOp | (UOp | undefined)[] => {
+      throw new Error(`backward !implemented for ${this}`)
+    }
+
+    static apply(...args: ReplaceUOpsWithTensor<Args>): Tensor {
+      if (!args.length) throw new Error('No args')
+
+      const x = args.filter((x) => x instanceof Tensor)
+      const ctx = new this(x[0].device, x, _METADATA.value)
+
+      const ret = new Tensor(undefined, undefined, true)
+      // @ts-expect-error it doesn't like the spread arguments
+      ret.lazydata = ctx.forward(...args.map((v) => v instanceof Tensor ? v.lazydata : v))
+      ret.requires_grad = ctx.requires_grad
+      ret.grad = undefined
+
+      ret._ctx = ctx.requires_grad && !Tensor.no_grad ? ctx : undefined // used by autograd engine
+      return ret
+    }
   }
 }
 // ************* function.py start *************
@@ -53,24 +90,24 @@ export class Function {
  * This === where the forwards && backwards passes live.
  */
 
-export class Contiguous extends Function {
-  override forward = (x: LazyBuffer): LazyBuffer => x.contiguous()
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output
+export class Contiguous extends CreateFunction() {
+  override forward = (x: UOp): UOp => x.contiguous()
+  override backward = (grad_output: UOp): UOp => grad_output
 }
 
-export class ContiguousBackward extends Function {
-  override forward = (x: LazyBuffer): LazyBuffer => x
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.contiguous()
+export class ContiguousBackward extends CreateFunction() {
+  override forward = (x: UOp): UOp => x.contiguous_backward()
+  override backward = (grad_output: UOp): UOp => grad_output.contiguous()
 }
 
-export class Cast extends Function {
+export class Cast extends CreateFunction<[UOp, DType, boolean?]>() {
   input_dtype!: DType
   bitcast?: boolean
-  override forward = (x: LazyBuffer, dtype: DType, bitcast?: boolean): LazyBuffer => {
+  override forward = (x: UOp, dtype: DType, bitcast?: boolean): UOp => {
     this.input_dtype = x.dtype, this.bitcast = bitcast
     return this.bitcast ? x.bitcast(dtype) : x.cast(dtype)
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+  override backward = (grad_output: UOp): UOp => {
     if (this.bitcast) throw new Error('bitcast can!backward')
     return grad_output.cast(this.input_dtype!)
   }
@@ -78,125 +115,118 @@ export class Cast extends Function {
 
 // // ************* unary ops *************
 
-export class Reciprocal extends Function {
-  ret!: LazyBuffer
-  override forward = (x: LazyBuffer): LazyBuffer => {
+export class Reciprocal extends CreateFunction() {
+  ret!: UOp
+  override forward = (x: UOp): UOp => {
     this.ret = x.reciprocal()
     return this.ret
   }
 
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.neg().mul(this.ret).mul(this.ret)
+  override backward = (grad_output: UOp): UOp => grad_output.neg().mul(this.ret).mul(this.ret)
 }
-export class Sin extends Function {
-  x!: LazyBuffer
-  override forward = (x: LazyBuffer): LazyBuffer => {
+export class Sin extends CreateFunction() {
+  x!: UOp
+  override forward = (x: UOp): UOp => {
     this.x = x
     return x.sin()
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => (this.x.sub(Math.PI / 2, true)).sin().mul(grad_output)
+  override backward = (grad_output: UOp): UOp => (this.x.sub(Math.PI / 2, true)).sin().mul(grad_output)
 }
-export class Relu extends Function {
-  ret!: LazyBuffer
-  override forward = (x: LazyBuffer): LazyBuffer => {
-    this.ret = x.maximum(0)
+export class Relu extends CreateFunction() {
+  ret!: UOp
+  override forward = (x: UOp): UOp => {
+    this.ret = (x.gt(0)).where(x, 0)
     return this.ret
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => (this.ret.gt(0)).cast(grad_output.dtype).mul(grad_output)
+  override backward = (grad_output: UOp): UOp => (this.ret.gt(0)).cast(grad_output.dtype).mul(grad_output)
 }
-export class Log extends Function {
-  x!: LazyBuffer
-  override forward = (x: LazyBuffer): LazyBuffer => {
+export class Log extends CreateFunction() {
+  x!: UOp
+  override forward = (x: UOp): UOp => {
     this.x = x
     return x.log2().mul(Math.log(2))
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.div(this.x)
+  override backward = (grad_output: UOp): UOp => grad_output.div(this.x)
 }
-export class Exp extends Function {
-  ret!: LazyBuffer
-  override forward = (x: LazyBuffer): LazyBuffer => {
+export class Exp extends CreateFunction() {
+  ret!: UOp
+  override forward = (x: UOp): UOp => {
     this.ret = (x.mul(1 / Math.log(2))).exp2()
     return this.ret
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => this.ret.mul(grad_output)
+  override backward = (grad_output: UOp): UOp => this.ret.mul(grad_output)
 }
-export class Sqrt extends Function {
-  ret!: LazyBuffer
-  override forward = (x: LazyBuffer): LazyBuffer => {
+export class Sqrt extends CreateFunction() {
+  ret!: UOp
+  override forward = (x: UOp): UOp => {
     this.ret = x.sqrt()
     return this.ret
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.div(this.ret.mul(2))
+  override backward = (grad_output: UOp): UOp => grad_output.div(this.ret.mul(2))
 }
-// // NOTE: the implicit derivative of sigmoid !== stable
-// // https://towardsdatascience.com/derivative-of-the-sigmoid-function-536880cf918e
-// // TODO: have the backend automatically find this
-export class Sigmoid extends Function {
-  ret!: LazyBuffer
-  override forward = (x: LazyBuffer) => {
-    this.ret = ((x.mul(-1 / Math.log(2))).exp2().add(1, true)).reciprocal()
-    return this.ret
-  }
-  override backward = (grad_output: LazyBuffer) => {
-    return (this.ret.mul(this.ret.sub(1, true))).mul(grad_output)
-  }
-}
-export class Sign extends Function {
-  override forward = (x: LazyBuffer): LazyBuffer => x.ne(0).where((x.lt(0)).where(x.const_like(-1), x.const_like(1)), x.const_like(0))
+
+export class Sign extends CreateFunction() {
+  // NOTE: the x*0 is to match torch behavior without function.py
+  override forward = (x: UOp): UOp => x.ne(0).where((x.lt(0)).where(x.const_like(-1), x.const_like(1)), x.const_like(0)).add(x.mul(0))
   //   // backward always return 0 to match torch
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.const_like(0)
+  override backward = (grad_output: UOp): UOp => grad_output.const_like(0)
 }
 // // ************* binary ops *************
 
-export class Less extends Function {
-  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.lt(y)
-  override backward = (_grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
+export class Less extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, y: UOp): UOp => x.lt(y)
+  override backward = (_grad_output: UOp): [UOp | undefined, UOp | undefined] => [undefined, undefined]
 }
-export class Neq extends Function {
-  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.ne(y)
-  override backward = (_grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [undefined, undefined]
+export class Neq extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, y: UOp): UOp => x.ne(y)
+  override backward = (_grad_output: UOp): [UOp | undefined, UOp | undefined] => [undefined, undefined]
 }
-export class Xor extends Function {
-  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.xor(y)
+export class Xor extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, y: UOp): UOp => x.xor(y)
 }
-export class BitwiseAnd extends Function {
-  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.bitwise_and(y)
+export class BitwiseAnd extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, y: UOp): UOp => x.bitwise_and(y)
 }
-export class BitwiseOr extends Function {
-  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.bitwise_or(y)
+export class BitwiseOr extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, y: UOp): UOp => x.bitwise_or(y)
 }
-export class Threefry extends Function {
-  override forward = (x: LazyBuffer, seed: LazyBuffer): LazyBuffer => x.threefry(seed)
+export class Threefry extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, seed: UOp): UOp => x.threefry(seed)
 }
 
-export class Add extends Function {
-  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.add(y)
+export class Add extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, y: UOp): UOp => x.add(y)
 
-  override backward = (grad_output: LazyBuffer): [LazyBuffer | undefined, LazyBuffer | undefined] => [this.needs_input_grad[0] ? grad_output : undefined, this.needs_input_grad[1] ? grad_output : undefined]
+  override backward = (grad_output: UOp): [UOp | undefined, UOp | undefined] => [this.needs_input_grad[0] ? grad_output : undefined, this.needs_input_grad[1] ? grad_output : undefined]
 }
-export class Mul extends Function {
-  x!: LazyBuffer
-  y!: LazyBuffer
-  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => {
+export class Mul extends CreateFunction<[UOp, UOp]>() {
+  x!: UOp
+  y!: UOp
+  override forward = (x: UOp, y: UOp): UOp => {
     this.x = x, this.y = y
     return x.mul(y)
   }
-  override backward = (grad_output: LazyBuffer): [LazyBuffer?, LazyBuffer?] => [
+  override backward = (grad_output: UOp): [UOp?, UOp?] => [
     this.needs_input_grad[0] ? (this.y.mul(grad_output)) : undefined,
     this.needs_input_grad[1] ? (this.x.mul(grad_output)) : undefined,
   ]
 }
-export class IDiv extends Function {
-  override forward = (x: LazyBuffer, y: LazyBuffer): LazyBuffer => x.idiv(y)
+export class IDiv extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, y: UOp): UOp => x.idiv(y)
+}
+
+export class Mod extends CreateFunction<[UOp, UOp]>() {
+  override forward = (x: UOp, y: UOp): UOp => x.mod(y)
 }
 // // ************* ternary ops *************
 
-export class Where extends Function {
-  x!: LazyBuffer
-  override forward = (x: LazyBuffer, y: LazyBuffer, z: LazyBuffer): LazyBuffer => {
+export class Where extends CreateFunction<[UOp, UOp, UOp]>() {
+  x!: UOp
+  override forward = (x: UOp, y: UOp, z: UOp): UOp => {
     this.x = x
     return this.x.where(y, z)
   }
-  override backward = (grad_output: LazyBuffer): [undefined, LazyBuffer | undefined, LazyBuffer | undefined] => [
+  override backward = (grad_output: UOp): [undefined, UOp | undefined, UOp | undefined] => [
     undefined,
     this.needs_input_grad[1] ? this.x.where(grad_output, grad_output.const_like(0)) : undefined,
     this.needs_input_grad[2] ? this.x.where(grad_output.const_like(0), grad_output) : undefined,
@@ -204,25 +234,34 @@ export class Where extends Function {
 }
 // // ************* reduce ops *************
 
-export class Sum extends Function {
+export class Sum extends CreateFunction<[UOp, number[]]>() {
   input_shape!: sint[]
-  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
+  override forward = (x: UOp, axis: number[]): UOp => {
     this.input_shape = x.shape
     return x.r(Ops.ADD, axis)
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.expand(this.input_shape)
+  override backward = (grad_output: UOp): UOp => grad_output.expand(this.input_shape)
 }
-export class Prod extends Function {
+export class Prod extends CreateFunction<[UOp, number[]]>() {
+  x!: UOp
+  ret!: UOp
+  override forward = (x: UOp, axis: number[]): UOp => {
+    this.x = x, this.ret = x.r(Ops.MUL, axis)
+    return this.ret
+  }
+  override backward = (grad_output: UOp): UOp => {
+    return (grad_output.mul(this.ret)).expand(this.x.shape).div(this.x)
+  }
 }
-export class Max extends Function {
-  x!: LazyBuffer
-  ret!: LazyBuffer
+export class Max extends CreateFunction<[UOp, number[]]>() {
+  x!: UOp
+  ret!: UOp
   axis!: number[]
-  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
+  override forward = (x: UOp, axis: number[]): UOp => {
     this.x = x, this.ret = x.r(Ops.MAX, axis), this.axis = axis
     return this.ret
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+  override backward = (grad_output: UOp): UOp => {
     // 1s in locations where the max was chosen (can be two locations)
     const max_is_1s = this.x.ne(this.ret.expand(this.x.shape)).ne(this.x.const_like(1).cast(dtypes.bool)).cast(grad_output.dtype)
     const div = max_is_1s.r(Ops.ADD, this.axis).expand(this.x.shape)
@@ -232,63 +271,63 @@ export class Max extends Function {
 // // ************* movement ops *************
 
 // // NOTE: this === sum in reverse
-export class Expand extends Function {
+export class Expand extends CreateFunction<[UOp, number[]]>() {
   expanded_axis!: number[]
-  override forward = (x: LazyBuffer, shape: number[]): LazyBuffer => {
+  override forward = (x: UOp, shape: number[]): UOp => {
     this.expanded_axis = [...zip(x.shape, shape).entries()].filter(([i, [si, so]]) => resolve(ne(si, so))).map(([i]) => i)
     return x.expand(shape)
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => {
+  override backward = (grad_output: UOp): UOp => {
     return grad_output.cast(sum_acc_dtype(grad_output.dtype)).r(Ops.ADD, this.expanded_axis).cast(grad_output.dtype)
   }
 }
 
-export class Reshape extends Function {
+export class Reshape extends CreateFunction<[UOp, number[]]>() {
   input_shape!: sint[]
-  override forward = (x: LazyBuffer, shape: number[]): LazyBuffer => {
+  override forward = (x: UOp, shape: number[]): UOp => {
     this.input_shape = x.shape
     return x.reshape(shape)
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.reshape(this.input_shape)
+  override backward = (grad_output: UOp): UOp => grad_output.reshape(this.input_shape)
 }
-export class Permute extends Function {
+export class Permute extends CreateFunction<[UOp, number[]]>() {
   input_order!: number[]
-  override forward = (x: LazyBuffer, order: number[]): LazyBuffer => {
+  override forward = (x: UOp, order: number[]): UOp => {
     this.input_order = order
     return x.permute(order)
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.permute(argsort(this.input_order))
+  override backward = (grad_output: UOp): UOp => grad_output.permute(argsort(this.input_order))
 }
-export class Pad extends Function {
+export class Pad extends CreateFunction<[UOp, [number, number][]]>() {
   narg!: [sint, sint][]
-  override forward = (x: LazyBuffer, arg: [number, number][]): LazyBuffer => {
+  override forward = (x: UOp, arg: [number, number][]): UOp => {
     this.narg = zip(x.shape, arg).map(([s, p]) => [p[0], add(s, p[0])])
     return x.pad(arg)
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.shrink(this.narg)
+  override backward = (grad_output: UOp): UOp => grad_output.shrink(this.narg)
 }
-export class Shrink extends Function {
+export class Shrink extends CreateFunction<[UOp, [sint, sint][]]>() {
   narg!: [sint, sint][]
-  override forward = (x: LazyBuffer, arg: [sint, sint][]): LazyBuffer => {
+  override forward = (x: UOp, arg: [sint, sint][]): UOp => {
     this.narg = zip(x.shape, arg).map(([s, p]) => [p[0], sub(s, p[1])])
     return x.shrink(arg)
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.pad(this.narg)
+  override backward = (grad_output: UOp): UOp => grad_output.pad(this.narg)
 }
-export class Flip extends Function {
+export class Flip extends CreateFunction<[UOp, number[]]>() {
   arg!: number[]
-  override forward = (x: LazyBuffer, axis: number[]): LazyBuffer => {
+  override forward = (x: UOp, axis: number[]): UOp => {
     this.arg = range(x.shape.length).map((i) => axis.includes(i) ? -1 : 1)
     return x.stride(this.arg)
   }
-  override backward = (grad_output: LazyBuffer): LazyBuffer => grad_output.stride(this.arg)
+  override backward = (grad_output: UOp): UOp => grad_output.stride(this.arg)
 }
 
 // ************* function.py end *************
 
-export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: DeviceType | DeviceType[], arg?: any, src: LazyBuffer[] = []) => {
-  if (isinstance(device, String)) return LazyBuffer.metaop(op, shape, dtype, device, arg, src)
-  throw new Error('MultiLazyBuffer')
+export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: DeviceType | DeviceType[], arg?: any) => {
+  if (typeof device === 'string') return UOp.metaop(op, shape, dtype, device, arg)
+  return UOp.multi(device.map((d) => UOp.metaop(op, shape, dtype, d, arg)), undefined)
 }
 export const get_shape = (x: any): number[] => {
   //   // NOTE:string === special because __getitem__ on a string === still a string
@@ -297,18 +336,32 @@ export const get_shape = (x: any): number[] => {
   if (!all_same(subs)) throw new Error(`inhomogeneous shape from ${x}`)
   return [subs.length, ...(subs.length ? subs[0] : [])]
 }
-export const _frompy = (x: any[] | Uint8Array, dtype: DType): LazyBuffer => {
+export const _frompy = (x: any[] | Uint8Array, dtype: DType): UOp => {
   let ret, data
-  if (x instanceof Uint8Array) [ret, data] = [LazyBuffer.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
+  if (x instanceof Uint8Array) [ret, data] = [UOp.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
   else {
-    ret = LazyBuffer.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
+    ret = UOp.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
     if (dtype.fmt === undefined) throw new Error(`${dtype} has undefined fmt`)
     data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt })
   }
   //   // fake realize
-  ret.buffer!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
-  ret.srcs?.forEach((x) => x.__del__())
-  delete ret.srcs
+  uop_buffer(ret)!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
+  return ret.buf_uop_view()
+}
+
+const _get_winograd_matcols = (mat: number[][], dims: number, shp: sint[], device: DeviceType | DeviceType[], dtype: DType): Tensor[][] => {
+  return range(mat[0].length).map((k) => range(dims).map((dim) => Tensor.cat(mat.map((m) => Tensor.full([...shp.slice(0, dim), 1, ...shp.slice(dim + 1)], Number(m[k]), { device: device, dtype: dtype }), dim))))
+}
+// winograd conv 3 kernel f(4x4,3x3) see: http://arxiv.org/abs/1509.09308
+const _apply_winograd_matrix = (mat: number[][], t: Tensor, dims: number): Tensor => {
+  // multiply mat_1 @ mat_2 @ t with foldable constants, where mat_i acts on vector t along dimension i; roughly kron(mat, mat) @ t
+  // due to realize-before-expand rule in lazy.py, we must operate in this order: reshape -> expand -> arithmetic
+  const t_ = t.reshape([...t.shape.slice(0, dims), ...range(dims).map((x) => 1), ...t.shape.slice(dims)]).expand([...t.shape.slice(0, dims), ...range(dims).map((x) => mat.length), ...t.shape.slice(dims)]) // add output dims
+  // precalculate mat columns for each dim; prod(itertools.product(matcols)) gives the columns of kron(mat, mat, ...)
+  const matcols = _get_winograd_matcols(mat, dims, t_.shape.slice(dims), t_.device, t_.dtype)
+  // multiply each element of t_ by the corresponding stacked column of kron(mat, mat), producing only one view for each element of t
+  const ret = sum(product(range(mat[0].length), dims).map((mat_is) => prod(zip(matcols, mat_is).map(([col, idx]) => col[idx])).mul(t.get(mat_is))))
+  if (!(ret instanceof Tensor)) throw new Error("sum didn't return a Tensor")
   return ret
 }
 const _align_left = (...shapes: sint[][]): sint[][] => {
@@ -319,7 +372,20 @@ const _align_left = (...shapes: sint[][]): sint[][] => {
 export const _broadcast_shape = (shapes: sint[][]): sint[] => {
   return zip(..._align_left(...shapes)).map((nth_dim_sizes) => nth_dim_sizes.includes(0) ? 0 : smax(...nth_dim_sizes))
 }
-type ReductionStr = 'mean' | 'sum' | 'none'
+const _masked_setitem = (target: Tensor, values: Tensor, mask: Tensor, axes: number[]) => {
+  // apply mask to values (already broadcasted) and reduce such that if mask contains repeated indices the last one remains
+  values = values.mul(mask)
+  for (const dim of axes) [mask, values] = zip(mask.split(1, dim), values.split(1, dim)).reduce(([x, y]) => [x.get(0).bitwise_or(y.get(0)), y.get(0).where(y.get(1), x.get(1))])
+  // remove extra dims from reduce
+  for (const dim of axes.toReversed()) [mask, values] = [mask.squeeze(dim), values.squeeze(dim)]
+  // select from values for each True element in mask else select from self
+  return mask.where(values, target)
+}
+//  `(padding_left, padding_right, padding_top, padding_bottom, ...)` ->  `(..., (padding_top, padding_bottom), (padding_left, padding_right))`
+const _flat_to_grouped = (padding: sint[]): [sint, sint][] => zip(slice(padding, { start: -2, step: -2 }), slice(padding, { step: -2 }))
+
+const ReductionStr = ['mean', 'sum', 'none']
+type ReductionStr = typeof ReductionStr[number]
 
 export type TensorOptions = { device?: DeviceType | DeviceType[]; dtype?: DType; requires_grad?: boolean }
 const sliceGetIndices = (index: Slice, size: number): [number, number, number] => {
@@ -345,19 +411,25 @@ export type Layer = ((x: Tensor) => Tensor) | { call: (x: Tensor) => Tensor }
  * ```
  */
 export class Tensor extends MathTrait<Tensor> {
-  lazydata!: LazyBuffer
+  static registry = new FinalizationRegistry((key: string) => {
+    all_tensors.delete(key)
+  })
+  lazydata!: UOp
   requires_grad?: boolean
   // tensors can have gradients if you have called .backward
   grad?: Tensor
   // internal variable used for autograd graph construction
-  _ctx?: Function
+  _ctx?: InstanceType<ReturnType<typeof CreateFunction>>
   __deletable__ = ['_ctx']
   static training = false
   static no_grad = false
-
-  static new = (data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, opts?: TensorOptions) => new Tensor(data, opts)
-  constructor(data?: ConstType | UOp | Uint8Array | any[] | LazyBuffer | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
+  key: string
+  // KAREL: TODO: this probably won't work correctly
+  constructor(data?: ConstType | UOp | Uint8Array | any[] | UOp | Tensor | string, { device, dtype, requires_grad }: TensorOptions = {}, skip_constructor = false) {
     super()
+    this.key = random_id()
+    all_tensors.set(this.key, this)
+    Tensor.registry.register(this, this.key)
     if (skip_constructor) return
     if (dtype !== undefined) dtype = to_dtype(dtype)
     if (dtype !== undefined && !(dtype instanceof DType)) throw new Error(`invalid dtype ${dtype}`)
@@ -372,22 +444,22 @@ export class Tensor extends MathTrait<Tensor> {
     this.requires_grad = requires_grad
 
     //     // create a LazyBuffer from the different types of inputs
-    if (data instanceof LazyBuffer) {
+    if (data instanceof UOp) {
       if (dtype !== undefined && dtype !== data.dtype) throw new Error("dtype doesn't match, && casting isn't supported")
+      // NOTE: this is here because LazyBuffer = UOp
+      if (data instanceof UOp && data.op === Ops.BIND) data = _metaop(Ops.BIND, [], dtype || data.dtype, device, data)
     } else if (data === undefined) {
       data = _metaop(Ops.EMPTY, [0], dtype || dtypes.default_float, device)
-    } else if (typeof data === 'number' || typeof data === 'boolean' || typeof data === 'bigint') {
+    } else if (isConst(data)) {
       data = _metaop(Ops.CONST, [], dtype || dtypes.from_js(data), device, data)
-    } else if (data instanceof UOp) {
-      if (data.op !== Ops.BIND || data.src[0].op !== Ops.DEFINE_VAR || data.src[1].op !== Ops.CONST) throw new Error(`can't create tensor from UOp ${data}`)
-      data = _metaop(Ops.CONST, [], dtype || data.dtype, device, data)
     } else if (data instanceof Uint8Array) {
       data = _frompy(data, dtype || dtypes.uint8)
     } else if (Array.isArray(data)) {
+      if (data.some((x) => typeof x === 'string')) throw new Error(`There's a string in data: ${list_str(data)}`)
       if (dtype === undefined) {
         const d = fully_flatten(data)
         if (d.length && d.every((s) => typeof s === 'boolean')) dtype = dtypes.bool
-        else dtype = (d.length && all_int(d)) ? dtypes.default_int : dtypes.default_float
+        else dtype = (d.length && all_int(d)) ? dtypes.default_int : dtypes.default_float // NOTE: this works because all_int([True, False]) is True
       }
       if (dtype === dtypes.bfloat16) data = new Tensor(_frompy(data, dtypes.float32), { device }).cast(dtypes.bfloat16).lazydata
       else data = _frompy(data, dtype)
@@ -396,33 +468,32 @@ export class Tensor extends MathTrait<Tensor> {
       data = _metaop(Ops.EMPTY, [idiv(Env.statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
     }
 
-    //     // by this point, it has to be a LazyBuffer
-    if (!isinstance(data, LazyBuffer)) throw new Error(`can't create Tensor from ${data} with type ${typeof data}`)
+    // by this point, it has to be a LazyBuffer
+    if (!(data instanceof UOp)) throw new Error(`can't create Tensor from ${data} with type ${typeof data}`)
 
-    //     // data might be on a different device
+    // data might be on a different device
     if (typeof device === 'string') this.lazydata = data.device === device ? data : data.copy_to_device(device)
-    //     // if device === a tuple, we should have/construct a MultiLazyBuffer
-    else throw new Error('TODO: multi')
-    // else if (isinstance(data, LazyBuffer)) throw new Error('MultiLazyBuffer')
-    // else {
-    //   // assert(data.device === device, `MultiLazyBuffer device mismatch, ${data.device} !== ${device}`)
-    //   this.lazydata = data
-    // }
+    else if (data instanceof UOp && typeof data.device === 'string') this.lazydata = new Tensor(data).shard(device).lazydata
+    else {
+      if (data.device !== device) throw new Error(`MultiLazyBuffer device mismatch, ${data.device} != ${device}`)
+      this.lazydata = data
+    }
   }
-  override toString = () => `<Tensor ${this.lazydata} on ${this.device} with grad ${this.grad?.lazydata}>`;
+  requires_grad_ = (requires_grad: boolean | undefined): Tensor => {
+    this.requires_grad = requires_grad
+    return this
+  }
+  override toString = () => {
+    const ld = this.lazydata
+    const ld_repr = `<UOp ${ld.device} ${list_str(ld.shape)} ${ld.dtype.toString().slice(7)} ${ld.base !== ld ? ld.st : list_str([ld.op, uop_realized(ld)])}>`
+    return `<Tensor ${ld_repr} on ${this.device} with grad ${this.grad?.lazydata}>`
+  };
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
 
   //   // Python has a non moving GC, so this should be okay
   // const __hash__ = () =>  id(this)
-
-  bool = () => {
-    throw new Error('__bool__ on Tensor !== defined')
-  }
-  override mod = (x: ConstType<Tensor>, reverse?: boolean) => {
-    throw new Error("Tensor doesn't have mod, this is only here because I needed to extend MathTrait and not SimpleMathTrait")
-  }
   get length() {
     if (!this.shape.length) throw new Error('len() of a 0-d tensor')
     return this.shape[0]
@@ -446,19 +517,22 @@ export class Tensor extends MathTrait<Tensor> {
    * NOTE: A Tensor can only be scheduled once.
    */
   schedule_with_vars = (lst: Tensor[] = []): [ScheduleItem[], Map<Variable, number>] => {
-    const [schedule, var_vals] = create_schedule_with_vars([this, ...lst].flatMap((x) => x.lazydata.lbs))
+    let big_sink = UOp.sink(...[this, ...lst].map((x) => x.lazydata))
+
+    // TODO: move this to scheduler tensor_map pass
+    if ([...big_sink.toposort].some((x) => x.op === Ops.MULTI)) {
+      // multi fixup
+      _apply_map_to_tensors(get_multi_map(big_sink))
+      big_sink = UOp.sink(...flatten([this, ...lst].map((x) => x.lazydata.op === Ops.MULTI ? x.lazydata.src : [x.lazydata])))
+    }
+    const [schedule, var_vals, becomes_map] = create_schedule_with_vars(big_sink)
+    _apply_map_to_tensors(becomes_map)
     return [memory_planner(schedule), var_vals]
   }
+
   _debug_ast = () => {
-    const [schedule, vars] = create_schedule_with_vars(this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).lazydata.lbs)
-    return schedule.map((s) => s.ast)
-  }
-  _debug = () => {
-    const ctx = new ScheduleContext()
-    const cache = new Map<LazyBuffer, UOp>()
-    const buffers = new Map<UOp, Buffer>()
-    const uop = to_uop(this.lazydata, ctx, buffers, cache)
-    return uop
+    const [schedule] = this.schedule_with_vars()
+    return schedule.map((x) => x.ast)
   }
   /**
    * Creates the schedule needed to realize these Tensor(s).
@@ -472,8 +546,8 @@ export class Tensor extends MathTrait<Tensor> {
   //   /**
   //    * Triggers the computation needed to create these Tensor(s).
   //    */
-  realize = async (lst?: Tensor[], do_update_stats = true): Promise<Tensor> => {
-    await run_schedule(...this.schedule_with_vars(lst || []), do_update_stats)
+  realize = async (lst: Tensor[] = [], do_update_stats = true): Promise<Tensor> => {
+    await run_schedule(...this.schedule_with_vars(lst), do_update_stats)
     return this
   }
   static realize = (lst: Tensor[], do_update_stats = true) => lst[0].realize(lst.slice(1), do_update_stats)
@@ -482,7 +556,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   replace = (x: Tensor): Tensor => {
     // used for replacing a Tensor with a new version of it (potentially with a different device && dtype)
-    assert(!x.requires_grad && this._ctx === undefined)
+    assert(this._ctx === undefined)
     if (!is_eq(this.shape, x.shape)) throw new Error(`replace shape mismatch ${this.shape} !== ${x.shape}`)
     this.lazydata = x.lazydata
     return this
@@ -490,7 +564,8 @@ export class Tensor extends MathTrait<Tensor> {
   assign_disk = async (x: Tensor | number[] | string | Uint8Array): Promise<Tensor> => {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     if (typeof this.device === 'string' && !this.device.startsWith('DISK')) throw new Error('This can be only used with DISK device')
-    ;(await this.contiguous().realize()).lazydata.base.realized!.copyin(await x._data())
+    const realized = await this.contiguous().realize()
+    uop_realized((realized.lazydata as UOp).base)!.copyin(await x._data())
     return this
   }
   assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
@@ -503,23 +578,23 @@ export class Tensor extends MathTrait<Tensor> {
     if (!is_eq(this.shape, x.shape)) throw new Error(`assign shape mismatch ${this.shape} !== ${x.shape}`)
     if (this.device !== x.device) throw new Error(`assign device mismatch ${this.device} !== ${x.device}`)
     if (this.dtype !== x.dtype) throw new Error(`assign dtype mismatch ${this.dtype} !== ${x.dtype}`)
-    // assert(!isinstance(this.lazydata, MultiLazyBuffer) || this.lazydata.axis === x.lazydata.axis, "axis must match on MultiLazyBuffer")
     if (x.requires_grad) throw new Error("assign can't have grad") // this requires_grad === okay?
-    if (!this.lazydata.is_realized) return this.replace(x)
-    this.lazydata = this.lazydata.assign(x.lazydata)
+    if (!uop_is_realized(this.lazydata)) return this.replace(x)
+    this.lazydata = this.lazydata.assign(x.lazydata as any)
     return this
   }
   /**
    * Returns a new tensor with the same data as this tensor, but detached from the autograd graph.
    */
   detach = (): Tensor => {
-    return new Tensor(this.lazydata, { device: this.device, requires_grad: false })
+    return new Tensor(this.lazydata.detach(), { device: this.device, requires_grad: false })
   }
   _data = async (): Promise<MemoryView> => {
     if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = await this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).realize()
-    const buf = cpu.lazydata!.base.realized
+    const buf = uop_realized((cpu.lazydata as UOp).base)
+    if (buf === undefined) throw new Error(`${cpu.lazydata.base} was not realized`)
     if (this.device !== Env.CPU_DEVICE) buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
     return await buf!.as_buffer(this.device !== Env.CPU_DEVICE ? true : false)
   }
@@ -577,30 +652,56 @@ export class Tensor extends MathTrait<Tensor> {
   to = (device?: DeviceType | DeviceType[]): Tensor => {
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
     if (device === this.device) return this
-    if (typeof device !== 'string') {
-      throw new Error('Unimplemented shard()')
-      // return this.shard(device)
-    }
+    if (typeof device !== 'string') return this.shard(device)
     const ret = new Tensor(this.lazydata, { device, requires_grad: this.requires_grad })
     if (this.grad !== undefined) ret.grad = this.grad.to(device)
     if (this._ctx !== undefined) ret._ctx = this._ctx
     return ret
   }
+  /**
+   * Moves the tensor to the given device in place.
+   */
+  to_ = (device?: DeviceType | DeviceType[]) => {
+    const real = this.to(device)
+    if (this.grad !== undefined && real.grad !== undefined) this.grad.replace(real.grad)
+    return this.replace(real)
+  }
 
-  static from_uop = (y: UOp, opts?: TensorOptions): Tensor => {
+  /**
+   * Shards the tensor across the given devices. Optionally specify which axis to shard on.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.empty(2, 4)
+   * print(t.shard((t.device, t.device), axis=1).lazydata)
+   * ```
+   */
+  shard = (devices: DeviceType[], axis?: number): Tensor => {
+    if (Array.isArray(this.device)) throw new Error("can't shard a MultiLazyBuffer")
+    devices = devices.map((x) => Device.canonicalize(x))
+    const mlb = this.lazydata.shard(devices, axis !== undefined ? this._resolve_dim(axis) : undefined)
+    return new Tensor(mlb, { device: devices, requires_grad: this.requires_grad })
+  }
+  /**
+   * Shards the tensor across the given devices in place.
+   */
+  shard_ = (devices: DeviceType[], axis?: number) => {
+    return this.replace(this.shard(devices, axis))
+  }
+  static from_uop = (y: UOp, opts: TensorOptions = {}): Tensor => {
     if (y.op === Ops.BIND) return new Tensor(y, { ...opts, requires_grad: false }) // this is the only UOp allowed in Tensor
     if (y.op === Ops.CONST) return new Tensor(y.arg, { ...opts, requires_grad: false })
     if (y.op === Ops.MUL) return Tensor.from_uop(y.src[0]).mul(Tensor.from_uop(y.src[1]))
     if (y.op === Ops.ADD) return Tensor.from_uop(y.src[0]).add(Tensor.from_uop(y.src[1]))
-    if (y.op === Ops.MAX) return Tensor.from_uop(y.src[0]).maximum(Tensor.from_uop(y.src[1]))
-    throw new Error(`unhandled UOp {y}`)
+    throw new Error(`unhandled UOp ${y}`)
   }
+  // ***** creation entrypoint *****
 
-  static _metaop = (op: any, shape: number[], opts: TensorOptions = {}, arg?: any) => {
-    const dtype = opts.dtype !== undefined ? to_dtype(opts.dtype) : dtypes.default_float
-    return new Tensor(LazyBuffer.metaop(op, shape, dtype, Device.canonicalize(opts.device as DeviceType), arg), { ...opts, dtype })
+  static _metaop = (op: Ops, shape: sint[], { dtype, device, ...opts }: TensorOptions, arg?: any) => {
+    dtype = dtype !== undefined ? to_dtype(dtype) : dtypes.default_float
+    if (Array.isArray(device)) {
+      return new Tensor(UOp.multi(device.map((d) => UOp.metaop(op, shape, dtype, Device.canonicalize(d), arg)), undefined), { device, dtype, ...opts })
+    }
+    return new Tensor(UOp.metaop(op, shape, dtype, Device.canonicalize(device), arg), { device, dtype, ...opts })
   }
-
   /**
    * Creates an empty tensor with the given shape.
    *
@@ -614,7 +715,19 @@ export class Tensor extends MathTrait<Tensor> {
    * """
    */
   static empty = (shape: number[], opts: TensorOptions = {}) => Tensor._metaop(Ops.EMPTY, shape, opts)
-
+  /**
+   * Exposes the pointer as a Tensor without taking ownership of the original data.
+   * The pointer must remain valid for the entire lifetime of the created Tensor.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   */
+  static from_blob = (ptr: bigint, shape: number[], opts: TensorOptions): Tensor => {
+    const r = Tensor._metaop(Ops.EMPTY, shape, opts)
+    uop_buffer(r.lazydata as UOp).allocate(undefined, ptr)
+    ;(r.lazydata as UOp).buf_uop_view()
+    return r
+  }
   /**
    * Create a Tensor from a URL.
    *
@@ -671,36 +784,31 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.numpy())
    * ```
    */
-  static rand = (shape: number[], contiguous = true, opts: TensorOptions = {}): Tensor => {
-    const dtype = to_dtype(opts.dtype || dtypes.default_float)
+  static rand = (shape: number[], contiguous = true, { device, dtype, ...opts }: TensorOptions = {}): Tensor => {
+    dtype = to_dtype(dtype || dtypes.default_float)
     if (!dtypes.is_float(dtype)) throw new Error(`rand only supports float dtypes, got ${dtype}`)
     if (!all_int(shape) || !shape.every((s) => s >= 0)) throw new Error(`invalid input ${shape}`)
-    if (opts.device !== undefined && typeof opts.device !== 'string') throw new Error(`rand only supports single device, got ${opts.device}`)
-    const _device = Device.canonicalize(opts.device)
-    let device = _device
+    if (device !== undefined && typeof device !== 'string') throw new Error(`rand only supports single device, got ${device}`)
+    device = Device.canonicalize(device)
+    const _device = device
+
+    // if shape has 0, return zero tensor
+    const numel = prod(shape)
+    if (numel === 0) return Tensor.zeros(shape, { device: _device, dtype: dtype, ...opts })
+    const num = ceildiv(numel * dtype.itemsize, 4)
 
     // when using MOCKGPU && NV generate rand on CLANG
     if (get_env('MOCKGPU') && device.startsWith('NV')) device = Env.CPU_DEVICE
 
     // generate per device seeds && rng counter if we haven't seen this device yet
-    let had_counter
-
     if (!Tensor._device_seeds[device]) {
       Tensor._device_seeds[device] = new Tensor(
         [bytes_to_bigint(Env.sha256(int_to_bytes(Object.keys(Tensor._device_seeds).length))) % (2n ** 32n), Tensor._seed],
         { device: device, dtype: dtypes.uint32, requires_grad: false },
       )
       Tensor._device_rng_counters[device] = new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false })
-      had_counter = false
-    } else had_counter = true
-
-    // if shape has 0, return zero tensor
-    const numel = prod(shape)
-    if (numel === 0) return Tensor.zeros(shape, { device: _device, dtype: dtype, requires_grad: opts.requires_grad })
-    const num = ceildiv(numel * dtype.itemsize, 4)
-
-    // increment rng counter for devices
-    if (had_counter) Tensor._device_rng_counters[device].assign(Tensor._device_rng_counters[device].add(num)).contiguous()
+    } // increment rng counter for devices
+    else Tensor._device_rng_counters[device].assign(Tensor._device_rng_counters[device].add(num)).contiguous()
 
     // threefry random bits
     const counts0 = Tensor.arange(ceildiv(num, 2), undefined, undefined, { device, dtype: dtypes.uint32, requires_grad: false }).add(Tensor._device_rng_counters[device])
@@ -807,6 +915,46 @@ export class Tensor extends MathTrait<Tensor> {
     return (Tensor.full([output_len], step, { ...opts, dtype })._cumalu(0, Ops.ADD).add(start - step)).cast(dtype)
   }
   /**
+   * Returns a 1-D tensor of `steps` evenly spaced values from `start` to `stop`, inclusive.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.linspace(0, 10, 5).numpy())
+   * ```
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.linspace(-1, 1, 5).numpy())
+   * ```
+   */
+  static linspace = (start: number, stop: number, steps: number, { dtype = dtypes.default_float, ...opts }: TensorOptions = {}): Tensor => {
+    if (steps < 0) throw new Error('number of steps must be non-negative')
+    dtype = to_dtype(dtype)
+    if (dtype === dtypes.bool) throw new Error('linspace with bool dtype is not supported')
+    if (steps === 1) return new Tensor([start], { dtype: dtype, ...opts })
+    return Tensor.arange(steps, undefined, undefined, opts).mul((stop - start) / (steps - 1)).add(start, true).cast(dtype)
+  }
+
+  /**
+   * Returns a 2-D tensor with `n` rows and `m` columns, with ones on the diagonal and zeros elsewhere.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.eye(3).numpy())
+   * ```
+   *  ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.eye(2, 4).numpy())
+   * ```
+   */
+  static eye = (n: number, m?: number, opts: TensorOptions = {}): Tensor => {
+    if (n < 0 || (m !== undefined && m < 0)) throw new Error(`cannot have negative n=${n}, m=${m}`)
+    const x = Tensor.ones([n, 1], opts).pad([undefined, [0, n]]).flatten().shrink([[0, n * n]]).reshape([n, n])
+    return m === undefined ? x : m > n ? x.pad([undefined, [0, m - n]]) : x.shrink([undefined, [0, m]])
+  }
+  /**
    * Creates a tensor with the same shape as `this`, filled with the given value.
    * If `dtype` !== specified, the dtype of `this` === used.
    *
@@ -820,6 +968,21 @@ export class Tensor extends MathTrait<Tensor> {
    */
   full_like = (fill_value: ConstType, opts?: TensorOptions): Tensor => {
     return Tensor.full(this.shape, fill_value, opts)
+  }
+
+  /**
+   * Creates a tensor with the same shape as `self`, filled with zeros.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.ones(2, 3)
+   * print(Tensor.zeros_like(t).numpy())
+   * ```
+   */
+  zeros_like = (opts: TensorOptions): Tensor => {
+    return this.full_like(0, opts)
   }
   /**
    * Creates a tensor with the same shape as `this`, filled with ones.
@@ -835,7 +998,45 @@ export class Tensor extends MathTrait<Tensor> {
   ones_like = (opts?: TensorOptions): Tensor => {
     return this.full_like(1, opts)
   }
+  /**
+   * Creates a tensor with the same shape and sharding as `self`, filled with random values from a uniform distribution over the interval `[0, 1)`.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.ones(2, 3)
+   * print(Tensor.rand_like(t).numpy())
+   * ```
+   */
+  rand_like = ({ dtype = this.dtype, contiguous = true, ...opts }: TensorOptions & { contiguous?: boolean } = {}): Tensor => {
+    if (Array.isArray(this.device)) {
+      if (opts.device !== undefined) throw new Error('cannot specify `device` on `rand_like` of a multi device tensor')
+      if (this.lazydata.axis === undefined) return Tensor.rand(this.shape, undefined, { dtype: dtype, ...opts }).shard(this.device)
+      const rands = this.lazydata.src.map((lb) => Tensor.rand(lb.shape as number[], contiguous, { device: lb.device as DeviceType, dtype: dtype, ...opts }).lazydata)
+      return new Tensor(UOp.multi(rands, this.lazydata.axis), { device: this.device, dtype: dtype, ...opts })
+    }
+    return Tensor.rand(this.shape, undefined, { device: this.device, dtype: dtype, ...opts })
+  }
+
   // ***** rng hlops *****
+  /**
+   * Creates a tensor with the given shape, filled with random values from a normal distribution with mean `0` and standard deviation `1`.
+   * If `dtype` is not specified, the default type is used.
+   *
+   * You can pass in the `device` keyword argument to control device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.randn(2, 3).numpy())
+   * ```
+   */
+  static randn = (shape: number[], { dtype, requires_grad, ...opts }: TensorOptions = {}): Tensor => {
+    // https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
+    const src = Tensor.rand([2, ...shape], undefined, { ...opts, dtype: dtype || dtypes.float32 })
+    return (src.get(0).mul(2 * Math.PI).cos().mul(src.get(1).sub(1, true).log().mul(-2).sqrt()).cast(dtype || dtypes.default_float)).requires_grad_(requires_grad)
+  }
 
   /**
    * Creates a tensor with the given shape, filled with random integer values generated uniformly from the interval `[low, high)`.
@@ -849,11 +1050,25 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(Tensor.randint(2, 3, low=5, high=10).numpy())
    * ```
    */
-  static randint = (shape: number[], low = 0, high = 10, opts?: TensorOptions): Tensor => {
+  static randint = (shape: number[], low = 0, high = 10, { dtype = dtypes.int32, ...opts }: TensorOptions = {}): Tensor => {
     if (!Number.isInteger(low) || !Number.isInteger(high)) throw new Error(`${low} && ${high} must be integers`)
-    const dtype = to_dtype(opts?.dtype || dtypes.int32)
+    dtype = to_dtype(dtype)
     if (!dtypes.is_int(dtype)) throw new Error(`${dtype} must be int`)
     return Tensor.uniform(shape, low, high, { ...opts, dtype })
+  }
+  /**
+   * Creates a tensor with the given shape, filled with random values from a normal distribution with the given `mean` and standard deviation `std`.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.normal(2, 3, mean=10, std=2).numpy())
+   * ```
+   */
+  static normal = (shape: number[], mean = 0.0, std = 1.0, { requires_grad, ...opts }: TensorOptions): Tensor => {
+    return (Tensor.randn(shape, opts).mul(std, true)).add(mean).requires_grad_(requires_grad)
   }
   /**
    * Creates a tensor with the given shape, filled with random values from a uniform distribution over the interval `[low, high)`.
@@ -866,9 +1081,23 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(Tensor.uniform(2, 3, low=2, high=10).numpy())
    * ```
    */
-  static uniform = (shape: number[], low = 0.0, high = 1.0, { dtype, ...opts }: TensorOptions = {}): Tensor => {
-    if (!dtype) dtype = dtype || dtypes.default_float
-    return Tensor.rand(shape, undefined, opts).mul(high - low, true).cast(dtype).add(low)
+  static uniform = (shape: number[], low = 0.0, high = 1.0, { dtype, requires_grad, ...opts }: TensorOptions = {}): Tensor => {
+    return Tensor.rand(shape, undefined, opts).mul(high - low, true).cast(dtype || dtypes.default_float).add(low).requires_grad_(requires_grad)
+  }
+  /**
+   * Creates a tensor with the given shape, filled with random values from a uniform distribution
+   * over the interval `[-prod(shape)**-0.5, prod(shape)**-0.5)`.
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.scaled_uniform(2, 3).numpy())
+   * ```
+   */
+  static scaled_uniform = (shape: number[], opts: TensorOptions): Tensor => {
+    return Tensor.uniform(shape, -1.0, 1.0, opts).mul(prod(shape) ** -0.5)
   }
 
   /**
@@ -882,12 +1111,81 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(Tensor.glorot_uniform(2, 3).numpy())
    * ```
    */
-  static glorot_uniform = (shape: number[], opts: TensorOptions): Tensor => {
+  static glorot_uniform = (shape: number[], opts: TensorOptions = {}): Tensor => {
     return Tensor.uniform(shape, -1.0, 1.0, opts).mul((6 / (shape[0] + prod(shape.slice(1)))) ** 0.5)
   }
 
-  // ***** toposort && backward pass *****
+  // https://pytorch.org/docs/stable/_modules/torch/nn/init.html#kaiming_uniform_
+  /**
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.kaiming_uniform(2, 3).numpy())
+   * ```
+   */
+  static kaiming_uniform = (shape: number[], a = 0.01, opts: TensorOptions): Tensor => {
+    const bound = Math.sqrt(3.0) * Math.sqrt(2.0 / (1 + a ** 2)) / Math.sqrt(prod(shape.slice(1)))
+    return Tensor.uniform(shape, -bound, bound, opts)
+  }
+  // https://pytorch.org/docs/stable/_modules/torch/nn/init.html#kaiming_normal_
+  /**
+   * <https://pytorch.org/docs/stable/_modules/torch/nn/init.html#kaiming_normal_>
+   *
+   * You can pass in `dtype` and `device` keyword arguments to control the data type and device of the tensor.
+   * Additionally, all other keyword arguments are passed to the constructor of the tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * Tensor.manual_seed(42)
+   * print(Tensor.kaiming_normal(2, 3).numpy())
+   * ```
+   */
+  static kaiming_normal = (shape: number[], a = 0.01, opts: TensorOptions): Tensor => {
+    const std = Math.sqrt(2.0 / (1 + a ** 2)) / Math.sqrt(prod(shape.slice(1)))
+    return Tensor.normal(shape, 0.0, std, opts)
+  }
 
+  multinomial = (num_samples = 1, replacement = false): Tensor => {
+    if (!(1 <= this.ndim && this.ndim <= 2 && num_samples > 0)) throw new Error(`ndim=${this.ndim} must be 1 or 2 dim, num_samples=${num_samples} must be positive`)
+    if (!replacement && num_samples !== 1) throw new Error('no replacement only supports num_samples = 1')
+    const weight = this.ndim === 1 ? this.unsqueeze(0) : this
+    const cw = weight.cumsum(1).float(), cdf = cw.div(cw.get({}, 1).unsqueeze(1))
+    const unif_samples = Tensor.rand([num_samples, cdf.shape[0], 1]).to(this.device)
+    const indices = (unif_samples.expand([-1, -1, cdf.shape[1]]).ge(cdf)).sum(2).permute(1, 0)
+    return (this.ndim === 1 ? indices.squeeze(0) : indices).cast(dtypes.int32)
+  }
+
+  // // ***** toposort and backward pass *****
+
+  /**
+   * Compute the gradient of the targets with respect to self.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * x = Tensor.eye(3)
+   * y = Tensor([[2.0,0,-2.0]])
+   * z = y.matmul(x).sum()
+   * dx, dy = z.gradient(x, y)
+   *
+   * print(dx.tolist())  // dz/dx
+   * print(dy.tolist())  // dz/dy
+   * ```
+   */
+  gradient = (targets: Tensor[], gradient?: Tensor): Tensor[] => {
+    if (gradient === undefined && this.shape.length !== 0) 'when no gradient is provided, backward must be called on a scalar tensor'
+    if (gradient === undefined) gradient = new Tensor(1.0, { dtype: this.dtype, device: this.device, requires_grad: false })
+    let rets: UOp[][] = []
+    const target_uops = targets.map((x) => x.lazydata)
+    const grads = compute_gradient(this.lazydata, gradient.lazydata, new Set(target_uops))
+    const ret: UOp[] = []
+    for (const x of target_uops) {
+      const y = grads.get(x)
+      if (y === undefined) throw new Error(`${x}\n\nnot found in\n\n${this.lazydata}`)
+      ret.push(y)
+    }
+    rets.push(ret)
+    // create returned Tensors
+    return zip(targets, rets[0]).map(([t, u]) => new Tensor(u, { device: t.device }))
+  }
   _deepwalk = (): Tensor[] => {
     const _walk = (node: Tensor, visited: Set<Tensor>): Tensor[] => {
       let res: Tensor[] = []
@@ -919,23 +1217,24 @@ export class Tensor extends MathTrait<Tensor> {
   backward = (gradient?: Tensor, retain_graph = false): Tensor => {
     const toposorted = this._deepwalk()
     if (gradient === undefined) {
-      if (!is_eq(this.shape, [])) throw new Error('when no gradient === provided, backward must be called on a scalar tensor')
+      if (!is_eq(this.shape, [])) throw new Error('when no gradient is provided, backward must be called on a scalar tensor')
       // fill in the first grad with one. don't use Tensor.ones because we don't need contiguous
       // this === "implicit gradient creation"
       gradient = new Tensor(1.0, { dtype: this.dtype, device: this.device, requires_grad: false })
     }
+    const toposort_uop = this.lazydata.toposort
     if (!is_eq(this.shape, gradient.shape)) throw new Error(`grad shape must match tensor shape, ${gradient.shape} !== ${this.shape}`)
     this.grad = gradient
     for (const t0 of toposorted.toReversed()) {
       if (t0.grad === undefined) throw new Error(`tensor ${t0} has no grad`)
-      const md = t0._ctx?.metadata
-      const token = _METADATA.set(md !== undefined ? { ...md, backward: true } : undefined)
-      const lazys = t0._ctx!.backward(t0.grad.lazydata)
+      const ctx = t0._ctx!, md = ctx.metadata, token = _METADATA.set(md !== undefined ? { ...md, backward: true } : undefined)
+      const lazys = ctx.backward(t0.grad.lazydata as UOp)
       _METADATA.reset(token)
       const grads = (!Array.isArray(lazys) ? [lazys] : lazys).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
-      for (const [t, g] of zip(t0._ctx!.parents!, grads)) {
+      for (const [t, g] of zip(ctx.parents!, grads)) {
         if (g !== undefined && t.requires_grad) {
           if (!is_eq(g.shape, t.shape)) throw new Error(`grad shape must match tensor shape, ${list_str(g.shape)} !== ${list_str(t.shape)}`)
+          if (!toposort_uop.has(t.lazydata)) throw new Error(`grad uop must have a path from self\ngrad uop: ${t.lazydata}`)
           t.grad = t.grad === undefined ? g : (t.grad.add(g))
         }
       }
@@ -968,7 +1267,7 @@ export class Tensor extends MathTrait<Tensor> {
     const c = new_shape.filter((x) => x === -1).length
     if (c > 1) throw new Error(`only one dimension can be inferred using -1, getting ${new_shape}`)
     if (c) new_shape = new_shape.map((s) => s === -1 ? idiv(-prod(this.shape as number[]), prod(new_shape)) : s)
-    return !is_eq(new_shape, this.shape) ? Reshape.apply(this, new_shape) : this
+    return !is_eq(new_shape, this.shape) ? Reshape.apply(this, new_shape as number[]) : this
   }
   /**
    * Returns a tensor that is expanded to the shape that is specified.
@@ -1047,14 +1346,15 @@ export class Tensor extends MathTrait<Tensor> {
   }
   /**
    * Returns a tensor with padding applied based on the input `padding`.
+   *
    * `padding` supports two padding structures:
    *
-   * 1. Flat padding: (padding_left, padding_right, padding_top, padding_bottom, ...)
+   * 1. Flat padding: `(padding_left, padding_right, padding_top, padding_bottom, ...)`
    * - This structure matches PyTorch's pad.
    * - `padding` length must be even.
    *
-   * 2. Group padding: (..., (padding_top, padding_bottom), (padding_left, padding_right))
-   * - This structure matches pad for jax, numpy, tensorflow && others.
+   * 2. Group padding: `(..., (padding_top, padding_bottom), (padding_left, padding_right))`
+   * - This structure matches pad for JAX, NumPy, TensorFlow and others.
    * - For each axis, padding can be `undefined`, meaning no padding, || a tuple `(start, end)`.
    * - `padding` must have the same length as `this.ndim`.
    *
@@ -1077,83 +1377,46 @@ export class Tensor extends MathTrait<Tensor> {
    */
   pad = (padding: sint[] | ([sint, sint] | undefined)[], mode: 'constant' | 'reflect' | 'replicate' | 'circular' = 'constant', value: number | bigint | boolean = 0.0): Tensor => {
     if (!['constant', 'reflect', 'replicate', 'circular'].includes(mode)) throw new Error(`mode=${mode} !== supported`)
-    const flat = padding.every((p) => Number.isInteger(p) || p instanceof UOp)
-    if (flat && padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
-    // turn flat padding into group padding
-    let pX = flat ? [...range(this.ndim - idiv(padding.length, 2)).map(() => [0, 0] as [sint, sint]), ...zip(slice(padding as number[], { start: -2, step: -2 }), slice(padding as number[], { step: -2 }))] : padding as [sint, sint][]
-    if (pX.length !== this.ndim) throw new Error(`padding length is improper, ${list_str(padding)} ${this.ndim}`)
-    const X = this
-    pX = pX.map((p) => p || [0, 0] as [sint, sint])
-    const pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
+    // flat padding
+    let pX: [sint, sint][]
+    if (padding.every((p) => isInt(p) || p instanceof UOp)) {
+      if (padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
+      pX = _flat_to_grouped([...padding, ...range(this.ndim - idiv(padding.length, 2)).flatMap((x) => [0, 0])])
+    } // group padding
+    else pX = padding.map((p) => p === undefined ? [0, 0] : p)
+    if (pX.length !== this.ndim) throw new Error(`padding length is improper, padding=${padding} ndim=${this.ndim}`)
+    let X: Tensor = this, pads = pX.map(([pB, pA]) => [smax(pB, 0), smax(pA, 0)] as [sint, sint])
     if (mode === 'constant') {
-      const _constant = (x: Tensor, px: [sint, sint][], v: number | bigint | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
-      return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX, value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads, value)
+      const _constant = (x: Tensor, px: [number, number][], v: number | bigint | boolean) => v === 0 ? Pad.apply(x, px) : Pad.apply(x, px).add(Pad.apply(x.ones_like(), px).where(0, v))
+      return pX.flat().every((p) => resolve(ge(p, 0))) ? _constant(X, pX as [number, number][], value) : _constant(X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-smin(pB, 0), smin(add(pA, s), s)])), pads as [number, number][], value)
     }
-    throw new Error('Not implemented')
-    // assert(all_int(this.shape), `does !support symbolic shape ${this.shape}`)
-    // if mode === "circular":
-    //   if any(pB>sh || pA>sh for (const (pB,pA),sh of zip(pX, X.shape))){ raise ValueError('Padding value causes wrapping around more than once.')
-    //   if any(pB<0 || pA<0 for (const pB,pA of pX)){ raise NotImplementedError("Negative pads with circular pads !== supported")
-    //   orig_shape, X = X.shape, X.repeat(tuple(1 + boolean(pB) + boolean(pA) for pB,pA in pads))
-    //   return X.shrink(tuple((0 if pB === 0 else osh-pB, xsh if pA === 0 else xsh-osh+pA) for (pB,pA),osh,xsh in zip(pads, orig_shape, X.shape)))
-    // for (const d,(pB,pA) of enumerate(pads)){
-    //   if mode === "reflect":
-    //     if pB >= (s:=X.shape[d]) || pA>=s: raise ValueError(`Padding (${pB}, ${pA}) should be less than the input size=${s} for dim=${d}.`)
-    //     slcB, slcA, = slice(pB,0,-1), slice(s-2 if s-2>=0 else undefined, s-2-pA if s-2-pA>=0 else undefined, -1)
-    //     xB, xA = (X[[slc if i === d else slice(undefined) for i in range(X.ndim)]] if p > 0 else undefined for slc, p in ((slcB, pB), (slcA, pA)))
-    //   if mode === "replicate":
-    //     shrB, shrA, = tuple((0,1) if i==d else undefined for i in range(X.ndim)), tuple((X.shape[i]-1,X.shape[i]) if i==d else undefined for i in range(X.ndim))
-    //     xB, xA = (X.shrink(shr).expand(tuple(p if i==d else undefined for i in range(X.ndim))) if p > 0 else undefined for shr, p in ((shrB, pB), (shrA, pA)))
-    //   X = Tensor.cat(*(X_ for X_ in (xB, X, xA) if X_ !== undefined), dim=d)
-    // return X.shrink(tuple((-min(pB,0), min(pA+s,s)) for (pB,pA),s in zip(pX, X.shape)))
+    if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
+    if (mode === 'circular') {
+      if (zip(pX, X.shape).some(([[pB, pA], sh]) => pB as number > sh || pA as number > sh)) throw new Error('Padding value causes wrapping around more than once.')
+      if (pX.some(([pB, pA]) => pB as number < 0 || pA as number < 0)) throw new Error('Negative pads with circular pads is not supported')
+      const orig_shape = X.shape
+      X = X.repeat(pads.map(([pB, pA]) => (1 + Number(Boolean(pB)) + Number(Boolean(pA)))))
+      return X.shrink(zip(pads, orig_shape, X.shape).map(([[pB, pA], osh, xsh]) => [pB === 0 ? 0 : osh - (pB as number), pA === 0 ? xsh : xsh - osh + (pA as number)]))
+    }
+    for (const [d, [pB, pA]] of pads.entries()) {
+      let xB: Tensor | undefined, xA: Tensor | undefined
+      if (mode === 'reflect') {
+        const s = X.shape[d]
+        if ((pB as number) >= s || (pA as number) >= s) throw new Error(`Padding (${pB}, ${pA}) should be less than the input size=${s} for dim=${d}.`)
+        const slcB = { start: pB, stop: 0, step: -1 }, slcA = { start: s - 2 >= 0 ? s - 2 : undefined, stop: s - 2 - (pA as number) >= 0 ? s - 2 - (pA as number) : undefined, step: -1 }
+        ;[xB, xA] = [[slcB, pB], [slcA, pA]].map(([slc, p]) => (p as number) > 0 ? X.get(...range(X.ndim).map((i) => i === d ? slc : {})) : undefined)
+      }
+      if (mode === 'replicate') {
+        const shrB = range(X.ndim).map((i) => i === d ? [0, 1] as [number, number] : undefined), shrA = range(X.ndim).map((i) => i === d ? [X.shape[i] - 1, X.shape[i]] as [number, number] : undefined)
+        ;[xB, xA] = ([[shrB, pB], [shrA, pA]] as const).map(([shr, p]) => (p as number) > 0 ? X.shrink(shr).expand(range(X.ndim).map((i) => i === d ? p : undefined) as sint[]) : undefined)
+      } else throw new Error(`invalid mode ${mode}`)
+      X = Tensor.cat([xB, X, xA].filter((X_) => X_ !== undefined), d)
+    }
+    return X.shrink(zip(pX, X.shape).map(([[pB, pA], s]) => [-min([pB as number, 0]), min([(pA as number) + s, s])] as [sint, sint]))
   }
   // ***** movement high level ops *****
 
-  // Supported Indexing Implementations:
-  //   1. Int indexing (no copy)
-  //     - for all dims where there's number, shrink -> reshape
-  //     - negative indices are taken relative to the end of the sequence, so X.at(-2)! returns the 2nd-to-last element
-  //     - X = Tensor.rand(4,5,9); X[2,-2] shrinks the Tensor to X.shrink(((2, 3), (3, 4), (0, 9))) -> X.shape=(1,1,9)
-  //     - Then we reshape (collapse) the number dim away such that for X: (1,1,9) -> (9,)
-  //   2. Slice indexing (no copy)
-  //     - for all dims where slice === start:end:stride, shrink -> flip | undefined -> pad -> reshape -> shrink
-  //     - first shrink the Tensor to X.shrink(((start, end),))
-  //     - then we apply stride through flip | undefined -> pad -> reshape -> shrink
-  //       - flip where dim value === negative
-  //       - pad on dims to be multiple of strides, such that reshaping [dim_size_padded] -> [dim_size_padded // stride, stride] === possible
-  //       - shrink [dim_size_padded // stride, stride] -> [dim_size_padded // stride, 1]
-  //       - reshape [dim_size_padded // stride, 1] -> [dim_size_padded // stride] && now you have your stride
-  //   3. undefined indexing (no copy)
-  //     - reshape (inject) a dim at the dim where there's undefined
-  //   4. Tensor indexing (copy)
-  //     - use Tensor.arange === tensor_index to create masks for dims with Tensors (adds a dim for each mask)
-  //     - combine masks together with mul
-  //     - apply mask to this by mask * this
-  //     - sum reduce away the extra dims added from creating masks
-  // Tiny Things:
-  //   1. Supported indices: Union[number, slice, Tensor, undefined, List, Tuple, Ellipsis]
-  //     - for any list, Union[List, Tuple, number[]], must have homogeneous shape
-  //     - for any tuple, Union[List, []], must have homogeneous shape
-  //   2. Bool indexing !== supported
-  //   3. Out of bounds Tensor indexing results in 0
-  //     - e.g: Tensor([1, 2, 3])[Tensor([4, 3, 2])] -> [0, 0, 3] index 4 && 3 are out of bounds
-  /**
-   * # Examples
-   * ```ts
-   * X.get(2) // X[2]
-   * X.get(2, -2) // X[2, -2]
-   * X.get({ start: 1, stop: 4 }, { step: -1 }, { start: 2, stop: 7, step: 2 }) // X[1:4, ::-1, 2:7:2]
-   * X.get(undefined, {}, {}) // X[None, :, :]
-   * X.get(new Tensor(), new Tensor()) // X[Tensor(), Tensor()]
-   * X.get('...') // X[...]
-   * X.get({}, '...', [1, 3]) // X[:, ..., 1:3]
-   * X.get({}, '...', -1) // X[:, ..., -1]
-   * X.get([2, 5], '...') // X[[2,5], ...]
-   * X.get('...', { start: 1, stop: 4 }, { start: 0, stop: 2 }) // X[..., 1:4, 0:2]
-   * X.get(2, '...', undefined) // X[2, ..., None]
-   * ```
-   */
-  get = (...indices: TensorIndice[]): Tensor => {
+  _getitem = (indices: TensorIndice[], v?: Tensor): Tensor => {
     // turn scalar Tensors into const val for number indexing if possible
     let x = this as Tensor
     indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) as number : i)
@@ -1205,7 +1468,7 @@ export class Tensor extends MathTrait<Tensor> {
       if (strides.some((st) => Math.abs(st) !== 1)) {
         strides = strides.map((s) => Math.abs(s))
         // pad shape to multiple of stride/
-        if (!all_int(x.shape)) throw new Error('symbolic shape !supprted')
+        if (!all_int(x.shape)) throw new Error('symbolic shape not supported')
         x = x.pad(zip(x.shape, strides).map(([s, st]) => [0, round_up(s, st) - s] as [number, number]))
         x = x.reshape(zip(x.shape as number[], strides).flatMap(([s, st]) => [idiv(s, st), st]))
         x = x.shrink(x.shape.filter((_, i) => i % 2 === 0).flatMap((s) => [[0, s], [0, 1]])).reshape((x.shape as number[]).filter((_, i) => i % 2 === 0))
@@ -1245,16 +1508,94 @@ export class Tensor extends MathTrait<Tensor> {
         x = x.permute(...range(dims[0], dims[0] + big_shape.length), ...range(0, dims[0]), ...range(dims[0] + big_shape.length, x.ndim))
       }
       // for advanced setitem, returns whole tensor with indices replaced
-      // KAREL: not needed for mnist
-      // if v !== undefined:
-      //   vb = v.cast(this.dtype)._broadcast_to(_broadcast_shape(x.shape, v.shape))
-      //   // add back reduced dims from sum
-      //   for (const dim of sum_axis){ vb = vb.unsqueeze(dim)
-      //   // run _masked_setitem on tuple of axis that === to be reduced to match this.shape
-      //   x = _masked_setitem(this, vb, mask, tuple(range(dims[0], dims[0] + len(big_shape))))
+      if (v !== undefined) {
+        let vb = v.cast(this.dtype)._broadcast_to(_broadcast_shape([x.shape, v.shape]))
+        // add back reduced dims from sum
+        for (const dim of sum_axis) vb = vb.unsqueeze(dim)
+        // run _masked_setitem on tuple of axis that is to be reduced to match self.shape
+        x = _masked_setitem(this, vb, mask, range(dims[0], dims[0] + big_shape.length))
+      }
     }
 
     return x
+  }
+  /**
+   * Retrieve a sub-tensor using indexing.
+   *
+   * Supported Index Types: `int | slice | Tensor | None | List | Tuple | Ellipsis`
+   *
+   * Examples:
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(12).reshape(3, 4)
+   * print(t.numpy())
+   * ```
+   *
+   * - Int Indexing: Select an element or sub-tensor using integers for each dimension.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t[1, 2].numpy())
+   * ```
+   *
+   * - Slice Indexing: Select a range of elements using slice notation (`start:end:stride`).
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t[0:2, ::2].numpy())
+   * ```
+   *
+   * - Tensor Indexing: Use another tensor as indices for advanced indexing. Using `tuple` or `list` here also works.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t[Tensor([2, 0, 1]), Tensor([1, 2, 3])].numpy())
+   * ```
+   *
+   * - `None` Indexing: Add a new dimension to the tensor.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t[:, None].shape)
+   * ```
+   *
+   * NOTE: Out-of-bounds indexing results in a value of `0`.
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([1, 2, 3])
+   * print(t[Tensor([4, 3, 2])].numpy())
+   * ```
+   */
+  get = (...indices: TensorIndice[]) => this._getitem(indices)
+
+  set = async (indices: TensorIndice[], v: Tensor | number[]) => {
+    if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
+      this._getitem(indices).assign(v)
+      return
+    }
+    // NOTE: check that setitem target is valid first
+    if (!this.lazydata.st!.contiguous) throw new Error('setitem target needs to be contiguous')
+    if (!(v instanceof Tensor || isConst(v))) throw new Error(`can't set a ${v.constructor.name} to a Tensor`)
+    if (!(v instanceof Tensor)) v = new Tensor(v, { device: this.device, dtype: this.dtype })
+    if (this.requires_grad || v.requires_grad) throw new Error('setitem with requires_grad is not supported')
+
+    const res = (await this.realize())._getitem(indices, v)
+    // if shapes match and data is not shared it's a copy and we assign to self
+    if (res.shape === this.shape && res.lazydata !== this.lazydata) this.assign(res).realize()
+    else {
+      v = v.cast(res.dtype)._broadcast_to(_broadcast_shape([res.shape, v.shape])).contiguous()
+      res.assign(v).realize()
+    }
+  }
+  /**
+   * Gathers values along an axis specified by `dim`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[1, 2], [3, 4]])
+   * print(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.gather(1, Tensor([[0, 0], [1, 0]])).numpy())
+   * ```
+   * """
+   */
+  gather = (dim: number, index: Tensor): Tensor => {
+    if (index.ndim !== this.ndim) throw new Error(`self.ndim must equal index.ndim, this.ndim=${this.ndim}, index.ndim=${index.ndim}`)
+    dim = this._resolve_dim(dim)
+    if (!zip(this.shape, index.shape).entries().filter(([d]) => d !== dim).every(([d, [s, i]]) => s >= i)) throw new Error('requires self.shape[d] >= index.shape[d] for all d != dim')
+    index = index.to(this.device)
+    const x = this.shrink([...index.shape.entries().map(([d, i]) => d !== dim ? [0, i] as [sint, sint] : undefined)]).unsqueeze(-1).transpose(-1, dim)
+    return (x.mul(index.unsqueeze(-1)._one_hot_along_dim(this.shape[dim]))).sum(-1, undefined, this.dtype)
   }
 
   /**
@@ -1291,11 +1632,26 @@ export class Tensor extends MathTrait<Tensor> {
    * print(t0.stack(t1, t2, dim=1).numpy())
    * ```
    */
-  stack = (args: Tensor[], dim = 0): Tensor => {
+  static stack = (args: Tensor[], dim = 0): Tensor => {
     // checks for shapes and number of dimensions delegated to cat
-    return this.unsqueeze(dim).cat(args.map((t) => t.unsqueeze(dim)), dim)
+    return Tensor.cat(args.map((t) => t.unsqueeze(dim)), dim)
   }
-  static stack = (tensors: Tensor[], dim = 0): Tensor => tensors[0].stack(tensors.slice(1), dim)
+  stack = (args: Tensor[], dim = 0) => Tensor.stack([this, ...args], dim)
+
+  /**
+   * Repeat elements of a tensor.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([1, 2, 3])
+   * print(t.repeat_interleave(2).numpy())
+   * ```
+   */
+  repeat_interleave = (repeats: number, dim?: number): Tensor => {
+    const x = dim === undefined ? this.flatten() : this
+    dim = dim === undefined ? 0 : this._resolve_dim(dim)
+    const shp = x.shape
+    return x.reshape([...shp.slice(0, dim + 1), 1, ...shp.slice(dim + 1)]).expand([...shp.slice(0, dim + 1), repeats, ...shp.slice(dim + 1)]).reshape([...shp.slice(0, dim), ...range(repeats).map(() => shp[dim]), ...shp.slice(dim + 1)])
+  }
 
   /**
    * Repeats tensor number of times along each dimension specified by `repeats`.
@@ -1322,6 +1678,86 @@ export class Tensor extends MathTrait<Tensor> {
     return dim < 0 ? dim + total : dim
   }
   /**
+   * Splits the tensor into chunks along the dimension specified by `dim`.
+   * If `sizes` is an integer, it splits into equally sized chunks if possible, otherwise the last chunk will be smaller.
+   * If `sizes` is a list, it splits into `len(sizes)` chunks with size in `dim` according to `size`.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(10).reshape(5, 2)
+   * print(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * split = t.split(2)
+   * print("\\n".join([repr(x.numpy()) for x in split]))
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * split = t.split([1, 4])
+   * print("\\n".join([repr(x.numpy()) for x in split]))
+   * ```
+   */
+  split = (sizes: number | number[], dim = 0): Tensor[] => {
+    if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
+    dim = this._resolve_dim(dim)
+    if (typeof sizes === 'number') sizes = range(0, max([1, this.shape[dim]]), max([1, sizes])).map((i) => min([sizes as number, this.shape[dim] - i]))
+    if (sum(sizes) !== this.shape[dim]) throw new Error(`expect sizes to sum exactly to {self.shape[dim]}, but got {sum(sizes)}`)
+    return range(sizes.length).map((i) => [...range(dim).map(() => ({})), { start: sum(sizes.slice(0, i)), stop: sum(sizes.slice(0, i + 1)) }]).map((sl) => this.get(sl))
+  }
+
+  /**
+   * Splits the tensor into `chunks` number of chunks along the dimension `dim`.
+   * If the tensor size along `dim` is not divisible by `chunks`, all returned chunks will be the same size except the last one.
+   * The function may return fewer than the specified number of chunks.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * chunked = Tensor.arange(11).chunk(6)
+   * print("\\n".join([repr(x.numpy()) for x in chunked]))
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * chunked = Tensor.arange(12).chunk(6)
+   * print("\\n".join([repr(x.numpy()) for x in chunked]))
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * chunked = Tensor.arange(13).chunk(6)
+   * print("\\n".join([repr(x.numpy()) for x in chunked]))
+   * ```
+   */
+  chunk = (chunks: number, dim = 0): Tensor[] => {
+    if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
+    if (chunks <= 0) throw new Error(`expect chunks to be greater than 0, got: ${chunks}`)
+    dim = this._resolve_dim(dim)
+    return this.split(this.shape[dim] ? ceildiv(this.shape[dim], chunks) : range(chunks).map(() => 0), dim)
+  }
+
+  /**
+   * Generates coordinate matrices from coordinate vectors.
+   * Input tensors can be scalars or 1D tensors.
+   *
+   * `indexing` determines how the output grids are aligned.
+   * `ij` indexing follows matrix-style indexing and `xy` indexing follows Cartesian-style indexing.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * x, y = Tensor([1, 2, 3]), Tensor([4, 5, 6])
+   * grid_x, grid_y = x.meshgrid(y)
+   * print(grid_x.numpy())
+   * print(grid_y.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * grid_x, grid_y = x.meshgrid(y, indexing="xy")
+   * print(grid_x.numpy())
+   * print(grid_y.numpy())
+   * ```
+   */
+  meshgrid = (args: Tensor[], indexing: 'ij' | 'xy' = 'ij'): Tensor[] => {
+    if (!['ij', 'xy'].includes(indexing)) throw new Error(`indexing must be in ("ij", "xy"), got ${indexing}`)
+    let tensors = [this, ...args]
+    if (tensors.length === 1) return tensors
+    const basis = indexing === 'ij' ? range(tensors.length) : [1, 0, ...range(2, tensors.length)]
+    tensors = zip(basis, tensors).map(([i, t]) => t.reshape([-1, ...range(args.length - 1).map(() => 1)]))
+    const output_shape = _broadcast_shape(tensors.map((t) => t.shape))
+    return tensors.map((t) => t._broadcast_to(output_shape))
+  }
+
+  /**
    * Returns a tensor with specified dimensions of input of size 1 removed.
    * If `dim` is not specified, all dimensions with size 1 are removed.
    *
@@ -1339,7 +1775,7 @@ export class Tensor extends MathTrait<Tensor> {
   squeeze = (dim?: number): Tensor => {
     if (dim === undefined) return this.reshape(this.shape.filter((dim) => dim !== 1))
     dim = this._resolve_dim(dim)
-    return !this.ndim || this.shape.at(dim)! !== 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
+    return !this.ndim || this.shape[dim] !== 1 ? this : this.reshape([...this.shape.slice(0, dim), ...this.shape.slice(dim + 1)])
   }
 
   /**
@@ -1401,10 +1837,11 @@ export class Tensor extends MathTrait<Tensor> {
     start_dim = this._resolve_dim(start_dim), end_dim = this._resolve_dim(end_dim)
     return this.reshape([...this.shape.slice(0, start_dim), prod(this.shape.slice(start_dim, end_dim + 1)), ...this.shape.slice(end_dim + 1)])
   }
+
   /**
    * Unflattens dimension `dim` of the tensor into multiple dimensions specified by `sizes`. `Tensor.flatten()` is the inverse of this function.
    *
-   *  ```python exec="true" source="above" session="tensor" result="python"
+   * ```python exec="true" source="above" session="tensor" result="python"
    * print(Tensor.ones(3, 4, 1).unflatten(1, (2, 2)).shape)
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
@@ -1419,9 +1856,71 @@ export class Tensor extends MathTrait<Tensor> {
     return this.reshape([...this.shape.slice(0, dim), ...sizes, ...this.shape.slice(dim + 1)])
   }
 
+  /**
+   * Rolls the tensor along specified dimension(s).
+   * The rolling operation is circular, meaning that elements that go beyond the edge are wrapped around to the beginning of the dimension.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(4)
+   * print(t.roll(shifts=1, dims=0).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.roll(shifts=-1, dims=0).numpy())
+   * ```
+   */
+  roll = (shifts: number | number[], dims: number | number[]): Tensor => {
+    dims = make_tuple(dims, 1).map((d) => this._resolve_dim(d))
+    let rolled: Tensor = this
+    for (let [dim, shift] of zip(dims, make_tuple(shifts, 1))) {
+      shift = shift % this.shape[dim]
+      rolled = Tensor.cat([rolled.get(...range(rolled.ndim).map((i) => i !== dim ? {} : { start: -shift })), rolled.get(...range(rolled.ndim).map((i) => i !== dim ? {} : { stop: -shift }))], dim)
+    }
+    return rolled
+  }
+  /**
+   * Rearranges input according to formula
+   *
+   * See: https://einops.rocks/api/rearrange/
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * x = Tensor([[1, 2], [3, 4]])
+   * print(Tensor.rearrange(x, "batch channel -> (batch channel)").numpy())
+   * ```
+   */
+  rearrange = (formula: string, sizes: any): Tensor => {
+    const parse_formula = (formula: string): [string[], [number, number][]] => {
+      const tokens = ` ${formula} `.replace('…', '...').replace('(', ' ( ').replace(')', ' ) ').replace(' ', '  ').replace(' 1 ', ' ( ) ').split(/\s+/).filter(Boolean)
+      const [lparens, rparens] = ['(', ')'].map((x) => tokens.map((ch, i) => ch === x ? i : -1).filter((i) => i !== -1))
+      const pairs = zip(lparens, rparens)
+      if (lparens.length !== rparens.length || !is_eq(flatten(pairs), flatten(pairs))) throw new Error('bracket mismatch')
+      return [tokens.filter((name) => !['(', ')'].includes(name)), pairs.map(([s, e], i) => [s - 2 * i, e - 1 - 2 * i])]
+    }
+    if (formula.split('->').length !== 2) throw new Error('need exactly one "->" in formula')
+
+    let [[lhs, unflatten_dims], [rhs, flatten_dims]] = formula.split('->').map(parse_formula)
+
+    for (const name of sizes) if (lhs.includes(name)) throw new Error(`axis ${name} is not used in transform`)
+    if (!is_eq(lhs.toSorted(), rhs.toSorted()) || lhs.length !== new Set(lhs).size) throw new Error(`name mismatch in ${formula}`)
+    for (const name of flatten([lhs, rhs])) if (name !== '...' && name.includes(' ')) throw new Error(`invalid axis name ${name}`)
+    if (flatten(unflatten_dims.map(([s, e]) => lhs.slice(s, e))).includes('...')) throw new Error(`cannot have collapsed ellipsis (...) in lhs of ${formula}`)
+    if (lhs.filter((x) => x === '...').length > 1) throw new Error(`too many ellipses in ${formula}`)
+
+    // resolve ellipsis
+    let ell_len: number
+    if (lhs.includes('...')) ell_len = this.shape.length - lhs.length + 1 + sum(unflatten_dims.map(([s, e]) => e - s - 1))
+    ;[lhs, rhs] = [lhs, rhs].map((l) => [...l.slice(0, l.indexOf('...')), ...range(ell_len).map((j) => `...${j}`), ...(l.includes('...') ? l.slice(l.indexOf('...') + 1) : l)])
+    unflatten_dims = unflatten_dims.map(([s, e]) => [s + (lhs.slice(0, s).includes('...0') ? ell_len - 1 : 0), e + (lhs.slice(0, e).includes('...0') ? ell_len - 1 : 0)])
+    flatten_dims = flatten_dims.map(([s, e]) => [s + (rhs.slice(0, s).includes('...0') ? ell_len - 1 : 0), e + (rhs.slice(0, e).includes('...0') ? ell_len - 1 : 0)])
+
+    // apply movement ops in order unflatten -> permute -> flatten/unsqueeze
+    let t = unflatten_dims.reduce((x, dims) => x.unflatten(dims[0], range(...dims).map((d) => sizes.get(lhs[d], -1))), this as Tensor)
+    for (const [i, name] of lhs.entries()) if (sizes.includes(name) && sizes[name] !== t.shape[i]) throw new Error(`size provided for dimension ${name} incorrect`)
+    t = t.permute(...rhs.map((name) => lhs.indexOf(name)))
+    return flatten_dims.toReversed().reduce((x, dims) => dims[0] < dims[1] ? x.flatten(dims[0], dims[1] - 1) : x.unsqueeze(dims[0]), t)
+  }
   //     // ***** reduce ops *****
 
-  _reduce = (fxn: typeof Function, axis?: number | number[], keepdim = false): Tensor => {
+  _reduce = (fxn: ReturnType<typeof CreateFunction>, axis?: number | number[], keepdim = false): Tensor => {
     axis = (axis === undefined ? range(this.ndim) : make_tuple(axis, 1)).map((x) => this._resolve_dim(x))
     if (this.ndim === 0) axis = []
     const ret = fxn.apply(this, axis)
@@ -1504,6 +2003,8 @@ export class Tensor extends MathTrait<Tensor> {
   max = (axis?: number | number[], keepdim = false) => {
     return this._reduce(Max, axis, keepdim)
   }
+  _inverse = (): Tensor => this.is_floating_point() ? this.neg() : dtypes.is_int(this.dtype) ? this.bitwise_not() : this.logical_not()
+
   /**
    * Returns the minimum value of the tensor along the specified axis || axes.
    *
@@ -1525,8 +2026,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   min = (axis?: number | number[], keepdim = false) => {
-    if (dtypes.is_int(this.dtype) || this.dtype === dtypes.bool) return this.bitwise_not().max(axis, keepdim).bitwise_not()
-    return this.neg().max(axis, keepdim).neg()
+    return this._inverse().max(axis, keepdim)._inverse()
   }
 
   /**
@@ -1549,7 +2049,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   any = (axis?: number | number[], keepdim = false) => {
-    return this.boolean().max(axis, keepdim)
+    return this.bool().max(axis, keepdim)
   }
 
   /**
@@ -1669,8 +2169,8 @@ export class Tensor extends MathTrait<Tensor> {
     return this.std(axis, keepdim, correction), this.mean(axis, keepdim)
   }
   _softmax = (axis: number | number[], dtype?: DTypeLike): [Tensor, Tensor, Tensor] => {
-    const x = dtype !== undefined ? this.cast(dtype) : this
-    const m = x.sub(x.max(axis, true).detach())
+    let m = this.sub(this.max(axis, true).detach())
+    if (dtype !== undefined) m = m.cast(dtype)
     const e = m.exp()
     return [m, e, e.sum(axis, true)]
   }
@@ -1825,7 +2325,22 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   argmin = (axis = undefined, keepdim = false) => {
-    return this.neg().argmax(axis, keepdim)
+    return this._inverse().argmax(axis, keepdim)
+  }
+
+  /**
+   * Sums the product of the elements of the input tensors according to a formula based on the Einstein summation convention.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.einsum.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * x = Tensor([[1, 2], [3, 4]])
+   * y = Tensor([[5, 6], [7, 8]])
+   * print(Tensor.einsum("ij,ij->", x, y).numpy())
+   * ```
+   */
+  static einsum = (formula: string, operands: Tensor | Tensor[], acc_dtype?: DTypeLike): Tensor => {
+    throw new NotImplemented()
   }
 
   // ***** processing ops *****
@@ -1856,33 +2371,93 @@ export class Tensor extends MathTrait<Tensor> {
     x = x.shrink([...noop, ...zip(o_, k_).flatMap(([o, k]) => [[0, o], [0, k]] as [sint, sint][])])
     return x.permute(...range(noop.length), ...range(i_.length).map((i) => noop.length + i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1))
   }
-  _padding2d = (padding: number | number[], dims: number): number[] => {
-    return !Array.isArray(padding) ? range(2 * dims).map(() => padding) : (padding.length === 2 * dims ? padding : padding.flatMap((p) => range(2).map(() => p)).toReversed())
+  _resolve_pool_pads = (padding: number | number[], dims: number): number[] => {
+    if (Array.isArray(padding) && !(padding.length === 2 * dims || padding.length === dims)) throw new Error(`Padding must be an int or a sequence of length ${dims} or ${2 * dims}, but got padding=${padding} for shape=${this.shape} with dims=${dims}.`)
+    return !Array.isArray(padding) ? range(2 * dims).map(() => padding) : padding.length === 2 * dims ? padding : range(2).flatMap(() => padding).toReversed()
   }
-
+  _apply_ceil_mode = (pads: number[], k_: sint[], s_: number[] | number, d_: number | number[]): number[] => {
+    ;[d_, s_] = [d_, s_].map((x) => make_tuple(x, k_.length))
+    const i_ = this.shape.slice(-k_.length)
+    pads = [...pads]
+    const grouped_pads = _flat_to_grouped(pads)
+    // https://arxiv.org/pdf/1603.07285 section 5.1, relationship 15.
+    const o_ = zip(i_, d_, k_, s_, grouped_pads).map(([i, d, k, s, [pB, pA]]) => ceildiv(i + (pB as number) + (pA as number) - (d * ((k as number) - 1) + 1), s) + 1)
+    for (const [dim, [o, i, s, k, d, [pB, pA]]] of zip(o_, i_, s_, k_, d_, grouped_pads).entries()) {
+      // we have to do additional padding before `_pool` so that `o_` in `_pool` is calculated correctly
+      // `s*(o-1) + (d*(k-1)+1) - (i+pB+pA)` -> last_sliding_window_start + full_kernel_size - padded_input_shape
+      // we decrease padding in the case that a sliding window starts in the end padded region, thereby decreasing `o_` in `_pool`
+      // `smax(s*(o-1) - (pB+i-1), 0)` -> last_sliding_window_start - (pad_before + input_size - zero_offset)
+      pads[-1 - dim * 2] += s * (o - 1) + (d * ((k as number) - 1) + 1) - (i + (pB as number) + (pA as number)) - (smax(s * (o - 1) - ((pB as number) + i - 1), 0) as number)
+    }
+    return pads
+  }
+  // NOTE: these work for more than 2D
+  avg_pool2d = (kernel_size = [2, 2], stride?: number, dilation = 1, padding = 0, ceil_mode = false, count_include_pad = true) => {
+    const k_ = make_tuple(kernel_size, 2), axis = range(-k_.length, 0)
+    const pool = (x: Tensor, padding_: number[]): Tensor => x.pad(padding_)._pool(k_, stride !== undefined ? stride : k_, dilation)
+    const reg_pads = this._resolve_pool_pads(padding, k_.length)
+    const ceil_pads = this._apply_ceil_mode(reg_pads, k_, stride !== undefined ? stride : k_, dilation)
+    if (!count_include_pad) {
+      const pads = ceil_mode ? ceil_pads : reg_pads
+      return pool(this, pads).sum(axis).div(pool(this.ones_like(), pads).sum(axis))
+    }
+    if (!ceil_mode) return pool(this, reg_pads).mean(axis)
+    return pool(this, ceil_pads).sum(axis).div(pool(this.pad(reg_pads).ones_like(), zip(ceil_pads, reg_pads).map(([cp, rp]) => cp - rp)).sum(axis))
+  }
   /**
-   * Applies max pooling over a tensor.
+   * Applies average pooling over a tensor.
    *
-   * NOTE: unlike PyTorch, this implementation !== limited to only 2d pooling && instead works for any number of dimensions.
+   * This function supports three different types of `padding`:
    *
-   * See: https://paperswithcode.com/method/max-pooling
+   * 1. `int` (single value):
+   *   Applies the same padding value uniformly to all spatial dimensions.
+   *
+   * 2. `Tuple[int, ...]` (length = number of spatial dimensions):
+   *   Specifies a distinct padding value for each spatial dimension in the form `(padding_height, padding_width, ...)`.
+   *
+   * 3. `Tuple[int, ...]` (length = 2 * number of spatial dimensions):
+   *   Specifies explicit padding for each side of each spatial dimension in the form
+   *   `(padding_left, padding_right, padding_top, padding_bottom, ...)`.
+   *
+   * When `ceil_mode` is set to `true`, output shape will be determined using ceil division.
+   * When `count_include_pad` is set to `false`, zero padding will not be included in the averaging calculation.
+   *
+   * NOTE: unlike PyTorch, this implementation is not limited to only 2d pooling and instead works for any number of dimensions.
+   *
+   * See: https://paperswithcode.com/method/average-pooling
    *
    * ```python exec="true" source="above" session="tensor" result="python"
    * t = Tensor.arange(25).reshape(1, 1, 5, 5)
-   * console.log(t.max_pool2d().numpy())
+   * print(t.avg_pool2d().numpy())
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(t.max_pool2d(padding=1).numpy())
+   * print(t.avg_pool2d(ceil_mode=true).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.avg_pool2d(padding=1).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.avg_pool2d(padding=1, count_include_pad=false).numpy())
    * ```
    */
-  max_pool2d = (kernel_size = [2, 2], stride = undefined, dilation = 1, padding = 0) => {
-    const k_ = make_tuple(kernel_size, 2)
-    const padding_ = this._padding2d(padding, k_.length)
-    return this.pad(padding_, undefined, dtypes.min(this.dtype))._pool(k_, stride || k_, dilation).max(range(-k_.length, 0))
+  max_pool2d = (kernel_size = [2, 2], stride?: number, dilation = 1, padding = 0, ceil_mode = false) => {
+    let k_ = make_tuple(kernel_size, 2), pads = this._resolve_pool_pads(padding, k_.length)
+    if (ceil_mode) pads = this._apply_ceil_mode(pads, k_, stride !== undefined ? stride : k_, dilation)
+    return this.pad(pads, undefined, dtypes.min(this.dtype))._pool(k_, stride !== undefined ? stride : k_, dilation).max(range(-k_.length, 0))
   }
   static max_pool2d = (t: Tensor) => t.max_pool2d()
   /**
    * Applies a convolution over a tensor with a given `weight` && optional `bias`.
+   *
+   * 1. `int` (single value):
+   *   Applies the same padding value uniformly to all spatial dimensions.
+   *
+   * 2. `Tuple[int, ...]` (length = number of spatial dimensions):
+   *   Specifies a distinct padding value for each spatial dimension in the form `(padding_height, padding_width, ...)`.
+   *
+   * 3. `Tuple[int, ...]` (length = 2 * number of spatial dimensions):
+   *   Specifies explicit padding for each side of each spatial dimension in the form
+   *   `(padding_left, padding_right, padding_top, padding_bottom, ...)`.
    *
    * NOTE: unlike PyTorch, this implementation !== limited to only 2d convolutions && instead works for any number of dimensions.
    *
@@ -1894,15 +2469,11 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.conv2d(w).numpy())
    * ```
    */
-  conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
-    if (IMAGE) {
-      throw new Error('KAREL: implement image_conv2d')
-      // return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype)
-    }
+  conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
+    if (IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype as DType)
     const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
+    const padding_ = this._resolve_pool_pads(padding, HW.length)
     if (!(groups * (cin as number) === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * (cin as number)} vs. ${cin_})`)
-    if (Array.isArray(padding) && !(padding.length === 2 * HW.length || padding.length === HW.length)) throw new Error(`Expected padding of length ${2 * HW.length} || ${HW.length}, but got ${padding.length} for tensor of shape ${this.shape}`)
-    const padding_ = this._padding2d(padding, HW.length)
 
     // conv2d === a pooling op (with padding)
     let x = this.pad(padding_)._pool(HW, stride, dilation) // (bs, groups*cin, oy, ox, H, W)
@@ -1915,38 +2486,76 @@ export class Tensor extends MathTrait<Tensor> {
       const ret = (x.mul(weight.reshape([1, groups, rcout, ...range(oyx.length).map(() => 1), cin, ...HW]))).sum(range(1 + oyx.length).map((i) => -1 - i), true, acc_dtype).reshape([bs, cout, ...oyx])
       return bias === undefined ? ret : ret.add(bias.reshape([1, -1, ...range(HW.length).map(() => 1)]))
     }
-    throw new Error('KAREL: Not needed for mnist')
-    // KAREL: not needed for mnist
-    // HWI, HWO = (6,) * len(HW), (4,) * len(HW)  // F(4x4,3x3) winograd tiles
-    // winograd_G = [[1/4, 0, 0], .at(-1/6, -1/6, -1/6)!, .at(-1/6, 1/6, -1/6)!, [1/24, 1/12, 1/6], [1/24, -1/12, 1/6], [0, 0, 1]]
-    // winograd_Bt = [[4, 0, -5, 0, 1, 0], [0, -4, -4, 1, 1, 0], [0, 4, -4, -1, 1, 0], [0, -2, -1, 2, 1, 0], [0, 2, -1, -2, 1, 0], [0, 4, 0, -5, 0, 1]]
-    // winograd_At = [[1, 1, 1, 1, 1, 0], [0, 1, -1, 2, -2, 0], [0, 1, 1, 4, 4, 0], [0, 1, -1, 8, -8, 1]] // applying At in pre-order doubles compile time
+    const HWI = range(HW.length).map(() => 6), HWO = range(HW.length).map(() => 4) // F(4x4,3x3) winograd tiles
+    const winograd_G = [[1 / 4, 0, 0], [-1 / 6, -1 / 6, -1 / 6], [-1 / 6, 1 / 6, -1 / 6], [1 / 24, 1 / 12, 1 / 6], [1 / 24, -1 / 12, 1 / 6], [0, 0, 1]]
+    const winograd_Bt = [[4, 0, -5, 0, 1, 0], [0, -4, -4, 1, 1, 0], [0, 4, -4, -1, 1, 0], [0, -2, -1, 2, 1, 0], [0, 2, -1, -2, 1, 0], [0, 4, 0, -5, 0, 1]]
+    const winograd_At = [[1, 1, 1, 1, 1, 0], [0, 1, -1, 2, -2, 0], [0, 1, 1, 4, 4, 0], [0, 1, -1, 8, -8, 1]] // applying At in pre-order doubles compile time
 
-    // // todo: stride === dilation
-    // // use padding to round up to 4x4 output tiles
-    // // (bs, cin_, tyx, HWI)
-    // d = this.pad(sum([[padding_[i*2], padding_[i*2+1] + (-(dim + sum(padding_[i * 2:(i + 1) * 2]) - 2) % 4)] for (const i, dim of enumerate(this.shape.at(-len(HW):)!)], []))._pool(HWI, HWO)  // noqa){ E501
-    // // move HW to the front: // (HWI, bs, cin_, tyx)
-    // d = d.permute(*range(len(d.shape)-len(HW),len(d.shape)), *range(len(d.shape)-len(HW)))
-    // tyx = d.shape.at(-len(HWI):)!  // dim of tiling
+    // todo: stride == dilation
+    // use padding to round up to 4x4 output tiles
+    // (bs, cin_, tyx, HWI)
+    let d = this.pad(this.shape.slice(-HW.length).flatMap((dim, i) => [padding_[i * 2], padding_[i * 2 + 1] + (-(dim + sum(padding_.slice(i * 2, (i + 1) * 2)) - 2) % 4)]))._pool(HWI, HWO)
+    // move HW to the front: // (HWI, bs, cin_, tyx)
+    d = d.permute(...range(d.shape.length - HW.length, d.shape.length), ...range(d.shape.length - HW.length))
+    const tyx = d.shape.slice(-HWI.length) // dim of tiling
 
-    // g = weight.permute(*range(len(weight.shape)-len(HW),len(weight.shape)), *range(len(weight.shape)-len(HW)))  // move HW to the front
+    const g = weight.permute(...range(weight.shape.length - HW.length, weight.shape.length), ...range(weight.shape.length - HW.length)) // move HW to the front
 
-    // // compute 6x6 winograd tiles: GgGt, BtdB
-    // // (HWI, groups * rcout, cin) -> (HWI, bs=1, groups, rcout, cin, tyx=(1,1))
-    // gfactors = _apply_winograd_matrix(winograd_G, g, len(HW)).reshape(*HWI, 1, groups, rcout, cin, *([1]*len(tyx)))
-    // // (HWI, bs, cin_, tyx) -> (HWI, bs, groups, 1 ,cin, *tyx)
-    // dfactors = _apply_winograd_matrix(winograd_Bt, d, len(HW)).reshape(*HWI, bs, groups, 1, cin, *tyx)
+    // compute 6x6 winograd tiles: GgGt, BtdB
+    // (HWI, groups * rcout, cin) -> (HWI, bs=1, groups, rcout, cin, tyx=(1,1))
+    const gfactors = _apply_winograd_matrix(winograd_G, g, HW.length).reshape([...HWI, 1, groups, rcout, cin, ...range(tyx.length).map(() => 1)])
+    // (HWI, bs, cin_, tyx) -> (HWI, bs, groups, 1 ,cin, *tyx)
+    const dfactors = _apply_winograd_matrix(winograd_Bt, d, HW.length).reshape([...HWI, bs, groups, 1, cin, ...tyx])
 
-    // // matmul; sum across cin: (HWI, bs, groups, rcout, *tyx); then HWI -> HWO: (HWO, bs, groups, rcout, *tyx)
-    // ret = _apply_winograd_matrix(winograd_At, (gfactors * dfactors).sum(axis=-1-len(HW), acc_dtype=acc_dtype), len(HW))
+    // matmul; sum across cin: (HWI, bs, groups, rcout, *tyx); then HWI -> HWO: (HWO, bs, groups, rcout, *tyx)
+    let ret = _apply_winograd_matrix(winograd_At, (gfactors.mul(dfactors)).sum(-1 - HW.length, undefined, acc_dtype), HW.length)
 
-    // // interleave tyx && HWO: (bs, groups, rcout, oy, HO, ox, WO)
-    // ret = ret.permute([*range(len(HW), len(ret.shape)-len(HW)), *[i+o for i in range(len(HW)) for o in [len(ret.shape)-len(HW),0]]])
-    // // merge groups && rcout, tyx && HWO: (bs, groups, cout, *yx), shrink to final
-    // ret = ret.reshape(bs, cout, *[c * HWO[i] for i, c in enumerate(tyx)]).shrink(tuple((0, s) for s in [bs, cout, *oyx]))
+    // interleave tyx and HWO: (bs, groups, rcout, oy, HO, ox, WO)
+    ret = ret.permute(...range(HW.length, ret.shape.length - HW.length), ...range(HW.length).flatMap((i) => [ret.shape.length - HW.length, 0].map((o) => i + o)))
+    // merge groups and rcout, tyx and HWO: (bs, groups, cout, *yx), shrink to final
+    ret = ret.reshape([bs, cout, ...tyx.map((c, i) => c * HWO[i])]).shrink([bs, cout, ...oyx].map((s) => [0, s]))
 
-    // return (ret if bias === undefined else ret.add(bias.reshape(1, -1, *[1 for _ in range(len(HW))]))).contiguous().contiguous_backward()
+    return (bias === undefined ? ret : ret.add(bias.reshape([1, -1, ...range(HW.length).map(() => 1)]))).contiguous().contiguous_backward()
+  }
+  /**
+   * Applies a transposed convolution over a tensor with a given `weight` and optional `bias`.
+   *
+   * This function supports three different types of `padding`
+   *
+   * 1. `int` (single value):
+   *   Applies the same padding value uniformly to all spatial dimensions.
+   *
+   * 2. `Tuple[int, ...]` (length = number of spatial dimensions):
+   *   Specifies a distinct padding value for each spatial dimension in the form `(padding_height, padding_width, ...)`.
+   *
+   * 3. `Tuple[int, ...]` (length = 2 * number of spatial dimensions):
+   *   Specifies explicit padding for each side of each spatial dimension in the form
+   *   `(padding_left, padding_right, padding_top, padding_bottom, ...)`.
+   *
+   * NOTE: unlike PyTorch, this implementation is not limited to only 2d transposed convolutions and instead works for any number of dimensions.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor.arange(9).reshape(1, 1, 3, 3)
+   * w = Tensor.ones(1, 1, 2, 2)
+   * print(t.conv_transpose2d(w).numpy())
+   * ```
+   */
+  conv_transpose2d = (weight: Tensor, bias?: Tensor, groups = 1, stride_ = 1, dilation_ = 1, padding_: number | number[] = 0, output_padding_ = 0): Tensor => {
+    let x: Tensor = this, w = weight.unflatten(0, [groups, -1]).transpose(1, 2).flip(range(3, weight.shape.length + 1))
+    const HW = weight.shape.slice(2)
+    let padding = _flat_to_grouped(this._resolve_pool_pads(padding_, HW.length))
+    const [stride, dilation, output_padding] = [stride_, dilation_, output_padding_].map((x) => make_tuple(x, HW.length))
+    if (stride.some((s) => s > 1)) {
+      // handle strides: (k) -> reshape -> (k,1) -> pad -> (k,s) -> reshape -> (k*s) -> shrink (k-(s-1))
+      x = x.reshape([undefined, undefined, ...flatten(x.shape.slice(2).map((k) => [k, 1]))])
+      x = x.pad([undefined, undefined, ...flatten(stride.map((s) => [undefined, [0, s - 1] as [sint, sint]]))])
+      x = x.reshape([undefined, undefined, ...zip(slice(x.shape, { start: 2, step: 2 }), stride).map(([k, s]) => k * s)])
+      x = x.shrink([undefined, undefined, ...zip(x.shape.slice(2), stride).map(([k, s]) => [0, k - (s - 1)] as [sint, sint])])
+    }
+    const new_padding = flatten(zip(HW, dilation, padding, output_padding).toReversed().map(([k, d, [pB, pA], op]) => [(k - 1) * d - (pB as number), (k - 1) * d - (pA as number) + op]))
+    return x.conv2d(w.flatten(undefined, 1), bias, groups, undefined, dilation, new_padding)
   }
   /**
    * Performs dot product between two tensors.
@@ -2001,6 +2610,7 @@ export class Tensor extends MathTrait<Tensor> {
     const pooled = this.transpose(axis, -1).pad([pl_sz, -Number(_include_initial)], undefined, identity_element(op, this.dtype) as number)._pool([this.shape.at(axis)!])
     return (op === Ops.ADD ? pooled.sum(-1) : pooled.max(-1)).transpose(axis, -1)
   }
+
   _split_cumalu = (axis: number, op: Ops): Tensor => {
     axis = this._resolve_dim(axis)
     if (this.ndim === 0 || this.shape.includes(0)) return this
@@ -2046,7 +2656,7 @@ export class Tensor extends MathTrait<Tensor> {
   }
 
   static _tri = (r: sint, c: sint, diagonal = 0, opts?: TensorOptions): Tensor => {
-    if (typeof r !== 'number') throw new Error(`does not support symbolic, getting r={r}, c={c}`)
+    if (!isInt(r) || !isInt(c)) throw new Error(`does not support symbolic, getting r=${r}, c=${c}`)
     if (r === 0 || c === 0 || diagonal >= (c as number)) return Tensor.zeros([r, c], opts)
     if ((r as number) + diagonal <= 0) return Tensor.ones([r, c], opts)
     const s = sub(add(r, c), 1)
@@ -2103,6 +2713,80 @@ export class Tensor extends MathTrait<Tensor> {
     return Tensor._tri(this.shape.at(-2)!, this.shape.at(-1)!, diagonal + 1, { device: this.device, dtype: dtypes.bool }).where(0, this).cast(this.dtype)
   }
 
+  /**
+   * Downsamples or Upsamples to the input `size`, accepts 0 to N batch dimensions.
+   *
+   * The interpolation algorithm is selected with `mode` which currently only supports `linear`, `nearest` and `nearest-exact`.
+   * To run `bilinear` or `trilinear`, pass in a 2D or 3D size.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[1, 2, 3, 4], [21, 22, 23, 24], [41, 42, 43, 44]])
+   * print(t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(t.interpolate(size=(2,3), mode="linear").numpy())
+   * ```
+   */
+  interpolate = (size: number[], mode: 'linear' | 'nearest' | 'nearest-exact' = 'linear', align_corners = false): Tensor => {
+    if (!(Array.isArray(size) && all_int(size) && 0 < size.length && size.length <= this.ndim)) throw new Error(`invalid size=${size}`)
+    if (!['linear', 'nearest', 'nearest-exact'].includes(mode)) throw new Error('only supports linear, nearest or nearest-exact interpolate')
+    if (align_corners && mode !== 'linear') throw new Error('align_corners option can only be set with the interpolating mode linear')
+    let x: Tensor = this, expand = [...this.shape]
+    for (const i of range(-1, -size.length - 1, -1)) {
+      const scale = (this.shape[i] - Number(align_corners)) / (size[i] - Number(align_corners))
+      const arr = Tensor.arange(size[i], undefined, undefined, { dtype: dtypes.float32, device: this.device }), reshape = range(this.ndim).map((x) => 1)
+      reshape[i] = expand[i] = size[i]
+      if (mode === 'linear') {
+        const index = (align_corners ? arr.mul(scale, true) : (arr.add(0.5).mul(scale, true)).sub(0.5)).clip(0, this.shape[i] - 1)
+        const [low, high, perc] = [index.floor(), index.ceil(), index.sub(index.floor())].map((y) => y.reshape(reshape).expand(expand))
+        x = x.gather(i, low).lerp(x.gather(i, high), perc)
+      } else {
+        const index = (mode === 'nearest-exact' ? (arr.add(0.5).mul(scale, true)) : arr.mul(scale, true)).cast(dtypes.int32).reshape(reshape).expand(expand)
+        x = x.gather(i, index)
+      }
+    }
+    return x.cast(this.dtype)
+  }
+  /**
+   *
+   * Scatters `src` values along an axis specified by `dim`.
+   * Apply `add` or `multiply` reduction operation with `reduce`.
+
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * src = Tensor.arange(1, 11).reshape(2, 5)
+   * print(src.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * index = Tensor([[0, 1, 2, 0]])
+   * print(Tensor.zeros(3, 5, dtype=src.dtype).scatter(0, index, src).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * index = Tensor([[0, 1, 2], [0, 1, 4]])
+   * print(Tensor.zeros(3, 5, dtype=src.dtype).scatter(1, index, src).numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.full((2, 4), 2.0).scatter(1, Tensor([[2], [3]]), 1.23, reduce='multiply').numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor.full((2, 4), 2.0).scatter(1, Tensor([[2], [3]]), 1.23, reduce='add').numpy())
+   * ```
+   */
+  scatter = (dim: number, index: Tensor, src: Tensor | ConstType, reduce?: 'multiply' | 'add'): Tensor => {
+    if (!['add', 'multiply', undefined].includes(reduce)) throw new Error(`reduce=${reduce} must be one of None, 'multiply', or 'add'`)
+    index = index.to(this.device), dim = this._resolve_dim(dim)
+    src = src instanceof Tensor ? src.cast(this.dtype) : new Tensor(src, { device: this.device, dtype: this.dtype })._broadcast_to(index.shape)
+    if (index.ndim !== this.ndim || this.ndim !== src.ndim) throw new Error(`self.ndim, index.ndim and src.dim must all equal, ndim=${this.ndim} index.ndim=${index.ndim} src.ndim=${src.ndim}`)
+    if (!zip(this.shape, index.shape, src.shape).every(([self_, index_, src_], d) => (d === dim || self_ >= index_) && src_ >= index_)) throw new Error(`All dimensions of ${index.shape} should be <= to all dimensions of ${src.shape} and all dimensions except dimension ${dim} of ${this.shape}`)
+    // shrink src to index shape to shrink away the unused values
+    src = src.shrink(index.shape.map((s) => [0, s]))
+    // prepare src and mask for reduce with respect to dim
+    src = src.unsqueeze(-1).expand([...src.shape, this.shape[dim]]).transpose(-1, dim)
+    let mask = index.unsqueeze(-1)._one_hot_along_dim(this.shape[dim]).transpose(-1, dim) // pad src and mask to self.shape so that reduce can be done with padded values as no-ops
+    ;[src, mask] = [src, mask].map((x) => x.pad([...range(this.ndim).map((i) => i !== dim ? [0, this.shape[i] - x.shape[i]] as [sint, sint] : undefined), undefined]))
+    if (reduce === 'add') return mask.where(src, 0).sum(-1, undefined, this.dtype).add(this)
+    if (reduce === 'multiply') return mask.where(src, 1).prod(-1, undefined, this.dtype).mul(this)
+    return _masked_setitem(this, src, mask, [-1])
+  }
   // ***** unary ops *****
 
   /**
@@ -2208,7 +2892,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   sigmoid = () => {
-    return Sigmoid.apply(this.cast(least_upper_float(this.dtype)))
+    return this.mul(-1 / Math.log(2)).exp2().add(1, true).reciprocal()
   }
   /**
    * Applies the Hardsigmoid function element-wise.
@@ -2749,13 +3433,13 @@ export class Tensor extends MathTrait<Tensor> {
     const [shape, _] = _align_left(this.shape, new_shape)
     // for each dimension, check either dim === 1, || it does !change
     // if (zip(shape, new_shape).every(([s, ns]) => resolve(eq(s, ns)) || resolve(eq(s, 1)))) throw new Error(`can not broadcast ${listStr(this.shape)} to ${listStr(new_shape)}`)
-    return Expand.apply(this.reshape(shape), new_shape)
+    return Expand.apply(this.reshape(shape), new_shape as number[])
   }
   _broadcasted = (y: ConstType<Tensor | UOp>, reverse = false, match_dtype = true): [Tensor, Tensor] => {
     let x: Tensor = this
     if (!isinstance(y, Tensor)) {
       // make y a Tensor
-      if (typeof y !== 'number' && typeof y !== 'boolean' && typeof y !== 'bigint') throw new Error(`invalid y type: ${typeof y}`)
+      if (!isConst(y)) throw new Error(`invalid y type: ${typeof y}`)
       let y_dtype
       if (isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_big_int(x.dtype)) || (dtypes.is_int(x.dtype) && Number.isInteger(y))) y_dtype = x.dtype
       else if (!isinstance(y, UOp)) y_dtype = dtypes.from_js(y)
@@ -2774,8 +3458,9 @@ export class Tensor extends MathTrait<Tensor> {
     return [x._broadcast_to(out_shape), y._broadcast_to(out_shape)]
   }
 
+  // TODO: tensor should stop checking if things are const
   _to_const_val = (x: ConstType<Tensor>): ConstType<Tensor> => {
-    return isinstance(x, Tensor) && isinstance(x.lazydata, LazyBuffer) && x.lazydata.is_unrealized_unmasked_const() && !x.requires_grad && is_eq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.base.arg : x
+    return x instanceof Tensor && x.lazydata instanceof UOp && x.lazydata.base.op === Ops.CONST && x.lazydata.st!.views[0].mask !== undefined && !x.requires_grad && is_eq(this._broadcasted(x)[0].shape, this.shape) ? x.lazydata.const_arg : x
   }
   /**
    * Adds `this` && `x`.
@@ -2844,10 +3529,10 @@ export class Tensor extends MathTrait<Tensor> {
    * Divides `this` by `x`.
    * Equivalent to `this // x`.
    * Supports broadcasting to a common shape, type promotion, && integer inputs.
-   * `idiv` performs integer division.
+   * `idiv` performs integer division (truncate towards zero).
    *
    * ```python exec="true" source="above" session="tensor" result="python"
-   * console.log(Tensor([1, 4, 10]).idiv(Tensor([2, 3, 4])).numpy())
+   * print(Tensor([-4, 7, 5, 4, -7, 8]).idiv(Tensor([2, -3, 8, -2, 3, 5])).numpy())
    * ```
    */
   override idiv = (x: ConstType<Tensor>, reverse = false): Tensor => {
@@ -2876,7 +3561,20 @@ export class Tensor extends MathTrait<Tensor> {
     const [numerator, denominator] = this._broadcasted(x, reverse)
     return numerator.cast(least_upper_float(numerator.dtype)).mul(denominator.cast(least_upper_float(denominator.dtype)).reciprocal())
   }
-
+  /**
+   * Mod `self` by `x`.
+   * Equivalent to `self % x`.
+   * Supports broadcasting to a common shape, type promotion, and integer inputs.
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * print(Tensor([-4, 7, 5, 4, -7, 8]).mod(Tensor([2, -3, 8, -2, 3, 5])).numpy())
+   * ```
+   */
+  override mod = (x: ConstType<Tensor>, reverse = false): Tensor => {
+    const [a, b] = this._broadcasted(x, reverse)
+    const r = Mod.apply(a, b)
+    return r.add(b.mul(((r.lt(0)).bitwise_and(b.gt(0))).bitwise_or((r.gt(0)).bitwise_and(b.lt(0)))))
+  }
   /**
    * Computes bitwise xor of `this` && `x`.
    * Equivalent to `this ^ x`.
@@ -2938,8 +3636,7 @@ export class Tensor extends MathTrait<Tensor> {
   bitwise_not = (): Tensor => {
     if (this.dtype !== dtypes.bool && !dtypes.is_int(this.dtype)) throw new Error(`${this.dtype} !== supported`)
     if (this.dtype === dtypes.bool) return this.logical_not()
-    const max = (1n << BigInt(8 * this.dtype.itemsize)) - 1n
-    return dtypes.is_big_int(this.dtype) ? this.xor(max as any) : this.xor(Number(max))
+    return dtypes.is_big_int(this.dtype) ? this.xor(-1n) : this.xor(-1)
   }
 
   /**
@@ -3019,7 +3716,9 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   override maximum = (x: ConstType<Tensor>): Tensor => {
-    return (this.lt(x)).detach().where(x, this.eq(x).detach().where((this.mul(0.5).add(mul(x as any, 0.5) as number)).cast(this.dtype), this))
+    // NOTE: the mid-point is for backward, revisit after new gradient API
+    if (this.is_floating_point()) return (this.lt(x)).detach().where(x, (this.eq(x)).detach().where((this.mul(0.5).add(mul(x as number, 0.5))).cast(this.dtype), this))
+    return (this.lt(x)).detach().where(x, this)
   }
 
   /**
@@ -3033,7 +3732,8 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   override minimum = (x: ConstType<Tensor>): Tensor => {
-    return ((this.neg()).maximum(neg(x as number) as number)).neg()
+    let [t, x2] = this._broadcasted(x)
+    return t._inverse().maximum(x2._inverse())._inverse()
   }
 
   /**
@@ -3180,6 +3880,69 @@ export class Tensor extends MathTrait<Tensor> {
   }
 
   /**
+   *
+   * Computes scaled dot-product attention.
+   * `self` is the query tensor, `key` is the key tensor, and `value` is the value tensor.
+   *
+   * - Described: https://paperswithcode.com/method/scaled
+   * - Paper: https://arxiv.org/abs/1706.03762v7
+
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * q = Tensor.randn(2, 4, 8)
+   * k = Tensor.randn(2, 4, 8)
+   * v = Tensor.randn(2, 4, 8)
+   * print(q.scaled_dot_product_attention(k, v).numpy())
+   * ```
+   */
+  scaled_dot_product_attention = (key: Tensor, value: Tensor, attn_mask?: Tensor, dropout_p = 0.0, is_causal = false): Tensor => {
+    // NOTE: it also works when `key` and `value` have symbolic shape.
+    if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
+    let qk = this.matmul(key.transpose(-2, -1), undefined, least_upper_dtype(this.dtype, key.dtype, dtypes.float32)).div(Math.sqrt(this.shape.at(-1)!))
+    // handle attention mask
+    if (is_causal) {
+      if (attn_mask !== undefined) throw new Error('cannot set attn_mask when is_causal=True')
+      attn_mask = qk.ones_like({ requires_grad: false, device: this.device, dtype: dtypes.bool }).tril()
+    }
+    if (attn_mask !== undefined) {
+      if (attn_mask.dtype === dtypes.bool) attn_mask = attn_mask.where(0, -Infinity)
+      qk = qk.add(attn_mask)
+    }
+    return qk.softmax(-1).cast(this.dtype).dropout(dropout_p).matmul(value)
+  }
+  _do_reduction = (reduction: ReductionStr = 'mean'): Tensor => {
+    if (!ReductionStr.includes(reduction)) throw new Error(`reduction=${reduction} must be one of ${ReductionStr}`)
+    const reductions: Record<ReductionStr, (x: Tensor) => Tensor> = { 'mean': (x) => x.mean(), 'sum': (x) => x.sum(), 'none': (x) => x }
+    return reductions[reduction](this)
+  }
+  /**
+   * Computes the binary cross-entropy loss between `self` and `Y`.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.BCELoss.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([0.1, 0.9, 0.2])
+   * Y = Tensor([0, 1, 0])
+   * print(t.binary_crossentropy(Y).item())
+   * ```
+   */
+  binary_crossentropy = (Y: Tensor, reduction: ReductionStr = 'mean'): Tensor => {
+    return (Y.neg().mul(this.log()).sub(Y.sub(1, true).mul(this.sub(1, true).log())))._do_reduction(reduction)
+  }
+  /**
+   *  Computes the binary cross-entropy loss between `self` and `Y` where `self` is logits.
+   *
+   *  See: https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html
+   *
+   *  ```python exec="true" source="above" session="tensor" result="python"
+   *  t = Tensor([-1, 2, -3])
+   *  Y = Tensor([0, 1, 0])
+   *  print(t.binary_crossentropy_logits(Y).item())
+   *  ```
+   */
+  binary_crossentropy_logits = (Y: Tensor, reduction: ReductionStr = 'mean'): Tensor => {
+    return (this.maximum(0).sub(Y.mul(this)).add((this.abs().neg().exp().add(1, true)).log()))._do_reduction(reduction)
+  }
+  /**
    * Computes the sparse categorical cross-entropy loss between `this` && `Y`.
    *
    * NOTE: `this` === logits && `Y` === the target labels.
@@ -3204,7 +3967,55 @@ export class Tensor extends MathTrait<Tensor> {
     // NOTE: because of ignore_index, we can't use Tensor.mean (so can't use `_do_reduction` here)
     return (unreduced.sum().div(reduction === 'mean' ? loss_mask.sum() : (reduction === 'sum' ? unreduced.sum() : unreduced))).neg()
   }
-  //     // ***** Tensor Properties *****
+  /**
+   * Compute the cross entropy loss between input logits and target.
+   *
+   * NOTE: `self` are logits and `Y` are the target labels or class probabilities.
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.functional.cross_entropy.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[-1, 2, -3], [1, -2, 3]])
+   * Y = Tensor([1, 2])
+   * print(t.cross_entropy(Y).item())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[-1, 2, -3], [1, -2, 3]])
+   * Y = Tensor([1, 2])
+   *  ```
+   */
+  cross_entropy = (Y: Tensor, reduction: ReductionStr = 'mean', label_smoothing = 0.0): Tensor => {
+    if (!(0.0 <= label_smoothing && label_smoothing <= 1.0)) throw new Error('label_smoothing must be in [0.0, 1.0]')
+    if (Y.ndim < 2) throw new Error('not implemented cause Y.one_hot is async')
+    Y = Y.mul(1 - label_smoothing, true).add(label_smoothing / Y.shape[1])
+    let ret = this.log_softmax(1).mul(Y).sum(1).neg()
+    return ret._do_reduction(reduction)
+  }
+
+  /**
+   * Compute the negative log likelihood loss between log-probabilities and target labels.
+   *
+   * NOTE: `self` is log-probabilities and `Y` is the Y labels or class probabilities.
+   *
+   * See: https://pytorch.org/docs/stable/generated/torch.nn.functional.nll_loss.html
+   *
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[-1, 2, -3], [1, -2, 3]])
+   * Y = Tensor([1, 2])
+   * print(t.log_softmax().nll_loss(Y).item())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = Tensor([[-1, 2, -3], [1, -2, 3]])
+   * Y = Tensor([1, 2])
+   * print(t.log_softmax().nll_loss(Y, reduction='none').numpy())
+   * ```
+   */
+  nll_loss = (Y: Tensor, weight?: Tensor, ignore_index?: number, reduction: ReductionStr = 'mean'): Tensor => {
+    weight = weight === undefined ? Y.ones_like({ requires_grad: false }) : weight.get(Y)
+    const masked_weight = ignore_index === undefined ? weight : weight.mul(Y.ne(ignore_index))
+    const nll = this.gather(1, Y.unsqueeze(1)).squeeze(1).neg().mul(masked_weight)
+    return reduction === 'mean' ? nll.sum().div(masked_weight.sum()) : nll._do_reduction(reduction)
+  }
+  // ***** Tensor Properties *****
 
   /**
    * Returns the number of dimensions in the tensor.
@@ -3285,7 +4096,7 @@ export class Tensor extends MathTrait<Tensor> {
   llvm_bf16_cast = (dtype: DTypeLike) => {
     // hack for devices that don't support bfloat16
     assert(this.dtype === dtypes.bfloat16)
-    return this.to('LLVM' as any).bitcast(dtypes.uint16).cast(dtypes.uint32).mul(1 << 16).bitcast(dtypes.float32).cast(dtype)
+    return this.to('LLVM' as any).cast(dtype)
   }
 
   /**
@@ -3297,11 +4108,19 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    * ```python exec="true" source="above" session="tensor" result="python"
    * t = t.cast(dtypes.int32)
+   * print(t.dtype, t.numpy())
+   * ```
+   * ```python exec="true" source="above" session="tensor" result="python"
+   * t = t.cast(dtypes.uint8)
    * console.log(t.dtype, t.numpy())
    * ```
    */
   cast = (dtype: DTypeLike): Tensor => {
     const dt = to_dtype(dtype)
+    if ([dtypes.uint8, dtypes.uint16].includes(dt) && dtypes.is_float(this.dtype)) {
+      // NOTE: values within the int32 range and outside the unsigned dtype range will cause values to wrap around
+      return Cast.apply(Cast.apply(this, dtypes.int32), dt)
+    }
     return this.dtype === dt ? this : Cast.apply(this, dt)
   }
   /**
@@ -3322,8 +4141,8 @@ export class Tensor extends MathTrait<Tensor> {
     if (this.requires_grad) throw new Error("can't backprop through bitcast")
     const dt = to_dtype(dtype)
     const ns = dt.itemsize, os = this.dtype.itemsize
-    if ((typeof this.device !== 'string' || !this.device.startsWith('DISK')) && ns !== os) {
-      if (((this.shape.at(-1)! as number) * os) % ns !== 0) throw new Error('unsupported size in bitcast')
+    if (ns !== os && (this.shape.at(-1)! * os) % ns !== 0) throw new Error('unsupported size in bitcast')
+    if ((Array.isArray(this.device) || !this.device.startsWith('DISK')) && ns !== os) {
       const [new_uint, old_uint] = [to_dtype(`uint${8 * ns}`), to_dtype(`uint${8 * os}`)]
       const tmp = this.bitcast(old_uint)
       if (ns > os) return range(idiv(ns, os)).map((i) => tmp.get('...', { start: i, step: idiv(ns, os) }).cast(new_uint).lshift(8 * i * os)).reduce((acc, x) => acc.add(x)).bitcast(dtype)
@@ -3388,7 +4207,96 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.dtype, t.numpy())
    * ```
    */
-  boolean = (): Tensor => {
+  bool = (): Tensor => {
     return this.cast(dtypes.bool)
   }
+
+  // *** image Tensor function replacements ***
+
+  image_dot = (w: Tensor, acc_dtype?: DType): Tensor => {
+    // NOTE: we use a 1x1 conv2d to do the matmul. mxk @ kxn = (1,k,m,1).conv2d(n,k,1,1)
+    let x: Tensor = this, dx = this.ndim, dw = w.ndim
+    if (!(dx > 0 && dw > 0)) throw new Error(`both tensors need to be at least 1D, got ${dx}D and ${dw}D`)
+    if (x.shape.at(-1) !== w.shape.at(-min([w.ndim, 2]))) throw new Error(`cannot image_dot ${x.shape} and ${w.shape}`)
+
+    let bs = prod(this.shape.slice(0, -2)), groups = prod(w.shape.slice(0, -2)), cin = w.shape.at(-2)!, cout = w.shape.at(-1)!
+    const out_shape_t = [...this.shape.slice(0, -2), ...(this.shape.length > 1 ? [cout, -1] : [cout])]
+
+    // NOTE: with NHWC we can remove the transposes
+    // bs x groups*cin x H x W
+    const cx = this.transpose(this.ndim - 1, this.ndim - 2).reshape([idiv(bs, groups), groups * cin, -1, 1])
+    // groups*cout x cin x H, W
+    const cw = w.transpose(w.ndim - 1, w.ndim - 2).reshape([groups * cout, cin, 1, 1])
+    return cx.image_conv2d(cw, undefined, groups, undefined, undefined, undefined, acc_dtype).reshape(out_shape_t).transpose(this.ndim - 1, this.ndim - 2)
+  }
+  image_conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DType): Tensor => {
+    const base_image_type = get_number_env('FLOAT16', 0) ? dtypes.imageh : dtypes.imagef
+
+    let [bs, _, iy, ix] = this.shape, [cout, cin, H, W] = weight.shape
+    let x: Tensor = this, rcout = idiv(cout, groups), w = weight.reshape([groups, rcout, cin, H, W])
+
+    // hack for non multiples of 4 on cin
+    if (cin % 4 !== 0 && !(cin === 1 && groups % 4 === 0)) {
+      x = x.reshape([bs, groups, cin, iy, ix]) // do this always?
+      const added_input_channels = 4 - (cin % 4)
+      w = w.pad(range(w.ndim).map((i) => i === 2 ? [0, added_input_channels] as [sint, sint] : undefined))
+      x = x.pad(range(x.ndim).map((i) => i === 2 ? [0, added_input_channels] as [sint, sint] : undefined))
+      cin = cin + added_input_channels
+      x = x.reshape([bs, groups * cin, iy, ix])
+    }
+    // hack for non multiples of 4 on rcout
+    let added_output_channels = 0
+    if (rcout % 4 !== 0 && !(rcout === 1 && groups % 4 === 0)) {
+      added_output_channels = 4 - (rcout % 4)
+      rcout += added_output_channels
+      cout = groups * rcout
+      w = w.pad(range(w.ndim).map((i) => i === 1 ? [0, added_output_channels] as [sint, sint] : undefined))
+    }
+
+    // packed (note: flipping bs and iy would make the auto-padding work)
+    x = x.permute(0, 2, 3, 1)
+    const cin_last = iy === 1 && ix === 1
+    if (cin === 1) w = w.reshape([idiv(cout, 4), 4, H, W]).permute(0, 2, 3, 1)
+    else if (cin_last) w = w.reshape([idiv(cout, 4), 4, idiv(cin, 4), 4, H, W]).permute(0, 4, 2, 5, 1, 3)
+    else w = w.reshape([idiv(cout, 4), 4, idiv(cin, 4), 4, H, W]).permute(0, 4, 2, 5, 3, 1)
+
+    // contiguous creates the image, and early realize static weights (TODO: test for the static weight)
+    if (IMAGE >= 2) x = x.cast(base_image_type(bs * iy, idiv(ix * groups * cin, 4), 4)), w = w.cast(base_image_type(idiv(cout, 4), H * W * cin, 4))
+    x = x.contiguous(), w = w.contiguous()
+
+    // expand out
+    const rcin_hi = cin >= 4 ? idiv(cin, 4) : 1, rcin_lo = cin >= 4 ? 4 : 1
+    const cout_expand = [cin === 1 ? idiv(groups, 4) : groups, cin === 1 ? 4 : 1, rcout >= 4 ? idiv(rcout, 4) : 1, rcout >= 4 ? 4 : 1]
+    x = x.reshape([bs, iy, ix, groups, rcin_hi, rcin_lo])
+    if (cin_last) w = w.reshape([idiv(cout, 4), H, rcin_hi, W, 4, rcin_lo])
+    else w = w.reshape([idiv(cout, 4), H, rcin_hi, W, rcin_lo, 4]).permute(0, 1, 2, 3, 5, 4)
+
+    // prepare input
+    x = x.permute(0, 3, 4, 5, 1, 2).pad(this._resolve_pool_pads(padding, 2))._pool([H, W], stride, dilation) // -> (bs, groups, rcin_hi, rcin_lo, oy, ox, H, W)
+    const oy = x.shape[4], ox = x.shape[5]
+    x = x.permute(0, 4, 5, 1, 2, 3, 6, 7).reshape([bs, oy, ox, ...cout_expand.slice(0, 2), 1, 1, rcin_hi, rcin_lo, H, W])
+
+    // prepare weights
+    w = w.permute(0, 4, 2, 5, 1, 3).reshape([1, 1, 1, ...cout_expand, rcin_hi, rcin_lo, H, W])
+
+    // the conv!
+    let ret = (x.mul(w)).cast(IMAGE >= 2 ? base_image_type(bs * oy, idiv(ox * cout, 4), 4) : dtypes.float32).sum([-4, -3, -2, -1], undefined, acc_dtype)
+
+    // undo hack for non multiples of 4 on C.rcout
+    if (added_output_channels !== 0) {
+      ret = ret.reshape([bs, oy, ox, groups, rcout]).get({}, {}, {}, {}, { stop: -added_output_channels })
+      cout = groups * (rcout - added_output_channels)
+    }
+    // NCHW output
+    ret = ret.reshape([bs, oy, ox, cout]).permute(0, 3, 1, 2)
+    return bias === undefined ? ret : ret.add(bias.reshape([1, -1, 1, 1]))
+  }
 }
+
+export const _metadata_wrapper = (fn: any): any => {
+  throw new NotImplemented()
+}
+// TODO
+// if (TRACEMETA >= 1) {
+//   throw new NotImplemented()
+// }

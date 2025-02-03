@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { bytes_to_string, DEBUG, is_eq, isinstance, string_to_bytes } from '../helpers.ts'
+import { bytes_to_string, DEBUG, is_eq, isinstance, NotImplemented, round_up, string_to_bytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export const safe_dtypes = {
@@ -30,6 +30,7 @@ export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, n
 }
 /**
  * Loads a .safetensor file from disk, returning the state_dict.
+ *
  * ```python
  * state_dict = nn.state.safe_load("test.safetensor")
  * ```
@@ -47,6 +48,7 @@ export const safe_load = async (fn: Tensor | string): Promise<Record<string, Ten
 
 /**
  * Saves a state_dict to disk in a .safetensor file with optional metadata.
+ *
  * ```python
  * t = Tensor([1, 2, 3])
  * nn.state.safe_save({'t':t}, "test.safetensor")
@@ -61,7 +63,7 @@ export const safe_save = async (tensors: Record<string, Tensor>, fn: string, met
     offset += v.nbytes()
   }
   let j = JSON.stringify(headers)
-  j += '\x20'.repeat((8 - j.length % 8) % 8)
+  j += '\x20'.repeat(round_up(j.length, 8) - j.length)
   // pathlib.Path(fn).unlink(missing_ok=true)
   const t = Tensor.empty([8 + j.length + offset], { dtype: dtypes.uint8, device: `DISK:${fn}` })
   await t.get({ start: 0, stop: 8 }).bitcast(dtypes.int64).assign_disk([j.length])
@@ -107,11 +109,13 @@ export const get_parameters = (obj: any): Tensor[] => {
 
 /**
  * Loads a state_dict into a model.
+ *
  * ```python
  * class Net:
  * const __init__ = () => {
  * this.l1 = nn.Linear(4, 5)
  * this.l2 = nn.Linear(5, 6)
+ *
  * net = Net()
  * state_dict = nn.state.get_state_dict(net)
  * nn.state.load_state_dict(net, state_dict)
@@ -129,19 +133,22 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
       continue
     }
     if (!is_eq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
-    else await v.replace(state_dict[k].to(v.device)).realize()
+    if (Array.isArray(v.device)) {
+      if (Array.isArray(state_dict[k].device)) v.replace(state_dict[k]).realize()
+      else v.replace(state_dict[k].shard(v.device, v.lazydata.axis)).realize()
+    } else await v.replace(state_dict[k].to(v.device)).realize()
     if (consume) delete state_dict[k]
   }
 }
 
 export const tar_extract = (t: Tensor): Record<string, Tensor> => {
-  throw new Error('Not implemented')
+  throw new NotImplemented()
 }
 
 export const ggml_data_to_tensor = (t: Tensor, n: number, ggml_type: number): Tensor => {
-  throw new Error('Not implemented')
+  throw new NotImplemented()
 }
 
 export const gguf_load = (tensor: Tensor): [Record<string, any>, Record<string, Tensor>] => {
-  throw new Error('Not implemented')
+  throw new NotImplemented()
 }

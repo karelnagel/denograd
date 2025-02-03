@@ -1,14 +1,12 @@
 import { Opt, OptOps } from '../denograd/codegen/kernel.ts'
 import { IndexContext } from '../denograd/codegen/lowerer.ts'
 import { BasicBlock } from '../denograd/codegen/linearize.ts'
-import { DType, dtypes, PtrDType } from '../denograd/dtype.ts'
+import { dtypes } from '../denograd/dtype.ts'
 import { KernelInfo, Ops, spec, UOp, UPat } from '../denograd/ops.ts'
 import { ClangRenderer } from '../denograd/renderer/cstyle.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
 import { View } from '../denograd/shape/view.ts'
 import { compare } from './helpers.ts'
-import { LazyBuffer } from '../denograd/engine/lazy.ts'
-import { Metadata } from '../denograd/helpers.ts'
 import { Tensor } from '../denograd/tensor.ts'
 
 Deno.test(
@@ -25,8 +23,8 @@ Deno.test(
       [dtypes.floats],
       [dtypes.default_int],
       [dtypes.imagef(2, 44, 42)],
-      [dtypes.bool.ptr(true)],
-      [dtypes.bool.ptr(false)],
+      [dtypes.bool.ptr(2, true)],
+      [dtypes.bool.ptr(4, false)],
       [
         new View(
           [4, 55],
@@ -41,8 +39,6 @@ Deno.test(
       [new IndexContext([UOp.int(3)], [UOp.bool(true), UOp.float(4.4)], 4)],
       [new ClangRenderer()],
       [new Opt(OptOps.PADTO, 5, 666)],
-      [[new LazyBuffer(`PYTHON`, new ShapeTracker([new View([10], [1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, undefined, undefined, undefined)]],
-      [[new LazyBuffer(`PYTHON`, new ShapeTracker([new View([5, 2], [2, 1], 0, undefined, true)]), dtypes.int, undefined, undefined, undefined, new LazyBuffer(`PYTHON`, new ShapeTracker([new View([10], [1], 0, undefined, true)]), dtypes.int, Ops.EMPTY, undefined, undefined, undefined, undefined), new Metadata(`reshape`, ``, false))]],
       [new Tensor([[3, 3, 3], [5, 5, 5]])],
       // [new Kernel(new UOp(Ops.SINK), new ClangRenderer())],
       // [new Kernel(new UOp(Ops.SINK))],

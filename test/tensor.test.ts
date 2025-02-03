@@ -1,6 +1,6 @@
-import { DType, dtypes } from '../denograd/dtype.ts'
-import { Ops, sint } from '../denograd/ops.ts'
-import { Tensor, TensorOptions } from '../denograd/tensor.ts'
+import { type DType, dtypes } from '../denograd/dtype.ts'
+import { Ops, type sint } from '../denograd/ops.ts'
+import { Tensor, type TensorOptions } from '../denograd/tensor.ts'
 import { compare, tryCatch } from './helpers.ts'
 
 Deno.test(
@@ -534,8 +534,9 @@ Deno.test(
       [Tensor.arange(5), 0, Ops.MAX], // Cumulative max
       [Tensor.full([2, 4], 2), 1, Ops.MAX], // 2D cummax along axis 1
       [Tensor.full([4, 2], 3), 0, Ops.MAX], // 2D cummax along axis 0
-      [Tensor.arange(1, 5).reshape([2, 2]), 0, Ops.ADD], // Reshaped cumsum
-      [Tensor.arange(1, 5).reshape([2, 2]), 1, Ops.MAX], // Reshaped cummax
+      // TODO: These throw error in python also, you can try with: Tensor.arange(1, 5).reshape(2, 2).clone().tolist(). but seems that it's fixed on master
+      // [Tensor.arange(1, 5).reshape([2, 2]), 0, Ops.ADD], // Reshaped cumsum
+      // [Tensor.arange(1, 5).reshape([2, 2]), 1, Ops.MAX], // Reshaped cummax
     ],
     (t, axis, op) => t._cumalu(axis, op),
     'out(data[0]._cumalu(*data[1:]))',
@@ -547,7 +548,7 @@ Deno.test(
   compare<[Tensor, number, number]>(
     [
       [Tensor.full([8], 1), 0, -1],
-      [Tensor.new([[3, 3, 3, 3], [3, 3, 3, 3]]), 0, -1],
+      [new Tensor([[3, 3, 3, 3], [3, 3, 3, 3]]), 0, -1],
     ],
     (t, dim0, dim1) => t.transpose(dim0, dim1),
     'out(data[0].transpose(*data[1:]))',

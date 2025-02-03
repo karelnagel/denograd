@@ -1,9 +1,10 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, OSX } from './helpers.ts'
-import { Allocator, BufferSpec, Compiled } from './runtime/allocator.ts'
+import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, NotImplemented, OSX, PROFILE } from './helpers.ts'
+import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'
+import { buffers, Ops, type UOp } from './ops.ts'
 
 export * from './runtime/allocator.ts'
 export type { AllDevices, DeviceType } from './runtime/all.ts'
@@ -53,40 +54,69 @@ export class _Device {
 }
 export const Device = new _Device()
 
-export class Buffer<Buf = unknown> {
+// NOTE: these 3 functions should actually be under UOp, but Buffer caused circular import
+export const uop_buffer = (uop: UOp): Buffer => {
+  if (uop.op === Ops.VIEW) {
+    if (!uop.st!.contiguous) throw new Error("VIEW only works here if it's contiguous")
+    return uop_buffer(uop.src[0])
+  }
+  if (uop.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${uop.op}`)
+  if (buffers.has(uop)) return buffers.get(uop)!
+  if (Array.isArray(uop.device)) throw new Error(`buffer not supported on multi ${uop.device}`)
+  const ret = new Buffer(uop.device, uop.size, uop.dtype instanceof ImageDType ? uop.dtype : uop.dtype.base)
+  buffers.set(uop, ret)
+  return ret
+}
+export const uop_realized = (uop: UOp): Buffer | undefined => {
+  if (uop.op === Ops.VIEW && uop.src.length === 1 && uop.src[0].op === Ops.BUFFER) return uop_realized(uop.src[0])
+  return uop.op === Ops.BUFFER ? uop_buffer(uop) : undefined
+}
+export const uop_is_realized = (uop: UOp) => {
+  return uop.base.op === Ops.MULTI ? uop.base.real_lbs.every((x) => uop_realized(x.base) !== undefined) : uop_realized(uop.base) !== undefined
+}
+
+export class Buffer<Buf extends object = object> {
   _base?: Buffer<Buf>
   _lb_refcount?: number
   _buf?: Buf
   allocator?: Allocator<Buf>
+  static register = new FinalizationRegistry((x: { allocator?: Allocator<any>; options?: BufferSpec; _base?: Buffer<any>; device: DeviceType; _buf: any; nbytes: number }) => {
+    // This is the deallocate() function
+    if (x._base === undefined && (x.options === undefined || x.options.external_ptr === undefined)) {
+      if (!x.device.startsWith('DISK')) GlobalCounters.mem_used -= x.nbytes
+      x.allocator?.free(x._buf, x.nbytes, x.options)
+    }
+  })
 
   constructor(
     public device: DeviceType,
     public size: number,
     public dtype: DType,
-    public in_opaque?: any,
+    opaque?: any,
     public options?: BufferSpec,
-    public in_initial_value?: Uint8Array,
+    initial_value?: Uint8Array,
     lb_refcount = 0,
     base?: Buffer<Buf>,
     public offset = 0,
-    public in_preallocate = false,
+    preallocate = false,
   ) {
+    Buffer.register.register(this, { _base: this._base, _buf: this._buf, allocator: this.allocator, device: this.device, nbytes: this.nbytes, options: this.options })
     if (dtype instanceof ImageDType) this.options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
     else assert(dtype instanceof DType && !(dtype instanceof PtrDType))
     if (base === undefined) {
       if (offset !== 0) throw new Error("base buffers can't have offset")
       this._lb_refcount = lb_refcount
-      if (in_opaque !== undefined) this.allocate(in_opaque)
-      if (in_initial_value !== undefined) {
+      if (opaque !== undefined) this.allocate(opaque)
+      if (initial_value !== undefined) {
         this.allocate()
-        this.copyin(new MemoryView(in_initial_value))
+        this.copyin(new MemoryView(initial_value))
       }
     } else {
       if (base._base !== undefined) throw new Error("base can't have a base")
       if (device !== base.device) throw new Error('base must have the same device')
       this._base = base
     }
-    if (in_preallocate) this.allocate()
+    if (preallocate) this.allocate()
   }
   get base(): Buffer<Buf> {
     return this._base !== undefined ? this._base : this
@@ -113,15 +143,17 @@ export class Buffer<Buf = unknown> {
     }
     return this
   }
-  get nbytes() {
-    return this.size * this.dtype.itemsize
-  }
-  del = () => {
-    if (!this.is_allocated()) return
+  deallocate = () => {
+    if (!this.is_allocated()) throw new Error('buffer must be allocated to deallocate')
     if (this._base === undefined && (this.options === undefined || this.options.external_ptr === undefined)) {
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used -= this.nbytes
-      this.allocator?.free(this._buf!, this.nbytes, this.options)
+      this.allocator!.free(this._buf!, this.nbytes, this.options)
+      if ('del' in this._buf! && typeof this._buf.del === 'function') this._buf.del()
     }
+    delete this._buf
+  }
+  get nbytes() {
+    return this.size * this.dtype.itemsize
   }
   toString = () => {
     return `<buf real:${this.is_allocated()} device:${this.device} size:${this.size} dtype:${this.dtype}${this.base ? ` offset:${this.offset}` : ''}${this.options !== undefined ? ` ${this.options}` : ''}>`
@@ -173,4 +205,8 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   }
   if (dtype === dtypes.float64) return device !== 'METAL' && !(OSX && device === 'GPU')
   return true
+}
+
+if (PROFILE) {
+  throw new NotImplemented()
 }

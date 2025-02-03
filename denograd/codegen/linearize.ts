@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { ArrayMap, assert, dedup, flatten, get_key, is_eq, is_less_than, isinstance, min, partition, set_default, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, assert, dedup, DefaultMap, flatten, get_key, is_eq, is_less_than, isinstance, min, partition, set_default, WeakValueMap } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
@@ -13,7 +13,7 @@ export const disp = (y: UOp): string => {
 
 export class BasicBlock {
   key: string
-  static cache = new WeakValueMap<BasicBlock>()
+  static cache = new WeakValueMap<string, BasicBlock>()
   constructor(public ctx: UOp[], public lst: UOp[], public end?: UOp) {
     this.key = get_key(ctx, lst, end)
     return BasicBlock.cache.setDefault(this.key, this)
@@ -35,7 +35,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   for (const u of x.src) {
     if (u.op === Ops.BLOCK) {
       //       # merge sibling blocks. NOTE: blocks must only have one output source
-      if (old_blocks.has(u.arg.ctx)) throw new Error('sibiling should never have been created')
+      if (old_blocks.has(u.arg.ctx)) throw new Error('sibling should never have been created')
       old_blocks.set(u.arg.ctx, u)
     } else if (!DONT_PLACE_IN_BLOCK.includes(u.op) && new Set(children.get(u)).isSubsetOf(in_this_block)) {
       //       # if it can go in blocks and all its children are in the block, we add it to the block
@@ -46,7 +46,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
         to_append.push(u)
       } //         # if it's a different context, we create a new block with this UOp
 
-      else set_default(new_blocks, block_ctx, []).push(u)
+      else new_blocks.setDefault(block_ctx, []).push(u)
     } //       # otherwise, we keep it in the srcs
     else new_srcs.push(u)
   }
@@ -73,7 +73,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   }
   return new UOp(Ops.BLOCK, dtypes.void, dedup([...old_blocks.values(), ...new_srcs]), new BasicBlock(x.arg.ctx, [...to_append, ...x.arg.lst]))
 }
-export const make_basic_blocks = new PatternMatcher<Record<string, UOp> & { ctx: CTX }, UOp | undefined>([
+export const make_basic_blocks = new PatternMatcher<CTX>([
   [new UPat(Ops.SINK).named('x'), ({ x }) => new UOp(Ops.BLOCK, undefined, x.src, new BasicBlock([], [x]))],
   [new UPat(Ops.BLOCK).named('x'), ({ ctx, x }) => append_to_block(ctx, x)],
 ])
@@ -119,13 +119,13 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
   if (to_append.length === 0 && placed.size === 0) return undefined
   return new UOp(x.op, dtypes.void, new_srcs, new BasicBlock(new_ctx.toSorted((a, b) => is_less_than(a.tuplize, b.tuplize) ? -1 : 1), [...to_append, ...x.arg.lst], x.arg.end))
 }
-export const pm_block_merge = new PatternMatcher<{ ctx: Map<UOp, UOp[]>; x: UOp }>([[new UPat([Ops.BLOCKEND, Ops.BLOCK]).named('x'), ({ ctx, x }) => block_merge(ctx, x)]])
+export const pm_block_merge = new PatternMatcher<Map<UOp, UOp[]>>([[new UPat([Ops.BLOCKEND, Ops.BLOCK]).named('x'), ({ ctx, x }) => block_merge(ctx, x)]])
 
 // # NOTE: any toposort should be valid here, unlike last time this isn't required, it's just for speed
 export const block_reorder = (in_block: UOp): UOp => {
   const in_this_block = new Set(in_block.arg.lst)
-  const local_children = new Map<UOp, UOp[]>()
-  const in_degree = new Map<UOp, number>()
+  const local_children = new DefaultMap<UOp, UOp[]>(undefined, () => [])
+  const in_degree = new DefaultMap<UOp, number>(undefined, () => 0)
   const priorities = new Map<UOp, number>()
   //   # get local children and assign priorities
   for (const u of in_block.arg.lst.toReversed()) {

@@ -1,6 +1,6 @@
 import { exec } from 'node:child_process'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../denograd/dtype.ts'
-import { bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
+import { ArrayMap, bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
 import { expect } from 'expect'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../denograd/ops.ts'
@@ -10,12 +10,11 @@ import { IndexContext } from '../denograd/codegen/lowerer.ts'
 import { Kernel, Opt, OptOps } from '../denograd/codegen/kernel.ts'
 import { ClangRenderer } from '../denograd/renderer/cstyle.ts'
 import { BasicBlock } from '../denograd/codegen/linearize.ts'
-import { TensorCore } from '../denograd/renderer/index.ts'
+import { Estimates, TensorCore } from '../denograd/renderer/index.ts'
 import { ProgramSpec } from '../denograd/renderer/index.ts'
-import { LazyBuffer } from '../denograd/engine/lazy.ts'
 import { CompiledRunner, ExecItem, Runner } from '../denograd/engine/realize.ts'
 import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../denograd/engine/schedule.ts'
-import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, DeviceType, LRUAllocator } from '../denograd/device.ts'
+import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRUAllocator } from '../denograd/device.ts'
 import { PythonRenderer } from '../denograd/runtime/ops_python.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
@@ -37,8 +36,9 @@ export const asdict = async (o: any): Promise<any> => {
   if (o instanceof UOp) return o.toString()
   if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: await asdict(await o.tolist()) }
 
-  if (o instanceof Map) {
-    const res = await Promise.all([...o.entries().map(async ([k, v]) => [await asdict(k), await asdict(v)])])
+  if (o instanceof Map || o instanceof ArrayMap) {
+    if (o instanceof ArrayMap) o = new Map(o.entries())
+    const res = await Promise.all([...o.entries().map(async ([k, v]: any) => [await asdict(k), await asdict(v)])])
     return typeof res.at(0)?.at(0) === 'object' ? res : Object.fromEntries(res) // If it's Map<string,...> then return object, otherwise array
   }
   if (typeof o === 'object') return Object.fromEntries(await Promise.all(Object.entries(o).filter((o) => typeof o[1] !== 'function').map(async ([k, v]) => [k, await asdict(v)])))
@@ -91,22 +91,19 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   }
 
   // ************ ENGINE ************
-  if (o instanceof LazyBuffer) return t`tiny.engine.lazy.LazyBuffer(${o.device}, ${o.st}, ${o.dtype}, ${o.op}, ${o.arg}, ${o.srcs || []}, ${o._base}, ${o.metadata})`
-
   if (o instanceof CompiledRunner) return t`tiny.engine.realize.CompiledRunner(${o.p}, ${o.lib})`
-  if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.op_estimate}, ${o.mem_estimate}, ${o.lds_estimate})`
+  if (o instanceof Estimates) return t`tiny.renderer.Estimates(${o.ops}, ${o.lds}, ${o.mem})`
+  if (o instanceof Runner) return t`tiny.engine.realize.Runner(${o.display_name}, ${o.device}, ${o.estimates})`
   if (o instanceof ExecItem) return t`tiny.engine.realize.ExecItem(${o.prg}, ${o.bufs}, ${o.metadata})`
 
-  if (o instanceof ScheduleItem) return t`tiny.engine.schedule.ScheduleItem(${o.ast}, ${o.bufs}, ${o.metadata}, ${o.assign_preloads})`
-  if (o instanceof ScheduleContext) return t`tiny.engine.schedule.ScheduleContext(${o.lazybufs}, ${o.var_vals}, ${o.assigns}, ${o.realizes}, ${o.allbufs}, ${o.ops_metadata}, ${o.children})`
-  if (o instanceof ScheduleItemContext) return t`tiny.engine.schedule.ScheduleItemContext(${o.lazybufs}, ${o.ops_metadata}, ${o.assigns}, ${o.var_vals}, ${o.sinked}, ${o.sts}, ${o.bufs}, ${o.metadata}, ${o.assign_adj})`
+  if (o instanceof ScheduleItem) return t`tiny.engine.schedule.ScheduleItem(${o.ast}, ${o.bufs}, ${o.metadata})`
+  if (o instanceof ScheduleContext) return t`tiny.engine.schedule.ScheduleContext(${o.tensor_uops}, ${o.var_vals}, ${o.assigns}, ${o.realizes}, ${o.allbufs}, ${o.ops_metadata}, ${o.contiguous}, ${o.children}, ${o.becomes_map})`
+  if (o instanceof ScheduleItemContext) return t`tiny.engine.schedule.ScheduleItemContext(${o.var_vals}, ${o.sts}, ${o.bufs})`
 
   // ************ DEVICE ************
+  if (o instanceof Buffer) return t`tiny.device.Buffer(${o.device}, ${o.size}, ${o.dtype}, None, ${o.options}, None, 0, ${o._base}, ${o.offset})`
   if (o instanceof _Device) return t`tiny.device._Device()`
   if (o instanceof BufferSpec) return t`tiny.device.BufferSpec(${o.image}, ${o.uncached}, ${o.cpu_access}, ${o.host}, ${o.nolru}, ${o.external_ptr})`
-  if (o instanceof Buffer) {
-    return t`tiny.device.Buffer(device=${o.device}, size=${o.size}, dtype=${o.dtype}, opaque=${o.in_opaque}, options=${o.options}, initial_value=${o.in_initial_value}, lb_refcount=${o._lb_refcount}, base=${o._base}, offset=${o.offset}, preallocate=${o.in_preallocate})`
-  }
   if (o instanceof _MallocAllocator) return t`tiny.device._MallocAllocator()`
   if (o instanceof LRUAllocator) return t`tiny.device.LRUAllocator()`
   if (o instanceof Allocator) return t`tiny.device.Allocator()`
@@ -121,9 +118,9 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   // ************ RENDERER ************
   if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
   if (o instanceof PythonRenderer) return t`PythonRenderer()`
-  if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, reduce_axes=${o.reduce_axes}, upcast_axes=${o.upcast_axes}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out})`
+  if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, elements_per_thread=${o.elements_per_thread}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out}, opts=${o.opts}, swizzle=${o.swizzle})`
   if (o instanceof ProgramSpec) {
-    return t`tiny.renderer.ProgramSpec(name=${o.name},src=${o.src},device=${o.device},uops=${o.uops},mem_estimate=${o.mem_estimate},global_size=${o.global_size},local_size=${o.local_size},vars=${o.vars},globals=${new SkipFormatting(await pyStr(o.globals, true))},outs=${new SkipFormatting(await pyStr(o.outs, true))}, _ran_post_init=${o._ran_post_init})`
+    return t`tiny.renderer.ProgramSpec(${o.name}, ${o.src}, ${o.device}, ${o.uops}, ${o.mem_estimate}, ${o.global_size}, ${o.local_size}, ${o.vars}, list(${o.globals}), list(${o.outs}), list(${o.ins}), ${o._ran_post_init})`
   }
 
   // ************ SHAPE ************
@@ -132,7 +129,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
 
   // ************ DTYPE ************
   if (o instanceof ImageDType) return `tiny.dtype.dtypes.${o.name}(${await pyStr(o.shape)})${o.v !== 1 ? `.vec(${o.v})` : ''}`
-  if (o instanceof PtrDType) return `${await pyStr(o.base)}.ptr(${o.local ? 'local=True' : ''})${o.v !== 1 ? `.vec(${o.v})` : ''}`
+  if (o instanceof PtrDType) return `${await pyStr(o.base)}.ptr(${o.size}${o.local ? ', local=True' : ''})${o.v !== 1 ? `.vec(${o.v})` : ''}`
   if (o instanceof DType) return `tiny.dtype.dtypes.${INVERSE_DTYPES_DICT[o.scalar().name]}${o.count > 1 ? `.vec(${o.count})` : ''}`
 
   // ************ OPS ************
@@ -171,8 +168,9 @@ export const python = async <T = any>(code: string | string[], data?: any): Prom
 import tinygrad as tiny
 import math
 from tinygrad.renderer import cstyle
+from tinygrad.renderer import wgsl
 from tinygrad.ops import Ops
-from tinygrad.to_ts import to_ts
+from to_ts import to_ts
 from tinygrad.runtime.ops_python import PythonRenderer
 
 def trycatch(fn):
@@ -186,8 +184,9 @@ def out(o):
 ${code}
 `
   const file = `/tmp/tiny_${random_id()}.py`
+  // console.log(file)
   await Deno.writeTextFile(file, code.trim())
-  const [stdout, ts] = (await execAsync(`PYTHONPATH=./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
+  const [stdout, ts] = (await execAsync(`PYTHONPATH=.:./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
   try {
     return eval(ts)

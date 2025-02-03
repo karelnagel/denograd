@@ -1,7 +1,7 @@
 // // **************** memory planning ****************
 
 import { Buffer, Device } from '../device.ts'
-import { DEBUG, dedup, get_key, NO_MEMORY_PLANNER } from '../helpers.ts'
+import { DEBUG, dedup, DefaultMap, get_key, NO_MEMORY_PLANNER } from '../helpers.ts'
 import { Ops } from '../ops.ts'
 import { ScheduleItem } from './schedule.ts'
 
@@ -18,7 +18,7 @@ const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[],
   //   // Sort buffers by size in descending order, prioritizing largest buffers for allocation first.
   //   // Track free segments, each containing (start, stop, && buffer that could be reused on this segment).
   type Seg = [number, number, Buffer]
-  const free_segs = new Map<string, Seg[]>() // Map<buffer key, [start, end, buffer to reuse on the seg>]
+  const free_segs = new DefaultMap<string, Seg[]>(undefined, () => []) // Map<buffer key, [start, end, buffer to reuse on the seg>]
   const find_replace_buffer = (buf: Buffer, st: number, en: number) => {
     const key = get_key(buf.device, buf.dtype, buf.options, ...(!('offset' in Device.get(buf.device).allocator!) ? [buf.nbytes] : []))
 
@@ -53,5 +53,6 @@ export const memory_planner = (schedule: ScheduleItem[]): ScheduleItem[] => {
     schedule.map((si) => si.bufs),
     schedule.filter((si) => si.ast.op !== Ops.SINK).flatMap((si) => si.bufs),
   )
-  return schedule.map((si) => new ScheduleItem(si.ast, si.bufs.map((x) => assigned.get(x) || x), si.metadata, si.assign_preloads))
+
+  return schedule.map((si) => new ScheduleItem(si.ast, si.bufs.map((x) => assigned.get(x) || x), si.metadata))
 }

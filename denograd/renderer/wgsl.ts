@@ -1,35 +1,35 @@
 import type { DeviceType } from '../device.ts'
-import { DType, dtypes, PtrDType } from '../dtype.ts'
-import { is_less_than, range, strip_parens } from '../helpers.ts'
-import { idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
-import { base_rewrite, CStyleLanguage, extra_pm, RenderKernelArgs } from './cstyle.ts'
+import { type DType, dtypes, PtrDType } from '../dtype.ts'
+import { idiv, is_less_than, range, strip_parens } from '../helpers.ts'
+import { Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
+import { base_rewrite, CStyleLanguage, extra_pm, type RenderKernelArgs } from './cstyle.ts'
 
 const sign_extend = (val: UOp, sext_am: number) => {
   return val.rshift(sext_am - 1).gt(0).where(UOp.const(dtypes.uint32, 0xffffffff).lshift(sext_am), UOp.const(dtypes.uint32, 0)).bitwise_or(val.bitcast(dtypes.uint32)).bitcast(dtypes.int)
 }
 // # store for char: buf[idx/4] <- (var << (idx%4)*8))
-const packed_store = (bidx: UOp, varr: UOp) => {
-  const shift_am: UOp = (bidx.src[1].cast(dtypes.uint32).mod(UOp.const(dtypes.uint32, idiv(4, varr.dtype.itemsize)))).mul(UOp.const(dtypes.uint32, 8 * varr.dtype.itemsize))
-  const new_v = (varr.bitwise_and(varr.dtype.itemsize === 1 ? 0xFF : 0xFFFF)).cast(dtypes.uint32).lshift(shift_am)
-  const mask = ((shift_am.lshift(varr.dtype.itemsize === 1 ? 0xFF : 0xFFFF, true)).xor(0xFFFFFFFF)).cast(dtypes.uint32)
-  const buf = new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, varr.dtype.itemsize))]).load([], { dtype: dtypes.uint32 })
-  return new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, varr.dtype.itemsize))]).store([(buf.bitwise_and(mask)).bitwise_or(new_v.cast(dtypes.uint32))])
+const packed_store = (bidx: UOp, variable: UOp) => {
+  const shift_am: UOp = (bidx.src[1].cast(dtypes.uint32).mod(UOp.const(dtypes.uint32, idiv(4, variable.dtype.itemsize)))).mul(UOp.const(dtypes.uint32, 8 * variable.dtype.itemsize))
+  const new_v = (variable.bitwise_and(variable.dtype.itemsize === 1 ? 0xFF : 0xFFFF)).cast(dtypes.uint32).lshift(shift_am)
+  const mask = ((shift_am.lshift(variable.dtype.itemsize === 1 ? 0xFF : 0xFFFF, true)).xor(0xFFFFFFFF)).cast(dtypes.uint32)
+  const buf = new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, variable.dtype.itemsize))]).load([], { dtype: dtypes.uint32 })
+  return new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, variable.dtype.itemsize))]).store([(buf.bitwise_and(mask)).bitwise_or(new_v.cast(dtypes.uint32))])
 }
 // # load for char: sign_extend(buf[idx/4] >> ((idx%4)*8))
-const packed_load = (root: UOp, bidx: UOp, dtype: DType, varr?: UOp) => {
+const packed_load = (root: UOp, bidx: UOp, dtype: DType, variable?: UOp) => {
   const div_idx = bidx.src[1].idiv(idiv(4, dtype.itemsize))
   const shift_am = (bidx.src[1].cast(dtypes.uint32).mod(UOp.const(dtypes.uint32, idiv(4, dtype.itemsize)))).mul(UOp.const(dtypes.uint32, 8 * dtype.itemsize))
   let load
-  if (varr !== undefined) load = new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], div_idx]).load([varr, root.src[2]], { dtype: dtypes.uint32, arg: root.arg })
+  if (variable !== undefined) load = new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], div_idx]).load([variable, root.src[2]], { dtype: dtypes.uint32, arg: root.arg })
   else load = new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], div_idx]).load(root.src.slice(1), { dtype: dtypes.uint32, arg: root.arg })
   const val = (load.cast(dtypes.uint32).rshift(shift_am)).bitwise_and(dtype.itemsize === 1 ? 0xFF : 0xFFFF)
   return [dtypes.char, dtypes.short].includes(dtype) ? sign_extend(val, 8 * dtype.itemsize).cast(dtype) : val.cast(dtype)
 }
-const wgsl_matcher = new PatternMatcher([
+export const wgsl_matcher = new PatternMatcher([
   [new UPat([Ops.CMPLT, Ops.XOR], undefined, [new UPat(undefined, dtypes.bool).named('a'), new UPat().named('b')]).named('c'), ({ a, b, c }) => a.cast(dtypes.int).alu(c.op, b.cast(dtypes.int)).cast(dtypes.bool)],
   [new UPat(Ops.LOAD, undefined, [UPat.var('b')]).named('l'), ({ l, b }) => l.dtype.itemsize < 4 ? packed_load(l, b, l.dtype) : undefined],
   [new UPat(Ops.LOAD, undefined, [UPat.var('b'), UPat.var('c'), new UPat()]).named('l'), ({ l, b, c }) => l.dtype.itemsize < 4 ? packed_load(l, b, l.dtype, c.cast(dtypes.uint32)) : undefined],
-  [UPat.var('bidx').store([UPat.var('varr')], { allow_any_len: true }), ({ bidx, varr }) => varr.dtype.itemsize < 4 ? packed_store(bidx, varr) : undefined],
+  [UPat.var('bidx').store([UPat.var('var')], { allow_any_len: true }), (x) => x.var.dtype.itemsize < 4 ? packed_store(x.bidx, x.var) : undefined],
   //   # TODO: why is this needed, and only for this MUL order
   [new UPat(Ops.MUL, undefined, [UPat.var('a'), UPat.var('g').where(UPat.cvar('c1'), UPat.cvar('c2'))]), ({ a, g, c1, c2 }) => isNaN(c1.arg) && c2.arg === 1 ? g.where(c1, a) : undefined],
 ]).add(extra_pm)
@@ -46,7 +46,7 @@ export class WGSLRenderer extends CStyleLanguage {
   override nan = 'nan()'
   override type_map = new Map([[dtypes.float, 'f32'], [dtypes.uchar, 'u32'], [dtypes.ushort, 'u32'], [dtypes.short, 'i32'], [dtypes.char, 'i32'], [dtypes.int32, 'i32'], [dtypes.uint32, 'u32'], [dtypes.bool, 'bool']])
 
-  override string_rewrite = new PatternMatcher<{ ctx: WGSLRenderer } & Record<string, UOp>, string | undefined>([
+  override string_rewrite = new PatternMatcher<WGSLRenderer, string | undefined>([
     [new UPat(Ops.CONST, dtypes.bool).named('x'), ({ ctx, x }) => x.arg ? 'true' : 'false'],
     [new UPat(Ops.CONST, [dtypes.uchar, dtypes.ushort, dtypes.uint32]).named('x'), ({ ctx, x }) => x.arg < 0 ? `bitcast<u32>(${x.arg})` : `${BigInt(x.arg) & 0xFFFFFFFFn}u`],
     [new UPat(Ops.DEFINE_LOCAL).named('x'), ({ ctx, x }) => `var<workgroup> ${ctx.get(x)}: array<${ctx.buf_map(x.dtype.base)}, ${x.arg[1]}>;`],

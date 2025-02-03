@@ -1,8 +1,8 @@
-import { Compiled, Compiler, MallocAllocator, Program, ProgramCallArgs } from './allocator.ts'
+import { Compiled, Compiler, MallocAllocator, Program, type ProgramCallArgs } from './allocator.ts'
 import { cpu_objdump, cpu_time_execution, range, temp } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
-import { MemoryView } from '../memoryview.ts'
+import type { MemoryView } from '../memoryview.ts'
 import { Env } from '../env/index.ts'
 
 export class ClangCompiler extends Compiler {

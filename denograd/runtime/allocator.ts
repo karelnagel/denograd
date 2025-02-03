@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
-import { ImageDType } from '../dtype.ts'
-import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, get_number_env, set_default, string_to_bytes, WeakValueMap } from '../helpers.ts'
+import type { ImageDType } from '../dtype.ts'
+import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, LRU, NotImplemented, PROFILE, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
@@ -8,7 +8,7 @@ import { MemoryView } from '../memoryview.ts'
 // **************** Buffer + Allocators ****************
 export class BufferSpec {
   key: string
-  static cache = new WeakValueMap<BufferSpec>()
+  static cache = new WeakValueMap<string, BufferSpec>()
   //   # TODO: move device, size, dtype here?
   constructor(
     public image?: ImageDType,
@@ -27,7 +27,7 @@ export class BufferSpec {
 export abstract class Allocator<Buf> {
   //   # overriden in LRUAllocator
   alloc(size: number, options?: BufferSpec): Buf {
-    if (typeof size === 'number' && size <= 0) throw new Error(`alloc size must be positve, getting {size}`)
+    if (size <= 0) throw new Error(`alloc size must be positve, getting ${size}`)
     return this._alloc(size, options !== undefined ? options : new BufferSpec())
   }
 
@@ -52,7 +52,7 @@ export abstract class Allocator<Buf> {
 export abstract class LRUAllocator extends Allocator<MemoryView> {
   cache = new ArrayMap<[number, BufferSpec?], MemoryView[]>()
   override alloc = (size: number, options?: BufferSpec) => {
-    const c = set_default(this.cache, [size, options] as const, [])
+    const c = this.cache.setDefault([size, options], [])
     if (c.length) return c.pop()!
     try {
       return super.alloc(size, options)
@@ -69,8 +69,8 @@ export abstract class LRUAllocator extends Allocator<MemoryView> {
   }
   // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
-    if (get_number_env('LRU', 1) && (options === undefined || !options.nolru)) {
-      set_default(this.cache, [size, options] as const, []).push(opaque)
+    if (LRU && (options === undefined || !options.nolru)) {
+      this.cache.setDefault([size, options], []).push(opaque)
     } else super.free(opaque, size, options)
   }
 }
@@ -86,11 +86,33 @@ export class _MallocAllocator extends LRUAllocator {
   _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
   _free = () => {
-    throw new Error('Not implemented')
+    throw new NotImplemented()
   }
 }
 export const MallocAllocator = new _MallocAllocator()
 
+// NOTE: MAP_JIT is added to mmap module in python 3.13
+export const MAP_JIT = 0x0800
+
+export type ProgramCallArgs = { global_size?: number[]; local_size?: number[]; vals?: number[] }
+export class Program {
+  constructor(public name: string, public lib: Uint8Array) {
+  }
+  call = async (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> => {
+    throw new NotImplemented()
+  }
+}
+
+// CPUProgram is a jit/shellcode program that can be just mmapped and jumped to
+export class CPUProgram extends Program {
+  constructor(name: string, lib: Uint8Array) {
+    super(name, lib)
+    throw new NotImplemented()
+  }
+  override call = (bufs: any[], args: ProgramCallArgs, wait = false) => {
+    throw new NotImplemented()
+  }
+}
 // # **************** for Compiled Devices ****************
 
 export class CompileError extends Error {}
@@ -112,8 +134,46 @@ export class Compiler {
   }
   disassemble = (lib: Uint8Array) => {/** pass */}
 }
+export class ProfileEvent {}
+
+export class ProfileDeviceEvent extends ProfileEvent {
+  constructor(public device: string, public comp_tdiff: number = 0, public copy_tdiff = 0) {
+    super()
+  }
+}
+
+export class ProfileRangeEvent extends ProfileEvent {
+  constructor(public device: string, public name: string, public st: number, public en: number, public is_copy: boolean) {
+    super()
+  }
+}
+export class ProfileGraphEntry {
+  constructor(public device: string, public name: string, public st_id: number, public en_id: number, public is_copy: boolean) {}
+}
+
+export class ProfileGraphEvent extends ProfileEvent {
+  constructor(public ents: ProfileGraphEntry[], public deps: number[][], public sigs: number[]) {
+    super()
+  }
+}
+export class ProfileResult {
+  constructor(public st?: number, public en?: number) {}
+}
+
+// @contextlib.contextmanager
+export const cpu_profile = (name: string, device = 'CPU', is_copy = false, display = true): ProfileResult => {
+  const st = performance.now(), res = new ProfileResult(st)
+  const en = performance.now()
+  res.en = en
+  if (PROFILE && display) {
+    Compiled.profile_events = [...Compiled.profile_events, new ProfileRangeEvent(device, name, st / 1000, en / 1000, is_copy)]
+  }
+  return res
+}
 
 export class Compiled {
+  static profile_events: ProfileEvent[] = [new ProfileDeviceEvent('CPU')]
+
   constructor(
     public device: DeviceType,
     public allocator?: Allocator<any>,
@@ -128,15 +188,12 @@ export class Compiled {
    * This method ensures that all previously queued operations on the device have been completed before proceeding.
    */
   synchronize = () => {
-    //     # override this in your device implementation
+    throw new NotImplemented()
   }
-}
-
-export type ProgramCallArgs = { global_size?: number[]; local_size?: number[]; vals?: number[] }
-export class Program {
-  constructor(public name: string, public lib: Uint8Array) {
-  }
-  call = async (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> => {
-    throw new Error('not implemented')
+  /**
+   * Called at the end of profiling to allow the device to finalize any profiling.
+   */
+  _at_profile_finalize = () => {
+    throw new NotImplemented()
   }
 }

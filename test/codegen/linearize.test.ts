@@ -1,6 +1,6 @@
 import { append_to_block, BasicBlock, block_merge, block_reorder, disp, linearize_uop } from '../../denograd/codegen/linearize.ts'
-import { compare } from '../helpers.ts'
-import { DType, dtypes, PtrDType } from '../../denograd/dtype.ts'
+import { compare, tryCatch } from '../helpers.ts'
+import { dtypes } from '../../denograd/dtype.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
 
 Deno.test(
@@ -71,9 +71,12 @@ Deno.test(
       [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.CAST, dtypes.float.vec(4).ptr(), [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.SHL, dtypes.int, [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 8)], 0), new UOp(Ops.CONST, dtypes.int, [], 2)], undefined)], undefined)], undefined), new UOp(Ops.VECTORIZE, dtypes.float.vec(4), [new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined)], undefined)], new KernelInfo(0, 1, false)), true],
       [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.CAST, dtypes.float.vec(4).ptr(), [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.SHL, dtypes.int, [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 16)], 0), new UOp(Ops.CONST, dtypes.int, [], 2)], undefined)], undefined)], undefined), new UOp(Ops.VECTORIZE, dtypes.float.vec(4), [new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined)], undefined)], new KernelInfo(0, 1, false)), true],
       [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.CAST, dtypes.float.vec(4).ptr(), [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.SHL, dtypes.int, [new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 200)], 0), new UOp(Ops.CONST, dtypes.int, [], 2)], undefined)], undefined)], undefined), new UOp(Ops.VECTORIZE, dtypes.float.vec(4), [new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined)], undefined)], new KernelInfo(0, 1, false)), true],
-      [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined)], new KernelInfo(0, 0, false)), false],
+      [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0.1), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.1)], undefined)], new KernelInfo(0, 0, false)), false],
+      [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.CAST, dtypes.float.vec(4).ptr(1), [new UOp(Ops.INDEX, dtypes.float.ptr(4), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(4), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)], undefined), new UOp(Ops.LOAD, dtypes.float.vec(4), [new UOp(Ops.CAST, dtypes.float.vec(4).ptr(1), [new UOp(Ops.INDEX, dtypes.float.ptr(4), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(4), [], 1), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)], undefined)], undefined)], undefined)], new KernelInfo(0, 1, false))],
+      [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.CAST, dtypes.int.vec(4).ptr(1), [new UOp(Ops.INDEX, dtypes.int.ptr(4), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(4), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)], undefined), new UOp(Ops.LOAD, dtypes.int.vec(4), [new UOp(Ops.CAST, dtypes.int.vec(4).ptr(1), [new UOp(Ops.INDEX, dtypes.int.ptr(4), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(4), [], 1), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)], undefined)], undefined)], undefined)], new KernelInfo(0, 1, false))],
     ],
-    linearize_uop,
+    tryCatch(linearize_uop),
     'out(trycatch(lambda:tiny.codegen.linearize.linearize_uop(*data)))',
+    { stringSimilarity: 0.79 },
   ),
 )

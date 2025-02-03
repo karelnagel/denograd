@@ -1,6 +1,6 @@
 // model based off https://towardsdatascience.com/going-beyond-99-mnist-handwritten-digits-recognition-cfff96337392
 
-import { Layer, Tensor } from '../denograd/tensor.ts'
+import { type Layer, Tensor } from '../denograd/tensor.ts'
 import { mnist } from '../denograd/nn/datasets.ts'
 import { get_env, get_number_env, range } from '../denograd/helpers.ts'
 import { Tqdm } from '../denograd/tqdm.ts'
@@ -32,7 +32,7 @@ if (import.meta.main) {
 
   const model = new MNIST()
 
-  await model.load('./mnist.safetensors').catch((x) => x)
+  // await model.load('./mnist.safetensors').catch((x) => x)
   const opt = Adam(get_parameters(model))
 
   const train_step = async (): Promise<Tensor> => {

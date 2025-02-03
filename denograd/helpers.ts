@@ -1,29 +1,132 @@
 // deno-lint-ignore-file no-explicit-any no-control-regex camelcase
 import { Env } from './env/index.ts'
+import type { MathTrait } from './ops.ts'
 
-// GENERAL HELPERS
-export class WeakValueMap<V extends object> {
-  store = new Map<string, WeakRef<V>>()
-  finalizationGroup = new FinalizationRegistry<string>((key) => this.store.delete(key))
-  get = (key: string) => this.store.get(key)?.deref()
-  set = (key: string, value: V) => {
-    this.store.set(key, new WeakRef(value))
-    this.finalizationGroup.register(value, key)
+// Python Map/Set implementations
+export class DefaultMap<K, V> extends Map<K, V> {
+  constructor(values: [K, V][] | undefined, private defaultFn: () => V) {
+    super(values)
   }
-  setDefault = (key: string, def: V) => {
-    const res = this.get(key)
-    if (res) return res
-    this.set(key, def)
-    return def
+  override get(key: K): V {
+    let res = super.get(key)
+    if (res !== undefined) return res
+
+    res = this.defaultFn()
+    this.set(key, res)
+    return res
   }
 }
-type Value = number | bigint
-export const max = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
-export const min = <T extends Value>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
-export const abs = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.abs(x) : x < 0n ? -x : x
-export const trunc = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.trunc(x) : x
-export const sqrt = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.sqrt(x) : bigint_sqrt(x)
-export const sin = <T extends Value>(x: T) => typeof x !== 'bigint' ? Math.sin(x) : bigint_sin(x)
+// in JS [1] !== [1], so this is for Maps where key needs to be array
+type WeakArrayKey = { key: string } | ArrayKey[]
+type ArrayKey = { key: string } | ArrayKey[] | string | ConstType | undefined
+
+export const get_key = (...args: ArrayKey[]): string => {
+  const stringify = (item: ArrayKey): string => {
+    if (Array.isArray(item)) return `[${item.map(stringify).join(',')}]`
+    if (item === undefined) return 'undefined'
+    if (typeof item === 'string') return `"${item}"`
+    if (typeof item === 'bigint') return `${item}n`
+    if (typeof item === 'number' || typeof item === 'boolean') return `${item}`
+    if (typeof item?.key === 'string') return `${item.key}`
+    throw new Error(`No stringifier for ${item}, type: ${typeof item}, args:${JSON.stringify(args)}`)
+  }
+  return hash(stringify(args))
+}
+export class ArrayMap<K extends ArrayKey, V, Internal extends [any, any] = [K, V]> {
+  map: Map<string, Internal>
+  constructor(values?: Internal[]) {
+    this.map = new Map(values?.map(([key, value]) => [get_key(key), [key, value] as Internal]))
+  }
+  get size() {
+    return this.map.size
+  }
+  get = (key: K): V | undefined => this.map.get(get_key(key))?.[1]
+  set = (key: K, value: V): void => void this.map.set(get_key(key), [key, value] as Internal)
+  has = (key: K): boolean => this.get(key) !== undefined
+  entries = (): [K, V][] => [...this.map.values()]
+  keys = () => this.entries().map((e) => e[0])
+  values = () => this.entries().map((e) => e[1])
+  delete = (k: K) => this.map.delete(get_key(k))
+  clear = () => this.map.clear()
+  setDefault = (key: K, defaultValue: V) => {
+    const res = this.get(key)
+    if (res !== undefined) return res
+    this.set(key, defaultValue)
+    return defaultValue
+  }
+}
+
+// When key is garbage collected then the item is removed from the map
+export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<K, V, [WeakRef<K>, V]> {
+  private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
+  constructor(values?: [K, V][]) {
+    super(values?.map(([k, v]) => [new WeakRef(k), v]))
+  }
+  override get = (key: K): V | undefined => {
+    const res = this.map.get(get_key(key))
+    if (res === undefined) return undefined
+    if (res[0].deref() !== undefined) return res[1]
+
+    // if key is gone then return undefined + delete from list
+    this.map.delete(get_key(key))
+    return undefined
+  }
+  override set = (key: K, value: V) => {
+    this.map.set(get_key(key), [new WeakRef(key), value])
+    this.finalizationGroup.register(key, get_key(key))
+  }
+  override entries = (): [K, V][] => {
+    const res: [K, V][] = []
+    for (const [id, [k, v]] of this.map.entries()) {
+      const derefed = k.deref()
+      derefed ? res.push([derefed, v]) : this.map.delete(id)
+    }
+    return res
+  }
+}
+
+// When value is garbage collected then the item is removed from the map
+export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap<K, V, [K, WeakRef<V>]> {
+  private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
+  constructor(values?: [K, V][]) {
+    super(values?.map(([k, v]) => [k, new WeakRef(v)]))
+  }
+  override get = (key: K): V | undefined => {
+    const res = this.map.get(get_key(key))
+    if (res === undefined) return undefined
+    const derefed = res[1].deref()
+    if (derefed !== undefined) return derefed
+
+    // if value is gone, remove from map
+    this.map.delete(get_key(key))
+    return undefined
+  }
+  override set = (key: K, value: V) => {
+    this.map.set(get_key(key), [key, new WeakRef(value)])
+    this.finalizationGroup.register(value, get_key(key))
+  }
+  override entries = (): [K, V][] => {
+    const res: [K, V][] = []
+    for (const [id, [k, v]] of this.map.entries()) {
+      const derefed = v.deref()
+      derefed ? res.push([k, derefed]) : this.map.delete(id)
+    }
+    return res
+  }
+}
+
+export class NotImplemented extends Error {
+  constructor() {
+    super('Not implemented!')
+  }
+}
+
+export const max = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
+export const min = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
+export const abs = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.abs(Number(x)) : x < 0n ? -x : x
+export const trunc = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.trunc(Number(x)) : x
+export const sqrt = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.sqrt(Number(x)) : bigint_sqrt(x)
+export const sin = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.sin(Number(x)) : bigint_sin(x)
 
 // no idea, AI generated
 export const bigint_sqrt = (v: bigint) => {
@@ -85,9 +188,12 @@ export abstract class Enum {
 
 export const random_id = () => (Math.random() * 100000000).toFixed(0)
 export function hash(input: string) {
-  let hash = 5381
-  for (let i = 0; i < input.length; i++) hash = (hash * 33) ^ input.charCodeAt(i)
-  return (hash >>> 0).toString(16)
+  let hash = 0xdeadbeef
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) + hash) + input.charCodeAt(i)
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
 }
 
 export const string_to_bytes = (text: string) => new TextEncoder().encode(text)
@@ -97,11 +203,22 @@ export const bytes_to_hex = (arr: Uint8Array) => Array.from(arr).map((byte) => b
   return this.toString()
 }
 
-export function product<T>(...arrays: T[][]): T[][] {
-  if (arrays.length === 0) return [[]]
+export function product<T extends any[][], Out extends any[] = T>(...arrays: T): Out
+export function product<T extends any[], Out extends any[] = T[]>(array: T, repeat?: number): Out
+export function product<T extends any[][], Out extends any[] = T>(...args: [...T] | [T, number]): Out {
+  let arrays: T[]
+  if (args.length === 2 && typeof args[1] === 'number') {
+    // Handle repeat case
+    const [array, repeat] = args as any
+    arrays = Array(repeat).fill(array) as T[]
+  } else {
+    arrays = args as T[]
+  }
 
-  return arrays.reduce<T[][]>((acc, arr) => {
-    const result: T[][] = []
+  if (arrays.length === 0) return [[]] as Out
+
+  return arrays.reduce<any>((acc, arr) => {
+    const result = []
     for (const a of acc) {
       for (const b of arr) result.push([...a, b])
     }
@@ -125,7 +242,7 @@ export function* counter(start = 0) {
   let current = start
   while (true) yield current++
 }
-export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : `${x}`
+export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : typeof x === 'string' ? `'${x}'` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const is_less_than = (a: any, b: any): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -137,16 +254,17 @@ export const is_less_than = (a: any, b: any): boolean => {
   }
   return a < b
 }
-const CONSTS = ['number', 'bigint', 'boolean']
+export type ConstType<This = never> = number | bigint | boolean | This
+export const isConst = (x: any): x is ConstType => ['number', 'bigint', 'boolean'].includes(typeof x)
 export const is_eq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => is_eq(o, two[i]))
   // deno-lint-ignore eqeqeq
-  if (CONSTS.includes(typeof one) && CONSTS.includes(typeof two)) return one == two
+  if (isConst(one) && isConst(two)) return one == two
   return one === two
 }
 export const intersection = <T>(...sets: Set<T>[]): Set<T> => sets.reduce((acc, set) => new Set([...acc].filter((item) => set.has(item))))
 
-export function set_default<K, V>(map: Map<K, V> | ArrayMap<K, V>, key: K, defaultValue: V): V {
+export function set_default<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
   if (map.has(key)) return map.get(key)!
   map.set(key, defaultValue)
   return defaultValue
@@ -247,8 +365,12 @@ export const fully_flatten = (l: any): any[] => {
 // def fromimport(mod, frm): return getattr(__import__(mod, fromlist=[frm]), frm)
 export const strip_parens = (s: string) => s[0] === '(' && s[s.length - 1] === ')' && s.slice(1, -1).indexOf('(') <= s.slice(1, -1).indexOf(')') ? s.slice(1, -1) : s
 export const round_up = (num: number, amt: number) => Math.ceil(num / amt) * amt
+export const lo32 = (x: any) => Number(BigInt(x) & 0xFFFFFFFFn) // Any is sint
+export const hi32 = (x: any) => Number(BigInt(x) >> 32n) // any is sint
 export const data64 = (data: number): [number, number] => [Math.floor(data / Math.pow(2, 32)), data >>> 0] // TODO:make work with sint
 export const data64Le = (data: number): [number, number] => [data >>> 0, Math.floor(data / Math.pow(2, 32))] // TODO:make work with sint
+export const getbits = (value: number, start: number, end: number) => (value >> start) & ((1 << end - start + 1) - 1)
+export const i2u = (bits: number, value: number) => value >= 0 ? value : (1 << bits) + value
 export const merge_dicts = <T extends string, U = any>(ds: Record<T, U>[]): Record<T, U> => {
   const kvs = new Set(ds.flatMap((d) => Object.entries(d))) as Set<[T, U]>
   const keys = new Set(Array.from(kvs).map((kv) => kv[0]))
@@ -274,6 +396,10 @@ export function merge_sets<V>(sets: Iterable<Set<V>>): Set<V> {
 }
 
 export const partition = <T>(itr: T[], fn: (x: T) => boolean): [T[], T[]] => itr.reduce(([a, b], s) => fn(s) ? [[...a, s], b] : [a, [...b, s]], [[], []] as [T[], T[]])
+export const get_single_element = <T>(x: T[]): T => {
+  if (x.length !== 1) throw new Error(`list ${x} must only have 1 element`)
+  return x[0]
+}
 export const unwrap = <T>(x: T | undefined): T => x!
 export const getChild = (obj: any, key: string): any => key.split('.').reduce((current, k) => !isNaN(Number(k)) ? current[Number(k)] : current[k], obj)
 
@@ -283,16 +409,18 @@ export const get_env = (key: string, defaultVal = '') => Env.env.get(key) || def
 export const get_number_env = (key: string, defaultVal?: number) => Number(Env.env.get(key) || defaultVal)
 export const temp = (x?: string): string => `${Env.tmpdir()}/${x || random_id()}`
 
-export const [DEBUG, IMAGE, BEAM, NOOPT, JIT] = [get_number_env('DEBUG', 0), get_number_env('IMAGE', 0), get_number_env('BEAM', 0), get_number_env('NOOPT', 0), get_number_env('JIT', 1)]
-export const [WINO, CAPTURING, TRACEMETA] = [get_number_env('WINO', 0), get_number_env('CAPTURING', 1), get_number_env('TRACEMETA', 1)]
-export const [PROFILE, PROFILEPATH] = [get_number_env('PROFILE', 0), get_env('PROFILEPATH', temp('tinygrad_profile.json'))]
-export const [USE_TC, TC_OPT, AMX, TRANSCENDENTAL] = [get_number_env('TC', 1), get_number_env('TC_OPT', 0), get_number_env('AMX', 0), get_number_env('TRANSCENDENTAL', 1)]
-export const [FUSE_ARANGE, FUSE_CONV_BW, LAZYCACHE] = [get_number_env('FUSE_ARANGE', 0), get_number_env('FUSE_CONV_BW', 0), get_number_env('LAZYCACHE', 1)]
-export const [SPLIT_REDUCEOP, NO_MEMORY_PLANNER, RING] = [get_number_env('SPLIT_REDUCEOP', 1), get_number_env('NO_MEMORY_PLANNER', 0), get_number_env('RING', 1)]
+// TODO JIT should be automatic
+export const DEBUG = get_number_env('DEBUG', 0), IMAGE = get_number_env('IMAGE', 0), BEAM = get_number_env('BEAM', 0), NOOPT = get_number_env('NOOPT', 0), JIT = get_number_env('JIT', 1)
+export const WINO = get_number_env('WINO', 0), CAPTURING = get_number_env('CAPTURING', 1), TRACEMETA = get_number_env('TRACEMETA', 1)
+export const USE_TC = get_number_env('TC', 1), TC_OPT = get_number_env('TC_OPT', 0), AMX = get_number_env('AMX', 0), TRANSCENDENTAL = get_number_env('TRANSCENDENTAL', 1)
+export const FUSE_ARANGE = get_number_env('FUSE_ARANGE', 0), FUSE_CONV_BW = get_number_env('FUSE_CONV_BW', 0)
+export const SPLIT_REDUCEOP = get_number_env('SPLIT_REDUCEOP', 1), NO_MEMORY_PLANNER = get_number_env('NO_MEMORY_PLANNER', 0), RING = get_number_env('RING', 1)
+export const PICKLE_BUFFERS = get_number_env('PICKLE_BUFFERS', 1), PROFILE = get_env('PROFILE', get_env('VIZ')), LRU = get_number_env('LRU', 1)
+export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
 
 export class Metadata {
   key: string
-  static cache = new WeakValueMap<Metadata>()
+  static cache = new WeakValueMap<string, Metadata>()
   constructor(public name: string, public caller: string, public backward = false) {
     this.key = get_key(name, caller, backward)
     return Metadata.cache.setDefault(this.key, this)
@@ -314,6 +442,7 @@ class ContextVar<T> {
     this.key = key
     this.value = value
   }
+  get = () => this.value
   set = (v: T): string => {
     const token = random_id()
     this.value = v
@@ -338,42 +467,41 @@ export class GlobalCounters {
 
 // # **************** timer and profiler ****************
 
-// class Timing(contextlib.ContextDecorator):
-//   def __init__(self, prefix="", on_exit=None, enabled=True): self.prefix, self.on_exit, self.enabled = prefix, on_exit, enabled
-//   def __enter__(self): self.st = time.perf_counter_ns()
-//   def __exit__(self, *exc):
-//     self.et = time.perf_counter_ns() - self.st
-//     if self.enabled: print(f"{self.prefix}{self.et*1e-6:6.2f} ms"+(self.on_exit(self.et) if self.on_exit else ""))
-
-// def _format_fcn(fcn): return f"{fcn[0]}:{fcn[1]}:{fcn[2]}"
-// class Profiling(contextlib.ContextDecorator):
-//   def __init__(self, enabled=True, sort='cumtime', frac=0.2, fn=None, ts=1):
-//     self.enabled, self.sort, self.frac, self.fn, self.time_scale = enabled, sort, frac, fn, 1e3/ts
-//   def __enter__(self):
-//     import cProfile
-//     self.pr = cProfile.Profile()
-//     if self.enabled: self.pr.enable()
-//   def __exit__(self, *exc):
-//     if self.enabled:
-//       self.pr.disable()
-//       if self.fn: self.pr.dump_stats(self.fn)
-//       import pstats
-//       stats = pstats.Stats(self.pr).strip_dirs().sort_stats(self.sort)
-//       for fcn in stats.fcn_list[0:int(len(stats.fcn_list)*self.frac)]:    # type: ignore[attr-defined]
-//         (_primitive_calls, num_calls, tottime, cumtime, callers) = stats.stats[fcn]    # type: ignore[attr-defined]
-//         scallers = sorted(callers.items(), key=lambda x: -x[1][2])
-//         print(f"n:{num_calls:8d}  tm:{tottime*self.time_scale:7.2f}ms  tot:{cumtime*self.time_scale:7.2f}ms",
-//               colored(_format_fcn(fcn).ljust(50), "yellow"),
-//               colored(f"<- {(scallers[0][1][2]/tottime)*100:3.0f}% {_format_fcn(scallers[0][0])}", "BLACK") if scallers else '')
-
+export class Timing {
+  //   def __init__(self, prefix="", on_exit=None, enabled=True): self.prefix, self.on_exit, self.enabled = prefix, on_exit, enabled
+  //   def __enter__(self): self.st = time.perf_counter_ns()
+  //   def __exit__(self, *exc):
+  //     self.et = time.perf_counter_ns() - self.st
+  //     if self.enabled: print(f"{self.prefix}{self.et*1e-6:6.2f} ms"+(self.on_exit(self.et) if self.on_exit else ""))
+}
+export const _format_fcn = (fcn: any[]) => `${fcn[0]}:${fcn[1]}:${fcn[2]}`
+export class Profiling {
+  //   def __init__(self, enabled=True, sort='cumtime', frac=0.2, fn=None, ts=1):
+  //     self.enabled, self.sort, self.frac, self.fn, self.time_scale = enabled, sort, frac, fn, 1e3/ts
+  //   def __enter__(self):
+  //     import cProfile
+  //     self.pr = cProfile.Profile()
+  //     if self.enabled: self.pr.enable()
+  //   def __exit__(self, *exc):
+  //     if self.enabled:
+  //       self.pr.disable()
+  //       if self.fn: self.pr.dump_stats(self.fn)
+  //       import pstats
+  //       stats = pstats.Stats(self.pr).strip_dirs().sort_stats(self.sort)
+  //       for fcn in stats.fcn_list[0:int(len(stats.fcn_list)*self.frac)]:    # type: ignore[attr-defined]
+  //         (_primitive_calls, num_calls, tottime, cumtime, callers) = stats.stats[fcn]    # type: ignore[attr-defined]
+  //         scallers = sorted(callers.items(), key=lambda x: -x[1][2])
+  //         print(f"n:{num_calls:8d}  tm:{tottime*self.time_scale:7.2f}ms  tot:{cumtime*self.time_scale:7.2f}ms",
+  //               colored(_format_fcn(fcn).ljust(50), "yellow"),
+  //               colored(f"<- {(scallers[0][1][2]/tottime)*100:3.0f}% {_format_fcn(scallers[0][0])}", "BLACK") if scallers else '')
+}
 // # *** universal database cache ***
 
-const cacheDir = get_env('XDG_CACHE_HOME', OSX ? `${Env.homedir()}/Library/Caches` : `${Env.homedir()}/.cache`)
-export const CACHEDB = get_env('CACHEDB', `${cacheDir}/tinygrad/cache.db`)
-export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
+const cache_dir = get_env('XDG_CACHE_HOME', OSX ? `${Env.homedir()}/Library/Caches` : `${Env.homedir()}/.cache`)
+export const CACHEDB = get_env('CACHEDB', `${cache_dir}/tinygrad/cache.db`)
 
 // VERSION = 16
-// _db_connection = None
+const _db_connection = undefined
 export const db_connection = () => {
   //   global _db_connection
   //   if _db_connection is None:
@@ -403,7 +531,7 @@ export const diskcache_get = (table: string, key: any): any | undefined => {
   return undefined
 }
 // _db_tables = set()
-export const diskcache_put = (table: string, key: any, val: any) => {
+export const diskcache_put = (table: string, key: any, val: any, prepickled = false) => {
   //   if CACHELEVEL == 0: return val
   //   if isinstance(key, (str,int)): key = {"key": key}
   //   conn = db_connection()
@@ -426,18 +554,20 @@ export const diskcache = (func: any) => {
   //   return wrapper
 }
 // # *** http support ***
+export const CAPTURE_PROCESS_REPLAY = get_env('RUN_PROCESS_REPLAY') || get_env('CAPTURE_PROCESS_REPLAY')
 
-// def _ensure_downloads_dir() -> pathlib.Path:
-//   # if we are on a tinybox, use the raid array
-//   if pathlib.Path("/etc/tinybox-release").is_file():
-//     # try creating dir with sudo
-//     if not (downloads_dir := pathlib.Path("/raid/downloads")).exists():
-//       subprocess.run(["sudo", "mkdir", "-p", downloads_dir], check=True)
-//       subprocess.run(["sudo", "chown", "tiny:root", downloads_dir], check=True)
-//       subprocess.run(["sudo", "chmod", "775", downloads_dir], check=True)
-//     return downloads_dir
-//   return pathlib.Path(_cache_dir) / "tinygrad" / "downloads"
-
+export const _ensure_downloads_dir = (): string => {
+  throw new NotImplemented()
+  //   # if we are on a tinybox, use the raid array
+  //   if pathlib.Path("/etc/tinybox-release").is_file():
+  //     # try creating dir with sudo
+  //     if not (downloads_dir := pathlib.Path("/raid/downloads")).exists():
+  //       subprocess.run(["sudo", "mkdir", "-p", downloads_dir], check=True)
+  //       subprocess.run(["sudo", "chown", "tiny:root", downloads_dir], check=True)
+  //       subprocess.run(["sudo", "chmod", "775", downloads_dir], check=True)
+  //     return downloads_dir
+  //   return pathlib.Path(_cache_dir) / "tinygrad" / "downloads"
+}
 // def fetch(url:str, name:Optional[Union[pathlib.Path, str]]=None, subdir:Optional[str]=None, gunzip:bool=False,
 //           allow_caching=not getenv("DISABLE_HTTP_CACHE")) -> pathlib.Path:
 //   if url.startswith(("/", ".")): return pathlib.Path(url)
@@ -480,8 +610,21 @@ export const cpu_objdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
     Env.removeSync(outputFile)
   }
 }
-export const replace = <T extends object>(obj: T, replace: Partial<T>): T => {
-  return { ...obj, ...replace } as T
+
+export const capstone_flatdump = (lib: Uint8Array) => {
+  throw new NotImplemented()
+  // import capstone
+  // match platform.machine():
+  //   case 'x86_64': cs = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+  //   case 'aarch64' | 'arm64': cs = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
+  //   case machine: raise NotImplementedError(f"Capstone disassembly isn't supported for {machine}")
+  // for instr in cs.disasm(lib, 0):
+  //   print(f"{instr.address:#08x}: {instr.mnemonic}\t{instr.op_str}")
+}
+export function replace<T>(instance: T, replacement: Partial<T>): T {
+  const newInstance = Object.create(Object.getPrototypeOf(instance))
+  Object.assign(newInstance, instance, replacement)
+  return newInstance
 }
 // # *** universal support for code object pickling
 
@@ -566,15 +709,6 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
   return result
 }
 
-export const get_key = (...args: any[]): string => {
-  if (args.length === 1 && typeof args[0]?.key === 'string') return args[0].key
-  const json = JSON.stringify(args, (key, value) => {
-    if (typeof value?.key === 'string') return value.key
-    if (typeof value === 'string') return value
-    return value
-  })
-  return hash(json)
-}
 // DECORATORS
 
 export function cache<This extends object, Args extends any[], Return>(
@@ -614,27 +748,88 @@ export function debug<Args extends any[], Return>(target: (...args: Args) => Ret
   }
 }
 
-// in JS [1] !== [1], so this is for Maps where key needs to be array
-export class ArrayMap<K, V> {
-  private map: Record<string, [K, V]>
-  constructor(values: [K, V][] = []) {
-    this.map = Object.fromEntries(values.map(([key, value]) => [get_key(key), [key, value]]))
-  }
-  get size() {
-    return Object.keys(this.map).length
-  }
-  get = (key: K): V | undefined => this.map[get_key(key)]?.[1]
-  set = (key: K, value: V) => this.map[get_key(key)] = [key, value]
-  has = (key: K) => (get_key(key) in this.map)
-  entries = (): [K, V][] => Object.values(this.map)
-  keys = () => this.entries().map((e) => e[0])
-  values = () => this.entries().map((e) => e[1])
-  delete = (k: K) => delete this.map[get_key(k)]
-}
-
 export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) => {
   const s = performance.now()
   const res = await fn()
   console.log(`${name} took ${Math.round(performance.now() - s) / 1000}s and returned ${res}`)
   return res
+}
+
+export type Math = ConstType | MathTrait<any>
+type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B : A extends bigint ? bigint : B extends bigint ? bigint : number
+const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
+  if (!bigintFn) bigintFn = numberFn as unknown as (a: bigint, b: bigint) => bigint
+  return <A extends Math, B extends Math>(a: A, b: B): Return<A, B> => {
+    if (typeof a === 'string') throw new Error(`a is string, a=${a}`)
+    if (typeof b === 'string') throw new Error(`b is string, b=${b}`)
+    if (!isConst(a)) return mathFn(a, b, false) as Return<A, B>
+    else if (!isConst(b)) return mathFn(b, a, true) as Return<A, B>
+    else if (typeof a === 'bigint' || typeof b === 'bigint') return bigintFn(BigInt(a), BigInt(b)) as Return<A, B>
+    else return numberFn(Number(a), Number(b)) as Return<A, B>
+  }
+}
+
+export const add = _meta((a, b, r) => a.add(b, r), (a, b) => a + b)
+export const sub = _meta((a, b, r) => a.sub(b, r), (a, b) => a - b)
+export const mul = _meta((a, b, r) => a.mul(b, r), (a, b) => a * b)
+export const div = _meta((a, b, r) => a.div(b, r), (a, b) => a / b)
+export const idiv = _meta((a, b, r) => a.idiv(b, r), (a, b) => Math.floor(a / b), (a, b) => a / b)
+export const neg = <A extends Math>(a: A): Return<A, A> => ((!isConst(a)) ? a.neg() : typeof a === 'bigint' ? a * -1n : Number(a) * -1)
+export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => a % b)
+
+export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => a & b)
+export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => a | b)
+export const xor = _meta((a, b, r) => a.xor(b, r), (a, b) => a ^ b)
+export const lshift = _meta((a, b, r) => a.lshift(b, r), (a, b) => a << b)
+export const rshift = _meta((a, b, r) => a.rshift(b, r), (a, b) => a >> b)
+
+export const lt = _meta((a, b, r) => !r ? a.lt(b) : a.const_like(b as any).lt(a), (a, b) => Number(a < b), (a, b) => BigInt(a < b))
+export const gt = _meta((a, b, r) => !r ? a.gt(b) : a.const_like(b as any).gt(a), (a, b) => Number(a > b), (a, b) => BigInt(a > b))
+export const le = _meta((a, b, r) => !r ? a.le(b) : a.const_like(b as any).le(a), (a, b) => Number(a <= b), (a, b) => BigInt(a <= b))
+export const ge = _meta((a, b, r) => !r ? a.ge(b) : a.const_like(b as any).ge(a), (a, b) => Number(a >= b), (a, b) => BigInt(a >= b))
+export const ne = _meta((a, b, r) => !r ? a.ne(b) : a.const_like(b as any).ne(a), (a, b) => Number(a !== b), (a, b) => BigInt(a !== b))
+export const eq = _meta((a, b, r) => !r ? a.eq(b) : a.const_like(b as any).eq(a), (a, b) => Number(a === b), (a, b) => BigInt(a === b))
+
+export const polyN = <T extends Math>(x: T, p: Math[]): T => p.reduce((acc, c) => add(mul(acc, x), c), 0) as T
+export const prod = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => mul(acc, curr) as T, 1 as T)
+export const sum = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => add(acc, curr) as T, 0 as T)
+export const ceildiv = <A extends Math, B extends Math>(num: A, amt: B): Return<A, B> => neg(idiv(num, neg(amt))) as Return<A, B>
+export const pow = _meta((a, b, r) => (a as any).pow(b, r), (a, b) => a ** b)
+
+export function* pairwise<T>(iterable: Iterable<T>): Generator<[T, T], void, unknown> {
+  let previous: T | undefined
+  let hasPrevious = false
+
+  for (const item of iterable) {
+    if (!hasPrevious) {
+      previous = item
+      hasPrevious = true
+    } else {
+      yield [previous as T, item]
+      previous = item
+    }
+  }
+}
+
+export function* accumulate<T>(iterable: Iterable<T>, func?: (acc: T, val: T) => T, initialValue?: T): Generator<T, void, unknown> {
+  const operation = func ?? ((a, b) => (a as unknown as number) + (b as unknown as number)) as (acc: T, val: T) => T
+  let accumulator: T
+  let started = false
+
+  for (const value of iterable) {
+    if (!started) {
+      // If an initialValue is provided, set the accumulator to that,
+      // then apply the first item. Otherwise, use the first item as the initial accumulator.
+      if (initialValue !== undefined) {
+        accumulator = operation(initialValue, value)
+      } else {
+        accumulator = value
+      }
+      started = true
+      yield accumulator
+    } else {
+      accumulator = operation(accumulator!, value)
+      yield accumulator
+    }
+  }
 }

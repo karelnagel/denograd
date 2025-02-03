@@ -1,12 +1,12 @@
 import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, dedup, get_env, set_default, strip_parens } from '../helpers.ts'
-import { GroupOp, idiv, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
+import { AMX, dedup, DefaultMap, get_env, idiv, NotImplemented, set_default, strip_parens } from '../helpers.ts'
+import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
 const float = (x: number) => Number.isInteger(x) ? x + '.0' : x
 
-export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<string, UOp>, string | undefined>([
+export const base_rewrite = new PatternMatcher<CStyleLanguage, string | undefined>([
   [new UPat(Ops.DEFINE_ACC).named('x'), ({ ctx, x }) => ctx.get(x.src[0])],
   [new UPat(Ops.ASSIGN).named('x'), ({ ctx, x }) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`],
   [new UPat(Ops.IF).named('x'), ({ ctx, x }) => `if (${ctx.get(x.src[0])}) {`],
@@ -49,7 +49,7 @@ export const base_rewrite = new PatternMatcher<{ ctx: CStyleLanguage } & Record<
   [new UPat(Ops.GEP).named('x'), ({ ctx, x }) => ctx.get(x.src[0]) + (x.src[0].dtype.count > (['CUDA', 'NV'].includes(ctx.device) ? 8 : 4) || ctx.device === 'CLANG' ? `[${x.arg[0]}]` : `.${'xyzwabcd'[x.arg[0]]}`)],
 ])
 
-export const extra_pm = new PatternMatcher<Record<string, UOp>, UOp | undefined>([
+export const extra_pm = new PatternMatcher([
   // insert a NOOP before BITCAST to force it to be rendered. not needed on all backends?
   [new UPat(Ops.BITCAST).named('x'), ({ x }) => x.src[0].op !== Ops.NOOP ? new UOp(Ops.BITCAST, x.dtype, [new UOp(Ops.NOOP, x.src[0].dtype, x.src)]) : undefined],
   // rewrite MAX to CMPLT + WHERE (max function is annoying on many cstyle backends)
@@ -111,7 +111,7 @@ export class CStyleLanguage extends Renderer {
   render_cast = (dt: DType, val: string): string => `(${this.render_dtype(dt)})(${val})`
   render_dtype = (dt: DType, mutable = true): string => {
     if (dt instanceof ImageDType) return `${mutable ? 'write_only' : 'read_only'} image2d_t`
-    if (dt instanceof PtrDType) return (dt.local && this.smem_prefix_for_cast ? this.smem_prefix : this.buffer_prefix) + this.render_dtype(dt.base) + (dt instanceof PtrDType ? '*' : '')
+    if (dt instanceof PtrDType) return (dt.local && this.smem_prefix_for_cast ? this.smem_prefix : this.buffer_prefix) + this.render_dtype(dt.base) + '*'
     const scalar = dt.scalar()
     return (this.type_map.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
   }
@@ -128,7 +128,7 @@ export class CStyleLanguage extends Renderer {
     const bufs = new Map<UOp, [string, [DType, boolean]]>()
     const kernel = []
     let depth = 1
-    const c = new Map<string, number>()
+    const c = new DefaultMap<string, number>(undefined, () => 0)
     for (const u of uops) {
       if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_VAR].includes(u.op)) {
         r.set(u, u.op === Ops.DEFINE_GLOBAL ? `data${u.arg}` : u.arg[0])
@@ -165,7 +165,7 @@ export class CStyleLanguage extends Renderer {
         r.set(u, `${prefix}${set_default(c, prefix, 0)}`)
       }
       let l = this.string_rewrite.rewrite(u, this)
-      if (l === undefined) throw new Error(`failed to render ${u.op} ${u.dtype} ${u.src.map((x) => [x.op, x.dtype])} ${u.arg}`)
+      if (l === undefined) throw new Error(`failed to render: ${u}`)
 
       if ([Ops.ENDIF, Ops.ENDRANGE].includes(u.op)) depth -= 1
       if (
@@ -207,7 +207,9 @@ export class ClangRenderer extends CStyleLanguage {
     ...new CStyleLanguage().code_for_op.entries().filter(([k, v]) => ![Ops.EXP2, Ops.SIN, Ops.LOG2].includes(k)),
     [Ops.SQRT, (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`],
   ])
-  override tensor_cores = !AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore([sz, sz, 1], dt, dt, [], [], [[[1, sz]], [[0, sz]], [[1, sz], [0, sz]]]))
+  // LLVM legalizes double => half cast on systems that don't support it natively (like x86 cpus without AVX512-FP16) into a compiler-rt libcall.
+  override extra_matcher = new PatternMatcher([[UPat.var('x', dtypes.float64).cast(dtypes.float16), ({ x }) => x.cast(dtypes.float32).cast(dtypes.float16)]]).add(new CStyleLanguage().extra_matcher)
+  override tensor_cores = !AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: 1, elements_per_thread: [sz, sz, sz * sz], dtype_in: dt, dtype_out: dt, swizzle: [undefined, [[], [4, 5, 6, 7, 0, 1, 2, 3]]], opts: ['u0', 'u0', 'u0', 'u0', 'u1', 'u1', 'u1', 'u1'] }))
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 
@@ -223,9 +225,53 @@ export class ClangRenderer extends CStyleLanguage {
       const out = this.render_dtype(dtypeIn.vec(N * N))
       prefix = [
         ...prefix,
-        `${out} __$${this.render_dtype(dtypeIn.vec(N))} data1, ${this.render_dtype(dtypeIn.vec(M))} data2, ${out} data0){{ AMX_SET(0);\n  for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(4, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }} AMX(0, (int *)(&data2), 0ull<<62); AMX(1, (int *)(&data1), 0ull<<62); AMX(12, 0, 0ull); for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(5, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }}\n  AMX_SET(1);\n  return data0;\n}}`,
+        // 'static' in C roughly means that function symbol isn't exported. LLVM puts those symbols at the end of object file which allows Clang JIT
+        // to just jump at the start of a shellcode whithout having to deal with symbols or trampolines at all. This is better than having to inline
+        // wmma function every time it is called or wasting complexity on a symbol parsing and a memory page on trampoline.
+        `static ${out} __$${this.render_dtype(dtypeIn.vec(N))} data1, ${this.render_dtype(dtypeIn.vec(M))} data2, ${out} data0){{ AMX_SET(0);\n  for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(4, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }} AMX(0, (int *)(&data2), 0ull<<62); AMX(1, (int *)(&data1), 0ull<<62); AMX(12, 0, 0ull); for(int ridx0 = 0; ridx0 < 16; ridx0++){{ AMX(5, (int *)(&data0), 0ull<<62 | (ridx0*4ull)<<56 | ridx0*64ull); }}\n  AMX_SET(1);\n  return data0;\n}}`,
       ]
     }
     return root_render_kernel(this, { function_name, kernel, bufs, uops, prefix })
   }
+}
+
+export class OpenCLRenderer extends CStyleLanguage {
+  constructor() {
+    super()
+    throw new NotImplemented()
+  }
+}
+
+export class IntelRenderer extends OpenCLRenderer {
+  constructor() {
+    super()
+    throw new NotImplemented()
+  }
+}
+export class MetalRenderer extends CStyleLanguage {
+  constructor() {
+    super()
+    throw new NotImplemented()
+  }
+}
+export class CUDARenderer extends CStyleLanguage {
+  constructor() {
+    super()
+    throw new NotImplemented()
+  }
+}
+export class AMDRenderer extends CStyleLanguage {
+  constructor() {
+    super()
+    throw new NotImplemented()
+  }
+}
+export class NVRenderer extends CUDARenderer {
+  override device = 'NV' as any
+}
+export class HIPRenderer extends AMDRenderer {
+  override device = 'HIP' as any
+}
+export class QCOMRenderer extends OpenCLRenderer {
+  override device = 'QCOM' as any
 }

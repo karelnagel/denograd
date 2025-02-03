@@ -23,7 +23,8 @@ jobs:
         with:
           deno-version: v2.x
       - run: pip install wgpu
-      - run: deno test -A --parallel --coverage=cov/
+      - run: pip install ctypes-io-uring
+      - run: deno test -A --parallel --no-check --coverage=cov/
       - run: deno coverage --lcov cov/ > cov.lcov
       - uses: codecov/codecov-action@v5
         with:

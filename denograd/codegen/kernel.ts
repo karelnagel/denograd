@@ -1,44 +1,44 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, cache, cache_fn, colored, DEBUG, dedup, Enum, get_env, get_key, isinstance, range, round_up, set_default, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
-import { can_pad, graph_rewrite, GroupOp, idiv, KernelInfo, le, mul, ne, Ops, print_uops, prod, resolve, sint, UOp, Variable, view_left } from '../ops.ts'
-import { ProgramSpec, Renderer, TensorCore } from '../renderer/index.ts'
+import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, Enum, ge, get_env, get_key, get_number_env, gt, isinstance, isInt, NotImplemented, product, range, round_up, set_default, sum, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
+import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, type_verify, UOp, type Variable, view_left } from '../ops.ts'
+import { idiv, le, mod, mul, ne, prod } from '../helpers.ts'
+import { ProgramSpec, type Renderer, type TensorCore } from '../renderer/index.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape } from '../shape/view.ts'
 import { linearize_uop } from './linearize.ts'
 import { get_contraction, rewrite_shapetracker_with_index } from './lowerer.ts'
-import { full_graph_rewrite } from './uopgraph.ts'
+import { full_graph_rewrite } from '../ops.ts'
 
 export class OptOps<Name extends string = string, Value extends number = number> extends Enum {
   private static VALUES: OptOps[] = []
   static values = () => [...OptOps.VALUES]
-  constructor(name: Name, value: Value) {
-    super(name, value)
+  key: string
+  constructor(name: Name) {
+    super(name, OptOps.VALUES.length + 1)
+    this.key = get_key(name, this.value)
     OptOps.VALUES.push(this)
-    assert(value === OptOps.VALUES.length)
   }
 
-  static readonly TC = new OptOps('TC', 1)
-  static readonly UPCAST = new OptOps('UPCAST', 2)
-  static readonly UPCASTMID = new OptOps('UPCASTMID', 3)
-  static readonly UNROLL = new OptOps('UNROLL', 4)
-  static readonly LOCAL = new OptOps('LOCAL', 5)
-  static readonly GROUP = new OptOps('GROUP', 6)
-  static readonly GROUPTOP = new OptOps('GROUPTOP', 7)
-  static readonly NOLOCALS = new OptOps('NOLOCALS', 8)
-  static readonly PADTO = new OptOps('PADTO', 9)
-  static readonly SWAP = new OptOps('SWAP', 10)
+  static readonly TC = new OptOps('TC')
+  static readonly UPCAST = new OptOps('UPCAST')
+  static readonly UNROLL = new OptOps('UNROLL')
+  static readonly LOCAL = new OptOps('LOCAL')
+  static readonly GROUP = new OptOps('GROUP')
+  static readonly GROUPTOP = new OptOps('GROUPTOP')
+  static readonly NOLOCALS = new OptOps('NOLOCALS')
+  static readonly PADTO = new OptOps('PADTO')
+  static readonly SWAP = new OptOps('SWAP')
 }
 export class KernelOptError extends Error {}
 
 export const check = (cond: boolean, msg = '') => {
   if (!cond) throw new KernelOptError(msg)
 }
-type TensorCoreOptions = any
 
 export class Opt {
   key: string
-  static cache = new WeakValueMap<Opt>()
+  static cache = new WeakValueMap<string, Opt>()
   constructor(public op: OptOps, public axis?: number, public amt?: number) {
     this.key = get_key(op, axis, amt)
     return Opt.cache.setDefault(this.key, this)
@@ -51,7 +51,20 @@ export class Opt {
     return this.axis
   }
 }
-const ordered_parents = cache_fn((op: UOp): UOp[] => dedup([...op.src.flatMap((x) => ordered_parents(x)), op]))
+
+export class TensorCoreOptions {
+  constructor(
+    public axes: number[], // the location of the original N and M axes if still in the shape
+    public axes_exist: boolean[], // true if the original N and M axes are still in the shape
+    public axis_pads: [number, number][],
+  ) {}
+  fix_axes = (removed_axis: number) => { // adjust the TC axes if necessary when a dimension is removed
+    for (const tc_dim of range(2).filter((i) => this.axes_exist[i])) {
+      if (removed_axis < this.axes[tc_dim]) this.axes[tc_dim] -= 1
+      else if (removed_axis === this.axes[tc_dim]) this.axes_exist[tc_dim] = false
+    }
+  }
+}
 
 export class Kernel {
   ast!: UOp
@@ -71,22 +84,20 @@ export class Kernel {
   tensor_core?: TensorCore = undefined
   tensor_core_opts?: TensorCoreOptions = undefined
   use_tensor_cores = 0
-  // the local aliased buffers for A && B
-  bufs_for_tensor_core = new Map<UOp, [number, number]>()
   dont_use_locals = false
   constructor(ast: UOp, opts?: Renderer) {
     if (ast.op === Ops.SINK) this.ast = ast
 
     this.opts = opts !== undefined ? opts : Device.get(Device.DEFAULT).renderer
-    let uop_sts_map
     try {
-      uop_sts_map = verify_ast(this.ast)
+      verify_ast(this.ast)
     } catch (e) {
       console.log(`INVALID AST`)
       console.log(this.ast)
       throw e
     }
-    this.reduceops = dedup(ordered_parents(this.ast).filter((x) => x.op === Ops.REDUCE_AXIS))
+
+    this.reduceops = [...this.ast.toposort].filter((x) => x.op === Ops.REDUCE_AXIS)
 
     this.vars = this.ast.variables()
     //     # NOTE: this requires a specific order with the [::-1], this===likely a bug
@@ -103,8 +114,8 @@ export class Kernel {
     //     # add the shapetrackers for each reduce
     //     # we use this to track which axes are reduced in each reduce
     for (const x of this.reduceops) {
-      this.sts.push(uop_sts_map.get(x)!)
-      this.sts.push(uop_sts_map.get(x.src[0])!)
+      this.sts.push(x.st!)
+      this.sts.push(x.src[0].st!)
     }
     //     # move all reduce axes to the end
     const reduce = [...zip(this.full_shape, this.output_shape).entries()]
@@ -115,6 +126,22 @@ export class Kernel {
     this.simplify_ones()
     this.simplify_merge_adjacent()
   }
+  copy = () => {
+    const ret = new Kernel(this.ast, this.opts)
+
+    // base linearizer params
+    ret.opts = this.opts, ret.ast = this.ast
+
+    // things downstream of the AST
+    ret.reduceops = this.reduceops, ret.vars = this.vars, ret.bufs = this.bufs, ret.full_buf_index = this.full_buf_index
+    ret.sts = this.sts.slice(0, ret.bufs.length + ret.reduceops.length * 2) // NOTE: must redo the local buffers with TC in beam
+
+    // parameters for optimizations
+    ret.applied_opts = this.applied_opts, ret.group_for_reduces = this.group_for_reduces, ret.upcasted = this.upcasted, ret.local_dims = this.local_dims, ret.dont_use_locals = this.dont_use_locals
+    ret.tensor_core = this.tensor_core, ret.tensor_core_opts = this.tensor_core_opts, ret.use_tensor_cores = this.use_tensor_cores
+
+    return ret
+  }
 
   get membufs(): UOp[] {
     return dedup(this.bufs.filter((x) => [Ops.LOAD, Ops.STORE].includes(x.op)).map((x) => x.src[0]))
@@ -124,7 +151,7 @@ export class Kernel {
   float4_axis = (i: number) => this.sts[i].unit_stride_axes().filter((x) => x >= this.first_upcast && (this.sts[i].shape[x] as number) % 4 === 0).map((x) => x - this.first_upcast)
 
   upcasted_axis = (i: number): [number, undefined | sint, boolean][] => {
-    const [upcasted_shape, upcasted_stride] = [this.sts[i].shape.slice(this.first_upcast), this.sts[i].real_strides().slice(this.first_upcast)]
+    const upcasted_shape = this.sts[i].shape.slice(this.first_upcast), upcasted_stride = this.sts[i].real_strides().slice(this.first_upcast)
     if (!all_int(upcasted_shape)) throw new Error(`cannot upcast a symbolic amount upcasted_shape=${upcasted_shape}`)
     return zip(upcasted_shape as number[], upcasted_stride, zip(this.sts[0].shape.slice(this.first_upcast), this.full_shape.slice(this.first_upcast)).map(([x, y]) => Boolean(ne(x, y))))
   }
@@ -157,7 +184,7 @@ export class Kernel {
   }
 
   get upcast_in_mid_reduce_axes(): number[] {
-    throw new Error('not implemented')
+    throw new NotImplemented()
   }
 
   get global_dims() {
@@ -169,27 +196,26 @@ export class Kernel {
   //   # cyan   -- local dims (warp ones first)
   //   #  *** this.first_reduce
   //   # green  -- reduce-local dims
-  //   # white  -- reduce-late upcasted dim (this.upcast_in_mid_reduce_axes)
   //   # red    -- reduce loops
   //   #  *** this.upcasted
   //   # purple -- reduce upcasted
   //   # yellow -- normal upcasted dimensions
   colors = (): string[] => {
-    //     # first non local non reduce dims are global (blue)
+    // first non local non reduce dims are global (blue)
     let colors: string[] = range(this.global_dims).map(() => !this.dont_use_locals ? 'blue' : 'BLUE')
-    //     # after global are local_dims; warp ones used in tensor cores must be closest to first_reduce (cyan)
+    // after global are local_dims; warp ones used in tensor cores must be closest to first_reduce (cyan)
     colors = [...colors, ...range(this.local_dims).map(() => 'cyan')]
-    //     # between first_reduce && first_reduce + group_for_reduces, they are either upcast mid reduce (white), ||late upcasted (green)
-    colors = [...colors, ...range(this.first_reduce, this.first_reduce + this.group_for_reduces).map((i) => this.upcast_in_mid_reduce_axes.includes(i) ? 'white' : 'green')]
-    //     # between first_reduce + group_for_reduces && upcasted, they are reduce (red)
+    // between first_reduce and first_reduce + group_for_reduces, they are late upcasted (green)
+    colors = [...colors, ...range(this.group_for_reduces).map(() => 'green')]
+    // between first_reduce + group_for_reduces && upcasted, they are reduce (red)
     colors = [...colors, ...range(this.first_upcast - (this.first_reduce + this.group_for_reduces)).map(() => 'red')]
-    //     # upcasted dimensions are reduce (magenta) ||normal (yellow)
+    // upcasted dimensions are reduce (magenta) ||normal (yellow)
     colors = [...colors, ...range(this.first_upcast, this.shape_len).map((i) => this.full_shape[i] !== this.sts[0].shape[i] ? 'magenta' : 'yellow')]
     if (colors.length !== this.shape_len) throw new Error('colors size mismatch')
     return colors
   }
   colored_shape = (pad?: number, dense = false): string => {
-    const shape_strs = this.full_shape.map((s) => typeof s === 'number' ? (dense ? `${s}` : s.toString().padStart(4)) : s.render())
+    const shape_strs = this.full_shape.map((s) => isInt(s) ? (dense ? `${s}` : s.toString().padStart(4)) : s.render())
     let ret = zip(shape_strs, this.colors()).map(([s, color]) => colored(s, color)).join(' ')
     if (pad) ret += ' '.repeat(pad - ansilen(ret))
     return ret
@@ -233,17 +259,17 @@ export class Kernel {
     //     # TODO: this should be factored in to multi shape stride
     if (this.shape_len === 0) return false
     const all_ones = this.full_shape.map((s) => Number(s === 1))
-    this.local_dims = this.local_dims - all_ones.slice(this.first_reduce - this.local_dims, this.first_reduce).reduce((acc, x) => acc + x, 0)
-    this.upcasted = this.upcasted - all_ones.slice(this.first_upcast).reduce((acc, x) => acc + x, 0) // TODO: no necessary since upcasted axis can't be un-upcasted
-    this.reshape_and_permute((shape) => shape.filter((_, i) => !all_ones[i]), undefined)
-    return all_ones.some((x) => x)
+    this.local_dims = this.local_dims - sum(all_ones.slice(this.first_reduce - this.local_dims, this.first_reduce))
+    this.upcasted = this.upcasted - sum(all_ones.slice(this.first_upcast)) // TODO: no necessary since upcasted axis can't be un-upcasted
+    this.reshape_and_permute((shape) => [...shape.entries()].filter(([i, x]) => !all_ones[i]).map(([i, x]) => x), undefined)
+    return all_ones.some(Boolean)
   }
   simplify_merge_adjacent = () => {
     if (this.shape_len === 0) return
-    const [shapes, strides] = [this.sts.map((x) => x.shape), this.sts.map((x) => x.real_strides())]
+    const shapes = this.sts.map((x) => x.shape), strides = this.sts.map((x) => x.real_strides())
 
-    //     # if it's an image, insert fake strides such that this fusion doesn't happen across image axes
-    if (isinstance(this.membufs[0].dtype, ImageDType)) {
+    // if it's an image, insert fake strides such that this fusion doesn't happen across image axes
+    if (this.membufs[0].dtype instanceof ImageDType) {
       const base_shape = this.membufs[0].dtype.shape
       const shape_idx_groups = get_contraction(this.output_shape, base_shape)
       if (shape_idx_groups?.length) {
@@ -267,11 +293,11 @@ export class Kernel {
       const can_merge = []
       for (const [s, st, ret] of zip(shapes, strides, rets)) {
         //         # TODO: added the always mergeability of 1s,===this right? if so, add to shapetracker in the 1 case
-        const [si, sti, last_st] = [s[i], st[i], ret.at(-1)![1]]
+        const si = s[i], sti = st[i], last_st = ret.at(-1)![1]
         can_merge.push((sti !== undefined) && ((sti !== 0 && last_st === mul(si, sti)) || (sti === 0 && last_st === 0)))
       }
       //       # more can merge than this
-      const mergeable = can_merge.every((x) => x) && i !== this.first_reduce
+      const mergeable = can_merge.every(Boolean) && i !== this.first_reduce
       for (const [j, [s, st]] of zip(shapes, strides).entries()) {
         if (mergeable) rets[j][rets[j].length - 1] = [mul(rets[j].at(-1)![0], s[i]), st[i]]
         else rets[j].push([s[i], st[i]])
@@ -282,6 +308,62 @@ export class Kernel {
   }
   //   # ******************** high level optimizers ********************
 
+  _create_tc_opts = (reduceop: UOp, tc: TensorCore, axis: number, opt_level: number): TensorCoreOptions | undefined => {
+    const has_cast = tc.dtype_in !== tc.dtype_out
+    if (has_cast && !(reduceop.src[0].op === Ops.CAST && reduceop.src[0].dtype === tc.dtype_out)) return undefined
+
+    const mul_op = has_cast ? reduceop.src[0].src[0] : reduceop.src[0]
+    if (mul_op.op !== Ops.MUL) return undefined
+
+    const buf_index = (src: UOp): number | undefined => {
+      // TODO: apply tc even if the sources are not from LOAD
+      let res: number | undefined = undefined
+      if (src.op === Ops.LOAD && src.dtype === tc.dtype_in) res = this.bufs.indexOf(src)
+      else if (opt_level >= 1 && src.op === Ops.CAST && src.dtype === tc.dtype_in) res = this.bufs.indexOf(src.src[0])
+      return (res === undefined || res === -1) ? undefined : res
+    }
+    const buf0 = buf_index(mul_op.src[0]), buf1 = buf_index(mul_op.src[1])
+    if (buf0 === undefined || buf1 === undefined) return undefined
+
+    const buf0_strides = this.sts[buf0].real_strides(), buf1_strides = this.sts[buf1].real_strides()
+    const axis_buf0 = [...buf0_strides.slice(0, this.first_reduce).entries().filter(([i, s]) => s === 0).map(([i, s]) => [i, this.full_shape[i], buf1_strides[i]] as [number, number, number])]
+    const axis_buf1 = [...buf1_strides.slice(0, this.first_reduce).entries().filter(([i, s]) => s === 0).map(([i, s]) => [i, this.full_shape[i], buf0_strides[i]] as [number, number, number])]
+    if (!(axis_buf0.length && axis_buf1.length && ((this.shape_len - this.first_reduce) === 1 || (opt_level >= 1)))) return undefined
+
+    const axis_choices: [[number, sint, sint | undefined], [number, sint, sint | undefined], number][] = product(axis_buf0, axis_buf1, range(this.first_reduce, this.shape_len))
+    if (!(axis < axis_choices.length)) return undefined
+
+    const s0 = axis_choices.at(-(axis + 1))![0][0], s1 = axis_choices.at(-(axis + 1))![1][0], s2 = axis_choices.at(-(axis + 1))![2] // s0 is n, s1 is m, s2 is k
+    const axis_pads = [...[s0, s1, s2].entries()].filter(([i, x]) => resolve(ne(mod(this.full_shape[x], tc.dims[i]), 0))).map(([i, x]) => [x, tc.dims[i]] as [number, number])
+    if (axis_pads.length && (opt_level < 2)) return undefined
+    if (DEBUG >= 3) console.log('TENSOR CORES', axis_buf0, axis_buf1, tc)
+    return new TensorCoreOptions([s0, s1, s2], [true, true], axis_pads)
+  }
+  _apply_tc_opt = (use_tensor_cores: number, axis: number, opt_level: number): boolean => {
+    if (use_tensor_cores && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD) {
+      for (const tc of this.opts.tensor_cores!) {
+        const tensor_core_opts = this.reduceops.map((reduceop) => this._create_tc_opts(reduceop, tc, axis, opt_level))
+        // can only fuse reduces with the same tc options
+        assert(all_same(tensor_core_opts))
+        if (tensor_core_opts[0] === undefined) continue
+        this.tensor_core_opts = tensor_core_opts[0]
+        // attempt to pad the tensor axes that require it
+        try {
+          for (const [axis, dim] of this.tensor_core_opts.axis_pads) this.apply_opt(new Opt(OptOps.PADTO, axis, dim), false) // PADTO might fail
+        } catch (e) {
+          if (e instanceof KernelOptError) continue
+          throw e
+        }
+        // tensor core -- unroll the reduce dim (K), upcast and local the inner and outer dims (N, M)
+        for (const [dim, amt] of tc.get_reduce_axes()) this.apply_opt(new Opt(OptOps.UNROLL, this.tensor_core_opts.axes[2] - this.first_reduce, amt), false)
+        for (const opt of tc.opts) this.apply_opt(new Opt({ 'u': OptOps.UPCAST, 'l': OptOps.LOCAL }[opt[0] as 'u' | 'l'], this.tensor_core_opts.axes[Math.trunc(Number(opt[1]))], 2), false)
+        this.tensor_core = tc
+        this.use_tensor_cores = use_tensor_cores // TC=2 will do the shape ops without the WMMA
+        return true
+      }
+    }
+    return false
+  }
   /**
    * Attempts to apply a tensor core optimization to the kernel.  If one exists && applies properly, return true, otherwise return false.
    * Tensor cores are optimized instructions that matrix multiply-accumulate across a wave of threads: D(M, N) = A(M, K) * B(K, N) + C(M, N).
@@ -297,15 +379,37 @@ export class Kernel {
    * 1: allows kernels with multiple reduce axes && also multiplication of UOps.CAST'd buffers
    * 2: allows kernels with M, N, K axes that are not multiples of the tensor core dimensions by applying padding those axes as needed
    */
-  _apply_tc_opt = (_use_tensor_cores: number, _axis: number, _opt_level: number): boolean => {
-    throw new Error('not implemented')
-  }
+  apply_tensor_cores = (use_tensor_cores = 1, extra_opts?: Opt[], axis = 0, tc_opt?: number): boolean => {
+    if (tc_opt === undefined) tc_opt = TC_OPT
+    if (!this.opts.tensor_cores?.length && use_tensor_cores !== 2) return false
+    try { // check TC first and apply hand-coded opts if successful
+      this.apply_opt(new Opt(OptOps.TC, axis, tc_opt))
+      const tc_opts = this.tensor_core_opts
+      if (tc_opts !== undefined) {
+        if (extra_opts !== undefined) {
+          for (const opt of extra_opts) this.apply_opt(opt)
+        } else {
+          if (this.opts.device === 'CLANG' && AMX) return true // skip hand-coded TC opts if AMX, upcasting will make kernel slower
+          // hand-coded TC opts
+          for (const tc_dim of [1, 0].filter((tc_dim) => tc_opts.axes_exist[tc_dim])) { // attempt to upcast M and N
+            const szs = [5, 4, 3, 2].filter((sz) => this.full_shape[tc_opts.axes[tc_dim]] as number % sz === 0)
+            if (szs.length) this.apply_opt(new Opt(OptOps.UPCAST, tc_opts.axes[tc_dim], szs[0]))
+          }
 
-  apply_tensor_cores = (_use_tensor_cores = 1, _extra_opts?: Opt[], _axis = 0, _tc_opt?: number): boolean => {
-    return false
+          if (tc_opts.axes_exist[0]) {
+            const szs = [4, 2].filter((sz) => this.full_shape[tc_opts.axes[0]] as number % sz === 0) // attempt to local N
+            if (szs.length) this.apply_opt(new Opt(OptOps.LOCAL, tc_opts.axes[0], szs[0]))
+          }
+        }
+      }
+      return true
+    } catch (e) {
+      if (e instanceof KernelOptError) return false
+      throw e
+    }
   }
   apply_opt = (opt: Opt, append_opt = true) => {
-    if (this.dont_use_locals) check(![OptOps.LOCAL, OptOps.GROUP, OptOps.GROUPTOP, OptOps.UPCASTMID].includes(opt.op), 'not using locals')
+    if (this.dont_use_locals) check(![OptOps.LOCAL, OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op), 'not using locals')
 
     if (opt.op === OptOps.TC) {
       check(this.applied_opts.length === 0, 'tensor core opts must be first') // TODO: things like PADTO might be fine
@@ -321,8 +425,8 @@ export class Kernel {
     if (opt.op === OptOps.SWAP) amt = opt.amt! // amt===an axis in the SWAPs
     else if (opt.amt !== undefined) {
       amt = opt.amt !== 0 ? opt.amt : (this.full_shape[axis] as number)
-      check(isinstance(amt, Number) && amt !== 1, 'shift/padto of amt 1 ||Node===meaningless')
-      if (opt.op !== OptOps.PADTO) check((this.full_shape[axis] as number) % amt === 0, 'no longer valid shift')
+      check(isinstance(amt, Number) && amt !== 1, `shift/padto of amt=${amt}, 1 or symbolic amount is meaningless`)
+      if (opt.op !== OptOps.PADTO) check((this.full_shape[axis] as number) % amt === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}`)
     } else amt = -1
 
     if (this.reduceop !== undefined && ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op) || (this.group_for_reduces && ![OptOps.NOLOCALS, OptOps.PADTO].includes(opt.op)))) {
@@ -358,18 +462,10 @@ export class Kernel {
       this.upcast()
     } else if (opt.op === OptOps.UPCAST) { // yellow
       check(axis < this.first_reduce, 'upcast===for non-reduce')
-      check(!(this.tensor_core && this.global_dims <= axis && axis < this.global_dims + this.tensor_core.threads.length), "can't upcast TC locals")
+      check(!(this.tensor_core && this.global_dims <= axis && axis < this.global_dims + this.tensor_core.get_local_axes().length), "can't upcast TC locals")
       check(amt <= 16, "don't upcast more than 16")
       this.shift_to(axis, amt, undefined, undefined)
       this.upcast()
-    } else if (opt.op === OptOps.UPCASTMID) { // white
-      check(this.bufs[0].src[0].dtype.name.startsWith('image') && !this.float4_axis(0) && this.group_for_reduces !== 0 && this.first_reduce <= 2 && (prod(this.sts[0].shape) as number) > 1, 'invalid upcast mid reduce')
-      const axes = this.sts[0].unit_stride_axes()
-      check(axes.length === 1, `wrong number of stride 1 axis : ${axes}`)
-      check(axes[0] === axis, 'wrong axis')
-      check(amt === 4, "don't upcast mid anything but 4")
-      this.shift_to(axis, amt, undefined, this.first_reduce + this.group_for_reduces)
-      this.group_for_reduces += 1
     } else if (opt.op === OptOps.NOLOCALS) {
       check(this.opts.has_local && !this.dont_use_locals, 'NOLOCALS===meaningless if target does not support local ||already not using locals')
       check(this.local_dims === 0 && this.group_for_reduces === 0, "can't have no locals with locals")
@@ -406,19 +502,158 @@ export class Kernel {
     }
   }
   required_optimizations = (): Kernel => {
-    if (isinstance(this.membufs[0].dtype, ImageDType)) {
+    if (this.membufs[0].dtype instanceof ImageDType) {
       const unit_stride_axes_mul_4 = this.sts[0].unit_stride_axes(true).filter((i) => (this.sts[0].shape[i] as number) % 4 === 0)
       if (!unit_stride_axes_mul_4.length) throw new Error(`needs a unit stride axis in ${this.bufs[0]}`)
-      if (unit_stride_axes_mul_4.every((x) => x < this.first_upcast) && !this.upcast_in_mid_reduce_axes.includes(unit_stride_axes_mul_4[0])) {
-        this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
+      if (unit_stride_axes_mul_4.every((x) => x < this.first_upcast)) this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
+    }
+    return this
+  }
+  hand_coded_optimizations = (): Kernel => {
+    this.required_optimizations()
+
+    // should use matvec - TODO: adjust/tune based on the wide vs tall/large vs small mat
+    const MV_BLOCKSIZE = get_number_env('MV_BLOCKSIZE', 4), MV_THREADS_PER_ROW = get_number_env('MV_THREADS_PER_ROW', 8), MV_ROWS_PER_THREAD = get_number_env('MV_ROWS_PER_THREAD', 4)
+    const mulop = this.reduceop?.src[0]
+    if (this.opts.has_local && get_number_env('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 && this.opts.has_shared && mulop && mulop.op === Ops.MUL && mulop.src[0].op === Ops.LOAD && mulop.src[1].op === Ops.LOAD) {
+      const st0 = this.sts[this.bufs.indexOf(mulop.src[0])], st1 = this.sts[this.bufs.indexOf(mulop.src[1])]
+      const strides0 = st0.real_strides(), strides1 = st1.real_strides()
+      const has_expanded_axis = (shape: sint[], strides: sint[]) => zip(shape, strides).some(([s, st]) => resolve(gt(s, 1)) && !resolve(ne(st, 0)))
+      if (strides0[this.first_reduce] === 1 && !(has_expanded_axis(st0.shape, strides0 as sint[]) && has_expanded_axis(st1.shape, strides1 as sint[]))) {
+        for (const global_idx of range(this.global_dims)) {
+          if (this.full_shape[this.first_reduce] as number % MV_THREADS_PER_ROW === 0 && this.full_shape[global_idx] as number % (MV_BLOCKSIZE * MV_ROWS_PER_THREAD) === 0) {
+            if (DEBUG >= 3) console.log(`MATVEC: ${this.full_shape} ${this.first_reduce} ${strides0} ${MV_BLOCKSIZE} ${MV_THREADS_PER_ROW} ${MV_ROWS_PER_THREAD}`)
+            if (MV_THREADS_PER_ROW > 1) this.apply_opt(new Opt(OptOps.GROUP, 0, MV_THREADS_PER_ROW))
+            if (MV_BLOCKSIZE > 1) this.apply_opt(new Opt(OptOps.LOCAL, global_idx, MV_BLOCKSIZE))
+            if (MV_ROWS_PER_THREAD > 1) this.apply_opt(new Opt(OptOps.UPCAST, global_idx, MV_ROWS_PER_THREAD))
+            return this
+          }
+        }
       }
     }
+    if (this.opts.has_local && this.opts.has_shared && all_int(this.sts[0].shape.slice(0, this.first_reduce))) {
+      // are we grouping? (requires local shape support)
+      if (!this.float4_axis(0) && this.first_reduce <= 2 && this.first_reduce + 1 <= this.shape_len && prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 2048) {
+        // TODO: use 1024 if it's allowed in a smarter way
+        for (const sz of (prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 32 ? [256, 16] : [16])) {
+          if (this.sts.every((st) => st.shape[this.first_reduce] as number % sz === 0 || st.shape[this.first_reduce] === 1)) {
+            try { // may fail due to excessive smem usage
+              this.apply_opt(new Opt(OptOps.GROUPTOP, 0, sz))
+              break
+            } catch (e) {
+              if (!(e instanceof KernelOptError)) throw e
+            }
+          }
+        }
+      }
+    }
+    // upcast float4 images
+    for (const [buf_index, buf] of this.bufs.entries()) {
+      const unit_stride_axes_mul_4 = this.sts[buf_index].unit_stride_axes(true).filter((i) => this.sts[buf_index].shape[i] as number % 4 === 0)
+      if (buf.src[0].dtype instanceof ImageDType) {
+        // assert len(unit_stride_axes_mul_4) >= 1, f"needs a unit stride axis in {this.bufs[buf_index]}"
+        if (unit_stride_axes_mul_4.length && unit_stride_axes_mul_4.every((x) => x < this.first_upcast)) {
+          if (unit_stride_axes_mul_4[0] < this.first_reduce) this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
+          else this.apply_opt(new Opt(OptOps.UNROLL, unit_stride_axes_mul_4[0] - this.first_reduce, 4))
+        }
+      }
+    }
+
+    // no more opt if we are grouping
+    if (this.group_for_reduces) return this
+
+    // **** below this line need to be optional and benchmarked ****
+
+    // TODO: doing extra upcasts with images doesn't work for some reason (maybe has to do with to_image_idx)
+    // to trigger the above bug, remove prod(this.full_shape[this.first_upcast:]) from the below
+    // expression and run test/test_ops.py with IMAGE=2
+    // if there are small dims with lots of valid masks, upcast them (they might be from Tensor.stack)
+    // this can be made much smarter
+    const to_upcast: number[] = []
+    // upcast leading axes first (hack-ish for winograd; we actually want to upcast masked axes with low stride first)
+    for (const axis of range(this.first_reduce)) {
+      // we might want to be able to split axes that are masked, or refuse to merge them in simplify_merge_adjacent
+      // for now skip upcasting here if there is a symbolic axis
+      if (typeof this.full_shape[axis] === 'number' && this.full_shape[axis] <= 7 && this.sts.some((st) => st.axis_is_masked(axis)) && prod(this.full_shape.slice(this.first_upcast) as number[]) * prod(to_upcast.map((j) => this.full_shape[j]) as number[]) * this.full_shape[axis] <= 7 * 7) {
+        if (DEBUG >= 4) console.log(`upcasting masked axis : ${axis}`)
+        to_upcast.push(axis)
+      }
+    }
+    for (const axis of to_upcast.toReversed()) this.apply_opt(new Opt(OptOps.UPCAST, axis, 0))
+
+    // potentially do more upcasts of non reduce axes based on a heuristic
+    const upcasted_axis = new Set<number>()
+    while (resolve(ge(prod(this.sts[0].shape.slice(0, this.first_reduce)), 1024))) {
+      let xb_choices: [number, number, number, number][] = []
+      for (const [axis, upcast_amount] of product(range(this.first_reduce), [3, 4])) { // consider all the non reduce axes, and a 3 or 4 reduce
+        // if we haven't upcasted it, it's not symbolic, it mods, and buffer has stride 0 on axis while having no stride 0 in the upcasted axis already
+        if (!upcasted_axis.has(axis) && isInt(this.full_shape[axis]) && this.full_shape[axis] % upcast_amount === 0 && this.sts.some((st, buf_index) => st.views.at(-1)!.strides[axis] === 0 && !this.upcasted_axis(buf_index).some((x) => x[1] === 0))) {
+          xb_choices.push([sum(this.sts.map((st) => Number(st.views.at(-1)!.strides[axis] as number > 0))), sum(this.sts.map((st) => st.views.at(-1)!.strides[axis])) as number, axis, upcast_amount])
+        }
+      }
+      if (xb_choices.length) {
+        xb_choices = xb_choices.toSorted((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || a[3] - b[3])
+        if (DEBUG >= 4) console.log(`float4 merging axis : ${xb_choices}`)
+        this.apply_opt(new Opt(OptOps.UPCAST, xb_choices[0][2], xb_choices[0][3]))
+        upcasted_axis.add(xb_choices[0][2])
+      } else break
+    }
+    // if last dim is small(ish) and it's a reduce dim, upcast the reduce (loop unrolling). no simplify needed since it's just an upcast.
+    if (this.first_reduce < this.first_upcast && (prod(this.full_shape.slice(this.first_upcast) as number[]) <= 4 || !this.upcasted_axis(this.full_buf_index).some(([_, _1, r]) => r)) && (this.upcasted === 0 || prod(this.full_shape.slice(-this.upcasted) as number[]) < 64)) {
+      const s = this.full_unupcasted_shape.at(-1)!
+      if (isInt(s) && s <= 32) { // NOTE: cannot loop unroll symbolic axis
+        this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, 0))
+        // if it's small, upcast a second reduce dimension too
+        if (this.first_reduce < this.first_upcast && s <= 3 && isInt(this.full_unupcasted_shape.at(-1)) && this.full_unupcasted_shape.at(-1) as number <= 3) {
+          this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, 0))
+        }
+      } else {
+        for (const splits of [4]) {
+          if (this.full_unupcasted_shape.at(-1) as number % splits === 0) {
+            this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, splits))
+            break
+          }
+        }
+      }
+    }
+    // if nothing at all is upcasted and it's easy to, do an upcast
+    // TODO: this is breaking the tests
+    for (const splits of [4]) {
+      if (this.upcasted === 0 && this.full_unupcasted_shape && this.full_unupcasted_shape.at(-1) as number % splits === 0) {
+        this.apply_opt(new Opt(OptOps.UPCAST, this.full_unupcasted_shape.length - 1, splits))
+      }
+    }
+
+    // **** local groups ****
+
+    if (this.opts.has_local) {
+      if (get_env('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) {
+        this.apply_opt(new Opt(OptOps.NOLOCALS))
+      } else {
+        // prioritize making expand axes local
+        const local_axis_ranking = range(this.full_shape.slice(0, this.first_reduce).length).map((axis) => [range(this.sts.length).some((buf_index) => this.sts[buf_index].views.at(-1)!.strides[axis] === 0), axis])
+        let to_local: [number, number][] = []
+        for (const [_, axis] of local_axis_ranking.toSorted((a, b) => b[0] === a[0] ? Number(b[1]) - Number(a[1]) : Number(b[0]) - Number(a[0]))) {
+          const local_size = prod(to_local.map(([_, sz]) => sz))
+          const local_sz = [...(axis === 0 ? [32] : []), 16, 8, 4, 3, 2].filter((x) => this.full_shape[Number(axis)] as number % x === 0 && local_size * x <= 128).shift() // KAREL: should be .next()
+          if (local_sz !== undefined) to_local.push([Number(axis), local_sz])
+        }
+        let deleted_shape = 0
+        for (let [axis, local_sz] of to_local.slice(0, 3).toSorted()) {
+          axis = axis - deleted_shape
+          let will_delete_shape = local_sz === this.full_shape[axis]
+          this.apply_opt(new Opt(OptOps.LOCAL, axis, local_sz))
+          if (will_delete_shape) deleted_shape += 1
+        }
+      }
+    }
+
     return this
   }
 
   //   # **** kernel outputs ****
 
-  static kernel_cnt: Record<string, number> = {}
+  static kernel_cnt = new DefaultMap<string, number>(undefined, () => 0)
   @cache
   get name(): string {
     //     # kernel name (before late upcast)
@@ -428,8 +663,8 @@ export class Kernel {
 
     //     # name the function something unique
     const function_name = to_function_name(name)
-    Kernel.kernel_cnt[function_name] = (Kernel.kernel_cnt[function_name] || 0) + 1
-    const num = Kernel.kernel_cnt[function_name] > 1 ? `n${Kernel.kernel_cnt[function_name] - 1}` : ''
+    Kernel.kernel_cnt.set(function_name, Kernel.kernel_cnt.get(function_name) + 1)
+    const num = Kernel.kernel_cnt.get(function_name) > 1 ? `n${Kernel.kernel_cnt.get(function_name) - 1}` : ''
     return name + colored(num, 'BLACK')
   }
   @cache
@@ -446,53 +681,12 @@ export class Kernel {
       const reduced_axes = (start: number, stop: number) => range(start, stop).filter((i) => resolve(ne(this.sts[reduce_idx].shape[i], this.sts[reduce_idx + 1].shape[i])))
       const axes = reduced_axes(this.first_reduce + this.group_for_reduces, this.shape_len)
       const grouped_axes = reduced_axes(this.first_reduce, this.first_reduce + this.group_for_reduces)
-      //       # KAREL: not needed for mnist
-      //         # if (tc := this.tensor_core) && (this.use_tensor_cores === 1 ||this.use_tensor_cores === 3):
-      //         #   def fix_st(st: ShapeTracker, wd_pattern, tcd_pattern):
-      //         #     st = ShapeTracker.from_shape(st.shape) # st needs to be contiguous
-      //         #     wd, warp_dims = this.global_dims,  tuple(sz for _, sz in tc.threads)
-      //         #     tcd, tcd_dims = this.first_upcast, tuple(sz for _, sz in tc.reduce_axes + tc.early_upcast_axes)
-
-      //         #     assert st.shape[wd:wd+len(warp_dims)] === warp_dims, f"warp dims wrong: {st.shape[wd:wd+len(warp_dims)]=} !== {warp_dims=}"
-      //         #     assert st.shape[tcd:tcd+len(tcd_dims)] === tcd_dims, f"tcd dims wrong: {st.shape[tcd:tcd+len(tcd_dims)]=} !== {tcd_dims=}"
-      //         #     assert tc.expanded_shape!==undefined
-
-      //         #     new_shape = st.shape[:tcd] + tc.expanded_shape + st.shape[tcd+len(tcd_dims):]  # expand the tcd
-      //         #     permaxis = list(range(wd)) + [y + (wd if x === 0 else tcd) for x,y in wd_pattern]  + list(range(wd+len(warp_dims),tcd)) + \
-      //         #                                  [y + (wd if x === 0 else tcd) for x,y in tcd_pattern] + list(range(tcd+len(tc.expanded_shape),len(new_shape)))
-      //         #     return st.reshape(new_shape).permute(tuple(permaxis)).reshape(st.shape).simplify()
-
-      //         #   srcs = list((ret.src[0] if ret.src[0].op!==Ops.CAST else ret.src[0].src[0]).src)
-      //         #   for i, tc_pattern in enumerate([tc.st1_pattern, tc.st2_pattern]):
-      //         #     if tc_pattern: srcs[i] = srcs[i].view(fix_st(srcs[i].st_arg if srcs[i].op===Ops.LOAD else srcs[i].src[0].st_arg, *tc_pattern))
-
-      //         #     if this.use_tensor_cores === 3:  # for TC=3, emulate the warp addressing with locals
-      //         #       local_shape = tuple(1 if i >= this.first_reduce && i < this.first_upcast else s for i, s in enumerate(this.full_shape))
-      //         #       st = store_st = ShapeTracker.from_shape(local_shape)
-      //         #       local_buffer = UOp(Ops.DEFINE_LOCAL, tc.dtype_in.ptr(local=true), (), (f"temp{i + 1}", st.real_size()))
-      //         #       if tc_pattern: store_st = fix_st(store_st, *tc_pattern)
-      //         #       local_store = UOp.store(local_buffer, store_st.to_uop(), srcs[i])
-      //         #       srcs[i] = UOp(Ops.LOAD, tc.dtype_in, (local_buffer, st.to_uop(), local_store))
-
-      //         #   tc_reduce_axes = tuple(this.first_upcast + ax for ax, _ in tc.reduce_axes)
-      //         #   if this.use_tensor_cores === 1: # real WMMA, use CONTRACT/EXPAND to get the vectorization right
-      //         #     upcast_axes = tuple(tuple((this.first_upcast + ax, sz) for ax, sz in up) for up in tc.upcast_axes)
-      //         #     wmma_arg = (str(tc), tc.dims, tc.dtype_in, tc.dtype_out, this.opts.device, prod(sz for _, sz in tc.threads), upcast_axes, tc_reduce_axes)
-      //         #     wmma_sz = [prod(x[1] for x in l) for l in upcast_axes]
-      //         #     wmma = UOp(Ops.WMMA, dtype=tc.dtype_out.vec(wmma_sz[2]), src=(
-      //         #       UOp(Ops.CONTRACT, dtype=srcs[0].dtype.vec(wmma_sz[0]), src=(srcs[0],), arg=upcast_axes[0]),
-      //         #       UOp(Ops.CONTRACT, dtype=srcs[1].dtype.vec(wmma_sz[1]), src=(srcs[1],), arg=upcast_axes[1]),
-      //         #       UOp.const(tc.dtype_out.vec(wmma_sz[2]), 0.0)), arg=wmma_arg)
-      //         #     tc_uop = UOp(Ops.EXPAND, tc.dtype_out, (wmma,), arg=upcast_axes[2])
-
-      //         #   else: # for TC=3 MUL/SUM instead of WMMA
-      //         #     tc_uop = UOp(Ops.REDUCE_AXIS, tc.dtype_out, ((srcs[0] * srcs[1]).cast(tc.dtype_out),), (Ops.ADD, tc_reduce_axes))
-
-      //         #   new_reduce_axes = tuple(i for i in axes if i not in tc_reduce_axes)
-      //         #   return ret.replace(src=(tc_uop,), arg=(Ops.ADD, new_reduce_axes)) if new_reduce_axes else tc_uop
+      if (this.tensor_core && (this.use_tensor_cores === 1 || this.use_tensor_cores === 3)) {
+        throw new NotImplemented()
+      }
 
       ret = ret.replace({ arg: [op.arg[0], axes] })
-      if (this.group_for_reduces && grouped_axes) {
+      if (this.group_for_reduces && grouped_axes.length) {
         const local_shape = [
           ...range(this.global_dims).map(() => 1),
           ...this.full_shape.slice(this.global_dims, this.global_dims + this.local_dims),
@@ -501,7 +695,8 @@ export class Kernel {
           ...this.upcasted_axis(0).map((x) => x[0]),
         ]
         let st_uop = ShapeTracker.from_shape(local_shape).to_uop()
-        const local_buffer = new UOp(Ops.DEFINE_LOCAL, op.dtype.ptr(true), [], [`temp${this.reduceops.indexOf(op) + 1}`, st_uop.arg.real_size()])
+        const local_size = st_uop.arg.real_size()
+        const local_buffer = new UOp(Ops.DEFINE_LOCAL, op.dtype.ptr(local_size, true), [], [`temp${this.reduceops.indexOf(op) + 1}`, local_size])
         const local_load = new UOp(Ops.LOAD, op.dtype, [local_buffer, st_uop, local_buffer.store([st_uop, ret])])
         const grouped_reduce = new UOp(Ops.REDUCE_AXIS, op.dtype, [local_load], [op.arg[0], grouped_axes])
         if (op === this.reduceops.at(-1)) return grouped_reduce
@@ -535,13 +730,13 @@ export class Kernel {
     const ansiname = name_override !== undefined ? name_override : this.name
     const name = to_function_name(ansiname)
     const src = this.opts.render(name, this.uops!)
-    // KAREL: not needed for mnist
-    //     if getenv("RUN_PROCESS_REPLAY"):
-    //       from test.external.process_replay.helpers import get_process_replay_ctx
-    //       diskcache_put("kernel_process_replay", str(id(this)), (this.ast, this.opts, this.applied_opts, name, *get_process_replay_ctx(), src))
 
-    //     # group non-local bufs by the op type (LOAD ||STORE) && the buffer arg. take the max access of that buffer in bytes
-    //     # TODO: these max && min don't work on symbolic, && results are very wrong.
+    if (CAPTURE_PROCESS_REPLAY) {
+      throw new NotImplemented()
+    }
+
+    // group non-local bufs by the op type (LOAD ||STORE) && the buffer arg. take the max access of that buffer in bytes
+    // TODO: these max && min don't work on symbolic, && results are very wrong.
     const groups = new Map<[Ops, any], UOp[]>()
     for (const x of [...this.ast.toposort].filter((x) => GroupOp.Buffer.includes(x.op) && x.src[0].op === Ops.DEFINE_GLOBAL)) set_default(groups, [x.op, x.src[0].arg], []).push(x)
     const mem_bytes = [...groups.values()].flatMap((group) => Math.max(...group.map((x) => x.src[0].dtype.itemsize * x.st_arg.real_size()))).reduce((acc, x) => acc + x, 0)
@@ -551,8 +746,9 @@ export class Kernel {
 // # the living definition of intermediate UOps
 
 export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, ShapeTracker>): undefined => {
-  if (!uop.has_st || sts.has(uop)) return
+  if (sts.has(uop)) return
   // restore globals from the two stage reduce
+  // this is because this LOAD has an implicit movement op
   if (uop.op === Ops.LOAD && uop.src[0].op === Ops.DEFINE_LOCAL) {
     const local_reduce = uop.src[2].src[2]
     _assert_valid_uop(local_reduce, uop.st_arg, sts)
@@ -568,7 +764,8 @@ export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, Shap
     st = uop.arg
   } // everything else inherits shape
   else {
-    const src_sts = uop.src.filter((x) => x.has_st).map((x) => sts.get(x)!)
+    const src_sts = uop.src.filter((x) => sts.has(x)).map((x) => sts.get(x)!)
+    if (src_sts.length === 0) return undefined
     st = src_sts[0]
     const shapes = src_sts.map((x) => x.shape)
     if (!all_same(shapes)) {
@@ -579,12 +776,13 @@ export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, Shap
   }
   sts.set(uop, st)
 }
-export const verify_ast = (ast: UOp): Map<UOp, ShapeTracker> => {
+
+export const verify_ast = (ast: UOp): undefined => {
   if (ast.op !== Ops.SINK || ast.src.some((x) => x.op !== Ops.STORE)) throw new Error('must be SINK')
   if (!all_same(ast.src.map((x) => x.st_arg.size))) throw new Error('outputs must be exactly the same size')
   const sts = new Map<UOp, ShapeTracker>()
   for (const out of ast.src) _assert_valid_uop(out, out.st_arg, sts)
   const shape_dims = zip(...sts.values().map((x) => x.shape)).map((dims) => dedup(dims).toSorted())
   if (!shape_dims.every((x) => x.length === 1 || (x.length === 2 && x[0] === 1))) throw new Error(`shapes must have either 1 ||n in each dimension, ${shape_dims}`)
-  return sts
+  type_verify([...sts.keys()])
 }

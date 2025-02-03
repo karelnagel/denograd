@@ -86,12 +86,16 @@ for await (const i of tqdm(range(100))) {
 - [x] get MNIST training
 - [x] get working inside browser with PYTHON runtime
 - [x] WebGPU runtime (MNIST inference running in WebGPU: https://karelnagel.github.io/denograd/, training coming soon) 
-- [ ] delete lazy + other tinygrad updates
-- [ ] add all the missing parts of Tensor and other code that were left out in the beginning.
-- [ ] get hand_coded_optimisations working (seems to have 10x speed boost on MNIST)
-- [ ] get some LLM running with WebGPU in browser
+- [x] delete lazy + other tinygrad updates
+- [x] add all the missing parts of Tensor and other code that were left out in the beginning.
+- [ ] get hand_coded_optimisations working correctly
+- [ ] WEBGPU training MNIST in browser
+- [ ] docs website with MNIST training example
+- [ ] some LLM
+- [ ] whisper
+- [ ] bun support
+- [ ] node support
 - [ ] CLOUD runtime
+- [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
 - [ ] METAL runtime
 - [ ] AMD runtime
-- [ ] other runtimes
-- [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
