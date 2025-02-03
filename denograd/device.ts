@@ -9,7 +9,7 @@ import { buffers, Ops, type UOp } from './ops.ts'
 export * from './runtime/allocator.ts'
 export type { AllDevices, DeviceType } from './runtime/all.ts'
 
-// # **************** Device ****************
+// **************** Device ****************
 const DEVICES = Object.fromEntries(Object.entries(ALL_DEVICES).filter(([name]) => Env.DEVICES === undefined || Env.DEVICES.includes(name as DeviceType))) as typeof ALL_DEVICES
 
 // Importing all the supported devices for current environment
@@ -185,7 +185,7 @@ export class Buffer<Buf extends object = object> {
   }
 }
 
-// # TODO: move this to each Device
+// TODO: move this to each Device
 export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   if (device === undefined) device = Device.DEFAULT
   if (dtype === dtypes.bfloat16) {

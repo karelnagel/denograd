@@ -126,7 +126,7 @@ export class ShapeTracker {
     const [unbound_views, var_vals] = [un.map((x) => x[0]), un.map((v) => v[1])]
     return [new ShapeTracker(unbound_views), merge_maps(var_vals)]
   }
-  //   # NOTE: if a stride is not always valid, it will be None
+  // NOTE: if a stride is not always valid, it will be None
   real_strides = (ignore_valid = false) => views_to_real_strides(this.views, ignore_valid)
 
   unit_stride_axes = (ignore_valid = false): number[] => [...this.real_strides(ignore_valid).entries()].filter(([i, st]) => st === 1).map(([i, st]) => i)
@@ -142,7 +142,7 @@ export class ShapeTracker {
     }
     return this
   }
-  //   # *** under this line are the movement ops ***
+  // *** under this line are the movement ops ***
 
   pad = (arg: [sint, sint][]) => new ShapeTracker([...this.views.slice(0, -1), this.views.at(-1)!.pad(arg)])
   shrink = (arg: [sint, sint][]) => new ShapeTracker([...this.views.slice(0, -1), this.views.at(-1)!.shrink(arg)])

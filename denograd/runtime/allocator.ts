@@ -9,7 +9,7 @@ import { MemoryView } from '../memoryview.ts'
 export class BufferSpec {
   key: string
   static cache = new WeakValueMap<string, BufferSpec>()
-  //   # TODO: move device, size, dtype here?
+  // TODO: move device, size, dtype here?
   constructor(
     public image?: ImageDType,
     public uncached = false,
@@ -23,9 +23,9 @@ export class BufferSpec {
   }
 }
 
-// # TODO: size, dest, src are the same type. can we enforce this?
+// TODO: size, dest, src are the same type. can we enforce this?
 export abstract class Allocator<Buf> {
-  //   # overriden in LRUAllocator
+  // overriden in LRUAllocator
   alloc(size: number, options?: BufferSpec): Buf {
     if (size <= 0) throw new Error(`alloc size must be positve, getting ${size}`)
     return this._alloc(size, options !== undefined ? options : new BufferSpec())
@@ -35,7 +35,7 @@ export abstract class Allocator<Buf> {
     return this._free(opaque, options !== undefined ? options : new BufferSpec())
   }
 
-  //   # implemented by the runtime
+  // implemented by the runtime
   abstract _alloc: (size: number, options: BufferSpec) => Buf
   abstract _free: (opaque: Buf, options: BufferSpec) => void // if opaque is a Python object, you don't need a free
   abstract _copyin: (dest: Buf, src: MemoryView) => void
@@ -113,7 +113,7 @@ export class CPUProgram extends Program {
     throw new NotImplemented()
   }
 }
-// # **************** for Compiled Devices ****************
+// **************** for Compiled Devices ****************
 
 export class CompileError extends Error {}
 

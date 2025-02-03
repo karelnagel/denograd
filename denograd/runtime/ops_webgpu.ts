@@ -63,7 +63,7 @@ class WebGPUProgram extends Program {
     dev.destroy()
   })
 }
-// # WebGPU buffers have to be 4-byte aligned
+// WebGPU buffers have to be 4-byte aligned
 class WebGpuAllocator extends Allocator<GPUBuffer> {
   constructor(public dev: GPUDevice) {
     super()

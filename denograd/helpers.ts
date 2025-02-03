@@ -454,7 +454,7 @@ class ContextVar<T> {
   }
 }
 export const _METADATA = new ContextVar<Metadata | undefined>('_METADATA', undefined)
-// # **************** global state Counters ****************
+// **************** global state Counters ****************
 
 export class GlobalCounters {
   static global_ops = 0
@@ -465,7 +465,7 @@ export class GlobalCounters {
   static reset = () => [GlobalCounters.global_ops, GlobalCounters.global_mem, GlobalCounters.time_sum_s, GlobalCounters.kernel_count] = [0, 0, 0, 0]
 }
 
-// # **************** timer and profiler ****************
+// **************** timer and profiler ****************
 
 export class Timing {
   //   def __init__(self, prefix="", on_exit=None, enabled=True): self.prefix, self.on_exit, self.enabled = prefix, on_exit, enabled
@@ -495,7 +495,7 @@ export class Profiling {
   //               colored(_format_fcn(fcn).ljust(50), "yellow"),
   //               colored(f"<- {(scallers[0][1][2]/tottime)*100:3.0f}% {_format_fcn(scallers[0][0])}", "BLACK") if scallers else '')
 }
-// # *** universal database cache ***
+// *** universal database cache ***
 
 const cache_dir = get_env('XDG_CACHE_HOME', OSX ? `${Env.homedir()}/Library/Caches` : `${Env.homedir()}/.cache`)
 export const CACHEDB = get_env('CACHEDB', `${cache_dir}/tinygrad/cache.db`)
@@ -507,8 +507,8 @@ export const db_connection = () => {
   //   if _db_connection is None:
   //     os.makedirs(CACHEDB.rsplit(os.sep, 1)[0], exist_ok=True)
   //     _db_connection = sqlite3.connect(CACHEDB, timeout=60, isolation_level="IMMEDIATE")
-  //     # another connection has set it already or is in the process of setting it
-  //     # that connection will lock the database
+  // another connection has set it already or is in the process of setting it
+  // that connection will lock the database
   //     with contextlib.suppress(sqlite3.OperationalError): _db_connection.execute("PRAGMA journal_mode=WAL").fetchone()
   //     if DEBUG >= 7: _db_connection.set_trace_callback(print)
   //   return _db_connection
@@ -553,14 +553,14 @@ export const diskcache = (func: any) => {
   //     return diskcache_put(table, key, func(*args, **kwargs))
   //   return wrapper
 }
-// # *** http support ***
+// *** http support ***
 export const CAPTURE_PROCESS_REPLAY = get_env('RUN_PROCESS_REPLAY') || get_env('CAPTURE_PROCESS_REPLAY')
 
 export const _ensure_downloads_dir = (): string => {
   throw new NotImplemented()
-  //   # if we are on a tinybox, use the raid array
+  // if we are on a tinybox, use the raid array
   //   if pathlib.Path("/etc/tinybox-release").is_file():
-  //     # try creating dir with sudo
+  // try creating dir with sudo
   //     if not (downloads_dir := pathlib.Path("/raid/downloads")).exists():
   //       subprocess.run(["sudo", "mkdir", "-p", downloads_dir], check=True)
   //       subprocess.run(["sudo", "chown", "tiny:root", downloads_dir], check=True)
@@ -590,7 +590,7 @@ export const _ensure_downloads_dir = (): string => {
 //         pathlib.Path(f.name).rename(fp)
 //   return fp
 
-// # *** Exec helpers
+// *** Exec helpers
 
 export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
   return async (...args: Args) => {
@@ -626,7 +626,7 @@ export function replace<T>(instance: T, replacement: Partial<T>): T {
   Object.assign(newInstance, instance, replacement)
   return newInstance
 }
-// # *** universal support for code object pickling
+// *** universal support for code object pickling
 
 // def _reconstruct_code(*args): return types.CodeType(*args)
 // def _serialize_code(code:types.CodeType):

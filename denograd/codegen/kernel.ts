@@ -100,29 +100,29 @@ export class Kernel {
     this.reduceops = [...this.ast.toposort].filter((x) => x.op === Ops.REDUCE_AXIS)
 
     this.vars = this.ast.variables()
-    //     # NOTE: this requires a specific order with the [::-1], this===likely a bug
+    // NOTE: this requires a specific order with the [::-1], this===likely a bug
     this.bufs = [...this.ast.toposort].filter((x) => GroupOp.Buffer.includes(x.op)).toReversed()
 
-    //     # get earlybufs, before any reduceops
+    // get earlybufs, before any reduceops
     const earlybufs: UOp[] = this.reduceops.flatMap((reduceop) => [...reduceop.src[0].toposort].filter((x) => GroupOp.Buffer.includes(x.op)))
     this.full_buf_index = earlybufs.length ? this.bufs.indexOf(earlybufs[0]) : 0
-    //     # NOTE: full_shape can be wrong if there's a tree of reduces
+    // NOTE: full_shape can be wrong if there's a tree of reduces
 
-    //     # create new shapetrackers inside this kernel, we will permute them
+    // create new shapetrackers inside this kernel, we will permute them
     this.sts = this.bufs.map((x) => x.st_arg)
 
-    //     # add the shapetrackers for each reduce
-    //     # we use this to track which axes are reduced in each reduce
+    // add the shapetrackers for each reduce
+    // we use this to track which axes are reduced in each reduce
     for (const x of this.reduceops) {
       this.sts.push(x.st!)
       this.sts.push(x.src[0].st!)
     }
-    //     # move all reduce axes to the end
+    // move all reduce axes to the end
     const reduce = [...zip(this.full_shape, this.output_shape).entries()]
     const permute = [...reduce.filter(([_, [s, n]]) => !resolve(ne(s, n))).map(([i]) => i), ...reduce.filter(([_, [s, n]]) => resolve(ne(s, n))).map(([i]) => i)]
     this.reshape_and_permute(undefined, permute)
 
-    //     # group simplifies
+    // group simplifies
     this.simplify_ones()
     this.simplify_merge_adjacent()
   }
@@ -147,7 +147,7 @@ export class Kernel {
     return dedup(this.bufs.filter((x) => [Ops.LOAD, Ops.STORE].includes(x.op)).map((x) => x.src[0]))
   }
 
-  //   # TODO: these need more tests ||it might silently be no-op
+  // TODO: these need more tests ||it might silently be no-op
   float4_axis = (i: number) => this.sts[i].unit_stride_axes().filter((x) => x >= this.first_upcast && (this.sts[i].shape[x] as number) % 4 === 0).map((x) => x - this.first_upcast)
 
   upcasted_axis = (i: number): [number, undefined | sint, boolean][] => {
@@ -191,15 +191,15 @@ export class Kernel {
     return this.first_reduce - this.local_dims
   }
 
-  //   # there's eight chunks of the shape
-  //   # blue   -- global dims
-  //   # cyan   -- local dims (warp ones first)
-  //   #  *** this.first_reduce
-  //   # green  -- reduce-local dims
-  //   # red    -- reduce loops
-  //   #  *** this.upcasted
-  //   # purple -- reduce upcasted
-  //   # yellow -- normal upcasted dimensions
+  // there's eight chunks of the shape
+  // blue   -- global dims
+  // cyan   -- local dims (warp ones first)
+  //  *** this.first_reduce
+  // green  -- reduce-local dims
+  // red    -- reduce loops
+  //  *** this.upcasted
+  // purple -- reduce upcasted
+  // yellow -- normal upcasted dimensions
   colors = (): string[] => {
     // first non local non reduce dims are global (blue)
     let colors: string[] = range(this.global_dims).map(() => !this.dont_use_locals ? 'blue' : 'BLUE')
@@ -221,23 +221,23 @@ export class Kernel {
     return ret
   }
 
-  //   # ******************** base simplifiers ********************
+  // ******************** base simplifiers ********************
 
-  //   # apply reshape && permute to all shapetrackers
+  // apply reshape && permute to all shapetrackers
   reshape_and_permute = (new_shape_fxn?: (a: sint[]) => sint[], axis?: number[]) => {
     const reshape = (st: ShapeTracker) => new_shape_fxn !== undefined ? st.reshape(new_shape_fxn(st.shape)) : st
     const permute = (st: ShapeTracker) => axis !== undefined ? st.permute(axis) : st
     this.sts = this.sts.map((st) => permute(reshape(st)))
   }
-  //   # drops the final dimension
+  // drops the final dimension
   upcast = () => {
     check(this.full_shape.at(-1)! !== 1, "can't upcast a dimension with size 1")
     this.upcasted += 1
   }
-  //   # axis : the axis to pull from
-  //   # amount : the amount to take
-  //   # top : if you want to pull that amount from the top
-  //   # insert_before : place to insert the new stuff
+  // axis : the axis to pull from
+  // amount : the amount to take
+  // top : if you want to pull that amount from the top
+  // insert_before : place to insert the new stuff
   shift_to = (axis: number, amount: sint, top = false, insert_before?: number) => {
     if (insert_before === undefined) insert_before = this.shape_len
     const move_axis = top ? axis : axis + 1
@@ -252,11 +252,11 @@ export class Kernel {
       ...range(insert_before, this.shape_len + 1).filter((i) => i !== move_axis),
     ])
   }
-  //   # ******************** complex simplifiers ********************
+  // ******************** complex simplifiers ********************
 
   simplify_ones = (): boolean => {
-    //     # remove places where the shape===all ones
-    //     # TODO: this should be factored in to multi shape stride
+    // remove places where the shape===all ones
+    // TODO: this should be factored in to multi shape stride
     if (this.shape_len === 0) return false
     const all_ones = this.full_shape.map((s) => Number(s === 1))
     this.local_dims = this.local_dims - sum(all_ones.slice(this.first_reduce - this.local_dims, this.first_reduce))
@@ -279,34 +279,34 @@ export class Kernel {
           if (prod(shape_piece) !== base_shape[i]) throw new Error(`get_contraction was wrong? ${shape_piece} !== ${base_shape[i]}`)
           special_strides = [...special_strides, ...strides_for_shape(shape_piece)]
         }
-        //         # adding the fake image shape
+        // adding the fake image shape
         shapes.push(this.output_shape)
         strides.push(special_strides)
       }
     }
-    //     # merge dimensions if we can, multi _merge_dims
-    //     # NOTE: this does not always preserve the reduce dimension
-    //     # TODO: move this into shapetracker, with tests!
-    //     # TODO: how does this work with multi-reduce?
+    // merge dimensions if we can, multi _merge_dims
+    // NOTE: this does not always preserve the reduce dimension
+    // TODO: move this into shapetracker, with tests!
+    // TODO: how does this work with multi-reduce?
     const rets: [sint, sint | undefined][][] = zip(shapes, strides).map(([s, st]) => [[s[0], st[0]]])
     for (const i of range(1, shapes[0].length)) {
       const can_merge = []
       for (const [s, st, ret] of zip(shapes, strides, rets)) {
-        //         # TODO: added the always mergeability of 1s,===this right? if so, add to shapetracker in the 1 case
+        // TODO: added the always mergeability of 1s,===this right? if so, add to shapetracker in the 1 case
         const si = s[i], sti = st[i], last_st = ret.at(-1)![1]
         can_merge.push((sti !== undefined) && ((sti !== 0 && last_st === mul(si, sti)) || (sti === 0 && last_st === 0)))
       }
-      //       # more can merge than this
+      // more can merge than this
       const mergeable = can_merge.every(Boolean) && i !== this.first_reduce
       for (const [j, [s, st]] of zip(shapes, strides).entries()) {
         if (mergeable) rets[j][rets[j].length - 1] = [mul(rets[j].at(-1)![0], s[i]), st[i]]
         else rets[j].push([s[i], st[i]])
       }
     }
-    //     # do the reshapes
+    // do the reshapes
     for (const [i, x] of rets.slice(0, this.sts.length).entries()) this.sts[i] = this.sts[i].reshape(x.map((y) => y[0]))
   }
-  //   # ******************** high level optimizers ********************
+  // ******************** high level optimizers ********************
 
   _create_tc_opts = (reduceop: UOp, tc: TensorCore, axis: number, opt_level: number): TensorCoreOptions | undefined => {
     const has_cast = tc.dtype_in !== tc.dtype_out
@@ -454,8 +454,8 @@ export class Kernel {
       check(axis < this.first_upcast, "can't upcasted already upcasted")
       check(amt <= 32, "don't unroll more than 32")
       // TODO: fix upcast_count to put purples before yellows. broken because of METAL tensor cores
-      // #upcast_count = sum(x === y for x,y in zip(this.full_shape[-this.upcasted:], this.output_shape[-this.upcasted:])) if this.upcasted else 0
-      // #this.shift_to(axis, amt, insert_before=undefined if upcast_count === 0 else this.shape_len-upcast_count)
+      //upcast_count = sum(x === y for x,y in zip(this.full_shape[-this.upcasted:], this.output_shape[-this.upcasted:])) if this.upcasted else 0
+      //this.shift_to(axis, amt, insert_before=undefined if upcast_count === 0 else this.shape_len-upcast_count)
       if (this.full_shape[axis] === amt && axis === this.first_reduce) this.local_dims += 1 // first_reduce will ++, so offset loss in simplify_ones
       if (this.full_shape[axis] === amt && axis < this.first_reduce + this.group_for_reduces) this.group_for_reduces -= 1 // fully unrolling a GROUP
       this.shift_to(axis, amt, undefined, undefined)
@@ -478,7 +478,7 @@ export class Kernel {
     } else if (opt.op === OptOps.PADTO) {
       check(!this.vars, 'does not work with symbolic shape')
       check(axis < this.first_upcast, 'cannot pad upcasted')
-      //       # ok to pad SUM if all parent ALU ops have f(0) = 0
+      // ok to pad SUM if all parent ALU ops have f(0) = 0
       const r = this.reduceop
       if (r !== undefined && this.first_reduce <= axis) check(r.arg[0] === Ops.ADD && can_pad(r, new Map(), new Set([])), `cannot pad ${r}`)
       let padded = false
@@ -488,7 +488,7 @@ export class Kernel {
         check(s > idiv(amt, 4), `pad adds more than quadruple the work ${st.shape[axis]} > ${idiv(amt, 4)}`)
         const ru = round_up(s, amt) - s
         if (ru) {
-          //           # pad right seems to be faster
+          // pad right seems to be faster
           this.sts[i] = st.pad([...range(axis).map(() => [0, 0] as [number, number]), [0, ru], ...range(st.shape.length - axis - 1).map((x) => [0, 0] as [number, number])])
           padded = true
         }
@@ -651,17 +651,17 @@ export class Kernel {
     return this
   }
 
-  //   # **** kernel outputs ****
+  // **** kernel outputs ****
 
   static kernel_cnt = new DefaultMap<string, number>(undefined, () => 0)
   @cache
   get name(): string {
-    //     # kernel name (before late upcast)
+    // kernel name (before late upcast)
     const kernel_type = this.reduceop !== undefined ? 'r' : ([...this.ast.toposort].every((x) => x.op === Ops.SINK || GroupOp.Buffer.includes(x.op)) ? 'C' : 'E')
     const suffix = zip(this.full_shape, this.colors()).map(([x, c]) => colored(isinstance(x, UOp) ? x.render() : x.toString(), c)).join(colored('_', 'BLACK'))
     const name = kernel_type + (this.ast.src.length > 1 ? `${this.ast.src.length}` : '') + '_' + suffix
 
-    //     # name the function something unique
+    // name the function something unique
     const function_name = to_function_name(name)
     Kernel.kernel_cnt.set(function_name, Kernel.kernel_cnt.get(function_name) + 1)
     const num = Kernel.kernel_cnt.get(function_name) > 1 ? `n${Kernel.kernel_cnt.get(function_name) - 1}` : ''
@@ -709,7 +709,7 @@ export class Kernel {
   get_optimized_ast = (): UOp => {
     return graph_rewrite(this.fixup_ast(this.ast), view_left)
   }
-  //   # **** this===the lowerer ****
+  // **** this===the lowerer ****
 
   //   @track_rewrites()
   linearize = (): Kernel => {
@@ -743,7 +743,7 @@ export class Kernel {
     return new ProgramSpec(ansiname, src, this.opts.device, this.uops, mem_bytes, this.opts.has_local ? [1, 1, 1] : undefined, this.opts.has_local ? [1, 1, 1] : undefined)
   }
 }
-// # the living definition of intermediate UOps
+// the living definition of intermediate UOps
 
 export const _assert_valid_uop = (uop: UOp, st: ShapeTracker, sts: Map<UOp, ShapeTracker>): undefined => {
   if (sts.has(uop)) return

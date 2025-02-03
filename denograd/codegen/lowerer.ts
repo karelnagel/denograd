@@ -3,7 +3,7 @@ import { all_int, is_eq, isinstance, min, partition, prod, range, zip } from '..
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, type sint, sint_to_uop, UOp, UPat } from '../ops.ts'
 import type { Renderer } from '../renderer/index.ts'
 
-// # returns the axes to create new_shape if new_shape can be created by combining axis from old_shape
+// returns the axes to create new_shape if new_shape can be created by combining axis from old_shape
 export const get_contraction = (old_shape: sint[], new_shape: sint[]): number[][] | undefined => {
   const acc_old = old_shape.reduce((acc, val, i) => [...acc, (val as number) * (acc[i - 1] ?? 1)], [] as number[])
   const acc_new = new_shape.reduce((acc, val, i) => [...acc, (val as number) * (acc[i - 1] ?? 1)], [] as number[])
@@ -14,7 +14,7 @@ export const get_contraction = (old_shape: sint[], new_shape: sint[]): number[][
     return undefined
   }
 }
-// # ***** indexing *****
+// ***** indexing *****
 
 export const _limit_dims = (dims: sint[], max_sizes: number[]) => {
   // TODO: symbolic shape
@@ -27,7 +27,7 @@ export const _limit_dims = (dims: sint[], max_sizes: number[]) => {
         found = true
         break
       }
-      if (!found) throw new Error(`can!limit dim dims=${dims}, max_size=${max_sizes}`)
+      if (!found) throw new Error(`can not limit dim dims=${dims}, max_size=${max_sizes}`)
     }
   }
   return dims
@@ -73,14 +73,14 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
       if (ki.local_dims !== 0) throw new Error("can't use locals if there's no local dims")
       idxs = get_grouped_dims('idx', full_shape.slice(0, global_dims), opts.global_max, true)
     } else {
-      //       # define indexes for GPU-like execution
+      // define indexes for GPU-like execution
       idxs = [
         ...get_grouped_dims('gidx', full_shape.slice(0, global_dims), opts.global_max, true),
         ...get_grouped_dims('lidx', full_shape.slice(global_dims, first_reduce + group_for_reduces), opts.local_max),
       ]
     }
   } else {
-    //     # all loops are RANGES
+    // all loops are RANGES
     idxs = full_shape.slice(0, first_reduce).map((g, i) => new UOp(Ops.RANGE, dtypes.int, [sint_to_uop(0), sint_to_uop(g)], i))
   }
   // reduce loops
@@ -98,7 +98,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   }
   return new IndexContext(idxs, ridxs)
 }
-// # ***** lowering (given index) *****
+// ***** lowering (given index) *****
 
 export const lower_reduce_axis = (ctx: IndexContext, x: UOp): UOp => {
   // NOTE: always using ridxs is fine here
