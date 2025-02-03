@@ -32,6 +32,7 @@ export const get_key = (...args: ArrayKey[]): string => {
   }
   return hash(stringify(args))
 }
+
 export class ArrayMap<K extends ArrayKey, V, Internal extends [any, any] = [K, V]> {
   map: Map<string, Internal>
   constructor(values?: Internal[]) {
@@ -59,8 +60,8 @@ export class ArrayMap<K extends ArrayKey, V, Internal extends [any, any] = [K, V
 // When key is garbage collected then the item is removed from the map
 export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<K, V, [WeakRef<K>, V]> {
   private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
-  constructor(values?: [K, V][]) {
-    super(values?.map(([k, v]) => [new WeakRef(k), v]))
+  constructor() {
+    super()
   }
   override get = (key: K): V | undefined => {
     const res = this.map.get(get_key(key))
@@ -71,9 +72,10 @@ export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<
     this.map.delete(get_key(key))
     return undefined
   }
-  override set = (key: K, value: V) => {
-    this.map.set(get_key(key), [new WeakRef(key), value])
-    this.finalizationGroup.register(key, get_key(key))
+  override set = (keyValue: K, value: V) => {
+    const key = get_key(keyValue)
+    this.map.set(key, [new WeakRef(keyValue), value])
+    this.finalizationGroup.register(keyValue, key, keyValue)
   }
   override entries = (): [K, V][] => {
     const res: [K, V][] = []
@@ -83,13 +85,21 @@ export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<
     }
     return res
   }
+  override delete = (k: K) => {
+    this.finalizationGroup.unregister(k)
+    return this.map.delete(get_key(k))
+  }
+  override clear = () => {
+    for (const key of this.keys()) this.finalizationGroup.unregister(key)
+    return this.map.clear()
+  }
 }
 
 // When value is garbage collected then the item is removed from the map
 export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap<K, V, [K, WeakRef<V>]> {
   private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
-  constructor(values?: [K, V][]) {
-    super(values?.map(([k, v]) => [k, new WeakRef(v)]))
+  constructor() {
+    super()
   }
   override get = (key: K): V | undefined => {
     const res = this.map.get(get_key(key))
@@ -102,8 +112,12 @@ export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap
     return undefined
   }
   override set = (key: K, value: V) => {
-    this.map.set(get_key(key), [key, new WeakRef(value)])
-    this.finalizationGroup.register(value, get_key(key))
+    const oldValue = this.get(key)
+    if (oldValue) this.finalizationGroup.unregister(oldValue)
+
+    const stringKey = get_key(key)
+    this.map.set(stringKey, [key, new WeakRef(value)])
+    this.finalizationGroup.register(value, stringKey, value)
   }
   override entries = (): [K, V][] => {
     const res: [K, V][] = []
@@ -112,6 +126,15 @@ export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap
       derefed ? res.push([k, derefed]) : this.map.delete(id)
     }
     return res
+  }
+  override delete = (k: K) => {
+    const value = this.get(k)
+    if (value) this.finalizationGroup.unregister(value)
+    return this.map.delete(get_key(k))
+  }
+  override clear = () => {
+    for (const value of this.values()) this.finalizationGroup.unregister(value)
+    return this.map.clear()
   }
 }
 
@@ -258,6 +281,7 @@ export type ConstType<This = never> = number | bigint | boolean | This
 export const isConst = (x: any): x is ConstType => ['number', 'bigint', 'boolean'].includes(typeof x)
 export const is_eq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => is_eq(o, two[i]))
+  if (typeof one === 'number' && typeof two === 'number' && isNaN(one) && isNaN(two)) return true
   // deno-lint-ignore eqeqeq
   if (isConst(one) && isConst(two)) return one == two
   return one === two

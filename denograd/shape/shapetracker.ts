@@ -62,7 +62,7 @@ export class ShapeTracker {
   key: string
   static cache = new WeakValueMap<string, ShapeTracker>()
   constructor(public views: View[]) {
-    this.key = get_key(views)
+    this.key = get_key(...views)
     return ShapeTracker.cache.setDefault(this.key, this)
   }
   add = (st: ShapeTracker): ShapeTracker => {
