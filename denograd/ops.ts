@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -1932,15 +1932,16 @@ export const loop_collapse = (compval: UOp, multconst: UOp, rng: UOp, acc: UOp, 
 
   let comprange
   if (mul.vmin > 0 && ne !== undefined) {
-    comprange = loop_end.minimum(add.sub(compval)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
-  } else if (mul.vmax < 0 && ne === undefined) comprange = loop_end.minimum(add.sub(compval).sub(mul)).idiv(mul).add(loop_end.sub(loop_start).maximum(loop_start))
-  else return undefined
+    comprange = loop_end.minimum(add.sub(compval).idiv(mul).add(loop_end.sub(loop_start)).maximum(loop_start))
+  } else if (mul.vmax < 0 && ne === undefined) {
+    comprange = loop_end.minimum(add.sub(compval).sub(mul).idiv(mul).add(loop_end.sub(loop_start)).maximum(loop_start))
+  } else return undefined
   const new_reduce_op = comprange.cast(multconst.dtype).mul(multconst)
   // TODO: what does it mean to have the same numbered DEFINE_ACC with different ranges?
-  const new_acc = acc.replace({ src: [acc.src[1], ...acc.src.slice(1).filter((x) => x !== rng)] })
+  const new_acc = acc.replace({ src: [...acc.src.slice(0,1), ...acc.src.slice(1).filter((x) => x !== rng)] })
   let ret = new_acc.assign(new_acc.add(new_reduce_op))
   if (extra !== undefined) ret = ret.add(acc.assign(acc.add(extra)))
-  //   return ret
+  return ret
 }
 
 export const index_collapse = (idx: UOp, rng: UOp, buf: UOp, ld: UOp, acc: UOp, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
@@ -2084,19 +2085,19 @@ export const sym = symbolic_flat.add(
 
 // *** uop expander ***
 
-export const _expand_arg_to_idx = (args: [number, number][], rpk: Record<number, number>): number => {
+export const _expand_arg_to_idx = (args: [number, number][], rpk: Map<number, number>): number => {
   let [idx, mul] = [0, 1]
   for (const [axis, m] of args.toReversed()) {
-    idx += rpk[axis] * mul
+    idx += rpk.get(axis)! * mul
     mul *= m
   }
   return idx
 }
-export const _choices_from_args = (args: [number, number][]): Record<number, number>[] => {
-  return args.reduce((acc, [axis, m]) => acc.flatMap((d) => range(m).map((i) => ({ ...d, [axis]: i }))), [{}])
+export const _choices_from_args = (args: [number, number][]): Map<number, number>[] => {
+  return product(...args.map(([axis, m]) => zip(range(100).map(() => axis), range(m)))).map((x) => new Map(x))
 }
 export const _swizzle_args = cache_fn((cargs: [number, number][], eargs: [number, number][], exclude_args: number[]): number[] => {
-  return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? { ...rpk, ...Object.fromEntries(exclude_args.map((x) => [x, 0])) } : rpk))
+  return _choices_from_args(cargs).map((rpk) => _expand_arg_to_idx(eargs, exclude_args ? new Map([...rpk.entries(), ...exclude_args.map((x) => [x, 0] as [number, number])]) : rpk))
 })
 export const do_expand = (root: UOp) => {
   const expands = root.src.filter((x) => x.op === Ops.UNROLL)
@@ -2151,7 +2152,7 @@ export const do_contract = (con: UOp) => {
   let idxs: number[] = []
   const new_ex_args = ex.arg.filter((x: any) => !con.arg.some((arg: any[]) => is_eq(arg, x)))
   for (const rpk of _choices_from_args(new_ex_args)) {
-    idxs = [...idxs, ..._choices_from_args(con.arg).map((lrpk) => _expand_arg_to_idx(ex.arg, { ...rpk, ...lrpk }))]
+    idxs = [...idxs, ..._choices_from_args(con.arg).map((lrpk) => _expand_arg_to_idx(ex.arg, new Map([...rpk.entries(), ...lrpk.entries()])))]
   }
   return new UOp(Ops.UNROLL, con.dtype, [ex.src[0].gep([...idxs])], new_ex_args)
 }
