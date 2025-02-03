@@ -108,7 +108,7 @@ export class Cast extends CreateFunction<[UOp, DType, boolean?]>() {
     return this.bitcast ? x.bitcast(dtype) : x.cast(dtype)
   }
   override backward = (grad_output: UOp): UOp => {
-    if (this.bitcast) throw new Error('bitcast can!backward')
+    if (this.bitcast) throw new Error('bitcast can not backward')
     return grad_output.cast(this.input_dtype!)
   }
 }
@@ -2350,7 +2350,7 @@ export class Tensor extends MathTrait<Tensor> {
     const [s_, d_] = [make_tuple(stride, k_.length), make_tuple(dilation, k_.length)]
     if (k_.length !== s_.length || s_.length !== d_.length) throw new Error(`stride/dilation mismatch kernel:${k_} stride:${s_} dilation:${d_}`)
     const [noop, i_] = [range(this.ndim - k_.length).map(() => undefined), this.shape.slice(-k_.length)]
-    if (!zip(k_, d_, i_).every(([k, d, i]) => resolve(le(add(mul(d, sub(k, 1)), 1), i)))) throw new Error('kernel size can!be greater than actual input size')
+    if (!zip(k_, d_, i_).every(([k, d, i]) => resolve(le(add(mul(d, sub(k, 1)), 1), i)))) throw new Error('kernel size can not be greater than actual input size')
     const o_ = zip(i_, d_, k_, s_).map(([i, d, k, s]) => ceildiv(sub(i, mul(d, sub(k, 1))), s))
     if (zip(k_, s_).some(([k, s]) => resolve(gt(k, s))) || d_.some((d) => d !== 1)) {
       // input size scaling factor to make sure shrink for stride === possible

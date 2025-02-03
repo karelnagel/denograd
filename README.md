@@ -85,7 +85,7 @@ for await (const i of tqdm(range(100))) {
 - [x] CLANG runtime (WIP)
 - [x] get MNIST training
 - [x] get working inside browser with PYTHON runtime
-- [x] WebGPU runtime (MNIST inference running in WebGPU: https://karelnagel.github.io/denograd/, training coming soon) 
+- [x] WebGPU runtime (MNIST inference running in WebGPU: https://karelnagel.github.io/denograd/, training coming soon)
 - [x] delete lazy + other tinygrad updates
 - [x] add all the missing parts of Tensor and other code that were left out in the beginning.
 - [ ] get hand_coded_optimisations working correctly

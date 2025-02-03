@@ -116,22 +116,22 @@ export class View {
     // TODO: this resolve shouldn't be needed
     if (!shape.every((s) => resolve(ge(s, 0)))) throw new Error(`Trying to create View with negative dimension: shape=${shape}`)
     strides = strides?.length ? canonicalize_strides(shape, strides) : strides_for_shape(shape)
-    // # canonicalize 0 in shape
+    // canonicalize 0 in shape
     if (shape.includes(0)) return new View(shape, range(shape.length).map(() => 0), 0, undefined, true)
-    // # canonicalize no-op mask
+    // canonicalize no-op mask
     if (mask !== undefined && zip(mask, shape).every(([m, s]) => is_eq(m, [0, s]))) mask = undefined
-    // # if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
-    // # then its stride can also be set to 0, albeit with a corresponding adjustment required to the offset
+    // if any dimension has size >1, but is masked such that only one index in the dimension is unmasked
+    // then its stride can also be set to 0, albeit with a corresponding adjustment required to the offset
     const elim = mask?.map(([b, e]) => !resolve(lt(add(b, 1), e)))
     if (mask?.length && elim?.some((x) => x)) {
       if (mask.some(([b, e]) => !resolve(lt(b, e)))) [strides, offset, mask] = [range(shape.length).map((x) => 0), 0, range(shape.length).map((x) => [0, 0])]
       offset = add(offset, elim.reduce((acc, e, i) => add(acc, e ? mul(strides![i], mask![i][0]) : 0), 0 as sint))
       strides = zip(strides, elim).map(([st, e]) => e ? 0 : st)
     }
-    // # simplify as we go
+    // simplify as we go
     if (offset instanceof UOp) offset = offset.ssimplify()
     shape = shape.map((x) => x instanceof UOp ? x.ssimplify() : x)
-    // # TODO: enabling stride simplification breaks symbolic jit
+    // TODO: enabling stride simplification breaks symbolic jit
     // """
     // strides = tuple(x.ssimplify() if isinstance(x, UOp) else x for x in strides)
     // if mask: mask = tuple((s.ssimplify() if isinstance(s, UOp) else s, e.ssimplify() if isinstance(e, UOp) else e) for s,e in mask)
@@ -178,7 +178,7 @@ export class View {
     }
     if (!all_int(vm1.shape)) return undefined
 
-    //     # Project vm1's offset and strides on to vm2.
+    // Project vm1's offset and strides on to vm2.
     const origin = unravel(vm2.shape, vm1.offset)
     const terms: [number, sint][][] = vm2.shape.map(() => [])
     const strides: sint[] = range(vm1.shape.length).map((x) => 0)
@@ -191,8 +191,8 @@ export class View {
         strides[d1] = add(strides[d1], mul(s1, vm2.strides[d2]))
       }
     }
-    //     # Merge dimensions in vm2 if required.
-    //     # NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
+    // Merge dimensions in vm2 if required.
+    // NB: Merging too many dimensions can make it difficult to project vm2's mask, hence only combining when required.
     const idxs: UOp[] = [...vm1.shape.map((s, i) => UOp.variable(`idx${i}`, 0, s - 1))]
     let merged_size: sint = 1, merged_term = UOp.int(0)
     const extents: [sint, UOp][] = []
@@ -213,7 +213,7 @@ export class View {
       if (!is_eq(reshaped_vm2.shape, vm2.shape)) return reshaped_vm2.add(vm1)
     }
     if (vm2.mask?.length) {
-      //       # Try to project vm2's mask on to vm1.
+      // Try to project vm2's mask on to vm1.
       let newb = range(vm1.shape.length).map((x) => 0), newe = [...vm1.shape], bad = false
       for (const [[b, e], o, term, [_, t]] of zip(vm2.mask as [number, number][], origin as number[], terms, extents.toReversed())) {
         if (resolve(and(le(b, t.vmin), lt(t.vmax, e)), false)) continue
@@ -226,11 +226,11 @@ export class View {
         newb[d1] = Math.max(newb[d1], ceildiv((s1 as number) > 0 ? b - o : e - o - 1, s1) as number)
         newe[d1] = Math.min(newe[d1], idiv((s1 as number) < 0 ? b - o : e - o - 1, s1 as number) + 1)
       }
-      //       # If any of vm1 was masked off, try again with that mask in place.
+      // If any of vm1 was masked off, try again with that mask in place.
       if (zip(newb, newe, vm1.shape).some(([b, e, s]) => !is_eq([b, e], [0, s]))) {
         return vm2.add(View.create(vm1.shape, vm1.strides, vm1.offset, zip(newb, newe)))
       }
-      //       # Otherwise if vm2's mask was violated, then cannot merge.
+      // Otherwise if vm2's mask was violated, then cannot merge.
       if (bad) return undefined
     }
     return View.create(vm1.shape, strides, add(zip(origin, vm2.strides).reduce((acc, [o, s]) => add(acc, mul(o, s)), 0 as sint), vm2.offset))
@@ -249,9 +249,9 @@ export class View {
   __unsafe_resize(arg: [sint, sint][], mask?: [sint, sint][]): View {
     const offset = zip(this.strides, arg).reduce((acc, [s, x]) => add(acc, mul(s, x[0])), 0 as sint)
     if (this.mask?.length) {
-      //       # move the old mask
+      // move the old mask
       const nmask = zip(this.mask, arg).map(([[mx, my], [ax, ay]]) => [smax(0, smin(sub(mx, ax), sub(ay, ax))), smax(0, smin(sub(my, ax), sub(ay, ax)))] as [sint, sint])
-      //       # merge the masks if we have two
+      // merge the masks if we have two
       mask = mask !== undefined ? zip(nmask, mask).map(([[mx1, my1], [mx2, my2]]) => [smax(mx1, mx2), smin(my1, my2)] as [sint, sint]) : nmask
     }
     return View.create(arg.map(([x, y]) => sub(y, x)), this.strides, add(this.offset, offset), mask)
@@ -259,7 +259,7 @@ export class View {
   @cache
   pad(arg: [sint, sint][]): View {
     if (arg.length !== this.shape.length) throw new Error(`invalid pad ${list_str(arg)} for ${list_str(this.shape)}`)
-    //     # NOTE: not checking for symbolic arg
+    // NOTE: not checking for symbolic arg
     for (const [b, e] of arg) if (!((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0))) throw new Error(`invalid pad ${list_str(arg)} for ${list_str(this.shape)}`)
     if (arg.some(([b, e]) => resolve(ne(b, 0)) || resolve(ne(e, 0)))) {
       const zvarg = zip(this.shape, arg).map(([s, [b, e]]) => [neg(b), add(s, e)] as [sint, sint])
@@ -271,7 +271,7 @@ export class View {
   @cache
   shrink(arg: [sint, sint][]): View {
     if (arg.length !== this.shape.length) throw new Error(`invalid shrink ${list_str(arg)} for ${list_str(this.shape)}`)
-    // # NOTE: not checking for symbolic arg
+    // NOTE: not checking for symbolic arg
     for (const [s, [b, e]] of zip(this.shape, arg)) if ((isInt(b) && isInt(e) && isInt(s)) && !(0 <= b && b <= e && e <= s)) throw new Error(`invalid shrink ${list_str(arg)} for ${list_str(this.shape)}`)
     return this.__unsafe_resize(arg)
   }
@@ -282,9 +282,9 @@ export class View {
       if (!zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0))) throw new Error(`can't expand ${list_str(this.shape)} into ${list_str(new_shape)}`)
       return View.create(new_shape)
     }
-    //     # TODO: this resolve might be wrong
+    // TODO: this resolve might be wrong
     if (!zip(this.shape, new_shape).every(([s, x]) => !resolve(ne(s, x), false) || s === 1)) throw new Error(`can't expand ${list_str(this.shape)} into ${list_str(new_shape)}`)
-    //     # TODO: this resolve may not be needed, but it's hard because vars need to be sorted
+    // TODO: this resolve may not be needed, but it's hard because vars need to be sorted
     const mask = this.mask?.length ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!is_eq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
     return View.create(new_shape, this.strides, this.offset, mask)
   }
@@ -295,7 +295,7 @@ export class View {
   }
   @cache
   stride(multi: number[]): View {
-    //     # except for the negative case, you can build this from the others. invertible in the negative case
+    // except for the negative case, you can build this from the others. invertible in the negative case
     if (!multi.every((x) => typeof x === 'number' && x !== 0)) throw new Error(`invalid stride ${multi} for ${this.shape}`)
     const strides = zip(this.strides, multi).map(([z, m]) => mul(z, m))
     const new_shape = zip(this.shape, multi).map(([s, m]) => ceildiv(s, Math.abs(m)))
@@ -307,7 +307,7 @@ export class View {
   reshape(new_shape: sint[]): View | undefined {
     if (is_eq(this.shape, new_shape)) return this
     if (new_shape.some((x) => x as number < 0)) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
-    //     # check for the same size
+    // check for the same size
     const self_all_int = all_int(this.shape)
     if (self_all_int) {
       if (new_shape.some((s) => !(s instanceof UOp) && typeof s !== 'number')) throw new Error(`${list_str(this.shape)} -> ${list_str(new_shape)} contains non (int, Variable) dim`)
@@ -317,16 +317,16 @@ export class View {
     if (this.shape.includes(0)) return View.create(new_shape)
     if (new_shape.length === 0 && this.mask?.length && this.mask.some(([mx, my]) => mx === my)) return undefined
 
-    //     # after the asserts, it's okay to check contiguous
+    // after the asserts, it's okay to check contiguous
     if (this.contiguous) return View.create(new_shape)
 
-    //     # if it's not contiguous and new shape is symbolic, check if it's directly replaceable
+    // if it's not contiguous and new shape is symbolic, check if it's directly replaceable
     if (self_all_int && !all_int(new_shape)) {
       if (this.shape.length !== new_shape.length) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
       for (let [si, so] of zip(this.shape, new_shape)) {
         if (typeof so !== 'number') so = sym_infer(so, new Map(so.vars().map((v) => v.unbind())))
         if (si !== so) throw new Error(`cannot symbolic reshape non-contiguous ${this} -> ${new_shape}`)
-        //       # all dimensions matched, return the new view directly
+        // all dimensions matched, return the new view directly
       }
       return new View(new_shape, this.strides, this.offset, this.mask, this.contiguous)
     }

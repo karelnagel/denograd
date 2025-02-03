@@ -2,7 +2,7 @@ import { type Buffer, uop_buffer, uop_is_realized } from '../device.ts'
 import { DType, dtypes, ImageDType } from '../dtype.ts'
 import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, list_str, merge_maps, type Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
 import { buffers, can_pad, graph_rewrite_map, identity_element, resolve, type sint, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
-import { add, ge, lt, mul, pow, prod, sub } from '../helpers.ts'
+import { ge, lt, mul, pow, prod, sub } from '../helpers.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, type Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape, View } from '../shape/view.ts'
@@ -13,7 +13,7 @@ export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
   [new UPat(Ops.DEVICE, dtypes.void, []).named('device'), ({ device }) => typeof device.arg === 'string'],
   [new UPat(Ops.BUFFER, undefined, [new UPat(Ops.DEVICE)]).named('buf'), ({ buf }) => Array.isArray(buf.arg) && buf.arg.length === 2 && all_int(buf.arg) && buf.dtype instanceof DType],
   [new UPat(GroupOp.Movement, undefined, [UPat.var('x')]).named('mv'), ({ mv, x }) =>
-    //  # naturally correct
+    // naturally correct
     (Array.isArray(mv.arg) && mv.dtype === x.dtype) ||
     // "make things that can't be images not images" can change the buffer dtype
     // this is fine as long as it's a realized buffer and base dtypes match.
@@ -367,7 +367,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
           if (!st.contiguous || tr_next_uop.op === Ops.REDUCE_AXIS) break
           tr = tr_next
         }
-        // don't cast to higher size before store (tr can!be realized if forced_realize)
+        // don't cast to higher size before store (tr can not be realized if forced_realize)
         const tr_uop = uval(ctx.allbufs.get(tr)!)
         if (tr_uop.op === Ops.CAST && tr_uop.dtype.base.itemsize > tr_uop.src[0].dtype.base.itemsize) tr = tr_uop.src[0].base.buf_uop
       }
@@ -428,7 +428,7 @@ export const sym = symbolic_simple.add(
       ({ root }) => root.base.st !== undefined && root.size === 0 && !(root.base.op === Ops.CONST && root.base.arg === 0) ? root.const_like(0) : undefined,
     ],
     // DETACH and CONTIGUOUS_BACKWARD are NOOPs here
-    [new UPat([Ops.DETACH,Ops.CONTIGUOUS_BACKWARD]).named('x'), ({ x }) => x.src[0]],
+    [new UPat([Ops.DETACH, Ops.CONTIGUOUS_BACKWARD]).named('x'), ({ x }) => x.src[0]],
     // reduce of size 0 is the identity element
     [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('x')]).named('reduce'), ({ reduce, x }) => x.size === 0 && reduce.size !== 0 ? reduce.const_like(identity_element(reduce.arg[0], reduce.dtype)) : undefined],
     // reduce of const is collapsed (TODO: make this a generic rule for stride0)
@@ -500,7 +500,7 @@ export const do_realize = new PatternMatcher<ScheduleContext>([
   // always realize SINK parents
   [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => void sink.src.forEach((x) => ctx.realizes.set(x.buf_uop, x))],
   // always realize ASSIGN/CONTIGUOUS/COPY/BUFFER_VIEW
-  [new UPatScheduled({ op: [Ops.BUFFER_VIEW,Ops.CONTIGUOUS, Ops.ASSIGN, Ops.COPY, ] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  [new UPatScheduled({ op: [Ops.BUFFER_VIEW, Ops.CONTIGUOUS, Ops.ASSIGN, Ops.COPY] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
   // realize before expand or unsafe pad ops
   [new UPat(Ops.VIEW, undefined, [new UPatScheduled({ name: 'src' })]).named('view'), ({ ctx, view, src, b }) => realize_before_view(ctx, view, src, b)],
   // don't realize image to image casts
@@ -545,7 +545,7 @@ export const break_sched = new PatternMatcher<ScheduleContext>([
   [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), UPat.var('x')]).named('st'), ({ ctx, b, x, st }) => store_or_fuse(ctx, b, x, st)],
 ])
 
-// # **** Schedule context builder
+// **** Schedule context builder
 
 const append_uop = (ctx: ScheduleContext, view: UOp, buf_uop: UOp): undefined => {
   ctx.allbufs.set(buf_uop, view)
@@ -557,19 +557,21 @@ const append_uop = (ctx: ScheduleContext, view: UOp, buf_uop: UOp): undefined =>
   uop_buffer(buf_uop).ref(1)
 }
 export const create_ctx = new PatternMatcher<ScheduleContext>([[new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf_uop'), new UPat()]).named('view'), ({ ctx, view, buf_uop }) => append_uop(ctx, view, buf_uop)]])
-// # **** movement ops
+// **** movement ops
 
-export const remove_movement_ops = merge_views.add(new PatternMatcher([
-  // NOTE: movement ops are always applied to base
-  [new UPat(GroupOp.Movement, undefined, UPat.any([UPat.var('x').view(), UPat.var('x')])).named('mov'), ({ x, mov }) => x.view(mov.st!)],
-  // some masked views can collapse to 0, VIEW(x) -> CONST(VIEW)
-  [new UPat(Ops.VIEW).named('view'), ({ view }) => {
-    const vm = view.st!.views.at(-1)!.mask
-    return vm !== undefined && vm.some((x) => sub(x[1], x[0]) === 0) ? view.const_like(0) : undefined
-  }],
-  // merge unmasked const views
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('const')]).named('view'), (x) => (x.st.st!.add(x.view.st!)).views.every((v) => v.mask === undefined) ? x.const.replace({ src: [x.st.replace({ arg: x.st.st!.add(x.view.st!) })] }) : undefined],
-]))
+export const remove_movement_ops = merge_views.add(
+  new PatternMatcher([
+    // NOTE: movement ops are always applied to base
+    [new UPat(GroupOp.Movement, undefined, UPat.any([UPat.var('x').view(), UPat.var('x')])).named('mov'), ({ x, mov }) => x.view(mov.st!)],
+    // some masked views can collapse to 0, VIEW(x) -> CONST(VIEW)
+    [new UPat(Ops.VIEW).named('view'), ({ view }) => {
+      const vm = view.st!.views.at(-1)!.mask
+      return vm !== undefined && vm.some((x) => sub(x[1], x[0]) === 0) ? view.const_like(0) : undefined
+    }],
+    // merge unmasked const views
+    [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('const')]).named('view'), (x) => (x.st.st!.add(x.view.st!)).views.every((v) => v.mask === undefined) ? x.const.replace({ src: [x.st.replace({ arg: x.st.st!.add(x.view.st!) })] }) : undefined],
+  ]),
+)
 
 // @track_rewrites(named=true)
 export const create_schedule_with_vars = (big_sink: UOp, skip_check = !DEBUG): [ScheduleItem[], Map<Variable, number>, Map<UOp, UOp>] => {

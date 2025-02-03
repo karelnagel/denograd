@@ -7,7 +7,7 @@ import { base_rewrite, CStyleLanguage, extra_pm, type RenderKernelArgs } from '.
 const sign_extend = (val: UOp, sext_am: number) => {
   return val.rshift(sext_am - 1).gt(0).where(UOp.const(dtypes.uint32, 0xffffffff).lshift(sext_am), UOp.const(dtypes.uint32, 0)).bitwise_or(val.bitcast(dtypes.uint32)).bitcast(dtypes.int)
 }
-// # store for char: buf[idx/4] <- (var << (idx%4)*8))
+// store for char: buf[idx/4] <- (var << (idx%4)*8))
 const packed_store = (bidx: UOp, variable: UOp) => {
   const shift_am: UOp = (bidx.src[1].cast(dtypes.uint32).mod(UOp.const(dtypes.uint32, idiv(4, variable.dtype.itemsize)))).mul(UOp.const(dtypes.uint32, 8 * variable.dtype.itemsize))
   const new_v = (variable.bitwise_and(variable.dtype.itemsize === 1 ? 0xFF : 0xFFFF)).cast(dtypes.uint32).lshift(shift_am)
@@ -15,7 +15,7 @@ const packed_store = (bidx: UOp, variable: UOp) => {
   const buf = new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, variable.dtype.itemsize))]).load([], { dtype: dtypes.uint32 })
   return new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, variable.dtype.itemsize))]).store([(buf.bitwise_and(mask)).bitwise_or(new_v.cast(dtypes.uint32))])
 }
-// # load for char: sign_extend(buf[idx/4] >> ((idx%4)*8))
+// load for char: sign_extend(buf[idx/4] >> ((idx%4)*8))
 const packed_load = (root: UOp, bidx: UOp, dtype: DType, variable?: UOp) => {
   const div_idx = bidx.src[1].idiv(idiv(4, dtype.itemsize))
   const shift_am = (bidx.src[1].cast(dtypes.uint32).mod(UOp.const(dtypes.uint32, idiv(4, dtype.itemsize)))).mul(UOp.const(dtypes.uint32, 8 * dtype.itemsize))
@@ -30,7 +30,7 @@ export const wgsl_matcher = new PatternMatcher([
   [new UPat(Ops.LOAD, undefined, [UPat.var('b')]).named('l'), ({ l, b }) => l.dtype.itemsize < 4 ? packed_load(l, b, l.dtype) : undefined],
   [new UPat(Ops.LOAD, undefined, [UPat.var('b'), UPat.var('c'), new UPat()]).named('l'), ({ l, b, c }) => l.dtype.itemsize < 4 ? packed_load(l, b, l.dtype, c.cast(dtypes.uint32)) : undefined],
   [UPat.var('bidx').store([UPat.var('var')], { allow_any_len: true }), (x) => x.var.dtype.itemsize < 4 ? packed_store(x.bidx, x.var) : undefined],
-  //   # TODO: why is this needed, and only for this MUL order
+  // TODO: why is this needed, and only for this MUL order
   [new UPat(Ops.MUL, undefined, [UPat.var('a'), UPat.var('g').where(UPat.cvar('c1'), UPat.cvar('c2'))]), ({ a, g, c1, c2 }) => isNaN(c1.arg) && c2.arg === 1 ? g.where(c1, a) : undefined],
 ]).add(extra_pm)
 
@@ -56,7 +56,7 @@ export class WGSLRenderer extends CStyleLanguage {
     [UPat.index(UPat.var('b'), UPat.var('idx')), ({ ctx, b, idx }) => `${ctx.get(b)}[${idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)}]`],
     // (load & mask) | var -> mask = v.src[0].src[1], var = v.src[1]
     [UPat.store([UPat.var('b'), UPat.var('v')], { allow_any_len: true }), ({ ctx, b, v }) => b.src[0].dtype.itemsize < 4 ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`],
-    //     # fix nan check: 'a != a -> is_nan()'
+    // fix nan check: 'a != a -> is_nan()'
     [UPat.var('a').ne(UPat.var('a')), ({ ctx, a }) => `is_nan(${ctx.get(a)})`],
   ]).add(base_rewrite)
 

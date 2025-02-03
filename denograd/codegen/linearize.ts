@@ -26,7 +26,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   const [block_ctxs, children] = ctx
   const in_this_block = new Set(x.arg.lst)
 
-  //   # collections to build
+  // collections to build
   let new_srcs: UOp[] = []
   const to_append: UOp[] = []
   const old_blocks = new ArrayMap<UOp[], UOp>()
@@ -34,20 +34,20 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
 
   for (const u of x.src) {
     if (u.op === Ops.BLOCK) {
-      //       # merge sibling blocks. NOTE: blocks must only have one output source
+      // merge sibling blocks. NOTE: blocks must only have one output source
       if (old_blocks.has(u.arg.ctx)) throw new Error('sibling should never have been created')
       old_blocks.set(u.arg.ctx, u)
     } else if (!DONT_PLACE_IN_BLOCK.includes(u.op) && new Set(children.get(u)).isSubsetOf(in_this_block)) {
-      //       # if it can go in blocks and all its children are in the block, we add it to the block
+      // if it can go in blocks and all its children are in the block, we add it to the block
       const block_ctx = block_ctxs.get(u)!
       if (is_eq(block_ctx, x.arg.ctx)) {
-        //         # if it's the same context, we place the UOp in this block and append the parents to its srcs
+        // if it's the same context, we place the UOp in this block and append the parents to its srcs
         new_srcs = [...new_srcs, ...u.src]
         to_append.push(u)
-      } //         # if it's a different context, we create a new block with this UOp
+      } // if it's a different context, we create a new block with this UOp
 
       else new_blocks.setDefault(block_ctx, []).push(u)
-    } //       # otherwise, we keep it in the srcs
+    } // otherwise, we keep it in the srcs
     else new_srcs.push(u)
   }
   if (to_append.length === 0 && new_blocks.size === 0) return undefined
@@ -57,7 +57,7 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
     const old_block = old_blocks.get(rng)
     old_blocks.delete(rng)
     if (old_block !== undefined) {
-      //       # NOTE: order shouldn't matter here
+      // NOTE: order shouldn't matter here
       srcs = [...srcs, ...old_block.src]
       lst = [...lst, ...old_block.arg.lst]
     }
@@ -80,12 +80,12 @@ export const make_basic_blocks = new PatternMatcher<CTX>([
 
 export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
   if (!(x.arg instanceof BasicBlock)) throw new Error('Has to be basic block,maybe??')
-  //   # ctx is children here
+  // ctx is children here
   if (x.op === Ops.BLOCKEND) {
-    //     # if it's a BLOCKEND, see if we are done with placement. if all the children of the range are in here
+    // if it's a BLOCKEND, see if we are done with placement. if all the children of the range are in here
     const in_this_block = new Set(x.arg.lst)
     if (ctx.get(x.arg.end!)!.filter((y) => !in_this_block.has(y)).length === 0) {
-      //       # find the parent block that has the BLOCKSTART in the ctx
+      // find the parent block that has the BLOCKSTART in the ctx
       const parent_blocks = x.src.filter((y) => y.op === Ops.BLOCK && y.arg.ctx.includes(new UOp(Ops.BLOCKSTART, undefined, [x.arg.end])))
       if (parent_blocks.length > 1) throw new Error('should never have two parent blocks')
       if (parent_blocks.length === 1) {
@@ -102,7 +102,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
   const placed = new Set()
   for (const u of x.src) {
     if (u.op === Ops.BLOCK && (is_eq(u.arg.ctx, x.arg.ctx) || (x.arg.end !== undefined && u.arg.ctx.includes(x.arg.end)))) {
-      //       # NOTE: this can't appear in srcs twice or it would be a BLOCKFORK
+      // NOTE: this can't appear in srcs twice or it would be a BLOCKFORK
       new_ctx = [...new_ctx, ...u.arg.ctx.filter((y: UOp) => !x.arg.ctx.includes(y))]
       new_srcs = [...new_srcs, ...u.src]
       to_append = [...to_append, ...u.arg.lst]
@@ -112,7 +112,7 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
         placed.add(u)
       }
     } else {
-      //       # keep it in srcs
+      // keep it in srcs
       new_srcs.push(u)
     }
   }
@@ -121,13 +121,13 @@ export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
 }
 export const pm_block_merge = new PatternMatcher<Map<UOp, UOp[]>>([[new UPat([Ops.BLOCKEND, Ops.BLOCK]).named('x'), ({ ctx, x }) => block_merge(ctx, x)]])
 
-// # NOTE: any toposort should be valid here, unlike last time this isn't required, it's just for speed
+// NOTE: any toposort should be valid here, unlike last time this isn't required, it's just for speed
 export const block_reorder = (in_block: UOp): UOp => {
   const in_this_block = new Set(in_block.arg.lst)
   const local_children = new DefaultMap<UOp, UOp[]>(undefined, () => [])
   const in_degree = new DefaultMap<UOp, number>(undefined, () => 0)
   const priorities = new Map<UOp, number>()
-  //   # get local children and assign priorities
+  // get local children and assign priorities
   for (const u of in_block.arg.lst.toReversed()) {
     for (const s of u.src) {
       if (in_this_block.has(s)) {
@@ -135,11 +135,11 @@ export const block_reorder = (in_block: UOp): UOp => {
         in_degree.set(u, set_default(in_degree, u, 0) + 1)
       }
     }
-    //     # put loads in the beginning of the block and prevent priority inversion
+    // put loads in the beginning of the block and prevent priority inversion
     priorities.set(u, min([u.op === Ops.LOAD ? -1000 : 0, ...(set_default(local_children, u, []).map((x) => priorities.get(x)!))]))
   }
 
-  //   # placement queue
+  // placement queue
   const queue: UOp[] = []
   const push = (u: UOp) => {
     queue.push(u)
@@ -153,7 +153,7 @@ export const block_reorder = (in_block: UOp): UOp => {
     })
   }
 
-  //   # place the first ones that don't have deps
+  // place the first ones that don't have deps
   for (const u of in_block.arg.lst) if (!in_degree.has(u)) push(u)
 
   const newlst = []
@@ -172,44 +172,44 @@ export const block_reorder = (in_block: UOp): UOp => {
 export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   if (sink.op !== Ops.SINK) throw new Error(`sink isn't sink, it's ${sink.op}`)
 
-  //   # get children and all block contexts
+  // get children and all block contexts
   const temp_block_ctxs = new Map<UOp, UOp[]>()
   const children = new Map<UOp, UOp[]>()
   for (const u of sink.toposort) {
     let this_block_ctx: UOp[] = []
     for (const s of u.src) {
-      //       # save children
+      // save children
       set_default(children, s, []).push(u)
-      //       # compute block ctx
+      // compute block ctx
       if ([Ops.RANGE, Ops.IF].includes(s.op)) this_block_ctx.push(s)
-      //       # don't flow (fully) through assign and store
+      // don't flow (fully) through assign and store
       else if (s.op === Ops.STORE) {
-        //         # ugh, deal with non-reduce locals. probably wrong
+        // ugh, deal with non-reduce locals. probably wrong
         if (isinstance(s.src[0].dtype, PtrDType) && s.src[0].dtype.local) {
           const [idx_context, store_context] = [temp_block_ctxs.get(s.src[0]), temp_block_ctxs.get(s)]
           this_block_ctx = [...this_block_ctx, ...store_context!.filter((x) => !idx_context!.includes(x) && x.op === Ops.RANGE)]
         }
       } else if (s.op === Ops.ASSIGN) {
-        //         # flow though assign, but remove the ranges used in the assign
+        // flow though assign, but remove the ranges used in the assign
         assert(s.src[0].op === Ops.DEFINE_ACC)
         this_block_ctx = [...this_block_ctx, ...temp_block_ctxs.get(s.src[1])!.filter((x) => !s.src[0].src.slice(1).includes(x))]
-      } //         # flow though everything else
+      } // flow though everything else
 
       else this_block_ctx = [...this_block_ctx, ...temp_block_ctxs.get(s)!]
     }
     temp_block_ctxs.set(u, dedup(this_block_ctx).toSorted((a, b) => is_less_than(a.tuplize, b.tuplize) ? -1 : 1))
   }
-  //   # make final block_ctxs, add BLOCKSTART to block_ctxs for IF and RANGE
+  // make final block_ctxs, add BLOCKSTART to block_ctxs for IF and RANGE
   const block_ctxs = new Map<UOp, UOp[]>()
   for (const u of sink.toposort) {
     block_ctxs.set(u, [Ops.IF, Ops.RANGE].includes(u.op) ? [new UOp(Ops.BLOCKSTART, undefined, [u]), ...temp_block_ctxs.get(u)!] : temp_block_ctxs.get(u)!)
   }
 
-  //   # TODO: there's probably a clever way to remove this while loop
+  // TODO: there's probably a clever way to remove this while loop
   while (true) {
     sink = graph_rewrite(sink, make_basic_blocks, [block_ctxs, children] satisfies CTX)
 
-    // # add BLOCKFORK (slow!)
+    // add BLOCKFORK (slow!)
     const block_parent_count = [...sink.toposort].filter((x) => x.op === Ops.BLOCK).flatMap((x) => x.src).reduce((acc, src) => {
       acc.set(src, (acc.get(src) || 0) + 1)
       return acc
@@ -222,12 +222,12 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
     if (!forks.size) break
     sink = sink.substitute(forks)
   }
-  //   # combine matching BLOCKENDS
+  // combine matching BLOCKENDS
   const blockends_to_arg = new Map<UOp, UOp[]>()
   for (const be of sink.toposort) if (be.op === Ops.BLOCKEND) set_default(blockends_to_arg, be.arg.end, []).push(be)
   const new_forks = new Map<UOp, UOp>()
   for (const [k, v] of blockends_to_arg.entries()) {
-    //     # NOTE: if any BLOCKEND is the parent of any other with the same arg, this algo fails
+    // NOTE: if any BLOCKEND is the parent of any other with the same arg, this algo fails
     if (v.length > 1) {
       const out = new UOp(Ops.BLOCKFORK, undefined, [new UOp(Ops.BLOCKEND, undefined, v.flatMap((x) => x.src), new BasicBlock(dedup(v.flatMap((y) => y.arg.ctx)), v[0].arg.lst, k))], v.length)
       for (const u of v) new_forks.set(u, out)
@@ -235,22 +235,22 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   }
   sink = sink.substitute(new_forks)
 
-  //   # reorder ops in block for speed
+  // reorder ops in block for speed
   sink = sink.substitute(new Map([...sink.toposort].filter((u) => u.op === Ops.BLOCK).map((u) => [u, block_reorder(u)] as [UOp, UOp]).filter(([u, newu]) => newu !== u)))
 
-  //   # final rewrite to merge all blocks into one
+  // final rewrite to merge all blocks into one
   sink = graph_rewrite(sink, pm_block_merge, children)
 
-  //   # there should just be one block left, with a few parents with 0 srcs
+  // there should just be one block left, with a few parents with 0 srcs
   assert(sink.op === Ops.BLOCK)
   // TODO this sorts a little bit differently, than tinygrad
   let _uops = dedup(sink.src).toSorted((a, b) => is_less_than(a.tuplize, b.tuplize) ? -1 : 1)
   assert(_uops.every((x) => x.src.length === 0 && ![Ops.BLOCK, Ops.BLOCKSTART, Ops.BLOCKEND, Ops.BLOCKFORK].includes(x.op)))
   _uops = [..._uops, ...sink.arg.lst]
 
-  //   # sanity checks (NOTE: these can cause things to be skipped in BEAM)
+  // sanity checks (NOTE: these can cause things to be skipped in BEAM)
   if (!skip_check) type_verify(_uops)
 
-  //   # strip the SINK
+  // strip the SINK
   return _uops.slice(0, -1)
 }
