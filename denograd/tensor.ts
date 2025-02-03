@@ -479,7 +479,7 @@ export class Tensor extends MathTrait<Tensor> {
       this.lazydata = data
     }
   }
-  requires_grad_ = (requires_grad = true): Tensor => {
+  requires_grad_ = (requires_grad: boolean | undefined): Tensor => {
     this.requires_grad = requires_grad
     return this
   }

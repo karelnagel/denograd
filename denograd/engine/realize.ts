@@ -14,7 +14,7 @@ export const get_kernel = (renderer: Renderer, ast: UOp): Kernel => {
   if (DEBUG >= 5) console.log(ast)
   let k = new Kernel(ast, renderer).required_optimizations()
   if (!NOOPT) {
-    if (!k.apply_tensor_cores(get_number_env('TC', 1))) k.hand_coded_optimizations()
+    if (!k.apply_tensor_cores(get_number_env('TC', 1))) k.required_optimizations()
     if (BEAM >= 1) {
       const kb = new Kernel(ast, renderer).required_optimizations()
       const rawbufs = bufs_from_lin(kb, false)
