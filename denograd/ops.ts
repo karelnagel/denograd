@@ -392,7 +392,7 @@ export class UOp extends MathTrait<UOp> {
   cast = (dtype: DType) => new UOp(Ops.CAST, dtype, [this])
   bitcast = (dtype: DType) => new UOp(Ops.BITCAST, dtype, [this])
   gep = (i: number[] | number) => {
-    if (!Array.isArray(i)) {
+    if (typeof i === 'number') {
       // NOTE: these are just shortcuts to not have to create and fold later
       if (this.op === Ops.VECTORIZE) return this.src[i]
       if (this.op === Ops.VCONST) return UOp.const(this.dtype.scalar(), this.arg[i])
@@ -2242,7 +2242,7 @@ export const pm_render = new PatternMatcher([
   //   # for rendering, we use explicit VECTORIZE
   [new UPat(Ops.CONST).named('c'), ({ c }) => c.dtype.vcount > 1 ? new UOp(Ops.VECTORIZE, c.dtype, range(c.dtype.vcount).map(() => UOp.const(c.dtype.scalar(), c.arg))) : undefined],
   [new UPat(Ops.VCONST).named('c'), ({ c }) => new UOp(Ops.VECTORIZE, c.dtype, c.arg.map((x: number) => UOp.const(c.dtype.scalar(), x)))],
-  [new UPat(Ops.GEP).named('gep'), ({ gep }) => new UOp(Ops.VECTORIZE, gep.dtype, gep.arg.length > 1 ? gep.arg.map((x: number) => gep.src[0].gep(x)) : undefined)],
+  [new UPat(Ops.GEP).named('gep'), ({ gep }) => gep.arg.length > 1 ? new UOp(Ops.VECTORIZE, gep.dtype, gep.arg.map((x: number) => gep.src[0].gep(x))) : undefined],
   [new UPat(Ops.VECTORIZE, undefined, [new UPat(undefined).named('x')]), ({ x }) => x],
   //   # move masks of loads/stores
   [
