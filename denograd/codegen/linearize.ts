@@ -192,7 +192,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
         }
       } else if (s.op === Ops.ASSIGN) {
         // flow though assign, but remove the ranges used in the assign
-        assert(s.src[0].op === Ops.DEFINE_ACC)
+        if (s.src[0].op !== Ops.DEFINE_ACC) throw new Error(`${s.src[0].op} has to be ${Ops.DEFINE_ACC}`)
         this_block_ctx = [...this_block_ctx, ...temp_block_ctxs.get(s.src[1])!.filter((x) => !s.src[0].src.slice(1).includes(x))]
       } // flow though everything else
 

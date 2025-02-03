@@ -315,7 +315,7 @@ export function range(start: number, stop?: number, step = 1): number[] {
 }
 export const tuple = <T extends any[]>(...t: T) => t
 export const assert = (condition: boolean): condition is true => {
-  if (!condition) throw new Error()
+  if (!condition) throw new Error('Assert failed!')
   return condition
 }
 export function permutations<T>(arr: T[], length: number = arr.length): T[][] {

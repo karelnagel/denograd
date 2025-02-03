@@ -77,6 +77,5 @@ Deno.test(
     ],
     tryCatch(linearize_uop),
     'out(trycatch(lambda:tiny.codegen.linearize.linearize_uop(*data)))',
-    { stringSimilarity: 0.79 },
   ),
 )
