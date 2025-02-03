@@ -16,6 +16,7 @@ export class BasicBlock {
   static cache = new WeakValueMap<string, BasicBlock>()
   constructor(public ctx: UOp[], public lst: UOp[], public end?: UOp) {
     this.key = get_key(ctx, lst, end)
+    Object.freeze(this)
     return BasicBlock.cache.setDefault(this.key, this)
   }
   lt = (o: BasicBlock) => is_less_than([...this.ctx, ...this.lst].map((x) => x.tuplize), [...o.ctx, ...o.lst].map((x) => x.tuplize))

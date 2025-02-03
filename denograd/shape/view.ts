@@ -84,6 +84,7 @@ export class View {
   static cache = new WeakValueMap<string, View>()
   constructor(public shape: sint[], public strides: sint[], public offset: sint, public mask?: [sint, sint][], public contiguous?: boolean) {
     this.key = get_key(shape, strides, offset, mask, contiguous)
+    Object.freeze(this)
     return View.cache.setDefault(this.key, this)
   }
 

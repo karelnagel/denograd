@@ -272,6 +272,7 @@ export class UOp extends MathTrait<UOp> {
     }
     UOp.register.register(this, { children: this.children, key: this.key })
     UOp.cache.set(this.key, this)
+    Object.freeze(this)
   }
   @cache
   override toString(): string {
@@ -711,6 +712,7 @@ export class KernelInfo {
     public dont_use_locals = false, // don't use local indexing
   ) {
     this.key = get_key(local_dims, upcasted, dont_use_locals)
+    Object.freeze(this)
     return KernelInfo.cache.setDefault(this.key, this)
   }
   toString = () => `new KernelInfo(${this.local_dims}, ${this.upcasted}, ${this.dont_use_locals})`

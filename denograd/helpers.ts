@@ -447,6 +447,7 @@ export class Metadata {
   static cache = new WeakValueMap<string, Metadata>()
   constructor(public name: string, public caller: string, public backward = false) {
     this.key = get_key(name, caller, backward)
+    Object.freeze(this)
     return Metadata.cache.setDefault(this.key, this)
   }
   // def __hash__(self): return hash(self.name)

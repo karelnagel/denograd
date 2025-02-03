@@ -41,6 +41,7 @@ export class Opt {
   static cache = new WeakValueMap<string, Opt>()
   constructor(public op: OptOps, public axis?: number, public amt?: number) {
     this.key = get_key(op, axis, amt)
+    Object.freeze(this)
     return Opt.cache.setDefault(this.key, this)
   }
   toString = () => `Opt(op=${this.op}, axis=${this.axis}, amt=${this.amt})`

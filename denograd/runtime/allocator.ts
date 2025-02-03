@@ -19,6 +19,7 @@ export class BufferSpec {
     public external_ptr?: bigint,
   ) {
     this.key = get_key(image, uncached, cpu_access, host, nolru, external_ptr)
+    Object.freeze(this)
     return BufferSpec.cache.setDefault(this.key, this)
   }
 }
