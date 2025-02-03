@@ -285,7 +285,7 @@ export class UOp extends MathTrait<UOp> {
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
-  replace = (args: Partial<UOpInput>) => new UOp(args.op || this.op, args.dtype || this.dtype, args.src || this.src, args.arg || this.arg)
+  replace = (args: Partial<UOpInput>) => new UOp(args.op !== undefined ? args.op : this.op, args.dtype !== undefined ? args.dtype : this.dtype, args.src !== undefined ? args.src : this.src, args.arg !== undefined ? args.arg : this.arg)
 
   get toposort(): Set<UOp> {
     const _toposort = (u: UOp, cache: Set<UOp>): Set<UOp> => {
@@ -801,7 +801,7 @@ export class UPat extends MathTrait<UPat> {
     // only one if it's a tuple (we use src[])
     else if (Array.isArray(src)) this.src = [src as UPat[]]
     // repeat if it's a UPat
-    else if (src instanceof UPat) this.src = [range(10).map(() => src!) as UPat[]] // KAREL: this is a hack
+    else if (src instanceof UPat) this.src = [range(100).map(() => src!) as UPat[]] // KAREL: this is a hack
 
     // NOTE: This is here because we can't differentaite between list and tuple so we use Upat[][] to achieve the same thing as list. but after this part the difference isn't needed anymore so we convert back to UPat[]
     if (Array.isArray(src) && src?.length === 1 && Array.isArray(src[0])) src = src[0]
@@ -2175,22 +2175,28 @@ export const create_gate = (root: UOp): undefined | UOp => {
 }
 export const expander = new PatternMatcher([
   // double expand
-  [new UPat(Ops.UNROLL, undefined, [new UPat(Ops.UNROLL).named('inner')], undefined, 'outer'), ({ outer, inner }) => new UOp(Ops.UNROLL, outer.dtype, [inner.src[0]], inner.arg + outer.arg)],
+  [
+    new UPat(Ops.UNROLL, undefined, [new UPat(Ops.UNROLL).named('inner')], undefined, 'outer'),
+    ({ outer, inner }) => new UOp(Ops.UNROLL, outer.dtype, [inner.src[0]], [...inner.arg, ...outer.arg]),
+  ],
   // do expansion
-  [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.GEP, Ops.WMMA, Ops.LOAD, Ops.STORE, Ops.INDEX, Ops.ASSIGN, Ops.VECTORIZE, Ops.IF], undefined, undefined, undefined, 'root', undefined, undefined, [Ops.UNROLL]), ({ root }) => do_expand(root)],
+  [
+    new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.GEP, Ops.WMMA, Ops.LOAD, Ops.STORE, Ops.INDEX, Ops.ASSIGN, Ops.VECTORIZE, Ops.IF], undefined, undefined, undefined, 'root', undefined, undefined, [Ops.UNROLL]),
+    ({ root }) => do_expand(root),
+  ],
   [new UPat(Ops.CONTRACT).named('con'), ({ con }) => do_contract(con)],
   // vectorize DEFINE_ACC
-  [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.DEFINE_ACC).named('acc'), undefined, 'v'), ({ acc, v }) => acc.replace({ dtype: v.dtype })],
+  [new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.DEFINE_ACC).named('acc')).named('v'), ({ acc, v }) => acc.replace({ dtype: v.dtype })],
   // BARRIERs aren't actually expanded
   [
     new UPat(Ops.BARRIER, undefined, [new UPat(Ops.UNROLL).named('ex')]),
-    ({ ex }) => new UOp(Ops.UNROLL, dtypes.void, range(ex.src.length).map((x) => new UOp(Ops.BARRIER, dtypes.void, ex.src)), ex.arg),
+    ({ ex }) => new UOp(Ops.UNROLL, dtypes.void, range(ex.src.length).map(() => new UOp(Ops.BARRIER, dtypes.void, ex.src)), ex.arg),
   ],
   // empty EXPAND is NOOP
   [new UPat(Ops.UNROLL, undefined, [UPat.var('x')], []), ({ x }) => x],
   // EXPAND GEP (needed for WMMA, generalize this) -> vectorized ALU
   [
-    new UPat(Ops.UNROLL, undefined, range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i))), undefined, 'ex'),
+    new UPat(Ops.UNROLL, undefined, range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i)))).named('ex'),
     ({ ex, x, y }) => new UOp(Ops.UNROLL, ex.dtype, range(AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
   ],
 ])
