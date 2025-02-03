@@ -1169,7 +1169,7 @@ export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | type
 const lt_folding = (x: UOp, c: number): UOp | undefined => {
   const [p, np] = partition(split_uop(x, Ops.ADD).toArray(), (u) => u.constFactor() === 1)
   const d = math_gcd(...np.map((u) => u.constFactor()), c)
-  if (np && d > 1 && 0 <= p.map((u) => u.vmin).reduce((p, c) => add(c, p)) && p.map((u) => u.vmax).reduce((p, c) => add(p, c)) < d) {
+  if (np && d > 1 && 0 <= sum(p.map((u) => u.vmin)) && sum(p.map((u) => u.vmax)) < d) {
     return np.reduce((p, c) => p.add(c), UOp.int(0)).divides(d)!.lt(idiv(c, d))
   }
   return undefined
