@@ -53,7 +53,7 @@ export const _reshape_mask = cache_fn((_mask: undefined | [sint, sint][], old_sh
       new_mask.push([idiv(l, curr_stride), add(idiv(sub(r, 1), curr_stride), 1)])
       curr_stride = 1, old_dim = next(r_shape, 1), new_dim = next(r_new_shape, 1), mask = next(r_masks, [0, 1])
     } else if (old_dim > next_stride) {
-      if (old_dim as number % (next_stride as number) !== 0) return undefined
+      if (mod(old_dim, next_stride) !== 0) return undefined
       if ((mod(l, next_stride) !== 0 || mod(r, next_stride) !== 0) && idiv(l, next_stride) !== idiv(sub(r, 1), next_stride)) return undefined
       new_mask.push([idiv(mod(l, next_stride), curr_stride), add(idiv(mod(sub(r, 1), next_stride), curr_stride), 1)])
       curr_stride = next_stride, new_dim = next(r_new_shape, 1) // need to get mask for next dimension

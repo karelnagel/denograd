@@ -1,5 +1,5 @@
 import type * as _webgpu from 'https://esm.sh/@webgpu/types@0.1.52'
-import { bytes_to_string, cpu_time_execution, isInt, NotImplemented, range, round_up, zip } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, isInt, mod, NotImplemented, range, round_up, zip } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
@@ -71,11 +71,11 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
   _alloc = (size: number, options?: BufferSpec) => this.dev.createBuffer({ size: round_up(size, 4), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
   _copyin = (dest: GPUBuffer, src: MemoryView) => {
     let padded_src
-    if (src.byteLength % 4) {
+    if (mod(src.byteLength, 4)) {
       padded_src = new Uint8Array(round_up(src.byteLength, 4))
       padded_src.set(src.toBytes())
     }
-    this.dev.queue.writeBuffer(dest, 0, src.byteLength % 4 ? padded_src! : src.toBytes())
+    this.dev.queue.writeBuffer(dest, 0, mod(src.byteLength, 4) ? padded_src! : src.toBytes())
   }
   _copyout = async (dest: MemoryView, src: GPUBuffer) => {
     const size = round_up(dest.byteLength, 4)

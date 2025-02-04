@@ -149,7 +149,7 @@ export class Kernel {
   }
 
   // TODO: these need more tests ||it might silently be no-op
-  float4_axis = (i: number) => this.sts[i].unit_stride_axes().filter((x) => x >= this.first_upcast && (this.sts[i].shape[x] as number) % 4 === 0).map((x) => x - this.first_upcast)
+  float4_axis = (i: number) => this.sts[i].unit_stride_axes().filter((x) => x >= this.first_upcast && mod(this.sts[i].shape[x], 4) === 0).map((x) => x - this.first_upcast)
 
   upcasted_axis = (i: number): [number, undefined | sint, boolean][] => {
     const upcasted_shape = this.sts[i].shape.slice(this.first_upcast), upcasted_stride = this.sts[i].real_strides().slice(this.first_upcast)
@@ -393,12 +393,12 @@ export class Kernel {
           if (this.opts.device === 'CLANG' && AMX) return true // skip hand-coded TC opts if AMX, upcasting will make kernel slower
           // hand-coded TC opts
           for (const tc_dim of [1, 0].filter((tc_dim) => tc_opts.axes_exist[tc_dim])) { // attempt to upcast M and N
-            const szs = [5, 4, 3, 2].filter((sz) => this.full_shape[tc_opts.axes[tc_dim]] as number % sz === 0)
+            const szs = [5, 4, 3, 2].filter((sz) => mod(this.full_shape[tc_opts.axes[tc_dim]], sz) === 0)
             if (szs.length) this.apply_opt(new Opt(OptOps.UPCAST, tc_opts.axes[tc_dim], szs[0]))
           }
 
           if (tc_opts.axes_exist[0]) {
-            const szs = [4, 2].filter((sz) => this.full_shape[tc_opts.axes[0]] as number % sz === 0) // attempt to local N
+            const szs = [4, 2].filter((sz) => mod(this.full_shape[tc_opts.axes[0]], sz) === 0) // attempt to local N
             if (szs.length) this.apply_opt(new Opt(OptOps.LOCAL, tc_opts.axes[0], szs[0]))
           }
         }
@@ -427,7 +427,7 @@ export class Kernel {
     else if (opt.amt !== undefined) {
       amt = opt.amt !== 0 ? opt.amt : (this.full_shape[axis] as number)
       check(isinstance(amt, Number) && amt !== 1, `shift/padto of amt=${amt}, 1 or symbolic amount is meaningless`)
-      if (opt.op !== OptOps.PADTO) check((this.full_shape[axis] as number) % amt === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}`)
+      if (opt.op !== OptOps.PADTO) check(mod(this.full_shape[axis], amt) === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}`)
     } else amt = -1
 
     if (this.reduceop !== undefined && ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op) || (this.group_for_reduces && ![OptOps.NOLOCALS, OptOps.PADTO].includes(opt.op)))) {
@@ -504,7 +504,7 @@ export class Kernel {
   }
   required_optimizations = (): Kernel => {
     if (this.membufs[0].dtype instanceof ImageDType) {
-      const unit_stride_axes_mul_4 = this.sts[0].unit_stride_axes(true).filter((i) => (this.sts[0].shape[i] as number) % 4 === 0)
+      const unit_stride_axes_mul_4 = this.sts[0].unit_stride_axes(true).filter((i) => mod(this.sts[0].shape[i], 4) === 0)
       if (!unit_stride_axes_mul_4.length) throw new Error(`needs a unit stride axis in ${this.bufs[0]}`)
       if (unit_stride_axes_mul_4.every((x) => x < this.first_upcast)) this.apply_opt(new Opt(OptOps.UPCAST, unit_stride_axes_mul_4[0], 4))
     }
@@ -522,7 +522,7 @@ export class Kernel {
       const has_expanded_axis = (shape: sint[], strides: sint[]) => zip(shape, strides).some(([s, st]) => resolve(gt(s, 1)) && !resolve(ne(st, 0)))
       if (strides0[this.first_reduce] === 1 && !(has_expanded_axis(st0.shape, strides0 as sint[]) && has_expanded_axis(st1.shape, strides1 as sint[]))) {
         for (const global_idx of range(this.global_dims)) {
-          if (this.full_shape[this.first_reduce] as number % MV_THREADS_PER_ROW === 0 && this.full_shape[global_idx] as number % (MV_BLOCKSIZE * MV_ROWS_PER_THREAD) === 0) {
+          if (mod(this.full_shape[this.first_reduce], MV_THREADS_PER_ROW) === 0 && mod(this.full_shape[global_idx], MV_BLOCKSIZE * MV_ROWS_PER_THREAD) === 0) {
             if (DEBUG >= 3) console.log(`MATVEC: ${this.full_shape} ${this.first_reduce} ${strides0} ${MV_BLOCKSIZE} ${MV_THREADS_PER_ROW} ${MV_ROWS_PER_THREAD}`)
             if (MV_THREADS_PER_ROW > 1) this.apply_opt(new Opt(OptOps.GROUP, 0, MV_THREADS_PER_ROW))
             if (MV_BLOCKSIZE > 1) this.apply_opt(new Opt(OptOps.LOCAL, global_idx, MV_BLOCKSIZE))
@@ -537,7 +537,7 @@ export class Kernel {
       if (!this.float4_axis(0) && this.first_reduce <= 2 && this.first_reduce + 1 <= this.shape_len && prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 2048) {
         // TODO: use 1024 if it's allowed in a smarter way
         for (const sz of (prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 32 ? [256, 16] : [16])) {
-          if (this.sts.every((st) => st.shape[this.first_reduce] as number % sz === 0 || st.shape[this.first_reduce] === 1)) {
+          if (this.sts.every((st) => mod(st.shape[this.first_reduce], sz) === 0 || st.shape[this.first_reduce] === 1)) {
             try { // may fail due to excessive smem usage
               this.apply_opt(new Opt(OptOps.GROUPTOP, 0, sz))
               break
@@ -550,7 +550,7 @@ export class Kernel {
     }
     // upcast float4 images
     for (const [buf_index, buf] of this.bufs.entries()) {
-      const unit_stride_axes_mul_4 = this.sts[buf_index].unit_stride_axes(true).filter((i) => this.sts[buf_index].shape[i] as number % 4 === 0)
+      const unit_stride_axes_mul_4 = this.sts[buf_index].unit_stride_axes(true).filter((i) => mod(this.sts[buf_index].shape[i], 4) === 0)
       if (buf.src[0].dtype instanceof ImageDType) {
         // assert len(unit_stride_axes_mul_4) >= 1, f"needs a unit stride axis in {this.bufs[buf_index]}"
         if (unit_stride_axes_mul_4.length && unit_stride_axes_mul_4.every((x) => x < this.first_upcast)) {
@@ -588,7 +588,7 @@ export class Kernel {
       let xb_choices: [number, number, number, number][] = []
       for (const [axis, upcast_amount] of product(range(this.first_reduce), [3, 4])) { // consider all the non reduce axes, and a 3 or 4 reduce
         // if we haven't upcasted it, it's not symbolic, it mods, and buffer has stride 0 on axis while having no stride 0 in the upcasted axis already
-        if (!upcasted_axis.has(axis) && isInt(this.full_shape[axis]) && this.full_shape[axis] % upcast_amount === 0 && this.sts.some((st, buf_index) => st.views.at(-1)!.strides[axis] === 0 && !this.upcasted_axis(buf_index).some((x) => x[1] === 0))) {
+        if (!upcasted_axis.has(axis) && isInt(this.full_shape[axis]) && mod(this.full_shape[axis], upcast_amount) === 0 && this.sts.some((st, buf_index) => st.views.at(-1)!.strides[axis] === 0 && !this.upcasted_axis(buf_index).some((x) => x[1] === 0))) {
           xb_choices.push([sum(this.sts.map((st) => Number(st.views.at(-1)!.strides[axis] as number > 0))), sum(this.sts.map((st) => st.views.at(-1)!.strides[axis])) as number, axis, upcast_amount])
         }
       }
@@ -610,7 +610,7 @@ export class Kernel {
         }
       } else {
         for (const splits of [4]) {
-          if (this.full_unupcasted_shape.at(-1) as number % splits === 0) {
+          if (mod(this.full_unupcasted_shape.at(-1)!, splits) === 0) {
             this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, splits))
             break
           }
@@ -620,7 +620,7 @@ export class Kernel {
     // if nothing at all is upcasted and it's easy to, do an upcast
     // TODO: this is breaking the tests
     for (const splits of [4]) {
-      if (this.upcasted === 0 && this.full_unupcasted_shape && this.full_unupcasted_shape.at(-1) as number % splits === 0) {
+      if (this.upcasted === 0 && this.full_unupcasted_shape.length && mod(this.full_unupcasted_shape.at(-1)!, splits) === 0) {
         this.apply_opt(new Opt(OptOps.UPCAST, this.full_unupcasted_shape.length - 1, splits))
       }
     }
@@ -636,7 +636,7 @@ export class Kernel {
         let to_local: [number, number][] = []
         for (const [_, axis] of local_axis_ranking.toSorted((a, b) => b[0] === a[0] ? Number(b[1]) - Number(a[1]) : Number(b[0]) - Number(a[0]))) {
           const local_size = prod(to_local.map(([_, sz]) => sz))
-          const local_sz = [...(axis === 0 ? [32] : []), 16, 8, 4, 3, 2].filter((x) => this.full_shape[Number(axis)] as number % x === 0 && local_size * x <= 128).shift() // KAREL: should be .next()
+          const local_sz = [...(axis === 0 ? [32] : []), 16, 8, 4, 3, 2].filter((x) => mod(this.full_shape[Number(axis)], x) === 0 && local_size * x <= 128).shift() // KAREL: should be .next()
           if (local_sz !== undefined) to_local.push([Number(axis), local_sz])
         }
         let deleted_shape = 0

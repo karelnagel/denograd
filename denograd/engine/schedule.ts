@@ -1,6 +1,6 @@
 import { type Buffer, uop_buffer, uop_is_realized } from '../device.ts'
 import { DType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, list_str, merge_maps, type Metadata, NotImplemented, range, set_default, zip } from '../helpers.ts'
+import { all_int, all_same, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, FUSE_ARANGE, FUSE_CONV_BW, get_env, is_eq, list_str, merge_maps, type Metadata, mod, NotImplemented, range, set_default, zip } from '../helpers.ts'
 import { buffers, can_pad, graph_rewrite_map, identity_element, resolve, type sint, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
 import { ge, lt, mul, pow, prod, sub } from '../helpers.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, type Variable, view_left } from '../ops.ts'
@@ -105,7 +105,7 @@ const add_buffers = (buf: UOp, tensor_map: Map<UOp, UOp[]>, ctx: ScheduleContext
   }
   // make things that can't be images not images
   let dtype = buf.dtype
-  if (dtype instanceof ImageDType && (prod(buf.shape) !== prod(dtype.shape) || !buf.st!.unit_stride_axes().some((x) => buf.shape[x] as number % 4 === 0))) {
+  if (dtype instanceof ImageDType && (prod(buf.shape) !== prod(dtype.shape) || !buf.st!.unit_stride_axes().some((x) => mod(buf.shape[x], 4) === 0))) {
     if (DEBUG >= 2) console.log(`forcing image ${dtype} with shape ${buf.shape} to ${dtype.base}`)
     dtype = buf.dtype.base
   }

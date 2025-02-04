@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, le, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -446,7 +446,7 @@ export class UOp extends MathTrait<UOp> {
     // split is moved to the end to provide maximum locality for the second phase reduce.
     const self_real_strides = this.st!.real_strides(true)
     const split_candidates = range(Math.min(256, (2 ** get_number_env('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape) as number)), 8 - 1, -1)
-      .flatMap((x) => axis.filter((i) => (this.shape[i] as number) % x === 0 && self_real_strides[i] !== 0).map((i) => [i, x]))
+      .flatMap((x) => axis.filter((i) => mod(this.shape[i] as number, x) === 0 && self_real_strides[i] !== 0).map((i) => [i, x]))
     if (!split_candidates.length) return this._reduce_op(op, axis)
     const [dim_to_split, divisor] = split_candidates[0]
     const splitted_shape = [...this.shape.slice(0, dim_to_split), divisor, idiv(this.shape[dim_to_split], divisor), ...this.shape.slice(dim_to_split + 1)]
@@ -486,7 +486,7 @@ export class UOp extends MathTrait<UOp> {
     let lbs: UOp[]
     if (axis === undefined) lbs = range(devices.length).map(() => this)
     else {
-      if (this.shape[axis] as number % devices.length !== 0) throw new Error(`multi axis uneven: this.shape[axis]=${this.shape[axis]} axis=${axis} devices.length=${devices.length}`)
+      if (mod(this.shape[axis], devices.length) !== 0) throw new Error(`multi axis uneven: this.shape[axis]=${this.shape[axis]} axis=${axis} devices.length=${devices.length}`)
       let sz = idiv(this.shape[axis] as number, devices.length)
       const sizes = range(devices.length).map((i) => max([0, min([sz, this.shape[axis!] as number - sz * i])]))
       lbs = []
@@ -622,8 +622,8 @@ export class UOp extends MathTrait<UOp> {
   }
   divides = (v: number): UOp | undefined => {
     if (v === 1) return this
-    if (this.op === Ops.CONST) return this.arg % v === 0 ? this.const_like(idiv(this.arg, v)) : undefined
-    if (this.op === Ops.VCONST) return this.arg.every((x: number) => x % v === 0) ? this.const_like(this.arg.map((x: number) => idiv(x, v))) : undefined
+    if (this.op === Ops.CONST) return mod(this.arg, v) === 0 ? this.const_like(idiv(this.arg, v)) : undefined
+    if (this.op === Ops.VCONST) return this.arg.every((x: number) => mod(x, v) === 0) ? this.const_like(this.arg.map((x: number) => idiv(x, v))) : undefined
 
     if (this.op === Ops.ADD) {
       const d0 = this.src[0].divides(v)
@@ -1096,7 +1096,7 @@ export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | type
 
   let svars: UOp[] = [], factors: number[] = [], quotients: number[] = [], remainders: number[] = [], gcd = c, div = 1, const2 = 0, offset: number | bigint = 0, something_changed = false
   for (let u of split_uop(x, Ops.ADD)) {
-    if (u.op === Ops.MOD && which === Ops.MOD && u.src[1].op === Ops.CONST && u.src[1].arg % c === 0) {
+    if (u.op === Ops.MOD && which === Ops.MOD && u.src[1].op === Ops.CONST && mod(u.src[1].arg, c) === 0) {
       u = u.src[0]
       something_changed = true
     }
@@ -1106,7 +1106,7 @@ export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | type
     offset = add(offset, mul(r, v.vmin))
     if (u.op === Ops.CONST) const2 += f
     else { // div is the smallest common divisor of all terms
-      if (f > 1 && c % f === 0 && (div === 1 || div > f)) div = f
+      if (f > 1 && mod(c, f) === 0 && (div === 1 || div > f)) div = f
       gcd = math_gcd(r, gcd)
       factors.push(f), svars.push(v), quotients.push(q), remainders.push(r)
     }
@@ -1890,11 +1890,11 @@ export const threefry2x32 = (x: UOp, key: UOp) => {
   const ks = [key1, key0.xor(key1).xor(0x1BD11BDA), key0]
   let xr = [x0.add(ks.at(-1)!), x1.add(ks[0])]
   for (const i of range(5)) {
-    for (const r of rotations[i % 2]) {
+    for (const r of rotations[mod(i, 2)]) {
       const x0 = xr[0].add(xr[1])
       ;[xr[0], xr[1]] = [x0, x0.xor(xr[1].mul(2 ** r).add(xr[1].idiv(2 ** (32 - r))))]
     }
-    xr = [xr[0].add(ks[i % 3]), xr[1].add(ks[(i + 1) % 3]).add(i).add(1)]
+    xr = [xr[0].add(ks[mod(i, 3)]), xr[1].add(ks[mod(i + 1, 3)]).add(i).add(1)]
   }
   return xr[1].cast(dtypes.uint64).mul(2n ** 32n).bitwise_or(xr[0].cast(dtypes.uint64))
 }

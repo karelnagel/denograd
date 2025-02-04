@@ -2,7 +2,7 @@
 
 import { type Layer, Tensor } from '../denograd/tensor.ts'
 import { mnist } from '../denograd/nn/datasets.ts'
-import { get_env, get_number_env, range } from '../denograd/helpers.ts'
+import { get_env, get_number_env, mod, range } from '../denograd/helpers.ts'
 import { Tqdm } from '../denograd/tqdm.ts'
 import { BatchNorm, Conv2d, Linear, Model } from '../denograd/nn/index.ts'
 import { get_parameters } from '../denograd/nn/state.ts'
@@ -50,7 +50,7 @@ if (import.meta.main) {
   const t = new Tqdm(range(get_number_env('STEPS', 12)))
   for await (const i of t) {
     const loss = await train_step().then((x) => x.item())
-    if (i % 10 === 9) test_acc = await get_test_acc().item()
+    if (mod(i, 10) === 9) test_acc = await get_test_acc().item()
     t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
   }
   Tensor.training = false

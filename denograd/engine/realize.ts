@@ -1,7 +1,7 @@
 // deno-lint-ignore-file require-await
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type DeviceType, type Program } from '../device.ts'
-import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
+import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, mod, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
 import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
 import type { ScheduleItem } from './schedule.ts'
@@ -57,7 +57,7 @@ export class CompiledRunner extends Runner {
     let [global_size, local_size] = this.p.launch_dims(var_vals)
     if (global_size !== undefined && local_size === undefined && all_int(this.p.global_size!)) {
       local_size = await optimize_local_size(this._prg, global_size, rawbufs)
-      global_size = zip(global_size, local_size!).map(([g, l]) => g % l === 0 ? idiv(g, l) : g / l)
+      global_size = zip(global_size, local_size!).map(([g, l]) => mod(g ,l) === 0 ? idiv(g, l) : g / l)
       this.p.global_size = global_size
       this.p.global_size = local_size
     }
