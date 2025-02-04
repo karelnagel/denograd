@@ -403,7 +403,7 @@ export class UOp extends MathTrait<UOp> {
       if (this.op === Ops.CONST) return UOp.const(this.dtype.scalar(), this.arg)
       i = [i]
     }
-    if (this.dtype.vcount === i.length && is_eq(i, range(i.length)) || this.dtype === dtypes.void) return this
+    if ((this.dtype.vcount === i.length && is_eq(i, range(i.length))) || this.dtype === dtypes.void) return this
     return new UOp(Ops.GEP, i.length > 1 ? this.dtype.scalar().vec(i.length) : this.dtype.scalar(), [this], i)
   }
   load = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.LOAD, kwargs?.dtype, kwargs?.src || [this, ...src], kwargs?.arg)
@@ -991,17 +991,17 @@ export const spec = new PatternMatcher<unknown, boolean | undefined>([
   [new UPat(Ops.DEFINE_GLOBAL).named('x'), ({ x }) => (x.dtype instanceof PtrDType || x.dtype instanceof ImageDType) && !x.dtype.local],
   [new UPat(Ops.DEFINE_LOCAL).named('x'), ({ x }) => x.dtype instanceof PtrDType && x.dtype.local],
   [new UPat(Ops.DEFINE_ACC, undefined, [UPat.var('c')], undefined, 'x', true), ({ x, c }) => x.src.slice(1).every((y) => y.op === Ops.RANGE) && c.dtype === x.dtype],
-  [new UPat(Ops.DEFINE_VAR, undefined, [], undefined, 'x'), ({ x }) => typeof x.arg[1] === 'number' && typeof x.arg[2] === 'number'],
+  [new UPat(Ops.DEFINE_VAR, undefined, []).named('x'), ({ x }) => typeof x.arg[1] === 'number' && typeof x.arg[2] === 'number'],
 
   [
-    new UPat(Ops.RANGE, undefined, [new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'rng'),
+    new UPat(Ops.RANGE, undefined, [new UPat(undefined).named('x'), new UPat(undefined).named('y')]).named('rng'),
     ({ rng, x, y }) => rng.dtype === x.dtype && x.dtype === y.dtype && typeof rng.arg === 'number',
   ],
   [new UPat(Ops.SPECIAL, undefined, []), () => true],
 
   // TODO: confirm the args of both of these are shapetrackers
   [new UPat(Ops.VIEW, dtypes.void, []), () => true],
-  [new UPat(Ops.VIEW, undefined, [UPat.var('src')], undefined, 'x'), ({ x, src }) => src.op !== Ops.STORE && x.dtype === src.dtype],
+  [new UPat(Ops.VIEW, undefined, [UPat.var('src')]).named('x'), ({ x, src }) => src.op !== Ops.STORE && x.dtype === src.dtype],
   [new UPat(Ops.VALID, dtypes.bool, [new UPat(Ops.VIEW)]), () => true],
   [new UPat(Ops.CONST).named('x'), ({ x }) => x.dtype === x.dtype.scalar() && dtypes.verify(x.arg, x.dtype)], // NOTE: this is slightly different from python, int(1) != float(1) in py but it is the same in TS
 
@@ -1017,7 +1017,7 @@ export const spec = new PatternMatcher<unknown, boolean | undefined>([
   // LOAD takes a <bufidx, alt?, gate?, barrier?>
   [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST])]), () => true],
   [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat([Ops.IF, Ops.BARRIER])]), () => true],
-  [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat(undefined).named('alt'), new UPat(undefined, dtypes.bool)], undefined, 'ld'), ({ ld, alt }) => ld.dtype === alt.dtype],
+  [new UPat(Ops.LOAD, undefined, [new UPat([Ops.INDEX, Ops.CAST]), new UPat(undefined).named('alt'), new UPat(undefined, dtypes.bool)]).named('ld'), ({ ld, alt }) => ld.dtype === alt.dtype],
 
   // STORE takes a <bufidx, val, gate?>
   [new UPat(Ops.STORE, dtypes.void, [new UPat([Ops.INDEX, Ops.CAST]), new UPat()]), () => true],
@@ -1026,14 +1026,14 @@ export const spec = new PatternMatcher<unknown, boolean | undefined>([
 
   // most ALUs have all matching dtypes, except CMPLT, CMPNE, and WHERE
   [
-    new UPat(Ops.WHERE, undefined, [new UPat(undefined, dtypes.bool), new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'w'),
+    new UPat(Ops.WHERE, undefined, [new UPat(undefined, dtypes.bool), new UPat(undefined).named('x'), new UPat(undefined).named('y')]).named('w'),
     ({ w, x, y }) => w.dtype === x.dtype && x.dtype === y.dtype,
   ],
   [new UPat([Ops.CMPLT, Ops.CMPNE], dtypes.bool, [new UPat(undefined).named('x'), new UPat(undefined).named('y')]), ({ x, y }) => x.dtype.base === y.dtype.base],
 
   // and SHL/SHR, the shift distance can be an int
   [
-    new UPat([Ops.SHL, Ops.SHR], undefined, [new UPat(undefined).named('x'), new UPat(undefined).named('y')], undefined, 'a'),
+    new UPat([Ops.SHL, Ops.SHR], undefined, [new UPat(undefined).named('x'), new UPat(undefined).named('y')]).named('a'),
     ({ a, x, y }) => a.dtype === x.dtype && [x.dtype, dtypes.uint].includes(y.dtype),
   ],
   [new UPat(Ops.IDIV).named('x'), ({ x }) => dtypes.is_int(x.dtype) ? undefined : false],
@@ -1052,9 +1052,9 @@ export const spec = new PatternMatcher<unknown, boolean | undefined>([
   [new UPat(Ops.IF, dtypes.void, [new UPat(), new UPat(Ops.BARRIER)]), () => true],
   [new UPat(Ops.ENDIF, dtypes.void, [new UPat(Ops.IF)]), () => true],
   [new UPat(Ops.REDUCE_AXIS).named('x'), ({ x }) => Array.isArray(x.arg) && x.arg.length === 2 && [Ops.ADD, Ops.MUL, Ops.MAX].includes(x.arg[0])],
-  [new UPat(Ops.GEP, undefined, [new UPat(undefined).named('src')], undefined, 'gep'), ({ gep, src }) => gep.dtype === src.dtype.scalar()],
+  [new UPat(Ops.GEP, undefined, [new UPat(undefined).named('src')]).named('gep'), ({ gep, src }) => gep.dtype === src.dtype.scalar()],
   [new UPat(Ops.VECTORIZE).named('x'), ({ x }) => x.src.length > 1 && x.src.length === x.dtype.count && x.src.every((y) => x.dtype === y.dtype.vec(x.src.length))],
-  [new UPat([Ops.BITCAST, Ops.CAST], undefined, [new UPat()], undefined, 'x'), ({ x }) => x.arg === undefined],
+  [new UPat([Ops.BITCAST, Ops.CAST], undefined, [new UPat()]).named('x'), ({ x }) => x.arg === undefined],
   [new UPat(Ops.BARRIER, dtypes.void, new UPat(Ops.STORE, undefined, undefined, undefined, undefined, true)), () => true], // NOTE: all pointers must be local
   // NOTE: for testing, we let sinks be anything
   // [new UPat(UOps.SINK, undefined, new UPat(UOps.STORE)), () => true],
@@ -2012,7 +2012,7 @@ export const sym = symbolic_flat.add(
     // reorder ALU/VECTORIZE
     [
       new UPat(GroupOp.ALU, undefined, [new UPat(Ops.VECTORIZE, undefined, new UPat(undefined).named('x')), new UPat(Ops.VECTORIZE, undefined, new UPat(undefined).named('y'))], undefined, 'alu'),
-      ({ x, y, alu }) => new UOp(Ops.VECTORIZE, alu.dtype, range(alu.dtype.count).map((i) => new UOp(alu.op, alu.dtype.scalar(), [x, y]))),
+      ({ x, y, alu }) => new UOp(Ops.VECTORIZE, alu.dtype, range(alu.dtype.count).map(() => new UOp(alu.op, alu.dtype.scalar(), [x, y]))),
     ],
     // VECTORIZE of a single element is just that element
     [new UPat(Ops.VECTORIZE, undefined, [new UPat(undefined).named('x')]), ({ x }) => x],
@@ -2054,7 +2054,7 @@ export const sym = symbolic_flat.add(
     [acc_pat.assign(UPat.var('idx').eq(new UPat(Ops.RANGE).named('rng')).cast().mul(index_load).add(acc_pat)), ({ idx, rng, buf, ld, axx, add, mul }) => index_collapse(idx, rng, buf, ld, axx, add, mul)],
     [acc_pat.assign(UPat.var('idx').eq(new UPat(Ops.RANGE).named('rng')).where(index_load, UPat.const(undefined, 0.0)).add(acc_pat)), ({ idx, rng, buf, ld, acc, add, mul }) => index_collapse(idx, rng, buf, ld, acc, add, mul)],
     // parentless reduce  # TODO: add MUL
-    [acc_pat.assign(new UPat([Ops.ADD, Ops.MAX], undefined, [[acc_pat, UPat.var('ret')]], undefined, 'alu')), ({ acc, ret, alu }) => reduce_collapse(acc, ret, alu)],
+    [acc_pat.assign(new UPat([Ops.ADD, Ops.MAX], undefined, [[acc_pat, UPat.var('ret')]]).named('alu')), ({ acc, ret, alu }) => reduce_collapse(acc, ret, alu)],
     // ** self folding **
     [new UPat(Ops.DEFINE_ACC, undefined, [UPat.var('x')]), ({ x }) => x], // a DEFINE_ACC without ranges is a CONST
     [new UPat(Ops.ASSIGN, undefined, [UPat.cvar(), UPat.var('x')]), ({ x }) => x], // an ASSIGN to a const is a NOOP
@@ -2079,7 +2079,7 @@ export const sym = symbolic_flat.add(
     // stable sigmoid
     [UPat.var('x').mul(((UPat.var('x').add(1)).mul(UPat.var('x').add(1))).reciprocal()), ({ x }) => sigmoid_like(x, x.const_like(1))],
     [UPat.var('x').mul(((UPat.var('x').add(1)).mul(UPat.var('x').add(1))).reciprocal().mul(UPat.var('y'))), ({ x, y }) => sigmoid_like(x, y)],
-    [UPat.var('x').mul(((UPat.var('x').add(1)).mul(UPat.var('x').add(1)).mul(UPat.var('x').add(1))).reciprocal()), ({ x }) => sigmoid_like(x, (x.add(1)).reciprocal())],
+    [UPat.var('x').mul(((UPat.var('x').add(1)).mul(UPat.var('x').add(1)).mul(UPat.var('x').add(1))).reciprocal()), ({ x }) => sigmoid_like(x, x.add(1).reciprocal())],
   ]),
 )
 
