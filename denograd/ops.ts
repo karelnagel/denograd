@@ -1858,10 +1858,10 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
 const powers_of_two = new Map(range(64).map((i) => [2 ** i, i]))
 export const get_late_rewrite_patterns = cache_fn((ops: Ops[], force_transcendental = false) => {
   let pat: Pattern[] = ([[Ops.EXP2, xexp2], [Ops.LOG2, xlog2], [Ops.SIN, xsin]] as const).filter(([op, f]) => !ops.includes(op) || force_transcendental)
-    .map(([op, f]) => [new UPat(op, TRANSCENDENTAL_SUPPORTED_DTYPES, [UPat.var('d')]), (x) => f(x as any)])
+    .map(([op, f]) => new UPat(op, TRANSCENDENTAL_SUPPORTED_DTYPES, [UPat.var('d')]).fn((x) => f(x as any)))
   // rewrite MOD to AND (which should always be supported, but not for generic in tests): x % (2**y) -> x & (2**y-1)
   if (ops.includes(Ops.AND)) {
-    pat = [...pat, [UPat.var('x', dtypes.ints).mod(UPat.cvar('c')), ({ x, c }) => powers_of_two.has(c.arg) ? x.bitwise_and(sub(c.arg, 1)) : undefined] satisfies Pattern]
+    pat = [...pat, UPat.var('x', dtypes.ints).mod(UPat.cvar('c')).fn(({ x, c }) => powers_of_two.has(c.arg) ? x.bitwise_and(sub(c.arg, 1)) : undefined)]
   }
   // rewrite MUL/IDIV to SHL+SHR: x*(2**y) -> shl(x,y) and x//(2**y) -> shr(x,y)
   if (ops.includes(Ops.SHL) && ops.includes(Ops.SHR)) {
@@ -1872,11 +1872,11 @@ export const get_late_rewrite_patterns = cache_fn((ops: Ops[], force_transcenden
     ]
   }
   if (ops.includes(Ops.NEG)) {
-    pat = [...pat, [UPat.var('x').mul(-1), ({ x }) => x.alu(Ops.NEG)]]
-    if (ops.includes(Ops.SUB)) pat = [...pat, [UPat.var('x').add(UPat.var('y').alu(Ops.NEG)), ({ x, y }) => x.alu(Ops.SUB, y)]]
+    pat = [...pat, UPat.var('x').mul(-1).fn(({ x }) => x.alu(Ops.NEG))]
+    if (ops.includes(Ops.SUB)) pat = [...pat, UPat.var('x').add(UPat.var('y').alu(Ops.NEG)).fn(({ x, y }) => x.alu(Ops.SUB, y))]
   }
   if (ops.includes(Ops.MULACC)) {
-    pat = [...pat, [UPat.var('a').mul(UPat.var('b')).add(UPat.var('c')), ({ a, b, c }) => a.alu(Ops.MULACC, b, c)]]
+    pat = [...pat, UPat.var('a').mul(UPat.var('b')).add(UPat.var('c')).fn(({ a, b, c }) => a.alu(Ops.MULACC, b, c))]
   }
   return new PatternMatcher(pat)
 })
@@ -2008,10 +2008,9 @@ export const sym = symbolic_flat.add(
     new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.CONST), undefined, 'vec').fn(({ vec }) => UOp.const(vec.dtype, vec.src.map((x) => x.arg))),
     new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.GEP, undefined, [new UPat(undefined).named('x')]), undefined, 'vec').fn(({ vec, x }) => x.gep(vec.src.map((y) => y.arg[0]))),
     // reorder ALU/VECTORIZE
-    [
-      new UPat(GroupOp.ALU, undefined, [new UPat(Ops.VECTORIZE, undefined, new UPat(undefined).named('x')), new UPat(Ops.VECTORIZE, undefined, new UPat(undefined).named('y'))], undefined, 'alu'),
+    new UPat(GroupOp.ALU, undefined, [new UPat(Ops.VECTORIZE, undefined, new UPat(undefined).named('x')), new UPat(Ops.VECTORIZE, undefined, new UPat(undefined).named('y'))], undefined, 'alu').fn(
       ({ x, y, alu }) => new UOp(Ops.VECTORIZE, alu.dtype, range(alu.dtype.count).map(() => new UOp(alu.op, alu.dtype.scalar(), [x, y]))),
-    ],
+    ),
     // VECTORIZE of a single element is just that element
     new UPat(Ops.VECTORIZE, undefined, [new UPat(undefined).named('x')]).fn(({ x }) => x),
     // VECTORIZE void is SINK
@@ -2019,17 +2018,15 @@ export const sym = symbolic_flat.add(
     new UPat(Ops.VECTORIZE, dtypes.void).named('x').fn(({ x }) => new UOp(Ops.SINK, dtypes.void, x.src)),
     // GEP/VECTORIZE, GEP/GEP, GEP/CONST, GEP/VCONST
     new UPat(Ops.GEP, undefined, [new UPat(Ops.GEP).named('g2')], undefined, 'g1').fn(({ g1, g2 }) => g2.src[0].gep(range(g1.dtype.count).map((i) => g2.arg[g1.arg[i]]))),
-    [
-      new UPat(Ops.GEP, undefined, [new UPat(Ops.VECTORIZE).named('vec')], undefined, 'gep'),
+    new UPat(Ops.GEP, undefined, [new UPat(Ops.VECTORIZE).named('vec')], undefined, 'gep').fn(
       ({ gep, vec }) => gep.arg.length > 1 ? new UOp(Ops.VECTORIZE, gep.dtype, gep.arg.map((i: number) => vec.src[i])) : vec.src[gep.arg[0]],
-    ],
+    ),
     new UPat(Ops.GEP, undefined, [UPat.cvar('c', undefined, false)], undefined, 'gep').fn(({ gep, c }) => gep.const_like(c.arg)),
     new UPat(Ops.GEP, undefined, [new UPat(Ops.VCONST).named('c')], undefined, 'gep').fn(({ gep, c }) => gep.const_like(gep.arg.map((x: any) => c.arg[x]))),
     // push all GEPs through ALUs (fix arange stuff)
-    [
-      new UPat(Ops.GEP, undefined, [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST]).named('alu')], undefined, 'gep'),
+    new UPat(Ops.GEP, undefined, [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST]).named('alu')], undefined, 'gep').fn(
       ({ gep, alu }) => new UOp(alu.op, alu.dtype.scalar().vec(gep.dtype.count), alu.src.map((x) => x.gep(gep.arg)), alu.arg),
-    ],
+    ),
     // push some GEPs through WMMAs
     new UPat(Ops.GEP, undefined, [new UPat(Ops.WMMA).named('wmma')], undefined, 'gep').fn(({ wmma, gep }) => gep_through_wmma(gep, wmma)),
     // tensor core with a 0 input is acc
@@ -2082,7 +2079,6 @@ export const sym = symbolic_flat.add(
 )
 
 // *** uop expander ***
-
 export const _expand_arg_to_idx = (args: [number, number][], rpk: Map<number, number>): number => {
   let [idx, mul] = [0, 1]
   for (const [axis, m] of args.toReversed()) {
@@ -2174,30 +2170,26 @@ export const create_gate = (root: UOp): undefined | UOp => {
 }
 export const expander = new PatternMatcher([
   // double expand
-  [
-    new UPat(Ops.UNROLL, undefined, [new UPat(Ops.UNROLL).named('inner')], undefined, 'outer'),
+  new UPat(Ops.UNROLL, undefined, [new UPat(Ops.UNROLL).named('inner')]).named('outer').fn(
     ({ outer, inner }) => new UOp(Ops.UNROLL, outer.dtype, [inner.src[0]], [...inner.arg, ...outer.arg]),
-  ],
+  ),
   // do expansion
-  [
-    new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.GEP, Ops.WMMA, Ops.LOAD, Ops.STORE, Ops.INDEX, Ops.ASSIGN, Ops.VECTORIZE, Ops.IF], undefined, undefined, undefined, 'root', undefined, undefined, [Ops.UNROLL]),
+  new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.GEP, Ops.WMMA, Ops.LOAD, Ops.STORE, Ops.INDEX, Ops.ASSIGN, Ops.VECTORIZE, Ops.IF], undefined, undefined, undefined, 'root', undefined, undefined, [Ops.UNROLL]).fn(
     ({ root }) => do_expand(root),
-  ],
+  ),
   new UPat(Ops.CONTRACT).named('con').fn(({ con }) => do_contract(con)),
   // vectorize DEFINE_ACC
   new UPat(Ops.VECTORIZE, undefined, new UPat(Ops.DEFINE_ACC).named('acc')).named('v').fn(({ acc, v }) => acc.replace({ dtype: v.dtype })),
   // BARRIERs aren't actually expanded
-  [
-    new UPat(Ops.BARRIER, undefined, [new UPat(Ops.UNROLL).named('ex')]),
+  new UPat(Ops.BARRIER, undefined, [new UPat(Ops.UNROLL).named('ex')]).fn(
     ({ ex }) => new UOp(Ops.UNROLL, dtypes.void, range(ex.src.length).map(() => new UOp(Ops.BARRIER, dtypes.void, ex.src)), ex.arg),
-  ],
+  ),
   // empty EXPAND is NOOP
   new UPat(Ops.UNROLL, undefined, [UPat.var('x')], []).fn(({ x }) => x),
   // EXPAND GEP (needed for WMMA, generalize this) -> vectorized ALU
-  [
-    new UPat(Ops.UNROLL, undefined, range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i)))).named('ex'),
+  new UPat(Ops.UNROLL, undefined, range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i)))).named('ex').fn(
     ({ ex, x, y }) => new UOp(Ops.UNROLL, ex.dtype, range(AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
-  ],
+  ),
 ])
 
 export const no_vectorized_load_store = (ls: UOp) => {
@@ -2255,15 +2247,13 @@ export const pm_render = new PatternMatcher([
   new UPat(Ops.GEP).named('gep').fn(({ gep }) => gep.arg.length > 1 ? new UOp(Ops.VECTORIZE, gep.dtype, gep.arg.map((x: number) => gep.src[0].gep(x))) : undefined),
   new UPat(Ops.VECTORIZE, undefined, [new UPat(undefined).named('x')]).fn(({ x }) => x),
   // move masks of loads/stores
-  [
-    new UPat([Ops.LOAD, Ops.STORE], undefined, [UPat.any([_masked_index, _masked_index.cast(undefined).named('cast')])], undefined, 'x', true),
+  new UPat([Ops.LOAD, Ops.STORE], undefined, [UPat.any([_masked_index, _masked_index.cast(undefined).named('cast')])], undefined, 'x', true).fn(
     ({ x, buf, idx, mask, cast }) => move_mask(x, buf, idx, mask, cast),
-  ],
+  ),
   // gate any stores that aren't gated with ifs
-  [
-    new UPat(Ops.STORE, dtypes.void, [new UPat(), new UPat(), new UPat(undefined, dtypes.bool)], undefined, 'store'),
+  new UPat(Ops.STORE, dtypes.void, [new UPat(), new UPat(), new UPat(undefined, dtypes.bool)], undefined, 'store').fn(
     ({ store }) => new UOp(Ops.STORE, undefined, [...store.src.slice(0, 2), new UOp(Ops.IF, undefined, [store.src[2]])]),
-  ],
+  ),
 ])
 
 // *** uop graph ***
