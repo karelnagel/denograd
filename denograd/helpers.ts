@@ -267,7 +267,7 @@ export const isinstance = <T extends abstract new (...args: any) => any | Number
   return Array.isArray(classType) ? classType.some((t) => instance instanceof t) : instance instanceof classType
 }
 
-export const divmod = (a: number, b: number) => [Math.floor(a / b), a % b] as [number, number]
+export const divmod = (a: number, b: number) => [idiv(a, b), mod(a, b)]
 export function* counter(start = 0) {
   let current = start
   while (true) yield current++
@@ -800,14 +800,13 @@ const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean)
     else return numberFn(Number(a), Number(b)) as Return<A, B>
   }
 }
-
 export const add = _meta((a, b, r) => a.add(b, r), (a, b) => a + b)
 export const sub = _meta((a, b, r) => a.sub(b, r), (a, b) => a - b)
 export const mul = _meta((a, b, r) => a.mul(b, r), (a, b) => a * b)
 export const div = _meta((a, b, r) => a.div(b, r), (a, b) => a / b)
 export const idiv = _meta((a, b, r) => a.idiv(b, r), (a, b) => Math.floor(a / b), (a, b) => a / b)
-export const neg = <A extends Math>(a: A): Return<A, A> => ((!isConst(a)) ? a.neg() : typeof a === 'bigint' ? a * -1n : Number(a) * -1)
-export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => a % b)
+export const neg = <A extends Math>(a: A): Return<A, A> => ((!isConst(a)) ? a.neg() : typeof a === 'bigint' ? -a : -Number(a))
+export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => ((a % b) + b) % b)
 
 export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => a & b)
 export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => a | b)

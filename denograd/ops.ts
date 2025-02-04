@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, le, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -1085,11 +1085,14 @@ export function* split_uop(x: UOp, sep: Ops): Generator<UOp> {
 export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | typeof Ops.IDIV, split_rem = false): undefined | UOp => {
   // simplify x // y or x % y, None means no change
   // simple cancel div/mod case
-  if (y.vmin !== 0 && y.vmax !== 0 && all_same([idiv(x.vmin, y.vmin), idiv(x.vmin, y.vmax), idiv(x.vmax, y.vmin), idiv(x.vmax, y.vmax)])) {
-    return which === Ops.MOD ? sub(x, mul(idiv(x.vmin, y.vmin), y)) : x.const_like(idiv(x.vmin, y.vmin))
+  if (y.vmin !== 0 && y.vmax !== 0) {
+    const q = idiv(x.vmin, y.vmin)
+    if (all_same([q, idiv(x.vmin, y.vmax), idiv(x.vmax, y.vmin), idiv(x.vmax, y.vmax)])) {
+      return which === Ops.MOD ? sub(x, mul(q, y)) : x.const_like(q)
+    }
   }
-  const c = y.arg
-  if ((y.op !== Ops.CONST) || (c <= 0) || (x.dtype.count > 1)) return undefined
+  const c: number = y.arg
+  if ((y.op !== Ops.CONST) || c <= 0 || (x.dtype.count > 1)) return undefined
 
   let svars: UOp[] = [], factors: number[] = [], quotients: number[] = [], remainders: number[] = [], gcd = c, div = 1, const2 = 0, offset: number | bigint = 0, something_changed = false
   for (let u of split_uop(x, Ops.ADD)) {
@@ -1097,8 +1100,7 @@ export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | type
       u = u.src[0]
       something_changed = true
     }
-    const f = u.constFactor()
-    const v = u.divides(f)!
+    const f = u.constFactor(), v = u.divides(f)!
     const [q, r] = divmod(f, c)
     if (r === 0 || ((which === Ops.MOD || split_rem || u.op === Ops.CONST) && r !== f)) something_changed = true
     offset = add(offset, mul(r, v.vmin))
@@ -1106,22 +1108,18 @@ export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | type
     else { // div is the smallest common divisor of all terms
       if (f > 1 && c % f === 0 && (div === 1 || div > f)) div = f
       gcd = math_gcd(r, gcd)
-      factors.push(f)
-      svars.push(v)
-      quotients.push(q)
-      remainders.push(r)
+      factors.push(f), svars.push(v), quotients.push(q), remainders.push(r)
     }
   }
   offset = mod(offset, c)
-  let ubound = offset
-  let lbound = offset
+  let ubound = offset, lbound = offset
   // we can fold if the expression has only one non-constant term and this term can only take on two values
   let v = svars[0]
   if (svars.length === 1 && sub(v.vmax, v.vmin) === 1) {
     const r = sub(mod(add(offset, remainders[0]), c), mod(offset, c))
     offset = sub(offset, mul(r, v.vmin))
-    if (which === Ops.MOD) return add(mul(r, v), offset) as UOp
-    return add(mul(idiv(sub(factors[0], r), c), v), idiv(sub(const2, offset), c)) as UOp
+    if (which === Ops.MOD) return add(mul(r, v), offset)
+    return add(mul(idiv(sub(factors[0], r), c), v), idiv(sub(const2, offset), c))
   }
   // a//c = (a-a%c)/c, if we can fold a%c, we can fold a//c
   // within a mod we can freely subtract multiples of c, we use this to see if a is congruent to an expression whose vmin/vmax are between 0 and c
@@ -1158,16 +1156,17 @@ export const div_and_mod_folding = (x: UOp, y: UOp, which: typeof Ops.MOD | type
     }
     return undefined
   }
-  let [quo, rem] = [x.const_like(idiv(const2, c)), x.const_like(idiv(const2 % c, gcd))]
+  let quo = x.const_like(idiv(const2, c)), rem = x.const_like(idiv(mod(const2, c), gcd))
   for (const [q, r, f, v] of zip(quotients, remainders, factors, svars)) {
-    if (which === Ops.IDIV && (!split_rem) && r !== 0) rem = rem.add(mul(idiv(f, gcd), v))
-    else {
+    if (which === Ops.IDIV && !split_rem && r !== 0) {
+      rem = rem.add(mul(idiv(f, gcd), v))
+    } else {
       rem = rem.add(mul(idiv(r, gcd), v))
       quo = quo.add(mul(q, v))
     }
   }
-  if (which === Ops.MOD) return add(mul(gcd, mod(rem, idiv(c, gcd))), mod(const2, gcd)) as UOp
-  return add(idiv(rem, idiv(c, gcd)), quo) as UOp
+  if (which === Ops.MOD) return add(mul(gcd, mod(rem, idiv(c, gcd))), mod(const2, gcd))
+  return add(idiv(rem, idiv(c, gcd)), quo)
 }
 
 const lt_folding = (x: UOp, c: number): UOp | undefined => {
