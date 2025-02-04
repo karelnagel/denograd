@@ -260,7 +260,7 @@ export class UOp extends MathTrait<UOp> {
     this.key = get_key(this.op, this.dtype, this.arg, this.src)
     const ret = UOp.cache.get(this.key)
     if (ret !== undefined) {
-      if (!is_eq(this.arg, ret.arg)) throw new Error(`Args aren't the same, \nthis=${this.arg}, ${this.arg.key} \nret=${ret.arg}, ${ret.arg.key}`)
+      if (!is_eq(this.arg, ret.arg)) throw new Error(`Args aren't the same, \nthis=${this.arg}, ${this.arg?.key} \nret=${ret.arg}, ${ret.arg?.key}`)
       return ret
     }
 
@@ -1988,7 +1988,7 @@ export const reduce_collapse = (acc: UOp, ret: UOp, alu: UOp) => {
   }
   return ret
 }
-export const [acc_pat, rng_pat] = [new UPat(Ops.DEFINE_ACC).named('acc'), new UPat(Ops.RANGE).named('rng')]
+export const acc_pat = new UPat(Ops.DEFINE_ACC).named('acc'), rng_pat = new UPat(Ops.RANGE).named('rng')
 export const rng_aug = UPat.any([rng_pat, UPat.var('add').add(rng_pat), UPat.var('mul').mul(rng_pat), UPat.var('add').add(UPat.var('mul').mul(rng_pat))])
 
 export const index_load = UPat.var('buf').index(rng_aug).load(undefined, { name: 'ld' })

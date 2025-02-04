@@ -64,7 +64,9 @@ export class ShapeTracker {
   constructor(public views: View[]) {
     this.key = get_key(...views)
     Object.freeze(this)
-    return ShapeTracker.cache.setDefault(this.key, this)
+    const res = ShapeTracker.cache.setDefault(this.key, this)
+    if (!is_eq(this.views, res.views)) throw new Error(`Views don't match: \nthis=${list_str(this.views)} \nres=${list_str(res.views)}`)
+    return res
   }
   add = (st: ShapeTracker): ShapeTracker => {
     let ret = new ShapeTracker(this.views)
