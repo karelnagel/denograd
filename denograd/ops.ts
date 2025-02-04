@@ -779,6 +779,7 @@ const lines = (fn: string): string[] => {
 }
 
 export type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allow_any_len?: boolean; location?: any; custom_early_reject?: Ops[] }
+export type UPatFn<Names extends string, Ctx = unknown, Res = UOp | undefined> = (args: Record<Names, UOp> & { ctx: Ctx }) => Res
 export class UPat extends MathTrait<UPat> {
   op?: Ops[]
   dtype?: DType[]
@@ -814,11 +815,11 @@ export class UPat extends MathTrait<UPat> {
       this.early_reject = upatMatch.filter((pp) => pp.op !== undefined && pp.op.length === 1).map((pp) => pp.op![0])
     }
   }
-
-  named = (name?: string) => new UPat(this.op, this.dtype, this._in_src, this.arg, name, this.allowed_len === -1, undefined, this.custom_early_reject)
-
+  named = (name?: string) => {
+    this.name = name
+    return this
+  }
   static any = (src: UPat[]) => new UPatAny(undefined, undefined, src)
-
   static var = (name?: string, dtype?: DType | DType[]) => new UPat(undefined, dtype, undefined, undefined, name)
   static cvar = (name?: string, dtype?: DType, vec = true) => new UPat(vec ? [Ops.CONST, Ops.VCONST] : Ops.CONST, dtype).named(name)
   static const = (dtype?: DType | DType[], b?: ConstLike) => new UPat(Ops.CONST, dtype, undefined, b)
@@ -884,11 +885,10 @@ export class UPatAny extends UPat {
   }
 }
 
-export type PatternFn<Ctx = unknown, Res = UOp | undefined, Arg = UOp> = (args: Record<string, Arg> & { ctx: Ctx }) => Res
-export class PatternMatcher<Ctx = unknown, Res = UOp | undefined, Arg = UOp> {
-  patterns: [UPat, PatternFn<Ctx, Res, Arg>][]
-  pdict = new Map<Ops, ([UPat, PatternFn<Ctx, Res, Arg>, Set<Ops>, boolean][])>()
-  constructor(patterns: [UPat, PatternFn<Ctx, Res, Arg>][]) {
+export class PatternMatcher<Ctx = unknown, Res = UOp | undefined> {
+  patterns: [UPat, UPatFn<string, Ctx, Res>][]
+  pdict = new Map<Ops, ([UPat, UPatFn<string, Ctx, Res>, Set<Ops>, boolean][])>()
+  constructor(patterns: [UPat, UPatFn<string, Ctx, Res>][]) {
     this.patterns = patterns
     for (const [p, fxn] of this.patterns) {
       assert(p.op !== undefined)
@@ -896,7 +896,7 @@ export class PatternMatcher<Ctx = unknown, Res = UOp | undefined, Arg = UOp> {
     }
   }
 
-  add = <NewCtx, NewRes, NewArg>(more: PatternMatcher<NewCtx, NewRes, NewArg>) => new PatternMatcher<Ctx | NewCtx, Res | NewRes, Arg | NewArg>([...this.patterns, ...more.patterns] as any)
+  add = <NewCtx, NewRes>(more: PatternMatcher<NewCtx, NewRes>) => new PatternMatcher<Ctx | NewCtx, Res | NewRes>([...this.patterns, ...more.patterns] as any)
 
   rewrite = (uop: UOp, ctx?: any): Res | undefined => {
     const ler = new Set(uop.src.map((u) => u.op))
@@ -1857,7 +1857,7 @@ export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undef
 // ***** optional patterns *****
 
 const powers_of_two = new Map(range(64).map((i) => [2 ** i, i]))
-type Pat = [UPat, PatternFn]
+type Pat = [UPat, UPatFn<string>]
 export const get_late_rewrite_patterns = cache_fn((ops: Ops[], force_transcendental = false) => {
   let pat: Pat[] = ([[Ops.EXP2, xexp2], [Ops.LOG2, xlog2], [Ops.SIN, xsin]] as const).filter(([op, f]) => !ops.includes(op) || force_transcendental)
     .map(([op, f]) => [new UPat(op, TRANSCENDENTAL_SUPPORTED_DTYPES, [UPat.var('d')]), (x) => f(x as any)])
