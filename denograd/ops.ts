@@ -1938,7 +1938,7 @@ export const loop_collapse = (compval: UOp, multconst: UOp, rng: UOp, acc: UOp, 
   } else return undefined
   const new_reduce_op = comprange.cast(multconst.dtype).mul(multconst)
   // TODO: what does it mean to have the same numbered DEFINE_ACC with different ranges?
-  const new_acc = acc.replace({ src: [...acc.src.slice(0,1), ...acc.src.slice(1).filter((x) => x !== rng)] })
+  const new_acc = acc.replace({ src: [...acc.src.slice(0, 1), ...acc.src.slice(1).filter((x) => x !== rng)] })
   let ret = new_acc.assign(new_acc.add(new_reduce_op))
   if (extra !== undefined) ret = ret.add(acc.assign(acc.add(extra)))
   return ret
@@ -2281,9 +2281,9 @@ export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   sink = graph_rewrite(sink, sym.add(expander))
 
   // devectorize + load_store_indexing
-  sink = graph_rewrite(sink, sym.add(opts !== undefined && opts.supports_float4 ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing))
+  sink = graph_rewrite(sink, sym.add((opts !== undefined && opts.supports_float4) ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing).add(mulacc_unrolled))
 
   // final rules for the renderer (without sym)
-  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops as any as Ops[], TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
+  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops, TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
   return sink
 }

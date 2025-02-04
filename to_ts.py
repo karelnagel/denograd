@@ -175,8 +175,14 @@ def to_ts(o):
 
 global_inputs = {}
 
+import inspect
 
-def save_input(fn_name, input, max_len=6):
+def save_input(max_len=6):
+    frame = inspect.currentframe().f_back 
+    fn_name = frame.f_code.co_name
+    args, _, _, values = inspect.getargvalues(frame)
+    input = tuple(values[arg] for arg in args)
+    
     ts = to_ts(input)
     fn_inputs: set = global_inputs.setdefault(fn_name, set())
     if ts not in fn_inputs:
