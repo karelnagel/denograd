@@ -172,8 +172,8 @@ export class ExecItem {
 }
 // NOTE: ctx is the buffers
 export const si_lowerer = new PatternMatcher<Buffer[], [Runner, Buffer[]]>([
-  [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => [get_runner(ctx[0].device, sink)].map((runner) => [runner, runner.p.globals.map((x) => ctx[x])] as [Runner, Buffer[]])[0]],
-  [new UPat(Ops.BUFFER_VIEW), ({ ctx }) => [new ViewOp(ctx[0]), [...ctx]]],
+  new UPat(Ops.SINK).named('sink').fn(({ ctx, sink }) => [get_runner(ctx[0].device, sink)].map((runner) => [runner, runner.p.globals.map((x) => ctx[x])] as [Runner, Buffer[]])[0]),
+  new UPat(Ops.BUFFER_VIEW).fn(({ ctx }) => [new ViewOp(ctx[0]), [...ctx]]),
   [
     new UPat(Ops.COPY).named('copy'),
     ({ ctx, copy }) => ['_transfer' in Device.get(ctx[0].device)!.allocator! && all_same(ctx.map((x) => x.device.split(':')[0])) ? new BufferXfer(ctx[0].nbytes, ctx[0].device, ctx[1].device) : new BufferCopy(ctx[0].nbytes, ctx[0].device, ctx[1].device), [...ctx]],

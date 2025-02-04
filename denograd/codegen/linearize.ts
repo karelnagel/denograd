@@ -75,8 +75,8 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   return new UOp(Ops.BLOCK, dtypes.void, dedup([...old_blocks.values(), ...new_srcs]), new BasicBlock(x.arg.ctx, [...to_append, ...x.arg.lst]))
 }
 export const make_basic_blocks = new PatternMatcher<CTX>([
-  [new UPat(Ops.SINK).named('x'), ({ x }) => new UOp(Ops.BLOCK, undefined, x.src, new BasicBlock([], [x]))],
-  [new UPat(Ops.BLOCK).named('x'), ({ ctx, x }) => append_to_block(ctx, x)],
+  new UPat(Ops.SINK).named('x').fn(({ x }) => new UOp(Ops.BLOCK, undefined, x.src, new BasicBlock([], [x]))),
+  new UPat(Ops.BLOCK).named('x').fn(({ ctx, x }) => append_to_block(ctx, x)),
 ])
 
 export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {

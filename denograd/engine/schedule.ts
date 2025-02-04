@@ -10,36 +10,35 @@ import { strides_for_shape, View } from '../shape/view.ts'
 // **** Tensor UOp spec
 
 export const tensor_uop_spec = new PatternMatcher<unknown, boolean>([
-  [new UPat(Ops.DEVICE, dtypes.void, []).named('device'), ({ device }) => typeof device.arg === 'string'],
-  [new UPat(Ops.BUFFER, undefined, [new UPat(Ops.DEVICE)]).named('buf'), ({ buf }) => Array.isArray(buf.arg) && buf.arg.length === 2 && all_int(buf.arg) && buf.dtype instanceof DType],
-  [new UPat(GroupOp.Movement, undefined, [UPat.var('x')]).named('mv'), ({ mv, x }) =>
+  new UPat(Ops.DEVICE, dtypes.void, []).named('device').fn(({ device }) => typeof device.arg === 'string'),
+  new UPat(Ops.BUFFER, undefined, [new UPat(Ops.DEVICE)]).named('buf').fn(({ buf }) => Array.isArray(buf.arg) && buf.arg.length === 2 && all_int(buf.arg) && buf.dtype instanceof DType),
+  new UPat(GroupOp.Movement, undefined, [UPat.var('x')]).named('mv').fn(({ mv, x }) =>
     // naturally correct
     (Array.isArray(mv.arg) && mv.dtype === x.dtype) ||
     // "make things that can't be images not images" can change the buffer dtype
     // this is fine as long as it's a realized buffer and base dtypes match.
-    ((mv.dtype instanceof ImageDType || x.dtype instanceof ImageDType) && x.dtype.base === mv.dtype.base && uop_is_realized(x))],
+    ((mv.dtype instanceof ImageDType || x.dtype instanceof ImageDType) && x.dtype.base === mv.dtype.base && uop_is_realized(x))
+  ),
   // Tensor variable bindings
-  [new UPat(Ops.BIND, dtypes.int, [new UPat(Ops.DEFINE_VAR), UPat.cvar(undefined, dtypes.int)], undefined), () => true],
-  [new UPat(Ops.DEFINE_VAR, undefined, new UPat(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([])), undefined), () => true],
+  new UPat(Ops.BIND, dtypes.int, [new UPat(Ops.DEFINE_VAR), UPat.cvar(undefined, dtypes.int)], undefined).fn(() => true),
+  new UPat(Ops.DEFINE_VAR, undefined, new UPat(Ops.VIEW, undefined, undefined, ShapeTracker.from_shape([])), undefined).fn(() => true),
   // Tensor const has a device and an unmasked ShapeTracker of stride 0 or a ShapeTracker with symbolic shape
-  [
-    new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW, undefined, [new UPat(Ops.DEVICE)]).named('st')]),
+  new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW, undefined, [new UPat(Ops.DEVICE)]).named('st')]).fn(
     ({ st }) => st.st!.views[0].mask === undefined && ((st.st!.views.length === 1 && st.st!.views[0].strides.every((s) => s === 0)) || !all_int(st.shape)),
-  ],
+  ),
   // DETACH and CONTIGUOUS change how we interpret the source UOp
   // CONTIGUOUS ensures the source UOp realizes
-  [new UPat([Ops.DETACH, Ops.CONTIGUOUS, Ops.CONTIGUOUS_BACKWARD], undefined, [UPat.var('x')]).named('root'), ({ root, x }) => root.dtype === x.dtype],
+  new UPat([Ops.DETACH, Ops.CONTIGUOUS, Ops.CONTIGUOUS_BACKWARD], undefined, [UPat.var('x')]).named('root').fn(({ root, x }) => root.dtype === x.dtype),
   // COPY
   // NOTE: the arg here specifies clone=True, which prevents folding same device copy
-  [new UPat(Ops.COPY, undefined, [new UPat(Ops.DEVICE), UPat.var('x')]).named('copy'), ({ copy, x }) => typeof copy.arg === 'boolean' && copy.dtype === x.dtype],
+  new UPat(Ops.COPY, undefined, [new UPat(Ops.DEVICE), UPat.var('x')]).named('copy').fn(({ copy, x }) => typeof copy.arg === 'boolean' && copy.dtype === x.dtype),
   // VIEW(BUFFER) applies a ShapeTracker on top of the underlying device buffer
   // NOTE: VIEW size exactly matches the underlying BUFFER, tensor doesn't apply movement ops to the VIEW
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf')]).named('view'), ({ view, buf }) => view.dtype === buf.dtype && view.size === buf.size && view.st!.contiguous],
+  new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('buf')]).named('view').fn(({ view, buf }) => view.dtype === buf.dtype && view.size === buf.size && view.st!.contiguous),
   // ASSIGN changes the value of a realized buffer
-  [
-    new UPat(Ops.ASSIGN, undefined, [UPat.var('target'), UPat.var('new_val')]).named('assign'),
+  new UPat(Ops.ASSIGN, undefined, [UPat.var('target'), UPat.var('new_val')]).named('assign').fn(
     ({ assign, target, new_val }) => uop_is_realized(target) && (assign.dtype === target.dtype && target.dtype === new_val.dtype),
-  ],
+  ),
 ])
 
 // **** ScheduleItem return type
@@ -166,15 +165,15 @@ const merge_double_reduce = (root: UOp, first_reduce: UOp): UOp => {
 export const view_right = merge_views.add(
   new PatternMatcher([
     // STORE(.., ASSIGN(VIEW(BUFFER), new_val)) -> VIEW(STORE(.., new_val))
-    [new UPat(Ops.STORE, undefined, [UPat.var('b'), UPat.var('st'), UPat.var('target').assign(UPat.var('val'))]), ({ b, target, st, val }) => apply_swizzle(b.store([st, val]).view(target.st!))],
+    new UPat(Ops.STORE, undefined, [UPat.var('b'), UPat.var('st'), UPat.var('target').assign(UPat.var('val'))]).fn(({ b, target, st, val }) => apply_swizzle(b.store([st, val]).view(target.st!))),
     // REDUCE(src.view(contiguous=False)) -> REDUCE(src.view(contiguous=True)).view()
-    [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('src')]).named('r').view(undefined, { name: 'v' }), ({ v, r, src }) => v.st!.contiguous ? undefined : swizzle_r(r, src, v.st!)],
+    new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('src')]).named('r').view(undefined, { name: 'v' }).fn(({ v, r, src }) => v.st!.contiguous ? undefined : swizzle_r(r, src, v.st!)),
     // REDUCE(src.view()) -> REDUCE(src).view()
-    [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('src').view(undefined, { name: 'v' })]).named('r'), ({ r, v, src }) => reduceop_view_right(r, v, src)],
+    new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('src').view(undefined, { name: 'v' })]).named('r').fn(({ r, v, src }) => reduceop_view_right(r, v, src)),
     // ALU(src.view()) -> ALU(src).view()
-    [new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN, Ops.CONTIGUOUS, Ops.STORE]).named('root'), ({ root }) => elementwise_view_right(root)],
+    new UPat([...GroupOp.ALU, Ops.CAST, Ops.BITCAST, Ops.ASSIGN, Ops.CONTIGUOUS, Ops.STORE]).named('root').fn(({ root }) => elementwise_view_right(root)),
     // double reduce op collapses to a single reduce op
-    [new UPat(Ops.REDUCE_AXIS, undefined, [new UPat(Ops.REDUCE_AXIS).named('first_reduce')]).named('root'), ({ root, first_reduce }) => merge_double_reduce(root, first_reduce)],
+    new UPat(Ops.REDUCE_AXIS, undefined, [new UPat(Ops.REDUCE_AXIS).named('first_reduce')]).named('root').fn(({ root, first_reduce }) => merge_double_reduce(root, first_reduce)),
   ]),
 )
 
@@ -203,18 +202,18 @@ export const _append_buf = (ctx: ScheduleItemContext, x: UOp): UOp => {
 
 export const to_si = new PatternMatcher<ScheduleItemContext>([
   // BUFFER -> DEFINE_GLOBAL
-  [new UPat(Ops.BUFFER).named('x'), ({ ctx, x }) => _append_buf(ctx, x)],
+  new UPat(Ops.BUFFER).named('x').fn(({ ctx, x }) => _append_buf(ctx, x)),
   // simplify and unbind the final VIEWs
-  [new UPat(Ops.VIEW).named('x'), ({ x, ctx }) => _append_st_vars(ctx, x)],
+  new UPat(Ops.VIEW).named('x').fn(({ x, ctx }) => _append_st_vars(ctx, x)),
   // don't need SINK on COPY or BUFFER_VIEW
-  [new UPat(Ops.SINK, undefined, [UPat.store([UPat.var('b'), new UPat(), new UPat([Ops.COPY, Ops.BUFFER_VIEW]).named('x')])]), ({ b, x }) => x.replace({ src: [b, ...x.src] })],
+  new UPat(Ops.SINK, undefined, [UPat.store([UPat.var('b'), new UPat(), new UPat([Ops.COPY, Ops.BUFFER_VIEW]).named('x')])]).fn(({ b, x }) => x.replace({ src: [b, ...x.src] })),
   // don't need contiguous or assign anymore
-  [new UPat(Ops.CONTIGUOUS, undefined, [UPat.var('x')]), ({ x }) => x],
-  [new UPat(Ops.ASSIGN, undefined, [new UPat(), UPat.var('x')]), ({ x }) => x],
+  new UPat(Ops.CONTIGUOUS, undefined, [UPat.var('x')]).fn(({ x }) => x),
+  new UPat(Ops.ASSIGN, undefined, [new UPat(), UPat.var('x')]).fn(({ x }) => x),
   // PRELOAD becomes LOAD
-  [new UPat(Ops.PRELOAD).named('root'), ({ root }) => root.replace({ op: Ops.LOAD })],
+  new UPat(Ops.PRELOAD).named('root').fn(({ root }) => root.replace({ op: Ops.LOAD })),
   // once images are loaded they become the base dtype
-  [new UPat(Ops.values().filter((x) => x !== Ops.DEFINE_GLOBAL)).named('x'), ({ x }) => x.dtype instanceof ImageDType ? x.replace({ dtype: x.dtype.base }) : undefined],
+  new UPat(Ops.values().filter((x) => x !== Ops.DEFINE_GLOBAL)).named('x').fn(({ x }) => x.dtype instanceof ImageDType ? x.replace({ dtype: x.dtype.base }) : undefined),
 ])
 
 // LOAD(BUFFER) -> the STORE value if it's we're doing the STORE in the same kernel
@@ -428,13 +427,13 @@ export const sym = symbolic_simple.add(
       ({ root }) => root.base.st !== undefined && root.size === 0 && !(root.base.op === Ops.CONST && root.base.arg === 0) ? root.const_like(0) : undefined,
     ],
     // DETACH and CONTIGUOUS_BACKWARD are NOOPs here
-    [new UPat([Ops.DETACH, Ops.CONTIGUOUS_BACKWARD]).named('x'), ({ x }) => x.src[0]],
+    new UPat([Ops.DETACH, Ops.CONTIGUOUS_BACKWARD]).named('x').fn(({ x }) => x.src[0]),
     // reduce of size 0 is the identity element
-    [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('x')]).named('reduce'), ({ reduce, x }) => x.size === 0 && reduce.size !== 0 ? reduce.const_like(identity_element(reduce.arg[0], reduce.dtype)) : undefined],
+    new UPat(Ops.REDUCE_AXIS, undefined, [UPat.var('x')]).named('reduce').fn(({ reduce, x }) => x.size === 0 && reduce.size !== 0 ? reduce.const_like(identity_element(reduce.arg[0], reduce.dtype)) : undefined),
     // reduce of const is collapsed (TODO: make this a generic rule for stride0)
-    [new UPat(Ops.REDUCE_AXIS, undefined, [UPat.cvar('x')]).named('reduce'), ({ reduce, x }) => simplify_reduceop(reduce, x)],
+    new UPat(Ops.REDUCE_AXIS, undefined, [UPat.cvar('x')]).named('reduce').fn(({ reduce, x }) => simplify_reduceop(reduce, x)),
     // COPY(CONST) creates a new CONST on the destination device
-    [new UPat(Ops.COPY, undefined, [new UPat(), UPat.cvar('x')]).named('root'), ({ root, x }) => root.const_like(x.const_arg)],
+    new UPat(Ops.COPY, undefined, [new UPat(), UPat.cvar('x')]).named('root').fn(({ root, x }) => root.const_like(x.const_arg)),
     // no COPY to same device, except clone (arg is True)
     [
       new UPat(Ops.COPY, undefined, [new UPat(), UPat.var('copyin')]).named('copy'),
@@ -451,15 +450,15 @@ export const sym = symbolic_simple.add(
       ({ root, view, buf }) => view.st!.contiguous && view.size === buf.size ? view : undefined,
     ],
     // double contiguous is one contiguous
-    [new UPat(Ops.CONTIGUOUS, undefined, [new UPat(Ops.CONTIGUOUS)]).named('root'), ({ root }) => root.src[0]],
+    new UPat(Ops.CONTIGUOUS, undefined, [new UPat(Ops.CONTIGUOUS)]).named('root').fn(({ root }) => root.src[0]),
     // support for using a contiguous permuted view instead of the parent view if one exists
-    [new UPat(Ops.CONTIGUOUS, undefined, [new UPat(Ops.VIEW).named('src')]).named('contig'), ({ ctx, contig, src }) => found_contiguous(ctx, contig, src)],
-    [new UPat(GroupOp.ALU).named('alu'), ({ alu, ctx }) => replace_contiguous(ctx, alu)],
+    new UPat(Ops.CONTIGUOUS, undefined, [new UPat(Ops.VIEW).named('src')]).named('contig').fn(({ ctx, contig, src }) => found_contiguous(ctx, contig, src)),
+    new UPat(GroupOp.ALU).named('alu').fn(({ alu, ctx }) => replace_contiguous(ctx, alu)),
     // remove CONST/BIND/BUFFER from SINK
-    [new UPat(Ops.SINK).named('root'), ({ root }) => {
+    new UPat(Ops.SINK).named('root').fn(({ root }) => {
       const new_src = root.src.filter((x) => !uop_is_realized(x) && ![Ops.CONST, Ops.BIND].includes(x.base.op))
       return !is_eq(new_src, root.src) ? new UOp(Ops.SINK, root.dtype, new_src, root.arg) : undefined
-    }],
+    }),
   ]),
 )
 
@@ -498,21 +497,21 @@ export const create_subbuffer = (base: UOp, b: UOp, root: UOp, x: UOp) => {
 
 export const do_realize = new PatternMatcher<ScheduleContext>([
   // always realize SINK parents
-  [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => void sink.src.forEach((x) => ctx.realizes.set(x.buf_uop, x))],
+  new UPat(Ops.SINK).named('sink').fn(({ ctx, sink }) => void sink.src.forEach((x) => ctx.realizes.set(x.buf_uop, x))),
   // always realize ASSIGN/CONTIGUOUS/COPY/BUFFER_VIEW
-  [new UPatScheduled({ op: [Ops.BUFFER_VIEW, Ops.CONTIGUOUS, Ops.ASSIGN, Ops.COPY] }), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  new UPatScheduled({ op: [Ops.BUFFER_VIEW, Ops.CONTIGUOUS, Ops.ASSIGN, Ops.COPY] }).fn(({ ctx, b, to_store }) => realize(ctx, b, to_store)),
   // realize before expand or unsafe pad ops
-  [new UPat(Ops.VIEW, undefined, [new UPatScheduled({ name: 'src' })]).named('view'), ({ ctx, view, src, b }) => realize_before_view(ctx, view, src, b)],
+  new UPat(Ops.VIEW, undefined, [new UPatScheduled({ name: 'src' })]).named('view').fn(({ ctx, view, src, b }) => realize_before_view(ctx, view, src, b)),
   // don't realize image to image casts
   [
     new UPat(Ops.VIEW, undefined, [new UPatScheduled({ op: Ops.CAST, src: [new UPat(Ops.VIEW, undefined, [UPat.var('xb'), new UPat()]).named('x')], dtype: dtypes.float })]).named('view'),
     ({ ctx, xb, view, b, x }) => fold_img_cast(ctx, xb, view, b, x),
   ],
   // realize before COPY or BUFFER_VIEW
-  [new UPat(Ops.COPY, undefined, [new UPat(), UPat.any([new UPatScheduled(), new UPatScheduled().view()])]), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
-  [new UPat(Ops.BUFFER_VIEW, undefined, [UPat.any([new UPatScheduled(), new UPatScheduled().view()])]), ({ ctx, b, to_store }) => realize(ctx, b, to_store)],
+  new UPat(Ops.COPY, undefined, [new UPat(), UPat.any([new UPatScheduled(), new UPatScheduled().view()])]).fn(({ ctx, b, to_store }) => realize(ctx, b, to_store)),
+  new UPat(Ops.BUFFER_VIEW, undefined, [UPat.any([new UPatScheduled(), new UPatScheduled().view()])]).fn(({ ctx, b, to_store }) => realize(ctx, b, to_store)),
   // substitute BITCAST/CONTIGUOUS with BUFFER_VIEW on DISK
-  [new UPatScheduled({ op: [Ops.BITCAST, Ops.CONTIGUOUS], name: 'root', src: [UPat.var('x')] }), ({ base, b, root, x }) => create_subbuffer(base, b, root, x)],
+  new UPatScheduled({ op: [Ops.BITCAST, Ops.CONTIGUOUS], name: 'root', src: [UPat.var('x')] }).fn(({ base, b, root, x }) => create_subbuffer(base, b, root, x)),
 ])
 
 // **** rewrite VIEW into LOAD/STORE/VALID or fuse the underlying UOp
@@ -538,11 +537,11 @@ const store_or_fuse = (ctx: ScheduleContext, b: UOp, x: UOp, st: UOp) => {
 }
 export const break_sched = new PatternMatcher<ScheduleContext>([
   // CONST is always fused and generated
-  [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('x'), ({ x, st }) => UOp.const(x.dtype, x.const_arg).valid(st.st!)],
-  [new UPat(Ops.BIND, undefined, [UPat.var('var'), UPat.var('val')]).named('bind'), (x) => unbind_variable(x.ctx, x.bind, x.var, x.val)],
+  new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('x').fn(({ x, st }) => UOp.const(x.dtype, x.const_arg).valid(st.st!)),
+  new UPat(Ops.BIND, undefined, [UPat.var('var'), UPat.var('val')]).named('bind').fn((x) => unbind_variable(x.ctx, x.bind, x.var, x.val)),
   // VIEW of BUFFER either becomes a LOAD/STORE or we fuse it
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b')]).named('st'), ({ ctx, b, st }) => load_realized(ctx, b, st)],
-  [new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), UPat.var('x')]).named('st'), ({ ctx, b, x, st }) => store_or_fuse(ctx, b, x, st)],
+  new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b')]).named('st').fn(({ ctx, b, st }) => load_realized(ctx, b, st)),
+  new UPat(Ops.VIEW, undefined, [new UPat(Ops.BUFFER).named('b'), UPat.var('x')]).named('st').fn(({ ctx, b, x, st }) => store_or_fuse(ctx, b, x, st)),
 ])
 
 // **** Schedule context builder
@@ -562,14 +561,14 @@ export const create_ctx = new PatternMatcher<ScheduleContext>([[new UPat(Ops.VIE
 export const remove_movement_ops = merge_views.add(
   new PatternMatcher([
     // NOTE: movement ops are always applied to base
-    [new UPat(GroupOp.Movement, undefined, UPat.any([UPat.var('x').view(), UPat.var('x')])).named('mov'), ({ x, mov }) => x.view(mov.st!)],
+    new UPat(GroupOp.Movement, undefined, UPat.any([UPat.var('x').view(), UPat.var('x')])).named('mov').fn(({ x, mov }) => x.view(mov.st!)),
     // some masked views can collapse to 0, VIEW(x) -> CONST(VIEW)
-    [new UPat(Ops.VIEW).named('view'), ({ view }) => {
+    new UPat(Ops.VIEW).named('view').fn(({ view }) => {
       const vm = view.st!.views.at(-1)!.mask
       return vm !== undefined && vm.some((x) => sub(x[1], x[0]) === 0) ? view.const_like(0) : undefined
-    }],
+    }),
     // merge unmasked const views
-    [new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('const')]).named('view'), (x) => (x.st.st!.add(x.view.st!)).views.every((v) => v.mask === undefined) ? x.const.replace({ src: [x.st.replace({ arg: x.st.st!.add(x.view.st!) })] }) : undefined],
+    new UPat(Ops.VIEW, undefined, [new UPat(Ops.CONST, undefined, [new UPat(Ops.VIEW).named('st')]).named('const')]).named('view').fn((x) => (x.st.st!.add(x.view.st!)).views.every((v) => v.mask === undefined) ? x.const.replace({ src: [x.st.replace({ arg: x.st.st!.add(x.view.st!) })] }) : undefined),
   ]),
 )
 

@@ -14,33 +14,31 @@ export const reduce_gradient = (ctx: UOp, ret: UOp) => {
 }
 // ctx is grad_output
 export const pm_gradient = new PatternMatcher<UOp, (UOp | undefined)[] | undefined>([
-  [new UPat(Ops.CAST).named('ret'), ({ ctx, ret }) => [ctx.cast(ret.src[0].dtype)]],
-  [new UPat(Ops.RECIP).named('ret'), ({ ctx, ret }) => [ctx.neg().mul(ret).mul(ret)]],
-  [new UPat(Ops.SIN).named('ret'), ({ ctx, ret }) => [ret.src[0].sub(Math.PI / 2, true).sin().mul(ctx)]],
-  [new UPat(Ops.LOG2).named('ret'), ({ ctx, ret }) => [ctx.div(ret.src[0].mul(Math.log(2)))]],
-  [new UPat(Ops.EXP2).named('ret'), ({ ctx, ret }) => [ret.mul(ctx).mul(Math.log(2))]],
-  [new UPat(Ops.SQRT).named('ret'), ({ ctx, ret }) => [ctx.div(ret.mul(2))]],
-  [new UPat([Ops.CMPLT, Ops.CMPNE]), () => [undefined, undefined]],
-  [new UPat(Ops.ADD), ({ ctx }) => [ctx, ctx]],
-  [new UPat(Ops.MAX).named('ret'), ({ ctx, ret }) => [
+  new UPat(Ops.CAST).named('ret').fn(({ ctx, ret }) => [ctx.cast(ret.src[0].dtype)]),
+  new UPat(Ops.RECIP).named('ret').fn(({ ctx, ret }) => [ctx.neg().mul(ret).mul(ret)]),
+  new UPat(Ops.SIN).named('ret').fn(({ ctx, ret }) => [ret.src[0].sub(Math.PI / 2, true).sin().mul(ctx)]),
+  new UPat(Ops.LOG2).named('ret').fn(({ ctx, ret }) => [ctx.div(ret.src[0].mul(Math.log(2)))]),
+  new UPat(Ops.EXP2).named('ret').fn(({ ctx, ret }) => [ret.mul(ctx).mul(Math.log(2))]),
+  new UPat(Ops.SQRT).named('ret').fn(({ ctx, ret }) => [ctx.div(ret.mul(2))]),
+  new UPat([Ops.CMPLT, Ops.CMPNE]).fn(() => [undefined, undefined]),
+  new UPat(Ops.ADD).fn(({ ctx }) => [ctx, ctx]),
+  new UPat(Ops.MAX).named('ret').fn(({ ctx, ret }) => [
     (ret.src[0].gt(ret.src[1])).where(ctx, (ret.src[0].ne(ret.src[1])).where(ctx.const_like(0), ctx.mul(0.5))),
     (ret.src[0].lt(ret.src[1])).where(ctx, (ret.src[0].ne(ret.src[1])).where(ctx.const_like(0), ctx.mul(0.5))),
-  ]],
-  [new UPat(Ops.MUL).named('ret'), ({ ctx, ret }) => [ret.src[1].mul(ctx), ret.src[0].mul(ctx)]],
-  [new UPat(Ops.WHERE).named('ret'), ({ ctx, ret }) => [undefined, ret.src[0].where(ctx, ctx.const_like(0)), ret.src[0].where(ctx.const_like(0), ctx)]],
-  [new UPat(Ops.REDUCE_AXIS).named('ret'), ({ ctx, ret }) => reduce_gradient(ctx, ret)],
-  [new UPat(Ops.CONTIGUOUS), ({ ctx }) => [ctx]],
-  [new UPat(Ops.CONTIGUOUS_BACKWARD), ({ ctx }) => [ctx.contiguous()]],
-  [new UPat(Ops.RESHAPE).named('ret'), ({ ctx, ret }) => [ctx.reshape(ret.src[0].shape)]],
-  [new UPat(Ops.PERMUTE).named('ret'), ({ ctx, ret }) => [ctx.permute(argsort(ret.arg))]],
-  [new UPat(Ops.PAD).named('ret'), ({ ctx, ret }) => [ctx.shrink(zip(ret.src[0].shape, ret.arg as [sint, sint][]).map(([s, p]) => [p[0], add(s, p[0])]))]],
-  [new UPat(Ops.SHRINK).named('ret'), ({ ctx, ret }) => [ctx.pad(zip(ret.src[0].shape, ret.arg as [sint, sint][]).map(([s, p]) => [p[0], sub(s, p[1])]))]],
-  [new UPat(Ops.STRIDE).named('ret'), ({ ctx, ret }) => [ret.arg.every((x: number) => [-1, 1].includes(x)) ? ctx.stride(ret.arg) : undefined]],
-  // TODO: this cast can be removed by putting the casts around the EXPAND
-  [new UPat(Ops.EXPAND).named('ret'), ({ ctx, ret }) => [ctx.cast(sum_acc_dtype(ctx.dtype)).r(Ops.ADD, [...zip(ret.src[0].shape, ret.arg).entries()].filter(([i, [si, so]]) => si !== so).map(([i]) => i)).cast(ctx.dtype)]],
-  [new UPat(Ops.MULTI).named('ret'), ({ ctx, ret }) => ctx.shard(ret.device as DeviceType[], ret.axis).src],
-  // there's no gradient for bitcast
-  [new UPat(Ops.BITCAST), ({ ctx }) => [undefined]],
+  ]),
+  new UPat(Ops.MUL).named('ret').fn(({ ctx, ret }) => [ret.src[1].mul(ctx), ret.src[0].mul(ctx)]),
+  new UPat(Ops.WHERE).named('ret').fn(({ ctx, ret }) => [undefined, ret.src[0].where(ctx, ctx.const_like(0)), ret.src[0].where(ctx.const_like(0), ctx)]),
+  new UPat(Ops.REDUCE_AXIS).named('ret').fn(({ ctx, ret }) => reduce_gradient(ctx, ret)),
+  new UPat(Ops.CONTIGUOUS).fn(({ ctx }) => [ctx]),
+  new UPat(Ops.CONTIGUOUS_BACKWARD).fn(({ ctx }) => [ctx.contiguous()]),
+  new UPat(Ops.RESHAPE).named('ret').fn(({ ctx, ret }) => [ctx.reshape(ret.src[0].shape)]),
+  new UPat(Ops.PERMUTE).named('ret').fn(({ ctx, ret }) => [ctx.permute(argsort(ret.arg))]),
+  new UPat(Ops.PAD).named('ret').fn(({ ctx, ret }) => [ctx.shrink(zip(ret.src[0].shape, ret.arg as [sint, sint][]).map(([s, p]) => [p[0], add(s, p[0])]))]),
+  new UPat(Ops.SHRINK).named('ret').fn(({ ctx, ret }) => [ctx.pad(zip(ret.src[0].shape, ret.arg as [sint, sint][]).map(([s, p]) => [p[0], sub(s, p[1])]))]),
+  new UPat(Ops.STRIDE).named('ret').fn(({ ctx, ret }) => [ret.arg.every((x: number) => [-1, 1].includes(x)) ? ctx.stride(ret.arg) : undefined]), // TODO: this cast can be removed by putting the casts around the EXPAND
+  new UPat(Ops.EXPAND).named('ret').fn(({ ctx, ret }) => [ctx.cast(sum_acc_dtype(ctx.dtype)).r(Ops.ADD, [...zip(ret.src[0].shape, ret.arg).entries()].filter(([i, [si, so]]) => si !== so).map(([i]) => i)).cast(ctx.dtype)]),
+  new UPat(Ops.MULTI).named('ret').fn(({ ctx, ret }) => ctx.shard(ret.device as DeviceType[], ret.axis).src), // there's no gradient for bitcast
+  new UPat(Ops.BITCAST).fn(({ ctx }) => [undefined]),
 ])
 
 // copied from tensor.py, get relevant toposort of gradients
