@@ -2,7 +2,6 @@ from enum import Enum
 import itertools
 
 
-
 def to_ts(o):
     from tinygrad.ops import KernelInfo, UOp, UPat
     from tinygrad.codegen.lowerer import IndexContext
@@ -111,7 +110,7 @@ def to_ts(o):
     # ************ ENGINE ************
     if isinstance(o, CompiledRunner):
         return f"new CompiledRunner({to_ts(o.p)}, {to_ts(o.lib)})"
-    if isinstance(o,Estimates):
+    if isinstance(o, Estimates):
         return f"new Estimates({to_ts(o.ops)}, {to_ts(o.lds)}, {to_ts(o.mem)})"
     if isinstance(o, Runner):
         return f"new Runner({to_ts(o.display_name)}, {to_ts(o.device)}, {to_ts(o.estimates)})"
@@ -177,12 +176,14 @@ global_inputs = {}
 
 import inspect
 
-def save_input(max_len=6):
-    frame = inspect.currentframe().f_back 
-    fn_name = frame.f_code.co_name
-    args, _, _, values = inspect.getargvalues(frame)
-    input = tuple(values[arg] for arg in args)
-    
+
+def save_input(fn_name=None, input=None, max_len=6):
+    frame = inspect.currentframe().f_back
+    if fn_name is None: fn_name = frame.f_code.co_name
+    if input is None:
+        args, _, _, values = inspect.getargvalues(frame)
+        input = tuple(values[arg] for arg in args)
+
     ts = to_ts(input)
     fn_inputs: set = global_inputs.setdefault(fn_name, set())
     if ts not in fn_inputs:

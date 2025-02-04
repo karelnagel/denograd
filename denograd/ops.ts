@@ -2201,7 +2201,7 @@ export const no_vectorized_load_store = (ls: UOp) => {
 }
 export const no_vectorized_acc = (acc: UOp) => {
   if (acc.dtype.count === 1) return undefined
-  const alus = [new UOp(acc.op, acc.dtype.scalar(), range(acc.dtype.count).flatMap((i) => [...acc.src.entries()].map(([j, s]) => j === 0 ? s.gep(i) : s)))]
+  const alus = range(acc.dtype.count).map((i) => new UOp(acc.op, acc.dtype.scalar(), [...acc.src.entries()].map(([j, s]) => j === 0 ? s.gep(i) : s), [...acc.arg, i]))
   return new UOp(Ops.VECTORIZE, acc.dtype, alus)
 }
 export const devectorize = new PatternMatcher([
