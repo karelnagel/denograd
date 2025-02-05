@@ -247,12 +247,10 @@ export const buffers = new WeakKeyMap<UOp, Buffer>()
 export const all_metadata = new WeakKeyMap<UOp, Metadata>()
 
 export class UOp extends MathTrait<UOp> {
-  static register = new FinalizationRegistry<{ children: WeakValueMap<string, UOp>; key: string }>(({ children, key }) => {
+  static register = new FinalizationRegistry<string>((key) => {
     if (buffers.map.has(key)) buffers.map.get(key)?.[1].ref(-1)
-    if (children.has(key)) children.delete(key)
-    if (UOp.cache.has(key)) UOp.cache.delete(key)
   })
-  static cache = new ArrayMap<string, UOp>()
+  static cache = new WeakValueMap<string, UOp>()
   key: string
   children = new WeakValueMap<string, UOp>()
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any, _buffer?: Buffer) {
@@ -276,7 +274,7 @@ export class UOp extends MathTrait<UOp> {
       if (op !== Ops.BUFFER) throw new Error(`trying to set Buffer ${_buffer} for ${op}`)
       buffers.set(this, _buffer)
     }
-    UOp.register.register(this, { children: this.children, key: this.key })
+    UOp.register.register(this, this.key)
     UOp.cache.set(this.key, this)
     Object.freeze(this)
   }
