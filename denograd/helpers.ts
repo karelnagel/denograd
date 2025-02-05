@@ -274,16 +274,16 @@ export function* counter(start = 0) {
 }
 export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : typeof x === 'string' ? `'${x}'` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
-export const is_less_than = (a: any[], b: any[]): boolean => {
-  for (const [x, y] of zip(a, b)) {
+export const is_less_than = (one: any[], two: any[]): boolean => {
+  for (const [x, y] of zip(one, two)) {
     if (is_eq(x, y)) continue
     if (Array.isArray(x) && Array.isArray(y)) return is_less_than(x, y)
     // if it's DType
-    if ('lt' in a && 'lt' in b && typeof a.lt === 'function') {
-      const res = a.lt(b)
+    if (typeof x === 'object' && typeof y === 'object' && 'lt' in x && 'lt' in y && typeof x.lt === 'function') {
+      const res = x.lt(y)
       if (typeof res === 'boolean') return res
     }
-    return a < b
+    return x < y
   }
   // If all are equal
   return false
