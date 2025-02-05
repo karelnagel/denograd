@@ -23,4 +23,4 @@ jobs:
         with:
           deno-version: v2.x
       - run: pip install wgpu
-      - run: deno test -A --parallel --no-check
+      - run: deno test -A --no-check
