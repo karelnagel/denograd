@@ -1,6 +1,6 @@
 import { _assert_valid_uop, Kernel, Opt, OptOps, verify_ast } from '../../denograd/codegen/kernel.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
-import { compare, tryCatch } from '../helpers.ts'
+import { compare, test, tryCatch } from '../helpers.ts'
 import type { Renderer } from '../../denograd/renderer/index.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
@@ -8,7 +8,7 @@ import { View } from '../../denograd/shape/view.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 import { kernelInputs, pyKernel, tsKernel } from '../engine/kernel-inputs.ts'
 
-Deno.test(
+test(
   'Opt.real_axis',
   compare(
     [
@@ -25,7 +25,7 @@ Deno.test(
 )
 
 const kernels = () => kernelInputs().map(([opts, ast]) => [new Kernel(ast, opts)] as [Kernel])
-Deno.test(
+test(
   'Kernel.init',
   compare(
     () => kernelInputs().map((x) => x.toReversed() as [UOp, Renderer]),
@@ -36,7 +36,7 @@ Deno.test(
     ],
   ),
 )
-Deno.test(
+test(
   'Kernel.membufs',
   compare(
     kernels,
@@ -44,7 +44,7 @@ Deno.test(
     'out(data[0].membufs)',
   ),
 )
-Deno.test(
+test(
   'Kernel.float4_axis',
   compare(
     () => kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
@@ -52,7 +52,7 @@ Deno.test(
     'out(data[0].float4_axis(data[1]))',
   ),
 )
-Deno.test(
+test(
   'Kernel.upcasted_axis',
   compare(
     () => kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
@@ -60,7 +60,7 @@ Deno.test(
     'out(data[0].upcasted_axis(data[1]))',
   ),
 )
-Deno.test(
+test(
   'Kernel.first_reduce',
   compare(
     kernels,
@@ -68,7 +68,7 @@ Deno.test(
     'out(data[0].first_reduce)',
   ),
 )
-Deno.test(
+test(
   'Kernel.colors',
   compare(
     kernels,
@@ -85,7 +85,7 @@ Deno.test.ignore(
   ),
 )
 
-Deno.test(
+test(
   'Kernel.shift_to',
   compare(
     [
@@ -109,7 +109,7 @@ Deno.test(
     ],
   ),
 )
-Deno.test(
+test(
   'Kernel.apply_opt',
   compare(
     [
@@ -131,7 +131,7 @@ Deno.test(
     ],
   ),
 )
-Deno.test(
+test(
   'Kernel.required_optimizations',
   compare(
     kernels,
@@ -140,7 +140,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Kernel.name',
   compare(
     kernels,
@@ -152,7 +152,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Kernel.get_optimized_ast',
   compare(
     kernels,
@@ -161,7 +161,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Kernel.linearize',
   compare(
     kernels,
@@ -173,7 +173,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Kernel.to_program',
   compare(
     kernels,
@@ -188,7 +188,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   '_assert_valid_uop',
   compare(
     [
@@ -204,7 +204,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'verify_ast',
   compare(
     [

@@ -1,9 +1,9 @@
 import { _lazy_map_numbers, exponent_bias, exponent_mask, ilogb2k, ldexp2k, ldexp3k, pow2if, rintk, shl, shr, sin_poly, xexp2, xlog2 } from '../../denograd/ops.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { UOp } from '../../denograd/ops.ts'
-import { compare } from '../helpers.ts'
+import { compare, test } from '../helpers.ts'
 
-Deno.test(
+test(
   '_lazy_map_numbers',
   compare(
     [
@@ -19,7 +19,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'exponent_bias',
   compare(
     [
@@ -32,7 +32,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'exponent_mask',
   compare(
     [
@@ -45,7 +45,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'shr',
   compare(
     [
@@ -59,7 +59,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'shl',
   compare(
     [
@@ -73,7 +73,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'rintk',
   compare(
     [
@@ -91,7 +91,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'pow2if',
   compare(
     [
@@ -108,7 +108,7 @@ Deno.test(
     'out(tiny.codegen.transcendental.pow2if(*data))',
   ),
 )
-Deno.test(
+test(
   'ilogb2k',
   compare(
     [
@@ -127,7 +127,7 @@ Deno.test(
     'out(tiny.codegen.transcendental.ilogb2k(*data))',
   ),
 )
-Deno.test(
+test(
   'ldexp3k',
   compare(
     [
@@ -145,7 +145,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ldexp2k',
   compare(
     [
@@ -163,7 +163,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'sin_poly',
   compare(
     [
@@ -182,7 +182,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'xexp2',
   compare(
     [
@@ -203,7 +203,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'xlog2',
   compare(
     [

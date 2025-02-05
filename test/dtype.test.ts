@@ -1,9 +1,9 @@
 import { expect } from 'expect/expect'
 import { _get_recursive_parents, DType, dtypes, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../denograd/dtype.ts'
-import { compare, tryCatch } from './helpers.ts'
+import { compare, test, tryCatch } from './helpers.ts'
 import { PtrDType } from '../denograd/dtype.ts'
 
-// Deno.test(
+// test(
 //   'DType.init',
 //   compare(
 //     [
@@ -15,7 +15,7 @@ import { PtrDType } from '../denograd/dtype.ts'
 //     'out(tiny.dtype.DType(*data))',
 //   ),
 // )
-Deno.test(
+test(
   'DType.vec',
   compare(
     [
@@ -28,7 +28,7 @@ Deno.test(
     'out(data[0].vec(data[1]))',
   ),
 )
-Deno.test(
+test(
   'DType.ptr',
   compare(
     [
@@ -42,7 +42,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'dtypes.finfo',
   compare(
     [
@@ -59,7 +59,7 @@ Deno.test(
     { ignore: [5, 6] },
   ),
 )
-Deno.test(
+test(
   'dtypes.min',
   compare(
     [
@@ -74,7 +74,7 @@ Deno.test(
     'out(tiny.dtype.dtypes.min(*data))',
   ),
 )
-Deno.test(
+test(
   'dtypes.max',
   compare(
     [
@@ -90,7 +90,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'fromJS',
   compare(
     [
@@ -108,7 +108,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'asConst',
   compare(
     [
@@ -124,9 +124,9 @@ Deno.test(
     'out(trycatch(lambda:tiny.dtype.dtypes.as_const(*data)))',
   ),
 )
-Deno.test('promoLattice', compare([[]], () => [...promoLattice.entries()], 'out([[key,tiny.dtype.promo_lattice[key]] for key in tiny.dtype.promo_lattice])'))
+test('promoLattice', compare([[]], () => [...promoLattice.entries()], 'out([[key,tiny.dtype.promo_lattice[key]] for key in tiny.dtype.promo_lattice])'))
 
-Deno.test(
+test(
   '_getRecursiveParents',
   compare(
     [['float64'], ['float32'], ['float16'], ['half'], ['bool'], ['int'], ['uint']] as const,
@@ -135,7 +135,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'least_upper_dtype',
   compare(
     [
@@ -159,7 +159,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'sumAccDType',
   compare(
     [
@@ -175,7 +175,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'truncate',
   compare(
     [
@@ -199,7 +199,7 @@ Deno.test(
   ),
 )
 
-Deno.test('DType.dataclass', () => {
+test('DType.dataclass', () => {
   expect(new DType(3, 3, 'sdf', '?', 3, undefined)).toBe(new DType(3, 3, 'sdf', '?', 3, undefined))
   expect(dtypes.int16).toBe(DType.new(3, 2, 'short', 'h'))
   expect(dtypes.int16.ptr(4, true)).toBe(new PtrDType(3, 2, 'short', 'h', 1, undefined, new DType(3, 2, 'short', 'h', 1), true, 1, 4))

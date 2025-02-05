@@ -1,6 +1,6 @@
-import { compare } from '../helpers.ts'
+import { compare, test } from '../helpers.ts'
 
-// Deno.test(
+// test(
 //   'actions',
 //   compare(
 //     [],
@@ -9,7 +9,7 @@ import { compare } from '../helpers.ts'
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   '_get_test_global_size',
 //   compare(
 //     [],
@@ -18,7 +18,7 @@ import { compare } from '../helpers.ts'
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   '_time_program',
 //   compare(
 //     [],
@@ -27,7 +27,7 @@ import { compare } from '../helpers.ts'
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   '_try_compile_linearized_w_idx',
 //   compare(
 //     [],
@@ -36,7 +36,7 @@ import { compare } from '../helpers.ts'
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   'bufs_from_lin',
 //   compare(
 //     [],
@@ -45,7 +45,7 @@ import { compare } from '../helpers.ts'
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   'get_kernel_actions',
 //   compare(
 //     [],
@@ -54,7 +54,7 @@ import { compare } from '../helpers.ts'
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   'beam_search',
 //   compare(
 //     [],
@@ -63,7 +63,7 @@ import { compare } from '../helpers.ts'
 //   ),
 // )
 
-Deno.test(
+test(
   'optimize_local_size',
   compare(
     [],
@@ -72,7 +72,7 @@ Deno.test(
   ),
 )
 
-// Deno.test(
+// test(
 //   'time_linearizer',
 //   compare(
 //     [],

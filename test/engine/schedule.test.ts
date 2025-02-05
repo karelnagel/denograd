@@ -4,9 +4,9 @@ import { counter } from '../../denograd/helpers.ts'
 import { Ops, UOp } from '../../denograd/ops.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
-import { compare } from '../helpers.ts'
+import { compare, test } from '../helpers.ts'
 
-Deno.test(
+test(
   'apply_swizzle',
   compare(
     [
@@ -22,7 +22,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   '_append_st_vars',
   compare(
     [
@@ -57,7 +57,7 @@ Deno.test.ignore(
   ),
 )
 
-Deno.test(
+test(
   'get_isolated_children',
   compare(
     [
@@ -69,7 +69,7 @@ Deno.test(
 )
 
 // Argument list too long
-Deno.test(
+test(
   'group_realizes',
   compare(
     [
@@ -80,7 +80,7 @@ Deno.test(
   ),
 )
 
-// Deno.test(
+// test(
 //   '_as_const',
 //   compare(
 //     [],
@@ -89,7 +89,7 @@ Deno.test(
 //   ),
 // )
 
-Deno.test(
+test(
   'create_schedule_with_vars',
   compare(
     [

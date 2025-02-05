@@ -1,6 +1,6 @@
 import { expect } from 'expect/expect'
 import { _substitute, merge_views, Ops, type PatternMatcher, renderer, spec, symbolic_flat, view_left } from '../denograd/ops.ts'
-import { python } from './helpers.ts'
+import { python, test } from './helpers.ts'
 import { base_rewrite, ClangRenderer, extra_pm } from '../denograd/renderer/cstyle.ts'
 import { entries } from '../denograd/helpers.ts'
 import { symbolic_simple } from '../denograd/ops.ts'
@@ -55,7 +55,7 @@ const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
 for (const [name, matcher] of entries(ALL_PATTERN_MATCHERS)) {
   let py: any
   for (let i = 0; i < matcher.patterns.length; i++) {
-    Deno.test(`patterns_${name}_${i}`, async () => {
+    test(`patterns_${name}_${i}`, async () => {
       const ts = matcher.patterns[i][0]
       if (!py) py = await python(`out(${name}.patterns)`)
       expect(ts.toString()).toEqual(py[i][0].toString())

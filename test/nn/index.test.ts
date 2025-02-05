@@ -1,9 +1,9 @@
 import { BatchNorm, Conv2d } from '../../denograd/nn/index.ts'
 import { Tensor } from '../../denograd/tensor.ts'
-import { compare } from '../helpers.ts'
+import { compare, test } from '../helpers.ts'
 import { Linear } from '../../denograd/nn/index.ts'
 
-Deno.test(
+test(
   'Conv2d.init',
   compare(
     [
@@ -32,7 +32,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Conv2d.call',
   compare(
     [
@@ -55,7 +55,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'BatchNorm.init',
   compare(
     [
@@ -77,7 +77,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'BatchNorm.call',
   compare(
     [
@@ -100,7 +100,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Linear.init',
   compare(
     [
@@ -123,7 +123,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Linear.call',
   compare(
     [

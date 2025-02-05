@@ -1,9 +1,9 @@
 import { append_to_block, BasicBlock, block_merge, block_reorder, disp, linearize_uop } from '../../denograd/codegen/linearize.ts'
-import { compare, tryCatch } from '../helpers.ts'
+import { compare, test, tryCatch } from '../helpers.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
 
-Deno.test(
+test(
   'disp',
   compare(
     [],
@@ -11,7 +11,7 @@ Deno.test(
     'out(tiny.codegen.linearize.disp(*data))',
   ),
 )
-Deno.test(
+test(
   'append_to_block',
   compare(
     [
@@ -26,7 +26,7 @@ Deno.test(
     'out(tiny.codegen.linearize.append_to_block(*data))',
   ),
 )
-Deno.test(
+test(
   'block_merge',
   compare(
     [
@@ -41,7 +41,7 @@ Deno.test(
     'out(tiny.codegen.linearize.block_merge(*data))',
   ),
 )
-Deno.test(
+test(
   'block_reorder',
   compare(
     [
@@ -60,7 +60,7 @@ Deno.test(
     'out(tiny.codegen.linearize.block_reorder(*data))',
   ),
 )
-Deno.test(
+test(
   'linearize_uop',
   compare(
     [

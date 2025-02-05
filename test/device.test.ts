@@ -1,8 +1,8 @@
 import { expect } from 'expect/expect'
 import { Device, type DeviceType } from '../denograd/device.ts'
-import { compare } from './helpers.ts'
+import { compare, test } from './helpers.ts'
 
-Deno.test(
+test(
   'Device.get',
   compare(
     [
@@ -15,7 +15,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Device.get_available_devices',
   () => {
     const devices = Device.get_available_devices()
@@ -23,7 +23,7 @@ Deno.test(
   },
 )
 
-Deno.test(
+test(
   'Device.DEFAULT',
   compare(
     [[]],

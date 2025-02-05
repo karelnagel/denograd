@@ -1,4 +1,3 @@
-import { exec } from 'node:child_process'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../denograd/dtype.ts'
 import { ArrayMap, bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
 import { expect } from 'expect'
@@ -20,9 +19,7 @@ import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
 import { WGSLRenderer } from '../denograd/renderer/wgsl.ts'
 
-dtypes // needed to force the import
-
-export const execAsync = (cmd: string, opt?: any) => new Promise<string>((res, rej) => exec(cmd, opt, (error, stdout, stderr) => error ? rej(error || stderr) : res(stdout.toString())))
+export const test = (name: string, fn: (t: Deno.TestContext) => void | Promise<void>) => Deno.test({ name, fn, sanitizeResources: false })
 
 export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined
