@@ -52,7 +52,7 @@ test(
   'mnist.call.ones',
   compare(
     [[]],
-    async () => {
+    () => {
       Tensor.manual_seed(333)
       const model = new MNIST()
       return model.call(Tensor.ones([1, 1, 28, 28]))

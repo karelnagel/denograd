@@ -1,4 +1,3 @@
-// deno-lint-ignore-file require-await
 import type { ImageDType } from '../dtype.ts'
 import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, LRU, NotImplemented, PROFILE, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
@@ -82,9 +81,9 @@ export class _MallocAllocator extends LRUAllocator {
     if (options.external_ptr) throw new Error(`TODO: external_ptr:${options.external_ptr}`)
     return mv
   }
-  _as_buffer = async (src: ArrayBuffer): Promise<MemoryView> => new MemoryView(src).flat()
+  _as_buffer = (src: ArrayBuffer) => new MemoryView(src).flat()
   _copyin = (dest: MemoryView, src: MemoryView) => dest.set(src)
-  _copyout = async (dest: MemoryView, src: MemoryView) => void dest.set(src)
+  _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
   _free = () => {
     throw new NotImplemented()
@@ -99,7 +98,7 @@ export type ProgramCallArgs = { global_size?: number[]; local_size?: number[]; v
 export class Program {
   constructor(public name: string, public lib: Uint8Array) {
   }
-  call = async (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> => {
+  call = (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> | number => {
     throw new NotImplemented()
   }
 }

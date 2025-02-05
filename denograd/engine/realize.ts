@@ -1,4 +1,3 @@
-// deno-lint-ignore-file require-await
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type DeviceType, type Program } from '../device.ts'
 import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, mod, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
@@ -35,7 +34,7 @@ export class Runner {
     return Device.get(this.device)
   }
   exec = async (rawbufs: Buffer[], var_vals?: Map<Variable, number>): Promise<number> => await this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
-  call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
+  call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> | number => {
     throw new Error('override this')
   }
 }
@@ -78,7 +77,7 @@ export class ViewOp extends Runner {
   constructor(buf: Buffer) {
     super(colored(`view ${buf.nbytes.toString().padStart(8)} @ ${buf.offset.toString().padEnd(10)}`, 'yellow'), buf.device)
   }
-  override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
+  override call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false) => {
     if (rawbufs[0]._base === undefined || rawbufs[0]._base !== rawbufs[1].base) throw new Error(`must be base ${rawbufs}`)
     return 0
   }
@@ -115,7 +114,7 @@ export class BufferCopy extends Runner {
   }
 }
 class BufferXfer extends BufferCopy {
-  override copy = async (dest: Buffer, src: Buffer) => {
+  override copy = (dest: Buffer, src: Buffer) => {
     throw new Error('KAREL: implement _transfer')
     // return dest.allocator._transfer(dest._buf, src._buf, dest.nbytes, src_dev = src.allocator.dev, dest_dev = dest.allocator.dev)
   }

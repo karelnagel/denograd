@@ -648,7 +648,7 @@ export const _ensure_downloads_dir = (): string => {
 
 // *** Exec helpers
 
-export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Promise<void>) => {
+export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Promise<void> | void) => {
   return async (...args: Args) => {
     const st = performance.now()
     await fn(...args)
