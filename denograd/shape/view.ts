@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, flatten, get_key, is_eq, isInt, list_str, next, range, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, flatten, get_key, is_eq, isInt, list_str, next, range, sorted, WeakValueMap, zip } from '../helpers.ts'
 import { resolve, type sint, sint_to_uop, smax, smin, sym_infer, UOp, type Variable } from '../ops.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, sub, sum } from '../helpers.ts'
 
@@ -291,7 +291,7 @@ export class View {
   }
   @cache
   permute(axis: number[]): View {
-    if (!is_eq(axis.toSorted(), range(this.shape.length))) throw new Error(`invalid permutation ${list_str(axis)} of len ${this.shape.length}`)
+    if (!is_eq(sorted(axis), range(this.shape.length))) throw new Error(`invalid permutation ${list_str(sorted(axis))} of len ${this.shape.length}`)
     return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, this.mask !== undefined ? axis.map((a) => this.mask![a]) : undefined)
   }
   @cache

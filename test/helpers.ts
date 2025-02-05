@@ -188,7 +188,9 @@ ${code}
   const file = `/tmp/tiny_${random_id()}.py`
   // console.log(file)
   await Deno.writeTextFile(file, code.trim())
-  const [stdout, ts] = (await execAsync(`PYTHONPATH=.:./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
+  const out = await new Deno.Command(`python3`, { args: [file], env: { 'PYTHONPATH': '.:./tinygrad' } }).output()
+  if (!out.success) throw new Error(bytes_to_string(out.stderr))
+  const [stdout, ts] = bytes_to_string(out.stdout).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
   try {
     return eval(ts)

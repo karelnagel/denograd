@@ -3,6 +3,18 @@ import { Env } from './env/index.ts'
 import type { MathTrait } from './ops.ts'
 
 // Python Map/Set implementations
+export const sorted = <T extends number[] | number[][]>(x: T): T =>
+  x.toSorted((a, b) => {
+    if (typeof a === 'number' && typeof b === 'number') return a - b
+    if (Array.isArray(a) && Array.isArray(b)) {
+      for (const [x, y] of zip(a, b)) {
+        if (x === y) continue
+        return x - y
+      }
+      return 0
+    }
+    throw new Error("Can't mix numbers and arrays")
+  }) as T
 export class DefaultMap<K, V> extends Map<K, V> {
   constructor(values: [K, V][] | undefined, private defaultFn: () => V) {
     super(values)

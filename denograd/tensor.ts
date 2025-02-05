@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, sorted, WeakValueMap, WINO, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -1300,7 +1300,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   permute = (...args: number[]): Tensor => {
     const order_arg = args.map((x) => this._resolve_dim(x))
-    if (!is_eq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
+    if (!is_eq(sorted(order_arg), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
     return Permute.apply(this, order_arg)
   }
   /**

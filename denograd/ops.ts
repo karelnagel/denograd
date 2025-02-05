@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -427,7 +427,7 @@ export class UOp extends MathTrait<UOp> {
   }
   static range = (dtype: DType, start: sint, end: sint, idx: number) => new UOp(Ops.RANGE, dtype, [sint_to_uop(start), sint_to_uop(end)], idx)
   _reduce_op = (op: Ops, axis: number[]) => {
-    axis = axis.filter((x) => resolve(ne(this.shape[x], 1))).toSorted()
+    axis = sorted(axis.filter((x) => resolve(ne(this.shape[x], 1))))
     return axis.length === 0 ? this : new UOp(Ops.REDUCE_AXIS, this.dtype, [this], [op, axis])
   }
   r = (op: Ops, axis: number[]): UOp => {
@@ -1199,7 +1199,7 @@ const fold_unrolled_divs = (divs: UOp) => {
   for (const i of range(denominator - seen_const.length)) {
     if (ans !== undefined && 0 <= ans.vmin && add(ans.vmax, i) < denominator) seen_const.push(i)
   }
-  return ans !== undefined && is_eq(seen_const.toSorted(), range(denominator)) ? ans : undefined
+  return ans !== undefined && is_eq(sorted(seen_const), range(denominator)) ? ans : undefined
 }
 export const canonicalize_simplex = (X: UOp): UOp | undefined => {
   // (X := a0*x0 + a1*x1 + ...) > 0 is equivalent to x0 + x1 + ... > 0 if xi >= 0 and ai > 0 for ints.
@@ -2103,7 +2103,7 @@ export const do_expand = (root: UOp) => {
     // if there's only one expand arg, it's okay to use it (optimization)
     expand_args = expands[0].arg
   } // otherwise, we sort them and GEP
-  else expand_args = dedup<[number, number]>(flatten(expands_args)).toSorted().filter((x) => !exclude_args.includes((x as any)[0]))
+  else expand_args = sorted(dedup<[number, number]>(flatten(expands_args))).filter((x) => !exclude_args.includes((x as any)[0]))
   const expand_sz = prod(expand_args.map((x) => x[1]))
   const new_srcs = []
   for (const [i, src] of root.src.entries()) {

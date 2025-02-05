@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, Enum, ge, get_env, get_key, get_number_env, gt, isinstance, isInt, NotImplemented, product, range, round_up, set_default, sum, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, Enum, ge, get_env, get_key, get_number_env, gt, isinstance, isInt, NotImplemented, product, range, round_up, set_default, sorted, sum, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, type_verify, UOp, type Variable, view_left } from '../ops.ts'
 import { idiv, le, mod, mul, ne, prod } from '../helpers.ts'
 import { ProgramSpec, type Renderer, type TensorCore } from '../renderer/index.ts'
@@ -593,7 +593,7 @@ export class Kernel {
         }
       }
       if (xb_choices.length) {
-        xb_choices = xb_choices.toSorted((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || a[3] - b[3])
+        xb_choices = sorted(xb_choices)
         if (DEBUG >= 4) console.log(`float4 merging axis : ${xb_choices}`)
         this.apply_opt(new Opt(OptOps.UPCAST, xb_choices[0][2], xb_choices[0][3]))
         upcasted_axis.add(xb_choices[0][2])
@@ -634,13 +634,13 @@ export class Kernel {
         // prioritize making expand axes local
         const local_axis_ranking = range(this.full_shape.slice(0, this.first_reduce).length).map((axis) => [range(this.sts.length).some((buf_index) => this.sts[buf_index].views.at(-1)!.strides[axis] === 0), axis])
         let to_local: [number, number][] = []
-        for (const [_, axis] of local_axis_ranking.toSorted((a, b) => b[0] === a[0] ? Number(b[1]) - Number(a[1]) : Number(b[0]) - Number(a[0]))) {
+        for (const [_, axis] of local_axis_ranking.toSorted((a, b) => Number(b[0]) - Number(a[0]) || Number(b[1]) - Number(a[1]))) {
           const local_size = prod(to_local.map(([_, sz]) => sz))
           const local_sz = [...(axis === 0 ? [32] : []), 16, 8, 4, 3, 2].filter((x) => mod(this.full_shape[Number(axis)], x) === 0 && local_size * x <= 128).shift() // KAREL: should be .next()
           if (local_sz !== undefined) to_local.push([Number(axis), local_sz])
         }
         let deleted_shape = 0
-        for (let [axis, local_sz] of to_local.slice(0, 3).toSorted()) {
+        for (let [axis, local_sz] of sorted(to_local.slice(0, 3))) {
           axis = axis - deleted_shape
           let will_delete_shape = local_sz === this.full_shape[axis]
           this.apply_opt(new Opt(OptOps.LOCAL, axis, local_sz))
