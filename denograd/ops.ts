@@ -756,7 +756,9 @@ export const python_alu = new Map<Ops, (...x: ConstType[]) => ConstType>([
 export const exec_alu = (op: Ops, dtype: DType, operands: ConstType[], truncateOutput = true): any => {
   if (dtype.count > 1) return range(dtype.count).map((i) => exec_alu(op, dtype.scalar(), operands.map((x) => Array.isArray(x) ? x[i] : x)))
   const alu = python_alu.get(op)!(...operands)
-  return truncateOutput ? truncate.get(dtype)!(alu) : alu
+  const truncFn = truncate.get(dtype)
+  if (!truncFn) throw new Error(`No trunc fn for ${dtype}`)
+  return truncateOutput ? truncFn(alu) : alu
 }
 // ***** uop helpers *****
 
@@ -1177,29 +1179,29 @@ const lt_folding = (x: UOp, c: number): UOp | undefined => {
   }
   return undefined
 }
-const fold_unrolled_divs = ({ divs }: { divs: UOp }) => {
+const fold_unrolled_divs = (divs: UOp) => {
   // div pattern in unrolled arange
   // example: (x//4+(x+1)//4+(x+2)//4+(x+3)//4 -> x
-  let [addChain, denominator, seenConst, ans] = [split_uop(divs, Ops.ADD), undefined as number | undefined, [] as number[], undefined as undefined | UOp]
-  for (const u of addChain) {
+  let add_chain = [...split_uop(divs, Ops.ADD)], denominator: number | undefined = undefined, seen_const: number[] = [], ans: UOp | undefined = undefined
+  for (const u of add_chain) {
     if (!(u.op === Ops.IDIV && u.src[1].op === Ops.CONST)) return undefined
     if (denominator === undefined) denominator = u.src[1].arg
     if (denominator !== u.src[1].arg) return undefined
     // assumed CONST is the last of an ADD
     let s0 = u.src[0]
     if (s0.op === Ops.ADD && s0.src[1].op === Ops.CONST && s0.src[1].op === Ops.CONST) {
-      seenConst.push(s0.src[1].arg)
+      seen_const.push(s0.src[1].arg)
       s0 = s0.src[0]
-    } else seenConst.push(0)
+    } else seen_const.push(0)
     if (ans === undefined) ans = s0
     if (ans !== s0) return undefined
   }
   if (denominator === undefined) return undefined
   // the first (denominator-len(seen_const)) terms may have been folded to 0 already
-  for (const i of range(denominator - seenConst.length)) {
-    if (ans !== undefined && 0 <= ans.vmin && add(ans.vmax, i) < denominator) seenConst.push(i)
+  for (const i of range(denominator - seen_const.length)) {
+    if (ans !== undefined && 0 <= ans.vmin && add(ans.vmax, i) < denominator) seen_const.push(i)
   }
-  return ans !== undefined && is_eq(seenConst.sort((a, b) => b - a), range(denominator)) ? ans : undefined
+  return ans !== undefined && is_eq(seen_const.toSorted(), range(denominator)) ? ans : undefined
 }
 export const canonicalize_simplex = (X: UOp): UOp | undefined => {
   // (X := a0*x0 + a1*x1 + ...) > 0 is equivalent to x0 + x1 + ... > 0 if xi >= 0 and ai > 0 for ints.
@@ -1384,7 +1386,7 @@ export const symbolic = symbolic_simple.add(
     new UPat(Ops.MUL, undefined, [UPat.var('x'), UPat.cvar('c1')]).mul(UPat.var('y')).fn(({ x, c1, y }) => (x.mul(y)).mul(c1)),
     //   // *** rules from symbolic ***
     //   // unrolled arange div folding
-    new UPat(Ops.ADD, undefined, [[new UPat(), new UPat(Ops.IDIV)]], undefined, 'divs').fn(({ divs }) => fold_unrolled_divs({ divs })),
+    new UPat(Ops.ADD, undefined, [[new UPat(), new UPat(Ops.IDIV)]]).named('divs').fn(({ divs }) => fold_unrolled_divs(divs)),
     // generic lt folding
     UPat.var('x', dtypes.sints).lt(UPat.cvar('c', undefined, false)).fn(({ x, c }) => 0 < c.arg ? lt_folding(x, c.arg) : undefined),
     // canonicalize a simplex with positive coefficients > 0
