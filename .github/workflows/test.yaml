@@ -26,4 +26,4 @@ jobs:
         with:
           deno-version: v2.x
       - run: pip install wgpu
-      - run: deno test -A --no-check
+      - run: WEBGPU=1 deno test -A --no-check
