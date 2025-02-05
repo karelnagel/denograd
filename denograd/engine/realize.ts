@@ -1,7 +1,7 @@
 // deno-lint-ignore-file require-await
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type DeviceType, type Program } from '../device.ts'
-import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
+import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, mod, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
 import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
 import type { ScheduleItem } from './schedule.ts'
@@ -14,7 +14,7 @@ export const get_kernel = (renderer: Renderer, ast: UOp): Kernel => {
   if (DEBUG >= 5) console.log(ast)
   let k = new Kernel(ast, renderer).required_optimizations()
   if (!NOOPT) {
-    if (!k.apply_tensor_cores(get_number_env('TC', 1))) k.required_optimizations()
+    if (!k.apply_tensor_cores(get_number_env('TC', 1))) k.hand_coded_optimizations()
     if (BEAM >= 1) {
       const kb = new Kernel(ast, renderer).required_optimizations()
       const rawbufs = bufs_from_lin(kb, false)
@@ -57,7 +57,7 @@ export class CompiledRunner extends Runner {
     let [global_size, local_size] = this.p.launch_dims(var_vals)
     if (global_size !== undefined && local_size === undefined && all_int(this.p.global_size!)) {
       local_size = await optimize_local_size(this._prg, global_size, rawbufs)
-      global_size = zip(global_size, local_size!).map(([g, l]) => g % l === 0 ? idiv(g, l) : g / l)
+      global_size = zip(global_size, local_size!).map(([g, l]) => mod(g, l) === 0 ? idiv(g, l) : g / l)
       this.p.global_size = global_size
       this.p.global_size = local_size
     }
@@ -172,8 +172,8 @@ export class ExecItem {
 }
 // NOTE: ctx is the buffers
 export const si_lowerer = new PatternMatcher<Buffer[], [Runner, Buffer[]]>([
-  [new UPat(Ops.SINK).named('sink'), ({ ctx, sink }) => [get_runner(ctx[0].device, sink)].map((runner) => [runner, runner.p.globals.map((x) => ctx[x])] as [Runner, Buffer[]])[0]],
-  [new UPat(Ops.BUFFER_VIEW), ({ ctx }) => [new ViewOp(ctx[0]), [...ctx]]],
+  new UPat(Ops.SINK).named('sink').fn(({ ctx, sink }) => [get_runner(ctx[0].device, sink)].map((runner) => [runner, runner.p.globals.map((x) => ctx[x])] as [Runner, Buffer[]])[0]),
+  new UPat(Ops.BUFFER_VIEW).fn(({ ctx }) => [new ViewOp(ctx[0]), [...ctx]]),
   [
     new UPat(Ops.COPY).named('copy'),
     ({ ctx, copy }) => ['_transfer' in Device.get(ctx[0].device)!.allocator! && all_same(ctx.map((x) => x.device.split(':')[0])) ? new BufferXfer(ctx[0].nbytes, ctx[0].device, ctx[1].device) : new BufferCopy(ctx[0].nbytes, ctx[0].device, ctx[1].device), [...ctx]],

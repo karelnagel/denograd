@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, NotImplemented, product, random_id, range, type Slice, slice, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, sorted, WeakValueMap, WINO, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -803,7 +803,7 @@ export class Tensor extends MathTrait<Tensor> {
     // generate per device seeds && rng counter if we haven't seen this device yet
     if (!Tensor._device_seeds[device]) {
       Tensor._device_seeds[device] = new Tensor(
-        [bytes_to_bigint(Env.sha256(int_to_bytes(Object.keys(Tensor._device_seeds).length))) % (2n ** 32n), Tensor._seed],
+        [mod(bytes_to_bigint(Env.sha256(int_to_bytes(Object.keys(Tensor._device_seeds).length))), 2n ** 32n), Tensor._seed],
         { device: device, dtype: dtypes.uint32, requires_grad: false },
       )
       Tensor._device_rng_counters[device] = new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false })
@@ -1300,7 +1300,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   permute = (...args: number[]): Tensor => {
     const order_arg = args.map((x) => this._resolve_dim(x))
-    if (!is_eq(order_arg.toSorted(), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
+    if (!is_eq(sorted(order_arg), range(this.ndim))) throw new Error(`order !== a valid permutation, getting ${order_arg}`)
     return Permute.apply(this, order_arg)
   }
   /**
@@ -1380,7 +1380,7 @@ export class Tensor extends MathTrait<Tensor> {
     // flat padding
     let pX: [sint, sint][]
     if (padding.every((p) => isInt(p) || p instanceof UOp)) {
-      if (padding.length % 2 !== 0) throw new Error('Flat padding must have even number of pads')
+      if (mod(padding.length, 2) !== 0) throw new Error('Flat padding must have even number of pads')
       pX = _flat_to_grouped([...padding, ...range(this.ndim - idiv(padding.length, 2)).flatMap((x) => [0, 0])])
     } // group padding
     else pX = padding.map((p) => p === undefined ? [0, 0] : p)
@@ -1471,7 +1471,7 @@ export class Tensor extends MathTrait<Tensor> {
         if (!all_int(x.shape)) throw new Error('symbolic shape not supported')
         x = x.pad(zip(x.shape, strides).map(([s, st]) => [0, round_up(s, st) - s] as [number, number]))
         x = x.reshape(zip(x.shape as number[], strides).flatMap(([s, st]) => [idiv(s, st), st]))
-        x = x.shrink(x.shape.filter((_, i) => i % 2 === 0).flatMap((s) => [[0, s], [0, 1]])).reshape((x.shape as number[]).filter((_, i) => i % 2 === 0))
+        x = x.shrink(x.shape.filter((_, i) => mod(i, 2) === 0).flatMap((s) => [[0, s], [0, 1]])).reshape((x.shape as number[]).filter((_, i) => mod(i, 2) === 0))
       }
     }
     // // dim injection from undefined by including undefined dim size (which === 1) && dim collapse by skipping number dim size
@@ -1872,7 +1872,7 @@ export class Tensor extends MathTrait<Tensor> {
     dims = make_tuple(dims, 1).map((d) => this._resolve_dim(d))
     let rolled: Tensor = this
     for (let [dim, shift] of zip(dims, make_tuple(shifts, 1))) {
-      shift = shift % this.shape[dim]
+      shift = mod(shift, this.shape[dim])
       rolled = Tensor.cat([rolled.get(...range(rolled.ndim).map((i) => i !== dim ? {} : { start: -shift })), rolled.get(...range(rolled.ndim).map((i) => i !== dim ? {} : { stop: -shift }))], dim)
     }
     return rolled
@@ -2494,7 +2494,7 @@ export class Tensor extends MathTrait<Tensor> {
     // todo: stride == dilation
     // use padding to round up to 4x4 output tiles
     // (bs, cin_, tyx, HWI)
-    let d = this.pad(this.shape.slice(-HW.length).flatMap((dim, i) => [padding_[i * 2], padding_[i * 2 + 1] + (-(dim + sum(padding_.slice(i * 2, (i + 1) * 2)) - 2) % 4)]))._pool(HWI, HWO)
+    let d = this.pad(this.shape.slice(-HW.length).flatMap((dim, i) => [padding_[i * 2], padding_[i * 2 + 1] + mod(-(dim + sum(padding_.slice(i * 2, (i + 1) * 2)) - 2), 4)]))._pool(HWI, HWO)
     // move HW to the front: // (HWI, bs, cin_, tyx)
     d = d.permute(...range(d.shape.length - HW.length, d.shape.length), ...range(d.shape.length - HW.length))
     const tyx = d.shape.slice(-HWI.length) // dim of tiling
@@ -3687,7 +3687,7 @@ export class Tensor extends MathTrait<Tensor> {
       if (x === 0) return this.mul(0).add(1, true)
       // rewrite pow 0.5 to sqrt
       if (Math.trunc(x - 0.5) + 0.5 === x) return this.pow(Math.trunc(x - 0.5)).mul(this.sqrt())
-      if (Math.trunc(x) === x) return this.pow(idiv(x, 2)).square().mul(x % 2 === 0 ? 1 : this)
+      if (Math.trunc(x) === x) return this.pow(idiv(x, 2)).square().mul(mod(x, 2) === 0 ? 1 : this)
     }
     // positive const ** self
     if (!isinstance(x, Tensor) && reverse && x > 0) return this.mul(Math.log(x)).exp()
@@ -4141,7 +4141,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (this.requires_grad) throw new Error("can't backprop through bitcast")
     const dt = to_dtype(dtype)
     const ns = dt.itemsize, os = this.dtype.itemsize
-    if (ns !== os && (this.shape.at(-1)! * os) % ns !== 0) throw new Error('unsupported size in bitcast')
+    if (ns !== os && mod(this.shape.at(-1)! * os, ns) !== 0) throw new Error('unsupported size in bitcast')
     if ((Array.isArray(this.device) || !this.device.startsWith('DISK')) && ns !== os) {
       const [new_uint, old_uint] = [to_dtype(`uint${8 * ns}`), to_dtype(`uint${8 * os}`)]
       const tmp = this.bitcast(old_uint)
@@ -4236,9 +4236,9 @@ export class Tensor extends MathTrait<Tensor> {
     let x: Tensor = this, rcout = idiv(cout, groups), w = weight.reshape([groups, rcout, cin, H, W])
 
     // hack for non multiples of 4 on cin
-    if (cin % 4 !== 0 && !(cin === 1 && groups % 4 === 0)) {
+    if (mod(cin, 4) !== 0 && !(cin === 1 && mod(groups, 4) === 0)) {
       x = x.reshape([bs, groups, cin, iy, ix]) // do this always?
-      const added_input_channels = 4 - (cin % 4)
+      const added_input_channels = 4 - mod(cin, 4)
       w = w.pad(range(w.ndim).map((i) => i === 2 ? [0, added_input_channels] as [sint, sint] : undefined))
       x = x.pad(range(x.ndim).map((i) => i === 2 ? [0, added_input_channels] as [sint, sint] : undefined))
       cin = cin + added_input_channels
@@ -4246,8 +4246,8 @@ export class Tensor extends MathTrait<Tensor> {
     }
     // hack for non multiples of 4 on rcout
     let added_output_channels = 0
-    if (rcout % 4 !== 0 && !(rcout === 1 && groups % 4 === 0)) {
-      added_output_channels = 4 - (rcout % 4)
+    if (mod(rcout, 4) !== 0 && !(rcout === 1 && mod(groups, 4) === 0)) {
+      added_output_channels = 4 - mod(rcout, 4)
       rcout += added_output_channels
       cout = groups * rcout
       w = w.pad(range(w.ndim).map((i) => i === 1 ? [0, added_output_channels] as [sint, sint] : undefined))

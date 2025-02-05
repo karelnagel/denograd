@@ -3,6 +3,18 @@ import { Env } from './env/index.ts'
 import type { MathTrait } from './ops.ts'
 
 // Python Map/Set implementations
+export const sorted = <T extends number[] | number[][]>(x: T): T =>
+  x.toSorted((a, b) => {
+    if (typeof a === 'number' && typeof b === 'number') return a - b
+    if (Array.isArray(a) && Array.isArray(b)) {
+      for (const [x, y] of zip(a, b)) {
+        if (x === y) continue
+        return x - y
+      }
+      return 0
+    }
+    throw new Error("Can't mix numbers and arrays")
+  }) as T
 export class DefaultMap<K, V> extends Map<K, V> {
   constructor(values: [K, V][] | undefined, private defaultFn: () => V) {
     super(values)
@@ -32,6 +44,7 @@ export const get_key = (...args: ArrayKey[]): string => {
   }
   return hash(stringify(args))
 }
+
 export class ArrayMap<K extends ArrayKey, V, Internal extends [any, any] = [K, V]> {
   map: Map<string, Internal>
   constructor(values?: Internal[]) {
@@ -59,8 +72,8 @@ export class ArrayMap<K extends ArrayKey, V, Internal extends [any, any] = [K, V
 // When key is garbage collected then the item is removed from the map
 export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<K, V, [WeakRef<K>, V]> {
   private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
-  constructor(values?: [K, V][]) {
-    super(values?.map(([k, v]) => [new WeakRef(k), v]))
+  constructor() {
+    super()
   }
   override get = (key: K): V | undefined => {
     const res = this.map.get(get_key(key))
@@ -71,9 +84,10 @@ export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<
     this.map.delete(get_key(key))
     return undefined
   }
-  override set = (key: K, value: V) => {
-    this.map.set(get_key(key), [new WeakRef(key), value])
-    this.finalizationGroup.register(key, get_key(key))
+  override set = (keyValue: K, value: V) => {
+    const key = get_key(keyValue)
+    this.map.set(key, [new WeakRef(keyValue), value])
+    this.finalizationGroup.register(keyValue, key, keyValue)
   }
   override entries = (): [K, V][] => {
     const res: [K, V][] = []
@@ -83,13 +97,22 @@ export class WeakKeyMap<K extends WeakArrayKey, V extends any> extends ArrayMap<
     }
     return res
   }
+  override delete = (k: K) => {
+    this.finalizationGroup.unregister(k)
+    return this.map.delete(get_key(k))
+  }
+  override clear = () => {
+    for (const key of this.keys()) this.finalizationGroup.unregister(key)
+    return this.map.clear()
+  }
 }
 
 // When value is garbage collected then the item is removed from the map
 export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap<K, V, [K, WeakRef<V>]> {
-  private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
-  constructor(values?: [K, V][]) {
-    super(values?.map(([k, v]) => [k, new WeakRef(v)]))
+  // TODO: fix the finalization
+  // private finalizationGroup = new FinalizationRegistry<string>((key) => this.map.delete(key))
+  constructor() {
+    super()
   }
   override get = (key: K): V | undefined => {
     const res = this.map.get(get_key(key))
@@ -102,8 +125,12 @@ export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap
     return undefined
   }
   override set = (key: K, value: V) => {
-    this.map.set(get_key(key), [key, new WeakRef(value)])
-    this.finalizationGroup.register(value, get_key(key))
+    // const oldValue = this.get(key)
+    // if (oldValue) this.finalizationGroup.unregister(oldValue)
+
+    const stringKey = get_key(key)
+    this.map.set(stringKey, [key, new WeakRef(value)])
+    // this.finalizationGroup.register(value, stringKey, value)
   }
   override entries = (): [K, V][] => {
     const res: [K, V][] = []
@@ -113,6 +140,15 @@ export class WeakValueMap<K extends ArrayKey, V extends object> extends ArrayMap
     }
     return res
   }
+  override delete = (k: K) => {
+    const value = this.get(k)
+    // if (value) this.finalizationGroup.unregister(value)
+    return this.map.delete(get_key(k))
+  }
+  override clear = () => {
+    // for (const value of this.values()) this.finalizationGroup.unregister(value)
+    return this.map.clear()
+  }
 }
 
 export class NotImplemented extends Error {
@@ -120,6 +156,7 @@ export class NotImplemented extends Error {
     super('Not implemented!')
   }
 }
+export const floatString = (x: number) => Number.isInteger(x) ? x + '.0' : x.toString()
 
 export const max = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
@@ -187,19 +224,25 @@ export abstract class Enum {
 }
 
 export const random_id = () => (Math.random() * 100000000).toFixed(0)
-export function hash(input: string) {
-  let hash = 0xdeadbeef
+export function hash(input: string): string {
+  const FNV_OFFSET_BASIS_64 = BigInt('0xcbf29ce484222325')
+  const FNV_PRIME_64 = BigInt('0x100000001b3')
+
+  let h = FNV_OFFSET_BASIS_64
   for (let i = 0; i < input.length; i++) {
-    hash = ((hash << 5) + hash) + input.charCodeAt(i)
-    hash = hash & hash // Convert to 32bit integer
+    h ^= BigInt(input.charCodeAt(i))
+    h *= FNV_PRIME_64
+    h &= BigInt('0xFFFFFFFFFFFFFFFF')
   }
-  return (hash >>> 0).toString(16).padStart(8, '0')
+  return h.toString(16).padStart(16, '0')
 }
 
 export const string_to_bytes = (text: string) => new TextEncoder().encode(text)
 export const bytes_to_string = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
 export const bytes_to_hex = (arr: Uint8Array) => Array.from(arr).map((byte) => byte.toString(16).padStart(2, '0')).join('')
-;(BigInt.prototype as any).toJSON = function () {
+
+// @ts-ignore overriding BigInt toJSON, probably can be removed
+BigInt.prototype.toJSON = function () {
   return this.toString()
 }
 
@@ -237,27 +280,39 @@ export const isinstance = <T extends abstract new (...args: any) => any | Number
   return Array.isArray(classType) ? classType.some((t) => instance instanceof t) : instance instanceof classType
 }
 
-export const divmod = (a: number, b: number) => [Math.floor(a / b), a % b] as [number, number]
+export const divmod = (a: number, b: number) => [idiv(a, b), mod(a, b)]
 export function* counter(start = 0) {
   let current = start
   while (true) yield current++
 }
 export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : typeof x === 'string' ? `'${x}'` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
-export const is_less_than = (a: any, b: any): boolean => {
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return a.length < b.length
-    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return is_less_than(ai, bi)
+export const is_less_than = (one: any[], two: any[]): boolean => {
+  // Inner is needed so that it can return undefined for cases when all the elements are the same
+  const inner = (one: any[], two: any[]): boolean | undefined => {
+    for (const [x, y] of zip(one, two)) {
+      if (x === y) continue
+      if (Array.isArray(x) && Array.isArray(y)) {
+        const res = inner(x, y)
+        if (res === undefined) continue
+        else return res
+      }
+      // if it's DType, res===boolean check just to check if it's not MathTrait maybe
+      if (typeof x === 'object' && typeof y === 'object' && 'lt' in x && 'lt' in y && typeof x.lt === 'function') {
+        const res = x.lt(y)
+        if (typeof res === 'boolean') return res
+      }
+      if (typeof x === 'object' || typeof y === 'object') throw new Error(`Can't compare objects: x=${x}, y=${y}`)
+      return x < y
+    }
   }
-  if (typeof a === 'object' && typeof b === 'object' && 'lt' in a && 'lt' in b) {
-    return a.lt(b)
-  }
-  return a < b
+  return inner(one, two) || false
 }
 export type ConstType<This = never> = number | bigint | boolean | This
 export const isConst = (x: any): x is ConstType => ['number', 'bigint', 'boolean'].includes(typeof x)
 export const is_eq = (one: any, two: any): boolean => {
   if (Array.isArray(one) && Array.isArray(two)) return one.length === two.length && one.every((o, i) => is_eq(o, two[i]))
+  if (typeof one === 'number' && typeof two === 'number' && isNaN(one) && isNaN(two)) return true
   // deno-lint-ignore eqeqeq
   if (isConst(one) && isConst(two)) return one == two
   return one === two
@@ -290,7 +345,7 @@ export function range(start: number, stop?: number, step = 1): number[] {
 }
 export const tuple = <T extends any[]>(...t: T) => t
 export const assert = (condition: boolean): condition is true => {
-  if (!condition) throw new Error()
+  if (!condition) throw new Error('Assert failed!')
   return condition
 }
 export function permutations<T>(arr: T[], length: number = arr.length): T[][] {
@@ -423,6 +478,7 @@ export class Metadata {
   static cache = new WeakValueMap<string, Metadata>()
   constructor(public name: string, public caller: string, public backward = false) {
     this.key = get_key(name, caller, backward)
+    Object.freeze(this)
     return Metadata.cache.setDefault(this.key, this)
   }
   // def __hash__(self): return hash(self.name)
@@ -768,14 +824,13 @@ const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean)
     else return numberFn(Number(a), Number(b)) as Return<A, B>
   }
 }
-
 export const add = _meta((a, b, r) => a.add(b, r), (a, b) => a + b)
 export const sub = _meta((a, b, r) => a.sub(b, r), (a, b) => a - b)
 export const mul = _meta((a, b, r) => a.mul(b, r), (a, b) => a * b)
 export const div = _meta((a, b, r) => a.div(b, r), (a, b) => a / b)
 export const idiv = _meta((a, b, r) => a.idiv(b, r), (a, b) => Math.floor(a / b), (a, b) => a / b)
-export const neg = <A extends Math>(a: A): Return<A, A> => ((!isConst(a)) ? a.neg() : typeof a === 'bigint' ? a * -1n : Number(a) * -1)
-export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => a % b)
+export const neg = <A extends Math>(a: A): Return<A, A> => ((!isConst(a)) ? a.neg() : typeof a === 'bigint' ? -a : -Number(a))
+export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => ((a % b) + b) % b)
 
 export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => a & b)
 export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => a | b)

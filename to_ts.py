@@ -2,7 +2,6 @@ from enum import Enum
 import itertools
 
 
-
 def to_ts(o):
     from tinygrad.ops import KernelInfo, UOp, UPat
     from tinygrad.codegen.lowerer import IndexContext
@@ -11,6 +10,7 @@ def to_ts(o):
     from tinygrad.dtype import INVERSE_DTYPES_DICT
     from tinygrad.shape.view import View
     from tinygrad.renderer.cstyle import ClangRenderer
+    from tinygrad.renderer.wgsl import WGSLRenderer
     from tinygrad.codegen.kernel import Kernel, Opt
     from tinygrad.codegen.linearize import BasicBlock
     from tinygrad.renderer import ProgramSpec, TensorCore
@@ -73,6 +73,8 @@ def to_ts(o):
     # ************ RENDERER ************
     if isinstance(o, ClangRenderer):
         return f"new ClangRenderer()"
+    if isinstance(o, WGSLRenderer):
+        return f"new WGSLRenderer()"
     if isinstance(o, PythonRenderer):
         return f"new PythonRenderer()"
     if isinstance(o, TensorCore):
@@ -111,7 +113,7 @@ def to_ts(o):
     # ************ ENGINE ************
     if isinstance(o, CompiledRunner):
         return f"new CompiledRunner({to_ts(o.p)}, {to_ts(o.lib)})"
-    if isinstance(o,Estimates):
+    if isinstance(o, Estimates):
         return f"new Estimates({to_ts(o.ops)}, {to_ts(o.lds)}, {to_ts(o.mem)})"
     if isinstance(o, Runner):
         return f"new Runner({to_ts(o.display_name)}, {to_ts(o.device)}, {to_ts(o.estimates)})"
@@ -175,8 +177,16 @@ def to_ts(o):
 
 global_inputs = {}
 
+import inspect
 
-def save_input(fn_name, input, max_len=6):
+
+def save_input(fn_name=None, input=None, max_len=6):
+    frame = inspect.currentframe().f_back
+    if fn_name is None: fn_name = frame.f_code.co_name
+    if input is None:
+        args, _, _, values = inspect.getargvalues(frame)
+        input = tuple(values[arg] for arg in args)
+
     ts = to_ts(input)
     fn_inputs: set = global_inputs.setdefault(fn_name, set())
     if ts not in fn_inputs:

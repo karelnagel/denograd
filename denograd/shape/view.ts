@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, flatten, get_key, is_eq, isInt, list_str, next, range, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, flatten, get_key, is_eq, isInt, list_str, next, range, sorted, WeakValueMap, zip } from '../helpers.ts'
 import { resolve, type sint, sint_to_uop, smax, smin, sym_infer, UOp, type Variable } from '../ops.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, sub, sum } from '../helpers.ts'
 
@@ -53,7 +53,7 @@ export const _reshape_mask = cache_fn((_mask: undefined | [sint, sint][], old_sh
       new_mask.push([idiv(l, curr_stride), add(idiv(sub(r, 1), curr_stride), 1)])
       curr_stride = 1, old_dim = next(r_shape, 1), new_dim = next(r_new_shape, 1), mask = next(r_masks, [0, 1])
     } else if (old_dim > next_stride) {
-      if (old_dim as number % (next_stride as number) !== 0) return undefined
+      if (mod(old_dim, next_stride) !== 0) return undefined
       if ((mod(l, next_stride) !== 0 || mod(r, next_stride) !== 0) && idiv(l, next_stride) !== idiv(sub(r, 1), next_stride)) return undefined
       new_mask.push([idiv(mod(l, next_stride), curr_stride), add(idiv(mod(sub(r, 1), next_stride), curr_stride), 1)])
       curr_stride = next_stride, new_dim = next(r_new_shape, 1) // need to get mask for next dimension
@@ -84,6 +84,7 @@ export class View {
   static cache = new WeakValueMap<string, View>()
   constructor(public shape: sint[], public strides: sint[], public offset: sint, public mask?: [sint, sint][], public contiguous?: boolean) {
     this.key = get_key(shape, strides, offset, mask, contiguous)
+    Object.freeze(this)
     return View.cache.setDefault(this.key, this)
   }
 
@@ -290,7 +291,7 @@ export class View {
   }
   @cache
   permute(axis: number[]): View {
-    if (!is_eq(axis.toSorted(), range(this.shape.length))) throw new Error(`invalid permutation ${list_str(axis)} of len ${this.shape.length}`)
+    if (!is_eq(sorted(axis), range(this.shape.length))) throw new Error(`invalid permutation ${list_str(sorted(axis))} of len ${this.shape.length}`)
     return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, this.mask !== undefined ? axis.map((a) => this.mask![a]) : undefined)
   }
   @cache

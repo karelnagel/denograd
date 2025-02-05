@@ -2,7 +2,7 @@
 
 import { type Layer, Tensor } from '../denograd/tensor.ts'
 import { mnist } from '../denograd/nn/datasets.ts'
-import { get_env, get_number_env, range } from '../denograd/helpers.ts'
+import { get_env, get_number_env, mod, range } from '../denograd/helpers.ts'
 import { Tqdm } from '../denograd/tqdm.ts'
 import { BatchNorm, Conv2d, Linear, Model } from '../denograd/nn/index.ts'
 import { get_parameters } from '../denograd/nn/state.ts'
@@ -36,23 +36,23 @@ if (import.meta.main) {
   const opt = Adam(get_parameters(model))
 
   const train_step = async (): Promise<Tensor> => {
+    Tensor.training = true
     opt.zero_grad()
     const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0])
     const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
     await opt.step()
+    Tensor.training = false
     return loss
   }
 
   const get_test_acc = (): Tensor => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)
 
-  Tensor.training = true
   let test_acc = NaN
-  const t = new Tqdm(range(get_number_env('STEPS', 12)))
+  const t = new Tqdm(range(get_number_env('STEPS', 14)))
   for await (const i of t) {
     const loss = await train_step().then((x) => x.item())
-    if (i % 10 === 9) test_acc = await get_test_acc().item()
+    if (mod(i, 10) === 9) test_acc = await get_test_acc().item()
     t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
   }
-  Tensor.training = false
   await model.save('./mnist.safetensors')
 }

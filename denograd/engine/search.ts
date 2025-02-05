@@ -1,6 +1,6 @@
 import type { Kernel } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
-import { get_env, idiv, isInf, NotImplemented, prod, range, zip } from '../helpers.ts'
+import { get_env, idiv, isInf, mod, NotImplemented, prod, range, zip } from '../helpers.ts'
 import { sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -96,7 +96,7 @@ export const optimize_local_size = async (_prg: Program, global_size: number[], 
   const try_exec = async (local_size: number[]): Promise<number> => {
     try {
       return await _prg.call(test_rawbuffers.map((x) => x._buf), {
-        global_size: zip(global_size, local_size).map(([g, l]) => g % l === 0 ? idiv(g, l) : g / l),
+        global_size: zip(global_size, local_size).map(([g, l]) => mod(g, l) === 0 ? idiv(g, l) : g / l),
         local_size,
       }, true)
     } catch {

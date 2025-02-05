@@ -1,6 +1,6 @@
 {
-    "name": "@denograd/models",
-    "version": "0.0.1",
-    "exports": "./mod.ts",
-    "license": "MIT"
+  "name": "@denograd/models",
+  "version": "0.0.1",
+  "exports": "./mod.ts",
+  "license": "MIT"
 }

@@ -136,7 +136,7 @@ Deno.test(
 )
 
 Deno.test(
-  'leastUpperDType',
+  'least_upper_dtype',
   compare(
     [
       ['int', 'int'],

@@ -18,6 +18,7 @@ import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRU
 import { PythonRenderer } from '../denograd/runtime/ops_python.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
+import { WGSLRenderer } from '../denograd/renderer/wgsl.ts'
 
 dtypes // needed to force the import
 
@@ -117,6 +118,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
 
   // ************ RENDERER ************
   if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
+  if (o instanceof WGSLRenderer) return t`tiny.renderer.wgsl.WGSLRenderer()`
   if (o instanceof PythonRenderer) return t`PythonRenderer()`
   if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, elements_per_thread=${o.elements_per_thread}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out}, opts=${o.opts}, swizzle=${o.swizzle})`
   if (o instanceof ProgramSpec) {
@@ -138,7 +140,10 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
     const src = Array.isArray(o._in_src) ? (Array.isArray(o._in_src.at(0)) ? new SkipFormatting(await pyStr(o._in_src.at(0), true)) : o._in_src) : o._in_src
     return t`tiny.ops.UPat(op=${o.op}, dtype=${o.dtype}, src=${src}, arg=${o.arg}, name=${o.name}, allow_any_len=${o.allowed_len === -1}, location=${o.location}, custom_early_reject=${o.custom_early_reject})`
   }
-  if (o instanceof UOp) return t`tiny.ops.UOp(op=${o.op}, dtype=${o.dtype}, src=${o.src}, arg=${o.arg})`
+  if (o instanceof UOp) {
+    const arg = o.op === Ops.CONST && o.dtype === dtypes.float ? `float(${await pyStr(o.arg)})` : await pyStr(o.arg)
+    return `tiny.ops.UOp(op=${await pyStr(o.op)}, dtype=${await pyStr(o.dtype)}, src=${await pyStr(o.src)}, arg=${arg})`
+  }
   if (o instanceof KernelInfo) return t`tiny.ops.KernelInfo(${o.local_dims}, ${o.upcasted}, ${o.dont_use_locals})`
 
   // ************ HELPERS ************
@@ -186,7 +191,9 @@ ${code}
   const file = `/tmp/tiny_${random_id()}.py`
   // console.log(file)
   await Deno.writeTextFile(file, code.trim())
-  const [stdout, ts] = (await execAsync(`PYTHONPATH=.:./tinygrad python3 ${file}`)).replace('>>>>>', '').trim().split('<<<<<')
+  const out = await new Deno.Command(`python3`, { args: [file], env: { 'PYTHONPATH': '.:./tinygrad' } }).output()
+  if (!out.success) throw new Error(bytes_to_string(out.stderr))
+  const [stdout, ts] = bytes_to_string(out.stdout).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
   try {
     return eval(ts)

@@ -97,5 +97,6 @@ for await (const i of tqdm(range(100))) {
 - [ ] node support
 - [ ] CLOUD runtime
 - [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
+- [ ] WASM runtime
 - [ ] METAL runtime
 - [ ] AMD runtime

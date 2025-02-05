@@ -1,6 +1,6 @@
 import type { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { add, assert, cache, dedup, get_key, idiv, mul, prod, range, replace, WeakValueMap } from '../helpers.ts'
+import { add, assert, cache, dedup, get_key, idiv, mul, prod, range, replace, sorted, WeakValueMap } from '../helpers.ts'
 import { GroupOp, Ops, type sint, ssimplify, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]
@@ -110,8 +110,8 @@ export class ProgramSpec {
         }
       }
       this.vars = this.vars?.toSorted((a, b) => b.arg - a.arg)
-      this.outs = dedup(this.outs).toSorted()
-      this.ins = dedup(this.ins).toSorted()
+      this.outs = sorted(dedup(this.outs))
+      this.ins = sorted(dedup(this.ins))
       this._ran_post_init = true
     }
   }

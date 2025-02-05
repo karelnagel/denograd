@@ -26,12 +26,12 @@ const packed_load = (root: UOp, bidx: UOp, dtype: DType, variable?: UOp) => {
   return [dtypes.char, dtypes.short].includes(dtype) ? sign_extend(val, 8 * dtype.itemsize).cast(dtype) : val.cast(dtype)
 }
 export const wgsl_matcher = new PatternMatcher([
-  [new UPat([Ops.CMPLT, Ops.XOR], undefined, [new UPat(undefined, dtypes.bool).named('a'), new UPat().named('b')]).named('c'), ({ a, b, c }) => a.cast(dtypes.int).alu(c.op, b.cast(dtypes.int)).cast(dtypes.bool)],
-  [new UPat(Ops.LOAD, undefined, [UPat.var('b')]).named('l'), ({ l, b }) => l.dtype.itemsize < 4 ? packed_load(l, b, l.dtype) : undefined],
-  [new UPat(Ops.LOAD, undefined, [UPat.var('b'), UPat.var('c'), new UPat()]).named('l'), ({ l, b, c }) => l.dtype.itemsize < 4 ? packed_load(l, b, l.dtype, c.cast(dtypes.uint32)) : undefined],
-  [UPat.var('bidx').store([UPat.var('var')], { allow_any_len: true }), (x) => x.var.dtype.itemsize < 4 ? packed_store(x.bidx, x.var) : undefined],
+  new UPat([Ops.CMPLT, Ops.XOR], undefined, [new UPat(undefined, dtypes.bool).named('a'), new UPat().named('b')]).named('c').fn(({ a, b, c }) => a.cast(dtypes.int).alu(c.op, b.cast(dtypes.int)).cast(dtypes.bool)),
+  new UPat(Ops.LOAD, undefined, [UPat.var('b')]).named('l').fn(({ l, b }) => l.dtype.itemsize < 4 ? packed_load(l, b, l.dtype) : undefined),
+  new UPat(Ops.LOAD, undefined, [UPat.var('b'), UPat.var('c'), new UPat()]).named('l').fn(({ l, b, c }) => l.dtype.itemsize < 4 ? packed_load(l, b, l.dtype, c.cast(dtypes.uint32)) : undefined),
+  UPat.var('bidx').store([UPat.var('var')], { allow_any_len: true }).fn((x) => x.var.dtype.itemsize < 4 ? packed_store(x.bidx, x.var) : undefined),
   // TODO: why is this needed, and only for this MUL order
-  [new UPat(Ops.MUL, undefined, [UPat.var('a'), UPat.var('g').where(UPat.cvar('c1'), UPat.cvar('c2'))]), ({ a, g, c1, c2 }) => isNaN(c1.arg) && c2.arg === 1 ? g.where(c1, a) : undefined],
+  new UPat(Ops.MUL, undefined, [UPat.var('a'), UPat.var('g').where(UPat.cvar('c1'), UPat.cvar('c2'))]).fn(({ a, g, c1, c2 }) => isNaN(c1.arg) && c2.arg === 1 ? g.where(c1, a) : undefined),
 ]).add(extra_pm)
 
 export class WGSLRenderer extends CStyleLanguage {
@@ -47,17 +47,17 @@ export class WGSLRenderer extends CStyleLanguage {
   override type_map = new Map([[dtypes.float, 'f32'], [dtypes.uchar, 'u32'], [dtypes.ushort, 'u32'], [dtypes.short, 'i32'], [dtypes.char, 'i32'], [dtypes.int32, 'i32'], [dtypes.uint32, 'u32'], [dtypes.bool, 'bool']])
 
   override string_rewrite = new PatternMatcher<WGSLRenderer, string | undefined>([
-    [new UPat(Ops.CONST, dtypes.bool).named('x'), ({ ctx, x }) => x.arg ? 'true' : 'false'],
-    [new UPat(Ops.CONST, [dtypes.uchar, dtypes.ushort, dtypes.uint32]).named('x'), ({ ctx, x }) => x.arg < 0 ? `bitcast<u32>(${x.arg})` : `${BigInt(x.arg) & 0xFFFFFFFFn}u`],
-    [new UPat(Ops.DEFINE_LOCAL).named('x'), ({ ctx, x }) => `var<workgroup> ${ctx.get(x)}: array<${ctx.buf_map(x.dtype.base)}, ${x.arg[1]}>;`],
-    [new UPat(Ops.BITCAST).named('x'), ({ ctx, x }) => `bitcast<${ctx.type_map.get(x.dtype)}>(${ctx.get(x.src[0])}${['&0xFF', '&0xFFFF', '', ''].at(x.dtype.itemsize - 1)})`],
-    [UPat.load([UPat.var('b'), UPat.var('v'), UPat.var('g')]), ({ ctx, b, v, g }) => `select(${ctx.get(v)}, ${ctx.render_load(ctx.get(b)!, b.src[0].dtype)}, ${ctx.get(g)})`],
-    [UPat.load([UPat.var('b')], { allow_any_len: true }), ({ ctx, b }) => ctx.render_load(ctx.get(b)!, b.src[0].dtype)],
-    [UPat.index(UPat.var('b'), UPat.var('idx')), ({ ctx, b, idx }) => `${ctx.get(b)}[${idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)}]`],
+    new UPat(Ops.CONST, dtypes.bool).named('x').fn(({ ctx, x }) => x.arg ? 'true' : 'false'),
+    new UPat(Ops.CONST, [dtypes.uchar, dtypes.ushort, dtypes.uint32]).named('x').fn(({ ctx, x }) => x.arg < 0 ? `bitcast<u32>(${x.arg})` : `${BigInt(x.arg) & 0xFFFFFFFFn}u`),
+    new UPat(Ops.DEFINE_LOCAL).named('x').fn(({ ctx, x }) => `var<workgroup> ${ctx.get(x)}: array<${ctx.buf_map(x.dtype.base)}, ${x.arg[1]}>;`),
+    new UPat(Ops.BITCAST).named('x').fn(({ ctx, x }) => `bitcast<${ctx.type_map.get(x.dtype)}>(${ctx.get(x.src[0])}${['&0xFF', '&0xFFFF', '', ''].at(x.dtype.itemsize - 1)})`),
+    UPat.load([UPat.var('b'), UPat.var('v'), UPat.var('g')]).fn(({ ctx, b, v, g }) => `select(${ctx.get(v)}, ${ctx.render_load(ctx.get(b)!, b.src[0].dtype)}, ${ctx.get(g)})`),
+    UPat.load([UPat.var('b')], { allow_any_len: true }).fn(({ ctx, b }) => ctx.render_load(ctx.get(b)!, b.src[0].dtype)),
+    UPat.index(UPat.var('b'), UPat.var('idx')).fn(({ ctx, b, idx }) => `${ctx.get(b)}[${idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)}]`),
     // (load & mask) | var -> mask = v.src[0].src[1], var = v.src[1]
-    [UPat.store([UPat.var('b'), UPat.var('v')], { allow_any_len: true }), ({ ctx, b, v }) => b.src[0].dtype.itemsize < 4 ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`],
+    UPat.store([UPat.var('b'), UPat.var('v')], { allow_any_len: true }).fn(({ ctx, b, v }) => b.src[0].dtype.itemsize < 4 ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`),
     // fix nan check: 'a != a -> is_nan()'
-    [UPat.var('a').ne(UPat.var('a')), ({ ctx, a }) => `is_nan(${ctx.get(a)})`],
+    UPat.var('a').ne(UPat.var('a')).fn(({ ctx, a }) => `is_nan(${ctx.get(a)})`),
   ]).add(base_rewrite)
 
   override render_cast = (dt: DType, val: string) => `${this.type_map.get(dt)}(${val})`

@@ -16,6 +16,7 @@ export class BasicBlock {
   static cache = new WeakValueMap<string, BasicBlock>()
   constructor(public ctx: UOp[], public lst: UOp[], public end?: UOp) {
     this.key = get_key(ctx, lst, end)
+    Object.freeze(this)
     return BasicBlock.cache.setDefault(this.key, this)
   }
   lt = (o: BasicBlock) => is_less_than([...this.ctx, ...this.lst].map((x) => x.tuplize), [...o.ctx, ...o.lst].map((x) => x.tuplize))
@@ -74,8 +75,8 @@ export const append_to_block = (ctx: CTX, x: UOp): UOp | undefined => {
   return new UOp(Ops.BLOCK, dtypes.void, dedup([...old_blocks.values(), ...new_srcs]), new BasicBlock(x.arg.ctx, [...to_append, ...x.arg.lst]))
 }
 export const make_basic_blocks = new PatternMatcher<CTX>([
-  [new UPat(Ops.SINK).named('x'), ({ x }) => new UOp(Ops.BLOCK, undefined, x.src, new BasicBlock([], [x]))],
-  [new UPat(Ops.BLOCK).named('x'), ({ ctx, x }) => append_to_block(ctx, x)],
+  new UPat(Ops.SINK).named('x').fn(({ x }) => new UOp(Ops.BLOCK, undefined, x.src, new BasicBlock([], [x]))),
+  new UPat(Ops.BLOCK).named('x').fn(({ ctx, x }) => append_to_block(ctx, x)),
 ])
 
 export const block_merge = (ctx: Map<UOp, UOp[]>, x: UOp): UOp | undefined => {
@@ -191,7 +192,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
         }
       } else if (s.op === Ops.ASSIGN) {
         // flow though assign, but remove the ranges used in the assign
-        assert(s.src[0].op === Ops.DEFINE_ACC)
+        if (s.src[0].op !== Ops.DEFINE_ACC) throw new Error(`${s.src[0].op} has to be ${Ops.DEFINE_ACC}`)
         this_block_ctx = [...this_block_ctx, ...temp_block_ctxs.get(s.src[1])!.filter((x) => !s.src[0].src.slice(1).includes(x))]
       } // flow though everything else
 
@@ -245,7 +246,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   assert(sink.op === Ops.BLOCK)
   // TODO this sorts a little bit differently, than tinygrad
   let _uops = dedup(sink.src).toSorted((a, b) => is_less_than(a.tuplize, b.tuplize) ? -1 : 1)
-  assert(_uops.every((x) => x.src.length === 0 && ![Ops.BLOCK, Ops.BLOCKSTART, Ops.BLOCKEND, Ops.BLOCKFORK].includes(x.op)))
+  for (const x of _uops) if (x.src.length !== 0 || [Ops.BLOCK, Ops.BLOCKSTART, Ops.BLOCKEND, Ops.BLOCKFORK].includes(x.op)) throw new Error(`Invalid ${x}`)
   _uops = [..._uops, ...sink.arg.lst]
 
   // sanity checks (NOTE: these can cause things to be skipped in BEAM)

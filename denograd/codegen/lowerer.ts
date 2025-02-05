@@ -140,11 +140,11 @@ export const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {
   return new UOp(Ops.STORE, dtypes.void, [buf.index(idx, valid), x.src[2]])
 }
 export const pm_lowerer = new PatternMatcher<IndexContext>([
-  [new UPat(Ops.REDUCE_AXIS).named('x'), ({ ctx, x }) => lower_reduce_axis(ctx, x)],
-  [new UPat(Ops.VALID, undefined, [new UPat(Ops.VIEW)], undefined, 'x'), ({ ctx, x }) => x.st_arg.to_indexed_uops(ctx.idxs)[1]],
+  new UPat(Ops.REDUCE_AXIS).named('x').fn(({ ctx, x }) => lower_reduce_axis(ctx, x)),
+  new UPat(Ops.VALID, undefined, [new UPat(Ops.VIEW)], undefined, 'x').fn(({ ctx, x }) => x.st_arg.to_indexed_uops(ctx.idxs)[1]),
   // rewrite LOAD/STORE VIEW to LOAD/STORE with indexed
-  [new UPat([Ops.LOAD, Ops.STORE], undefined, [new UPat(), new UPat(Ops.VIEW)], undefined, 'x', true), ({ ctx, x }) => lower_load_store(ctx, x)],
-  [new UPat(Ops.INDEX, undefined, [UPat.var('b'), UPat.var('idx'), UPat.const(dtypes.bool, true)]), ({ b, idx }) => b.index(idx)],
+  new UPat([Ops.LOAD, Ops.STORE], undefined, [new UPat(), new UPat(Ops.VIEW)], undefined, 'x', true).fn(({ ctx, x }) => lower_load_store(ctx, x)),
+  new UPat(Ops.INDEX, undefined, [UPat.var('b'), UPat.var('idx'), UPat.const(dtypes.bool, true)]).fn(({ b, idx }) => b.index(idx)),
 ])
 
 export const rewrite_shapetracker_with_index = (ast: UOp, opts: Renderer) => graph_rewrite(ast, pm_lowerer, get_index(ast, opts))

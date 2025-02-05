@@ -1,5 +1,5 @@
 // deno-lint-ignore-file require-await
-import { all_same, assert, bytes_to_string, cpu_time_execution, flatten, get_env, get_single_element, idiv, is_eq, isinstance, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
+import { all_same, assert, bytes_to_string, cpu_time_execution, flatten, get_env, get_single_element, idiv, is_eq, isinstance, mod, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
@@ -172,7 +172,7 @@ export class PythonProgram extends Program {
               if (tinp.length !== num) throw new Error(`${cc} must have ${num} elements per thread, it has ${tinp.length}`)
               if (flatten(tinp).length !== num * warp_size) throw new Error(`WMMA must have ${num * warp_size} total elements for ${cc} in WMMA`)
             }
-            if (warp_size <= 0 || warp_size % WARP_THREADS !== 0) throw new Error(`must have multiples of ${WARP_THREADS} warp threads`)
+            if (warp_size <= 0 || mod(warp_size, WARP_THREADS) !== 0) throw new Error(`must have multiples of ${WARP_THREADS} warp threads`)
             const out = range(NUM_C).map((elem_idx) => [...inp[2][elem_idx]])
             for (const goff of range(0, warp_size, WARP_THREADS)) {
               for (const lane_id of range(WARP_THREADS)) {
@@ -188,9 +188,9 @@ export class PythonProgram extends Program {
           //   // TODO: refactor these to a shared TensorCoreLayout in kernel.py
           if (arg[4] === 'METAL') {
             // A (2 elements on 32 threads): row major
-            const a_b_elem: Fn = (x, i, j, goff) => x[i % 2][goff + idiv(i, 2) % 2 + (j % 4) * 2 + idiv(i, 4) * 8 + idiv(j, 4) * 16]
+            const a_b_elem: Fn = (x, i, j, goff) => x[mod(i, 2)][goff + mod(idiv(i, 2), 2) + mod(j, 4) * 2 + idiv(i, 4) * 8 + idiv(j, 4) * 16]
             // (i, j), C, D (2 elements on 32 threads): row major same as A/B
-            const c_map: Fn2 = (lane, elem) => [elem + ((lane % 2) * 2) + (idiv(lane, 8) % 2) * 4, (idiv(lane, 2) % 4) + idiv(lane, 16) * 4]
+            const c_map: Fn2 = (lane, elem) => [elem + (mod(lane, 2) * 2) + mod(idiv(lane, 8), 2) * 4, mod(idiv(lane, 2), 4) + idiv(lane, 16) * 4]
             ul[i] = wmma_helper(32, 8, 2, 2, 2, a_b_elem, a_b_elem, c_map)
           } else if (arg[4] === 'AMD') {
             // A (16 elements on 32 threads): col major, lane 16-32 === lane 0-15
@@ -200,28 +200,28 @@ export class PythonProgram extends Program {
             }
             // B (16 elements on 32 threads): row major, lane 16-32 === lane 0-15
             const b_elem: Fn = (x, col, k, goff) => a_elem(x, k, col, goff)
-            const c_map: Fn2 = (lane, elem) => [lane % 16, idiv(lane, 16) + elem * 2] // (i, j), C, D (8 elements on 32 threads): row major
+            const c_map: Fn2 = (lane, elem) => [mod(lane, 16), idiv(lane, 16) + elem * 2] // (i, j), C, D (8 elements on 32 threads): row major
             ul[i] = wmma_helper(32, 16, 16, 16, 8, a_elem, b_elem, c_map)
           } else if (arg[4] === 'CUDA') {
             // (col, row) given (lane, elem) for C & D (4 elements on 32 threads); shared by all tc shapes with M=16 N=8
-            const c_map: Fn2 = (lane, elem) => [elem % 2 + (lane % 4) * 2, idiv(lane, 4) + idiv(elem, 2) * 8]
+            const c_map: Fn2 = (lane, elem) => [mod(elem, 2) + mod(lane, 4) * 2, idiv(lane, 4) + idiv(elem, 2) * 8]
 
             if (is_eq(arg[1], [8, 16, 16])) {
-              const a_elem: Fn = (x, k, row, goff) => x[k % 2 + idiv(row, 8) * 2 + idiv(k, 8) * 4][goff + idiv(k, 2) % 4 + (row % 8) * 4]
-              const b_elem: Fn = (x, col, k, goff) => x[k % 2 + idiv(k, 8) * 2][goff + idiv(k, 2) % 4 + col * 4]
+              const a_elem: Fn = (x, k, row, goff) => x[mod(k, 2) + idiv(row, 8) * 2 + idiv(k, 8) * 4][goff + mod(idiv(k, 2), 4) + mod(row, 8) * 4]
+              const b_elem: Fn = (x, col, k, goff) => x[mod(k, 2) + idiv(k, 8) * 2][goff + mod(idiv(k, 2), 4) + col * 4]
               ul[i] = wmma_helper(32, 16, 8, 4, 4, a_elem, b_elem, c_map)
             } else if (is_eq(arg[1], [8, 16, 8]) && arg[2] === dtypes.half) {
-              const a_elem: Fn = (x, k, row, goff) => x[k % 2 + idiv(row, 8) * 2][goff + idiv(k, 2) + (row % 8) * 4]
-              const b_elem: Fn = (x, col, k, goff) => x[k % 2][goff + idiv(k, 2) + col * 4]
+              const a_elem: Fn = (x, k, row, goff) => x[mod(k, 2) + idiv(row, 8) * 2][goff + idiv(k, 2) + mod(row, 8) * 4]
+              const b_elem: Fn = (x, col, k, goff) => x[mod(k, 2)][goff + idiv(k, 2) + col * 4]
               ul[i] = wmma_helper(32, 8, 4, 2, 4, a_elem, b_elem, c_map)
             } else if (is_eq(arg[1], [8, 16, 8]) && arg[2] === dtypes.float) {
-              const a_elem: Fn = (x, k, row, goff) => x[idiv(k, 4) * 2 + idiv(row, 8)][goff + k % 4 + (row % 8) * 4]
-              const b_elem: Fn = (x, col, k, goff) => x[idiv(k, 4)][goff + k % 4 + col * 4]
+              const a_elem: Fn = (x, k, row, goff) => x[idiv(k, 4) * 2 + idiv(row, 8)][goff + mod(k, 4) + mod(row, 8) * 4]
+              const b_elem: Fn = (x, col, k, goff) => x[idiv(k, 4)][goff + mod(k, 4) + col * 4]
               ul[i] = wmma_helper(32, 8, 4, 2, 4, a_elem, b_elem, c_map)
             } else throw new Error(`unimplemented tensor core ${arg}`)
           } else if (arg[4] === 'INTEL') {
             // A (16 elements on 8 threads)
-            const a_elem: Fn = (x, k, row, goff) => x[k % 2 + row * 2][goff + idiv(k, 2)]
+            const a_elem: Fn = (x, k, row, goff) => x[mod(k, 2) + row * 2][goff + idiv(k, 2)]
             // B (16 elements on 8 threads)
             const b_elem: Fn = (x, col, k, goff) => x[k][goff + col]
             // C, D (8 elements on 8 threads)
@@ -229,7 +229,7 @@ export class PythonProgram extends Program {
             ul[i] = wmma_helper(8, 16, 16, 16, 8, a_elem, b_elem, c_map)
           } else if (arg[4] === 'CLANG') {
             const elem: Fn = (x, col, row, _) => x[col + row][0]
-            const c_map: Fn2 = (_, elem) => [elem % 16, idiv(elem, 16)]
+            const c_map: Fn2 = (_, elem) => [mod(elem, 16), idiv(elem, 16)]
             ul[i] = wmma_helper(1, 1, 16, 16, 256, elem, elem, c_map)
           } else throw new Error(`unimplemented tensor core ${arg}`)
         } else if (GroupOp.ALU.includes(uop)) {
