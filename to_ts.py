@@ -10,6 +10,7 @@ def to_ts(o):
     from tinygrad.dtype import INVERSE_DTYPES_DICT
     from tinygrad.shape.view import View
     from tinygrad.renderer.cstyle import ClangRenderer
+    from tinygrad.renderer.wgsl import WGSLRenderer
     from tinygrad.codegen.kernel import Kernel, Opt
     from tinygrad.codegen.linearize import BasicBlock
     from tinygrad.renderer import ProgramSpec, TensorCore
@@ -72,6 +73,8 @@ def to_ts(o):
     # ************ RENDERER ************
     if isinstance(o, ClangRenderer):
         return f"new ClangRenderer()"
+    if isinstance(o, WGSLRenderer):
+        return f"new WGSLRenderer()"
     if isinstance(o, PythonRenderer):
         return f"new PythonRenderer()"
     if isinstance(o, TensorCore):

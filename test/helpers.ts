@@ -18,6 +18,7 @@ import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRU
 import { PythonRenderer } from '../denograd/runtime/ops_python.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
+import { WGSLRenderer } from '../denograd/renderer/wgsl.ts'
 
 dtypes // needed to force the import
 
@@ -117,6 +118,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
 
   // ************ RENDERER ************
   if (o instanceof ClangRenderer) return t`tiny.renderer.cstyle.ClangRenderer()`
+  if (o instanceof WGSLRenderer) return t`tiny.renderer.wgsl.WGSLRenderer()`
   if (o instanceof PythonRenderer) return t`PythonRenderer()`
   if (o instanceof TensorCore) return t`tiny.renderer.TensorCore(dims=${o.dims}, threads=${o.threads}, elements_per_thread=${o.elements_per_thread}, dtype_in=${o.dtype_in}, dtype_out=${o.dtype_out}, opts=${o.opts}, swizzle=${o.swizzle})`
   if (o instanceof ProgramSpec) {
