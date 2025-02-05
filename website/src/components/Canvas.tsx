@@ -6,7 +6,7 @@ const H = 280
 export const Canvas = ({ image, setImage, className }: { className?: string; image: Image; setImage: (img: Image) => void }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [lastPos, setLastPos] = useState<{x: number, y: number} | null>(null)
+  const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     const ctx = canvasRef.current!.getContext('2d')!

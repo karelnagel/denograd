@@ -42,8 +42,8 @@
     "assert": "jsr:@std/assert"
   },
   "exclude": [
-    "./tinygrad",
-    "./website/.astro"
+    "tinygrad*",
+    "website/.astro*"
   ],
   "compilerOptions": {
     "lib": [

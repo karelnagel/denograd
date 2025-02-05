@@ -57,7 +57,7 @@ export class CompiledRunner extends Runner {
     let [global_size, local_size] = this.p.launch_dims(var_vals)
     if (global_size !== undefined && local_size === undefined && all_int(this.p.global_size!)) {
       local_size = await optimize_local_size(this._prg, global_size, rawbufs)
-      global_size = zip(global_size, local_size!).map(([g, l]) => mod(g ,l) === 0 ? idiv(g, l) : g / l)
+      global_size = zip(global_size, local_size!).map(([g, l]) => mod(g, l) === 0 ? idiv(g, l) : g / l)
       this.p.global_size = global_size
       this.p.global_size = local_size
     }

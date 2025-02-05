@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, ArrayMap, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'

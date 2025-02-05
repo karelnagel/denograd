@@ -4,7 +4,6 @@ import { AMX, dedup, DefaultMap, floatString, get_env, idiv, NotImplemented, set
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
-
 export const base_rewrite = new PatternMatcher<CStyleLanguage, string | undefined>([
   new UPat(Ops.DEFINE_ACC).named('x').fn(({ ctx, x }) => ctx.get(x.src[0])),
   new UPat(Ops.ASSIGN).named('x').fn(({ ctx, x }) => `${ctx.get(x.src[0])} = ${ctx.get(x.src[1])};`),
