@@ -48,7 +48,7 @@ if (import.meta.main) {
   const get_test_acc = (): Tensor => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)
 
   let test_acc = NaN
-  const t = new Tqdm(range(get_number_env('STEPS', 14)))
+  const t = new Tqdm(range(get_number_env('STEPS', 70)))
   for await (const i of t) {
     const loss = await train_step().then((x) => x.item())
     if (mod(i, 10) === 9) test_acc = await get_test_acc().item()
