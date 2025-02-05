@@ -274,15 +274,19 @@ export function* counter(start = 0) {
 }
 export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : typeof x === 'string' ? `'${x}'` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
-export const is_less_than = (a: any, b: any): boolean => {
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return a.length < b.length
-    for (const [ai, bi] of zip(a, b)) if (ai !== bi) return is_less_than(ai, bi)
+export const is_less_than = (a: any[], b: any[]): boolean => {
+  for (const [x, y] of zip(a, b)) {
+    if (is_eq(x, y)) continue
+    if (Array.isArray(x) && Array.isArray(y)) return is_less_than(x, y)
+    // if it's DType
+    if ('lt' in a && 'lt' in b && typeof a.lt === 'function') {
+      const res = a.lt(b)
+      if (typeof res === 'boolean') return res
+    }
+    return a < b
   }
-  if (typeof a === 'object' && typeof b === 'object' && 'lt' in a && 'lt' in b) {
-    return a.lt(b)
-  }
-  return a < b
+  // If all are equal
+  return false
 }
 export type ConstType<This = never> = number | bigint | boolean | This
 export const isConst = (x: any): x is ConstType => ['number', 'bigint', 'boolean'].includes(typeof x)
