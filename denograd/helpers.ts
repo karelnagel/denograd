@@ -275,18 +275,25 @@ export function* counter(start = 0) {
 export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : typeof x === 'string' ? `'${x}'` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
 export const is_less_than = (one: any[], two: any[]): boolean => {
-  for (const [x, y] of zip(one, two)) {
-    if (is_eq(x, y)) continue
-    if (Array.isArray(x) && Array.isArray(y)) return is_less_than(x, y)
-    // if it's DType
-    if (typeof x === 'object' && typeof y === 'object' && 'lt' in x && 'lt' in y && typeof x.lt === 'function') {
-      const res = x.lt(y)
-      if (typeof res === 'boolean') return res
+  // Inner is needed so that it can return undefined for cases when all the elements are the same
+  const inner = (one: any[], two: any[]): boolean | undefined => {
+    for (const [x, y] of zip(one, two)) {
+      if (x === y) continue
+      if (Array.isArray(x) && Array.isArray(y)) {
+        const res = inner(x, y)
+        if (res === undefined) continue
+        else return res
+      }
+      // if it's DType, res===boolean check just to check if it's not MathTrait maybe
+      if (typeof x === 'object' && typeof y === 'object' && 'lt' in x && 'lt' in y && typeof x.lt === 'function') {
+        const res = x.lt(y)
+        if (typeof res === 'boolean') return res
+      }
+      if (typeof x === 'object' || typeof y === 'object') throw new Error(`Can't compare objects: x=${x}, y=${y}`)
+      return x < y
     }
-    return x < y
   }
-  // If all are equal
-  return false
+  return inner(one, two) || false
 }
 export type ConstType<This = never> = number | bigint | boolean | This
 export const isConst = (x: any): x is ConstType => ['number', 'bigint', 'boolean'].includes(typeof x)

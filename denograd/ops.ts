@@ -756,9 +756,7 @@ export const python_alu = new Map<Ops, (...x: ConstType[]) => ConstType>([
 export const exec_alu = (op: Ops, dtype: DType, operands: ConstType[], truncateOutput = true): any => {
   if (dtype.count > 1) return range(dtype.count).map((i) => exec_alu(op, dtype.scalar(), operands.map((x) => Array.isArray(x) ? x[i] : x)))
   const alu = python_alu.get(op)!(...operands)
-  const truncFn = truncate.get(dtype)
-  if (!truncFn) throw new Error(`No trunc fn for ${dtype}`)
-  return truncateOutput ? truncFn(alu) : alu
+  return truncateOutput ? truncate.get(dtype)!(alu) : alu
 }
 // ***** uop helpers *****
 
