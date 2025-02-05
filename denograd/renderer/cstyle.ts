@@ -1,10 +1,9 @@
 import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, dedup, DefaultMap, get_env, idiv, NotImplemented, set_default, strip_parens } from '../helpers.ts'
+import { AMX, dedup, DefaultMap, floatString, get_env, idiv, NotImplemented, set_default, strip_parens } from '../helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
-const float = (x: number) => Number.isInteger(x) ? x + '.0' : x
 
 export const base_rewrite = new PatternMatcher<CStyleLanguage, string | undefined>([
   new UPat(Ops.DEFINE_ACC).named('x').fn(({ ctx, x }) => ctx.get(x.src[0])),
@@ -28,13 +27,13 @@ export const base_rewrite = new PatternMatcher<CStyleLanguage, string | undefine
   new UPat(Ops.CONST, undefined, undefined, Infinity, 'x').fn(({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.infinity)})`),
   new UPat(Ops.CONST, undefined, undefined, -Infinity, 'x').fn(({ ctx, x }) => `(${ctx.render_cast(x.dtype, `-${ctx.infinity}`)})`),
   new UPat(Ops.CONST, dtypes.floats).named('x').fn(({ ctx, x }) => isNaN(x.arg) ? `(${ctx.render_cast(x.dtype, ctx.nan)})` : undefined),
-  new UPat(Ops.CONST, dtypes.float).named('x').fn(({ ctx, x }) => `${float(x.arg)}f`),
+  new UPat(Ops.CONST, dtypes.float).named('x').fn(({ ctx, x }) => `${floatString(x.arg)}f`),
   new UPat(Ops.CONST, dtypes.int64).named('x').fn(({ ctx, x }) => `${x.arg}ll`),
   new UPat(Ops.CONST, dtypes.uint64).named('x').fn(({ ctx, x }) => `${x.arg}ull`),
   new UPat(Ops.CONST, dtypes.uint32).named('x').fn(({ ctx, x }) => `${x.arg}u`),
   new UPat(Ops.CONST, dtypes.bool).named('x').fn(({ ctx, x }) => x.arg ? '1' : '0'),
   // consts are rendered to larger type and casted
-  new UPat(Ops.CONST, [dtypes.bfloat16, dtypes.half]).named('x').fn(({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${float(x.arg)}f`)})`),
+  new UPat(Ops.CONST, [dtypes.bfloat16, dtypes.half]).named('x').fn(({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${floatString(x.arg)}f`)})`),
   new UPat(Ops.CONST, [dtypes.uint8, dtypes.uint16]).named('x').fn(({ ctx, x }) => `(${ctx.render_cast(x.dtype, `${x.arg}u`)})`),
   new UPat(Ops.CONST, [dtypes.int8, dtypes.int16]).named('x').fn(({ ctx, x }) => `(${ctx.render_cast(x.dtype, x.arg)})`),
   // default const render

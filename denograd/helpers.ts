@@ -156,6 +156,7 @@ export class NotImplemented extends Error {
     super('Not implemented!')
   }
 }
+export const floatString = (x: number) => Number.isInteger(x) ? x + '.0' : x.toString()
 
 export const max = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)

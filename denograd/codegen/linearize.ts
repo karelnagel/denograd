@@ -246,7 +246,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
   assert(sink.op === Ops.BLOCK)
   // TODO this sorts a little bit differently, than tinygrad
   let _uops = dedup(sink.src).toSorted((a, b) => is_less_than(a.tuplize, b.tuplize) ? -1 : 1)
-  for (const x of _uops) if (x.src.length!==0 || [Ops.BLOCK,Ops.BLOCKSTART,Ops.BLOCKEND,Ops.BLOCKFORK].includes(x.op)) throw new Error(`Invalid ${x}`)
+  for (const x of _uops) if (x.src.length !== 0 || [Ops.BLOCK, Ops.BLOCKSTART, Ops.BLOCKEND, Ops.BLOCKFORK].includes(x.op)) throw new Error(`Invalid ${x}`)
   _uops = [..._uops, ...sink.arg.lst]
 
   // sanity checks (NOTE: these can cause things to be skipped in BEAM)

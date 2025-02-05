@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, ArrayMap, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -252,7 +252,7 @@ export class UOp extends MathTrait<UOp> {
     if (children.has(key)) children.delete(key)
     if (UOp.cache.has(key)) UOp.cache.delete(key)
   })
-  static cache = new WeakValueMap<string, UOp>()
+  static cache = new ArrayMap<string, UOp>()
   key: string
   children = new WeakValueMap<string, UOp>()
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any, _buffer?: Buffer) {
@@ -260,7 +260,10 @@ export class UOp extends MathTrait<UOp> {
     this.key = get_key(this.op, this.dtype, this.arg, this.src)
     const ret = UOp.cache.get(this.key)
     if (ret !== undefined) {
-      if (!is_eq(this.arg, ret.arg)) throw new Error(`Args aren't the same, \nthis=${this.arg}, ${this.arg?.key} \nret=${ret.arg}, ${ret.arg?.key}`)
+      if (!is_eq(this.arg, ret.arg)) throw new Error(`Args fucked: \nthis=${this.arg}, ${this.arg?.key} \nret=${ret.arg}, ${ret.arg?.key}`)
+      if (this.op !== ret.op) throw new Error(`Op fucked: ${this.op} !== ${ret.op}`)
+      if (this.dtype !== ret.dtype) throw new Error(`DType fucked: ${this.dtype} !== ${ret.dtype}`)
+      for (const [a, b] of zip(this.src, ret.src)) if (a !== b) throw new Error(`Src fucked: \na=${a}, ${a.key} \nb=${b}, ${b.key}`)
       return ret
     }
 
@@ -1419,7 +1422,7 @@ const syms = new Map([[Ops.ADD, '+'], [Ops.SUB, '-'], [Ops.IDIV, '//'], [Ops.MOD
 export const renderer = new PatternMatcher([
   new UPat([Ops.DEFINE_VAR, Ops.SPECIAL]).named('x').fn(({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg[0])),
   new UPat(Ops.RANGE).named('x').fn(({ x }) => new UOp(Ops.NOOP, undefined, undefined, `ridx(${x.arg},)`)),
-  new UPat(Ops.CONST).named('x').fn(({ x }) => new UOp(Ops.NOOP, undefined, undefined, x.arg.toString())),
+  new UPat(Ops.CONST).named('x').fn(({ x }) => new UOp(Ops.NOOP, undefined, undefined, dtypes.is_float(x.dtype) ? floatString(x.arg) : x.arg.toString())),
   new UPat(Ops.BIND, undefined, new UPat(Ops.NOOP), undefined, 'x').fn(({ x }) => x.src[0]),
   new UPat(Ops.NEG, undefined, new UPat(Ops.NOOP), undefined, 'x').fn(({ x }) => new UOp(Ops.NOOP, undefined, undefined, `(-${x.src[0].arg})`)),
   new UPat(Ops.MAX, undefined, new UPat(Ops.NOOP), undefined, 'x').fn(({ x }) => new UOp(Ops.NOOP, undefined, undefined, `max(${x.src[0].arg}, ${x.src[1].arg})`)),
