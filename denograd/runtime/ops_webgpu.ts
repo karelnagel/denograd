@@ -26,14 +26,22 @@ class WebGPUProgram extends Program {
   }
   override call = cpu_time_execution(async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const binding_layouts: GPUBindGroupLayoutEntry[] = [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+      { 'binding': 0, 'visibility': GPUShaderStage.COMPUTE, 'buffer': { 'type': 'uniform' } },
       ...range(bufs.length + vals.length).map((i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: i >= bufs.length ? 'uniform' : 'storage' } } satisfies GPUBindGroupLayoutEntry)),
     ]
+
     const bindings: GPUBindGroupEntry[] = [
-      { binding: 0, resource: { buffer: create_uniform(device, Infinity), offset: 0, size: 4 } },
-      ...bufs.map((x, i) => ({ binding: i + 1, resource: { buffer: x, offset: 0, size: x.size } })),
-      ...vals.map((x, i) => ({ binding: i + 1, resource: { buffer: create_uniform(device, x), offset: 0, size: 4 } })),
+      { 'binding': 0, 'resource': { 'buffer': create_uniform(device, Infinity), 'offset': 0, 'size': 4 } },
+      ...[...bufs, ...vals].entries().map(([i, x]) => ({
+        'binding': i + 1,
+        'resource': {
+          'buffer': i >= bufs.length ? create_uniform(device, x as number) : x as GPUBuffer,
+          'offset': 0,
+          'size': i >= bufs.length ? 4 : (x as GPUBuffer).size,
+        },
+      } satisfies GPUBindGroupEntry)),
     ]
+
     const bind_group_layout = device.createBindGroupLayout({ entries: binding_layouts })
     const pipeline_layout = device.createPipelineLayout({ bindGroupLayouts: [bind_group_layout] })
     const bind_group = device.createBindGroup({ layout: bind_group_layout, entries: bindings })
@@ -41,7 +49,7 @@ class WebGPUProgram extends Program {
     const command_encoder = device.createCommandEncoder()
     const compute_pass = command_encoder.beginComputePass({})
     compute_pass.setPipeline(compute_pipeline)
-    compute_pass.setBindGroup(0, bind_group)
+    compute_pass.setBindGroup(0, bind_group, [])
     compute_pass.dispatchWorkgroups(global_size[0], global_size[1], global_size[2]) // x y z
     compute_pass.end()
 
@@ -51,26 +59,23 @@ class WebGPUProgram extends Program {
 }
 // WebGPU buffers have to be 4-byte aligned
 class WebGpuAllocator extends Allocator<GPUBuffer> {
-  constructor(public dev = device) {
-    super()
-  }
-  _alloc = (size: number, options?: BufferSpec) => this.dev.createBuffer({ size: round_up(size, 4), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
+  _alloc = (size: number, options?: BufferSpec) => device.createBuffer({ size: round_up(size, 4), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
   _copyin = (dest: GPUBuffer, src: MemoryView) => {
     let padded_src
     if (mod(src.byteLength, 4)) {
       padded_src = new Uint8Array(round_up(src.byteLength, 4))
       padded_src.set(src.toBytes())
     }
-    this.dev.queue.writeBuffer(dest, 0, mod(src.byteLength, 4) ? padded_src! : src.toBytes())
+    device.queue.writeBuffer(dest, 0, mod(src.byteLength, 4) ? padded_src! : src.toBytes())
   }
   _copyout = async (dest: MemoryView, src: GPUBuffer) => {
     const size = round_up(dest.byteLength, 4)
 
-    const staging = this.dev.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
+    const staging = device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
 
-    const encoder = this.dev.createCommandEncoder()
+    const encoder = device.createCommandEncoder()
     encoder.copyBufferToBuffer(src, 0, staging, 0, size)
-    this.dev.queue.submit([encoder.finish()])
+    device.queue.submit([encoder.finish()])
 
     await staging.mapAsync(GPUMapMode.READ)
     dest.set(new Uint8Array(staging.getMappedRange()).subarray(0, dest.byteLength))
