@@ -35,7 +35,7 @@ test('safe_save', async () => {
   }
   const path = '/tmp/safe_save_test.safetensor'
   // Saving in TS
-  safe_save(dict, path)
+  await safe_save(dict, path)
 
   // Loading in PY
   const res = await python<Map<string, Tensor>>([
@@ -44,7 +44,7 @@ test('safe_save', async () => {
   ], [path])
   for (const [entry, expected] of zip(res.entries(), Object.entries(dict))) {
     expect(entry[0]).toBe(expected[0])
-    expect(entry[1].tolist()).toEqual(expected[1].tolist())
+    expect(await entry[1].tolist()).toEqual(await expected[1].tolist())
   }
 })
 
@@ -63,9 +63,9 @@ test('safe_load', async () => {
   ], [path, dict])
 
   // Reading in TS
-  const res = safe_load(path)
+  const res = await safe_load(path)
   for (const [entry, expected] of zip(Object.entries(res), Object.entries(dict))) {
     expect(entry[0]).toBe(expected[0])
-    expect(entry[1].tolist()).toEqual(expected[1])
+    expect(await entry[1].tolist()).toEqual(expected[1])
   }
 })

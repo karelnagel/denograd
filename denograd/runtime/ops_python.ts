@@ -271,7 +271,7 @@ export class PythonAllocator extends Allocator<MemoryView> {
     return new MemoryView(new Uint8Array(size))
   }
   _copyin = (dest: MemoryView, src: MemoryView) => void dest.set(src)
-  _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
+  _copyout = async (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _free = (opaque: MemoryView, options: BufferSpec) => {
     throw new Error("PYTHON doesn't have _free")
   }

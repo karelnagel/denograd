@@ -34,7 +34,7 @@ export class Runner {
   get dev() {
     return Device.get(this.device)
   }
-  exec = async (rawbufs: Buffer[], var_vals?: Map<Variable, number>): Promise<number> => this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
+  exec = async (rawbufs: Buffer[], var_vals?: Map<Variable, number>): Promise<number> => await this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
   call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
     throw new Error('override this')
   }
@@ -96,7 +96,7 @@ export class BufferCopy extends Runner {
       throw new Error('KAREL: implement copy_from_disk')
       // dest.allocator.copy_from_disk(dest._buf, src._buf, src.nbytes)
     } else if (src.device.startsWith('DISK') && '_as_buffer' in dest.allocator!) {
-      //       // fast(ish) path, uses readinto in diskbuffers
+      // fast(ish) path, uses readinto in diskbuffers
       await src.allocator!._copyout((dest.allocator._as_buffer as any)(dest._buf), src._buf!)
     } else {
       dest.copyin(await src.as_buffer(true)) // may allocate a CPU buffer depending on allow_zero_copy
@@ -115,12 +115,12 @@ export class BufferCopy extends Runner {
   }
 }
 class BufferXfer extends BufferCopy {
-  override copy = (dest: Buffer, src: Buffer) => {
+  override copy = async (dest: Buffer, src: Buffer) => {
     throw new Error('KAREL: implement _transfer')
     // return dest.allocator._transfer(dest._buf, src._buf, dest.nbytes, src_dev = src.allocator.dev, dest_dev = dest.allocator.dev)
   }
 }
-// // **************** method cache ****************
+// **************** method cache ****************
 
 const method_cache: Record<string, CompiledRunner> = {}
 export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {

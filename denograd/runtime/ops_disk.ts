@@ -78,7 +78,7 @@ export class DiskAllocator extends Allocator<DiskBuffer> {
     buf.set(src)
     this.write(buf, dest.offset)
   }
-  override _copyout = (dest: MemoryView, src: DiskBuffer) => {
+  override _copyout = async (dest: MemoryView, src: DiskBuffer) => {
     const buf = src._buf()
     dest.set(buf)
     this.write(buf, src.offset)

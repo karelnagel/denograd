@@ -50,7 +50,7 @@ if (import.meta.main) {
   let test_acc = NaN
   const t = new Tqdm(range(get_number_env('STEPS', 70)))
   for await (const i of t) {
-    const loss = await train_step().then((x) => x.item())
+    const loss = await (await train_step()).item()
     if (mod(i, 10) === 9) test_acc = await get_test_acc().item()
     t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
   }

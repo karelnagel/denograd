@@ -53,7 +53,7 @@ export const _time_program = async (p: ProgramSpec, lib: Uint8Array, var_vals: M
     if (clear_l2) {
       const dev = Device.get(p.device)
       if ('invalidate_caches' in dev) (dev.invalidate_caches as any)()
-      else Tensor.ones([1024, 1024]).contiguous().realize(undefined, false)
+      else await Tensor.ones([1024, 1024]).contiguous().realize(undefined, false)
       //TODO:  with Context(DEBUG=0, BEAM=0, CAPTURING=0, TRACK_MATCH_STATS=0): Tensor.ones(1024,1024).contiguous().realize(do_update_stats=false)
     }
     tms.push(await car.call(input_bufs, var_vals as Map<UOp, number>, true)! * factor)

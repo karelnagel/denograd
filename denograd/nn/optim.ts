@@ -32,7 +32,7 @@ export class Optimizer {
   /**
    * Performs a single optimization step.
    */
-  step = () => Tensor.realize(this.schedule_step())
+  step = async () => await Tensor.realize(this.schedule_step())
   /**
    * Returns the tensors that need to be realized to perform a single optimization step.
    */

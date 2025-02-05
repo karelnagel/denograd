@@ -82,9 +82,9 @@ export class _MallocAllocator extends LRUAllocator {
     if (options.external_ptr) throw new Error(`TODO: external_ptr:${options.external_ptr}`)
     return mv
   }
-  _as_buffer = (src: ArrayBuffer): MemoryView => new MemoryView(src).flat()
+  _as_buffer = async (src: ArrayBuffer): Promise<MemoryView> => new MemoryView(src).flat()
   _copyin = (dest: MemoryView, src: MemoryView) => dest.set(src)
-  _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
+  _copyout = async (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
   _free = () => {
     throw new NotImplemented()
