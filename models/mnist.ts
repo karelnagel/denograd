@@ -36,16 +36,17 @@ if (import.meta.main) {
   const opt = Adam(get_parameters(model))
 
   const train_step = async (): Promise<Tensor> => {
+    Tensor.training = true
     opt.zero_grad()
     const samples = Tensor.randint([get_number_env('BS', 512)], undefined, X_train.shape[0])
     const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
     await opt.step()
+    Tensor.training = false
     return loss
   }
 
   const get_test_acc = (): Tensor => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)
 
-  Tensor.training = true
   let test_acc = NaN
   const t = new Tqdm(range(get_number_env('STEPS', 12)))
   for await (const i of t) {
@@ -53,6 +54,5 @@ if (import.meta.main) {
     if (mod(i, 10) === 9) test_acc = await get_test_acc().item()
     t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
   }
-  Tensor.training = false
   await model.save('./mnist.safetensors')
 }
