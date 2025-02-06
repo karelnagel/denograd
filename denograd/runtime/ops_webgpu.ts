@@ -1,5 +1,5 @@
 import type * as _webgpu from 'https://esm.sh/@webgpu/types@0.1.52'
-import { bytes_to_string, cpu_time_execution, isInt, mod, range, round_up } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, isInt, mod, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
@@ -16,7 +16,11 @@ const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
 const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
 if (!adapter) throw new Error('No adapter')
 const timestamp_supported = adapter.features.has('timestamp-query')
-const device = await adapter.requestDevice({ requiredFeatures: timestamp_supported ? ['timestamp-query'] : [] })
+const { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize } = adapter.limits
+const device = await adapter.requestDevice({
+  requiredFeatures: timestamp_supported ? ['timestamp-query'] : [],
+  requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize },
+})
 
 class WebGPUProgram extends Program {
   prg: GPUShaderModule
@@ -26,20 +30,15 @@ class WebGPUProgram extends Program {
   }
   override call = cpu_time_execution(async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const binding_layouts: GPUBindGroupLayoutEntry[] = [
-      { 'binding': 0, 'visibility': GPUShaderStage.COMPUTE, 'buffer': { 'type': 'uniform' } },
-      ...range(bufs.length + vals.length).map((i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: i >= bufs.length ? 'uniform' : 'storage' } } satisfies GPUBindGroupLayoutEntry)),
+      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+      ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: i >= bufs.length ? 'uniform' : 'storage' } })),
     ]
 
     const bindings: GPUBindGroupEntry[] = [
-      { 'binding': 0, 'resource': { 'buffer': create_uniform(device, Infinity), 'offset': 0, 'size': 4 } },
-      ...[...bufs, ...vals].entries().map(([i, x]) => ({
-        'binding': i + 1,
-        'resource': {
-          'buffer': i >= bufs.length ? create_uniform(device, x as number) : x as GPUBuffer,
-          'offset': 0,
-          'size': i >= bufs.length ? 4 : (x as GPUBuffer).size,
-        },
-      } satisfies GPUBindGroupEntry)),
+      { binding: 0, resource: { buffer: create_uniform(device, Infinity), offset: 0, size: 4 } },
+      ...[...bufs, ...vals].map<GPUBindGroupEntry>((x, i) => (
+        typeof x === 'number' ? { binding: i + 1, resource: { buffer: create_uniform(device, x), offset: 0, size: 4 } } : { binding: i + 1, resource: { buffer: x, offset: 0, size: x.size } }
+      )),
     ]
 
     const bind_group_layout = device.createBindGroupLayout({ entries: binding_layouts })
@@ -78,7 +77,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     device.queue.submit([encoder.finish()])
 
     await staging.mapAsync(GPUMapMode.READ)
-    dest.set(new Uint8Array(staging.getMappedRange()).subarray(0, dest.byteLength))
+    dest.set(new Uint8Array(staging.getMappedRange()))
     staging.unmap()
   }
   _free = (opaque: GPUBuffer, options?: BufferSpec) => opaque.destroy()

@@ -31,7 +31,6 @@ export const MnistExample = () => {
   // Training
   const [[X_train, Y_train, X_test, Y_test], setData] = useState<Tensor[]>([])
   const [BS, setBS] = useState(512)
-  const [TS, setTS] = useState(1000)
 
   const train_step = async (): Promise<Tensor> => {
     Tensor.training = true
@@ -42,10 +41,7 @@ export const MnistExample = () => {
     Tensor.training = false
     return loss
   }
-  const get_test_acc = (): Tensor => {
-    const random = Tensor.randint([TS], undefined, X_test.shape[0])
-    return model.call(X_test.get(random)).argmax(1).eq(Y_test.get(random)).mean().mul(100)
-  }
+  const get_test_acc = (): Tensor => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)
 
   return (
     <div className='flex flex-col items-center gap-2'>
@@ -56,10 +52,6 @@ export const MnistExample = () => {
       <label className='flex flex-col text-center'>
         Batch size
         <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
-      </label>
-      <label className='flex flex-col text-center'>
-        Test size (max 10 000, but  1821 will start to give errors, 1820 is fine)
-        <input type='text' className='bg-transparent outline rounded-md p-1' value={TS.toString()} onChange={(e) => setTS(Number(e.target.value))} />
       </label>
       <button
         onClick={async () => {
