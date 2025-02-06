@@ -1,5 +1,5 @@
 import type * as _webgpu from 'https://esm.sh/@webgpu/types@0.1.52'
-import { bytes_to_string, cpu_time_execution, isInt, mod, round_up } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, isInt, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
@@ -16,10 +16,30 @@ const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
 const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
 if (!adapter) throw new Error('No adapter')
 const timestamp_supported = adapter.features.has('timestamp-query')
-const { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize } = adapter.limits
+const {
+  maxStorageBufferBindingSize,
+  maxBufferSize,
+  maxStorageBuffersPerShaderStage,
+  maxStorageTexturesPerShaderStage,
+  maxComputeWorkgroupStorageSize,
+  maxUniformBufferBindingSize,
+  maxUniformBuffersPerShaderStage,
+  minUniformBufferOffsetAlignment,
+  maxDynamicUniformBuffersPerPipelineLayout,
+} = adapter.limits
 const device = await adapter.requestDevice({
   requiredFeatures: timestamp_supported ? ['timestamp-query'] : [],
-  requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize },
+  requiredLimits: {
+    maxStorageBufferBindingSize,
+    maxBufferSize,
+    maxStorageBuffersPerShaderStage,
+    maxStorageTexturesPerShaderStage,
+    maxComputeWorkgroupStorageSize,
+    maxUniformBufferBindingSize,
+    maxUniformBuffersPerShaderStage,
+    minUniformBufferOffsetAlignment,
+    maxDynamicUniformBuffersPerPipelineLayout,
+  },
 })
 
 class WebGPUProgram extends Program {
@@ -29,11 +49,12 @@ class WebGPUProgram extends Program {
     this.prg = device.createShaderModule({ code: bytes_to_string(this.lib) })
   }
   override call = cpu_time_execution(async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+    const isStorage = (i: number) => i < bufs.length && bytes_to_string(this.lib).split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')
+
     const binding_layouts: GPUBindGroupLayoutEntry[] = [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-      ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: i >= bufs.length ? 'uniform' : 'storage' } })),
+      ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: isStorage(i) ? 'storage' : 'uniform' } })),
     ]
-
     const bindings: GPUBindGroupEntry[] = [
       { binding: 0, resource: { buffer: create_uniform(device, Infinity), offset: 0, size: 4 } },
       ...[...bufs, ...vals].map<GPUBindGroupEntry>((x, i) => (
@@ -58,14 +79,11 @@ class WebGPUProgram extends Program {
 }
 // WebGPU buffers have to be 4-byte aligned
 class WebGpuAllocator extends Allocator<GPUBuffer> {
-  _alloc = (size: number, options?: BufferSpec) => device.createBuffer({ size: round_up(size, 4), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
+  _alloc = (size: number, options?: BufferSpec) => device.createBuffer({ size: round_up(size, 16), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
   _copyin = (dest: GPUBuffer, src: MemoryView) => {
-    let padded_src
-    if (mod(src.byteLength, 4)) {
-      padded_src = new Uint8Array(round_up(src.byteLength, 4))
-      padded_src.set(src.toBytes())
-    }
-    device.queue.writeBuffer(dest, 0, mod(src.byteLength, 4) ? padded_src! : src.toBytes())
+    const padded_src = new Uint8Array(round_up(src.byteLength, 16))
+    padded_src.set(src.toBytes())
+    device.queue.writeBuffer(dest, 0, padded_src)
   }
   _copyout = async (dest: MemoryView, src: GPUBuffer) => {
     const size = round_up(dest.byteLength, 4)

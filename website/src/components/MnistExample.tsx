@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { Adam, Device, get_parameters, is_eq, mnist, Tensor } from '../../../denograd/mod.ts'
+import { Adam, Device, get_parameters, is_eq, mnist, range, Tensor } from '../../../denograd/mod.ts'
 import { MNIST } from '../../../models/mod.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
@@ -29,20 +29,39 @@ export const MnistExample = () => {
   }, [image])
 
   // Training
-  const [[X_train, Y_train, X_test, Y_test], setData] = useState<Tensor[]>([])
-  const [BS, setBS] = useState(512)
-
-  const train_step = async (): Promise<Tensor> => {
-    Tensor.training = true
-    opt.zero_grad()
-    const samples = Tensor.randint([BS], undefined, X_train.shape[0])
-    const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
-    await opt.step()
-    Tensor.training = false
-    return loss
+  const [data, setData] = useState<Tensor[]>()
+  const getData = async () => {
+    if (data) return data
+    const newData = await mnist(undefined, '/')
+    setData(newData)
+    return newData
   }
-  const get_test_acc = (): Tensor => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)
+  const [BS, setBS] = useState(512)
+  const [steps, setSteps] = useState(10)
+  const [currentStep, setCurrentStep] = useState(0)
+  const [acc, setAcc] = useState(NaN)
+  const [loss, setLoss] = useState(NaN)
 
+  const train = async () => {
+    const [X_train, Y_train] = await getData()
+    opt.zero_grad()
+    setCurrentStep(0)
+    for (const step of range(steps)) {
+      Tensor.training = true
+      const samples = Tensor.randint([BS], undefined, X_train.shape[0])
+      const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
+      await opt.step()
+      Tensor.training = false
+      setLoss(await loss.item())
+      if (step % 10 === 9) await test()
+      setCurrentStep(step + 1)
+    }
+  }
+  const test = async () => {
+    const [_, __, X_test, Y_test] = await getData()
+    const acc = await model.call(X_test).argmax(1).eq(Y_test).mean().mul(100).item()
+    setAcc(acc)
+  }
   return (
     <div className='flex flex-col items-center gap-2'>
       <label className='flex flex-col text-center'>
@@ -53,6 +72,10 @@ export const MnistExample = () => {
         Batch size
         <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
       </label>
+      <label className='flex flex-col text-center'>
+        Steps
+        <input type='text' className='bg-transparent outline rounded-md p-1' value={steps.toString()} onChange={(e) => setSteps(Number(e.target.value))} />
+      </label>
       <button
         onClick={async () => {
           await model.load(await Tensor.from_url('/mnist.safetensors', { device: 'PYTHON' }))
@@ -61,30 +84,15 @@ export const MnistExample = () => {
       >
         Load pretrained model
       </button>
-      <button
-        onClick={async () => {
-          setData(await mnist(undefined, '/'))
-          toast('Training data loaded')
-        }}
-      >
-        Load training data
+      <button onClick={train}>
+        Start training
       </button>
-      <button
-        onClick={async () => {
-          const loss = await (await train_step()).item()
-          toast(`Loss is ${loss}`)
-        }}
-      >
-        Train 1 step
-      </button>
-      <button
-        onClick={async () => {
-          const acc = await get_test_acc().item()
-          toast(`Test accuracy is ${acc}`)
-        }}
-      >
+      <button onClick={test}>
         Test
       </button>
+      <div>
+        loss:{loss.toFixed(2)}, accuracy: {acc.toFixed(2)}, step: {currentStep}/{steps}
+      </div>
       <div className='flex flex-col md:flex-row gap-20 items-center'>
         <div className=' flex flex-col items-center gap-2'>
           <p className='text-xl font-bold'>Draw a digit here</p>
