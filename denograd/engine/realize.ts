@@ -1,4 +1,3 @@
-// deno-lint-ignore-file require-await
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type DeviceType, type Program } from '../device.ts'
 import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, mod, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
@@ -34,8 +33,8 @@ export class Runner {
   get dev() {
     return Device.get(this.device)
   }
-  exec = async (rawbufs: Buffer[], var_vals?: Map<Variable, number>): Promise<number> => this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
-  call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
+  exec = async (rawbufs: Buffer[], var_vals?: Map<Variable, number>): Promise<number> => await this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
+  call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> | number => {
     throw new Error('override this')
   }
 }
@@ -78,7 +77,7 @@ export class ViewOp extends Runner {
   constructor(buf: Buffer) {
     super(colored(`view ${buf.nbytes.toString().padStart(8)} @ ${buf.offset.toString().padEnd(10)}`, 'yellow'), buf.device)
   }
-  override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
+  override call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false) => {
     if (rawbufs[0]._base === undefined || rawbufs[0]._base !== rawbufs[1].base) throw new Error(`must be base ${rawbufs}`)
     return 0
   }
@@ -96,7 +95,7 @@ export class BufferCopy extends Runner {
       throw new Error('KAREL: implement copy_from_disk')
       // dest.allocator.copy_from_disk(dest._buf, src._buf, src.nbytes)
     } else if (src.device.startsWith('DISK') && '_as_buffer' in dest.allocator!) {
-      //       // fast(ish) path, uses readinto in diskbuffers
+      // fast(ish) path, uses readinto in diskbuffers
       await src.allocator!._copyout((dest.allocator._as_buffer as any)(dest._buf), src._buf!)
     } else {
       dest.copyin(await src.as_buffer(true)) // may allocate a CPU buffer depending on allow_zero_copy
@@ -120,7 +119,7 @@ class BufferXfer extends BufferCopy {
     // return dest.allocator._transfer(dest._buf, src._buf, dest.nbytes, src_dev = src.allocator.dev, dest_dev = dest.allocator.dev)
   }
 }
-// // **************** method cache ****************
+// **************** method cache ****************
 
 const method_cache: Record<string, CompiledRunner> = {}
 export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {

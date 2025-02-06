@@ -4,7 +4,7 @@
 // import { CStyleLanguage, uops_to_dtypes } from '../../src/renderer/cstyle.ts'
 // import { compare } from '../helpers.ts'
 
-// Deno.test(
+// test(
 //   'uops_to_dtypes',
 //   compare(
 //     [
@@ -18,7 +18,7 @@
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   'CStyleLanguage',
 //   compare(
 //     [
@@ -53,7 +53,7 @@
 //   [Ops.CMPLT, ['4', '5', dtypes.int]],
 //   [Ops.WHERE, ['4', '5', '6', dtypes.int]],
 // ]
-// Deno.test(
+// test(
 //   'CStyleLanguage.code_for_op',
 //   compare(
 //     codeForOpInput,
@@ -62,7 +62,7 @@
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   'CStyleLanguage.render_kernel',
 //   compare(
 //     [
@@ -84,7 +84,7 @@
 //     'out(cstyle.CStyleLanguage().render_kernel(data[0].get("functionName"),list(data[0].get("kernel")),list(data[0].get("bufs")),list(data[0].get("uops")),data[0].get("prefix")))',
 //   ),
 // )
-// Deno.test(
+// test(
 //   'CStyleLanguage.render_cast',
 //   compare(
 //     [
@@ -99,7 +99,7 @@
 //   ),
 // )
 
-// Deno.test(
+// test(
 //   'CStyleLanguage.render_dtype',
 //   compare(
 //     [
@@ -118,7 +118,7 @@
 // )
 
 // // KAREL: todo
-// // Deno.test(
+// // test(
 // //   'CStyleLanguage.render',
 // //   compare(
 // //     [
@@ -153,7 +153,7 @@
 // //     'out(cstyle.CStyleLanguage().render(*data))',
 // //   ),
 // // )
-// Deno.test(
+// test(
 //   'ClangRenderer.code_for_op',
 //   compare(
 //     [
@@ -170,7 +170,7 @@
 // )
 
 // // KAREL: figure out env tests
-// // Deno.test(
+// // test(
 // //   'ClangRenderer.tensor_cores',
 // //   compare(
 // //     [[]],
@@ -182,7 +182,7 @@
 // //   ),
 // // )
 
-// Deno.test(
+// test(
 //   'ClangRenderer.render_vector_prefix',
 //   compare(
 //     [
@@ -199,7 +199,7 @@
 //   ),
 // )
 // // KAREL: todo
-// // Deno.test(
+// // test(
 // //   'ClangRenderer.render',
 // //   compare(
 // //     [
@@ -233,7 +233,7 @@
 // //     'out(cstyle.ClangRenderer().render(*data))',
 // //   ),
 // // )
-// Deno.test(
+// test(
 //   'ClangRenderer.render_kernel',
 //   compare(
 //     [

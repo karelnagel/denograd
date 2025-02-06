@@ -19,8 +19,11 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+      - run: |
+          sudo apt update
+          sudo apt install -y mesa-vulkan-drivers libvulkan1 libegl1
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
       - run: pip install wgpu
-      - run: deno test -A --no-check
+      - run: WEBGPU=1 deno test -A --no-check

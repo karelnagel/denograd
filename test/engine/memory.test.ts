@@ -1,7 +1,7 @@
 import { memory_planner } from '../../denograd/engine/memory.ts'
-import { compare } from '../helpers.ts'
+import { compare, test } from '../helpers.ts'
 
-Deno.test(
+test(
   '_internal_memory_planner',
   compare(
     [],
@@ -10,7 +10,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'memory_planner',
   compare(
     [

@@ -1,9 +1,9 @@
 import type { FmtStr } from '../denograd/dtype.ts'
 import { type _get_recursive_parents, bitcast } from '../denograd/dtype.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
-import { compare } from './helpers.ts'
+import { compare, test } from './helpers.ts'
 
-Deno.test(
+test(
   'dtype.bitcast',
   compare(
     [
@@ -23,7 +23,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'memoryview',
   compare(
     [
@@ -46,7 +46,7 @@ Deno.test(
     ],
   ),
 )
-Deno.test(
+test(
   'memoryview.shape',
   compare(
     [

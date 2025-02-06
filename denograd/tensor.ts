@@ -550,7 +550,7 @@ export class Tensor extends MathTrait<Tensor> {
     await run_schedule(...this.schedule_with_vars(lst), do_update_stats)
     return this
   }
-  static realize = (lst: Tensor[], do_update_stats = true) => lst[0].realize(lst.slice(1), do_update_stats)
+  static realize = async (lst: Tensor[], do_update_stats = true) => await lst[0].realize(lst.slice(1), do_update_stats)
   /**
    * Replaces the data of this tensor with the data of another tensor. Only the shape of the tensors must match.
    */
@@ -610,7 +610,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (this.dtype.base.fmt === undefined) throw new Error(`no fmt dtype for ${this.dtype.base}`)
     if (!all_int(this.shape)) throw new Error(`no data if shape === symbolic, ${this.shape}`)
     // if (TYPE_CHECKING ) assert(this.dtype.base.fmt !== "e")
-    return await this._data().then((x) => x.cast(this.dtype.base.fmt!, this.shape.includes(0) ? undefined : this.shape as number[]))
+    return (await this._data()).cast(this.dtype.base.fmt!, this.shape.includes(0) ? undefined : this.shape as number[])
   }
   /**
    * Returns the value of this tensor as a standard Python number.
@@ -622,7 +622,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   item = async <T = number>(): Promise<T> => {
     if (this.numel() !== 1) throw new Error('must have one element for item')
-    return await this.data().then((x) => x.getValue(...range(this.shape.length || 1).map(() => 0))) as T
+    return (await this.data()).getValue(...range(this.shape.length || 1).map(() => 0)) as T
   }
   // TODO: should be Tensor.tolist() -> Union[ConstType[], ConstType]. The List === Sequence because mypy expects memoryview.tolist() -> list[number]
   // src: https://github.com/python/mypy/blob/release-1.6/mypy/typeshed/stdlib/builtins.pyi//L803
@@ -635,7 +635,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   tolist = async <T = any>(): Promise<T> => {
-    return await this.data().then((x) => x.toList()) as T
+    return (await this.data()).toList() as T
   }
   /**
    * Creates a clone of this tensor allocating a separate buffer for the data.
@@ -738,9 +738,15 @@ export class Tensor extends MathTrait<Tensor> {
    * THe `gunzip` flag will gzip extract the resource && return an extracted Tensor.
    */
 
-  static from_url = async (url: string, gunzip = false, opts?: TensorOptions): Promise<Tensor> => {
-    let data = await fetch(url).then((data) => data.arrayBuffer())
-    if (gunzip) data = Env.gunzipSync(data)
+  static from_url = async (url: string, opts?: TensorOptions): Promise<Tensor> => {
+    let res = await fetch(url)
+    if (!res.ok) throw new Error(`Failed to get ${url}`)
+    let data = await res.clone().arrayBuffer()
+    // checking if it is gzipped, using this instead of a flag cause, sometimes fetch automatically ungzips
+    const preview = new Uint8Array(data.slice(0, 2))
+    if (preview.length === 2 && preview[0] === 0x1f && preview[1] === 0x8b) {
+      data = await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+    }
     return new Tensor(new Uint8Array(data), opts)
   }
   static _seed: number = Math.floor(Date.now() / 1000)
@@ -1571,10 +1577,10 @@ export class Tensor extends MathTrait<Tensor> {
 
     const res = (await this.realize())._getitem(indices, v)
     // if shapes match and data is not shared it's a copy and we assign to self
-    if (res.shape === this.shape && res.lazydata !== this.lazydata) this.assign(res).realize()
+    if (res.shape === this.shape && res.lazydata !== this.lazydata) await this.assign(res).realize()
     else {
       v = v.cast(res.dtype)._broadcast_to(_broadcast_shape([res.shape, v.shape])).contiguous()
-      res.assign(v).realize()
+      await res.assign(v).realize()
     }
   }
   /**

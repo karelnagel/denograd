@@ -1,9 +1,9 @@
 import { can_pad, div_and_mod_folding, exec_alu, Ops, resolve, smax, smin, UOp, UPat } from '../denograd/ops.ts'
-import { compare, tryCatch } from './helpers.ts'
+import { compare, test, tryCatch } from './helpers.ts'
 import { dtypes } from '../denograd/dtype.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
 
-Deno.test(
+test(
   'can_pad',
   compare(
     [
@@ -17,7 +17,7 @@ Deno.test(
     'out(tiny.ops.can_pad(data[0],{},set()))',
   ),
 )
-Deno.test(
+test(
   'resolve',
   compare(
     [
@@ -33,7 +33,7 @@ Deno.test(
     'out(trycatch(lambda: tiny.ops.resolve(*data)))',
   ),
 )
-Deno.test(
+test(
   'UOp.st',
   compare(
     [
@@ -48,7 +48,7 @@ Deno.test(
     'out(data[0].simplify())',
   ),
 )
-Deno.test(
+test(
   'UOp.const_like',
   compare(
     [
@@ -58,7 +58,7 @@ Deno.test(
     'out(data[0].const_like(data[1]))',
   ),
 )
-Deno.test(
+test(
   'uop.parents',
   compare(
     [
@@ -69,7 +69,7 @@ Deno.test(
     'out(list(data[0].toposort.keys()))',
   ),
 )
-Deno.test(
+test(
   'upat.match',
   compare(
     [
@@ -98,7 +98,7 @@ Deno.test(
     'out(data[0].match(data[1],{}))',
   ),
 )
-Deno.test(
+test(
   'uop.simplify2',
   compare(
     [[]],
@@ -109,7 +109,7 @@ from tinygrad.dtype import dtypes
 out(UOp.const(dtypes.int,3).add(UOp.const(dtypes.float,4.6).idiv(UOp.const(dtypes.float,55))).mul(UOp.const(dtypes.bool,True)))`,
   ),
 )
-Deno.test(
+test(
   'uop.simplify',
   compare(
     [
@@ -135,7 +135,7 @@ Deno.test(
     'out(data[0].simplify())',
   ),
 )
-Deno.test(
+test(
   'uop.ssimplify',
   compare(
     [
@@ -161,7 +161,7 @@ Deno.test(
     'out(data[0].ssimplify())',
   ),
 )
-Deno.test(
+test(
   'uop.sym_infer',
   compare(
     [
@@ -188,7 +188,7 @@ Deno.test(
     'out(trycatch(lambda:data[0].sym_infer({})))',
   ),
 )
-Deno.test(
+test(
   'uop.render',
   compare(
     [
@@ -216,7 +216,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'smax',
   compare(
     [
@@ -232,7 +232,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'smin',
   compare(
     [
@@ -248,7 +248,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'UOp.st',
   compare(
     [
@@ -265,7 +265,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'UOp.full_shape',
   compare(
     [
@@ -276,7 +276,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'st_arg',
   compare(
     [
@@ -290,7 +290,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'div_and_mod_folding',
   compare(
     [
@@ -301,7 +301,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'exec_alu',
   compare(
     [

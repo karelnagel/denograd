@@ -1,9 +1,9 @@
 import { Ops, type sint, UOp } from '../../denograd/ops.ts'
-import { compare, tryCatch } from '../helpers.ts'
+import { compare, test, tryCatch } from '../helpers.ts'
 import { _reshape_mask, canonicalize_strides, strides_for_shape, View } from '../../denograd/shape/view.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 
-Deno.test(
+test(
   'canonicalize_strides',
   compare(
     [
@@ -16,7 +16,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'strides_for_shape',
   compare(
     [
@@ -30,7 +30,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   '_reshape_mask',
   compare(
     [
@@ -47,7 +47,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.create',
   compare(
     [
@@ -78,7 +78,7 @@ const view2 = View.create([UOp.int(4), UOp.int(6)], [UOp.int(6), UOp.int(1)], UO
 const view3 = View.create([4, 4], [-4, -1], 0, undefined)
 const view4 = View.create([0, 3, 2], [6, -2, 1], 0, [[1, 3], [0, 4]])
 
-Deno.test(
+test(
   'View.to_indexed_uops',
   compare(
     [
@@ -96,7 +96,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.size',
   compare(
     [
@@ -110,7 +110,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.vars',
   compare(
     [
@@ -124,7 +124,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.add',
   compare(
     [
@@ -141,7 +141,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.invert',
   compare(
     [
@@ -158,7 +158,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.minify',
   compare(
     [
@@ -172,7 +172,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.pad',
   compare(
     [
@@ -191,7 +191,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.shrink',
   compare(
     [
@@ -208,7 +208,7 @@ Deno.test(
     'out(trycatch(lambda:data[0].shrink(data[1])))',
   ),
 )
-Deno.test(
+test(
   'View.expand',
   compare(
     [
@@ -227,7 +227,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.permute',
   compare(
     [
@@ -245,7 +245,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.stride',
   compare(
     [
@@ -261,7 +261,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'View.reshape',
   compare(
     [

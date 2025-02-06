@@ -1,9 +1,9 @@
 import { type DType, dtypes } from '../denograd/dtype.ts'
 import { Ops, type sint } from '../denograd/ops.ts'
 import { Tensor, type TensorOptions } from '../denograd/tensor.ts'
-import { compare, tryCatch } from './helpers.ts'
+import { compare, test, tryCatch } from './helpers.ts'
 
-Deno.test(
+test(
   'Tensor.numel',
   compare<[Tensor]>(
     () => [
@@ -15,7 +15,7 @@ Deno.test(
     'out(data[0].numel())',
   ),
 )
-Deno.test(
+test(
   'Tensor.item',
   compare<[Tensor]>(
     () => [
@@ -28,7 +28,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.init',
   compare<[any, TensorOptions]>(
     [
@@ -55,7 +55,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.reshape',
   compare<[Tensor, number[]]>(
     [
@@ -69,7 +69,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor._broadcast_to',
   compare<[Tensor, number[]]>(
     () => [
@@ -81,7 +81,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.get.data',
   compare<[Tensor]>(
     () => [
@@ -123,7 +123,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.get.tolist',
   compare<[Tensor]>(
     [
@@ -166,7 +166,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.add',
   compare<[Tensor, Tensor | number]>(
     [
@@ -180,7 +180,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.mul',
   compare<[Tensor, Tensor | number]>(
     [
@@ -195,7 +195,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.div',
   compare<[Tensor, Tensor]>(
     () => [
@@ -207,7 +207,7 @@ Deno.test(
     'out(data[0] / data[1])',
   ),
 )
-Deno.test(
+test(
   'Tensor.idiv',
   compare<[Tensor, Tensor]>(
     () => [
@@ -219,7 +219,7 @@ Deno.test(
     'out(data[0] // data[1])',
   ),
 )
-Deno.test(
+test(
   'Tensor.cast',
   compare<[Tensor, DType]>(
     () => [
@@ -235,7 +235,7 @@ Deno.test(
     'out(data[0].cast(data[1]))',
   ),
 )
-Deno.test(
+test(
   'Tensor.maximum',
   compare<[Tensor, Tensor]>(
     () => [
@@ -247,7 +247,7 @@ Deno.test(
     'out(data[0].maximum(data[1]))',
   ),
 )
-Deno.test(
+test(
   'Tensor.minimum',
   compare<[Tensor, Tensor]>(
     () => [
@@ -342,17 +342,17 @@ const ops = (): [Tensor, keyof Tensor][] => [
 ]
 
 for (const [i, [tensor, op]] of ops().entries()) {
-  Deno.test({
-    name: `Tensor.ops.${op}.${i}`,
-    fn: compare(
+  test(
+    `Tensor.ops.${op}.${i}`,
+    compare(
       [[tensor, op]],
       (t: Tensor, op: keyof Tensor) => (t[op] as any)(),
       'out(getattr(data[0],data[1])())',
     ),
-  })
+  )
 }
 
-Deno.test(
+test(
   'Tensor._pool',
   compare<[Tensor, number[], (number | number[])?, (number | number[])?]>(
     () => [
@@ -388,7 +388,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.repeat',
   compare<[Tensor, sint[]]>(
     () => [
@@ -399,7 +399,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.reshape',
   compare<[Tensor, number[]]>(
     () => [
@@ -412,7 +412,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.shrink',
   compare<[Tensor, [sint, sint][]]>(
     () => [
@@ -426,7 +426,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.eq',
   compare<[Tensor, Tensor | number | boolean]>(
     () => [
@@ -450,7 +450,7 @@ Deno.test(
     'out((data[0] == data[1]))',
   ),
 )
-Deno.test(
+test(
   'Tensor.full',
   compare(
     [
@@ -462,7 +462,7 @@ Deno.test(
     'out(tiny.Tensor.full(*data))',
   ),
 )
-Deno.test(
+test(
   'Tensor.ones',
   compare(
     [
@@ -474,7 +474,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.zeros',
   compare(
     [
@@ -486,7 +486,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.rand',
   compare(
     [
@@ -504,7 +504,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.arange',
   compare(
     [
@@ -523,7 +523,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor._cumalu',
   compare<[Tensor, number, Ops]>(
     [
@@ -543,7 +543,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor.transpose',
   compare<[Tensor, number, number]>(
     [
@@ -555,7 +555,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'Tensor._threefry_random_bits',
   compare<[Tensor, Tensor, Tensor]>(
     [

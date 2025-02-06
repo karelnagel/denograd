@@ -1,10 +1,10 @@
 import { _choices_from_args, _expand_arg_to_idx, _swizzle_args, create_gate, delete_redundant_gates, devectorize, do_contract, do_expand, fix_unfoldable_image_load, fold_expanded, full_graph_rewrite, loop_collapse, move_mask, no_vectorized_acc, no_vectorized_alu, no_vectorized_load_store, reduce_collapse, simplify_valid_load, sym, threefry2x32 } from '../../denograd/ops.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
-import { compare, tryCatch } from '../helpers.ts'
+import { compare, test, tryCatch } from '../helpers.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 
-Deno.test(
+test(
   'fold_expanded',
   compare(
     [
@@ -27,7 +27,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'fix_unfoldable_image_load',
   compare(
     [
@@ -51,7 +51,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'simplify_valid_load',
   compare(
     [
@@ -64,7 +64,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'threefry2x32',
   compare(
     [
@@ -77,7 +77,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'loop_collapse',
   compare(
     [
@@ -111,7 +111,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   '_expand_arg_to_idx',
   compare(
     [
@@ -152,7 +152,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   '_choices_from_args',
   compare(
     [
@@ -183,7 +183,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   '_swizzle_args',
   compare(
     [
@@ -217,7 +217,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'do_expand',
   compare(
     [
@@ -267,7 +267,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'do_contract',
   compare(
     [
@@ -296,7 +296,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'no_vectorized_alu',
   compare(
     [
@@ -332,7 +332,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'create_gate',
   compare(
     [
@@ -365,7 +365,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'no_vectorized_load_store',
   compare(
     [
@@ -405,7 +405,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'delete_redundant_gates',
   compare(
     [
@@ -448,7 +448,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'move_mask',
   compare(
     [
@@ -490,7 +490,7 @@ Deno.test(
     'out(tiny.codegen.rewriter.move_mask(*data))',
   ),
 )
-Deno.test(
+test(
   'full_graph_rewrite',
   compare(
     [
@@ -508,7 +508,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'reduce_collapse',
   compare(
     [
@@ -519,7 +519,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'no_vectorized_acc',
   compare(
     [
@@ -530,7 +530,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'sym+devectorize',
   compare(
     [

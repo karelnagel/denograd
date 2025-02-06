@@ -1,9 +1,9 @@
 import { type sint, UOp } from '../../denograd/ops.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
-import { compare, tryCatch } from '../helpers.ts'
+import { compare, test, tryCatch } from '../helpers.ts'
 
-Deno.test(
+test(
   'ShapeTracker.from_shape',
   compare(
     [
@@ -23,7 +23,7 @@ const st2 = ShapeTracker.from_shape([4, UOp.int(55)])
 const st3 = ShapeTracker.from_shape([UOp.float(8), UOp.int(110), UOp.int(33)])
 
 // GETTERS
-Deno.test(
+test(
   'ShapeTracker.contiguous',
   compare(
     [[st1], [st1], [st2]],
@@ -31,7 +31,7 @@ Deno.test(
     'out(trycatch(lambda: data[0].contiguous))',
   ),
 )
-Deno.test(
+test(
   'ShapeTracker.consecutive',
   compare(
     [[st1], [st1], [st2]],
@@ -39,7 +39,7 @@ Deno.test(
     'out(trycatch(lambda: data[0].consecutive))',
   ),
 )
-Deno.test(
+test(
   'ShapeTracker.shape',
   compare(
     [[st1], [st1], [st2]],
@@ -47,7 +47,7 @@ Deno.test(
     'out(trycatch(lambda: data[0].shape))',
   ),
 )
-Deno.test(
+test(
   'ShapeTracker.size',
   compare(
     [[st1], [st1], [st2]],
@@ -55,7 +55,7 @@ Deno.test(
     'out(trycatch(lambda: data[0].size))',
   ),
 )
-Deno.test(
+test(
   'ShapeTracker.var_vals',
   compare(
     [[st1], [st1], [st2]],
@@ -64,7 +64,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.add',
   compare(
     [
@@ -76,7 +76,7 @@ Deno.test(
     'out(trycatch(lambda: data[0] + data[1] ))',
   ),
 )
-Deno.test(
+test(
   'ShapeTracker.reduce',
   compare(
     [
@@ -92,7 +92,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.to_uop',
   compare(
     [
@@ -104,7 +104,7 @@ Deno.test(
     'out(trycatch(lambda: data[0].to_uop()))',
   ),
 )
-Deno.test(
+test(
   'ShapeTracker.to_indexed_uops',
   compare(
     [
@@ -117,7 +117,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.real_size',
   compare(
     [
@@ -130,7 +130,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.vars',
   compare(
     [
@@ -143,7 +143,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.real_strides',
   compare(
     [
@@ -156,7 +156,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.unit_stride_axes',
   compare(
     [
@@ -169,7 +169,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.axis_is_masked',
   compare(
     [
@@ -182,7 +182,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.simplify',
   compare(
     [
@@ -203,7 +203,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ShapeTracker.reshape',
   compare(
     [

@@ -2,10 +2,10 @@ import { Kernel } from '../../denograd/codegen/kernel.ts'
 import type { DeviceType } from '../../denograd/device.ts'
 import { get_kernel, get_runner } from '../../denograd/engine/realize.ts'
 import type { UOp } from '../../denograd/ops.ts'
-import { compare } from '../helpers.ts'
+import { compare, test } from '../helpers.ts'
 import { kernelInputs, pyKernel, tsKernel } from './kernel-inputs.ts'
 
-Deno.test(
+test(
   'realize.get_kernel',
   compare(
     kernelInputs,
@@ -16,7 +16,7 @@ Deno.test(
     ],
   ),
 )
-Deno.test(
+test(
   'realize.get_optimized_ast',
   compare(
     kernelInputs,
@@ -26,7 +26,7 @@ Deno.test(
     ],
   ),
 )
-Deno.test(
+test(
   'realize.linearize',
   compare(
     kernelInputs,
@@ -36,7 +36,7 @@ Deno.test(
     ],
   ),
 )
-Deno.test(
+test(
   'realize.to_program',
   compare(
     kernelInputs,
@@ -49,7 +49,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'realize.get_runner',
   compare(
     () => kernelInputs().map(([r, ast]) => [r.device, ast] as [DeviceType, UOp]),
@@ -66,7 +66,7 @@ Deno.test(
   ),
 )
 
-// Deno.test(
+// test(
 //   'CompiledRunner.init',
 //   compare(
 //     kernelInputs(),
@@ -88,7 +88,7 @@ Deno.test(
 //   ),
 // )
 
-Deno.test(
+test(
   'BufferCopy.copy',
   compare(
     [],
@@ -97,7 +97,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'BufferCopy.call',
   compare(
     [],
@@ -106,7 +106,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'ExecItem.run',
   compare(
     [],
@@ -115,7 +115,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'lower_schedule_item',
   compare(
     [],
@@ -124,7 +124,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'lower_schedule',
   compare(
     [],
@@ -133,7 +133,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'run_schedule',
   compare(
     [],

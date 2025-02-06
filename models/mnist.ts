@@ -2,7 +2,7 @@
 
 import { type Layer, Tensor } from '../denograd/tensor.ts'
 import { mnist } from '../denograd/nn/datasets.ts'
-import { get_env, get_number_env, mod, range } from '../denograd/helpers.ts'
+import { get_number_env, mod, range } from '../denograd/helpers.ts'
 import { Tqdm } from '../denograd/tqdm.ts'
 import { BatchNorm, Conv2d, Linear, Model } from '../denograd/nn/index.ts'
 import { get_parameters } from '../denograd/nn/state.ts'
@@ -28,7 +28,7 @@ export class MNIST extends Model {
 }
 
 if (import.meta.main) {
-  const [X_train, Y_train, X_test, Y_test] = await mnist(undefined, !!get_env('FASHION'))
+  const [X_train, Y_train, X_test, Y_test] = await mnist(undefined)
 
   const model = new MNIST()
 
@@ -48,9 +48,9 @@ if (import.meta.main) {
   const get_test_acc = (): Tensor => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)
 
   let test_acc = NaN
-  const t = new Tqdm(range(get_number_env('STEPS', 14)))
+  const t = new Tqdm(range(get_number_env('STEPS', 70)))
   for await (const i of t) {
-    const loss = await train_step().then((x) => x.item())
+    const loss = await (await train_step()).item()
     if (mod(i, 10) === 9) test_acc = await get_test_acc().item()
     t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
   }
