@@ -2,7 +2,6 @@ import { Environment } from './abstract.ts'
 import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
-import { gunzipSync } from 'node:zlib'
 
 export class DenoEnv extends Environment {
   NAME = 'DENO'
@@ -19,5 +18,4 @@ export class DenoEnv extends Environment {
   tmpdir = () => os.tmpdir()
   homedir = () => os.homedir()
   sha256 = (data: string | Uint8Array) => createHash('sha256').update(data).digest()
-  gunzipSync = (input: ArrayBuffer) => gunzipSync(input)
 }

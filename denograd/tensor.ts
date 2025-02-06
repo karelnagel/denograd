@@ -738,9 +738,15 @@ export class Tensor extends MathTrait<Tensor> {
    * THe `gunzip` flag will gzip extract the resource && return an extracted Tensor.
    */
 
-  static from_url = async (url: string, gunzip = false, opts?: TensorOptions): Promise<Tensor> => {
-    let data = await (await fetch(url)).arrayBuffer()
-    if (gunzip) data = Env.gunzipSync(data)
+  static from_url = async (url: string, opts?: TensorOptions): Promise<Tensor> => {
+    let res = await fetch(url)
+    if (!res.ok) throw new Error(`Failed to get ${url}`)
+    let data = await res.clone().arrayBuffer()
+    // checking if it is gzipped, using this instead of a flag cause, sometimes fetch automatically ungzips
+    const preview = new Uint8Array(data.slice(0, 2))
+    if (preview.length === 2 && preview[0] === 0x1f && preview[1] === 0x8b) {
+      data = await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+    }
     return new Tensor(new Uint8Array(data), opts)
   }
   static _seed: number = Math.floor(Date.now() / 1000)

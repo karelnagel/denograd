@@ -2,7 +2,7 @@
 
 import { type Layer, Tensor } from '../denograd/tensor.ts'
 import { mnist } from '../denograd/nn/datasets.ts'
-import { get_env, get_number_env, mod, range } from '../denograd/helpers.ts'
+import { get_number_env, mod, range } from '../denograd/helpers.ts'
 import { Tqdm } from '../denograd/tqdm.ts'
 import { BatchNorm, Conv2d, Linear, Model } from '../denograd/nn/index.ts'
 import { get_parameters } from '../denograd/nn/state.ts'
@@ -28,7 +28,7 @@ export class MNIST extends Model {
 }
 
 if (import.meta.main) {
-  const [X_train, Y_train, X_test, Y_test] = await mnist(undefined, !!get_env('FASHION'))
+  const [X_train, Y_train, X_test, Y_test] = await mnist(undefined)
 
   const model = new MNIST()
 
