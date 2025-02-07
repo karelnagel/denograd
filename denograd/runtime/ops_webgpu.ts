@@ -66,7 +66,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     device.queue.writeBuffer(dest, 0, padded_src)
   }
   _copyout = async (dest: MemoryView, src: GPUBuffer) => {
-    const size = dest.byteLength
+    const size = round_up(dest.byteLength, 4)
 
     const staging = device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
 
