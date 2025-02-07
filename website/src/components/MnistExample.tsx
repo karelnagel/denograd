@@ -10,7 +10,6 @@ console.log(`Using ${Device.DEFAULT} device`)
 
 const EMPTY = Array(28).fill(0).map(() => Array(28).fill(0))
 
-Tensor.manual_seed(5)
 const model = new MNIST()
 const opt = Adam(get_parameters(model))
 
@@ -36,7 +35,7 @@ export const MnistExample = () => {
     setData(newData)
     return newData
   }
-  const [BS, setBS] = useState(512)
+  const [BS, setBS] = useState(256)
   const [steps, setSteps] = useState(10)
   const [currentStep, setCurrentStep] = useState(0)
   const [acc, setAcc] = useState(NaN)
@@ -46,15 +45,21 @@ export const MnistExample = () => {
     const [X_train, Y_train] = await getData()
     opt.zero_grad()
     setCurrentStep(0)
-    for (const step of range(steps)) {
+
+    const step = async () => {
       Tensor.training = true
+      opt.zero_grad()
       const samples = Tensor.randint([BS], undefined, X_train.shape[0])
       const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
       await opt.step()
       Tensor.training = false
-      setLoss(await loss.item())
-      if (step % 10 === 9) await test()
-      setCurrentStep(step + 1)
+      return await loss.item()
+    }
+
+    for (const i of range(steps)) {
+      setLoss(await step())
+      if (i % 10 === 9) await test()
+      setCurrentStep(i + 1)
     }
   }
   const test = async () => {
@@ -64,10 +69,6 @@ export const MnistExample = () => {
   }
   return (
     <div className='flex flex-col items-center gap-2'>
-      <label className='flex flex-col text-center'>
-        Seed
-        <input type='text' className='bg-transparent outline rounded-md p-1' value={Tensor._seed} onChange={(e) => Tensor.manual_seed(Number(e.target.value))} />
-      </label>
       <label className='flex flex-col text-center'>
         Batch size
         <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />

@@ -16,30 +16,10 @@ const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
 const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
 if (!adapter) throw new Error('No adapter')
 const timestamp_supported = adapter.features.has('timestamp-query')
-const {
-  maxStorageBufferBindingSize,
-  maxBufferSize,
-  maxStorageBuffersPerShaderStage,
-  maxStorageTexturesPerShaderStage,
-  maxComputeWorkgroupStorageSize,
-  maxUniformBufferBindingSize,
-  maxUniformBuffersPerShaderStage,
-  minUniformBufferOffsetAlignment,
-  maxDynamicUniformBuffersPerPipelineLayout,
-} = adapter.limits
+const { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize, maxUniformBufferBindingSize, maxUniformBuffersPerShaderStage, minUniformBufferOffsetAlignment, maxDynamicUniformBuffersPerPipelineLayout } = adapter.limits
 const device = await adapter.requestDevice({
   requiredFeatures: timestamp_supported ? ['timestamp-query'] : [],
-  requiredLimits: {
-    maxStorageBufferBindingSize,
-    maxBufferSize,
-    maxStorageBuffersPerShaderStage,
-    maxStorageTexturesPerShaderStage,
-    maxComputeWorkgroupStorageSize,
-    maxUniformBufferBindingSize,
-    maxUniformBuffersPerShaderStage,
-    minUniformBufferOffsetAlignment,
-    maxDynamicUniformBuffersPerPipelineLayout,
-  },
+  requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize, maxUniformBufferBindingSize, maxUniformBuffersPerShaderStage, minUniformBufferOffsetAlignment, maxDynamicUniformBuffersPerPipelineLayout },
 })
 
 class WebGPUProgram extends Program {
@@ -66,14 +46,14 @@ class WebGPUProgram extends Program {
     const pipeline_layout = device.createPipelineLayout({ bindGroupLayouts: [bind_group_layout] })
     const bind_group = device.createBindGroup({ layout: bind_group_layout, entries: bindings })
     const compute_pipeline = device.createComputePipeline({ layout: pipeline_layout, compute: { module: this.prg, entryPoint: this.name } })
-    const command_encoder = device.createCommandEncoder()
-    const compute_pass = command_encoder.beginComputePass({})
+    const encoder = device.createCommandEncoder()
+    const compute_pass = encoder.beginComputePass({})
     compute_pass.setPipeline(compute_pipeline)
     compute_pass.setBindGroup(0, bind_group, [])
     compute_pass.dispatchWorkgroups(global_size[0], global_size[1], global_size[2]) // x y z
     compute_pass.end()
 
-    device.queue.submit([command_encoder.finish()])
+    device.queue.submit([encoder.finish()])
     await device.queue.onSubmittedWorkDone()
   })
 }
@@ -86,7 +66,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     device.queue.writeBuffer(dest, 0, padded_src)
   }
   _copyout = async (dest: MemoryView, src: GPUBuffer) => {
-    const size = round_up(dest.byteLength, 4)
+    const size = dest.byteLength
 
     const staging = device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
 
@@ -97,8 +77,12 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     await staging.mapAsync(GPUMapMode.READ)
     dest.set(new Uint8Array(staging.getMappedRange()))
     staging.unmap()
+    staging.destroy()
   }
-  _free = (opaque: GPUBuffer, options?: BufferSpec) => opaque.destroy()
+  _free = (opaque: GPUBuffer, options?: BufferSpec) => {
+    opaque.unmap()
+    opaque.destroy()
+  }
 }
 
 export class WEBGPU extends Compiled {
