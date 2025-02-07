@@ -32,17 +32,72 @@ export class DefaultMap<K, V> extends Map<K, V> {
 type WeakArrayKey = { key: string } | ArrayKey[]
 type ArrayKey = { key: string } | ArrayKey[] | string | ConstType | undefined
 
-export const get_key = (...args: ArrayKey[]): string => {
-  const stringify = (item: ArrayKey): string => {
-    if (Array.isArray(item)) return `[${item.map(stringify).join(',')}]`
-    if (item === undefined) return 'undefined'
-    if (typeof item === 'string') return `"${item}"`
-    if (typeof item === 'bigint') return `${item}n`
-    if (typeof item === 'number' || typeof item === 'boolean') return `${item}`
-    if (typeof item?.key === 'string') return `${item.key}`
-    throw new Error(`No stringifier for ${item}, type: ${typeof item}, args:${JSON.stringify(args)}`)
+const FNV_OFFSET_BASIS_64 = 14695981039346656037n
+const FNV_PRIME_64 = 1099511628211n
+const MASK = 0xffffffffffffffffn
+function fnv1a_64(h: bigint, charCode: number) {
+  h ^= BigInt(charCode)
+  h = (h * FNV_PRIME_64) & MASK
+  return h
+}
+
+function hashValue(item: any, h = FNV_OFFSET_BASIS_64) {
+  switch (typeof item) {
+    case 'string': {
+      for (let i = 0; i < item.length; i++) {
+        h = fnv1a_64(h, item.charCodeAt(i))
+      }
+      break
+    }
+    case 'number': {
+      const str = String(item)
+      for (let i = 0; i < str.length; i++) {
+        h = fnv1a_64(h, str.charCodeAt(i))
+      }
+      break
+    }
+    case 'bigint': {
+      const str = item.toString() + 'n'
+      for (let i = 0; i < str.length; i++) {
+        h = fnv1a_64(h, str.charCodeAt(i))
+      }
+      break
+    }
+    case 'boolean': {
+      h = fnv1a_64(h, item ? 1 : 0)
+      break
+    }
+    case 'undefined': {
+      h = fnv1a_64(h, 85)
+      break
+    }
+    case 'object': {
+      if (Array.isArray(item)) {
+        h = fnv1a_64(h, 91)
+        for (let i = 0; i < item.length; i++) {
+          h = hashValue(item[i], h)
+          h = fnv1a_64(h, 44)
+        }
+        h = fnv1a_64(h, 93)
+      } else if ('key' in item && typeof item.key === 'string') {
+        for (let i = 0; i < item.key.length; i++) {
+          h = fnv1a_64(h, item.key.charCodeAt(i))
+        }
+      } else throw new Error(`No stringifier for ${item}, typeof ${typeof item}`)
+      break
+    }
+    default:
+      throw new Error(`No stringifier for ${item}, typeof ${typeof item}`)
   }
-  return hash(stringify(args))
+  return h
+}
+
+export function get_key(...args: any[]) {
+  let h = FNV_OFFSET_BASIS_64
+  for (let i = 0; i < args.length; i++) {
+    h = hashValue(args[i], h)
+  }
+  return h.toString(16)
 }
 
 export class ArrayMap<K extends ArrayKey, V, Internal extends [any, any] = [K, V]> {
@@ -225,14 +280,14 @@ export abstract class Enum {
 
 export const random_id = () => (Math.random() * 100000000).toFixed(0)
 export function hash(input: string): string {
-  const FNV_OFFSET_BASIS_64 = BigInt('0xcbf29ce484222325')
-  const FNV_PRIME_64 = BigInt('0x100000001b3')
+  const FNV_OFFSET_BASIS_64 = 14695981039346656037n
+  const FNV_PRIME_64 = 1099511628211n
+  const MASK = 0xffffffffffffffffn
 
   let h = FNV_OFFSET_BASIS_64
   for (let i = 0; i < input.length; i++) {
     h ^= BigInt(input.charCodeAt(i))
-    h *= FNV_PRIME_64
-    h &= BigInt('0xFFFFFFFFFFFFFFFF')
+    h = (h * FNV_PRIME_64) & MASK
   }
   return h.toString(16).padStart(16, '0')
 }
@@ -287,26 +342,32 @@ export function* counter(start = 0) {
 }
 export const list_str = (x?: any[]): string => Array.isArray(x) ? `[${x.map(list_str).join(', ')}]` : typeof x === 'string' ? `'${x}'` : `${x}`
 export const entries = <K extends string, V extends any>(object: Record<K, V>) => Object.entries(object) as [K, V][]
-export const is_less_than = (one: any[], two: any[]): boolean => {
-  // Inner is needed so that it can return undefined for cases when all the elements are the same
-  const inner = (one: any[], two: any[]): boolean | undefined => {
-    for (const [x, y] of zip(one, two)) {
+
+export function is_less_than(one: any[], two: any[]): boolean {
+  function compareArrays(a: any[], b: any[]): boolean | undefined {
+    const len = Math.min(a.length, b.length)
+    for (let i = 0; i < len; i++) {
+      const x = a[i], y = b[i]
       if (x === y) continue
       if (Array.isArray(x) && Array.isArray(y)) {
-        const res = inner(x, y)
-        if (res === undefined) continue
-        else return res
+        const res = compareArrays(x, y)
+        if (res !== undefined) return res
+        continue // if res === undefined, they're still "equal" so continue
       }
-      // if it's DType, res===boolean check just to check if it's not MathTrait maybe
-      if (typeof x === 'object' && typeof y === 'object' && 'lt' in x && 'lt' in y && typeof x.lt === 'function') {
+      if (x && y && typeof x === 'object' && typeof y === 'object' && 'lt' in x && 'lt' in y && typeof x.lt === 'function') {
         const res = x.lt(y)
         if (typeof res === 'boolean') return res
       }
-      if (typeof x === 'object' || typeof y === 'object') throw new Error(`Can't compare objects: x=${x}, y=${y}`)
+
+      if ((x && typeof x === 'object') || (y && typeof y === 'object')) {
+        throw new Error(`Can't compare objects: x=${x}, y=${y}`)
+      }
+
       return x < y
     }
+    return undefined
   }
-  return inner(one, two) || false
+  return compareArrays(one, two) ?? false
 }
 export type ConstType<This = never> = number | bigint | boolean | This
 export const isConst = (x: any): x is ConstType => ['number', 'bigint', 'boolean'].includes(typeof x)
