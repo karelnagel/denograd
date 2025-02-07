@@ -75,7 +75,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     device.queue.submit([encoder.finish()])
 
     await staging.mapAsync(GPUMapMode.READ)
-    dest.set(new Uint8Array(staging.getMappedRange()))
+    dest.set(new Uint8Array(staging.getMappedRange()).slice(0, dest.length))
     staging.unmap()
     staging.destroy()
   }
