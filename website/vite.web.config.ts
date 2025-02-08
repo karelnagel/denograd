@@ -5,7 +5,7 @@ export default defineConfig({
     lib: {
       entry: 'web.ts',
       name: 'Denograd',
-      fileName: (format) => format === 'iife' ? 'denograd.js' : 'denograd.es.js',
+      fileName: (format) => format === 'iife' ? 'denograd.js' : 'denograd.mjs',
       formats: ['iife', 'es'],
     },
     emptyOutDir: false,

@@ -9,4 +9,5 @@ dist/
 .DS_Store
 .venv/
 __pycache__/
-denograd*.js
+denograd.js
+denograd.mjs
