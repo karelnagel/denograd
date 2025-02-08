@@ -16,7 +16,7 @@
     "vite": "npm:vite"
   },
   "tasks": {
-    "dev": "astro dev",
+    "dev": "deno task build:web && astro dev",
     "check": "astro check",
     "build": "deno task build:web && astro build",
     "preview": "astro preview",
