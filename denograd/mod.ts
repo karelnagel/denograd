@@ -1,6 +1,7 @@
 export * from './tensor.ts'
 export * from './helpers.ts'
 export * from './nn/index.ts'
+export * from './nn/mnist.ts'
 export * from './nn/datasets.ts'
 export * from './nn/optim.ts'
 export * from './nn/state.ts'

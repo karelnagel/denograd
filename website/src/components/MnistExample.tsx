@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { Adam, Device, get_parameters, is_eq, mnist, range, Tensor } from '../../../denograd/mod.ts'
-import { MNIST } from '../../../models/mod.ts'
+import { Adam, Device, get_parameters, is_eq, MNIST, mnist, range, Tensor } from '../../../denograd/mod.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
 
