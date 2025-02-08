@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'preact/hooks'
+import { useEffect, useRef } from 'react'
 import { plot, type PlotOptions } from '@observablehq/plot'
 export * from '@observablehq/plot'
 

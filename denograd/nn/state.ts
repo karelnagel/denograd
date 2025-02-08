@@ -1,4 +1,5 @@
 import { dtypes } from '../dtype.ts'
+import { Env } from '../env/index.ts'
 import { bytes_to_string, DEBUG, is_eq, isinstance, NotImplemented, round_up, string_to_bytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
@@ -25,8 +26,8 @@ export const inverse_safe_dtypes = new Map(Object.entries(safe_dtypes).map(([k, 
  */
 export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, number, Record<string, any>]> => {
   if (typeof t === 'string') t = new Tensor(t)
-  const data_start = await t.get({ start: 0, stop: 8 }).data().then((x) => x.cast('i').getValue(0) + 8)
-  return [t, data_start, JSON.parse(bytes_to_string(await t.get({ start: 8, stop: data_start }).data().then((x) => x.toBytes())))]
+  const data_start = (await t.get({ start: 0, stop: 8 }).data()).cast('i').getValue(0) + 8
+  return [t, data_start, JSON.parse(bytes_to_string((await t.get({ start: 8, stop: data_start }).data()).toBytes()))]
 }
 /**
  * Loads a .safetensor file from disk, returning the state_dict.
@@ -36,7 +37,9 @@ export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, n
  * ```
  */
 export const safe_load = async (fn: Tensor | string): Promise<Record<string, Tensor>> => {
-  if (typeof fn === 'string') fn = new Tensor(fn)
+  if (typeof fn === 'string') {
+    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: Env.CPU_DEVICE }) : new Tensor(fn)
+  }
   const [t, data_start, metadata] = await safe_load_metadata(fn)
   const data = t.get({ start: data_start })
   return Object.fromEntries(
@@ -134,9 +137,11 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
     }
     if (!is_eq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
     if (Array.isArray(v.device)) {
-      if (Array.isArray(state_dict[k].device)) v.replace(state_dict[k]).realize()
-      else v.replace(state_dict[k].shard(v.device, v.lazydata.axis)).realize()
-    } else await v.replace(state_dict[k].to(v.device)).realize()
+      if (Array.isArray(state_dict[k].device)) await v.replace(state_dict[k]).realize()
+      else await v.replace(state_dict[k].shard(v.device, v.lazydata.axis)).realize()
+    } else {
+      await v.replace(state_dict[k].to(v.device)).realize()
+    }
     if (consume) delete state_dict[k]
   }
 }

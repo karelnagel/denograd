@@ -1,0 +1,24 @@
+{
+    "name": "deno-astro",
+    "type": "module",
+    "version": "0.0.1",
+    "scripts": {
+        "dev": "astro dev",
+        "build": "astro build",
+        "preview": "astro preview",
+        "astro": "astro",
+        "build:web": "vite build --config vite.web.config.ts"
+    },
+    "dependencies": {
+        "@astrojs/react": "^4.2.0",
+        "@astrojs/tailwind": "^6.0.0",
+        "@observablehq/plot": "^0.6.16",
+        "@types/react": "^19.0.8",
+        "@types/react-dom": "^19.0.3",
+        "astro": "^5.2.5",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "tailwindcss": "3.4.16",
+        "vite": "^6.1.0"
+    }
+}

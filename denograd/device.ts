@@ -80,12 +80,8 @@ export class Buffer<Buf extends object = object> {
   _lb_refcount?: number
   _buf?: Buf
   allocator?: Allocator<Buf>
-  static register = new FinalizationRegistry((x: { allocator?: Allocator<any>; options?: BufferSpec; _base?: Buffer<any>; device: DeviceType; _buf: any; nbytes: number }) => {
-    // This is the deallocate() function
-    if (x._base === undefined && (x.options === undefined || x.options.external_ptr === undefined)) {
-      if (!x.device.startsWith('DISK')) GlobalCounters.mem_used -= x.nbytes
-      x.allocator?.free(x._buf, x.nbytes, x.options)
-    }
+  static register = new FinalizationRegistry((x: { allocator?: Allocator<any>; _buf: any; options?: BufferSpec; size: number }) => {
+    x.allocator?.free(x._buf, x.size, x.options)
   })
 
   constructor(
@@ -100,7 +96,6 @@ export class Buffer<Buf extends object = object> {
     public offset = 0,
     preallocate = false,
   ) {
-    Buffer.register.register(this, { _base: this._base, _buf: this._buf, allocator: this.allocator, device: this.device, nbytes: this.nbytes, options: this.options })
     if (dtype instanceof ImageDType) this.options = new BufferSpec(dtype) // TODO: image hack shouldn't be here. where should it be?
     else assert(dtype instanceof DType && !(dtype instanceof PtrDType))
     if (base === undefined) {
@@ -139,6 +134,7 @@ export class Buffer<Buf extends object = object> {
       this._buf = (this.allocator._offset as any)(this.base._buf, this.nbytes, this.offset)
     } else {
       this._buf = opaque !== undefined ? opaque : this.allocator?.alloc(this.nbytes, this.options)
+      Buffer.register.register(this, { _buf: this._buf, allocator: this.allocator, size: this.nbytes, options: this.options })
       if (!this.device.startsWith('DISK')) GlobalCounters.mem_used += this.nbytes
     }
     return this

@@ -1,10 +1,10 @@
 import { expect } from 'expect/expect'
-import { MNIST } from '../models/mnist.ts'
+import { MNIST } from '../denograd/nn/mnist.ts'
 import { Adam, get_parameters, mnist } from '../denograd/mod.ts'
 import { Tensor } from '../denograd/tensor.ts'
-import { asdict, compare, python } from './helpers.ts'
+import { asdict, compare, python, test } from './helpers.ts'
 
-Deno.test(
+test(
   'mnist.get',
   compare(
     [[]],
@@ -22,7 +22,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'mnist.call',
   compare(
     [[]],
@@ -48,11 +48,11 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'mnist.call.ones',
   compare(
     [[]],
-    async () => {
+    () => {
       Tensor.manual_seed(333)
       const model = new MNIST()
       return model.call(Tensor.ones([1, 1, 28, 28]))
@@ -66,7 +66,7 @@ Deno.test(
     ],
   ),
 )
-Deno.test(
+test(
   'mnist.load',
   async () => {
     Tensor.manual_seed(333)
@@ -85,7 +85,7 @@ Deno.test(
   },
 )
 
-Deno.test(
+test(
   'mnist.train',
   compare(
     [[]],

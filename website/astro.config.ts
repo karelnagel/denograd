@@ -1,12 +1,11 @@
 import { defineConfig } from 'astro/config'
 import tailwind from '@astrojs/tailwind'
-import preact from '@astrojs/preact'
+import react from '@astrojs/react'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://karelnagel.github.io',
-  base: 'denograd',
+  site: 'https://denograd.io',
   output: 'static',
-  integrations: [preact({ include: ['**/*[jt]sx'] }), tailwind()],
+  integrations: [react(), tailwind()],
   devToolbar: { enabled: false },
 })

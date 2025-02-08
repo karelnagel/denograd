@@ -56,10 +56,11 @@ export const extra_pm = new PatternMatcher([
 
 export const uops_to_dtypes = (uops: UOp[]): DType[] => dedup(uops.filter((u) => !(u.dtype instanceof ImageDType || u.dtype instanceof PtrDType)).map((u) => u.dtype))
 
-export type RenderKernelArgs = { function_name: string; kernel: string[]; bufs: [string, [DType, boolean]][]; uops: UOp[]; prefix?: string[] }
+export type Buf = { name: string; dtype: DType; mutable: boolean }
+export type RenderKernelArgs = { function_name: string; kernel: string[]; bufs: Map<UOp, Buf>; uops: UOp[]; prefix?: string[] }
 const root_render_kernel = (self: CStyleLanguage, { bufs, function_name, kernel, uops, prefix }: RenderKernelArgs): string => {
-  const tmp = bufs.some(([_, [dtype]]) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
-  const buftypes = bufs.map(([name, [dtype, mutable]]) => [name, (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.render_dtype(dtype, mutable) + self.buffer_suffix : dtype === dtypes.int ? self.arg_int_prefix : undefined])
+  const tmp = bufs.values().some(({ dtype }) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
+  const buftypes = [...bufs.values()].map(({ name, dtype, mutable }) => [name, (dtype instanceof ImageDType || dtype instanceof PtrDType) ? self.render_dtype(dtype, mutable) + self.buffer_suffix : dtype === dtypes.int ? self.arg_int_prefix : undefined])
   const prg = [`${self.kernel_prefix}void ${self.get_kernel_modifier(uops)}${function_name}(`, ...buftypes.map(([name, t]) => `${t} ${name}`).join(', '), ...self.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
   return prefix === undefined ? prg : `${prefix.join('\n')}\n${prg}`
 }
@@ -113,6 +114,7 @@ export class CStyleLanguage extends Renderer {
     const scalar = dt.scalar()
     return (this.type_map.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
   }
+  bufs?: Map<UOp, Buf>
   get = (key: UOp) => this.r?.get(key) // hacky helper
   override render = (name: string, uops: UOp[]): string => {
     const r = new Map<UOp, string>()
@@ -123,24 +125,32 @@ export class CStyleLanguage extends Renderer {
       for (const v of u.src) child_count.set(v, (child_count.get(v) || 0) + 1)
     }
 
-    const bufs = new Map<UOp, [string, [DType, boolean]]>()
+    this.bufs = new Map()
+    // TODO: Getting all bufs at once, cause webgpu needs to know which are mutable, should moved back to the for loop below
+    for (const u of uops) {
+      if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_VAR].includes(u.op)) {
+        this.bufs.set(u, { name: u.op === Ops.DEFINE_GLOBAL ? `data${u.arg}` : u.arg[0], dtype: u.dtype, mutable: false })
+        continue
+      }
+
+      // mark buffers that we store to writable
+      if (u.op === Ops.STORE) {
+        for (const up of u.src[0].toposort) {
+          if (up.op === Ops.DEFINE_GLOBAL) this.bufs.set(up, { name: this.bufs.get(up)!.name, dtype: this.bufs.get(up)!.dtype, mutable: true })
+        }
+      }
+    }
+
     const kernel = []
     let depth = 1
     const c = new DefaultMap<string, number>(undefined, () => 0)
     for (const u of uops) {
       if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_VAR].includes(u.op)) {
         r.set(u, u.op === Ops.DEFINE_GLOBAL ? `data${u.arg}` : u.arg[0])
-        bufs.set(u, [r.get(u)!, [u.dtype, false]])
         continue
       }
 
-      // // mark buffers that we store to writable
-      if (u.op === Ops.STORE) {
-        for (const up of u.src[0].toposort) {
-          if (up.op === Ops.DEFINE_GLOBAL) bufs.set(up, [bufs.get(up)![0], [bufs.get(up)![1][0], true]])
-        }
-      }
-      // // naming
+      // naming
       let prefix
       if (u.op === Ops.SPECIAL) r.set(u, u.arg[0])
       else {
@@ -184,9 +194,11 @@ export class CStyleLanguage extends Renderer {
       }
       if ([Ops.IF, Ops.RANGE].includes(u.op)) depth += 1
     }
-    delete this.r
     //  NOTE: this relies on bufs dict preserving order
-    return this.render_kernel({ function_name: name, kernel, bufs: [...bufs.values()], uops })
+    const res = this.render_kernel({ function_name: name, kernel, bufs: this.bufs, uops })
+    this.r = undefined
+    this.bufs = undefined
+    return res
   }
 }
 

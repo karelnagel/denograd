@@ -1,7 +1,8 @@
 import { expect } from 'expect'
 import { mnist } from '../../denograd/nn/datasets.ts'
+import { test } from '../helpers.ts'
 
-Deno.test(
+test(
   'mnist',
   async () => {
     const [X_train, Y_train, X_test, Y_test] = await mnist()

@@ -8,7 +8,8 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
-    <title>Astro</title>
+    <script is:inline src={`/denograd.js?t=${Date.now()}`}></script>
+    <title>Denograd</title>
   </head>
   <body class="bg-neutral-900 text-white">
     <slot />

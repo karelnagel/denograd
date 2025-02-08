@@ -1,41 +1,104 @@
-# Denograd - best ML library in Typescript
+# Denograd - A Modern ML Library for JavaScript and TypeScript
 
-Tinygrad rewritten in typescript
+Denograd is a rewrite of [tinygrad](https://tinygrad.org/) in TypeScript. JS ecosystem is very large, but it didn't have a good ML library for model inference and **training**. Since tinygrad doesn't use any external python libraries, has potential to be the fastest way to run models, is quite simple compared to others and supports many runtimes, I decided to rewrite it in TS to get the same experience in browser and in deno/node/bun.
 
-# Why?
+Why you should use Denograd?
+- 0 dependencies
+- will be fast (not yet)
+- Multiple runtime backends (WebGPU, CLANG, + others coming soon)
+- Clean, modern API inspired by tinygrad's elegant design
+- Works in browser and in Deno (Node and Bun support coming soon)
 
-1. I wanted to learn more about ML and tinygrad
-2. I don't like python that much
-3. There are 17.5M JS/TS devs (source ChatGPT) and no good ML lib
-4. Creating python bindings would have been too easy and I would have worked only on the easy parts, and then JS/TS would still be kind of second class citizen + running this inside browser would be kind of hard(maybe) or just worse than native library. Downsides: a lot of work initially + keeping up with tinygrad updates is much harder, but doable.
+See MNIST inference and training example with WebGPU on [denograd.com](https://denograd.com)
+
+# Usage
+
+There are multiple ways to use denograd:
+
+## Hosted script in HTML
+```html
+<html>
+  <head>
+    <!-- Makes `Denograd`, `Tensor` and `nn` available globally -->
+    <script src="https://denograd.com/denograd.js"></script>
+    <script>
+      const run = async () => {
+        const mnist = await new Denograd.MNIST().load()
+        console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist())
+      }
+      run()
+    </script>
+  </head>
+  <body></body>
+</html>
+
+```
+
+## Hosted esm script in JS
+```js
+import { Tensor, MNIST } from "https://denograd.com/denograd.mjs"
+
+const mnist = await new MNIST().load()
+console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist()) 
+```
+
+## Install package from [jsr.io](https://jsr.io/@denograd/denograd)
+```bash
+# with deno
+deno add jsr:@denograd/denograd
+# with npm
+npx jsr add @denograd/denograd
+# with yarn
+yarn dlx jsr add @denograd/denograd
+# with pnpm
+pnpm dlx jsr add @denograd/denograd
+# with bun
+bunx jsr add @denograd/denograd
+```
+
+and then import with 
+```ts
+import { Tensor, MNIST } from "@denograd/denograd"
+
+const mnist = await new MNIST().load()
+console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist()) 
+```
+
 
 # Goal - The easiest and fastest way to run and train models in JS/TS.
 
-It should always use the fastest available runtime on your machine, so it would use WebGPU in browser and your GPU or CPU when using node/deno/bun.
+Imaging all of these things working in browser and server with no install step, while still being fast:
 
-With the upcoming tinygrad CLOUD, you should be able to just run one docker image on any hardware, point your program to that server and run your model there. There shouldn't be any setup required for each model, just a general CLOUD program that will work with every model and cache your model for fast inference. This way there is no need to pay for someone for hosting your model, you would just find the cheapest/best GPU server you can and you can run all your models there.
-
-Most popular models will be available as a package:
-
+### Uses the fastest local runtime for Llama
 ```ts
-import { Llama } from '@denograd/models'
-
-// run with the fastest available runtime
-const llama = new Llama({ model: '3.1-3B' })
-const res = llama.run({ prompt: 'Hello how are you?' })
-
-// run on tinygrad CLOUD or self hosted cloud
-const llama = new Llama({ device: 'CLOUD', host: process.env.CLOUD_HOST })
+const llama = await new Llama({ model: '3.1-3B' }).load()
+const res = await llama.run({ prompt: 'Hello how are you?' })
 ```
 
-Create, run and train your own models:
-
+### Offload the computation to CLOUD
 ```ts
-import { nn, Tensor } from '@denograd/denograd'
-import { range, tqdm } from '@denograd/helpers'
-import { mnist } from '@denograd/datasets'
+const llama = await new Llama({ model: '3.1-3B', device: 'CLOUD', host: process.env.CLOUD_HOST }).load()
+const res = await llama.run({ prompt: 'Hello how are you?' })
+```
 
-export class MNIST extends Model {
+### Whisper
+```ts
+const whisper = await new Whisper({ model: "large-v2" }).load()
+const listening = whisper.startListening()
+// after some time 
+const text = await listening.stop()
+```
+
+### Text to speech
+```ts
+const tts = await new TTS()
+const audio = await tts.run({ text: "Hello how are you?" })
+audio.play()
+```
+
+### Training new models:
+```ts
+class MNIST extends Model {
   layers: Layer[] = [
     new nn.Conv2d(1, 32, 5),
     Tensor.relu,
@@ -57,46 +120,52 @@ export class MNIST extends Model {
 const [X_train, Y_train, X_test, Y_test] = await mnist()
 
 const model = new MNIST()
-const opt = nn.optim.Adam(nn.state.get_parameters(model))
+const opt = Adam(get_parameters(model))
 
-const train_step = (): Tensor => {
+const train_step = async (): Promise<Tensor> => {
+  Tensor.training = true
   opt.zero_grad()
-  const samples = Tensor.randint([512], undefined, X_train.shape[0])
+  const samples = Tensor.randint([BS], undefined, X_train.shape[0])
   const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
-  opt.step()
+  await opt.step()
+  Tensor.training = false
   return loss
 }
 
-const get_test_acc = (): Tensor => (model.call(X_test).argmax(1).eq(Y_test)).mean().mul(100)
-let test_acc = NaN
+const get_test_acc = (): Tensor => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)
 
-Tensor.training = true
-for await (const i of tqdm(range(100))) {
-  const loss = train_step()
-  if (i % 10 === 9) test_acc = get_test_acc().item()
-  console.log(`loss: ${loss.item()} test_accuracy: ${test_acc}%`)
+let test_acc = NaN
+const t = new Tqdm(range(get_number_env('STEPS', 70)))
+for await (const i of t) {
+  const loss = await (await train_step()).item()
+  if (i % 10 === 9) test_acc = await get_test_acc().item()
+  t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
 }
+await model.save('./mnist.safetensors')
 ```
 
 # Roadmap
 
-- [x] rewrite all the necesary parts of tinygrad for MNIST, with 'PYTHON' runtime, with tests comparing the python and TS implemenations
+- [x] rewrite all the necesary parts of tinygrad for MNIST, with 'JS' runtime, with tests comparing the python and TS implemenations
 - [x] Github CI
-- [x] CLANG runtime (WIP)
+- [x] CLANG runtime
 - [x] get MNIST training
-- [x] get working inside browser with PYTHON runtime
+- [x] get working inside browser with JS runtime
 - [x] WebGPU runtime (MNIST inference running in WebGPU: https://karelnagel.github.io/denograd/, training coming soon)
 - [x] delete lazy + other tinygrad updates
 - [x] add all the missing parts of Tensor and other code that were left out in the beginning.
-- [ ] get hand_coded_optimisations working correctly
-- [ ] WEBGPU training MNIST in browser
-- [ ] docs website with MNIST training example
+- [x] get hand_coded_optimisations working correctly
+- [x] WEBGPU training MNIST in browser
+- [ ] docs
 - [ ] some LLM
 - [ ] whisper
 - [ ] bun support
 - [ ] node support
-- [ ] CLOUD runtime
-- [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
 - [ ] WASM runtime
+- [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
+- [ ] CLOUD runtime
 - [ ] METAL runtime
 - [ ] AMD runtime
+- [ ] Nvidia runtime
+- [ ] JIT
+- [ ] Multi

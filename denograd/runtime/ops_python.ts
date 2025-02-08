@@ -1,4 +1,3 @@
-// deno-lint-ignore-file require-await
 import { all_same, assert, bytes_to_string, cpu_time_execution, flatten, get_env, get_single_element, idiv, is_eq, isinstance, mod, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
@@ -65,7 +64,7 @@ export class PythonProgram extends Program {
     this.uops = deserialize(lib)
   }
   // KAREL: TODO: use Web workers maybe?
-  override call = cpu_time_execution(async (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+  override call = cpu_time_execution( (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length
     for (const idxs of product(...global_size.toReversed().map((x) => range(x)))) {
@@ -271,9 +270,8 @@ export class PythonAllocator extends Allocator<MemoryView> {
     return new MemoryView(new Uint8Array(size))
   }
   _copyin = (dest: MemoryView, src: MemoryView) => void dest.set(src)
-  _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
+  _copyout = (dest: MemoryView, src: MemoryView): void => void dest.set(src)
   _free = (opaque: MemoryView, options: BufferSpec) => {
-    throw new Error("PYTHON doesn't have _free")
   }
 }
 

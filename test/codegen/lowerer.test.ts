@@ -5,9 +5,9 @@ import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
-import { compare } from '../helpers.ts'
+import { compare, test } from '../helpers.ts'
 
-Deno.test(
+test(
   'get_index',
   compare(
     [
@@ -26,7 +26,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'lower_reduce_axis',
   compare(
     [
@@ -48,7 +48,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'lower_load_store',
   compare(
     [
@@ -67,7 +67,7 @@ Deno.test(
   ),
 )
 
-Deno.test(
+test(
   'rewrite_shapetracker_with_index',
   compare(
     [
