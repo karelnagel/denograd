@@ -166,3 +166,6 @@ await model.save('./mnist.safetensors')
 - [ ] CLOUD runtime
 - [ ] METAL runtime
 - [ ] AMD runtime
+- [ ] Nvidia runtime
+- [ ] JIT
+- [ ] Multi

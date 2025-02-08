@@ -68,15 +68,8 @@ export const MnistExample = () => {
   }
   return (
     <div className='flex flex-col items-center gap-2'>
-      <label className='flex flex-col text-center'>
-        Batch size
-        <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
-      </label>
-      <label className='flex flex-col text-center'>
-        Steps
-        <input type='text' className='bg-transparent outline rounded-md p-1' value={steps.toString()} onChange={(e) => setSteps(Number(e.target.value))} />
-      </label>
       <button
+        className='rounded-lg bg-blue-500 p-2 '
         onClick={async () => {
           await model.load()
           toast('Pretrained model loaded')
@@ -84,15 +77,7 @@ export const MnistExample = () => {
       >
         Load pretrained model
       </button>
-      <button onClick={train}>
-        Start training
-      </button>
-      <button onClick={test}>
-        Test
-      </button>
-      <div>
-        loss:{loss.toFixed(2)}, accuracy: {acc.toFixed(2)}, step: {currentStep}/{steps}
-      </div>
+
       <div className='flex flex-col md:flex-row gap-20 items-center'>
         <div className=' flex flex-col items-center gap-2'>
           <p className='text-xl font-bold'>Draw a digit here</p>
@@ -123,6 +108,25 @@ export const MnistExample = () => {
             }}
           />
         </div>
+      </div>
+      <p className='text-2xl font-bold'>Training</p>
+      <p>Still experimental, WebGPUT can use so much RAM that your PC crashes, mine crashes with BS 512 and STEPS 70</p>
+      <label className='flex flex-col text-center'>
+        Batch size
+        <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
+      </label>
+      <label className='flex flex-col text-center'>
+        Steps
+        <input type='text' className='bg-transparent outline rounded-md p-1' value={steps.toString()} onChange={(e) => setSteps(Number(e.target.value))} />
+      </label>
+      <button className='rounded-lg bg-blue-500 p-2' onClick={train}>
+        Start training for {steps} steps
+      </button>
+      <button className='rounded-lg bg-blue-500 p-2' onClick={test}>
+        Test accuracy
+      </button>
+      <div>
+        loss:{loss.toFixed(2)}, accuracy: {acc.toFixed(2)}, step: {currentStep}/{steps}
       </div>
     </div>
   )
