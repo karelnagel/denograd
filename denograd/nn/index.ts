@@ -60,6 +60,7 @@ export abstract class Model {
    */
   save = async (path: string) => await safe_save(get_state_dict(this), path)
 }
+
 /**
  * Applies Batch Normalization over a 2D || 3D input.
  *

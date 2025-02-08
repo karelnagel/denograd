@@ -1,5 +1,5 @@
 import { expect } from 'expect/expect'
-import { MNIST } from '../models/mnist.ts'
+import { MNIST } from '../denograd/nn/mnist.ts'
 import { Adam, get_parameters, mnist } from '../denograd/mod.ts'
 import { Tensor } from '../denograd/tensor.ts'
 import { asdict, compare, python, test } from './helpers.ts'

@@ -1,1 +1,1 @@
-export * from './mnist.ts'
+export * from '../denograd/nn/mnist.ts'
