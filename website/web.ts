@@ -1,5 +1,5 @@
-import * as Denograd from '../denograd/mod.ts'
+import { nn, Tensor } from '../denograd/mod.ts'
 
-Object.assign(globalThis, { Tensor: Denograd.Tensor, nn: Denograd.nn })
+Object.assign(globalThis, { Tensor, nn })
 
 export * from '../denograd/mod.ts'
