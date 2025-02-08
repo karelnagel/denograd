@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useState } from 'react'
 import { Adam, Device, get_parameters, is_eq, MNIST, mnist, range, Tensor } from '../../../denograd/mod.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'react'
 import { is_eq } from '../../../denograd/helpers.ts'
 
 type Image = number[][]
