@@ -15,7 +15,11 @@
     "npm:@observablehq/plot@*": "0.6.16",
     "npm:@observablehq/plot@0.6": "0.6.16",
     "npm:@observablehq/plot@~0.6.16": "0.6.16",
+    "npm:@types/node@*": "22.5.4",
+    "npm:@types/react-dom@*": "19.0.3_@types+react@19.0.8",
     "npm:@types/react-dom@^19.0.3": "19.0.3_@types+react@19.0.8",
+    "npm:@types/react@*": "19.0.8",
+    "npm:@types/react@18": "18.3.18",
     "npm:@types/react@^19.0.8": "19.0.8",
     "npm:astro@5.2.5": "5.2.5_vite@6.1.0_zod@3.24.1",
     "npm:astro@^5.2.5": "5.2.5_vite@6.1.0_zod@3.24.1",
@@ -26,7 +30,7 @@
     "npm:pako@*": "2.1.0",
     "npm:react-dom@19": "19.0.0_react@19.0.0",
     "npm:react@19": "19.0.0",
-    "npm:tailwindcss@^4.0.4": "4.0.4",
+    "npm:tailwindcss@3.4.16": "3.4.16_postcss@8.5.1",
     "npm:vite@^6.1.0": "6.1.0"
   },
   "jsr": {
@@ -130,7 +134,7 @@
     "@astrojs/react@4.2.0_@types+react@19.0.8_@types+react-dom@19.0.3__@types+react@19.0.8_react@19.0.0_react-dom@19.0.0__react@19.0.0_vite@6.1.0": {
       "integrity": "sha512-2OccnYFK+mLuy9GpJqPM3BQGvvemnXNeww+nBVYFuiH04L7YIdfg4Gq0LT7v/BraiuADV5uTl9VhTDL/ZQPAhw==",
       "dependencies": [
-        "@types/react",
+        "@types/react@19.0.8",
         "@types/react-dom",
         "@vitejs/plugin-react",
         "react",
@@ -706,10 +710,26 @@
         "@types/unist"
       ]
     },
+    "@types/node@22.5.4": {
+      "integrity": "sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "@types/prop-types@15.7.14": {
+      "integrity": "sha512-gNMvNH49DJ7OJYv+KAKn0Xp45p8PLl6zo2YnvDIbTd4J6MER2BmWN49TG7n9LvkyihINxeKW8+3bfS2yDC9dzQ=="
+    },
     "@types/react-dom@19.0.3_@types+react@19.0.8": {
       "integrity": "sha512-0Knk+HJiMP/qOZgMyNFamlIjw9OFCsyC2ZbigmEEyXXixgre6IQpm/4V+r3qH4GC1JPvRJKInw+on2rV6YZLeA==",
       "dependencies": [
-        "@types/react"
+        "@types/react@19.0.8"
+      ]
+    },
+    "@types/react@18.3.18": {
+      "integrity": "sha512-t4yC+vtgnkYjNSKlFx1jkAhH8LgTo2N/7Qvi83kdEaUtMDiwpbLAktKDaAMlRcJ5eSxZkH74eEGt1ky31d7kfQ==",
+      "dependencies": [
+        "@types/prop-types",
+        "csstype"
       ]
     },
     "@types/react@19.0.8": {
@@ -2941,6 +2961,33 @@
     "supports-preserve-symlinks-flag@1.0.0": {
       "integrity": "sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w=="
     },
+    "tailwindcss@3.4.16_postcss@8.5.1": {
+      "integrity": "sha512-TI4Cyx7gDiZ6r44ewaJmt0o6BrMCT5aK5e0rmJ/G9Xq3w7CX/5VXl/zIPEJZFUK5VEqwByyhqNPycPlvcK4ZNw==",
+      "dependencies": [
+        "@alloc/quick-lru",
+        "arg",
+        "chokidar",
+        "didyoumean",
+        "dlv",
+        "fast-glob",
+        "glob-parent@6.0.2",
+        "is-glob",
+        "jiti",
+        "lilconfig",
+        "micromatch",
+        "normalize-path",
+        "object-hash",
+        "picocolors",
+        "postcss",
+        "postcss-import",
+        "postcss-js",
+        "postcss-load-config",
+        "postcss-nested",
+        "postcss-selector-parser",
+        "resolve",
+        "sucrase"
+      ]
+    },
     "tailwindcss@3.4.17_postcss@8.5.1": {
       "integrity": "sha512-w33E2aCvSDP0tW9RZuNXadXlkHXqFzSkQew/aIa2i/Sj8fThxwovwlXHSPXTbAHwEIhBFXAedUhP2tueAKP8Og==",
       "dependencies": [
@@ -2967,9 +3014,6 @@
         "resolve",
         "sucrase"
       ]
-    },
-    "tailwindcss@4.0.4": {
-      "integrity": "sha512-/ezDLEkOLf1lXkr9F2iI5BHJbexJpty5zkV2B8bGHCqAdbc9vk85Jgdkq+ZOvNkNPa3yAaqJ8DjRt584Bc84kw=="
     },
     "tar@6.2.1": {
       "integrity": "sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==",
@@ -3038,6 +3082,9 @@
     },
     "uncrypto@0.1.3": {
       "integrity": "sha512-Ql87qFHB3s/De2ClA9e0gsnS6zXG27SkTiSJwjCc9MebbfapQfuPzumMIUMi38ezPZVNFcHI9sUIepeQfw8J8Q=="
+    },
+    "undici-types@6.19.8": {
+      "integrity": "sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw=="
     },
     "unified@11.0.5": {
       "integrity": "sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA==",
@@ -3275,7 +3322,9 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@*",
-      "jsr:@std/expect@*"
+      "jsr:@std/expect@*",
+      "npm:@types/react-dom@*",
+      "npm:@types/react@*"
     ],
     "members": {
       "website": {
@@ -3289,7 +3338,7 @@
             "npm:astro@^5.2.5",
             "npm:react-dom@19",
             "npm:react@19",
-            "npm:tailwindcss@^4.0.4",
+            "npm:tailwindcss@3.4.16",
             "npm:vite@^6.1.0"
           ]
         }

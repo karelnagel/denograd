@@ -53,6 +53,10 @@
     ],
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-    "jsxImportSourceTypes": "@types/react"
+    "jsxImportSourceTypes": "npm:@types/react",
+    "types": [
+      "npm:@types/react",
+      "npm:@types/react-dom"
+    ]
   }
 }
