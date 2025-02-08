@@ -67,7 +67,7 @@ console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist())
 
 # Goal - The easiest and fastest way to run and train models in JS/TS.
 
-Imaging all of these things working in browser and server with no install step, while still being fast:
+Soon everything should work like this in browser and server with no install step, while still being fast:
 
 ### Uses the fastest local runtime for Llama
 ```ts
