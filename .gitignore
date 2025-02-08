@@ -11,3 +11,4 @@ dist/
 __pycache__/
 denograd.js
 denograd.mjs
+package-lock.json
