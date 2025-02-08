@@ -36,7 +36,7 @@ export const MnistExample = () => {
     return newData
   }
   const [BS, setBS] = useState(256)
-  const [steps, setSteps] = useState(10)
+  const [steps, setSteps] = useState(30)
   const [currentStep, setCurrentStep] = useState(0)
   const [acc, setAcc] = useState(NaN)
   const [loss, setLoss] = useState(NaN)
