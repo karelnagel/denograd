@@ -7,7 +7,6 @@
     "lint": "deno lint"
   },
   "workspace": [
-    "./examples/react",
     "./denograd",
     "./models",
     "./website"
@@ -53,7 +52,7 @@
       "deno.ns"
     ],
     "jsx": "react-jsx",
-    "jsxImportSource": "preact",
+    "jsxImportSource": "react",
     "jsxImportSourceTypes": "@types/react"
   }
 }
