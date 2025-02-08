@@ -13,14 +13,21 @@ const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
   wgpu_device.queue.writeBuffer(buf, 0, bytes)
   return buf
 }
-const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
-if (!adapter) throw new Error('No adapter')
-const timestamp_supported = adapter.features.has('timestamp-query')
-const { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize, maxUniformBufferBindingSize, maxUniformBuffersPerShaderStage, minUniformBufferOffsetAlignment, maxDynamicUniformBuffersPerPipelineLayout } = adapter.limits
-const device = await adapter.requestDevice({
-  requiredFeatures: timestamp_supported ? ['timestamp-query'] : [],
-  requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize, maxUniformBufferBindingSize, maxUniformBuffersPerShaderStage, minUniformBufferOffsetAlignment, maxDynamicUniformBuffersPerPipelineLayout },
-})
+
+let device: GPUDevice
+
+const getDevice = async () => {
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
+  if (!adapter) throw new Error('No adapter')
+  const timestamp_supported = adapter.features.has('timestamp-query')
+  const { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize, maxUniformBufferBindingSize, maxUniformBuffersPerShaderStage, minUniformBufferOffsetAlignment, maxDynamicUniformBuffersPerPipelineLayout } = adapter.limits
+  device = await adapter.requestDevice({
+    requiredFeatures: timestamp_supported ? ['timestamp-query'] : [],
+    requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxStorageBuffersPerShaderStage, maxStorageTexturesPerShaderStage, maxComputeWorkgroupStorageSize, maxUniformBufferBindingSize, maxUniformBuffersPerShaderStage, minUniformBufferOffsetAlignment, maxDynamicUniformBuffersPerPipelineLayout },
+  })
+}
+
+getDevice()
 
 class WebGPUProgram extends Program {
   prg: GPUShaderModule

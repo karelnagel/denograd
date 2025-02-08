@@ -37,6 +37,7 @@
     "npm:tailwind@*": "4.0.0",
     "npm:tailwindcss@*": "3.4.15_postcss@8.4.49",
     "npm:vite@*": "6.0.7_@types+node@22.5.4",
+    "npm:vite@6.0.7": "6.0.7_@types+node@22.5.4",
     "npm:vite@^6.0.1": "6.0.7_@types+node@22.5.4"
   },
   "jsr": {
@@ -5768,7 +5769,8 @@
           "npm:astro@^5.1.7",
           "npm:preact@*",
           "npm:react@*",
-          "npm:tailwindcss@*"
+          "npm:tailwindcss@*",
+          "npm:vite@*"
         ]
       }
     }

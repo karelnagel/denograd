@@ -12,13 +12,15 @@
     "tailwindcss": "npm:tailwindcss",
     "@deno/astro-adapter": "npm:@deno/astro-adapter",
     "preact": "npm:preact",
-    "@astrojs/preact": "npm:@astrojs/preact"
+    "@astrojs/preact": "npm:@astrojs/preact",
+    "vite": "npm:vite"
   },
   "tasks": {
     "dev": "astro dev",
     "check": "astro check",
-    "build": "astro build",
+    "build": "deno task build:web && astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "build:web": "vite build --config vite.web.config.ts"
   }
 }
