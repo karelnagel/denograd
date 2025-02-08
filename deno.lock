@@ -21,6 +21,8 @@
     "npm:@types/react@*": "19.0.8",
     "npm:@types/react@18": "18.3.18",
     "npm:@types/react@^19.0.8": "19.0.8",
+    "npm:@webgpu/types@*": "0.1.54",
+    "npm:@webgpu/types@0.1.54": "0.1.54",
     "npm:astro@5.2.5": "5.2.5_vite@6.1.0_zod@3.24.1",
     "npm:astro@^5.2.5": "5.2.5_vite@6.1.0_zod@3.24.1",
     "npm:create-astro@latest": "4.10.0",
@@ -754,6 +756,9 @@
         "react-refresh",
         "vite"
       ]
+    },
+    "@webgpu/types@0.1.54": {
+      "integrity": "sha512-81oaalC8LFrXjhsczomEQ0u3jG+TqE6V9QHLA8GNZq/Rnot0KDugu3LhSYSlie8tSdooAN1Hov05asrUUp9qgg=="
     },
     "acorn@8.14.0": {
       "integrity": "sha512-cl669nCJTZBsL97OF4kUQm5g5hC2uihk0NxY3WENAC0TYdILVkAyHymAntgxGkl7K+t0cXIrH5siy5S4XkFycA=="
