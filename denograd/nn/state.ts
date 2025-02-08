@@ -1,4 +1,5 @@
 import { dtypes } from '../dtype.ts'
+import { Env } from '../env/index.ts'
 import { bytes_to_string, DEBUG, is_eq, isinstance, NotImplemented, round_up, string_to_bytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
@@ -36,7 +37,9 @@ export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, n
  * ```
  */
 export const safe_load = async (fn: Tensor | string): Promise<Record<string, Tensor>> => {
-  if (typeof fn === 'string') fn = new Tensor(fn)
+  if (typeof fn === 'string') {
+    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: Env.CPU_DEVICE }) : new Tensor(fn)
+  }
   const [t, data_start, metadata] = await safe_load_metadata(fn)
   const data = t.get({ start: data_start })
   return Object.fromEntries(

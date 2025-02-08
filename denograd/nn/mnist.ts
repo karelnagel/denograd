@@ -4,6 +4,7 @@ import { type Layer, Tensor } from '../tensor.ts'
 import { BatchNorm, Conv2d, Linear, Model } from './index.ts'
 
 export class MNIST extends Model {
+  override DEFAULT_LOAD = 'https://denograd.com/mnist.safetensors'
   layers: Layer[] = [
     new Conv2d(1, 32, 5),
     Tensor.relu,

@@ -78,7 +78,7 @@ export const MnistExample = () => {
       </label>
       <button
         onClick={async () => {
-          await model.load(await Tensor.from_url('/mnist.safetensors', { device: 'PYTHON' }))
+          await model.load()
           toast('Pretrained model loaded')
         }}
       >

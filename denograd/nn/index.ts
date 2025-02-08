@@ -33,6 +33,7 @@ export * as state from './state.ts'
  * ```
  */
 export abstract class Model {
+  DEFAULT_LOAD?: string
   abstract layers: Layer[]
   /**
    * Call model with a Tensor input, returns a Tensor with output.
@@ -44,13 +45,17 @@ export abstract class Model {
    */
   call = (x: Tensor) => x.sequential(this.layers)
   /**
-   * Load model weights from a .safetensors file at the given path
+   * Load model weights from a .safetensors file at the given path or absolute URL
    * ```ts
    * const model = new Model()
    * await model.load("./model.safetensors")
    * ```
    */
-  load = async (path: string | Tensor) => await load_state_dict(this, await safe_load(path))
+  load = async (path?: string | Tensor) => {
+    if (!path && !this.DEFAULT_LOAD) throw new Error(`You need to specify model path, can be URL or local path!`)
+    await load_state_dict(this, await safe_load(path || this.DEFAULT_LOAD!))
+    return this
+  }
   /**
    * Save model weights to a .safetensors file at the given path
    * ```ts
