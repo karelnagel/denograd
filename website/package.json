@@ -3,8 +3,8 @@
     "type": "module",
     "version": "0.0.1",
     "scripts": {
-        "dev": "astro dev",
-        "build": "astro build",
+        "dev": "npm run build:web && astro dev",
+        "build": "npm run build:web && astro build",
         "preview": "astro preview",
         "astro": "astro",
         "build:web": "vite build --config vite.web.config.ts"
