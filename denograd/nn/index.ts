@@ -6,8 +6,10 @@ import type { sint } from '../ops.ts'
 import { type Layer, Tensor } from '../tensor.ts'
 import { get_state_dict } from './state.ts'
 import { load_state_dict, safe_load, safe_save } from './state.ts'
-export * as optim from './optim.ts'
-export * as state from './state.ts'
+
+export * from './optim.ts'
+export * from './state.ts'
+export * from './datasets.ts'
 
 /**
  * Abstract model to simplify calling, loading and saving different models.

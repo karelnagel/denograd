@@ -3,7 +3,7 @@ import { Env } from '../env/index.ts'
 import { bytes_to_string, DEBUG, is_eq, isinstance, NotImplemented, round_up, string_to_bytes } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
-export const safe_dtypes = {
+const safe_dtypes = {
   'BOOL': dtypes.bool,
   'I8': dtypes.int8,
   'U8': dtypes.uint8,

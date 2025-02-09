@@ -3,10 +3,10 @@
 import { get_number_env, range } from '../helpers.ts'
 import { type Layer, Tensor } from '../tensor.ts'
 import { Tqdm } from '../tqdm.ts'
-import { mnist } from './datasets.ts'
-import { BatchNorm, Conv2d, Linear, Model } from './index.ts'
-import { Adam } from './optim.ts'
-import { get_parameters } from './state.ts'
+import { mnist } from '../nn/datasets.ts'
+import { BatchNorm, Conv2d, Linear, Model } from '../nn/index.ts'
+import { Adam } from '../nn/optim.ts'
+import { get_parameters } from '../nn/state.ts'
 
 export class MNIST extends Model {
   override DEFAULT_LOAD = 'https://denograd.com/mnist.safetensors'

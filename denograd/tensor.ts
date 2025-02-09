@@ -420,7 +420,6 @@ export class Tensor extends MathTrait<Tensor> {
   grad?: Tensor
   // internal variable used for autograd graph construction
   _ctx?: InstanceType<ReturnType<typeof CreateFunction>>
-  __deletable__ = ['_ctx']
   static training = false
   static no_grad = false
   key: string

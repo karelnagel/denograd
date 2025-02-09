@@ -323,7 +323,7 @@ export function product<T extends any[][], Out extends any[] = T>(...args: [...T
     return result
   }, [[]])
 }
-
+// TODO: remove this
 export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
   instance: any,
   classType: T | NumberConstructor | BooleanConstructor | ArrayConstructor | StringConstructor,
