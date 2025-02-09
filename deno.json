@@ -4,7 +4,9 @@
     "bench": "deno bench -A",
     "format": "deno fmt",
     "check": "deno check . ",
-    "lint": "deno lint"
+    "lint": "deno lint",
+    "update": "deno -A scripts/update.ts",
+    "publish": "deno publish --allow-slow-types"
   },
   "workspace": [
     "./denograd",
