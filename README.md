@@ -19,12 +19,12 @@ There are multiple ways to use denograd:
 ```html
 <html>
   <head>
-    <!-- Makes `Denograd`, `Tensor` and `nn` available globally -->
+    <!-- Makes `dg` available globally -->
     <script src="https://denograd.com/denograd.js"></script>
     <script>
       const run = async () => {
-        const mnist = await new Denograd.MNIST().load()
-        console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist())
+        const mnist = await new dg.MNIST().load()
+        console.log(await mnist.call(dg.Tensor.ones([1, 1, 28, 28])).tolist())
       }
       run()
     </script>
