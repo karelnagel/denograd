@@ -2077,7 +2077,7 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.all(axis=1, keepdim=true).numpy())
    * ```
    */
-  all = (axis?: number | number[], keepdim = false) => {
+  all = (axis?: number | number[], keepdim = false): Tensor => {
     return this.logical_not().any(axis, keepdim).logical_not()
   }
   /**
