@@ -1,4 +1,4 @@
-import type { UOp } from '../ops.ts'
+import { Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
 import { Renderer } from './index.ts'
 
 export class WASMRenderer extends Renderer {
@@ -7,10 +7,10 @@ export class WASMRenderer extends Renderer {
 (module
   (import "env" "memory" (memory 1))
 
-  (func (export "add_arrays")
+  (func (export "${name}")
+    (param $ptrRes i32)
     (param $ptrA i32)
     (param $ptrB i32)
-    (param $ptrRes i32)
     (local $i i32)
 
     block $break

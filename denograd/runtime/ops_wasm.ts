@@ -1,4 +1,4 @@
-import { cpu_time_execution } from '../helpers.ts'
+import { cpu_time_execution, zip } from '../helpers.ts'
 import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { BufferSpec, DeviceType } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
@@ -12,30 +12,21 @@ class WASMProgram extends Program {
     super(name, lib)
   }
   override call = cpu_time_execution(async (bufs: Uint8Array[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
-    const memory = new WebAssembly.Memory({ initial: 10 })
-
+    const memory = new WebAssembly.Memory({ initial: 1 })
     const wasmModule = new WebAssembly.Module(this.lib)
     const wasmInstance = new WebAssembly.Instance(wasmModule, { env: { memory } })
 
-    const { add_arrays } = wasmInstance.exports as any
+    const fn = wasmInstance.exports[this.name] as any
 
     const mem = new Uint8Array(memory.buffer)
 
-    const res = bufs[0]
-    const a = bufs[1]
-    const b = bufs[2]
+    const offsets: number[] = [0]
+    for (const buf of bufs.slice(0, -1)) offsets.push(offsets.at(-1)! + buf.length)
+    for (const [buf, offset] of zip(bufs, offsets)) mem.set(buf, offset)
 
-    const RES_OFFSET_BYTES = 0
-    const A_OFFSET_BYTES = res.length
-    const B_OFFSET_BYTES = res.length + a.length
+    fn(...offsets)
 
-    mem.set(a, A_OFFSET_BYTES)
-    mem.set(b, B_OFFSET_BYTES)
-
-    add_arrays(A_OFFSET_BYTES, B_OFFSET_BYTES, RES_OFFSET_BYTES)
-
-    const result = mem.slice(RES_OFFSET_BYTES, RES_OFFSET_BYTES + res.length)
-    res.set(result)
+    for (const [buf, offset] of zip(bufs, offsets)) buf.set(mem.slice(offset, offset + buf.length))
   })
 }
 
