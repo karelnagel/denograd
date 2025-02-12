@@ -5,9 +5,9 @@ import { WASM } from './ops_wasm.ts'
 import { WEBGPU } from './ops_webgpu.ts'
 
 export const ALL_DEVICES = {
-  WASM,
   CLANG,
   WEBGPU,
+  WASM,
   DISK,
   PYTHON,
 }
