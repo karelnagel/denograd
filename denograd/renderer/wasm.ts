@@ -68,8 +68,7 @@ const string_rewrite = new PatternMatcher<WASMRenderer, (string | undefined)[] |
   new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.load`, ...ctx.var(load.src[0]), ')']),
   new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.store`, ctx.first(store.src[0]), ...ctx.var(store.src[1]), ')']),
   new UPat(Ops.RANGE, undefined, [UPat.var('from'), UPat.var('to')]).named('range').fn(({ ctx, range, from, to }) => [
-    // if range doesn't start from 0
-    from.op === Ops.CONST && from.arg ? `(local.set ${ctx.first(range)} ${ctx.first(from)})` : undefined,
+    `(local.set ${ctx.first(range)} ${ctx.first(from)})`,
     `(block $block${range.arg}`,
     `(loop $loop${range.arg}`,
     `(br_if $block${range.arg}`,
@@ -101,8 +100,9 @@ export class WASMRenderer extends Renderer {
   override has_local = false
   override has_shared = false
   override extra_matcher = new PatternMatcher([
-    new UPat(Ops.MULACC, undefined, [UPat.var('a'), UPat.var('b'), UPat.var('c')]).named('mulacc').fn(({ a, b, c }) => a.mul(b).add(c)),
-    new UPat(Ops.MAX, dtypes.ints, [UPat.var('a'), UPat.var('b')]).fn(({ a, b }) => (a.gt(b)).where(a, b)),
+    new UPat(Ops.MAX, dtypes.ints, [UPat.var('a'), UPat.var('b')]).fn(({ a, b }) => (a.lt(b)).where(b, a)),
+    // TODO: needed cause i32.trunc_f32_s(0.99) will return 0
+    new UPat(Ops.WHERE, undefined, [UPat.var('cond'), UPat.var('a'), UPat.var('b')]).fn(({ cond, a, b }) => (cond.op === Ops.CAST) ? (cond.src[0].ne(0)).where(a, b) : undefined),
   ])
 
   string_rewrite = string_rewrite
