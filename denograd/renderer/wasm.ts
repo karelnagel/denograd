@@ -48,9 +48,9 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
   new UPat(Ops.WHERE, undefined, [UPat.var('cond'), UPat.var('a'), UPat.var('b')]).fn(({ ctx, a, b, cond }) => ['(select', ...ctx.var(a), ...ctx.var(b), ...ctx.var(cond), ')']),
   new UPat(Ops.RECIP, undefined, [UPat.var('x')]).fn(({ x, ctx }) => ['(f32.div', '(f32.const 1.0)', ...ctx.var(x), ')']),
   new UPat([..._alus.keys()]).named('alu').fn(({ alu, ctx }) => {
-    const index = dtypes.is_float(alu.dtype) ? 0 : !dtypes.is_unsigned(alu.dtype) ? 1 : 2
+    const first = alu.src[0], index = dtypes.is_float(first.dtype) ? 0 : !dtypes.is_unsigned(first.dtype) ? 1 : 2
     const fn = _alus.get(alu.op)?.[index]
-    return fn ? [`(${get_dtype(alu.src[0].dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
+    return fn ? [`(${get_dtype(first.dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
   }),
   // TODO: EXP2, LOG2, SIN
   new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => [`(${get_dtype(base.dtype)}.add`, ...ctx.var(base), `(${get_dtype(base.dtype)}.const ${gep.arg[0] * gep.dtype.itemsize})`, `)`]),
