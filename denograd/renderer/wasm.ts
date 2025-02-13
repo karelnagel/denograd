@@ -50,7 +50,7 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
   new UPat([..._alus.keys()]).named('alu').fn(({ alu, ctx }) => {
     const index = dtypes.is_float(alu.dtype) ? 0 : !dtypes.is_unsigned(alu.dtype) ? 1 : 2
     const fn = _alus.get(alu.op)?.[index]
-    return fn ? [`(${get_dtype(alu.dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
+    return fn ? [`(${get_dtype(alu.src[0].dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
   }),
   // TODO: EXP2, LOG2, SIN
 
