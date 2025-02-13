@@ -41,13 +41,12 @@ const _alus = new Map([
 const float = (num: number) => isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
 // TODO: handle NaNs and Infinity
 // TODO: handle uints correcly, should use '..._u' functions for those
-
 const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
   new UPat(Ops.CONST).named('c').fn(({ c, ctx }) => [`(${get_dtype(c.dtype)}.const ${float(c.arg)})`]),
   // ALU
-  new UPat([Ops.WHERE], undefined, [UPat.var('a'), UPat.var('b'), UPat.var('cond')]).named('alu').fn(({ alu, ctx, a, b, cond }) => ['(select', ...ctx.var(a), ...ctx.var(b), ...ctx.var(cond), ')']),
-  new UPat([Ops.MAX], dtypes.ints, [UPat.var('a'), UPat.var('b')]).named('alu').fn(({ alu, ctx, a, b }) => ['(i32.gt_s', ...ctx.var(a), ...ctx.var(b), ')', '(if (result i32)', '(then', ...ctx.var(a), ')', '(else', ...ctx.var(b), ')', ')']),
-  new UPat([Ops.RECIP], undefined, [UPat.var('x')]).named('alu').fn(({ alu, x, ctx }) => ['(f32.div', '(f32.const 1.0)', ...ctx.var(x), ')']),
+  new UPat(Ops.WHERE, undefined, [UPat.var('cond'), UPat.var('a'), UPat.var('b')]).fn(({ ctx, a, b, cond }) => ['(select', ...ctx.var(a), ...ctx.var(b), ...ctx.var(cond), ')']),
+  new UPat(Ops.MAX, dtypes.ints, [UPat.var('a'), UPat.var('b')]).fn(({ ctx, a, b }) => ['(i32.gt_s', ...ctx.var(a), ...ctx.var(b), ')', '(if (result i32)', '(then', ...ctx.var(a), ')', '(else', ...ctx.var(b), ')', ')']),
+  new UPat(Ops.RECIP, undefined, [UPat.var('x')]).fn(({ x, ctx }) => ['(f32.div', '(f32.const 1.0)', ...ctx.var(x), ')']),
   new UPat([..._alus.keys()]).named('alu').fn(({ alu, ctx }) => {
     const index = dtypes.is_float(alu.dtype) ? 0 : !dtypes.is_unsigned(alu.dtype) ? 1 : 2
     const fn = _alus.get(alu.op)?.[index]
