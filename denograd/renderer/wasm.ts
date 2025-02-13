@@ -5,11 +5,11 @@ import { Renderer } from './index.ts'
 const prefixes = new Map([[Ops.DEFINE_GLOBAL, 'data'], [Ops.RANGE, 'ridx']])
 const _render_dtype = new Map([[dtypes.int32, 'i32'], [dtypes.int64, 'i64'], [dtypes.uint32, 'i32'], [dtypes.uint64, 'i64'], [dtypes.float32, 'f32'], [dtypes.float64, 'f64'], [dtypes.bool, 'i32']])
 const get_dtype = (dtype: DType) => {
-  const res = _render_dtype.get(dtype.base) || _render_dtype.get(dtype.scalar())
+  const res = _render_dtype.get(dtype.base) || _render_dtype.get(dtype.base.scalar())
   if (!res) throw new Error(`WASM doesn't support ${dtype} dtype`)
   return res
 }
-const cast = (from: DType, to: DType): string => {
+const cast = (from: DType, to: DType) => {
   const a = get_dtype(from), b = get_dtype(to), sign = dtypes.is_unsigned(from) || dtypes.is_unsigned(to) ? 'u' : 's'
   if (a === 'i32' && b === 'i64') return `i64.extend_i32_${sign}`
   if (a === 'i64' && b === 'i32') return `i32.wrap_i64`
@@ -17,6 +17,7 @@ const cast = (from: DType, to: DType): string => {
   if (a === 'f64' && b === 'f32') return `f32.demote_f64`
   if (['f32', 'f64'].includes(a) && ['i32', 'i64'].includes(b)) return `${b}.trunc_${a}_${sign}`
   if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return `${b}.convert_${a}_${sign}`
+  if (a === b) return undefined
   throw new Error(`Can't cast ${from} to ${to}`)
 }
 // [float, int, uint]
@@ -86,7 +87,10 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
     ')',
     ')',
   ]),
-  new UPat(Ops.CAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => [`(${cast(from.dtype, to.dtype)}`, ...ctx.var(from), ')']),
+  new UPat(Ops.CAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => {
+    const fn = cast(from.dtype, to.dtype)
+    return fn ? [`(${fn}`, ...ctx.var(from), ')'] : ctx.var(from)
+  }),
 ])
 export class WASMRenderer extends Renderer {
   override has_local = false
