@@ -19,69 +19,91 @@ const cast = (from: DType, to: DType): string => {
   if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return `${b}.convert_${a}_${sign}`
   throw new Error(`Can't cast ${from} to ${to}`)
 }
-const alu_overrides = new Map([[Ops.MOD, 'rem_s'], [Ops.CMPLT, 'lt_s'], [Ops.CMPNE, 'ne'], [Ops.FDIV, 'div']])
+// [float, int, uint]
+const _alus = new Map([
+  [Ops.ADD, ['add', 'add', 'add']],
+  [Ops.SUB, ['sub', 'sub', 'sub']],
+  [Ops.MUL, ['mul', 'mul', 'mul']],
+  [Ops.FDIV, ['div', undefined, undefined]],
+  [Ops.IDIV, [undefined, 'div_s', 'div_u']],
+  [Ops.MOD, [undefined, 'rem_s', 'rem_u']],
+  [Ops.NEG, ['neg', undefined, undefined]],
+  [Ops.SQRT, ['sqrt', undefined, undefined]],
+  [Ops.MAX, ['max', undefined, undefined]],
+  [Ops.SHL, [undefined, 'shl', 'shl']],
+  [Ops.SHR, [undefined, 'shr_s', 'shr_u']],
+  [Ops.XOR, [undefined, 'xor', 'xor']],
+  [Ops.OR, [undefined, 'or', 'or']],
+  [Ops.AND, [undefined, 'and', 'and']],
+  [Ops.CMPLT, ['lt', 'lt_s', 'lt_u']],
+  [Ops.CMPNE, ['ne', 'ne', 'ne']],
+])
 const float = (num: number) => isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
-const variable = (uop: UOp, ctx: WASMRenderer): string[] => {
-  if (prefixes.has(uop.op)) return [`(local.get ${ctx.first(uop)})`]
-  return [...ctx.get(uop)]
-}
 // TODO: handle NaNs and Infinity
 // TODO: handle uints correcly, should use '..._u' functions for those
+
+const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
+  new UPat(Ops.CONST).named('c').fn(({ c, ctx }) => [`(${get_dtype(c.dtype)}.const ${float(c.arg)})`]),
+  // ALU
+  new UPat([Ops.WHERE], undefined, [UPat.var('a'), UPat.var('b'), UPat.var('cond')]).named('alu').fn(({ alu, ctx, a, b, cond }) => ['(select', ...ctx.var(a), ...ctx.var(b), ...ctx.var(cond), ')']),
+  new UPat([Ops.MAX], dtypes.ints, [UPat.var('a'), UPat.var('b')]).named('alu').fn(({ alu, ctx, a, b }) => ['(i32.gt_s', ...ctx.var(a), ...ctx.var(b), ')', '(if (result i32)', '(then', ...ctx.var(a), ')', '(else', ...ctx.var(b), ')', ')']),
+  new UPat([Ops.RECIP], undefined, [UPat.var('x')]).named('alu').fn(({ alu, x, ctx }) => ['(f32.div', '(f32.const 1.0)', ...ctx.var(x), ')']),
+  new UPat([..._alus.keys()]).named('alu').fn(({ alu, ctx }) => {
+    const index = dtypes.is_float(alu.dtype) ? 0 : !dtypes.is_unsigned(alu.dtype) ? 1 : 2
+    const fn = _alus.get(alu.op)?.[index]
+    return fn ? [`(${get_dtype(alu.dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
+  }),
+  // TODO: EXP2, LOG2, SIN
+
+  new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]).named('index').fn(({ index, buf, idx, ctx }) => [
+    `(${get_dtype(idx.dtype)}.add`,
+    `(${get_dtype(idx.dtype)}.mul`,
+    ...ctx.var(idx),
+    `(${get_dtype(idx.dtype)}.const ${(index.dtype as PtrDType).itemsize})`,
+    `)`,
+    ...ctx.var(buf),
+    `)`,
+  ]),
+  new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.load`, ...ctx.var(load.src[0]), ')']),
+  new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.store`, ctx.first(store.src[0]), ...ctx.var(store.src[1]), ')']),
+  new UPat(Ops.RANGE).named('range').fn(({ ctx, range }) => [
+    `(block $block${range.arg}`,
+    `(loop $loop${range.arg}`,
+    `(br_if $block${range.arg}`,
+    `(${get_dtype(range.dtype)}.eq`,
+    ...ctx.var(range),
+    ...ctx.var(range.src[1]),
+    `)`,
+    `)`,
+  ]),
+  new UPat(Ops.ENDRANGE, undefined, [new UPat(Ops.RANGE).named('range')]).named('endrange').fn(({ endrange, range, ctx }) => [
+    `(br $loop${range.arg}`,
+    `(local.set ${ctx.first(range)}`,
+    `(${get_dtype(range.dtype)}.add`,
+    ...ctx.var(range),
+    `(${get_dtype(range.dtype)}.const 1)`,
+    `)`,
+    `)`,
+    `)`,
+    ')',
+    ')',
+  ]),
+  new UPat(Ops.CAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => [`(${cast(from.dtype, to.dtype)}`, ...ctx.var(from), ')']),
+])
 export class WASMRenderer extends Renderer {
   override has_local = false
   override has_shared = false
-  override extra_matcher = new PatternMatcher([])
-
-  string_rewrite = new PatternMatcher<WASMRenderer, string[]>([
-    new UPat(Ops.CONST).named('c').fn(({ c, ctx }) => [`(${get_dtype(c.dtype)}.const ${float(c.arg)})`]),
-    // ALU
-    new UPat([Ops.ADD, Ops.SQRT, Ops.NEG, Ops.MUL, Ops.IDIV, Ops.XOR, Ops.SHL, Ops.SHR, Ops.OR, Ops.AND, Ops.SUB]).named('alu').fn(({ alu, ctx }) => [`(${get_dtype(alu.dtype)}.${alu.op.name.toLowerCase()}`, ...alu.src.flatMap((a) => variable(a, ctx)), ')']),
-    // new UPat([...alu_overrides.keys()]).named('alu').fn(({ alu, ctx }) => [...alu.src.flatMap((a) => [...ctx.get(a), '']), `${get_dtype(alu.dtype)}.${alu_overrides.get(alu.op)}`]),
-    // new UPat([Ops.WHERE], undefined, [UPat.var('a'), UPat.var('b'), UPat.var('cond')]).named('alu').fn(({ alu, ctx, a, b, cond }) => [...ctx.get(a), ...ctx.get(b), ...ctx.get(cond), 'select']),
-    // new UPat([Ops.MULACC], undefined, [UPat.var('a'), UPat.var('b'), UPat.var('c')]).named('alu').fn(({ alu, ctx, a, b, c }) => [...ctx.get(a), ...ctx.get(b), `${get_dtype(alu.dtype)}.mul`, ...ctx.get(c), `${get_dtype(alu.dtype)}.add`]),
-    // new UPat([Ops.MAX], dtypes.floats).named('alu').fn(({ alu, ctx }) => [...alu.src.flatMap((a) => [...ctx.get(a), '']), `${get_dtype(alu.dtype)}.max`]),
-    // new UPat([Ops.MAX], dtypes.ints, [UPat.var('a'), UPat.var('b')]).named('alu').fn(({ alu, ctx, a, b }) => [...ctx.get(a), ...ctx.get(b), 'i32.gt_s', '(if (result i32)', '(then', ...ctx.get(a), ')', '(else', ...ctx.get(b), ')', ')']),
-    // new UPat([Ops.RECIP], undefined, [UPat.var('x')]).named('alu').fn(({ alu, x, ctx }) => ['f32.const 1.0', ...ctx.get(x), 'f32.div']),
-    // TODO: EXP2, LOG2, SIN
-
-    new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]).named('index').fn(({ index, buf, idx, ctx }) => [
-      `(${get_dtype(idx.dtype)}.add`,
-      `(${get_dtype(idx.dtype)}.mul`,
-      ...variable(idx, ctx),
-      `(${get_dtype(idx.dtype)}.const ${(index.dtype as PtrDType).itemsize})`,
-      `)`,
-      ...variable(buf, ctx),
-      `)`,
-    ]),
-    new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.load`, ...ctx.get(load.src[0]), ')']),
-    new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.store`, ...ctx.get(store.src[0]), ...variable(store.src[1], ctx), ')']),
-    new UPat(Ops.RANGE).named('range').fn(({ ctx, range }) => [
-      `(block $block${range.arg}`,
-      `(loop $loop${range.arg}`,
-      `(br_if $block${range.arg}`,
-      `(${get_dtype(range.dtype)}.eq`,
-      ...variable(range, ctx),
-      ...variable(range.src[1], ctx),
-      `)`,
-      `)`,
-    ]),
-    new UPat(Ops.ENDRANGE, undefined, [new UPat(Ops.RANGE).named('range')]).named('endrange').fn(({ endrange, range, ctx }) => [
-      `(br $loop${range.arg}`,
-      `(local.set ${ctx.first(range)}`,
-      `(${get_dtype(range.dtype)}.add`,
-      ...variable(range, ctx),
-      `(${get_dtype(range.dtype)}.const 1)`,
-      `)`,
-      `)`,
-      `)`,
-      ')',
-      ')',
-    ]),
-    new UPat(Ops.CAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => [`(${cast(from.dtype, to.dtype)}`, ...ctx.get(from), ')']),
+  override extra_matcher = new PatternMatcher([
+    new UPat(Ops.MULACC, undefined, [UPat.var('a'), UPat.var('b'), UPat.var('c')]).named('mulacc').fn(({ a, b, c }) => a.mul(b).add(c)),
   ])
+
+  string_rewrite = string_rewrite
   r?: Map<UOp, string[]>
-  get = (uop: UOp): string[] => this.r!.get(uop)!
   first = (uop: UOp): string => this.r!.get(uop)!.join(' ')
+  var = (uop: UOp): string[] => {
+    if (prefixes.has(uop.op)) return [`(local.get ${this.first(uop)})`]
+    return [...this.r!.get(uop)!]
+  }
   override render = (name: string, uops: UOp[]) => {
     let lines: string[] = []
     this.r = new Map<UOp, string[]>()
