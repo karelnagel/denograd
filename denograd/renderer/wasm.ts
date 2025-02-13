@@ -1,8 +1,8 @@
-import { type DType, dtypes, type PtrDType } from '../dtype.ts'
+import { type DType, dtypes } from '../dtype.ts'
 import { GroupOp, Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
 import { Renderer } from './index.ts'
 
-const prefixes = new Map([[Ops.DEFINE_GLOBAL, 'data'], [Ops.RANGE, 'ridx']])
+const prefixes = new Map([[Ops.DEFINE_GLOBAL, 'data'], [Ops.RANGE, 'ridx'], [Ops.DEFINE_ACC, 'acc']])
 const _render_dtype = new Map([[dtypes.int32, 'i32'], [dtypes.int64, 'i64'], [dtypes.uint32, 'i32'], [dtypes.uint64, 'i64'], [dtypes.float32, 'f32'], [dtypes.float64, 'f64'], [dtypes.bool, 'i32']])
 const get_dtype = (dtype: DType) => {
   const res = _render_dtype.get(dtype.base) || _render_dtype.get(dtype.base.scalar())
@@ -44,6 +44,7 @@ const float = (num: number) => isNaN(num) ? 'nan' : num === Infinity ? 'inf' : n
 // TODO: handle uints correcly, should use '..._u' functions for those
 const string_rewrite = new PatternMatcher<WASMRenderer, (string | undefined)[] | undefined>([
   new UPat(Ops.CONST).named('c').fn(({ c, ctx }) => [`(${get_dtype(c.dtype)}.const ${float(c.arg)})`]),
+  new UPat(Ops.DEFINE_ACC).named('acc').fn(({ acc, ctx }) => [`(local.set ${ctx.first(acc)} ${ctx.first(acc.src[0])})`]),
   // ALU
   new UPat(Ops.WHERE, undefined, [UPat.var('cond'), UPat.var('a'), UPat.var('b')]).fn(({ ctx, a, b, cond }) => ['(select', ...ctx.var(a), ...ctx.var(b), ...ctx.var(cond), ')']),
   new UPat(Ops.RECIP, undefined, [UPat.var('x')]).fn(({ x, ctx }) => ['(f32.div', '(f32.const 1.0)', ...ctx.var(x), ')']),
@@ -63,6 +64,7 @@ const string_rewrite = new PatternMatcher<WASMRenderer, (string | undefined)[] |
     ...ctx.var(buf),
     `)`,
   ]),
+  new UPat(Ops.ASSIGN).named('x').fn(({ x, ctx }) => [`(local.set ${ctx.first(x.src[0])}`, ...ctx.var(x.src[1]), ')']),
   new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.load`, ...ctx.var(load.src[0]), ')']),
   new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.store`, ctx.first(store.src[0]), ...ctx.var(store.src[1]), ')']),
   new UPat(Ops.RANGE, undefined, [UPat.var('from'), UPat.var('to')]).named('range').fn(({ ctx, range, from, to }) => [
@@ -93,6 +95,7 @@ const string_rewrite = new PatternMatcher<WASMRenderer, (string | undefined)[] |
     const fn = cast(from.dtype, to.dtype)
     return fn ? [`(${fn}`, ...ctx.var(from), ')'] : ctx.var(from)
   }),
+  new UPat(Ops.BITCAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => [`(${get_dtype(to.dtype)}.reinterpret_${get_dtype(from.dtype)}`, ...ctx.var(from), ')']),
 ])
 export class WASMRenderer extends Renderer {
   override has_local = false
@@ -107,7 +110,7 @@ export class WASMRenderer extends Renderer {
   first = (uop: UOp): string => this.r!.get(uop)!.join(' ')
   var = (uop: UOp): string[] => {
     if (!this.r!.has(uop)) throw new Error(`UOp ${uop} not in r!`)
-    if (prefixes.has(uop.op)) return [`(local.get ${this.first(uop)})`]
+    if ([...prefixes.keys(), Ops.ASSIGN].includes(uop.op)) return [`(local.get ${this.first(uop)})`]
     return [...this.r?.get(uop)!]
   }
   override render = (name: string, uops: UOp[]) => {
@@ -125,13 +128,20 @@ export class WASMRenderer extends Renderer {
         this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg}`])
         defs.push(`(local ${this.first(uop)} ${get_dtype(uop.dtype)})`)
       }
+      if (uop.op === Ops.DEFINE_ACC) {
+        this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg[0]}`])
+        defs.push(`(local ${this.first(uop)} ${get_dtype(uop.dtype)})`)
+      }
+      if (uop.op === Ops.ASSIGN) {
+        this.r.set(uop, this.r.get(uop.src[0])!)
+      }
       let str = this.string_rewrite.rewrite(uop, this)?.filter((x) => x !== undefined) as string[]
       if (!str) throw new Error(`No matcher for ${uop}`)
 
       // add to lines for these Ops, others add to context
-      if ([Ops.RANGE, Ops.ENDRANGE, Ops.STORE].includes(uop.op)) {
+      if ([Ops.RANGE, Ops.ENDRANGE, Ops.STORE, Ops.ASSIGN, Ops.DEFINE_ACC].includes(uop.op)) {
         lines = [...lines, '', `;; ${uop.op}`, ...str]
-      } else if ([Ops.INDEX, Ops.LOAD, ...GroupOp.ALU, Ops.CAST, Ops.CONST, Ops.GEP].includes(uop.op)) {
+      } else if ([Ops.INDEX, Ops.LOAD, ...GroupOp.ALU, Ops.CAST, Ops.CONST, Ops.GEP, Ops.BITCAST].includes(uop.op)) {
         this.r.set(uop, str)
       } else throw new Error(`Invalid op ${uop.op}`)
     }
