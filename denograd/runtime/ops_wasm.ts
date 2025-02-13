@@ -1,4 +1,4 @@
-import { cpu_time_execution, zip } from '../helpers.ts'
+import { cpu_time_execution, round_up, zip } from '../helpers.ts'
 import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { BufferSpec, DeviceType } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
@@ -12,7 +12,8 @@ class WASMProgram extends Program {
     super(name, lib)
   }
   override call = cpu_time_execution(async (bufs: Uint8Array[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
-    const memory = new WebAssembly.Memory({ initial: 1 })
+    const bytes = bufs.reduce((acc, x) => acc + x.length, 0)
+    const memory = new WebAssembly.Memory({ initial: Math.ceil(bytes / (64 * 1024)) })
     const wasmModule = new WebAssembly.Module(this.lib)
     const wasmInstance = new WebAssembly.Instance(wasmModule, { env: { memory } })
 
@@ -41,6 +42,7 @@ class WASMCompiler extends Compiler {
 }
 export class WASMAllocator extends Allocator<Uint8Array> {
   _alloc = (size: number, options: BufferSpec) => {
+    size = round_up(size, 32)
     return new Uint8Array(size)
   }
   _copyin = (dest: Uint8Array, src: MemoryView) => void dest.set(src.toBytes())
