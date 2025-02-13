@@ -32,7 +32,7 @@ export const asdict = async (o: any): Promise<any> => {
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
   if (o instanceof UOp) return o.toString()
-  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: await asdict(await o.tolist()) }
+  if (o instanceof Tensor) return { dtype: o.dtype.toString(), shape: o.shape, data: await asdict(await o.tolist()) }
 
   if (o instanceof Map || o instanceof ArrayMap) {
     if (o instanceof ArrayMap) o = new Map(o.entries())
@@ -188,7 +188,8 @@ ${code}
   const file = `/tmp/tiny_${random_id()}.py`
   // console.log(file)
   await Deno.writeTextFile(file, code.trim())
-  const out = await new Deno.Command(`python3`, { args: [file], env: { 'PYTHONPATH': '.:./tinygrad' } }).output()
+  const envs = Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => [k.replace('TINY_', ''), v])
+  const out = await new Deno.Command(`python3`, { args: [file], clearEnv: true, env: { 'PYTHONPATH': '.:./tinygrad', ...Object.fromEntries(envs) } }).output()
   if (!out.success) throw new Error(bytes_to_string(out.stderr))
   const [stdout, ts] = bytes_to_string(out.stdout).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
