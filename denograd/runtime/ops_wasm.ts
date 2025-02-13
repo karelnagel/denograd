@@ -46,7 +46,7 @@ export class WASMAllocator extends Allocator<Uint8Array> {
     return new Uint8Array(size)
   }
   _copyin = (dest: Uint8Array, src: MemoryView) => void dest.set(src.toBytes())
-  _copyout = (dest: MemoryView, src: Uint8Array): void => void dest.set(src)
+  _copyout = (dest: MemoryView, src: Uint8Array): void => void dest.set(src.slice(0, dest.byteLength))
   _free = (opaque: Uint8Array, options: BufferSpec) => {
   }
 }
