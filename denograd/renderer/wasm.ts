@@ -42,7 +42,7 @@ const _alus = new Map([
 const float = (num: number) => isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
 // TODO: handle NaNs and Infinity
 // TODO: handle uints correcly, should use '..._u' functions for those
-const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
+const string_rewrite = new PatternMatcher<WASMRenderer, (string | undefined)[] | undefined>([
   new UPat(Ops.CONST).named('c').fn(({ c, ctx }) => [`(${get_dtype(c.dtype)}.const ${float(c.arg)})`]),
   // ALU
   new UPat(Ops.WHERE, undefined, [UPat.var('cond'), UPat.var('a'), UPat.var('b')]).fn(({ ctx, a, b, cond }) => ['(select', ...ctx.var(a), ...ctx.var(b), ...ctx.var(cond), ')']),
@@ -65,13 +65,15 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
   ]),
   new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.load`, ...ctx.var(load.src[0]), ')']),
   new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.store`, ctx.first(store.src[0]), ...ctx.var(store.src[1]), ')']),
-  new UPat(Ops.RANGE).named('range').fn(({ ctx, range }) => [
+  new UPat(Ops.RANGE, undefined, [UPat.var('from'), UPat.var('to')]).named('range').fn(({ ctx, range, from, to }) => [
+    // if range doesn't start from 0
+    from.op === Ops.CONST && from.arg ? `(local.set ${ctx.first(range)} ${ctx.first(from)})` : undefined,
     `(block $block${range.arg}`,
     `(loop $loop${range.arg}`,
     `(br_if $block${range.arg}`,
     `(${get_dtype(range.dtype)}.eq`,
     ...ctx.var(range),
-    ...ctx.var(range.src[1]),
+    ...ctx.var(to),
     `)`,
     `)`,
   ]),
@@ -104,8 +106,9 @@ export class WASMRenderer extends Renderer {
   r?: Map<UOp, string[]>
   first = (uop: UOp): string => this.r!.get(uop)!.join(' ')
   var = (uop: UOp): string[] => {
+    if (!this.r!.has(uop)) throw new Error(`UOp ${uop} not in r!`)
     if (prefixes.has(uop.op)) return [`(local.get ${this.first(uop)})`]
-    return [...this.r!.get(uop)!]
+    return [...this.r?.get(uop)!]
   }
   override render = (name: string, uops: UOp[]) => {
     let lines: string[] = []
@@ -122,7 +125,7 @@ export class WASMRenderer extends Renderer {
         this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg}`])
         defs.push(`(local ${this.first(uop)} ${get_dtype(uop.dtype)})`)
       }
-      const str = this.string_rewrite.rewrite(uop, this)
+      let str = this.string_rewrite.rewrite(uop, this)?.filter((x) => x !== undefined) as string[]
       if (!str) throw new Error(`No matcher for ${uop}`)
 
       // add to lines for these Ops, others add to context
