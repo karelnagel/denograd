@@ -2,27 +2,27 @@ import { type DType, dtypes, type PtrDType } from '../dtype.ts'
 import { GroupOp, Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
 import { Renderer } from './index.ts'
 
-const prefixes = new Map([[Ops.DEFINE_GLOBAL, 'data'], [Ops.RANGE, 'ridx'], [Ops.CONST, 'const']])
+const prefixes = new Map([[Ops.DEFINE_GLOBAL, 'data'], [Ops.RANGE, 'ridx']])
 const _render_dtype = new Map([[dtypes.int32, 'i32'], [dtypes.int64, 'i64'], [dtypes.uint32, 'i32'], [dtypes.uint64, 'i64'], [dtypes.float32, 'f32'], [dtypes.float64, 'f64'], [dtypes.bool, 'i32']])
 const get_dtype = (dtype: DType) => {
-  const res = _render_dtype.get(dtype.base)
+  const res = _render_dtype.get(dtype.base) || _render_dtype.get(dtype.scalar())
   if (!res) throw new Error(`WASM doesn't support ${dtype} dtype`)
   return res
 }
 const cast = (from: DType, to: DType): string => {
   const a = get_dtype(from), b = get_dtype(to), sign = dtypes.is_unsigned(from) || dtypes.is_unsigned(to) ? 'u' : 's'
-  if (a === 'i32' && b === 'i64') return `${b}.extend_${a}_${sign}`
-  if (a === 'i64' && b === 'i32') return `${b}.wrap_${a}`
-  if (a === 'f32' && b === 'f64') return `${b}.promote_${a}`
-  if (a === 'f64' && b === 'f32') return `${b}.demote_${a}`
-  if (['f32', 'f64'].includes(a) && ['i32', 'i64'].includes(b)) return `${b}.convert_${a}_${sign}`
-  if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return `${b}.trunc_${a}_${sign}`
+  if (a === 'i32' && b === 'i64') return `i64.extend_i32_${sign}`
+  if (a === 'i64' && b === 'i32') return `i32.wrap_i64`
+  if (a === 'f32' && b === 'f64') return `f64.promote_f32`
+  if (a === 'f64' && b === 'f32') return `f32.demote_f64`
+  if (['f32', 'f64'].includes(a) && ['i32', 'i64'].includes(b)) return `${b}.trunc_${a}_${sign}`
+  if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return `${b}.convert_${a}_${sign}`
   throw new Error(`Can't cast ${from} to ${to}`)
 }
 const alu_overrides = new Map([[Ops.MOD, 'rem_s'], [Ops.CMPLT, 'lt_s'], [Ops.CMPNE, 'ne'], [Ops.FDIV, 'div']])
+const float = (num: number) => isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
 const variable = (uop: UOp, ctx: WASMRenderer): string[] => {
-  if ([Ops.CONST].includes(uop.op)) return [`(${get_dtype(uop.dtype)}.const ${uop.arg})`]
-  if ([Ops.RANGE, Ops.DEFINE_GLOBAL].includes(uop.op)) return [`(local.get ${ctx.first(uop)})`]
+  if (prefixes.has(uop.op)) return [`(local.get ${ctx.first(uop)})`]
   return [...ctx.get(uop)]
 }
 // TODO: handle NaNs and Infinity
@@ -33,6 +33,7 @@ export class WASMRenderer extends Renderer {
   override extra_matcher = new PatternMatcher([])
 
   string_rewrite = new PatternMatcher<WASMRenderer, string[]>([
+    new UPat(Ops.CONST).named('c').fn(({ c, ctx }) => [`(${get_dtype(c.dtype)}.const ${float(c.arg)})`]),
     // ALU
     new UPat([Ops.ADD, Ops.SQRT, Ops.NEG, Ops.MUL, Ops.IDIV, Ops.XOR, Ops.SHL, Ops.SHR, Ops.OR, Ops.AND, Ops.SUB]).named('alu').fn(({ alu, ctx }) => [`(${get_dtype(alu.dtype)}.${alu.op.name.toLowerCase()}`, ...alu.src.flatMap((a) => variable(a, ctx)), ')']),
     // new UPat([...alu_overrides.keys()]).named('alu').fn(({ alu, ctx }) => [...alu.src.flatMap((a) => [...ctx.get(a), '']), `${get_dtype(alu.dtype)}.${alu_overrides.get(alu.op)}`]),
@@ -53,7 +54,7 @@ export class WASMRenderer extends Renderer {
       `)`,
     ]),
     new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.load`, ...ctx.get(load.src[0]), ')']),
-    new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.store`, ...ctx.get(store.src[0]), ...ctx.get(store.src[1]), ')']),
+    new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.store`, ...ctx.get(store.src[0]), ...variable(store.src[1], ctx), ')']),
     new UPat(Ops.RANGE).named('range').fn(({ ctx, range }) => [
       `(block $block${range.arg}`,
       `(loop $loop${range.arg}`,
@@ -86,27 +87,23 @@ export class WASMRenderer extends Renderer {
     this.r = new Map<UOp, string[]>()
     const defs: string[] = []
     for (const uop of uops) {
+      // TODO add these into one
       if (uop.op === Ops.DEFINE_GLOBAL) {
         this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg}`])
-        defs.push(`(param ${this.first(uop)} ${get_dtype(uop.dtype)})`)
+        defs.push(`(param ${this.first(uop)} i32)`)
         continue
       }
       if (uop.op === Ops.RANGE) {
         this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg}`])
         defs.push(`(local ${this.first(uop)} ${get_dtype(uop.dtype)})`)
       }
-      if (uop.op === Ops.CONST) {
-        this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg}`])
-        continue
-      }
-
       const str = this.string_rewrite.rewrite(uop, this)
       if (!str) throw new Error(`No matcher for ${uop}`)
 
       // add to lines for these Ops, others add to context
       if ([Ops.RANGE, Ops.ENDRANGE, Ops.STORE].includes(uop.op)) {
         lines = [...lines, '', `;; ${uop.op}`, ...str]
-      } else if ([Ops.INDEX, Ops.LOAD, ...GroupOp.ALU, Ops.CAST].includes(uop.op)) {
+      } else if ([Ops.INDEX, Ops.LOAD, ...GroupOp.ALU, Ops.CAST, Ops.CONST].includes(uop.op)) {
         this.r.set(uop, str)
       } else throw new Error(`Invalid op ${uop.op}`)
     }

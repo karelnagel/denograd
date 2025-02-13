@@ -85,7 +85,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
 
   // ************ TENSOR ************
   if (o instanceof Tensor) {
-    return t`tiny.tensor.Tensor(${await o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
+    return t`tiny.tensor.Tensor(${await o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype})`
   }
 
   // ************ ENGINE ************
@@ -189,7 +189,7 @@ ${code}
   // console.log(file)
   await Deno.writeTextFile(file, code.trim())
   const envs = Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => [k.replace('TINY_', ''), v])
-  const out = await new Deno.Command(`python3`, { args: [file], clearEnv: true, env: { 'PYTHONPATH': '.:./tinygrad', ...Object.fromEntries(envs) } }).output()
+  const out = await new Deno.Command(`python3`, { args: [file], clearEnv: true, env: { PATH: process.env.PATH, 'PYTHONPATH': '.:./tinygrad', ...Object.fromEntries(envs) } }).output()
   if (!out.success) throw new Error(bytes_to_string(out.stderr))
   const [stdout, ts] = bytes_to_string(out.stdout).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
