@@ -53,12 +53,12 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
     return fn ? [`(${get_dtype(alu.src[0].dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
   }),
   // TODO: EXP2, LOG2, SIN
-
+  new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => [`(${get_dtype(base.dtype)}.add`, ...ctx.var(base), `(${get_dtype(base.dtype)}.const ${gep.arg[0] * gep.dtype.itemsize})`, `)`]),
   new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]).named('index').fn(({ index, buf, idx, ctx }) => [
     `(${get_dtype(idx.dtype)}.add`,
     `(${get_dtype(idx.dtype)}.mul`,
     ...ctx.var(idx),
-    `(${get_dtype(idx.dtype)}.const ${(index.dtype as PtrDType).itemsize})`,
+    `(${get_dtype(idx.dtype)}.const ${index.dtype.itemsize})`,
     `)`,
     ...ctx.var(buf),
     `)`,
@@ -128,7 +128,7 @@ export class WASMRenderer extends Renderer {
       // add to lines for these Ops, others add to context
       if ([Ops.RANGE, Ops.ENDRANGE, Ops.STORE].includes(uop.op)) {
         lines = [...lines, '', `;; ${uop.op}`, ...str]
-      } else if ([Ops.INDEX, Ops.LOAD, ...GroupOp.ALU, Ops.CAST, Ops.CONST].includes(uop.op)) {
+      } else if ([Ops.INDEX, Ops.LOAD, ...GroupOp.ALU, Ops.CAST, Ops.CONST, Ops.GEP].includes(uop.op)) {
         this.r.set(uop, str)
       } else throw new Error(`Invalid op ${uop.op}`)
     }
