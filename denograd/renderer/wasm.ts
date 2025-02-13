@@ -1,5 +1,6 @@
 import { type DType, dtypes } from '../dtype.ts'
 import { GroupOp, Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
+import { round_up } from '../helpers.ts'
 import { Renderer } from './index.ts'
 
 const prefixes = new Map([[Ops.DEFINE_GLOBAL, 'data'], [Ops.RANGE, 'ridx'], [Ops.DEFINE_ACC, 'acc']])
@@ -54,12 +55,12 @@ const string_rewrite = new PatternMatcher<WASMRenderer, (string | undefined)[] |
     return fn ? [`(${get_dtype(first.dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
   }),
   // TODO: EXP2, LOG2, SIN
-  new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => [`(${get_dtype(base.dtype)}.add`, ...ctx.var(base), `(${get_dtype(base.dtype)}.const ${gep.arg[0] * gep.dtype.itemsize})`, `)`]),
+  new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => [`(${get_dtype(base.dtype)}.add`, ...ctx.var(base), `(${get_dtype(base.dtype)}.const ${gep.arg[0] * round_up(gep.dtype.itemsize, 4)})`, `)`]),
   new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]).named('index').fn(({ index, buf, idx, ctx }) => [
     `(${get_dtype(idx.dtype)}.add`,
     `(${get_dtype(idx.dtype)}.mul`,
     ...ctx.var(idx),
-    `(${get_dtype(idx.dtype)}.const ${index.dtype.itemsize})`,
+    `(${get_dtype(idx.dtype)}.const ${round_up(index.dtype.itemsize, 4)})`,
     `)`,
     ...ctx.var(buf),
     `)`,
@@ -154,7 +155,6 @@ export class WASMRenderer extends Renderer {
       res += '  '.repeat(indent) + line + '\n'
       if (change > 0) indent += change
     }
-    console.log(res)
     this.r = undefined
     return res
   }
