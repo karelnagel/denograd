@@ -1,38 +1,22 @@
 import { type DType, dtypes } from '../dtype.ts'
-import { GroupOp, Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
+import { DefaultMap } from '../helpers.ts'
+import { Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
 import { Renderer } from './index.ts'
 
-const prefixes = new Map([[Ops.DEFINE_GLOBAL, 'data'], [Ops.RANGE, 'ridx'], [Ops.DEFINE_ACC, 'acc']])
-const _render_dtype = new Map([[dtypes.int32, 'i32'], [dtypes.int64, 'i64'], [dtypes.uint32, 'i32'], [dtypes.uint64, 'i64'], [dtypes.float32, 'f32'], [dtypes.float64, 'f64'], [dtypes.bool, 'i32']])
-const get_dtype = (dtype: DType) => {
-  const res = _render_dtype.get(dtype.base) || _render_dtype.get(dtype.base.scalar())
-  if (!res) throw new Error(`WASM doesn't support ${dtype} dtype`)
-  return res
-}
-const cast = (from: DType, to: DType) => {
-  const a = get_dtype(from), b = get_dtype(to), sign = dtypes.is_unsigned(from) || dtypes.is_unsigned(to) ? 'u' : 's'
-  if (a === 'i32' && b === 'i64') return `i64.extend_i32_${sign}`
-  if (a === 'i64' && b === 'i32') return `i32.wrap_i64`
-  if (a === 'f32' && b === 'f64') return `f64.promote_f32`
-  if (a === 'f64' && b === 'f32') return `f32.demote_f64`
-  if (['f32', 'f64'].includes(a) && ['i32', 'i64'].includes(b)) return `${b}.trunc_${a}_${sign}`
-  if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return `${b}.convert_${a}_${sign}`
-  if (a === b) return undefined
-  throw new Error(`Can't cast ${from} to ${to}`)
-}
-
-const _loads = new Map([[dtypes.int32, 'load'], [dtypes.int64, 'load'], [dtypes.uint32, 'load'], [dtypes.uint64, 'load'], [dtypes.float32, 'load'], [dtypes.float64, 'load'], [dtypes.int8, 'load8_s'], [dtypes.uint8, 'load8_u'], [dtypes.bool, 'load8_u'], [dtypes.int16, 'load16_s'], [dtypes.uint16, 'load16_u']])
-const load_fn = (dtype: DType) => {
-  const load = _loads.get(dtype)
-  if (!load) throw new Error(`Loading dtype ${dtype} is not supported in wasm`)
-  return load
-}
-const _stores = new Map([[dtypes.int32, 'store'], [dtypes.int64, 'store'], [dtypes.uint32, 'store'], [dtypes.uint64, 'store'], [dtypes.float32, 'store'], [dtypes.float64, 'store'], [dtypes.int8, 'store8'], [dtypes.uint8, 'store8'], [dtypes.bool, 'store8'], [dtypes.int16, 'store16'], [dtypes.uint16, 'store16']])
-const store_fn = (dtype: DType) => {
-  const store = _stores.get(dtype)
-  if (!store) throw new Error(`Storing dtype ${dtype} is not supported in wasm`)
-  return store
-}
+const prefixes = new Map([
+  [Ops.RANGE, 'ridx'],
+  [Ops.WMMA, 'wmma'],
+  [Ops.DEFINE_LOCAL, 'temp'],
+  // [Ops.CONST, 'const'],
+  [Ops.CAST, 'cast'],
+  [Ops.BITCAST, 'cast'],
+  [Ops.GEP, 'gep'],
+  [Ops.VECTORIZE, 'cast'],
+  // [Ops.NOOP, 'precast'],
+  [Ops.INDEX, 'bidx'],
+  [Ops.DEFINE_ACC, 'acc'],
+  [Ops.LOAD, 'val'],
+])
 // [float, int, uint]
 const _alus = new Map([
   [Ops.ADD, ['add', 'add', 'add']],
@@ -52,50 +36,116 @@ const _alus = new Map([
   [Ops.CMPLT, ['lt', 'lt_s', 'lt_u']],
   [Ops.CMPNE, ['ne', 'ne', 'ne']],
 ])
+const _render_dtype = new Map([
+  [dtypes.int32, 'i32'],
+  [dtypes.int64, 'i64'],
+  [dtypes.uint32, 'i32'],
+  [dtypes.uint64, 'i64'],
+  [dtypes.float32, 'f32'],
+  [dtypes.float64, 'f64'],
+  [dtypes.bool, 'i32'],
+  [dtypes.uchar, 'i32'],
+])
+const _loads = new Map([
+  [dtypes.int32, 'load'],
+  [dtypes.int64, 'load'],
+  [dtypes.uint32, 'load'],
+  [dtypes.uint64, 'load'],
+  [dtypes.float32, 'load'],
+  [dtypes.float64, 'load'],
+  [dtypes.int8, 'load8_s'],
+  [dtypes.uint8, 'load8_u'],
+  [dtypes.bool, 'load8_u'],
+  [dtypes.uchar, 'load8_u'],
+  [dtypes.int16, 'load16_s'],
+  [dtypes.uint16, 'load16_u'],
+])
+const _stores = new Map([
+  [dtypes.int32, 'store'],
+  [dtypes.int64, 'store'],
+  [dtypes.uint32, 'store'],
+  [dtypes.uint64, 'store'],
+  [dtypes.float32, 'store'],
+  [dtypes.float64, 'store'],
+  [dtypes.int8, 'store8'],
+  [dtypes.uint8, 'store8'],
+  [dtypes.bool, 'store8'],
+  [dtypes.uchar, 'store8'],
+  [dtypes.int16, 'store16'],
+  [dtypes.uint16, 'store16'],
+])
+
+const get_dtype = (dtype: DType) => {
+  const res = _render_dtype.get(dtype.base) || _render_dtype.get(dtype.base.scalar())
+  if (!res) throw new Error(`WASM doesn't support ${dtype} dtype`)
+  return res
+}
+const cast = (from: DType, to: DType) => {
+  const a = get_dtype(from), b = get_dtype(to), sign = dtypes.is_unsigned(from) || dtypes.is_unsigned(to) ? 'u' : 's'
+  if (a === 'i32' && b === 'i64') return `i64.extend_i32_${sign}`
+  if (a === 'i64' && b === 'i32') return `i32.wrap_i64`
+  if (a === 'f32' && b === 'f64') return `f64.promote_f32`
+  if (a === 'f64' && b === 'f32') return `f32.demote_f64`
+  if (['f32', 'f64'].includes(a) && ['i32', 'i64'].includes(b)) return `${b}.trunc_${a}_${sign}`
+  if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return `${b}.convert_${a}_${sign}`
+  if (a === b) return undefined
+  throw new Error(`Can't cast ${from} to ${to}`)
+}
+
+const load_fn = (dtype: DType) => {
+  const load = _loads.get(dtype)
+  if (!load) throw new Error(`Loading dtype ${dtype} is not supported in wasm`)
+  return load
+}
+const store_fn = (dtype: DType) => {
+  const store = _stores.get(dtype)
+  if (!store) throw new Error(`Storing dtype ${dtype} is not supported in wasm`)
+  return store
+}
+
 const float = (num: number) => isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
 // TODO: handle NaNs and Infinity
 // TODO: handle uints correcly, should use '..._u' functions for those
 const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
-  new UPat(Ops.CONST).named('c').fn(({ c, ctx }) => [`(${get_dtype(c.dtype)}.const ${float(c.arg)})`]),
-  new UPat(Ops.DEFINE_ACC).named('acc').fn(({ acc, ctx }) => [`(local.set ${ctx.first(acc)} ${ctx.first(acc.src[0])})`]),
+  new UPat(Ops.DEFINE_ACC).named('acc').fn(({ acc, ctx }) => [`(local.set ${ctx.get(acc)} ${ctx.get(acc.src[0])})`]),
   // ALU
-  new UPat(Ops.WHERE, undefined, [UPat.var('cond'), UPat.var('a'), UPat.var('b')]).fn(({ ctx, a, b, cond }) => ['(select', ...ctx.var(a), ...ctx.var(b), ...ctx.var(cond), ')']),
-  new UPat(Ops.RECIP, undefined, [UPat.var('x')]).fn(({ x, ctx }) => ['(f32.div', '(f32.const 1.0)', ...ctx.var(x), ')']),
+  new UPat(Ops.WHERE, undefined, [UPat.var('cond'), UPat.var('a'), UPat.var('b')]).fn(({ ctx, a, b, cond }) => ['(select', ...ctx.get_var(a), ...ctx.get_var(b), ...ctx.get_var(cond), ')']),
+  new UPat(Ops.RECIP, undefined, [UPat.var('x')]).fn(({ x, ctx }) => ['(f32.div', '(f32.const 1.0)', ...ctx.get_var(x), ')']),
   new UPat([..._alus.keys()]).named('alu').fn(({ alu, ctx }) => {
     const first = alu.src[0], index = dtypes.is_float(first.dtype) ? 0 : !dtypes.is_unsigned(first.dtype) ? 1 : 2
     const fn = _alus.get(alu.op)?.[index]
-    return fn ? [`(${get_dtype(first.dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
+    return fn ? [`(${get_dtype(first.dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.get_var(a)), ')'] : undefined
   }),
   // TODO: EXP2, LOG2, SIN
-  new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => [`(${get_dtype(base.dtype)}.add`, ...ctx.var(base), `(${get_dtype(base.dtype)}.const ${gep.arg[0] * gep.dtype.itemsize})`, `)`]),
+  new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => [`(${get_dtype(base.dtype)}.add`, ...ctx.get_var(base), `(${get_dtype(base.dtype)}.const ${gep.arg[0] * gep.dtype.itemsize})`, `)`]),
   new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]).named('index').fn(({ index, buf, idx, ctx }) => [
     `(${get_dtype(idx.dtype)}.add`,
     `(${get_dtype(idx.dtype)}.mul`,
-    ...ctx.var(idx),
+    ...ctx.get_var(idx),
     `(${get_dtype(idx.dtype)}.const ${index.dtype.itemsize})`,
     `)`,
-    ...ctx.var(buf),
+    ...ctx.get_var(buf),
     `)`,
   ]),
-  new UPat(Ops.ASSIGN).named('x').fn(({ x, ctx }) => [`(local.set ${ctx.first(x.src[0])}`, ...ctx.var(x.src[1]), ')']),
-  new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.${load_fn(load.dtype)}`, ...ctx.var(load.src[0]), ')']),
-  new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.${store_fn(store.src[1].dtype)}`, ctx.first(store.src[0]), ...ctx.var(store.src[1]), ')']),
+  new UPat(Ops.ASSIGN).named('x').fn(({ x, ctx }) => [`(local.set ${ctx.get(x.src[0])}`, ...ctx.get_var(x.src[1]), ')']),
+  new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.${load_fn(load.dtype)}`, ...ctx.get_var(load.src[0]), ')']),
+  new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.${store_fn(store.src[1].dtype)}`, ctx.get(store.src[0]), ...ctx.get_var(store.src[1]), ')']),
   new UPat(Ops.RANGE, undefined, [UPat.var('from'), UPat.var('to')]).named('range').fn(({ ctx, range, from, to }) => [
-    `(local.set ${ctx.first(range)} ${ctx.first(from)})`,
+    `(local.set ${ctx.get(range)} ${ctx.get(from)})`,
     `(block $block${range.arg}`,
     `(loop $loop${range.arg}`,
     `(br_if $block${range.arg}`,
     `(${get_dtype(range.dtype)}.eq`,
-    ...ctx.var(range),
-    ...ctx.var(to),
+    ...ctx.get_var(range),
+    ...ctx.get_var(to),
     `)`,
     `)`,
   ]),
   new UPat(Ops.ENDRANGE, undefined, [new UPat(Ops.RANGE).named('range')]).named('endrange').fn(({ endrange, range, ctx }) => [
     `(br $loop${range.arg}`,
-    `(local.set ${ctx.first(range)}`,
+    `(local.set ${ctx.get(range)}`,
     `(${get_dtype(range.dtype)}.add`,
-    ...ctx.var(range),
+    ...ctx.get_var(range),
     `(${get_dtype(range.dtype)}.const 1)`,
     `)`,
     `)`,
@@ -105,9 +155,9 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
   ]),
   new UPat(Ops.CAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => {
     const fn = cast(from.dtype, to.dtype)
-    return fn ? [`(${fn}`, ...ctx.var(from), ')'] : ctx.var(from)
+    return fn ? [`(${fn}`, ...ctx.get_var(from), ')'] : ctx.get_var(from)
   }),
-  new UPat(Ops.BITCAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => [`(${get_dtype(to.dtype)}.reinterpret_${get_dtype(from.dtype)}`, ...ctx.var(from), ')']),
+  new UPat(Ops.BITCAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => [`(${get_dtype(to.dtype)}.reinterpret_${get_dtype(from.dtype)}`, ...ctx.get_var(from), ')']),
 ])
 export class WASMRenderer extends Renderer {
   override has_local = false
@@ -120,43 +170,57 @@ export class WASMRenderer extends Renderer {
 
   string_rewrite = string_rewrite
   r?: Map<UOp, string[]>
-  first = (uop: UOp): string => this.r!.get(uop)!.join(' ')
-  var = (uop: UOp): string[] => {
-    if (!this.r!.has(uop)) throw new Error(`UOp ${uop} not in r!`)
-    if ([...prefixes.keys(), Ops.ASSIGN].includes(uop.op)) return [`(local.get ${this.first(uop)})`]
-    return [...this.r?.get(uop)!]
+  get = (uop: UOp): string => this.r!.get(uop)!.join(' ')
+  get_var = (uop: UOp): string[] => {
+    const res = this.r!.get(uop)
+    if (!res?.length) throw new Error(`UOp ${uop} not in r!`)
+    return res[0].startsWith('$') ? [`(local.get ${res[0]})`] : res
   }
   override render = (name: string, uops: UOp[]) => {
     let lines: string[] = []
     this.r = new Map<UOp, string[]>()
+
+    // Finding out if value is used more than once and we should store it as a variable
+    const prefix_count = new DefaultMap<string, number>(undefined, () => 0)
+    const child_count = new DefaultMap<UOp, number>(undefined, () => 0)
+    for (const u of uops) for (const v of u.src) child_count.set(v, child_count.get(v) + 1)
+
     const defs: string[] = []
     for (const uop of uops) {
-      // TODO add these into one
+      // These don't need to be written into lines
       if (uop.op === Ops.DEFINE_GLOBAL) {
-        this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg}`])
-        defs.push(`(param ${this.first(uop)} i32)`)
+        this.r.set(uop, [`$data${uop.arg}`])
+        defs.push(`(param ${this.get(uop)} i32)`)
         continue
-      }
-      if (uop.op === Ops.RANGE) {
-        this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg}`])
-        defs.push(`(local ${this.first(uop)} ${get_dtype(uop.dtype)})`)
-      }
-      if (uop.op === Ops.DEFINE_ACC) {
-        this.r.set(uop, [`$${prefixes.get(uop.op)}${uop.arg[0]}`])
-        defs.push(`(local ${this.first(uop)} ${get_dtype(uop.dtype)})`)
-      }
-      if (uop.op === Ops.ASSIGN) {
+      } // Using src[0] as the value
+      else if (uop.op === Ops.ASSIGN) {
         this.r.set(uop, this.r.get(uop.src[0])!)
+      } // Skipping consts
+      else if (uop.op === Ops.CONST) {
+        this.r.set(uop, [`(${get_dtype(uop.dtype)}.const ${float(uop.arg)})`])
+        continue
+      } //If used more than once or needs a variable
+      else if ([Ops.RANGE, Ops.DEFINE_ACC].includes(uop.op) || child_count.get(uop) > 1) {
+        const prefix = prefixes.get(uop.op) || 'alu', count = prefix_count.get(prefix)
+        const name = `$${prefix}${count}`
+        this.r.set(uop, [name])
+        defs.push(`(local ${name} ${get_dtype(uop.dtype)})`)
+        prefix_count.set(prefix, count + 1)
       }
+
       let str = this.string_rewrite.rewrite(uop, this)
       if (!str) throw new Error(`No matcher for ${uop}`)
 
       // add to lines for these Ops, others add to context
       if ([Ops.RANGE, Ops.ENDRANGE, Ops.STORE, Ops.ASSIGN, Ops.DEFINE_ACC].includes(uop.op)) {
-        lines = [...lines, '', `;; ${uop.op}`, ...str]
-      } else if ([Ops.INDEX, Ops.LOAD, ...GroupOp.ALU, Ops.CAST, Ops.CONST, Ops.GEP, Ops.BITCAST].includes(uop.op)) {
+        lines = [...lines, ...str]
+      } // writing these as variables
+      else if ([Ops.RANGE, Ops.DEFINE_ACC].includes(uop.op) || child_count.get(uop) > 1) {
+        lines = [...lines, `(local.set ${this.get(uop)}`, ...str, ')']
+      } // just saving the result for future use
+      else {
         this.r.set(uop, str)
-      } else throw new Error(`Invalid op ${uop.op}`)
+      }
     }
 
     lines = [`(module`, `(import "env" "memory" (memory 1))`, `(func (export "${name}")`, ...defs, ...lines, ')', ')']
@@ -168,7 +232,6 @@ export class WASMRenderer extends Renderer {
       if (change > 0) indent += change
     }
     this.r = undefined
-    console.log(res)
     return res
   }
 }
