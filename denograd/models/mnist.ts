@@ -56,7 +56,7 @@ const main = async () => {
     if (i % 10 === 9) test_acc = await get_test_acc().item()
     t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
   }
-  await model.save('./mnist.safetensors')
+  // await model.save('./mnist.safetensors')
 }
 
 if (import.meta.main) main()

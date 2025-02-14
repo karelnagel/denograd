@@ -21,13 +21,13 @@ test(
     (in_channels: number, out_channels: number, kernel_size: number | number[], stride?: number, padding?: number | number[] | string, dilation?: number, groups?: number, bias?: boolean) => {
       Tensor.manual_seed(3)
       const conv = new Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
-      return [conv.bias, conv.weight]
+      return [conv.bias?.shape, conv.weight.shape]
     },
     [
       'from tinygrad.nn import Conv2d',
       'tiny.Tensor.manual_seed(3)',
       'conv = Conv2d(*data)',
-      'out([conv.bias, conv.weight])',
+      'out([None if conv.bias is None else conv.bias.shape, conv.weight.shape])',
     ],
   ),
 )
@@ -112,13 +112,13 @@ test(
     (in_features: number, out_features: number, bias: boolean = true) => {
       Tensor.manual_seed(3)
       const linear = new Linear(in_features, out_features, bias)
-      return [linear.bias, linear.weight]
+      return [linear.bias?.shape, linear.weight.shape]
     },
     [
       'from tinygrad.nn import Linear',
       'tiny.Tensor.manual_seed(3)',
       'linear = Linear(*data)',
-      'out([linear.bias, linear.weight])',
+      'out([None if linear.bias is None else linear.bias.shape, linear.weight.shape])',
     ],
   ),
 )
