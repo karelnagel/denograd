@@ -109,7 +109,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
    * ```
    */
   convert = <NewF extends FmtStr>(fmt: NewF, shape?: number[]): MemoryView<NewF> => {
-    return new MemoryView<NewF>(new MemoryView.ARRAYS[fmt](this.asTypedArray), { shape, fmt }) as any
+    return new MemoryView<NewF>(new MemoryView.ARRAYS[fmt](this.typedArray), { shape, fmt }) as any
   }
 
   /** The number of typed elements (1D) in this MemoryView. */

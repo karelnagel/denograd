@@ -19,7 +19,7 @@ test(
   'Device.get_available_devices',
   () => {
     const devices = Device.get_available_devices()
-    expect(devices).toEqual(['CLANG', 'WEBGPU', 'PYTHON'])
+    expect(devices).toEqual(['CLANG', 'WEBGPU', 'WASM', 'PYTHON'])
   },
 )
 
