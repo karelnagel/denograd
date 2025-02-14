@@ -1,0 +1,16 @@
+<html>
+  <head>
+    <!-- Makes `dg` available globally -->
+    <script is:inline src={`${Astro.url.origin}/denograd.js`}></script>
+    <script is:inline>
+      const run = async () => {
+        // TODO: remove Promise and add .load() to mnist
+        await new Promise((r) => setTimeout(r, 1000));
+        const mnist = new dg.MNIST();
+        console.log(await mnist.call(dg.Tensor.ones([1, 1, 28, 28])).tolist());
+      };
+      run();
+    </script>
+  </head>
+  <body></body>
+</html>

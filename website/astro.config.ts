@@ -4,7 +4,7 @@ import react from '@astrojs/react'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://denograd.io',
+  site: 'https://denograd.com',
   output: 'static',
   integrations: [react(), tailwind()],
   devToolbar: { enabled: false },
