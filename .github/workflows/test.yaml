@@ -14,26 +14,29 @@ jobs:
       matrix:
         runtime: [CLANG, WEBGPU, WASM]
 
-    name: Tests on (${{ matrix.runtime }})
+    name: Test (${{ matrix.runtime }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: "recursive"
 
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+      - run: curl -fsSL https://deno.land/install.sh | sh
       - uses: actions/setup-python@v4
         with:
           python-version: "3.x"
 
       - name: Install WebGPU deps
-        if: matrix.runtime == 'WEBGPU'
+        # TODO: add back when runtimes are lazyily imported
+        # if: matrix.runtime == 'WEBGPU'
         run: |
           sudo apt update
           sudo apt install -y mesa-vulkan-drivers libvulkan1 libegl1
           pip install wgpu
 
       - name: Run tests
-        run: ${{ matrix.runtime }}=1 TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 deno test -A --no-check
+        run: ${{ matrix.runtime }}=1 TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 deno test -A --no-check --parallel
+
+      - name: Train mnist
+        run: ${{ matrix.runtime }}=1 BS=2 STEPS=10 deno -A denograd/models/mnist.ts
+
