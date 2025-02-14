@@ -5,7 +5,7 @@ import { Environment } from './abstract.ts'
 export class WebEnv extends Environment {
   NAME = 'WEB'
   PLATFORM = 'web' as const
-  override DEVICES: DeviceType[] = ['WEBGPU', 'PYTHON']
+  override DEVICES: DeviceType[] = ['WASM',  'PYTHON']
   override CPU_DEVICE: DeviceType = 'PYTHON'
   env = {
     // @ts-ignore import.meta.env

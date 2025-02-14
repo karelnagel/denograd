@@ -33,8 +33,7 @@
     "npm:react-dom@19": "19.0.0_react@19.0.0",
     "npm:react@19": "19.0.0",
     "npm:tailwindcss@3.4.16": "3.4.16_postcss@8.5.1",
-    "npm:vite@^6.1.0": "6.1.0",
-    "npm:wabt@*": "1.0.36"
+    "npm:vite@^6.1.0": "6.1.0"
   },
   "jsr": {
     "@ry/jupyter-helper@0.2.0": {

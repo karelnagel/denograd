@@ -2,10 +2,11 @@ import { cpu_time_execution, zip } from '../helpers.ts'
 import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { BufferSpec, DeviceType } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
-import wabtInit from 'npm:wabt'
+import { WabtModule } from './wabt.js'
 import { WASMRenderer } from '../renderer/wat.ts'
 
-const wabt = await wabtInit()
+let wabt: any = undefined
+WabtModule().then((x) => wabt = x)
 
 class WASMProgram extends Program {
   constructor(name: string, lib: Uint8Array) {
