@@ -336,16 +336,16 @@ export const get_shape = (x: any): number[] => {
   if (!all_same(subs)) throw new Error(`inhomogeneous shape from ${x}`)
   return [subs.length, ...(subs.length ? subs[0] : [])]
 }
-export const _frompy = (x: any[] | Uint8Array, dtype: DType): UOp => {
+export const _frompy = (x: ConstType[] | Uint8Array, dtype: DType): UOp => {
   let ret, data
   if (x instanceof Uint8Array) [ret, data] = [UOp.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
   else {
     ret = UOp.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
     if (dtype.fmt === undefined) throw new Error(`${dtype} has undefined fmt`)
-    data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt })
+    data = MemoryView.fromArray(fully_flatten(x), dtype.fmt)
   }
   //   // fake realize
-  uop_buffer(ret)!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
+  uop_buffer(ret)!.allocate(data instanceof Uint8Array ? new MemoryView(data, { fmt: 'B' }) : data)
   return ret.buf_uop_view()
 }
 
@@ -589,7 +589,7 @@ export class Tensor extends MathTrait<Tensor> {
     return new Tensor(this.lazydata.detach(), { device: this.device, requires_grad: false })
   }
   _data = async (): Promise<MemoryView> => {
-    if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
+    if (this.shape.includes(0)) return new MemoryView(0)
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = await this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).realize()
     const buf = uop_realized((cpu.lazydata as UOp).base)

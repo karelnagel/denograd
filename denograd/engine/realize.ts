@@ -175,7 +175,7 @@ export const si_lowerer = new PatternMatcher<Buffer[], [Runner, Buffer[]]>([
   new UPat(Ops.BUFFER_VIEW).fn(({ ctx }) => [new ViewOp(ctx[0]), [...ctx]]),
   [
     new UPat(Ops.COPY).named('copy'),
-    ({ ctx, copy }) => ['_transfer' in Device.get(ctx[0].device)!.allocator! && all_same(ctx.map((x) => x.device.split(':')[0])) ? new BufferXfer(ctx[0].nbytes, ctx[0].device, ctx[1].device) : new BufferCopy(ctx[0].nbytes, ctx[0].device, ctx[1].device), [...ctx]],
+    ({ ctx, copy }) => [Device.get(ctx[0].device)!.allocator!._transfer && all_same(ctx.map((x) => x.device.split(':')[0])) ? new BufferXfer(ctx[0].nbytes, ctx[0].device, ctx[1].device) : new BufferCopy(ctx[0].nbytes, ctx[0].device, ctx[1].device), [...ctx]],
   ],
 ])
 const lower_schedule_item = (si: ScheduleItem) => new ExecItem(...si_lowerer.rewrite(si.ast, si.bufs)!, si.metadata)

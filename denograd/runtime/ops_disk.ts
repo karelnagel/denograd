@@ -66,11 +66,10 @@ export class DiskAllocator extends Allocator<DiskBuffer> {
     return new DiskBuffer(this.dev, size)
   }
   override _free = (opaque: any, options: any) => this.dev._might_close()
-  _as_buffer = (src: DiskBuffer) => src._buf()
   write = (buf: MemoryView, offset: number) => {
     const fo = Deno.openSync(this.dev.filename, { write: true, read: true })
     fo.seekSync(offset, Deno.SeekMode.Start)
-    fo.writeSync(buf.toBytes())
+    fo.writeSync(buf.bytes)
     fo.close()
   }
   override _copyin = (dest: DiskBuffer, src: MemoryView) => {
@@ -83,7 +82,8 @@ export class DiskAllocator extends Allocator<DiskBuffer> {
     dest.set(buf)
     this.write(buf, src.offset)
   }
-  _offset = (buf: DiskBuffer, size: number, offset: number) => new DiskBuffer(buf.device, size, offset)
+  override _as_buffer = (src: DiskBuffer) => src._buf()
+  override _offset = (buf: DiskBuffer, size: number, offset: number) => new DiskBuffer(buf.device, size, offset)
   _copyout_sharded = (src: DiskBuffer, size: number, _get_free_buf: () => void, seg_len: number): [number, number, number, number][] => {
     throw new NotImplemented()
   }
