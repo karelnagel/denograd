@@ -95,9 +95,24 @@ export class MemoryView<F extends FmtStr = 'B'> {
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
   }
-  /** Reinterpret the underlying type. */
+  /**
+   * Reinterpret the underlying type.
+   *
+   * ```ts
+   * new MemoryView(new Uint8Array([1, 0, 0, 0])).cast("i").asTypedArray // new Int32Array([1])
+   * ```
+   */
   cast = <NewF extends FmtStr>(fmt: NewF, shape?: number[]): MemoryView<NewF> => {
     return new MemoryView<NewF>(this as any, { shape, fmt }) as any
+  }
+  /**
+   * Converts to a new format
+   * ```ts
+   * new MemoryView(new Uint8Array([1, 0, 0, 0])).convert("i").asTypedArray // new Int32Array([1, 0, 0, 0])
+   * ```
+   */
+  convert = <NewF extends FmtStr>(fmt: NewF, shape?: number[]): MemoryView<NewF> => {
+    return new MemoryView<NewF>(new MemoryView.ARRAYS[fmt](this.asTypedArray), { shape, fmt }) as any
   }
 
   /** The number of typed elements (1D) in this MemoryView. */
