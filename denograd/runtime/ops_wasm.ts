@@ -1,4 +1,4 @@
-import { cpu_time_execution, round_up, zip } from '../helpers.ts'
+import { cpu_time_execution, zip } from '../helpers.ts'
 import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { BufferSpec, DeviceType } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
@@ -42,7 +42,6 @@ class WASMCompiler extends Compiler {
 }
 export class WASMAllocator extends Allocator<Uint8Array> {
   _alloc = (size: number, options: BufferSpec) => {
-    size = round_up(size, 32)
     return new Uint8Array(size)
   }
   _copyin = (dest: Uint8Array, src: MemoryView) => void dest.set(src.bytes)

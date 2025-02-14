@@ -1,6 +1,5 @@
 import { type DType, dtypes } from '../dtype.ts'
 import { GroupOp, Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
-import { round_up } from '../helpers.ts'
 import { Renderer } from './index.ts'
 
 const prefixes = new Map([[Ops.DEFINE_GLOBAL, 'data'], [Ops.RANGE, 'ridx'], [Ops.DEFINE_ACC, 'acc']])
@@ -20,6 +19,19 @@ const cast = (from: DType, to: DType) => {
   if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return `${b}.convert_${a}_${sign}`
   if (a === b) return undefined
   throw new Error(`Can't cast ${from} to ${to}`)
+}
+
+const _loads = new Map([[dtypes.int32, 'load'], [dtypes.int64, 'load'], [dtypes.uint32, 'load'], [dtypes.uint64, 'load'], [dtypes.float32, 'load'], [dtypes.float64, 'load'], [dtypes.int8, 'load8_s'], [dtypes.uint8, 'load8_u'], [dtypes.bool, 'load8_u'], [dtypes.int16, 'load16_s'], [dtypes.uint16, 'load16_u']])
+const load_fn = (dtype: DType) => {
+  const load = _loads.get(dtype)
+  if (!load) throw new Error(`Loading dtype ${dtype} is not supported in wasm`)
+  return load
+}
+const _stores = new Map([[dtypes.int32, 'store'], [dtypes.int64, 'store'], [dtypes.uint32, 'store'], [dtypes.uint64, 'store'], [dtypes.float32, 'store'], [dtypes.float64, 'store'], [dtypes.int8, 'store8'], [dtypes.uint8, 'store8'], [dtypes.bool, 'store8'], [dtypes.int16, 'store16'], [dtypes.uint16, 'store16']])
+const store_fn = (dtype: DType) => {
+  const store = _stores.get(dtype)
+  if (!store) throw new Error(`Storing dtype ${dtype} is not supported in wasm`)
+  return store
 }
 // [float, int, uint]
 const _alus = new Map([
@@ -55,19 +67,19 @@ const string_rewrite = new PatternMatcher<WASMRenderer, (string | undefined)[] |
     return fn ? [`(${get_dtype(first.dtype)}.${fn}`, ...alu.src.flatMap((a) => ctx.var(a)), ')'] : undefined
   }),
   // TODO: EXP2, LOG2, SIN
-  new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => [`(${get_dtype(base.dtype)}.add`, ...ctx.var(base), `(${get_dtype(base.dtype)}.const ${gep.arg[0] * round_up(gep.dtype.itemsize, 4)})`, `)`]),
+  new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => [`(${get_dtype(base.dtype)}.add`, ...ctx.var(base), `(${get_dtype(base.dtype)}.const ${gep.arg[0] * gep.dtype.itemsize})`, `)`]),
   new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]).named('index').fn(({ index, buf, idx, ctx }) => [
     `(${get_dtype(idx.dtype)}.add`,
     `(${get_dtype(idx.dtype)}.mul`,
     ...ctx.var(idx),
-    `(${get_dtype(idx.dtype)}.const ${round_up(index.dtype.itemsize, 4)})`,
+    `(${get_dtype(idx.dtype)}.const ${index.dtype.itemsize})`,
     `)`,
     ...ctx.var(buf),
     `)`,
   ]),
   new UPat(Ops.ASSIGN).named('x').fn(({ x, ctx }) => [`(local.set ${ctx.first(x.src[0])}`, ...ctx.var(x.src[1]), ')']),
-  new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.load`, ...ctx.var(load.src[0]), ')']),
-  new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.store`, ctx.first(store.src[0]), ...ctx.var(store.src[1]), ')']),
+  new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.${load_fn(load.dtype)}`, ...ctx.var(load.src[0]), ')']),
+  new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.${store_fn(store.src[1].dtype)}`, ctx.first(store.src[0]), ...ctx.var(store.src[1]), ')']),
   new UPat(Ops.RANGE, undefined, [UPat.var('from'), UPat.var('to')]).named('range').fn(({ ctx, range, from, to }) => [
     `(local.set ${ctx.first(range)} ${ctx.first(from)})`,
     `(block $block${range.arg}`,
