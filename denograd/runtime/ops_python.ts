@@ -64,7 +64,7 @@ export class PythonProgram extends Program {
     this.uops = deserialize(lib)
   }
   // KAREL: TODO: use Web workers maybe?
-  override call = cpu_time_execution( (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+  override call = cpu_time_execution((bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length
     for (const idxs of product(...global_size.toReversed().map((x) => range(x)))) {
@@ -112,7 +112,7 @@ export class PythonProgram extends Program {
         if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL].includes(uop)) {
           assert(dtype.fmt !== undefined)
           //   if (TYPE_CHECKING) assert(dtype.fmt !== "e")
-          const buf = uop === Ops.DEFINE_LOCAL ? new MemoryView(new Uint8Array(arg[1] * dtype.itemsize)) : pbufs.shift()!
+          const buf = uop === Ops.DEFINE_LOCAL ? new MemoryView(arg[1] * dtype.itemsize) : pbufs.shift()!
           ul[i] = range(warp_size).map(() => buf.cast(dtype.fmt!))
         } else if (uop === Ops.DEFINE_VAR) {
           ul[i] = range(warp_size).map(() => pvals.shift())
@@ -267,7 +267,7 @@ export class PythonCompiler extends Compiler {
 
 export class PythonAllocator extends Allocator<MemoryView> {
   _alloc = (size: number, options: BufferSpec): MemoryView => {
-    return new MemoryView(new Uint8Array(size))
+    return new MemoryView(size)
   }
   _copyin = (dest: MemoryView, src: MemoryView) => void dest.set(src)
   _copyout = (dest: MemoryView, src: MemoryView): void => void dest.set(src)

@@ -90,7 +90,7 @@ export class Buffer<Buf extends object = object> {
     public dtype: DType,
     opaque?: any,
     public options?: BufferSpec,
-    initial_value?: Uint8Array,
+    initial_value?: MemoryView,
     lb_refcount = 0,
     base?: Buffer<Buf>,
     public offset = 0,
@@ -104,7 +104,7 @@ export class Buffer<Buf extends object = object> {
       if (opaque !== undefined) this.allocate(opaque)
       if (initial_value !== undefined) {
         this.allocate()
-        this.copyin(new MemoryView(initial_value))
+        this.copyin(initial_value)
       }
     } else {
       if (base._base !== undefined) throw new Error("base can't have a base")
@@ -130,8 +130,8 @@ export class Buffer<Buf extends object = object> {
     }
     if (this._base !== undefined) {
       this._base.ensure_allocated()
-      if (!this.allocator || !('_offset' in this.allocator)) throw new Error('offset function required for view')
-      this._buf = (this.allocator._offset as any)(this.base._buf, this.nbytes, this.offset)
+      if (!this.allocator || !this.allocator._offset) throw new Error('offset function required for view')
+      this._buf = this.allocator._offset(this.base._buf!, this.nbytes, this.offset)
     } else {
       this._buf = opaque !== undefined ? opaque : this.allocator?.alloc(this.nbytes, this.options)
       Buffer.register.register(this, { _buf: this._buf, allocator: this.allocator, size: this.nbytes, options: this.options })
@@ -156,9 +156,9 @@ export class Buffer<Buf extends object = object> {
   }
   as_buffer = async (allowZeroCopy = false, forceZeroCopy = false): Promise<MemoryView> => {
     // zero copy with as_buffer (disabled by default due to use after free)
-    if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (this.options === undefined || this.options.image === undefined)) return (this.allocator._asBuffer as any)(this._buf)
+    if ((forceZeroCopy || allowZeroCopy) && this.allocator && this.allocator._as_buffer && (this.options === undefined || this.options.image === undefined)) return this.allocator._as_buffer(this._buf!)
     if (forceZeroCopy) throw new Error('force zero copy was passed, but copy is required')
-    return await this.copyout(new MemoryView(new Uint8Array(this.nbytes)))
+    return await this.copyout(new MemoryView(this.nbytes))
   }
   copyin = (mv: MemoryView): Buf => {
     mv = mv.flat()
