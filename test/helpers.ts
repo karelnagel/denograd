@@ -147,7 +147,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o instanceof Metadata) return t`tiny.helpers.Metadata(${o.name}, ${o.caller}, ${o.backward})`
 
   if (o instanceof Uint8Array) return t`bytes(${Array.from(o)})`
-  if (o instanceof MemoryView) return t`memoryview(bytes(${Array.from(o.toBytes())}))`
+  if (o instanceof MemoryView) return t`memoryview(bytes(${Array.from(o.bytes)}))`
 
   if (typeof o === 'function') return 'lambda x: x'
   if (o?.constructor?.name === 'Object') return `{${(await Promise.all(Object.entries(o).map(async (entry) => await t`${entry[0]}:${entry[1]}`))).join(',')}}`

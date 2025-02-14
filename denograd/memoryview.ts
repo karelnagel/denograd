@@ -27,7 +27,6 @@ function reshape1DToMultiD<T>(array: T[], shape: number[]): any {
   }
   return result
 }
-
 type Arr<T extends FmtStr> = InstanceType<typeof MemoryView.ARRAYS[T]>
 type Const<T extends FmtStr> = T extends 'q' | 'Q' ? bigint : T extends '?' ? boolean : number
 export class MemoryView<F extends FmtStr = 'B'> {
@@ -39,14 +38,13 @@ export class MemoryView<F extends FmtStr = 'B'> {
 
   // New fields for multi-dimensional logic:
   shape: number[] = []
-  toString = () => `new MemoryView(new ${this.asTypedArray.constructor.name}(${list_str(this.to1DList())}), {byteOffset:${this.byteOffset}, byteLength:${this.byteLength}, fmt:'${this.format}', shape:${list_str(this.shape)}})`
+  toString = () => `new MemoryView(new ${this.typedArray.constructor.name}(${list_str(this.to1DList())}), {byteOffset:${this.byteOffset}, byteLength:${this.byteLength}, fmt:'${this.format}', shape:${list_str(this.shape)}})`
   // Just like your code; constructor with shape support added at the end:
-  constructor(input: MemoryView<F>, opts?: MemoryViewOptions<F>)
-  constructor(input: number, opts?: MemoryViewOptions<F>)
-  constructor(input: Const<F>[], opts?: MemoryViewOptions<F>)
-  constructor(input: Arr<F>, opts?: MemoryViewOptions<F>)
+  constructor(input: MemoryView<F>)
+  constructor(input: number)
+  constructor(input: Arr<F>)
   constructor(input: ArrayBuffer, opts?: MemoryViewOptions<F>)
-  constructor(input: number | Const<F>[] | ArrayBuffer | ArrayBufferView | MemoryView<F>, opts: MemoryViewOptions<F> = {}) {
+  constructor(input: MemoryView<F> | number | Arr<F> | ArrayBuffer, opts: MemoryViewOptions<F> = {}) {
     // using opt.fmt over
     this.format = (opts.fmt || (input instanceof MemoryView && input.format) || Object.entries(MemoryView.ARRAYS).find(([k, v]) => input instanceof v)?.[0] || 'B') as F
     if (input instanceof MemoryView) {
@@ -57,11 +55,6 @@ export class MemoryView<F extends FmtStr = 'B'> {
       this.buffer = new ArrayBuffer(input)
       this.byteOffset = opts.byteOffset || 0
       this.byteLength = opts.byteLength || input
-    } else if (Array.isArray(input)) {
-      const typed = new MemoryView.ARRAYS[this.format](input.map((i) => this.isBigInt ? BigInt(i) as any : Number(i)))
-      this.buffer = typed.buffer
-      this.byteOffset = opts.byteOffset || typed.byteOffset
-      this.byteLength = opts.byteLength || typed.byteLength
     } else if (input instanceof ArrayBuffer) {
       this.buffer = input
       this.byteOffset = opts.byteOffset || opts.byteOffset || 0
@@ -72,6 +65,10 @@ export class MemoryView<F extends FmtStr = 'B'> {
       this.byteLength = opts.byteLength || input.byteLength
     }
     this.setShape(opts.shape)
+  }
+  static fromArray = <F extends FmtStr>(arr: Const<F>[], fmt: F) => {
+    const typed = new MemoryView.ARRAYS[fmt](arr.map((i) => fmt.toLowerCase() === 'q' ? BigInt(i) as any : Number(i)))
+    return new MemoryView(typed)
   }
   private setShape = (shape?: number[]) => {
     this._is_scalar = !shape?.length && this.length === 1
@@ -126,12 +123,12 @@ export class MemoryView<F extends FmtStr = 'B'> {
   }
 
   /** A typed-array “view” into the memory (creates on-the-fly). */
-  get asTypedArray(): Arr<F> {
+  get typedArray(): Arr<F> {
     return new MemoryView.ARRAYS[this.format](this.buffer, this.byteOffset, this.length) as Arr<F>
   }
 
   /** Return the underlying bytes as a Uint8Array. */
-  toBytes = (): Uint8Array => {
+  get bytes(): Uint8Array {
     return new Uint8Array(this.buffer, this.byteOffset, this.byteLength)
   }
 
@@ -145,8 +142,8 @@ export class MemoryView<F extends FmtStr = 'B'> {
       }
       offset += indices[i] * this.strides[i]
     }
-    if (this.isBoolean) return Boolean(this.asTypedArray[offset]) as Const<F>
-    return this.asTypedArray[offset] as Const<F>
+    if (this.isBoolean) return Boolean(this.typedArray[offset]) as Const<F>
+    return this.typedArray[offset] as Const<F>
   }
 
   /** Set multi-dimensional element. */
@@ -157,7 +154,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
       if (indices[i] < 0 || indices[i] >= this.shape[i]) throw new RangeError(`Index ${i} = ${indices[i]} is out of bounds for dimension size ${this.shape[i]}`)
       offset += indices[i] * this.strides[i]
     }
-    this.asTypedArray[offset] = value as number // or cast to BigInt, depending on format
+    this.typedArray[offset] = value as number // or cast to BigInt, depending on format
   }
 
   /** Flatten back to a single dimension. */
@@ -178,7 +175,6 @@ export class MemoryView<F extends FmtStr = 'B'> {
     return this
   }
 
-  /** Just like your existing "slice" but now it's 1D slicing. */
   slice = (begin: number, end?: number) => {
     // Handle negative indices
     if (begin < 0) begin = this.length + begin
@@ -201,9 +197,9 @@ export class MemoryView<F extends FmtStr = 'B'> {
    * Sets typed values from another array/MemoryView into our memory,
    * beginning at element offset = `offset`.
    */
-  set = (array: number[] | ArrayBufferView | MemoryView, offset = 0) => {
-    const source = array instanceof MemoryView ? array.asTypedArray : Array.isArray(array) ? new MemoryView(array).asTypedArray : array
-    this.asTypedArray.set(source as any, offset)
+  set = <F2 extends FmtStr>(array: Arr<F2> | MemoryView<FmtStr>, offsetInBytes = 0) => {
+    if (!(array instanceof MemoryView)) array = new MemoryView(array)
+    this.bytes.set(array.bytes, offsetInBytes)
     return this
   }
 
@@ -220,8 +216,8 @@ export class MemoryView<F extends FmtStr = 'B'> {
    * Convert to a list of JS numbers (1D). Throws if the format is one of the bigint types.
    */
   to1DList = (): Const<F>[] => {
-    if (this.isBoolean) return Array.from(this.asTypedArray as Uint8Array, (x) => Boolean(x)) as Const<F>[]
-    return Array.from(this.asTypedArray as Uint8Array) as Const<F>[]
+    if (this.isBoolean) return Array.from(this.typedArray as Uint8Array, (x) => Boolean(x)) as Const<F>[]
+    return Array.from(this.typedArray as Uint8Array) as Const<F>[]
   }
   toList = (): Const<F>[] => {
     return reshape1DToMultiD(this.to1DList(), this._is_scalar ? [] : this.shape)

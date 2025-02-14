@@ -38,7 +38,7 @@ test(
       [[2, 4, 4, 4], 'B', 'f'],
     ],
     (data: number[], from: FmtStr, to: FmtStr) => {
-      return new MemoryView(data, { fmt: from }).cast(to).slice(1, -1).to1DList()
+      return MemoryView.fromArray(data, from).cast(to).slice(1, -1).to1DList()
     },
     [
       'from array import array',
@@ -50,13 +50,13 @@ test(
   'memoryview.shape',
   compare(
     [
-      [[4, 4, 4, 6, 6, 6], [2, 3]],
-      [[4, 4, 4, 6, 6, 6], [6]],
-      [[4, 4, 4, 6, 6, 6], [1, 1, 1, 1, 1, 6]],
-      [[4, 4, 4, 6, 6, 6], [1, 1, 1, 1, 2, 3]],
+      [new Uint8Array([4, 4, 4, 6, 6, 6]), [2, 3]],
+      [new Uint8Array([4, 4, 4, 6, 6, 6]), [6]],
+      [new Uint8Array([4, 4, 4, 6, 6, 6]), [1, 1, 1, 1, 1, 6]],
+      [new Uint8Array([4, 4, 4, 6, 6, 6]), [1, 1, 1, 1, 2, 3]],
     ],
-    (data: number[], shape: number[]) => {
-      const view = new MemoryView(data, { fmt: 'B' }).cast('B', shape)
+    (data: Uint8Array, shape: number[]) => {
+      const view = new MemoryView(data).cast('B', shape)
       return [view.shape, view.strides]
     },
     [

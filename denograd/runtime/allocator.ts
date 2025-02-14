@@ -40,9 +40,9 @@ export abstract class Allocator<Buf> {
   abstract _free: (opaque: Buf, options: BufferSpec) => void // if opaque is a Python object, you don't need a free
   abstract _copyin: (dest: Buf, src: MemoryView) => void
   abstract _copyout: (dest: MemoryView, src: Buf) => Promise<void> | void
-  // def _as_buffer( src) -> memoryview:
-  // def _offset( buf, size:number, offset:number):
-  // def _transfer( dest, src, sz:number, src_dev, dest_dev):
+  _as_buffer: undefined | ((src: Buf) => MemoryView) = undefined
+  _offset: undefined | ((buf: Buf, size: number, offset: number) => Buf) = undefined
+  _transfer: undefined | ((dest: any, src: any, sz: number, src_dev: any, dest_dev: any) => void) = undefined
 }
 
 /**
@@ -81,10 +81,10 @@ export class _MallocAllocator extends LRUAllocator {
     if (options.external_ptr) throw new Error(`TODO: external_ptr:${options.external_ptr}`)
     return mv
   }
-  _as_buffer = (src: ArrayBuffer) => new MemoryView(src).flat()
+  override _as_buffer = (src: MemoryView) => new MemoryView(src).flat()
   _copyin = (dest: MemoryView, src: MemoryView) => dest.set(src)
   _copyout = (dest: MemoryView, src: MemoryView) => void dest.set(src)
-  _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
+  override _offset = (buf: MemoryView, size: number, offset: number) => buf.slice(offset, offset + size)
   _free = () => {
     throw new NotImplemented()
   }
