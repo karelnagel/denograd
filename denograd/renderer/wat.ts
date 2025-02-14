@@ -47,36 +47,36 @@ const _render_dtype = new Map([
   [dtypes.uchar, 'i32'],
 ])
 const _loads = new Map([
-  [dtypes.int32, 'load'],
-  [dtypes.int64, 'load'],
-  [dtypes.uint32, 'load'],
-  [dtypes.uint64, 'load'],
-  [dtypes.float32, 'load'],
-  [dtypes.float64, 'load'],
-  [dtypes.int8, 'load8_s'],
-  [dtypes.uint8, 'load8_u'],
-  [dtypes.bool, 'load8_u'],
-  [dtypes.uchar, 'load8_u'],
-  [dtypes.int16, 'load16_s'],
-  [dtypes.uint16, 'load16_u'],
+  [dtypes.int32, 'i32.load'],
+  [dtypes.int64, 'i64.load'],
+  [dtypes.uint32, 'i32.load'],
+  [dtypes.uint64, 'i64.load'],
+  [dtypes.float32, 'f32.load'],
+  [dtypes.float64, 'f64.load'],
+  [dtypes.int8, 'i32.load8_s'],
+  [dtypes.uint8, 'i32.load8_u'],
+  [dtypes.bool, 'i32.load8_u'],
+  [dtypes.uchar, 'i32.load8_u'],
+  [dtypes.int16, 'i32.load16_s'],
+  [dtypes.uint16, 'i32.load16_u'],
 ])
 const _stores = new Map([
-  [dtypes.int32, 'store'],
-  [dtypes.int64, 'store'],
-  [dtypes.uint32, 'store'],
-  [dtypes.uint64, 'store'],
-  [dtypes.float32, 'store'],
-  [dtypes.float64, 'store'],
-  [dtypes.int8, 'store8'],
-  [dtypes.uint8, 'store8'],
-  [dtypes.bool, 'store8'],
-  [dtypes.uchar, 'store8'],
-  [dtypes.int16, 'store16'],
-  [dtypes.uint16, 'store16'],
+  [dtypes.int32, 'i32.store'],
+  [dtypes.int64, 'i64.store'],
+  [dtypes.uint32, 'i32.store'],
+  [dtypes.uint64, 'i64.store'],
+  [dtypes.float32, 'f32.store'],
+  [dtypes.float64, 'f64.store'],
+  [dtypes.int8, 'i32.store8'],
+  [dtypes.uint8, 'i32.store8'],
+  [dtypes.bool, 'i32.store8'],
+  [dtypes.uchar, 'i32.store8'],
+  [dtypes.int16, 'i32.store16'],
+  [dtypes.uint16, 'i32.store16'],
 ])
 
 const get_dtype = (dtype: DType) => {
-  const res = _render_dtype.get(dtype.base) || _render_dtype.get(dtype.base.scalar())
+  const res = _render_dtype.get(dtype.base)
   if (!res) throw new Error(`WASM doesn't support ${dtype} dtype`)
   return res
 }
@@ -128,8 +128,8 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
     `)`,
   ]),
   new UPat(Ops.ASSIGN).named('x').fn(({ x, ctx }) => [`(local.set ${ctx.get(x.src[0])}`, ...ctx.get_var(x.src[1]), ')']),
-  new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${get_dtype(load.dtype)}.${load_fn(load.dtype)}`, ...ctx.get_var(load.src[0]), ')']),
-  new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${get_dtype(store.src[1].dtype)}.${store_fn(store.src[1].dtype)}`, ctx.get(store.src[0]), ...ctx.get_var(store.src[1]), ')']),
+  new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${load_fn(load.dtype)}`, ...ctx.get_var(load.src[0]), ')']),
+  new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${store_fn(store.src[1].dtype)}`, ctx.get(store.src[0]), ...ctx.get_var(store.src[1]), ')']),
   new UPat(Ops.RANGE, undefined, [UPat.var('from'), UPat.var('to')]).named('range').fn(({ ctx, range, from, to }) => [
     `(local.set ${ctx.get(range)} ${ctx.get(from)})`,
     `(block $block${range.arg}`,
@@ -232,7 +232,6 @@ export class WASMRenderer extends Renderer {
       if (change > 0) indent += change
     }
     this.r = undefined
-    console.log(res)
     return res
   }
 }
