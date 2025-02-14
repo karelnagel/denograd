@@ -2,7 +2,7 @@ import { cpu_time_execution, zip } from '../helpers.ts'
 import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { BufferSpec, DeviceType } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
-import { WabtModule } from './wabt.js'
+import { WabtModule } from './autogen/wabt.js'
 import { WASMRenderer } from '../renderer/wat.ts'
 
 let wabt: any = undefined
