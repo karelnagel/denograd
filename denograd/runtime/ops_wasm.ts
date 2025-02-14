@@ -3,7 +3,7 @@ import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './
 import type { BufferSpec, DeviceType } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
 import wabtInit from 'npm:wabt'
-import { WASMRenderer } from '../renderer/wasm.ts'
+import { WASMRenderer } from '../renderer/wat.ts'
 
 const wabt = await wabtInit()
 
