@@ -483,23 +483,23 @@ test(
   ),
 )
 
-// test(
-//   'Tensor.rand',
-//   compare(
-//     [
-//       [[1, 1, 4, 4]],
-//       [[1, 1, 3, 3]],
-//     ],
-//     (shape: number[]) => {
-//       Tensor.manual_seed(3)
-//       return Tensor.rand(shape)
-//     },
-//     [
-//       'tiny.Tensor.manual_seed(3)',
-//       'out(tiny.Tensor.rand(*data))',
-//     ],
-//   ),
-// )
+test(
+  'Tensor.rand',
+  compare(
+    [
+      [[1, 1, 4, 4]],
+      // [[1, 1, 3, 3]],
+    ],
+    (shape: number[]) => {
+      Tensor.manual_seed(3)
+      return Tensor.rand(shape)
+    },
+    [
+      'tiny.Tensor.manual_seed(3)',
+      'out(tiny.Tensor.rand(*data))',
+    ],
+  ),
+)
 
 test(
   'Tensor.arange',

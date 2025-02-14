@@ -55,7 +55,7 @@ const _alus = new Map([
 const float = (num: number) => isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
 // TODO: handle NaNs and Infinity
 // TODO: handle uints correcly, should use '..._u' functions for those
-const string_rewrite = new PatternMatcher<WASMRenderer, (string | undefined)[] | undefined>([
+const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
   new UPat(Ops.CONST).named('c').fn(({ c, ctx }) => [`(${get_dtype(c.dtype)}.const ${float(c.arg)})`]),
   new UPat(Ops.DEFINE_ACC).named('acc').fn(({ acc, ctx }) => [`(local.set ${ctx.first(acc)} ${ctx.first(acc.src[0])})`]),
   // ALU
@@ -148,7 +148,7 @@ export class WASMRenderer extends Renderer {
       if (uop.op === Ops.ASSIGN) {
         this.r.set(uop, this.r.get(uop.src[0])!)
       }
-      let str = this.string_rewrite.rewrite(uop, this)?.filter((x) => x !== undefined) as string[]
+      let str = this.string_rewrite.rewrite(uop, this)
       if (!str) throw new Error(`No matcher for ${uop}`)
 
       // add to lines for these Ops, others add to context
@@ -168,6 +168,7 @@ export class WASMRenderer extends Renderer {
       if (change > 0) indent += change
     }
     this.r = undefined
+    console.log(res)
     return res
   }
 }
