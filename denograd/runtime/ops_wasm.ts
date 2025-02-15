@@ -14,7 +14,7 @@ class WASMProgram extends Program {
   }
   override call = cpu_time_execution(async (bufs: Uint8Array[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const bytes = bufs.reduce((acc, x) => acc + x.length, 0)
-    const memory = new WebAssembly.Memory({ initial: Math.ceil(bytes / (64 * 1024)) })
+    const memory = new WebAssembly.Memory({ initial: Math.min(65536, Math.ceil(bytes / (64 * 1024)) * 4) })
     const wasmModule = new WebAssembly.Module(this.lib)
     const wasmInstance = new WebAssembly.Instance(wasmModule, { env: { memory } })
 
@@ -34,11 +34,17 @@ class WASMProgram extends Program {
 
 class WASMCompiler extends Compiler {
   override compile = (src: string) => {
-    const parsedModule = wabt.parseWat('inline.wat', src)
-    parsedModule.validate()
-    const { buffer } = parsedModule.toBinary({ log: false, write_debug_names: true })
-    parsedModule.destroy()
-    return buffer
+    try {
+      const parsedModule = wabt.parseWat('inline.wat', src)
+      parsedModule.validate()
+      const { buffer } = parsedModule.toBinary({ log: false, write_debug_names: true })
+      parsedModule.destroy()
+      return buffer
+    } catch (e) {
+      const name = src.split('(func (export "')[1].split('")')[0]
+      Deno.writeTextFileSync(`${name}.ts`, `export const ${name}=\`\n${src}\`\nconst err=\`${e}\``)
+      throw new Error(`Failed to compile src: \n${src}\n${e}`)
+    }
   }
 }
 export class WASMAllocator extends Allocator<Uint8Array> {
