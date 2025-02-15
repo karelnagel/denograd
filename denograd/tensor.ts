@@ -828,7 +828,8 @@ export class Tensor extends MathTrait<Tensor> {
     const one = bits.ones_like({ device: bits.device, dtype: dtype }).bitcast(uint_dtype!)
     bits = bits.rshift((dtype.itemsize * 8) - nmant).bitwise_or(one)
     // bitcast back to the original dtype && reshape
-    let out = bits.bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
+    // KAREL: this contiguous() fixes rand() for WASM, why?
+    let out = bits.contiguous().bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
 
     // move back to the original device if we were using MOCKGPU
     if (get_env('MOCKGPU') && _device) out = out.to(_device)
