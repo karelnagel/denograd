@@ -97,6 +97,7 @@ const get_dtype = (dtype: DType) => {
   return res
 }
 const cast = (from: UOp, to: UOp, ctx: WASMRenderer): string[] => {
+  if (to.dtype === dtypes.bool) return [`(${get_dtype(from.dtype)}.ne`, `(${get_dtype(from.dtype)}.const 0)`, ...ctx.get_var(from), ')']
   if (from.dtype instanceof PtrDType && to.dtype instanceof PtrDType) return [`;; Should be casted from ${from.dtype} to ${to.dtype}`, ...ctx.get_var(from)]
   try {
     const a = get_dtype(from.dtype), b = get_dtype(to.dtype), sign = dtypes.is_unsigned(from.dtype) || dtypes.is_unsigned(to.dtype) ? 'u' : 's'
