@@ -7,12 +7,10 @@ const prefixes = new Map([
   [Ops.RANGE, 'ridx'],
   [Ops.WMMA, 'wmma'],
   [Ops.DEFINE_LOCAL, 'temp'],
-  // [Ops.CONST, 'const'],
   [Ops.CAST, 'cast'],
   [Ops.BITCAST, 'cast'],
   [Ops.GEP, 'gep'],
   [Ops.VECTORIZE, 'cast'],
-  // [Ops.NOOP, 'precast'],
   [Ops.INDEX, 'bidx'],
   [Ops.DEFINE_ACC, 'acc'],
   [Ops.LOAD, 'val'],
@@ -36,93 +34,41 @@ const _alus = new Map([
   [Ops.CMPLT, ['lt', 'lt_s', 'lt_u']],
   [Ops.CMPNE, ['ne', 'ne', 'ne']],
 ])
-const _render_dtype = new Map([
-  [dtypes.int32, 'i32'],
-  [dtypes.int64, 'i64'],
-  [dtypes.uint32, 'i32'],
-  [dtypes.uint64, 'i64'],
-  [dtypes.float, 'f32'],
-  [dtypes.float32, 'f32'],
-  [dtypes.float64, 'f64'],
-  [dtypes.bool, 'i32'],
-  [dtypes.uchar, 'i32'],
 
-  [dtypes.int32.vec(4), 'i32x4'],
-  [dtypes.float32.vec(4), 'f32x4'],
-  [dtypes.float32.vec(2), 'f32x4'],
-  [dtypes.float32.vec(3), 'f32x4'],
-])
-const _loads = new Map([
-  [dtypes.int32, 'i32.load'],
-  [dtypes.int64, 'i64.load'],
-  [dtypes.uint32, 'i32.load'],
-  [dtypes.uint64, 'i64.load'],
-  [dtypes.float32, 'f32.load'],
-  [dtypes.float64, 'f64.load'],
-  [dtypes.int8, 'i32.load8_s'],
-  [dtypes.uint8, 'i32.load8_u'],
-  [dtypes.bool, 'i32.load8_u'],
-  [dtypes.uchar, 'i32.load8_u'],
-  [dtypes.int16, 'i32.load16_s'],
-  [dtypes.uint16, 'i32.load16_u'],
-
-  [dtypes.int32.vec(4), 'v128.load'],
-  [dtypes.float32.vec(4), 'v128.load'],
-  [dtypes.float32.vec(3), 'v128.load'],
-  [dtypes.float32.vec(2), 'v128.load'],
-])
-const _stores = new Map([
-  [dtypes.int32, 'i32.store'],
-  [dtypes.int64, 'i64.store'],
-  [dtypes.uint32, 'i32.store'],
-  [dtypes.uint64, 'i64.store'],
-  [dtypes.float32, 'f32.store'],
-  [dtypes.float64, 'f64.store'],
-  [dtypes.int8, 'i32.store8'],
-  [dtypes.uint8, 'i32.store8'],
-  [dtypes.bool, 'i32.store8'],
-  [dtypes.uchar, 'i32.store8'],
-  [dtypes.int16, 'i32.store16'],
-  [dtypes.uint16, 'i32.store16'],
-
-  [dtypes.int32.vec(4), 'v128.store'],
-  [dtypes.float32.vec(4), 'v128.store'],
-  [dtypes.float32.vec(3), 'v128.store'],
-  [dtypes.float32.vec(2), 'v128.store'],
-])
-
-const get_dtype = (dtype: DType) => {
-  const res = _render_dtype.get(dtype.base)
-  if (!res) throw new Error(`WASM doesn't support ${dtype} dtype`)
-  return res
+const size = (dtype: DType) => dtype.itemsize === 8 ? '64' : '32'
+const get_dtype = (dtype: DType): string => {
+  dtype = dtype.base
+  if (dtype === dtypes.float32 || dtype === dtypes.float64) return `f${size(dtype)}`
+  if (dtypes.ints.includes(dtype) || dtype === dtypes.bool) return `i${size(dtype)}`
+  if (dtype.vcount > 1) return `${get_dtype(dtype.scalar())}x4`
+  throw new Error(`${dtype} not supported`)
 }
 const cast = (from: UOp, to: UOp, ctx: WASMRenderer): string[] => {
   if (to.dtype === dtypes.bool) return [`(${get_dtype(from.dtype)}.ne`, `(${get_dtype(from.dtype)}.const 0)`, ...ctx.get_var(from), ')']
   if (from.dtype instanceof PtrDType && to.dtype instanceof PtrDType) return [`;; Should be casted from ${from.dtype} to ${to.dtype}`, ...ctx.get_var(from)]
-  try {
-    const a = get_dtype(from.dtype), b = get_dtype(to.dtype), sign = dtypes.is_unsigned(from.dtype) || dtypes.is_unsigned(to.dtype) ? 'u' : 's'
-    if (a === 'i32' && b === 'i64') return [`(i64.extend_i32_${sign}`, ...ctx.get_var(from), ')']
-    if (a === 'i64' && b === 'i32') return [`(i32.wrap_i64`, ...ctx.get_var(from), ')']
-    if (a === 'f32' && b === 'f64') return [`(f64.promote_f32`, ...ctx.get_var(from), ')']
-    if (a === 'f64' && b === 'f32') return [`(f32.demote_f64`, ...ctx.get_var(from), ')']
-    if (['f32', 'f64'].includes(a) && ['i32', 'i64'].includes(b)) return [`(${b}.trunc_${a}_${sign}`, ...ctx.get_var(from), ')']
-    if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return [`(${b}.convert_${a}_${sign}`, ...ctx.get_var(from), ')']
-    if (a === b) return ctx.get_var(from)
-    throw new Error(`Can't cast ${from} to ${to}`)
-  } catch (e: any) {
-    throw new Error(`${e}\n${from}\n${to}`)
-  }
-}
 
+  const a = get_dtype(from.dtype), b = get_dtype(to.dtype), sign = dtypes.is_unsigned(from.dtype) || dtypes.is_unsigned(to.dtype) ? 'u' : 's'
+  if (a === 'i32' && b === 'i64') return [`(i64.extend_i32_${sign}`, ...ctx.get_var(from), ')']
+  if (a === 'i64' && b === 'i32') return [`(i32.wrap_i64`, ...ctx.get_var(from), ')']
+  if (a === 'f32' && b === 'f64') return [`(f64.promote_f32`, ...ctx.get_var(from), ')']
+  if (a === 'f64' && b === 'f32') return [`(f32.demote_f64`, ...ctx.get_var(from), ')']
+  if (['f32', 'f64'].includes(a) && ['i32', 'i64'].includes(b)) return [`(${b}.trunc_${a}_${sign}`, ...ctx.get_var(from), ')']
+  if (['i32', 'i64'].includes(a) && ['f32', 'f64'].includes(b)) return [`(${b}.convert_${a}_${sign}`, ...ctx.get_var(from), ')']
+  if (a === b) return ctx.get_var(from)
+  throw new Error(`Can't cast ${from} to ${to}`)
+}
 const load_fn = (dtype: DType) => {
-  const load = _loads.get(dtype)
-  if (!load) throw new Error(`Loading dtype ${dtype} is not supported in wasm`)
-  return load
+  if (dtype === dtypes.float32 || dtype === dtypes.float64) return `f${size(dtype)}.load`
+  if (dtypes.uints.includes(dtype) || dtype === dtypes.bool) return `i${size(dtype)}.load${dtype.itemsize < 4 ? `${dtype.itemsize * 8}_u` : ''}`
+  if (dtypes.ints.includes(dtype)) return `i${size(dtype)}.load${dtype.itemsize < 4 ? `${dtype.itemsize * 8}_s` : ''}`
+  if (dtype.vcount > 1) return `v128.load`
+  throw new Error(`Loading ${dtype} not supported`)
 }
 const store_fn = (dtype: DType) => {
-  const store = _stores.get(dtype)
-  if (!store) throw new Error(`Storing dtype ${dtype} is not supported in wasm`)
-  return store
+  if (dtype === dtypes.float32 || dtype === dtypes.float64) return `f${size(dtype)}.store`
+  if (dtypes.ints.includes(dtype) || dtype === dtypes.bool) return `i${size(dtype)}.store${dtype.itemsize < 4 ? dtype.itemsize * 8 : ''}`
+  if (dtype.vcount > 1) return `v128.store`
+  throw new Error(`Storing ${dtype} not supported`)
 }
 
 const constant = (num: ConstType) => {
@@ -147,57 +93,18 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
   new UPat(Ops.GEP, undefined, [UPat.var('base')]).named('gep').fn(({ gep, base, ctx }) => {
     const dtype = get_dtype(base.dtype)
     if (dtype === 'f32x4' || dtype === 'i32x4') return [`(${dtype}.extract_lane ${gep.arg[0]}`, ...ctx.get_var(base), `)`]
-    return [
-      `(${dtype}.add`,
-      ...ctx.get_var(base),
-      `(${get_dtype(gep.dtype)}.const ${gep.arg[0] * gep.dtype.itemsize})`,
-      `)`,
-    ]
+    return [`(${dtype}.add`, ...ctx.get_var(base), `(${get_dtype(gep.dtype)}.const ${gep.arg[0] * gep.dtype.itemsize})`, `)`]
   }),
-  new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]).named('index').fn(({ index, buf, idx, ctx }) => [
-    `(${get_dtype(idx.dtype)}.add`,
-    `(${get_dtype(idx.dtype)}.mul`,
-    ...ctx.get_var(idx),
-    `(${get_dtype(idx.dtype)}.const ${index.dtype.itemsize})`,
-    `)`,
-    ...ctx.get_var(buf),
-    `)`,
-  ]),
+  new UPat(Ops.INDEX, undefined, [UPat.var('buf'), UPat.var('idx')]).named('index').fn(({ index, buf, idx, ctx }) => [`(${get_dtype(idx.dtype)}.add`, `(${get_dtype(idx.dtype)}.mul`, ...ctx.get_var(idx), `(${get_dtype(idx.dtype)}.const ${index.dtype.itemsize})`, `)`, ...ctx.get_var(buf), `)`]),
   new UPat(Ops.ASSIGN).named('x').fn(({ x, ctx }) => [`(local.set ${ctx.get(x.src[0])}`, ...ctx.get_var(x.src[1]), ')']),
   new UPat(Ops.LOAD).named('load').fn(({ load, ctx }) => [`(${load_fn(load.dtype)}`, ...ctx.get_var(load.src[0]), ')']),
   new UPat(Ops.STORE).named('store').fn(({ store, ctx }) => [`(${store_fn(store.src[1].dtype)}`, ...ctx.get_var(store.src[0]), ...ctx.get_var(store.src[1]), ')']),
-  new UPat(Ops.RANGE, undefined, [UPat.var('from'), UPat.var('to')]).named('range').fn(({ ctx, range, from, to }) => [
-    `(local.set ${ctx.get(range)} ${ctx.get(from)})`,
-    `(block $block${range.arg}`,
-    `(loop $loop${range.arg}`,
-    `(br_if $block${range.arg}`,
-    `(${get_dtype(range.dtype)}.eq`,
-    ...ctx.get_var(range),
-    ...ctx.get_var(to),
-    `)`,
-    `)`,
-  ]),
-  new UPat(Ops.ENDRANGE, undefined, [new UPat(Ops.RANGE).named('range')]).named('endrange').fn(({ endrange, range, ctx }) => [
-    `(br $loop${range.arg}`,
-    `(local.set ${ctx.get(range)}`,
-    `(${get_dtype(range.dtype)}.add`,
-    ...ctx.get_var(range),
-    `(${get_dtype(range.dtype)}.const 1)`,
-    `)`,
-    `)`,
-    `)`,
-    ')',
-    ')',
-  ]),
+  new UPat(Ops.RANGE, undefined, [UPat.var('from'), UPat.var('to')]).named('range').fn(({ ctx, range, from, to }) => [`(local.set ${ctx.get(range)} ${ctx.get(from)})`, `(block $block${range.arg}`, `(loop $loop${range.arg}`, `(br_if $block${range.arg}`, `(${get_dtype(range.dtype)}.eq`, ...ctx.get_var(range), ...ctx.get_var(to), `)`, `)`]),
+  new UPat(Ops.ENDRANGE, undefined, [new UPat(Ops.RANGE).named('range')]).named('endrange').fn(({ endrange, range, ctx }) => [`(br $loop${range.arg}`, `(local.set ${ctx.get(range)}`, `(${get_dtype(range.dtype)}.add`, ...ctx.get_var(range), `(${get_dtype(range.dtype)}.const 1)`, `)`, `)`, `)`, ')', ')']),
   new UPat(Ops.CAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => cast(from, to, ctx)),
   new UPat(Ops.BITCAST, undefined, [UPat.var('from')]).named('to').fn(({ from, to, ctx }) => [`(${get_dtype(to.dtype)}.reinterpret_${get_dtype(from.dtype)}`, ...ctx.get_var(from), ')']),
-  new UPat(Ops.VECTORIZE, undefined, range(4).map(() => UPat.const())).named('x').fn(({ x, ctx }) => [
-    `(v128.const ${get_dtype(x.dtype.scalar())}x4 ${x.src.map((x) => x.arg).join(' ')})`,
-  ]),
-  new UPat(Ops.VECTORIZE).named('x').fn(({ x, ctx }) => [
-    '(v128.const f32x4 0 0 0 0)',
-    ...x.src.flatMap((x, i) => [...ctx.get_var(x), `(f32x4.replace_lane ${i})`]),
-  ]),
+  new UPat(Ops.VECTORIZE, undefined, range(4).map(() => UPat.const())).named('x').fn(({ x, ctx }) => [`(v128.const ${get_dtype(x.dtype.scalar())}x4 ${x.src.map((x) => x.arg).join(' ')})`]),
+  new UPat(Ops.VECTORIZE).named('x').fn(({ x, ctx }) => ['(v128.const f32x4 0 0 0 0)', ...x.src.flatMap((x, i) => [...ctx.get_var(x), `(f32x4.replace_lane ${i})`])]),
 ])
 export class WASMRenderer extends Renderer {
   override has_local = false
@@ -238,8 +145,7 @@ export class WASMRenderer extends Renderer {
       } // Skipping consts
       else if (uop.op === Ops.CONST) {
         let dtype = get_dtype(uop.dtype)
-        if (dtype === 'f32x4') throw new Error(`${dtype} ${uop}, ${uop.dtype === dtypes.float}`)
-        if (dtype === 'i32x4') throw new Error()
+        if (dtype === 'f32x4' || dtype === 'i32x4') throw new Error(`Vec consts aren't handled, uop: ${uop}`)
         this.r.set(uop, [`(${dtype}.const ${constant(uop.arg)})`])
         continue
       } //If used more than once or needs a variable
@@ -261,10 +167,10 @@ export class WASMRenderer extends Renderer {
 
       // add to lines for these Ops, others add to context
       if ([Ops.RANGE, Ops.ENDRANGE, Ops.STORE, Ops.ASSIGN, Ops.DEFINE_ACC].includes(uop.op)) {
-        lines = [...lines, ';; ' + uop.op.toString(), ...str]
+        lines = [...lines, ...str]
       } // writing these as variables
-      else if ([Ops.RANGE, Ops.DEFINE_ACC].includes(uop.op) || child_count.get(uop) > 1) {
-        lines = [...lines, ';; ' + uop.op.toString(), `(local.set ${this.get(uop)}`, ...str, ')']
+      else if (child_count.get(uop) > 1) {
+        lines = [...lines, `(local.set ${this.get(uop)}`, ...str, ')']
       } // just saving the result for future use
       else {
         this.r.set(uop, str)
@@ -279,6 +185,7 @@ export class WASMRenderer extends Renderer {
       res += '  '.repeat(indent) + line + '\n'
       if (change > 0) indent += change
     }
+
     this.r = undefined
     return res
   }
