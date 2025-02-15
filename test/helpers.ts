@@ -19,7 +19,7 @@ import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
 import { WGSLRenderer } from '../denograd/renderer/wgsl.ts'
 
-export const test = (name: string, fn: (t: Deno.TestContext) => void | Promise<void>) => Deno.test({ name, fn, sanitizeResources: false })
+export const test = (name: string, fn: (t: Deno.TestContext) => void | Promise<void>, opts: { ignore?: boolean } = {}) => Deno.test({ name, fn, sanitizeResources: false, ...opts })
 
 export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined

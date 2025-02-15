@@ -14,7 +14,7 @@ class WASMProgram extends Program {
   }
   override call = cpu_time_execution(async (bufs: Uint8Array[], { global_size, local_size, vals }: ProgramCallArgs, wait = false) => {
     if (global_size || local_size || vals?.length) throw new Error(`I don't know what to do with these: ${global_size}, ${local_size}, ${vals}`)
-    const offsets = bufs.reduce((acc, x) => [...acc, acc.at(-1)! + round_up(x.length, 128)], [0]) // adding 128 because otherwise sometimes v128.store will override other buffer's value
+    const offsets = bufs.reduce((acc, x) => [...acc, acc.at(-1)! + round_up(x.length, 128)], [0]) // rounding up to 128 because otherwise sometimes v128.store will override other buffer's value
     const memory = new WebAssembly.Memory({ initial: Math.min(65536, Math.ceil((offsets.pop()! + 128) / 65536)) }) // it shouldn't need +128, but otheriwise it will sometimes throw memory access out of bounds
     const mem = new Uint8Array(memory.buffer)
 
@@ -33,7 +33,7 @@ class WASMCompiler extends Compiler {
     try {
       const parsedModule = wabt.parseWat('inline.wat', src)
       parsedModule.validate()
-      const { buffer } = parsedModule.toBinary()
+      const { buffer } = parsedModule.toBinary({})
       parsedModule.destroy()
       return buffer
     } catch (e) {
