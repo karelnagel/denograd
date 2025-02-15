@@ -773,7 +773,7 @@ export class Tensor extends MathTrait<Tensor> {
   static _threefry_random_bits = (key: Tensor, counts0: Tensor, counts1: Tensor) => {
     let x = (counts1.cast(dtypes.uint64).lshift(32)).bitwise_or(counts0.cast(dtypes.uint64))
     x = Threefry.apply(x, (key.get(1)._broadcast_to(x.shape).cast(dtypes.uint64).lshift(32)).bitwise_or(key.get(0)._broadcast_to(x.shape).cast(dtypes.uint64)))
-    ;[counts0, counts1] = [(x.bitwise_and(0xffffffff)).cast(dtypes.uint32), ((x.rshift(32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)]
+    counts0 = (x.bitwise_and(0xffffffff)).cast(dtypes.uint32), counts1 = ((x.rshift(32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)
     return counts0.cat([counts1])
   }
 
@@ -828,7 +828,8 @@ export class Tensor extends MathTrait<Tensor> {
     const one = bits.ones_like({ device: bits.device, dtype: dtype }).bitcast(uint_dtype!)
     bits = bits.rshift((dtype.itemsize * 8) - nmant).bitwise_or(one)
     // bitcast back to the original dtype && reshape
-    let out = bits.bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
+    // KAREL: this contiguous() fixes rand() for WASM, why?
+    let out = bits.contiguous().bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
 
     // move back to the original device if we were using MOCKGPU
     if (get_env('MOCKGPU') && _device) out = out.to(_device)

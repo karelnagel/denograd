@@ -41,14 +41,23 @@ export class _Device {
     }
     return res
   }
-  @cache
+  private _DEFAULT?: DeviceType
   get DEFAULT(): DeviceType {
+    if (this._DEFAULT) return this._DEFAULT
+
     const fromEnv = Object.keys(DEVICES).filter((d) => !['DISK'].includes(d) && get_number_env(d) === 1)[0]
     if (fromEnv) return fromEnv as DeviceType
 
     const device = this.get_available_devices()[0]
     if (!device) throw new Error('no usable devices')
     Env.env.set(device, '1')
+    this._DEFAULT = device
+    return device
+  }
+  setDefault = (device: DeviceType) => {
+    if (this._DEFAULT) Env.env.set(this._DEFAULT, '0')
+    Env.env.set(device, '1')
+    this._DEFAULT = device
     return device
   }
 }
