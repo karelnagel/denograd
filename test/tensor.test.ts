@@ -442,6 +442,8 @@ test(
       // [new Tensor(Infinity), Infinity], // TODO: there is some problem with caching I guess, running one by one is ok
       [new Tensor(NaN), NaN],
       [new Tensor(Infinity), NaN],
+      [new Tensor(Infinity), NaN],
+      [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 0],
     ],
     (t1, t2) => t1.eq(t2),
     'out((data[0] == data[1]))',

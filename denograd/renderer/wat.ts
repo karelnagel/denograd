@@ -279,6 +279,7 @@ export class WASMRenderer extends Renderer {
       if (change > 0) indent += change
     }
     this.r = undefined
+    console.log(res)
     return res
   }
 }
