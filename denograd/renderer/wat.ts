@@ -124,7 +124,7 @@ const store_fn = (dtype: DType) => {
   return store
 }
 
-const float = (num: number) => isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
+const float = (num: number) => typeof num !== 'number' ? num : isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
 // TODO: handle NaNs and Infinity
 // TODO: handle uints correcly, should use '..._u' functions for those
 const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
