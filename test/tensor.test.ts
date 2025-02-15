@@ -558,7 +558,7 @@ test(
   'Tensor._threefry_random_bits',
   compare<[Tensor, Tensor, Tensor]>(
     [
-      [new Tensor([347607321, 1735991813], { requires_grad: false, dtype: dtypes.uint, device: `PYTHON` }), new Tensor([0, 1, 2, 3, 4, 5, 6, 7], { requires_grad: false, dtype: dtypes.uint, device: `PYTHON` }), new Tensor([8, 9, 10, 11, 12, 13, 14, 15], { requires_grad: false, dtype: dtypes.uint, device: `PYTHON` })],
+      [new Tensor([347607321, 1735991813]), new Tensor([0, 1, 2, 3, 4, 5, 6, 7]), new Tensor([8, 9, 10, 11, 12, 13, 14, 15])],
     ],
     Tensor._threefry_random_bits,
     'out(tiny.Tensor._threefry_random_bits(*data))',

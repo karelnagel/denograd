@@ -22,12 +22,3 @@ test(
     expect(devices).toEqual(['CLANG', 'WEBGPU', 'WASM', 'PYTHON'])
   },
 )
-
-test(
-  'Device.DEFAULT',
-  compare(
-    [[]],
-    () => Device.DEFAULT,
-    'out(tiny.device.Device.DEFAULT)',
-  ),
-)

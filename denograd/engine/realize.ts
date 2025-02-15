@@ -94,9 +94,9 @@ export class BufferCopy extends Runner {
     if (src.device.startsWith('DISK') && 'copy_from_disk' in dest.allocator! && disk_supports_fast_copyout && src.nbytes >= 4096) {
       throw new Error('KAREL: implement copy_from_disk')
       // dest.allocator.copy_from_disk(dest._buf, src._buf, src.nbytes)
-    } else if (src.device.startsWith('DISK') && '_as_buffer' in dest.allocator!) {
+    } else if (src.device.startsWith('DISK') && dest.allocator?._as_buffer) {
       // fast(ish) path, uses readinto in diskbuffers
-      await src.allocator!._copyout((dest.allocator._as_buffer as any)(dest._buf), src._buf!)
+      await src.allocator!._copyout(dest.allocator._as_buffer(dest._buf!), src._buf!)
     } else {
       dest.copyin(await src.as_buffer(true)) // may allocate a CPU buffer depending on allow_zero_copy
     }
