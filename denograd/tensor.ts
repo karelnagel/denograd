@@ -773,7 +773,7 @@ export class Tensor extends MathTrait<Tensor> {
   static _threefry_random_bits = (key: Tensor, counts0: Tensor, counts1: Tensor) => {
     let x = (counts1.cast(dtypes.uint64).lshift(32)).bitwise_or(counts0.cast(dtypes.uint64))
     x = Threefry.apply(x, (key.get(1)._broadcast_to(x.shape).cast(dtypes.uint64).lshift(32)).bitwise_or(key.get(0)._broadcast_to(x.shape).cast(dtypes.uint64)))
-    ;[counts0, counts1] = [(x.bitwise_and(0xffffffff)).cast(dtypes.uint32), ((x.rshift(32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)]
+    counts0 = (x.bitwise_and(0xffffffff)).cast(dtypes.uint32), counts1 = ((x.rshift(32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)
     return counts0.cat([counts1])
   }
 
