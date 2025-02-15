@@ -1,5 +1,5 @@
 import { type DType, dtypes, PtrDType } from '../dtype.ts'
-import { DefaultMap, range } from '../helpers.ts'
+import { type ConstType, DefaultMap, range } from '../helpers.ts'
 import { Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
 import { Renderer } from './index.ts'
 
@@ -124,7 +124,12 @@ const store_fn = (dtype: DType) => {
   return store
 }
 
-const float = (num: number) => typeof num !== 'number' ? num : isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
+const constant = (num: ConstType) => {
+  if (typeof num === 'boolean') return Number(num).toString()
+  if (typeof num === 'bigint') return num.toString()
+  if (typeof num === 'number') return isNaN(num) ? 'nan' : num === Infinity ? 'inf' : num === -Infinity ? '-inf' : Number(num).toString()
+  throw new Error(`Invalid const ${num}`)
+}
 // TODO: handle NaNs and Infinity
 // TODO: handle uints correcly, should use '..._u' functions for those
 const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
@@ -234,7 +239,7 @@ export class WASMRenderer extends Renderer {
         let dtype = get_dtype(uop.dtype)
         if (dtype === 'f32x4') throw new Error(`${dtype} ${uop}, ${uop.dtype === dtypes.float}`)
         if (dtype === 'i32x4') throw new Error()
-        this.r.set(uop, [`(${dtype}.const ${float(uop.arg)})`])
+        this.r.set(uop, [`(${dtype}.const ${constant(uop.arg)})`])
         continue
       } //If used more than once or needs a variable
       else if ([Ops.RANGE, Ops.DEFINE_ACC].includes(uop.op) || child_count.get(uop) > 1) {
