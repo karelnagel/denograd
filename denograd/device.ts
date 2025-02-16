@@ -201,12 +201,12 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   // for CI GPU and OSX, cl_khr_fp16 isn't supported
   // for CI LLVM, it segfaults because it can't link to the casting function
   // CI CUDA architecture is sm_35 but we need at least sm_70 to run fp16 ALUs
-  // PYTHON supports half memoryview in 3.12+ https://github.com/python/cpython/issues/90751
+  // JS supports half memoryview in 3.12+ https://github.com/python/cpython/issues/90751
   if (dtype === dtypes.half) {
     if (device === 'GPU') return !CI && !OSX
     if (['CUDA', 'NV'].includes(device)) return !CI
     if (device === 'LLVM') return OSX
-    // if device === "PYTHON": return sys.version_info >= (3, 12)
+    // if device === "JS": return sys.version_info >= (3, 12)
   }
   if (dtype === dtypes.float64) return device !== 'METAL' && !(OSX && device === 'GPU')
   return true

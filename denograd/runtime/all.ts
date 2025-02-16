@@ -1,6 +1,6 @@
 import { CLANG } from './ops_clang.ts'
 import { DISK } from './ops_disk.ts'
-import { PYTHON } from './ops_python.ts'
+import { JS } from './ops_js.ts'
 import { WASM } from './ops_wasm.ts'
 import { WEBGPU } from './ops_webgpu.ts'
 
@@ -9,7 +9,7 @@ export const ALL_DEVICES = {
   WEBGPU,
   WASM,
   DISK,
-  PYTHON,
+  JS,
 }
 
 export type AllDevices = keyof typeof ALL_DEVICES

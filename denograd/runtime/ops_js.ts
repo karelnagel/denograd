@@ -245,7 +245,7 @@ export class PythonProgram extends Program {
 }
 
 export class PythonRenderer extends Renderer {
-  override device: DeviceType = 'PYTHON'
+  override device: DeviceType = 'JS'
   constructor() {
     super()
     if (get_env('EMULATE_METAL')) this.device = 'METAL' as DeviceType, this.tensor_cores = new MetalRenderer().tensor_cores
@@ -275,7 +275,7 @@ export class PythonAllocator extends Allocator<MemoryView> {
   }
 }
 
-export class PYTHON extends Compiled {
+export class JS extends Compiled {
   constructor(device: DeviceType) {
     super(device, new PythonAllocator(), new PythonRenderer(), new PythonCompiler(), PythonProgram)
   }

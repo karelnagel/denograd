@@ -14,7 +14,7 @@ import { ProgramSpec } from '../denograd/renderer/index.ts'
 import { CompiledRunner, ExecItem, Runner } from '../denograd/engine/realize.ts'
 import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../denograd/engine/schedule.ts'
 import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRUAllocator } from '../denograd/device.ts'
-import { PythonRenderer } from '../denograd/runtime/ops_python.ts'
+import { PythonRenderer } from '../denograd/runtime/ops_js.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
 import { WGSLRenderer } from '../denograd/renderer/wgsl.ts'
@@ -179,7 +179,7 @@ def trycatch(fn):
   try: return fn()
   except Exception as e: return str(e)
 
-${data !== undefined ? `data = ${await pyStr(data)}` : ''}
+${data !== undefined ? `data = ${(await pyStr(data)).replaceAll("JS","PYTHON")}` : ''}
 def out(o):
     print("<<<<<"+to_ts(o)+">>>>>")
 

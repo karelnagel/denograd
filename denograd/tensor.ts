@@ -338,9 +338,9 @@ export const get_shape = (x: any): number[] => {
 }
 export const _frompy = (x: ConstType[] | Uint8Array, dtype: DType): UOp => {
   let ret, data
-  if (x instanceof Uint8Array) [ret, data] = [UOp.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
+  if (x instanceof Uint8Array) [ret, data] = [UOp.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'JS'), x]
   else {
-    ret = UOp.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
+    ret = UOp.metaop(Ops.EMPTY, get_shape(x), dtype, 'JS')
     if (dtype.fmt === undefined) throw new Error(`${dtype} has undefined fmt`)
     data = MemoryView.fromArray(fully_flatten(x), dtype.fmt)
   }
