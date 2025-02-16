@@ -21,7 +21,8 @@ export class _Device {
   }
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
   canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
-  get = (device: DeviceType): Compiled => {
+  @cache
+  get(device: DeviceType): Compiled {
     const ix = this.canonicalize(device)
     const Device = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]!
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
