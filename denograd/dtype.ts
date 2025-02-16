@@ -4,7 +4,8 @@ export type { FmtStr } from './memoryview.ts'
 export type { ConstType } from './helpers.ts'
 
 export const bitcast = (data: (number | bigint | boolean)[], srcFmt: FmtStr, destFmt: FmtStr) => {
-  return MemoryView.fromArray(data, srcFmt).cast(destFmt).toList()
+  const src = new MemoryView.ARRAYS[srcFmt](data as any)
+  return [...new MemoryView.ARRAYS[destFmt](src.buffer)]
 }
 
 export class DType {
