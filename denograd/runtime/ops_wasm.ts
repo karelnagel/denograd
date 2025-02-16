@@ -37,6 +37,7 @@ class WASMProgram extends Program {
     const worker = new Worker(url, { type: 'module' })
     worker.postMessage({ mem, offsets, name: this.name, lib: this.lib })
     mem = await new Promise((res) => worker.onmessage = ({ data: { mem } }) => res(mem))
+    worker.terminate()
 
     for (const [buf, offset] of zip(bufs, offsets)) buf.set(mem.slice(offset, offset + buf.length))
   })
