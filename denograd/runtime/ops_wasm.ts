@@ -5,8 +5,25 @@ import type { MemoryView } from '../memoryview.ts'
 import { WabtModule } from './autogen/wabt.js'
 import { WASMRenderer } from '../renderer/wat.ts'
 
-let wabt: any = undefined
+let wabt: any
 WabtModule().then((x) => wabt = x)
+
+const workerScript = `
+self.onmessage = ({ data }) => {
+    const mod = new WebAssembly.Module(data.lib)
+    const memory = new WebAssembly.Memory({ initial: Math.min(65536, Math.ceil((data.mem.length + 128) / 65536)) })
+    const instance = new WebAssembly.Instance(mod, { env: { memory } })
+
+    const wasmMem = new Uint8Array(memory.buffer)
+    wasmMem.set(data.mem)
+
+    instance.exports[data.name](...data.offsets)
+    self.postMessage({ mem: wasmMem });
+}
+`
+
+const blob = new Blob([workerScript], { type: 'application/javascript' })
+const worker = new Worker(URL.createObjectURL(blob), { type: 'module' })
 
 class WASMProgram extends Program {
   constructor(name: string, lib: Uint8Array) {
@@ -15,15 +32,13 @@ class WASMProgram extends Program {
   override call = cpu_time_execution(async (bufs: Uint8Array[], { global_size, local_size, vals }: ProgramCallArgs, wait = false) => {
     if (global_size || local_size || vals?.length) throw new Error(`I don't know what to do with these: ${global_size}, ${local_size}, ${vals}`)
     const offsets = bufs.reduce((acc, x) => [...acc, acc.at(-1)! + round_up(x.length, 128)], [0]) // rounding up to 128 because otherwise sometimes v128.store will override other buffer's value
-    const memory = new WebAssembly.Memory({ initial: Math.min(65536, Math.ceil((offsets.pop()! + 128) / 65536)) }) // it shouldn't need +128, but otheriwise it will sometimes throw memory access out of bounds
-    const mem = new Uint8Array(memory.buffer)
 
-    const wasmModule = new WebAssembly.Module(this.lib)
-    const wasmInstance = new WebAssembly.Instance(wasmModule, { env: { memory } })
-    const fn = wasmInstance.exports[this.name] as any
-
+    let mem = new Uint8Array(offsets.pop()!)
     for (const [buf, offset] of zip(bufs, offsets)) mem.set(buf, offset)
-    fn(...offsets)
+
+    worker.postMessage({ mem, offsets, name: this.name, lib: this.lib })
+    mem = await new Promise((res) => worker.onmessage = ({ data: { mem } }) => res(mem))
+
     for (const [buf, offset] of zip(bufs, offsets)) buf.set(mem.slice(offset, offset + buf.length))
   })
 }
