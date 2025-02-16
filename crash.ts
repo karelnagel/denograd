@@ -1,0 +1,64 @@
+const src = `fn nan() -> f32 { let bits = 0xffffffffu; return bitcast<f32>(bits); }
+fn is_nan(v:f32) -> bool { return min(v, 1.0) == 1.0 && max(v, -1.0) == -1.0; }
+@group(0) @binding(0)
+var<uniform> INFINITY : f32;
+@group(0) @binding(1)var<storage,read_write>data0:array<f32>;
+@compute @workgroup_size(32) fn E_200_32_4(@builtin(workgroup_id) gindex: vec3<u32>,@builtin(local_invocation_id) lindex: vec3<u32>) {
+  var gidx0 = i32(gindex.x); /* 200 */
+  var lidx0 = i32(lindex.x); /* 32 */
+  var alu0 = ((gidx0<<7)+(lidx0<<2));
+  data0[alu0] = 0.0f;
+  data0[(alu0+1)] = 0.0f;
+  data0[(alu0+2)] = 0.0f;
+  data0[(alu0+3)] = 0.0f;
+}`
+
+const uniforms: { [key: number]: GPUBuffer } = {}
+const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
+  if (uniforms[val]) return uniforms[val]
+  const buf = wgpu_device.createBuffer({ size: 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST })
+  const bytes = new Uint8Array(4)
+  if (Number.isInteger(val)) new DataView(bytes.buffer).setInt32(0, val, true)
+  else new DataView(bytes.buffer).setFloat32(0, val, true)
+  wgpu_device.queue.writeBuffer(buf, 0, bytes)
+  uniforms[val] = buf
+  return buf
+}
+
+const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
+if (!adapter) throw new Error('No adapter')
+const device = await adapter.requestDevice({})
+
+for (let i = 0; i < 2; i++) {
+  const bufs: GPUBuffer[] = []
+  const buf = device.createBuffer({ size: 102400, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
+  bufs.push(buf)
+
+  const prg = device.createShaderModule({ code: src })
+
+  const binding_layouts: GPUBindGroupLayoutEntry[] = [
+    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+    ...bufs.map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } })),
+  ]
+  const bind_group_layout = device.createBindGroupLayout({ entries: binding_layouts })
+  const pipeline_layout = device.createPipelineLayout({ bindGroupLayouts: [bind_group_layout] })
+  const compute_pipeline = await device.createComputePipelineAsync({ layout: pipeline_layout, compute: { module: prg, entryPoint: 'E_200_32_4' } })
+  const bindings: GPUBindGroupEntry[] = [
+    { binding: 0, resource: { buffer: create_uniform(device, Infinity), offset: 0, size: 4 } },
+    ...bufs.map<GPUBindGroupEntry>((x, i) => ({ binding: i + 1, resource: { buffer: x, offset: 0, size: x.size } })),
+  ]
+
+  const bind_group = device.createBindGroup({ layout: bind_group_layout, entries: bindings })
+  const encoder = device.createCommandEncoder()
+  const compute_pass = encoder.beginComputePass()
+  compute_pass.setPipeline(compute_pipeline)
+  compute_pass.setBindGroup(0, bind_group)
+  compute_pass.dispatchWorkgroups(65535, 65535, 65535)
+  compute_pass.end()
+
+  device.queue.submit([encoder.finish()])
+  await device.queue.onSubmittedWorkDone()
+
+  console.log(i)
+  await new Promise((r) => setTimeout(r, 1000))
+}
