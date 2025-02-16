@@ -6,11 +6,11 @@ Why you should use Denograd?
 
 - 0 dependencies
 - will be fast (not yet)
-- Multiple runtime backends (WebGPU, CLANG, + others coming soon)
+- Multiple runtime backends (WebGPU, WASM, CLANG, + others coming soon)
 - Clean, modern API inspired by tinygrad's elegant design
 - Works in browser and in Deno (Node and Bun support coming soon)
 
-See MNIST inference and training example with WebGPU on [denograd.com](https://denograd.com)
+See MNIST inference and training example on [denograd.com](https://denograd.com)
 
 # Usage
 
@@ -164,12 +164,12 @@ await model.save('./mnist.safetensors')
 - [x] add all the missing parts of Tensor and other code that were left out in the beginning.
 - [x] get hand_coded_optimisations working correctly
 - [x] WEBGPU training MNIST in browser
+- [x] WASM runtime
 - [ ] docs
 - [ ] some LLM
 - [ ] whisper
 - [ ] bun support
 - [ ] node support
-- [ ] WASM runtime
 - [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
 - [ ] CLOUD runtime
 - [ ] METAL runtime
