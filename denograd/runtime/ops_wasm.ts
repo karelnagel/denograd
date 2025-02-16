@@ -21,9 +21,7 @@ self.onmessage = ({ data }) => {
     self.postMessage({ mem: wasmMem });
 }
 `
-
-const blob = new Blob([workerScript], { type: 'application/javascript' })
-const worker = new Worker(URL.createObjectURL(blob), { type: 'module' })
+const url = URL.createObjectURL(new Blob([workerScript], { type: 'application/javascript' }))
 
 class WASMProgram extends Program {
   constructor(name: string, lib: Uint8Array) {
@@ -36,6 +34,7 @@ class WASMProgram extends Program {
     let mem = new Uint8Array(offsets.pop()!)
     for (const [buf, offset] of zip(bufs, offsets)) mem.set(buf, offset)
 
+    const worker = new Worker(url, { type: 'module' })
     worker.postMessage({ mem, offsets, name: this.name, lib: this.lib })
     mem = await new Promise((res) => worker.onmessage = ({ data: { mem } }) => res(mem))
 
