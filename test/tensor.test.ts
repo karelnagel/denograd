@@ -1,3 +1,4 @@
+import { Device } from '../denograd/device.ts'
 import { type DType, dtypes } from '../denograd/dtype.ts'
 import { Ops, type sint } from '../denograd/ops.ts'
 import { Tensor, type TensorOptions } from '../denograd/tensor.ts'
@@ -563,4 +564,7 @@ test(
     Tensor._threefry_random_bits,
     'out(tiny.Tensor._threefry_random_bits(*data))',
   ),
+  {
+    ignore: Device.DEFAULT === 'WEBGPU', // WebGPU doesn't support long
+  },
 )

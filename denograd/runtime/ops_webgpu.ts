@@ -50,7 +50,7 @@ class WebGPUProgram extends Program {
 
       this.bind_group_layout = device.createBindGroupLayout({ entries: binding_layouts })
       const pipeline_layout = device.createPipelineLayout({ bindGroupLayouts: [this.bind_group_layout] })
-      this.compute_pipeline = await device.createComputePipelineAsync({ layout: pipeline_layout, compute: { module: this.prg, entryPoint: this.name } })
+      this.compute_pipeline = device.createComputePipeline({ layout: pipeline_layout, compute: { module: this.prg, entryPoint: this.name } })
     }
     const bindings: GPUBindGroupEntry[] = [
       { binding: 0, resource: { buffer: create_uniform(device, Infinity), offset: 0, size: 4 } },
