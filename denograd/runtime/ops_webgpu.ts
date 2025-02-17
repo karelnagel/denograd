@@ -76,6 +76,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
   _alloc = (size: number, options?: BufferSpec) => {
     const buf = device.createBuffer({ size: round_up(size, 16), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
     allocated += buf.size
+    console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
     return buf
   }
   _copyin = (dest: GPUBuffer, src: MemoryView) => device.queue.writeBuffer(dest, 0, src.bytes)
