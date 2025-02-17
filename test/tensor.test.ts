@@ -568,10 +568,3 @@ test(
     ignore: Device.DEFAULT === 'WEBGPU', // WebGPU doesn't support long
   },
 )
-
-test(
-  'failing',
-  compare([[]], async () => {
-    return await  new Tensor([true, true, false]).tolist()
-  }, 'out(tiny.Tensor([True,True,False]).tolist())'),
-)

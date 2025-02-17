@@ -45,7 +45,7 @@ export class WGSLRenderer extends CStyleLanguage {
   override supports_float4 = false
   override barrier = 'workgroupBarrier();'
   override code_for_op = new Map<Ops, (...a: (string | DType)[]) => string>([...new CStyleLanguage().code_for_op, [Ops.WHERE, (a, b, c, dtype) => `select(${c},${b},${a})`]])
-  override nan = 'NaN not supported'
+  override nan = 'nan()'
   override type_map = new Map([[dtypes.float, 'f32'], [dtypes.uchar, 'u32'], [dtypes.ushort, 'u32'], [dtypes.short, 'i32'], [dtypes.char, 'i32'], [dtypes.int32, 'i32'], [dtypes.uint32, 'u32'], [dtypes.bool, 'bool']])
 
   override string_rewrite = new PatternMatcher<WGSLRenderer, string | undefined>([
@@ -62,6 +62,8 @@ export class WGSLRenderer extends CStyleLanguage {
     }),
     // (load & mask) | var -> mask = v.src[0].src[1], var = v.src[1]
     UPat.store([UPat.var('b'), UPat.var('v')], { allow_any_len: true }).fn(({ ctx, b, v }) => b.src[0].dtype.itemsize < 4 ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`),
+    // fix nan check: 'a != a -> is_nan()'
+    UPat.var('a').ne(UPat.var('a')).fn(({ ctx, a }) => `is_nan(${ctx.get(a)})`),
   ]).add(base_rewrite)
 
   override render_cast = (dt: DType, val: string) => `${this.type_map.get(dt)}(${val})`
@@ -73,10 +75,13 @@ export class WGSLRenderer extends CStyleLanguage {
     if (!local_size.length) local_size = [1]
     const external_local_bufs = kernel.filter((line) => line.includes('var<workgroup>')).map((line) => line.replace('\\s', ''))
     kernel = kernel.filter((line) => !line.includes('var<workgroup>'))
-    let prg = [
+    let prg = 'fn nan() -> f32 { let bits = 0xffffffffu; return bitcast<f32>(bits); }\n'
+    // trick to obfuscate compiler so that nan is detected properly
+    prg += 'fn is_nan(v:f32) -> bool { return min(v, 1.0) == 1.0 && max(v, -1.0) == -1.0; }\n@group(0) @binding(0)\nvar<uniform> INFINITY : f32;\n'
+    prg += [
       ...external_local_bufs,
       ...[...this.bufs!.entries()].map(([uop, { name, dtype, mutable }], i) =>
-        `@group(0) @binding(${i})` +
+        `@group(0) @binding(${i + 1})` +
         `${is_storage(dtype, mutable) ? 'var<storage,read_write>' : 'var<uniform>'}` +
         `${name}:${is_storage(dtype, mutable) ? `array<${this.buf_map(dtype.base)}>` : dtype instanceof PtrDType ? `array<vec4<${this.buf_map(dtype.base)}>,${Math.ceil(dtype.size / 4)}>` : this.buf_map(dtype)};`
       ),
