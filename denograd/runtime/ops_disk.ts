@@ -39,7 +39,6 @@ export class DISK extends Compiled {
     if (this.count === 0) {
       this.size = undefined
     }
-    throw new Error('Not called')
   }
   _iouring_setup = () => {
     DISK._tried_io_uring_init = true
