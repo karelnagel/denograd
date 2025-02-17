@@ -243,7 +243,7 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
-export const buffers = new WeakKeyMap<UOp, Buffer>()
+export const buffers = new WeakValueMap<string, Buffer>()
 export const all_metadata = new WeakKeyMap<UOp, Metadata>()
 
 export class UOp extends MathTrait<UOp> {
@@ -269,7 +269,7 @@ export class UOp extends MathTrait<UOp> {
     // NOTE: this value is set by pickle when pickling a realized tensor
     if (_buffer !== undefined) {
       if (op !== Ops.BUFFER) throw new Error(`trying to set Buffer ${_buffer} for ${op}`)
-      buffers.set(this, _buffer)
+      buffers.set(this.key, _buffer)
     }
     UOp.cache.set(this.key, this)
     Object.freeze(this)

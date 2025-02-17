@@ -491,7 +491,7 @@ const fold_img_cast = (ctx: ScheduleContext, xb: UOp, view: UOp, b: UOp, x: UOp)
 
 export const create_subbuffer = (base: UOp, b: UOp, root: UOp, x: UOp) => {
   if (Array.isArray(b.device) || !b.device.startsWith('DISK')) return undefined
-  buffers.set(b, uop_buffer(x.buf_uop).view(b.size, b.dtype, x.st!.views[0].offset as number * x.dtype.itemsize))
+  buffers.set(b.key, uop_buffer(x.buf_uop).view(b.size, b.dtype, x.st!.views[0].offset as number * x.dtype.itemsize))
   return base.replace({ src: [b, root.replace({ op: Ops.BUFFER_VIEW })] })
 }
 

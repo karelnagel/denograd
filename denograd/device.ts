@@ -71,10 +71,10 @@ export const uop_buffer = (uop: UOp): Buffer => {
     return uop_buffer(uop.src[0])
   }
   if (uop.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${uop.op}`)
-  if (buffers.has(uop)) return buffers.get(uop)!
+  if (buffers.has(uop.key)) return buffers.get(uop.key)!
   if (Array.isArray(uop.device)) throw new Error(`buffer not supported on multi ${uop.device}`)
   const ret = new Buffer(uop.device, uop.size, uop.dtype instanceof ImageDType ? uop.dtype : uop.dtype.base)
-  buffers.set(uop, ret)
+  buffers.set(uop.key, ret)
   return ret
 }
 export const uop_realized = (uop: UOp): Buffer | undefined => {
