@@ -179,7 +179,7 @@ def trycatch(fn):
   try: return fn()
   except Exception as e: return str(e)
 
-${data !== undefined ? `data = ${(await pyStr(data)).replaceAll("JS","PYTHON")}` : ''}
+${data !== undefined ? `data = ${(await pyStr(data)).replaceAll('JS', 'PYTHON')}` : ''}
 def out(o):
     print("<<<<<"+to_ts(o)+">>>>>")
 
