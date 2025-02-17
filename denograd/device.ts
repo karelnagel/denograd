@@ -4,7 +4,7 @@ import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.t
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'
-import { buffers, Ops, type UOp } from './ops.ts'
+import { Ops, type UOp } from './ops.ts'
 
 export * from './runtime/allocator.ts'
 export type { AllDevices, DeviceType } from './runtime/all.ts'
@@ -71,10 +71,10 @@ export const uop_buffer = (uop: UOp): Buffer => {
     return uop_buffer(uop.src[0])
   }
   if (uop.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${uop.op}`)
-  if (buffers.has(uop.key)) return buffers.get(uop.key)!
+  if (uop._buf) return uop._buf
   if (Array.isArray(uop.device)) throw new Error(`buffer not supported on multi ${uop.device}`)
   const ret = new Buffer(uop.device, uop.size, uop.dtype instanceof ImageDType ? uop.dtype : uop.dtype.base)
-  buffers.set(uop.key, ret)
+  uop._buf = ret
   return ret
 }
 export const uop_realized = (uop: UOp): Buffer | undefined => {
