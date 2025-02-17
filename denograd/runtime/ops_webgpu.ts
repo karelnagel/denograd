@@ -1,5 +1,5 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, cpu_time_execution, isInt, round_up } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, isInt, memsize_to_str, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
@@ -70,9 +70,14 @@ class WebGPUProgram extends Program {
     await device.queue.onSubmittedWorkDone()
   })
 }
+let allocated = 0, freed = 0
 // WebGPU buffers have to be 4-byte aligned
 class WebGpuAllocator extends Allocator<GPUBuffer> {
-  _alloc = (size: number, options?: BufferSpec) => device.createBuffer({ size: round_up(size, 16), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
+  _alloc = (size: number, options?: BufferSpec) => {
+    const buf = device.createBuffer({ size: round_up(size, 16), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
+    allocated += buf.size
+    return buf
+  }
   _copyin = (dest: GPUBuffer, src: MemoryView) => device.queue.writeBuffer(dest, 0, src.bytes)
   _copyout = async (dest: MemoryView, src: GPUBuffer) => {
     const staging = device.createBuffer({ size: src.size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
@@ -83,7 +88,11 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     dest.set(new Uint8Array(staging.getMappedRange()).slice(0, dest.length))
     staging.destroy()
   }
-  _free = (opaque: GPUBuffer, options?: BufferSpec) => opaque.destroy()
+  _free = (opaque: GPUBuffer, options?: BufferSpec) => {
+    freed += opaque.size
+    opaque.destroy()
+    console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
+  }
 }
 
 export class WEBGPU extends Compiled {
