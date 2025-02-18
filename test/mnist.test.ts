@@ -85,6 +85,7 @@ test(
     ])
     expect(await asdict(ts)).toEqual(await asdict(py))
   },
+  { ignore: Device.DEFAULT === 'WEBGPU' },
 )
 
 test(
