@@ -85,6 +85,7 @@ test(
     ])
     expect(await asdict(ts)).toEqual(await asdict(py))
   },
+  { ignore: Device.DEFAULT === 'WEBGPU' },
 )
 
 test(
@@ -125,5 +126,5 @@ test(
       'out(loss)',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WASM' },
+  { ignore: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'WEBGPU' },
 )

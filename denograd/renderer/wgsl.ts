@@ -34,7 +34,7 @@ export const wgsl_matcher = new PatternMatcher([
   new UPat(Ops.MUL, undefined, [UPat.var('a'), UPat.var('g').where(UPat.cvar('c1'), UPat.cvar('c2'))]).fn(({ a, g, c1, c2 }) => isNaN(c1.arg) && c2.arg === 1 ? g.where(c1, a) : undefined),
 ]).add(extra_pm)
 
-const is_storage = (dtype: DType, mutable: boolean) => mutable || (dtype instanceof PtrDType && dtype.size > 512)
+const is_storage = (dtype: DType, mutable: boolean) => mutable || (dtype instanceof PtrDType && dtype.size > 512) || dtype.itemsize < 4
 
 export class WGSLRenderer extends CStyleLanguage {
   override device: DeviceType = 'WEBGPU'

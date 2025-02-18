@@ -4,7 +4,7 @@ import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.t
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'
-import { buffers, Ops, type UOp } from './ops.ts'
+import { Ops, type UOp } from './ops.ts'
 
 export * from './runtime/allocator.ts'
 export type { AllDevices, DeviceType } from './runtime/all.ts'
@@ -21,7 +21,7 @@ export class _Device {
   }
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
   canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
-  get = (device: DeviceType): Compiled => {
+  get(device: DeviceType): Compiled {
     const ix = this.canonicalize(device)
     const Device = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]!
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
@@ -70,10 +70,10 @@ export const uop_buffer = (uop: UOp): Buffer => {
     return uop_buffer(uop.src[0])
   }
   if (uop.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${uop.op}`)
-  if (buffers.has(uop)) return buffers.get(uop)!
+  if (uop._buf) return uop._buf
   if (Array.isArray(uop.device)) throw new Error(`buffer not supported on multi ${uop.device}`)
   const ret = new Buffer(uop.device, uop.size, uop.dtype instanceof ImageDType ? uop.dtype : uop.dtype.base)
-  buffers.set(uop, ret)
+  uop._buf = ret
   return ret
 }
 export const uop_realized = (uop: UOp): Buffer | undefined => {
