@@ -33,8 +33,8 @@ export const MnistExample = () => {
     setData(newData)
     return newData
   }
-  const [BS, setBS] = useState(256)
-  const [maxSteps, setMaxSteps] = useState(40)
+  const [BS, setBS] = useState(512)
+  const [maxSteps, setMaxSteps] = useState(70)
   const [steps, setSteps] = useState<{ acc?: number; duration?: number; step: number; loss?: number }[]>([])
 
   const train = async () => {
@@ -130,7 +130,7 @@ export const MnistExample = () => {
       <br />
 
       <p className='text-2xl font-bold'>Training</p>
-      <p>Still experimental, WebGPU can use so much RAM that your PC crashes, mine crashes with BS 512 and STEPS 70</p>
+      <p>Can use a lot of RAM</p>
       <label className='flex flex-col text-center'>
         Batch size
         <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
