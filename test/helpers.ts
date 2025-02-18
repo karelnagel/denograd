@@ -14,12 +14,12 @@ import { ProgramSpec } from '../denograd/renderer/index.ts'
 import { CompiledRunner, ExecItem, Runner } from '../denograd/engine/realize.ts'
 import { ScheduleContext, ScheduleItem, ScheduleItemContext } from '../denograd/engine/schedule.ts'
 import { _Device, _MallocAllocator, Allocator, Buffer, BufferSpec, Compiler, LRUAllocator } from '../denograd/device.ts'
-import { PythonRenderer } from '../denograd/runtime/ops_python.ts'
+import { PythonRenderer } from '../denograd/runtime/ops_js.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
 import { WGSLRenderer } from '../denograd/renderer/wgsl.ts'
 
-export const test = (name: string, fn: (t: Deno.TestContext) => void | Promise<void>) => Deno.test({ name, fn, sanitizeResources: false })
+export const test = (name: string, fn: (t: Deno.TestContext) => void | Promise<void>, opts: { ignore?: boolean } = {}) => Deno.test({ name, fn, sanitizeResources: false, ...opts })
 
 export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined
@@ -32,7 +32,7 @@ export const asdict = async (o: any): Promise<any> => {
   if (o instanceof DType) return o.toString()
   if (o instanceof MemoryView) return o.toString()
   if (o instanceof UOp) return o.toString()
-  if (o instanceof Tensor) return { dtype: o.dtype.toString(), device: o.device, shape: o.shape, data: await asdict(await o.tolist()) }
+  if (o instanceof Tensor) return { dtype: o.dtype.toString(), shape: o.shape, data: await asdict(await o.tolist()) }
 
   if (o instanceof Map || o instanceof ArrayMap) {
     if (o instanceof ArrayMap) o = new Map(o.entries())
@@ -85,7 +85,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
 
   // ************ TENSOR ************
   if (o instanceof Tensor) {
-    return t`tiny.tensor.Tensor(${await o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype}, device=${o.device})`
+    return t`tiny.tensor.Tensor(${await o.clone().tolist()}, requires_grad=${o.requires_grad}, dtype=${o.dtype})`
   }
 
   // ************ ENGINE ************
@@ -147,7 +147,7 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o instanceof Metadata) return t`tiny.helpers.Metadata(${o.name}, ${o.caller}, ${o.backward})`
 
   if (o instanceof Uint8Array) return t`bytes(${Array.from(o)})`
-  if (o instanceof MemoryView) return t`memoryview(bytes(${Array.from(o.toBytes())}))`
+  if (o instanceof MemoryView) return t`memoryview(bytes(${Array.from(o.bytes)}))`
 
   if (typeof o === 'function') return 'lambda x: x'
   if (o?.constructor?.name === 'Object') return `{${(await Promise.all(Object.entries(o).map(async (entry) => await t`${entry[0]}:${entry[1]}`))).join(',')}}`
@@ -179,7 +179,7 @@ def trycatch(fn):
   try: return fn()
   except Exception as e: return str(e)
 
-${data !== undefined ? `data = ${await pyStr(data)}` : ''}
+${data !== undefined ? `data = ${(await pyStr(data)).replaceAll("JS","PYTHON")}` : ''}
 def out(o):
     print("<<<<<"+to_ts(o)+">>>>>")
 
@@ -188,7 +188,8 @@ ${code}
   const file = `/tmp/tiny_${random_id()}.py`
   // console.log(file)
   await Deno.writeTextFile(file, code.trim())
-  const out = await new Deno.Command(`python3`, { args: [file], env: { 'PYTHONPATH': '.:./tinygrad' } }).output()
+  const envs = Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => [k.replace('TINY_', ''), v])
+  const out = await new Deno.Command(`python3`, { args: [file], clearEnv: true, env: { PATH: process.env.PATH, 'PYTHONPATH': '.:./tinygrad', ...Object.fromEntries(envs) } }).output()
   if (!out.success) throw new Error(bytes_to_string(out.stderr))
   const [stdout, ts] = bytes_to_string(out.stdout).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)

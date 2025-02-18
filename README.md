@@ -3,19 +3,21 @@
 Denograd is a rewrite of [tinygrad](https://tinygrad.org/) in TypeScript. JS ecosystem is very large, but it didn't have a good ML library for model inference and **training**. Since tinygrad doesn't use any external python libraries, has potential to be the fastest way to run models, is quite simple compared to others and supports many runtimes, I decided to rewrite it in TS to get the same experience in browser and in deno/node/bun.
 
 Why you should use Denograd?
+
 - 0 dependencies
 - will be fast (not yet)
-- Multiple runtime backends (WebGPU, CLANG, + others coming soon)
+- Multiple runtime backends (WebGPU, WASM, CLANG, + others coming soon)
 - Clean, modern API inspired by tinygrad's elegant design
 - Works in browser and in Deno (Node and Bun support coming soon)
 
-See MNIST inference and training example with WebGPU on [denograd.com](https://denograd.com)
+See MNIST inference and training example on [denograd.com](https://denograd.com)
 
 # Usage
 
 There are multiple ways to use denograd:
 
 ## Hosted script in HTML
+
 ```html
 <html>
   <head>
@@ -31,18 +33,19 @@ There are multiple ways to use denograd:
   </head>
   <body></body>
 </html>
-
 ```
 
 ## Hosted esm script in JS
+
 ```js
-import { Tensor, MNIST } from "https://denograd.com/denograd.mjs"
+import { MNIST, Tensor } from 'https://denograd.com/denograd.mjs'
 
 const mnist = await new MNIST().load()
-console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist()) 
+console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist())
 ```
 
 ## Install package from [jsr.io](https://jsr.io/@denograd/denograd)
+
 ```bash
 # with deno
 deno add jsr:@denograd/denograd
@@ -56,47 +59,52 @@ pnpm dlx jsr add @denograd/denograd
 bunx jsr add @denograd/denograd
 ```
 
-and then import with 
+and then import with
+
 ```ts
-import { Tensor, MNIST } from "@denograd/denograd"
+import { MNIST, Tensor } from '@denograd/denograd'
 
 const mnist = await new MNIST().load()
-console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist()) 
+console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist())
 ```
-
 
 # Goal - The easiest and fastest way to run and train models in JS/TS.
 
 Soon everything should work like this in browser and server with no install step, while still being fast:
 
 ### Uses the fastest local runtime for Llama
+
 ```ts
 const llama = await new Llama({ model: '3.1-3B' }).load()
 const res = await llama.run({ prompt: 'Hello how are you?' })
 ```
 
 ### Offload the computation to CLOUD
+
 ```ts
 const llama = await new Llama({ model: '3.1-3B', device: 'CLOUD', host: process.env.CLOUD_HOST }).load()
 const res = await llama.run({ prompt: 'Hello how are you?' })
 ```
 
 ### Whisper
+
 ```ts
-const whisper = await new Whisper({ model: "large-v2" }).load()
+const whisper = await new Whisper({ model: 'large-v2' }).load()
 const listening = whisper.startListening()
-// after some time 
+// after some time
 const text = await listening.stop()
 ```
 
 ### Text to speech
+
 ```ts
 const tts = await new TTS()
-const audio = await tts.run({ text: "Hello how are you?" })
+const audio = await tts.run({ text: 'Hello how are you?' })
 audio.play()
 ```
 
 ### Training new models:
+
 ```ts
 class MNIST extends Model {
   layers: Layer[] = [
@@ -156,12 +164,12 @@ await model.save('./mnist.safetensors')
 - [x] add all the missing parts of Tensor and other code that were left out in the beginning.
 - [x] get hand_coded_optimisations working correctly
 - [x] WEBGPU training MNIST in browser
+- [x] WASM runtime
 - [ ] docs
 - [ ] some LLM
 - [ ] whisper
 - [ ] bun support
 - [ ] node support
-- [ ] WASM runtime
 - [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
 - [ ] CLOUD runtime
 - [ ] METAL runtime

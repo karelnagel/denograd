@@ -129,7 +129,7 @@ def to_ts(o):
 
     # ************ TENSOR ************
     if isinstance(o, Tensor):
-        return f"new Tensor({to_ts(o.tolist())}, {{ requires_grad:{to_ts(o.requires_grad)}, dtype:{to_ts(o.dtype)}, device:{to_ts(o.device)} }})"
+        return f"new Tensor({to_ts(o.tolist())}, {{ requires_grad:{to_ts(o.requires_grad)}, dtype:{to_ts(o.dtype)}}})"
 
     if isinstance(o, Metadata):
         return f"new Metadata({to_ts(o.name)}, {to_ts(o.caller)}, {to_ts(o.backward)})"

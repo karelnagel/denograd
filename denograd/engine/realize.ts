@@ -94,9 +94,9 @@ export class BufferCopy extends Runner {
     if (src.device.startsWith('DISK') && 'copy_from_disk' in dest.allocator! && disk_supports_fast_copyout && src.nbytes >= 4096) {
       throw new Error('KAREL: implement copy_from_disk')
       // dest.allocator.copy_from_disk(dest._buf, src._buf, src.nbytes)
-    } else if (src.device.startsWith('DISK') && '_as_buffer' in dest.allocator!) {
+    } else if (src.device.startsWith('DISK') && dest.allocator?._as_buffer) {
       // fast(ish) path, uses readinto in diskbuffers
-      await src.allocator!._copyout((dest.allocator._as_buffer as any)(dest._buf), src._buf!)
+      await src.allocator!._copyout(dest.allocator._as_buffer(dest._buf!), src._buf!)
     } else {
       dest.copyin(await src.as_buffer(true)) // may allocate a CPU buffer depending on allow_zero_copy
     }
@@ -175,7 +175,7 @@ export const si_lowerer = new PatternMatcher<Buffer[], [Runner, Buffer[]]>([
   new UPat(Ops.BUFFER_VIEW).fn(({ ctx }) => [new ViewOp(ctx[0]), [...ctx]]),
   [
     new UPat(Ops.COPY).named('copy'),
-    ({ ctx, copy }) => ['_transfer' in Device.get(ctx[0].device)!.allocator! && all_same(ctx.map((x) => x.device.split(':')[0])) ? new BufferXfer(ctx[0].nbytes, ctx[0].device, ctx[1].device) : new BufferCopy(ctx[0].nbytes, ctx[0].device, ctx[1].device), [...ctx]],
+    ({ ctx, copy }) => [Device.get(ctx[0].device)!.allocator!._transfer && all_same(ctx.map((x) => x.device.split(':')[0])) ? new BufferXfer(ctx[0].nbytes, ctx[0].device, ctx[1].device) : new BufferCopy(ctx[0].nbytes, ctx[0].device, ctx[1].device), [...ctx]],
   ],
 ])
 const lower_schedule_item = (si: ScheduleItem) => new ExecItem(...si_lowerer.rewrite(si.ast, si.bufs)!, si.metadata)

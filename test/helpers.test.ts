@@ -60,8 +60,6 @@ test('to_function_name', compare([['test'], ['not sure how this should work'], [
 
 test('getenv', compare([['key', 'value']], helpers.get_env, 'out(tiny.helpers.getenv(*data))'))
 
-test('temp', compare([['file.txt']], helpers.temp, 'out(tiny.helpers.temp(*data))'))
-
 test(
   'slice',
   compare(

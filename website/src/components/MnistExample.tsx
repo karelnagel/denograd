@@ -1,20 +1,20 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
-import { Adam, get_parameters, is_eq, MNIST, mnist, Tensor } from '../../../denograd/mod.ts'
+import { Adam, Device, get_parameters, is_eq, MNIST, mnist, Tensor } from '../../../denograd/mod.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
+import { Env } from '../../../denograd/env/index.ts'
 
 const toast = (msg: string) => alert(msg)
 
 const EMPTY = Array(28).fill(0).map(() => Array(28).fill(0))
 
-const model = new MNIST()
-const opt = Adam(get_parameters(model))
-
 export const MnistExample = () => {
   // Inference
   const [image, setImage] = useState(EMPTY)
   const [res, setRes] = useState<number[]>([])
+  const [model, setModel] = useState(() => new MNIST())
+  const [opt, setOpt] = useState(() => Adam(get_parameters(model)))
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -33,8 +33,8 @@ export const MnistExample = () => {
     setData(newData)
     return newData
   }
-  const [BS, setBS] = useState(256)
-  const [maxSteps, setMaxSteps] = useState(40)
+  const [BS, setBS] = useState(512)
+  const [maxSteps, setMaxSteps] = useState(70)
   const [steps, setSteps] = useState<{ acc?: number; duration?: number; step: number; loss?: number }[]>([])
 
   const train = async () => {
@@ -70,6 +70,21 @@ export const MnistExample = () => {
   const currentStep = steps.at(-1)
   return (
     <div className='flex flex-col items-center gap-2'>
+      <div className='flex flex-col items-center mb-4'>
+        <p>Choose Device</p>
+        <select
+          className='bg-transparent'
+          defaultValue={Device.DEFAULT}
+          onChange={(e) => {
+            Device.setDefault(e.target.value as any)
+            const mnist = new MNIST()
+            setModel(mnist)
+            setOpt(Adam(get_parameters(mnist)))
+          }}
+        >
+          {Env.DEVICES!.map((x) => <option key={x} value={x}>{x}</option>)}
+        </select>
+      </div>
       <button
         className='rounded-lg bg-blue-500 p-2 '
         onClick={async () => {
@@ -115,7 +130,7 @@ export const MnistExample = () => {
       <br />
 
       <p className='text-2xl font-bold'>Training</p>
-      <p>Still experimental, WebGPU can use so much RAM that your PC crashes, mine crashes with BS 512 and STEPS 70</p>
+      <p>Can use a lot of RAM</p>
       <label className='flex flex-col text-center'>
         Batch size
         <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />

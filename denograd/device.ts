@@ -4,7 +4,7 @@ import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.t
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
 import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'
-import { buffers, Ops, type UOp } from './ops.ts'
+import { Ops, type UOp } from './ops.ts'
 
 export * from './runtime/allocator.ts'
 export type { AllDevices, DeviceType } from './runtime/all.ts'
@@ -21,7 +21,7 @@ export class _Device {
   }
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
   canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
-  get = (device: DeviceType): Compiled => {
+  get(device: DeviceType): Compiled {
     const ix = this.canonicalize(device)
     const Device = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]!
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
@@ -41,14 +41,23 @@ export class _Device {
     }
     return res
   }
-  @cache
+  private _DEFAULT?: DeviceType
   get DEFAULT(): DeviceType {
+    if (this._DEFAULT) return this._DEFAULT
+
     const fromEnv = Object.keys(DEVICES).filter((d) => !['DISK'].includes(d) && get_number_env(d) === 1)[0]
     if (fromEnv) return fromEnv as DeviceType
 
     const device = this.get_available_devices()[0]
     if (!device) throw new Error('no usable devices')
     Env.env.set(device, '1')
+    this._DEFAULT = device
+    return device
+  }
+  setDefault = (device: DeviceType) => {
+    if (this._DEFAULT) Env.env.set(this._DEFAULT, '0')
+    Env.env.set(device, '1')
+    this._DEFAULT = device
     return device
   }
 }
@@ -61,10 +70,10 @@ export const uop_buffer = (uop: UOp): Buffer => {
     return uop_buffer(uop.src[0])
   }
   if (uop.op !== Ops.BUFFER) throw new Error(`must be BUFFER ${uop.op}`)
-  if (buffers.has(uop)) return buffers.get(uop)!
+  if (uop._buf) return uop._buf
   if (Array.isArray(uop.device)) throw new Error(`buffer not supported on multi ${uop.device}`)
   const ret = new Buffer(uop.device, uop.size, uop.dtype instanceof ImageDType ? uop.dtype : uop.dtype.base)
-  buffers.set(uop, ret)
+  uop._buf = ret
   return ret
 }
 export const uop_realized = (uop: UOp): Buffer | undefined => {
@@ -90,7 +99,7 @@ export class Buffer<Buf extends object = object> {
     public dtype: DType,
     opaque?: any,
     public options?: BufferSpec,
-    initial_value?: Uint8Array,
+    initial_value?: MemoryView,
     lb_refcount = 0,
     base?: Buffer<Buf>,
     public offset = 0,
@@ -104,7 +113,7 @@ export class Buffer<Buf extends object = object> {
       if (opaque !== undefined) this.allocate(opaque)
       if (initial_value !== undefined) {
         this.allocate()
-        this.copyin(new MemoryView(initial_value))
+        this.copyin(initial_value)
       }
     } else {
       if (base._base !== undefined) throw new Error("base can't have a base")
@@ -130,8 +139,8 @@ export class Buffer<Buf extends object = object> {
     }
     if (this._base !== undefined) {
       this._base.ensure_allocated()
-      if (!this.allocator || !('_offset' in this.allocator)) throw new Error('offset function required for view')
-      this._buf = (this.allocator._offset as any)(this.base._buf, this.nbytes, this.offset)
+      if (!this.allocator || !this.allocator._offset) throw new Error('offset function required for view')
+      this._buf = this.allocator._offset(this.base._buf!, this.nbytes, this.offset)
     } else {
       this._buf = opaque !== undefined ? opaque : this.allocator?.alloc(this.nbytes, this.options)
       Buffer.register.register(this, { _buf: this._buf, allocator: this.allocator, size: this.nbytes, options: this.options })
@@ -156,9 +165,9 @@ export class Buffer<Buf extends object = object> {
   }
   as_buffer = async (allowZeroCopy = false, forceZeroCopy = false): Promise<MemoryView> => {
     // zero copy with as_buffer (disabled by default due to use after free)
-    if ((forceZeroCopy || allowZeroCopy) && this.allocator && '_asBuffer' in this.allocator && (this.options === undefined || this.options.image === undefined)) return (this.allocator._asBuffer as any)(this._buf)
+    if ((forceZeroCopy || allowZeroCopy) && this.allocator && this.allocator._as_buffer && (this.options === undefined || this.options.image === undefined)) return this.allocator._as_buffer(this._buf!)
     if (forceZeroCopy) throw new Error('force zero copy was passed, but copy is required')
-    return await this.copyout(new MemoryView(new Uint8Array(this.nbytes)))
+    return await this.copyout(new MemoryView(this.nbytes))
   }
   copyin = (mv: MemoryView): Buf => {
     mv = mv.flat()
@@ -192,12 +201,12 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   // for CI GPU and OSX, cl_khr_fp16 isn't supported
   // for CI LLVM, it segfaults because it can't link to the casting function
   // CI CUDA architecture is sm_35 but we need at least sm_70 to run fp16 ALUs
-  // PYTHON supports half memoryview in 3.12+ https://github.com/python/cpython/issues/90751
+  // JS supports half memoryview in 3.12+ https://github.com/python/cpython/issues/90751
   if (dtype === dtypes.half) {
     if (device === 'GPU') return !CI && !OSX
     if (['CUDA', 'NV'].includes(device)) return !CI
     if (device === 'LLVM') return OSX
-    // if device === "PYTHON": return sys.version_info >= (3, 12)
+    // if device === "JS": return sys.version_info >= (3, 12)
   }
   if (dtype === dtypes.float64) return device !== 'METAL' && !(OSX && device === 'GPU')
   return true

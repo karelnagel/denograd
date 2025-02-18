@@ -336,16 +336,16 @@ export const get_shape = (x: any): number[] => {
   if (!all_same(subs)) throw new Error(`inhomogeneous shape from ${x}`)
   return [subs.length, ...(subs.length ? subs[0] : [])]
 }
-export const _frompy = (x: any[] | Uint8Array, dtype: DType): UOp => {
+export const _frompy = (x: ConstType[] | Uint8Array, dtype: DType): UOp => {
   let ret, data
-  if (x instanceof Uint8Array) [ret, data] = [UOp.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'PYTHON'), x]
+  if (x instanceof Uint8Array) [ret, data] = [UOp.metaop(Ops.EMPTY, [idiv(x.length, dtype.itemsize)], dtype, 'JS'), x]
   else {
-    ret = UOp.metaop(Ops.EMPTY, get_shape(x), dtype, 'PYTHON')
+    ret = UOp.metaop(Ops.EMPTY, get_shape(x), dtype, 'JS')
     if (dtype.fmt === undefined) throw new Error(`${dtype} has undefined fmt`)
-    data = new MemoryView(fully_flatten(x), { fmt: dtype.fmt })
+    data = MemoryView.fromArray(fully_flatten(x), dtype.fmt)
   }
   //   // fake realize
-  uop_buffer(ret)!.allocate(new MemoryView(data as Uint8Array, { fmt: 'B' }))
+  uop_buffer(ret)!.allocate(data instanceof Uint8Array ? new MemoryView(data, { fmt: 'B' }) : data)
   return ret.buf_uop_view()
 }
 
@@ -589,7 +589,7 @@ export class Tensor extends MathTrait<Tensor> {
     return new Tensor(this.lazydata.detach(), { device: this.device, requires_grad: false })
   }
   _data = async (): Promise<MemoryView> => {
-    if (this.shape.includes(0)) return new MemoryView(new Uint8Array(0))
+    if (this.shape.includes(0)) return new MemoryView(0)
     // NOTE: this realizes on the object from as_buffer being a Python object
     const cpu = await this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).realize()
     const buf = uop_realized((cpu.lazydata as UOp).base)
@@ -773,7 +773,7 @@ export class Tensor extends MathTrait<Tensor> {
   static _threefry_random_bits = (key: Tensor, counts0: Tensor, counts1: Tensor) => {
     let x = (counts1.cast(dtypes.uint64).lshift(32)).bitwise_or(counts0.cast(dtypes.uint64))
     x = Threefry.apply(x, (key.get(1)._broadcast_to(x.shape).cast(dtypes.uint64).lshift(32)).bitwise_or(key.get(0)._broadcast_to(x.shape).cast(dtypes.uint64)))
-    ;[counts0, counts1] = [(x.bitwise_and(0xffffffff)).cast(dtypes.uint32), ((x.rshift(32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)]
+    counts0 = (x.bitwise_and(0xffffffff)).cast(dtypes.uint32), counts1 = ((x.rshift(32)).bitwise_and(0xffffffff)).cast(dtypes.uint32)
     return counts0.cat([counts1])
   }
 
@@ -828,7 +828,8 @@ export class Tensor extends MathTrait<Tensor> {
     const one = bits.ones_like({ device: bits.device, dtype: dtype }).bitcast(uint_dtype!)
     bits = bits.rshift((dtype.itemsize * 8) - nmant).bitwise_or(one)
     // bitcast back to the original dtype && reshape
-    let out = bits.bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
+    // KAREL: this contiguous() fixes rand() for WASM, why?
+    let out = bits.contiguous().bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
 
     // move back to the original device if we were using MOCKGPU
     if (get_env('MOCKGPU') && _device) out = out.to(_device)

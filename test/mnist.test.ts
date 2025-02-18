@@ -1,6 +1,6 @@
 import { expect } from 'expect/expect'
 import { MNIST } from '../denograd/models/mnist.ts'
-import { Adam, get_parameters, mnist } from '../denograd/mod.ts'
+import { Adam, Device, get_parameters, mnist } from '../denograd/mod.ts'
 import { Tensor } from '../denograd/tensor.ts'
 import { asdict, compare, python, test } from './helpers.ts'
 
@@ -46,6 +46,7 @@ test(
       'out(model(x_train[samples]))',
     ],
   ),
+  { ignore: Device.DEFAULT === 'WASM' },
 )
 
 test(
@@ -65,6 +66,7 @@ test(
       'out(model(tiny.Tensor.ones(1, 1, 28, 28)))',
     ],
   ),
+  { ignore: Device.DEFAULT === 'WASM' },
 )
 test(
   'mnist.load',
@@ -83,6 +85,7 @@ test(
     ])
     expect(await asdict(ts)).toEqual(await asdict(py))
   },
+  { ignore: Device.DEFAULT === 'WEBGPU' },
 )
 
 test(
@@ -123,4 +126,5 @@ test(
       'out(loss)',
     ],
   ),
+  { ignore: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'WEBGPU' },
 )

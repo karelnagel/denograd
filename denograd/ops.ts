@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, WeakKeyMap, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -243,13 +243,12 @@ export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop i
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
-export const buffers = new WeakKeyMap<UOp, Buffer>()
-export const all_metadata = new WeakKeyMap<UOp, Metadata>()
-
 export class UOp extends MathTrait<UOp> {
   static cache = new WeakValueMap<string, UOp>()
   key: string
   children = new WeakValueMap<string, UOp>()
+  _buf?: Buffer
+  _metadata?: Metadata
   constructor(public op: Ops, public dtype = dtypes.void, public src: UOp[] = [], public arg?: any, _buffer?: Buffer) {
     super()
     this.key = get_key(this.op, this.dtype, this.arg, this.src)
@@ -265,14 +264,13 @@ export class UOp extends MathTrait<UOp> {
     for (const s of src) s.children.set(this.key, this)
     // NOTE: this will soon be set by Tensor once we remove function.py
     const metadata = _METADATA.get()
-    if (metadata !== undefined) all_metadata.set(this, metadata)
+    if (metadata !== undefined) this._metadata = metadata
     // NOTE: this value is set by pickle when pickling a realized tensor
     if (_buffer !== undefined) {
       if (op !== Ops.BUFFER) throw new Error(`trying to set Buffer ${_buffer} for ${op}`)
-      buffers.set(this, _buffer)
+      this._buf = _buffer
     }
     UOp.cache.set(this.key, this)
-    Object.freeze(this)
   }
   override toString(): string {
     const src = !this.src ? 'undefined' : this.src.length === 0 ? '[]' : `[\n${this.src.map((s) => s.toString()).join(',\n').split('\n').map((s) => '  ' + s).join('\n')}\n]`
@@ -532,7 +530,7 @@ export class UOp extends MathTrait<UOp> {
   }
   clone = (): UOp => this.copy_to_device(this.device, true)
   get metadata() {
-    return all_metadata.get(this)
+    return this._metadata
   }
 
   // *** uop movement ops ***

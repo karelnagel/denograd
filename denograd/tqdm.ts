@@ -1,7 +1,7 @@
 // https://github.com/thesephist/tsqdm/blob/main/src/tqdm.ts
 
 import { Env } from './env/index.ts'
-import { string_to_bytes } from './helpers.ts'
+import { memsize_to_str, string_to_bytes } from './helpers.ts'
 
 type RenderBarOptions = {
   i: number
@@ -29,7 +29,7 @@ function renderBarWithSize({ i, label, size, width, elapsed }: RenderBarOptions 
   const rate = i / elapsed
   const remaining = (size - i) / rate
   const percent = i / size * 100
-  const graph = `${label ? label + ': ' : ''}${percent.toFixed(1)}% |${bar}${gap}| ${i}/${size} | ${elapsed.toFixed(2)}>${remaining.toFixed(2)}s ${rate.toFixed(2)}it/s`
+  const graph = `${label ? label + ': ' : ''}${percent.toFixed(1)}% |${bar}${gap}| ${i}/${size} | ${elapsed.toFixed(2)}>${remaining.toFixed(2)}s ${rate.toFixed(2)}it/s | Memory: ${memsize_to_str(Deno.memoryUsage().rss)}`
   if (graph === '' && n > 0) return '▏'
   return graph
 }
