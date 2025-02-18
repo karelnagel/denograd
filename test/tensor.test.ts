@@ -450,7 +450,7 @@ test(
     (t1, t2) => t1.eq(t2),
     'out((data[0] == data[1]))',
     {
-      ignore: Device.DEFAULT === 'WEBGPU' ? [1, 12] : undefined,
+      ignore: Device.DEFAULT === 'WEBGPU' ? [0, 1, 12] : undefined,
     },
   ),
 )

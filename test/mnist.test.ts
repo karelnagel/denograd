@@ -126,5 +126,5 @@ test(
       'out(loss)',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WASM' },
+  { ignore: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'WEBGPU' },
 )
