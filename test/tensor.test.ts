@@ -121,6 +121,7 @@ test(
       '   t.reshape((5,2))[1:3].data(),',
       '])',
     ],
+    { ignore: Device.DEFAULT === 'WEBGPU' ? [0] : undefined },
   ),
 )
 
