@@ -1,13 +1,14 @@
 // deno-lint-ignore-file no-invalid-regexp
 import { encoding_for_model, get_encoding, type Tiktoken } from 'npm:tiktoken'
-import { GlobalCounters, range, sum, zip } from '../helpers.ts'
+import { GlobalCounters, range, zip } from '../helpers.ts'
 import { Device, type DeviceType } from '../device.ts'
 import { Tensor } from '../tensor.ts'
-import { get_parameters, get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/state.ts'
+import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/state.ts'
 import { dtypes } from '../dtype.ts'
 import { convert_from_gguf, convert_from_huggingface, fix_bf16, Transformer } from './llama.ts'
 import { Linear } from '../nn/index.ts'
-import { parseArgs } from 'jsr:@std/cli'
+import { parseArgs } from '../zod-cli.ts'
+import z from 'npm:zod'
 
 class Tokenizer {
   pat_str = new RegExp("(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+")
@@ -15,7 +16,7 @@ class Tokenizer {
   special_tokens: Record<string, number>
   model: Tiktoken
   constructor(model_path: string) {
-    // should be model_path instead of gpt-4
+    // TODO: should be model_path instead of gpt-4
     const mergeable_ranks = encoding_for_model('gpt-4').token_byte_values()
     this.num_base_tokens = mergeable_ranks.length
     const special_tokens = [
@@ -230,15 +231,29 @@ const prefill = async (model: Transformer, toks: number[], start_pos = 0, device
 }
 
 if (import.meta.main) {
+  const args = parseArgs(
+    Deno.args,
+    z.object({
+      download_model: z.boolean().optional().describe('Download a model'),
+      model: z.string().optional().describe('Model path'),
+      size: z.enum(['1B', '8B', '70B']).default('1B').describe('Model size'),
+      shard: z.number().int().default(1).describe('Shard the model across multiple devices'),
+      quantize: z.enum(['int8', 'nf4', 'float16']).optional().describe('Quantization method'),
+      seed: z.number().optional().describe('Random seed'),
+      temperature: z.number().default(0.85).describe('Temperature'),
+    }).describe('Run Llama 3 locally, supported sizes: 1B, 8B and 70B'),
+  )
   Tensor.no_grad = true
-  const args = parseArgs(Deno.args, {
-    boolean: ['download-model'],
-    string: ['model', 'size', 'shard', 'quantize', 'seed', 'temperature'],
-    default: { size: '1B', shard: '1', temperature: '0.85' },
-  })
 
   // download_model is the default without a model passed in
-  const fetchSave = async (url: string, path: string, dir: string) => await fetch(url).then((x) => x.arrayBuffer()).then((x) => Deno.writeFile(`${dir}/${path}`, new Uint8Array(x))).then((x) => `${dir}/${path}`)
+  const fetchSave = async (url: string, path: string, dir: string) => {
+    path = `${dir}/${path}`
+    if ((await Deno.stat(path)).isFile) return path
+    const data = await fetch(url).then((x) => x.arrayBuffer())
+    await Deno.mkdir(dir, { recursive: true })
+    await Deno.writeFile(path, new Uint8Array(data))
+    return path
+  }
   if (args.download_model || !args.model) {
     if (args.size === '1B') {
       await fetchSave('https://huggingface.co/bofenghuang/Meta-Llama-3-8B/resolve/main/original/tokenizer.model', 'tokenizer.model', 'llama3-1b-instruct')
@@ -275,7 +290,7 @@ if (import.meta.main) {
 
   const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` as DeviceType) : Device.DEFAULT
   const model = await build_transformer(args.model, args.size as any, args.quantize as any, device)
-  const param_bytes = sum(get_parameters(model).map((x) => x.lazydata.size * x.dtype.itemsize))
+  // const param_bytes = sum(get_parameters(model).map((x) => x.lazydata.size * x.dtype.itemsize))
 
   const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
 
@@ -287,9 +302,6 @@ if (import.meta.main) {
     let last_tok = toks.at(-1)
     while (true) {
       GlobalCounters.reset()
-      if (args.timing || args.profile) console.log('')
-      const st = GlobalCounters.time_sum_s
-
       const out = await model.call(new Tensor([[last_tok]], { device: device }), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)
       const tok = await out.item()
       start_pos += 1
