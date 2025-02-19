@@ -248,25 +248,30 @@ if (import.meta.main) {
   // download_model is the default without a model passed in
   const fetchSave = async (url: string, path: string, dir: string) => {
     path = `${dir}/${path}`
-    if ((await Deno.stat(path)).isFile) return path
-    const data = await fetch(url).then((x) => x.arrayBuffer())
     await Deno.mkdir(dir, { recursive: true })
+    if (await Deno.stat(path).then((x) => x.isFile).catch(() => false)) {
+      console.log(`File ${path} already exists, skipping`)
+      return path
+    }
+    console.log(`Downloading into ${path}`)
+    const data = await fetch(url).then((x) => x.arrayBuffer())
     await Deno.writeFile(path, new Uint8Array(data))
     return path
   }
+
   if (args.download_model || !args.model) {
     if (args.size === '1B') {
-      await fetchSave('https://huggingface.co/bofenghuang/Meta-Llama-3-8B/resolve/main/original/tokenizer.model', 'tokenizer.model', 'llama3-1b-instruct')
-      args.model = await fetchSave('https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q6_K.gguf', 'Llama-3.2-1B-Instruct-Q6_K.gguf', 'llama3-1b-instruct')
+      await fetchSave('https://huggingface.co/bofenghuang/Meta-Llama-3-8B/resolve/main/original/tokenizer.model', 'tokenizer.model', 'weights/llama3-1b-instruct')
+      args.model = await fetchSave('https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q6_K.gguf', 'Llama-3.2-1B-Instruct-Q6_K.gguf', 'weights/llama3-1b-instruct')
     } else if (args.size === '8B') {
-      await fetchSave('https://huggingface.co/bofenghuang/Meta-Llama-3-8B/resolve/main/original/tokenizer.model', 'tokenizer.model', 'llama3-8b-sfr')
-      await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/resolve/main/model-00001-of-00004.safetensors', 'model-00001-of-00004.safetensors', 'llama3-8b-sfr')
-      await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/resolve/main/model-00002-of-00004.safetensors', 'model-00002-of-00004.safetensors', 'llama3-8b-sfr')
-      await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/resolve/main/model-00003-of-00004.safetensors', 'model-00003-of-00004.safetensors', 'llama3-8b-sfr')
-      await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/resolve/main/model-00004-of-00004.safetensors', 'model-00004-of-00004.safetensors', 'llama3-8b-sfr')
-      args.model = await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/raw/main/model.safetensors.index.json', 'model.safetensors.index.json', 'llama3-8b-sfr')
+      await fetchSave('https://huggingface.co/bofenghuang/Meta-Llama-3-8B/resolve/main/original/tokenizer.model', 'tokenizer.model', 'weights/llama3-8b-sfr')
+      await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/resolve/main/model-00001-of-00004.safetensors', 'model-00001-of-00004.safetensors', 'weights/llama3-8b-sfr')
+      await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/resolve/main/model-00002-of-00004.safetensors', 'model-00002-of-00004.safetensors', 'weights/llama3-8b-sfr')
+      await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/resolve/main/model-00003-of-00004.safetensors', 'model-00003-of-00004.safetensors', 'weights/llama3-8b-sfr')
+      await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/resolve/main/model-00004-of-00004.safetensors', 'model-00004-of-00004.safetensors', 'weights/llama3-8b-sfr')
+      args.model = await fetchSave('https://huggingface.co/TriAiExperiments/SFR-Iterative-DPO-LLaMA-3-8B-R/raw/main/model.safetensors.index.json', 'model.safetensors.index.json', 'weights/llama3-8b-sfr')
     } else if (args.size === '70B') {
-      const subdir = 'DeepSeek-R1-Distill-Llama-70B'
+      const subdir = 'weights/DeepSeek-R1-Distill-Llama-70B'
       args.model = await fetchSave('https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-70B/resolve/main/model.safetensors.index.json?download=true', 'model.safetensors.index.json', subdir)
       await fetchSave('https://huggingface.co/bofenghuang/Meta-Llama-3-8B/resolve/main/original/tokenizer.model', 'tokenizer.model', subdir)
       for (const i of range(17)) {

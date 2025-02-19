@@ -12,3 +12,4 @@ __pycache__/
 denograd.js
 denograd.mjs
 package-lock.json
+weights/
