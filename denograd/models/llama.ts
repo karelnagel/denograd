@@ -46,7 +46,7 @@ export class Attention {
 
   wqkv?: Tensor
   cache_kv?: Tensor
-  constructor(dim: number, public n_heads: number, n_kv_heads: number, public max_context: number, linear = Linear) {
+  constructor(dim: number, public n_heads: number, n_kv_heads: number | undefined, public max_context: number, linear = Linear) {
     this.n_kv_heads = n_kv_heads !== undefined ? n_kv_heads : n_heads // n_kv_heads != n_heads implies MQA [arxiv/2307.09288, A.2.1]
     this.head_dim = idiv(dim, n_heads)
     this.n_rep = idiv(this.n_heads, this.n_kv_heads)
@@ -113,7 +113,7 @@ export class TransformerBlock {
   feed_forward: FeedForward
   attention_norm: RMSNorm
   ffn_norm: RMSNorm
-  constructor(dim: number, hidden_dim: number, n_heads: number, n_kv_heads: number, norm_eps: number, max_context: number, linear = Linear, feed_forward = FeedForward) {
+  constructor(dim: number, hidden_dim: number, n_heads: number, n_kv_heads: number | undefined, norm_eps: number, max_context: number, linear = Linear, feed_forward = FeedForward) {
     this.attention = new Attention(dim, n_heads, n_kv_heads, max_context, linear)
     this.feed_forward = new feed_forward(dim, hidden_dim, linear)
     this.attention_norm = new RMSNorm(dim, norm_eps)
@@ -193,7 +193,7 @@ export class Transformer {
   max_context: number
   freqs_cis: Tensor
   forward_jit: any = undefined
-  constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, n_kv_heads: number, rope_theta = 10000, max_context = 1024, jit = true, feed_forward = FeedForward) {
+  constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, n_kv_heads?: number, rope_theta = 10000, max_context = 1024, jit = true, feed_forward = FeedForward) {
     this.layers = range(n_layers).map(() => new TransformerBlock(dim, hidden_dim, n_heads, n_kv_heads, norm_eps, max_context, linear, feed_forward))
     this.norm = new RMSNorm(dim, norm_eps)
     this.tok_embeddings = new Embedding(vocab_size, dim)
@@ -226,7 +226,7 @@ export class Transformer {
 }
 // # *** helpers ***
 
-export const convert_from_huggingface = (weights: Record<string, Tensor>, model: Transformer, n_heads: number, n_kv_heads: number, permute_layers: true) => {
+export const convert_from_huggingface = (weights: Record<string, Tensor>, model: Transformer, n_heads: number, n_kv_heads: number, permute_layers = true) => {
   const permute = (v: Tensor, n_heads: number) => {
     return v.reshape([n_heads, 2, idiv(idiv(v.shape[0], n_heads), 2), v.shape[1]]).transpose(1, 2).reshape(v.shape.slice(0, 2))
   }

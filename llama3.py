@@ -254,7 +254,6 @@ if __name__ == "__main__":
   assert args.model is not None, "please provide --model option"
 
   if args.seed is not None: Tensor.manual_seed(args.seed)
-  if args.benchmark: Tensor.manual_seed(42)
   print(f"seed = {Tensor._seed}")
   TEMPERATURE = args.temperature
 
