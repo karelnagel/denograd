@@ -277,7 +277,7 @@ export const convert_from_gguf = (weights: Record<string, Tensor>, model: Transf
 export const fix_bf16 = (weights: Record<string, Tensor>) => {
   if (get_number_env('SUPPORT_BF16', 1)) {
     // TODO: without casting to float16, 70B llama OOM on tinybox.
-    return Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.dtype === dtypes.bfloat16 ? v.cast(dtypes.float16) : v]))
+    return Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.dtype === dtypes.bfloat16 ? v.cast(dtypes.float32).cast(dtypes.float16) : v]))
   }
   // TODO: check if device supports bf16
   return Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.dtype === dtypes.bfloat16 ? v.llvm_bf16_cast(dtypes.half).to(v.device) : v]))
