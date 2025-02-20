@@ -48,6 +48,13 @@ export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, n
   const data_start = (await t.get({ start: 0, stop: 8 }).data()).cast('i').getValue(0) + 8
   return [t, data_start, JSON.parse(bytes_to_string((await t.get({ start: 8, stop: data_start }).data()).bytes))]
 }
+
+const accept_filename = async (fn: Tensor | string): Promise<Tensor> => {
+  if (typeof fn === 'string') {
+    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: Env.CPU_DEVICE }) : new Tensor(fn)
+  }
+  return fn
+}
 /**
  * Loads a .safetensor file from disk, returning the state_dict.
  *
@@ -56,9 +63,7 @@ export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, n
  * ```
  */
 export const safe_load = async (fn: Tensor | string): Promise<Record<string, Tensor>> => {
-  if (typeof fn === 'string') {
-    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: Env.CPU_DEVICE }) : new Tensor(fn)
-  }
+  fn = await accept_filename(fn)
   const [t, data_start, metadata] = await safe_load_metadata(fn)
   const data = t.get({ start: data_start })
   return Object.fromEntries(
@@ -218,10 +223,14 @@ export const ggml_data_to_tensor = (t: Tensor, n: number, ggml_type: number): Te
  * kv_data, state_dict = gguf_load(gguf_tensor)
  * ```
  */
-export const gguf_load = async (tensor: Tensor): Promise<[Record<string, any>, Record<string, Tensor>]> => {
+export const gguf_load = async (tensor: Tensor | string): Promise<[Record<string, any>, Record<string, Tensor>]> => {
+  tensor = await accept_filename(tensor)
   const reader = new TensorIO(tensor)
   const kv_data: Record<string, any> = {}, state_dict: Record<string, any> = {}
-  const read_unpack = async (fmt: FmtStr, n: number) => (await reader.read(n)).convert(fmt)
+  const read_unpack = async (fmt: FmtStr, n: number) => {
+    console.log(fmt)
+    return (await reader.read(n)).cast(fmt)
+  }
   const read_str = async () => bytes_to_string((await reader.read(await read_uint64())).bytes)
   const read_arr = async () => {
     const reader = readers[await read_int32()], n = await read_uint64()
