@@ -71,7 +71,12 @@ export class CStyleLanguage extends Renderer {
   code_for_workitem: Record<string, (...x: any[]) => string> = {} as any
   extra_args: string[] = []
   float4?: string
-  type_map: Map<DType, string> = new Map()
+  _type_map: Map<DType, string> = new Map()
+  get_dtype = (dtype: DType) => {
+    const res = this._type_map.get(dtype)
+    if (res) return res
+    throw new Error(`DType ${dtype} not supported`)
+  }
   infinity = 'INFINITY'
   nan = 'NAN'
   r?: Map<UOp, string>
@@ -111,7 +116,7 @@ export class CStyleLanguage extends Renderer {
     if (dt instanceof ImageDType) return `${mutable ? 'write_only' : 'read_only'} image2d_t`
     if (dt instanceof PtrDType) return (dt.local && this.smem_prefix_for_cast ? this.smem_prefix : this.buffer_prefix) + this.render_dtype(dt.base) + '*'
     const scalar = dt.scalar()
-    return (this.type_map.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
+    return (this._type_map.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
   }
   bufs?: Map<UOp, Buf>
   get = (key: UOp) => this.r?.get(key) // hacky helper
@@ -211,7 +216,6 @@ export class ClangRenderer extends CStyleLanguage {
 
   // language options
   override buffer_suffix = ' restrict'
-  override type_map = new Map([[dtypes.bool, '_Bool'], [dtypes.half, '__fp16']])
   override code_for_op = new Map<Ops, (...args: (string | DType)[]) => string>([
     ...new CStyleLanguage().code_for_op.entries().filter(([k, v]) => ![Ops.EXP2, Ops.SIN, Ops.LOG2].includes(k)),
     [Ops.SQRT, (x: any, dtype: any) => dtype === dtypes.float64 ? `__builtin_sqrt(${x})` : `__builtin_sqrtf(${x})`],

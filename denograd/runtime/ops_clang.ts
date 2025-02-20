@@ -6,12 +6,8 @@ import type { MemoryView } from '../memoryview.ts'
 import { Env } from '../env/index.ts'
 
 export class ClangCompiler extends Compiler {
-  args
-  objdumpTool
-  constructor(cachekey = 'compile_clang', args?: string[], objdumpTool = 'objdump') {
+  constructor(cachekey = 'compile_clang', public args: string[] = ['-march=native'], public objdumpTool = 'objdump') {
     super(cachekey)
-    this.args = args === undefined ? ['-march=native'] : args
-    this.objdumpTool = objdumpTool
   }
 
   override compile = (src: string): Uint8Array => {
