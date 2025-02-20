@@ -7,7 +7,7 @@ import { Tensor } from '../tensor.ts'
 // https://github.com/facebookresearch/llama/blob/1076b9c51c77ad06e9d7ba8a4c6df775741732bd/llama/model.py#L47
 const precompute_freqs_cis = (dim: number, end: number, theta = 10000.0): Tensor => {
   let freqs = Tensor.arange(0, dim, 2).get({ stop: idiv(dim, 2) }).div(dim).pow(theta, true).div(1.0, true)
-  freqs = Tensor.arange(end).unsqueeze(dim = 1).mul(freqs.unsqueeze(0))
+  freqs = Tensor.arange(end).unsqueeze(1).mul(freqs.unsqueeze(0))
   return Tensor.stack([freqs.cos(), freqs.sin()], -1).reshape([1, end, 1, idiv(dim, 2), 2])
 }
 
@@ -190,15 +190,13 @@ export class Transformer {
   norm: RMSNorm
   tok_embeddings: Embedding
   output: Linear
-  max_context: number
   freqs_cis: Tensor
   forward_jit: any = undefined
-  constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, n_kv_heads?: number, rope_theta = 10000, max_context = 1024, jit = true, feed_forward = FeedForward) {
+  constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, n_kv_heads?: number, rope_theta = 10000, public max_context = 1024, jit = true, feed_forward = FeedForward) {
     this.layers = range(n_layers).map(() => new TransformerBlock(dim, hidden_dim, n_heads, n_kv_heads, norm_eps, max_context, linear, feed_forward))
     this.norm = new RMSNorm(dim, norm_eps)
     this.tok_embeddings = new Embedding(vocab_size, dim)
     this.output = new Linear(dim, vocab_size, false)
-    this.max_context = max_context
     this.freqs_cis = precompute_freqs_cis(idiv(dim, n_heads), this.max_context * 2, rope_theta).contiguous()
     // this.forward_jit = jit ? TinyJit(this.forward) : undefined
   }

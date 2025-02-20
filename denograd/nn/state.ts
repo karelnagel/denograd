@@ -1,7 +1,26 @@
-import { dtypes } from '../dtype.ts'
+import { dtypes, type FmtStr } from '../dtype.ts'
 import { Env } from '../env/index.ts'
-import { bytes_to_string, DEBUG, is_eq, isinstance, NotImplemented, round_up, string_to_bytes } from '../helpers.ts'
+import { bytes_to_string, DEBUG, idiv, is_eq, isinstance, NotImplemented, prod, range, round_up, string_to_bytes } from '../helpers.ts'
+import { MemoryView } from '../memoryview.ts'
 import { Tensor } from '../tensor.ts'
+
+class TensorIO {
+  constructor(public _tensor: Tensor, public _position = 0) {
+    if (_tensor.ndim !== 1 || _tensor.dtype !== dtypes.uint8) throw new Error('Tensor must be 1d and of dtype uint8!')
+  }
+  readable = () => true
+  read = async (size: number): Promise<MemoryView> => {
+    const buffer = new MemoryView(Number(size))
+    const data = await this._tensor.get({ start: this._position, stop: this._position + buffer.length }).data()
+    buffer.set(data.bytes)
+    this._position += data.length
+    return buffer
+  }
+  seek = (offset: number, whence: number = 0): number => {
+    this._position = Math.min(this._tensor.length, Math.max(0, [offset, this._position + offset, this._tensor.length + offset][whence]))
+    return this._position
+  }
+}
 
 const safe_dtypes = {
   'BOOL': dtypes.bool,
@@ -150,10 +169,87 @@ export const tar_extract = (t: Tensor): Record<string, Tensor> => {
   throw new NotImplemented()
 }
 
+/**
+ * Converts ggml tensor data to a tinygrad tensor.
+ *
+ * Supported native types: float32 (id: 0), float16 (id: 1), int8 (id: 16), int16 (id: 17), int32 (id: 18)
+ * Supported quantized types: Q4_0 (id: 2), Q4_1 (id: 3), Q8_0 (id: 8), Q6_K (id: 14)
+ */
+// https://github.com/ggerganov/ggml/blob/6dccc647264f5429df2624f36138f601e7ce23e5/include/ggml.h#L356
 export const ggml_data_to_tensor = (t: Tensor, n: number, ggml_type: number): Tensor => {
-  throw new NotImplemented()
+  // native types
+  const dtype = { 0: dtypes.float32, 1: dtypes.float16, 16: dtypes.int8, 17: dtypes.int16, 18: dtypes.int32 }[ggml_type]
+  if (dtype !== undefined) {
+    return t.get({ stop: dtype.itemsize * n }).bitcast(dtype)
+  }
+
+  const q_to_uint8 = (t: Tensor, b: number): Tensor => {
+    // TODO: rewrite with arange?
+    const shift_tensor = Tensor.stack(range(idiv(8, b)).map((i) => new Tensor(2 ** (i * b), { device: t.device, dtype: t.dtype }))), bitmask = 0xff >> (8 - b)
+    return t.unsqueeze(-1).expand([...t.shape, idiv(8, b)]).idiv(shift_tensor).bitwise_and(bitmask).transpose(-1, -2).flatten(-2)
+  }
+
+  // map to (number of elements, number of bytes)
+  const nelements_nbytes = { 2: [32, 18], 3: [32, 20], 14: [256, 210], 8: [32, 34] }[ggml_type]
+  if (nelements_nbytes !== undefined) {
+    const blocks = t.get({ stop: idiv(n, nelements_nbytes[0]) * nelements_nbytes[1] }).reshape([-1, nelements_nbytes[1]])
+    if (ggml_type === 2) return (q_to_uint8(blocks.get({ stop: 2 }), 4).bitcast(dtypes.int8).sub(8)).mul(blocks.get({ step: 2 }).bitcast(dtypes.float16).cast(dtypes.float32))
+    if (ggml_type === 3) {
+      const [d, m] = [0, 2].map((s) => blocks.get({}, { start: s, stop: s + 2 }).bitcast(dtypes.float16).cast(dtypes.float32))
+      return q_to_uint8(blocks.get({ stop: 4 }), 4).bitcast(dtypes.int8).mul(d).add(m)
+    }
+    if (ggml_type === 8) return blocks.get({}, { stop: 2 }).bitcast(dtypes.float16).cast(dtypes.float32).mul(blocks.get({}, { start: 2 }).bitcast(dtypes.int8))
+    if (ggml_type === 14) {
+      const xl = q_to_uint8(blocks.get({}, { stop: 128 }).reshape([-1, 2, 64]), 4), xh = q_to_uint8(blocks.get({}, { start: 128, stop: 192 }).reshape([-1, 2, 32]), 2).lshift(4)
+      const scales = blocks.get({}, { start: 192, stop: 208 }).bitcast(dtypes.int8).unsqueeze(-1).expand([-1, 16, 16]).reshape([-1, 256])
+      const d = blocks.get({}, { start: -1 }).bitcast(dtypes.float16).cast(dtypes.float32).expand([-1, 256])
+      return d.mul(xl.bitwise_or(xh).bitcast(dtypes.int8).sub(32)).flatten(-2).mul(scales)
+    }
+  }
+  throw new Error(`GGML type '${ggml_type}' is not supported!`)
 }
 
-export const gguf_load = (tensor: Tensor): [Record<string, any>, Record<string, Tensor>] => {
-  throw new NotImplemented()
+/**
+ * Loads a gguf file from a tensor.
+ *
+ * ```python
+ * fn = "Meta-Llama-3-8B-Instruct.Q4_0.gguf"
+ * gguf_tensor = Tensor.empty(os.stat(fn).st_size, dtype=dtypes.uint8, device=f"disk:{fn}").to(Device.DEFAULT)
+ * kv_data, state_dict = gguf_load(gguf_tensor)
+ * ```
+ */
+export const gguf_load = async (tensor: Tensor): Promise<[Record<string, any>, Record<string, Tensor>]> => {
+  const reader = new TensorIO(tensor)
+  const kv_data: Record<string, any> = {}, state_dict: Record<string, any> = {}
+  const read_unpack = async (fmt: FmtStr, n: number) => (await reader.read(n)).convert(fmt)
+  const read_str = async () => bytes_to_string((await reader.read(await read_uint64())).bytes)
+  const read_arr = async () => {
+    const reader = readers[await read_int32()], n = await read_uint64()
+    return range(n).map(() => reader())
+  }
+  const readers: Record<number, () => Promise<any>> = {
+    8: read_str,
+    9: read_arr,
+    ...Object.fromEntries([[0, 'c', 1], [1, 'b', 1], [2, 'H', 2], [3, 'h', 2], [4, 'I', 4], [5, 'i', 4], [6, 'f', 4], [7, '?', 1], [10, 'Q', 8], [11, 'q', 8], [12, 'd', 8]].map(([t, f, nb]) => [t, read_unpack(f as FmtStr, nb as number)])),
+  }
+  const read_uint32 = readers[4], read_int32 = readers[5], read_uint64 = readers[10], read_int64 = readers[11]
+
+  const magic = await reader.read(4), version = await read_int32(), n_tensors = await read_int64(), n_kv = await read_int64()
+  if (bytes_to_string(magic.bytes) !== 'GGUF' || ![2, 3].includes(version)) throw new Error('Invalid GGUF format!')
+  for (const _ in range(n_kv)) {
+    const k = await read_str(), typ = await read_int32()
+    kv_data[k] = readers[typ]()
+  }
+  const t_infos = []
+  for (const _ of range(n_tensors)) {
+    const second = []
+    for (const _ of await read_uint32()) second.push(await read_uint64())
+    t_infos.push([await read_str(), second, await read_int32(), await read_uint64()])
+  }
+  const alignment = kv_data.get('general.alignment', 32), pos = reader._position
+  const data_start = round_up(pos, alignment)
+
+  for (const [name, dims, typ, off] of t_infos) state_dict[name] = ggml_data_to_tensor(tensor.get({ start: data_start + off }), prod(dims), typ).reshape(dims.toReversed())
+
+  return [kv_data, state_dict]
 }

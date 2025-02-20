@@ -64,12 +64,12 @@ const concat_weights = (models: Record<string, Tensor>[], device?: DeviceType): 
 const load = async (fn: string): Promise<Record<string, Tensor>> => {
   if (fn.endsWith('.index.json')) {
     const fp = Deno.readTextFileSync(fn)
-    const weight_map = JSON.parse(fp)['weight_map']
-    const parts = [...new Set(weight_map.values())].map((n) => [n, load(fn + n)])
-    return Object.fromEntries(weight_map.entries().map(([k, n]: any) => [k, parts[n][k]]))
+    const weight_map: Record<string, string> = JSON.parse(fp)['weight_map']
+    const parts = Object.fromEntries(await Promise.all([...new Set(Object.values(weight_map))].map(async (n) => [n, await load(`${fn.split('/').slice(0, -1).join('/')}/${n}`)])))
+    return Object.fromEntries(Object.entries(weight_map).map(([k, n]) => [k, parts[n][k]]))
   } else if (fn.endsWith('.gguf')) {
     const gguf_tensor = Tensor.empty([Deno.statSync(fn).size], { dtype: dtypes.uint8, device: `DISK:${fn}` }).to(Device.DEFAULT)
-    return gguf_load(gguf_tensor)[1]
+    return (await gguf_load(gguf_tensor))[1]
   } else if (fn.endsWith('.safetensors')) return await safe_load(fn)
   throw new Error('invalid file')
 }
@@ -164,8 +164,7 @@ const build_transformer = async (model_path: string, model_size: keyof typeof MO
   else if (quantize === 'nf4') linear = NF4Linear(64)
   else linear = Linear
   const params = MODEL_PARAMS[model_size].args
-  const model = new Transformer(params.dim, params.hidden_dim, params.n_heads, params.n_layers, params.norm_eps, params.vocab_size, linear, undefined, undefined, 8192, true)
-
+  const model = new Transformer(params.dim, params.hidden_dim, params.n_heads, params.n_layers, params.norm_eps, params.vocab_size, linear, params.n_kv_heads, params.rope_theta, 8192, true)
   // load weights
   let weights: Record<string, Tensor>
   if (Deno.statSync(model_path).isDirectory) {
@@ -294,7 +293,7 @@ if (import.meta.main) {
   }
 
   const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` as DeviceType) : Device.DEFAULT
-  const model = await build_transformer(args.model, args.size as any, args.quantize as any, device)
+  const model = await build_transformer(args.model, args.size, args.quantize, device)
   // const param_bytes = sum(get_parameters(model).map((x) => x.lazydata.size * x.dtype.itemsize))
 
   const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
