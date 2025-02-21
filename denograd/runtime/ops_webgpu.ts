@@ -1,5 +1,5 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, cpu_time_execution, isInt, memsize_to_str, round_up } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, DEBUG, isInt, memsize_to_str, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
@@ -67,16 +67,17 @@ class WebGPUProgram extends Program {
     compute_pass.end()
 
     device.queue.submit([encoder.finish()])
-    await device.queue.onSubmittedWorkDone()
+    // TODO: remove 'if' when Deno supports this
+    if (typeof Deno === 'undefined') await device.queue.onSubmittedWorkDone()
   })
 }
 let allocated = 0, freed = 0
-// WebGPU buffers have to be 4-byte aligned
 class WebGpuAllocator extends Allocator<GPUBuffer> {
   _alloc = (size: number, options?: BufferSpec) => {
+    // WebGPU buffers have to be 4-byte aligned
     const buf = device.createBuffer({ size: round_up(size, 16), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
     allocated += buf.size
-    console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
+    if (DEBUG === 1) console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
     return buf
   }
   _copyin = (dest: GPUBuffer, src: MemoryView) => device.queue.writeBuffer(dest, 0, src.bytes)
@@ -92,7 +93,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
   _free = (opaque: GPUBuffer, options?: BufferSpec) => {
     freed += opaque.size
     opaque.destroy()
-    console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
+    if (DEBUG === 1) console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
   }
 }
 

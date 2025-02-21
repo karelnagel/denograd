@@ -345,7 +345,7 @@ export const _frompy = (x: ConstType[] | Uint8Array, dtype: DType): UOp => {
     data = MemoryView.fromArray(fully_flatten(x), dtype.fmt)
   }
   //   // fake realize
-  uop_buffer(ret)!.allocate(data instanceof Uint8Array ? new MemoryView(data, { fmt: 'B' }) : data)
+  uop_buffer(ret)!.allocate(data instanceof Uint8Array ? new MemoryView(data) : data)
   return ret.buf_uop_view()
 }
 
