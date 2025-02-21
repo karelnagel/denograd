@@ -42,7 +42,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
   // Just like your code; constructor with shape support added at the end:
   constructor(input: MemoryView<F>)
   constructor(input: number)
-  constructor(input: Arr<F>)
+  constructor(input: Uint8Array)
   constructor(input: ArrayBuffer, opts?: MemoryViewOptions<F>)
   constructor(input: MemoryView<F> | number | Arr<F> | ArrayBuffer, opts: MemoryViewOptions<F> = {}) {
     // using opt.fmt over
