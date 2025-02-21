@@ -2330,7 +2330,7 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.argmin(axis=1).numpy()) // Returns the indices of the minimum values along axis 1.
    * ```
    */
-  argmin = (axis = undefined, keepdim = false) => {
+  argmin = (axis?: number, keepdim = false) => {
     return this._inverse().argmax(axis, keepdim)
   }
 
