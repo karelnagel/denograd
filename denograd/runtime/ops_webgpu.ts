@@ -30,7 +30,7 @@ const getDevice = async () => {
   })
 }
 
-getDevice()
+// getDevice()
 
 class WebGPUProgram extends Program {
   prg: GPUShaderModule
