@@ -182,6 +182,7 @@ export class Compiled {
     public runtime?: typeof Program,
     public graph?: any,
   ) {}
+  static init = async () => {}
   /**
    * Synchronize all pending operations on the device.
    *

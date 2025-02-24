@@ -1,12 +1,12 @@
-// deno-lint-ignore-file no-process-globals
-import type { DeviceType } from '../device.ts'
+// deno-lint-ignore-file no-process-global
+import type { AllDevices } from '../device.ts'
 import { Environment } from './abstract.ts'
 
 export class WebEnv extends Environment {
   NAME = 'WEB'
   PLATFORM = 'web' as const
-  override DEVICES: DeviceType[] = ['WEBGPU', 'WASM', 'JS']
-  override CPU_DEVICE: DeviceType = 'JS'
+  override DEVICES: AllDevices[] = ['WEBGPU', 'WASM', 'JS']
+  override CPU_DEVICE: AllDevices = 'JS'
   env = {
     // @ts-ignore import.meta.env
     get: (key: string) => (import.meta.env || process.env)[key] as string,
