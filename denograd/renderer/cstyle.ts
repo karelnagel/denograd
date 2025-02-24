@@ -215,6 +215,7 @@ export class ClangRenderer extends CStyleLanguage {
   override nan = '__builtin_nanf("")'
 
   // language options
+  override _type_map = new Map([[dtypes.bool, '_Bool'], [dtypes.half, '__fp16']])
   override buffer_suffix = ' restrict'
   override code_for_op = new Map<Ops, (...args: (string | DType)[]) => string>([
     ...new CStyleLanguage().code_for_op.entries().filter(([k, v]) => ![Ops.EXP2, Ops.SIN, Ops.LOG2].includes(k)),

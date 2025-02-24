@@ -1,6 +1,5 @@
 // deno-lint-ignore-file no-invalid-regexp
-import { encoding_for_model, get_encoding, type Tiktoken } from 'npm:tiktoken'
-import { GlobalCounters, range, zip } from '../helpers.ts'
+import { bytes_to_string, GlobalCounters, range, string_to_bytes, zip } from '../helpers.ts'
 import { Device, type DeviceType } from '../device.ts'
 import { Tensor } from '../tensor.ts'
 import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/state.ts'
@@ -11,15 +10,16 @@ import { parseArgs } from '../zod-cli.ts'
 import z from 'npm:zod'
 
 class Tokenizer {
-  pat_str = new RegExp("(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+")
-  num_base_tokens: number
-  special_tokens: Record<string, number>
-  model: Tiktoken
+  pat = new RegExp("(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+", 'gu')
+
+  special_tokens: Map<string, number>
+  mergeable_ranks: Map<string, number>
+  decode_map: Map<number, string>
+
   constructor(model_path: string) {
-    // TODO: should be model_path instead of gpt-4
-    const mergeable_ranks = encoding_for_model('gpt-4').token_byte_values()
-    this.num_base_tokens = mergeable_ranks.length
-    const special_tokens = [
+    this.mergeable_ranks = new Map(Deno.readTextFileSync(model_path).split('\n').filter(Boolean).map((x) => x.split(' ')).map(([k, v]) => [atob(k), Number(v)]))
+
+    const specialTokensList = [
       '<|begin_of_text|>',
       '<|end_of_text|>',
       '<|reserved_special_token_0|>',
@@ -30,22 +30,84 @@ class Tokenizer {
       '<|end_header_id|>',
       '<|reserved_special_token_4|>',
       '<|eot_id|>',
-      ...range(5, 256 - 5).map((i) => `<|reserved_special_token_{i}|>`),
+      ...range(5, 256 - 5).map((_, i) => `<|reserved_special_token_${i}|>`),
     ]
-    this.special_tokens = Object.fromEntries(special_tokens.map((token, i) => [token, mergeable_ranks.length + i]))
-
-    this.model = get_encoding('cl100k_base', this.special_tokens)
+    this.special_tokens = new Map(specialTokensList.map((token, i) => [token, this.mergeable_ranks.size + i]))
+    this.decode_map = new Map(Array.from(this.mergeable_ranks.entries()).map(([token, id]) => [id, token]))
   }
 
-  get bos_id() {
-    return this.special_tokens['<|begin_of_text|>']
+  get bos_id(): number {
+    return this.special_tokens.get('<|begin_of_text|>')!
   }
+
   get stop_tokens() {
-    return [this.special_tokens['<|end_of_text|>'], this.special_tokens['<|eot_id|>']]
+    return [this.special_tokens.get('<|end_of_text|>')!, this.special_tokens.get('<|eot_id|>')!]
   }
 
-  decode = (toks: number[]) => this.model.decode(new Uint32Array(toks.filter((t) => t < this.num_base_tokens)))
-  encode = (text: string, allow_special = false) => [...this.model.encode(text, allow_special ? 'all' : [], [])]
+  decode(toks: number[]): string {
+    const byteArrays = toks.filter((t) => t < this.mergeable_ranks.size).map((t) => Uint8Array.from(this.decode_map.get(t)!, (c) => c.charCodeAt(0)))
+
+    let allBytes = new Uint8Array()
+    for (const curr of byteArrays) {
+      const combined = new Uint8Array(allBytes.length + curr.length)
+      combined.set(allBytes)
+      combined.set(curr, allBytes.length)
+      allBytes = combined
+    }
+
+    return bytes_to_string(allBytes)
+  }
+
+  encode(text: string, allowSpecial: boolean = false): number[] {
+    const pieces = [...text.matchAll(this.pat)].map((match) => match[0])
+
+    const tokens: number[] = []
+    for (const piece of pieces) {
+      if (allowSpecial && this.special_tokens.has(piece)) tokens.push(this.special_tokens.get(piece)!)
+      else tokens.push(...this.bpe_encode(string_to_bytes(piece)))
+    }
+
+    return tokens
+  }
+
+  private bpe_encode(bytes: Uint8Array): number[] {
+    let tokens: string[] = Array.from(bytes, (b) => String.fromCharCode(b))
+
+    while (true) {
+      let minRank: number = Infinity
+      let mergePair: [string, string] | undefined
+
+      for (let i = 0; i < tokens.length - 1; i++) {
+        const pair = tokens[i] + tokens[i + 1]
+        const rank = this.mergeable_ranks.get(pair)
+        if (rank !== undefined && rank < minRank) {
+          minRank = rank
+          mergePair = [tokens[i], tokens[i + 1]]
+        }
+      }
+
+      if (mergePair === undefined) break
+
+      const newTokens: string[] = []
+      let i = 0
+      while (i < tokens.length) {
+        if (
+          i < tokens.length - 1 &&
+          tokens[i] === mergePair[0] &&
+          tokens[i + 1] === mergePair[1]
+        ) {
+          newTokens.push(tokens[i] + tokens[i + 1])
+          i += 2
+        } else {
+          newTokens.push(tokens[i])
+          i += 1
+        }
+      }
+      tokens = newTokens
+    }
+
+    return tokens.map((token) => this.mergeable_ranks.get(token)!)
+  }
 }
 
 // **** helper functions ****
@@ -61,6 +123,7 @@ const concat_weights = (models: Record<string, Tensor>[], device?: DeviceType): 
   }
   return Object.fromEntries(models.flatMap((model) => Object.keys(model).map((name) => [name, convert(name)])))
 }
+
 const load = async (fn: string): Promise<Record<string, Tensor>> => {
   if (fn.endsWith('.index.json')) {
     const fp = Deno.readTextFileSync(fn)
@@ -73,6 +136,7 @@ const load = async (fn: string): Promise<Record<string, Tensor>> => {
   } else if (fn.endsWith('.safetensors')) return await safe_load(fn)
   throw new Error('invalid file')
 }
+
 // **** quantized linears ****
 class Int8Linear {
   weight: Tensor
@@ -201,6 +265,7 @@ const build_transformer = async (model_path: string, model_size: keyof typeof MO
   }
   // replace weights in model
   await load_state_dict(model, weights, false, undefined, true)
+  console.log('loaded')
   return model
 }
 // # default settings
@@ -284,23 +349,24 @@ if (import.meta.main) {
   console.log(`seed = ${Tensor._seed}`)
   TEMPERATURE = Number(args.temperature)
 
-  const tokenizer = new Tokenizer(`${Deno.statSync(args.model).isDirectory ? args.model : args.model.split('/').slice(0, -1).join('/')}/tokenizer.model`)
+  const tokenizerPath = `${Deno.statSync(args.model).isDirectory ? args.model : args.model.split('/').slice(0, -1).join('/')}/tokenizer.model`
+  const tokenizer = new Tokenizer(tokenizerPath)
   const encode_role = (role: string) => {
-    return [tokenizer.special_tokens['<|start_header_id|>'], ...tokenizer.encode(role), tokenizer.special_tokens['<|end_header_id|>'], ...tokenizer.encode('\n\n')]
+    return [tokenizer.special_tokens.get('<|start_header_id|>')!, ...tokenizer.encode(role), tokenizer.special_tokens.get('<|end_header_id|>')!, ...tokenizer.encode('\n\n')]
   }
   const encode_message = (role: string, content: string) => {
-    return [...encode_role(role), ...tokenizer.encode(content.trim()), tokenizer.special_tokens['<|eot_id|>']]
+    return [...encode_role(role), ...tokenizer.encode(content.trim()), tokenizer.special_tokens.get('<|eot_id|>')!]
   }
 
+  const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
+  console.log(system, tokenizer.decode(system))
   const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` as DeviceType) : Device.DEFAULT
   const model = await build_transformer(args.model, args.size, args.quantize, device)
-  // const param_bytes = sum(get_parameters(model).map((x) => x.lazydata.size * x.dtype.itemsize))
-
-  const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
 
   let start_pos = await prefill(model, system, undefined, device)
   while (true) {
     const toks = [...encode_message('user', prompt('Q: ')!), ...encode_role('assistant')]
+    console.log(start_pos, toks, tokenizer.decode(toks))
 
     start_pos = await prefill(model, toks.slice(0, -1), start_pos, device)
     let last_tok = toks.at(-1)
@@ -312,7 +378,6 @@ if (import.meta.main) {
       last_tok = tok
       if (tokenizer.stop_tokens.includes(tok)) break
       console.log(tokenizer.decode([tok]))
-      console.log()
     }
   }
 }
