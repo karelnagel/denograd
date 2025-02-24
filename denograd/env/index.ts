@@ -1,8 +1,8 @@
-// deno-lint-ignore-file no-process-globals
 import type { Environment } from './abstract.ts'
 import { WebEnv } from './web.ts'
 
 // @ts-ignore import.meta.env
+// deno-lint-ignore no-process-global
 if (typeof process !== 'undefined' && typeof import.meta.env === 'undefined') import.meta.env = { SSR: true }
 
 let Class

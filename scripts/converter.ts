@@ -100,4 +100,4 @@ export const main = async () => {
   await Deno.writeTextFile(ouptutFile, code)
 }
 
-main()
+await main()

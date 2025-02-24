@@ -3,6 +3,7 @@ import { plot, type PlotOptions } from '@observablehq/plot'
 export * from '@observablehq/plot'
 
 export const Plot = ({ style, className, options }: { options: PlotOptions; style?: any; className?: string }) => {
+  // deno-lint-ignore custom-lint-rules/no-null
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!ref.current) return

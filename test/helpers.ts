@@ -1,3 +1,4 @@
+// deno-lint-ignore-file custom-lint-rules/no-null
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../denograd/dtype.ts'
 import { ArrayMap, bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
 import { expect } from 'expect'
@@ -179,7 +180,7 @@ def trycatch(fn):
   try: return fn()
   except Exception as e: return str(e)
 
-${data !== undefined ? `data = ${(await pyStr(data)).replaceAll("JS","PYTHON")}` : ''}
+${data !== undefined ? `data = ${(await pyStr(data)).replaceAll('JS', 'PYTHON')}` : ''}
 def out(o):
     print("<<<<<"+to_ts(o)+">>>>>")
 

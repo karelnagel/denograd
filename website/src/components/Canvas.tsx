@@ -4,9 +4,10 @@ import { is_eq } from '../../../denograd/helpers.ts'
 type Image = number[][]
 const H = 280
 export const Canvas = ({ image, setImage, className }: { className?: string; image: Image; setImage: (img: Image) => void }) => {
+  // deno-lint-ignore custom-lint-rules/no-null
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null)
+  const [lastPos, setLastPos] = useState<{ x: number; y: number }>()
 
   useEffect(() => {
     const ctx = canvasRef.current!.getContext('2d')!
@@ -81,7 +82,7 @@ export const Canvas = ({ image, setImage, className }: { className?: string; ima
 
   const end = () => {
     setIsDrawing(false)
-    setLastPos(null)
+    setLastPos(undefined)
     updateImage()
   }
 

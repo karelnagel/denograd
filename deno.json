@@ -19,6 +19,9 @@
     "singleQuote": true
   },
   "lint": {
+    "plugins": [
+      "./custom-lint.ts"
+    ],
     "rules": {
       "exclude": [
         "no-explicit-any",

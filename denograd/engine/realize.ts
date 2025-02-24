@@ -1,3 +1,4 @@
+// deno-lint-ignore-file custom-lint-rules/no-floating-promises
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type DeviceType, type Program } from '../device.ts'
 import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, mod, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'

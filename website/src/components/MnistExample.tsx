@@ -86,6 +86,7 @@ export const MnistExample = () => {
         </select>
       </div>
       <button
+        type='button'
         className='rounded-lg bg-blue-500 p-2 '
         onClick={async () => {
           await model.load()
@@ -100,6 +101,7 @@ export const MnistExample = () => {
           <p className='text-xl font-bold'>Draw a digit here</p>
           <Canvas image={image} setImage={setImage} className='rounded-md' />
           <button
+            type='button'
             onClick={() => {
               setImage(EMPTY)
               setRes([])
@@ -139,10 +141,10 @@ export const MnistExample = () => {
         Steps
         <input type='text' className='bg-transparent outline rounded-md p-1' value={maxSteps.toString()} onChange={(e) => setMaxSteps(Number(e.target.value))} />
       </label>
-      <button className='rounded-lg bg-blue-500 p-2' onClick={train}>
+      <button type='button' className='rounded-lg bg-blue-500 p-2' onClick={train}>
         Start training for {maxSteps} steps
       </button>
-      <button className='rounded-lg bg-blue-500 p-2' onClick={test}>
+      <button type='button' className='rounded-lg bg-blue-500 p-2' onClick={test}>
         Test accuracy
       </button>
       <Plot.Plot
