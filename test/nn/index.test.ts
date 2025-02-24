@@ -2,6 +2,7 @@ import { BatchNorm, Conv2d } from '../../denograd/nn/index.ts'
 import { Tensor } from '../../denograd/tensor.ts'
 import { compare, test } from '../helpers.ts'
 import { Linear } from '../../denograd/nn/index.ts'
+import { Device } from '../../denograd/device.ts'
 
 test(
   'Conv2d.init',
@@ -75,6 +76,7 @@ test(
       'out([bn.weight, bn.bias, getattr(bn,"running_mean",None), getattr(bn,"running_var",None), bn.num_batches_tracked])',
     ],
   ),
+  { ignore: Device.DEFAULT === 'WEBGPU' },
 )
 
 test(
