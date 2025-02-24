@@ -72,10 +72,12 @@ test('safe_load', async () => {
 
 test('gguf_load', async () => {
   const path = 'weights/llama3-1b-instruct/Llama-3.2-1B-Instruct-Q6_K.gguf'
-  await python([
+  const [py1, py2] = await python([
     'from tinygrad.nn.state import gguf_load',
-    `gguf_load("${path}")`,
+    `res = gguf_load("${path}")`,
+    `out([[key for key in res[0]], [key for key in res[1]]])`,
   ])
-  await gguf_load(path)
-  console.log('here')
-})
+  const [ts1, ts2] = await gguf_load(path)
+  expect(Object.keys(ts1)).toEqual(py1)
+  expect(Object.keys(ts2)).toEqual(py2)
+}, { ignore: true })

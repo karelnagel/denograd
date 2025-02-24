@@ -82,7 +82,7 @@ export class Attention {
     }
     // update the cache
     if (xk.dtype !== xv.dtype || xv.dtype !== this.cache_kv.dtype) throw new Error(`${xk.dtype}, ${xv.dtype}, ${this.cache_kv.dtype}`)
-    this.cache_kv.shrink([undefined, undefined, [start_pos, start_pos + seqlen], undefined, undefined]).assign(Tensor.stack([xk, xv])).realize()
+    await this.cache_kv.shrink([undefined, undefined, [start_pos, start_pos + seqlen], undefined, undefined]).assign(Tensor.stack([xk, xv])).realize()
 
     let keys = start_pos > 0 ? this.cache_kv.get(0).shrink([undefined, [0, start_pos + seqlen], undefined, undefined]) : xk
     let values = start_pos > 0 ? this.cache_kv.get(1).shrink([undefined, [0, start_pos + seqlen], undefined, undefined]) : xv

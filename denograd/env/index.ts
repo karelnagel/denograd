@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-process-globals
+// deno-lint-ignore-file no-process-global
 import type { Environment } from './abstract.ts'
 import { WebEnv } from './web.ts'
 

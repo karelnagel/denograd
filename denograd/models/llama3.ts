@@ -248,7 +248,7 @@ const build_transformer = async (model_path: string, model_size: keyof typeof MO
   if (quantize === 'float16') weights = Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.cast(quantize).contiguous()]))
   else if (quantize !== undefined) {
     weights = (linear as typeof Int8Linear).quantize(weights, device)
-    for (const v of Object.values(weights)) v.realize()
+    for (const v of Object.values(weights)) await v.realize()
   }
   //     # shard
   if (Array.isArray(device)) {
@@ -288,7 +288,7 @@ const prefill = async (model: Transformer, toks: number[], start_pos = 0, device
   // prefill the model
   for (const tok of toks) {
     GlobalCounters.reset()
-    ;(await model.call(new Tensor([[tok]], { device: device }), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)).realize()
+    await (await model.call(new Tensor([[tok]], { device: device }), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)).realize()
     start_pos += 1
   }
   return start_pos
@@ -345,9 +345,9 @@ if (import.meta.main) {
   }
   if (args.model === undefined) throw new Error('please provide --model option')
 
-  if (args.seed !== undefined) Tensor.manual_seed(Number(args.seed))
+  if (args.seed !== undefined) Tensor.manual_seed(args.seed)
   console.log(`seed = ${Tensor._seed}`)
-  TEMPERATURE = Number(args.temperature)
+  TEMPERATURE = args.temperature
 
   const tokenizerPath = `${Deno.statSync(args.model).isDirectory ? args.model : args.model.split('/').slice(0, -1).join('/')}/tokenizer.model`
   const tokenizer = new Tokenizer(tokenizerPath)

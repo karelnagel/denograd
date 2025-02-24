@@ -7,7 +7,6 @@ import { ClangRenderer } from '../denograd/renderer/cstyle.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
 import { View } from '../denograd/shape/view.ts'
 import { compare, test } from './helpers.ts'
-import { Tensor } from '../denograd/tensor.ts'
 
 test(
   'serialize',
