@@ -9,7 +9,7 @@ import { beam_search, bufs_from_lin, optimize_local_size } from './search.ts'
 // **************** Program Creation ****************
 
 // const [logkerns, logkerns_level] = [getEnv('LOGKERNS', '') ? open(getEnv('LOGKERNS', ''), 'a') : undefined, getNumberEnv('LOGKERNS_LEVEL', 1)]
-export const get_kernel = (renderer: Renderer, ast: UOp): Kernel => {
+export const get_kernel = async (renderer: Renderer, ast: UOp): Promise<Kernel> => {
   if (DEBUG >= 5) console.log(ast)
   let k = new Kernel(ast, renderer).required_optimizations()
   if (!NOOPT) {
@@ -122,7 +122,7 @@ class BufferXfer extends BufferCopy {
 // **************** method cache ****************
 
 const method_cache: Record<string, CompiledRunner> = {}
-export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {
+export const get_runner = async (device: DeviceType, ast: UOp): Promise<CompiledRunner> => {
   const ckey = get_key(device, ast.key, BEAM, NOOPT, false)
   const cret = method_cache[ckey]
   if (cret) return cret
@@ -133,7 +133,7 @@ export const get_runner = (device: DeviceType, ast: UOp): CompiledRunner => {
     ret = new CompiledRunner(replace(bret.p, { device: device }), bret.lib)
     method_cache[ckey] = ret
   } else {
-    const prg: ProgramSpec = get_kernel(Device.get(device).renderer, ast).to_program()
+    const prg: ProgramSpec = (await get_kernel(Device.get(device).renderer, ast)).to_program()
     ret = new CompiledRunner(replace(prg, { device: device }))
     method_cache[ckey] = ret
     method_cache[bkey] = ret
@@ -170,21 +170,21 @@ export class ExecItem {
   }
 }
 // NOTE: ctx is the buffers
-export const si_lowerer = new PatternMatcher<Buffer[], [Runner, Buffer[]]>([
-  new UPat(Ops.SINK).named('sink').fn(({ ctx, sink }) => [get_runner(ctx[0].device, sink)].map((runner) => [runner, runner.p.globals.map((x) => ctx[x])] as [Runner, Buffer[]])[0]),
+export const si_lowerer = new PatternMatcher<Buffer[], Promise<[Runner, Buffer[]]> | [Runner, Buffer[]]>([
+  new UPat(Ops.SINK).named('sink').fn(({ ctx, sink }) => get_runner(ctx[0].device, sink).then((runner) => [runner, runner.p.globals.map((x) => ctx[x])] as [Runner, Buffer[]])),
   new UPat(Ops.BUFFER_VIEW).fn(({ ctx }) => [new ViewOp(ctx[0]), [...ctx]]),
   [
     new UPat(Ops.COPY).named('copy'),
     ({ ctx, copy }) => [Device.get(ctx[0].device)!.allocator!._transfer && all_same(ctx.map((x) => x.device.split(':')[0])) ? new BufferXfer(ctx[0].nbytes, ctx[0].device, ctx[1].device) : new BufferCopy(ctx[0].nbytes, ctx[0].device, ctx[1].device), [...ctx]],
   ],
 ])
-const lower_schedule_item = (si: ScheduleItem) => new ExecItem(...si_lowerer.rewrite(si.ast, si.bufs)!, si.metadata)
+const lower_schedule_item = async (si: ScheduleItem) => new ExecItem(...await si_lowerer.rewrite(si.ast, si.bufs)!, si.metadata)
 
-export const lower_schedule = function* (schedule: ScheduleItem[]): Generator<ExecItem, void, unknown> {
+export const lower_schedule = async function* (schedule: ScheduleItem[]): AsyncGenerator<ExecItem, void, unknown> {
   while (schedule.length) {
     const si = schedule.shift()
     try {
-      yield lower_schedule_item(si!)
+      yield await lower_schedule_item(si!)
     } catch (e) {
       if (DEBUG >= 2) {
         console.log(`error lowering ${si!.ast.op}`)
@@ -200,7 +200,7 @@ export const lower_schedule = function* (schedule: ScheduleItem[]): Generator<Ex
 const capturing: ExecItem[][] = [] // put classes with an add method in here
 
 export const run_schedule = async (schedule: ScheduleItem[], var_vals?: Map<Variable, number>, do_update_stats = true) => {
-  for (const ei of lower_schedule(schedule)) {
+  for await (const ei of lower_schedule(schedule)) {
     if (capturing.length && CAPTURING) capturing[0].push(ei)
     await ei.run(var_vals, undefined, undefined, do_update_stats)
   }

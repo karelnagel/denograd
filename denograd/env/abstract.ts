@@ -1,10 +1,10 @@
-import type { DeviceType } from '../runtime/all.ts'
+import type { AllDevices } from '../device.ts'
 
 export abstract class Environment {
   abstract NAME: string
   abstract PLATFORM: 'aix' | 'android' | 'haiku' | 'cygwin' | 'netbsd' | 'darwin' | 'freebsd' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'web'
-  DEVICES: DeviceType[] | undefined
-  CPU_DEVICE: DeviceType = 'CLANG'
+  DEVICES: AllDevices[] | undefined
+  CPU_DEVICE: AllDevices = 'CLANG'
   notImplemented = () => {
     throw new Error(`This feature is not available in ${this.NAME} environment`)
   }

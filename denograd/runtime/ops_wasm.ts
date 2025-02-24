@@ -5,9 +5,6 @@ import type { MemoryView } from '../memoryview.ts'
 import { WabtModule } from './autogen/wabt.js'
 import { WASMRenderer } from '../renderer/wat.ts'
 
-let wabt: any
-WabtModule().then((x) => wabt = x)
-
 const workerScript = `
 self.onmessage = ({ data }) => {
     const mod = new WebAssembly.Module(data.lib)
@@ -46,7 +43,7 @@ class WASMProgram extends Program {
 class WASMCompiler extends Compiler {
   override compile = (src: string) => {
     try {
-      const parsedModule = wabt.parseWat('inline.wat', src)
+      const parsedModule = WASM.wabt.parseWat('inline.wat', src)
       parsedModule.validate()
       const { buffer } = parsedModule.toBinary({})
       parsedModule.destroy()
@@ -65,7 +62,11 @@ export class WASMAllocator extends Allocator<Uint8Array> {
 }
 
 export class WASM extends Compiled {
+  static wabt: any
   constructor(device: DeviceType) {
     super(device, new WASMAllocator(), new WASMRenderer(), new WASMCompiler(), WASMProgram)
+  }
+  static override init = async () => {
+    WASM.wabt = await WabtModule()
   }
 }
