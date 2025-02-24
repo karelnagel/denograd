@@ -399,7 +399,7 @@ export function range(start: number, stop?: number, step = 1): number[] {
     stop = start
     start = 0
   }
-  if (!Number.isFinite(start) || !Number.isFinite(stop)) throw new Error(`Range should be finite`)
+  if (!Number.isFinite(start) || !Number.isFinite(stop)) throw new Error(`Range should be finite, start=${start}, stop=${stop}`)
   if (step > 0) { for (let i = start; i < stop; i += step) result.push(i) }
   else if (step < 0) { for (let i = start; i > stop; i += step) result.push(i) }
   return result

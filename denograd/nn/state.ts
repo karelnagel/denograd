@@ -228,29 +228,33 @@ export const gguf_load = async (tensor: Tensor | string): Promise<[Record<string
   const reader = new TensorIO(tensor)
   const kv_data: Record<string, any> = {}, state_dict: Record<string, any> = {}
   const read_unpack = async (fmt: FmtStr, n: number) => {
-    console.log(fmt)
-    return (await reader.read(n)).cast(fmt)
+    return (await reader.read(n)).cast(fmt).getValue(0)
   }
   const read_str = async () => bytes_to_string((await reader.read(await read_uint64())).bytes)
   const read_arr = async () => {
     const reader = readers[await read_int32()], n = await read_uint64()
-    return range(n).map(() => reader())
+    const res = []
+    for (let i = 0; i < n; i++) {
+      console.log(i, n)
+      res.push(await reader())
+    }
+    return res
   }
   const readers: Record<number, () => Promise<any>> = {
     8: read_str,
     9: read_arr,
-    ...Object.fromEntries([[0, 'c', 1], [1, 'b', 1], [2, 'H', 2], [3, 'h', 2], [4, 'I', 4], [5, 'i', 4], [6, 'f', 4], [7, '?', 1], [10, 'Q', 8], [11, 'q', 8], [12, 'd', 8]].map(([t, f, nb]) => [t, read_unpack(f as FmtStr, nb as number)])),
+    ...Object.fromEntries(([[0, 'B', 1], [1, 'b', 1], [2, 'H', 2], [3, 'h', 2], [4, 'I', 4], [5, 'i', 4], [6, 'f', 4], [7, '?', 1], [10, 'Q', 8], [11, 'q', 8], [12, 'd', 8]] satisfies [number, FmtStr, number][]).map(([t, f, nb]) => [t, async () => await read_unpack(f, nb)])),
   }
   const read_uint32 = readers[4], read_int32 = readers[5], read_uint64 = readers[10], read_int64 = readers[11]
 
-  const magic = await reader.read(4), version = await read_int32(), n_tensors = await read_int64(), n_kv = await read_int64()
+  const magic = await reader.read(4), version: number = await read_int32(), n_tensors: bigint = await read_int64(), n_kv: bigint = await read_int64()
   if (bytes_to_string(magic.bytes) !== 'GGUF' || ![2, 3].includes(version)) throw new Error('Invalid GGUF format!')
-  for (const _ in range(n_kv)) {
+  for (let i = 0n; i < n_kv; i++) {
     const k = await read_str(), typ = await read_int32()
-    kv_data[k] = readers[typ]()
+    kv_data[k] = await readers[typ]()
   }
   const t_infos = []
-  for (const _ of range(n_tensors)) {
+  for (let i = 0n; i < n_tensors; i++) {
     const second = []
     for (const _ of await read_uint32()) second.push(await read_uint64())
     t_infos.push([await read_str(), second, await read_int32(), await read_uint64()])
@@ -259,6 +263,5 @@ export const gguf_load = async (tensor: Tensor | string): Promise<[Record<string
   const data_start = round_up(pos, alignment)
 
   for (const [name, dims, typ, off] of t_infos) state_dict[name] = ggml_data_to_tensor(tensor.get({ start: data_start + off }), prod(dims), typ).reshape(dims.toReversed())
-
   return [kv_data, state_dict]
 }
