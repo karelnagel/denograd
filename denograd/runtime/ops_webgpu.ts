@@ -16,7 +16,6 @@ const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
   uniforms[val] = buf
   return buf
 }
-
 class WebGPUProgram extends Program {
   prg: GPUShaderModule
   bind_group_layout?: GPUBindGroupLayout
@@ -90,13 +89,8 @@ export class WEBGPU extends Compiled {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
   static override init = async () => {
-    // WEBGPU.adapter = await navigator.gpu.requestAdapter({})
-    // if (!WEBGPU.adapter) throw new Error('No adapter')
-    // const timestamp_supported = WEBGPU.adapter.features.has('timestamp-query')
-    // const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize } = WEBGPU.adapter.limits
-    // WEBGPU.device = await WEBGPU.adapter.requestDevice({
-    //   requiredFeatures: timestamp_supported ? ['timestamp-query'] : [],
-    //   requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize },
-    // })
+    WEBGPU.adapter = await navigator.gpu.requestAdapter()
+    if (!WEBGPU.adapter) throw new Error('No adapter')
+    WEBGPU.device = await WEBGPU.adapter.requestDevice()
   }
 }
