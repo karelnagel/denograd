@@ -5,19 +5,19 @@ import { MemoryView } from '../memoryview.ts'
 import { Tensor } from '../tensor.ts'
 
 class TensorIO {
-  constructor(public _tensor: Tensor, public _position = 0) {
-    if (_tensor.ndim !== 1 || _tensor.dtype !== dtypes.uint8) throw new Error('Tensor must be 1d and of dtype uint8!')
+  // TODO: if mmap working for disk device, then it should use tensor
+  constructor(public _data: Uint8Array, public _position = 0) {
+    // if (_tensor.ndim !== 1 || _tensor.dtype !== dtypes.uint8) throw new Error('Tensor must be 1d and of dtype uint8!')
   }
   readable = () => true
-  read = async (size: number): Promise<MemoryView> => {
-    const buffer = new MemoryView(Number(size))
-    const data = await this._tensor.get({ start: this._position, stop: this._position + buffer.length }).data()
-    buffer.set(data.bytes)
-    this._position += data.length
-    return buffer
+  read = async (size: number | bigint): Promise<Uint8Array> => {
+    if (typeof size === 'bigint') size = Number(size)
+    const data = this._data.slice(this._position, this._position + size)
+    this._position += size
+    return data
   }
   seek = (offset: number, whence: number = 0): number => {
-    this._position = Math.min(this._tensor.length, Math.max(0, [offset, this._position + offset, this._tensor.length + offset][whence]))
+    this._position = Math.min(this._data.length, Math.max(0, [offset, this._position + offset, this._data.length + offset][whence]))
     return this._position
   }
 }
@@ -198,22 +198,23 @@ export const ggml_data_to_tensor = (t: Tensor, n: number, ggml_type: number): Te
   const nelements_nbytes = { 2: [32, 18], 3: [32, 20], 14: [256, 210], 8: [32, 34] }[ggml_type]
   if (nelements_nbytes !== undefined) {
     const blocks = t.get({ stop: idiv(n, nelements_nbytes[0]) * nelements_nbytes[1] }).reshape([-1, nelements_nbytes[1]])
-    if (ggml_type === 2) return (q_to_uint8(blocks.get({ stop: 2 }), 4).bitcast(dtypes.int8).sub(8)).mul(blocks.get({ step: 2 }).bitcast(dtypes.float16).cast(dtypes.float32))
+    if (ggml_type === 2) return (q_to_uint8(blocks.get({}, { start: 2 }), 4).bitcast(dtypes.int8).sub(8)).mul(blocks.get({}, { stop: 2 }).bitcast(dtypes.float16).cast(dtypes.float32))
     if (ggml_type === 3) {
       const [d, m] = [0, 2].map((s) => blocks.get({}, { start: s, stop: s + 2 }).bitcast(dtypes.float16).cast(dtypes.float32))
-      return q_to_uint8(blocks.get({ stop: 4 }), 4).bitcast(dtypes.int8).mul(d).add(m)
+      return q_to_uint8(blocks.get({}, { start: 4 }), 4).bitcast(dtypes.int8).mul(d).add(m)
     }
     if (ggml_type === 8) return blocks.get({}, { stop: 2 }).bitcast(dtypes.float16).cast(dtypes.float32).mul(blocks.get({}, { start: 2 }).bitcast(dtypes.int8))
     if (ggml_type === 14) {
       const xl = q_to_uint8(blocks.get({}, { stop: 128 }).reshape([-1, 2, 64]), 4), xh = q_to_uint8(blocks.get({}, { start: 128, stop: 192 }).reshape([-1, 2, 32]), 2).lshift(4)
       const scales = blocks.get({}, { start: 192, stop: 208 }).bitcast(dtypes.int8).unsqueeze(-1).expand([-1, 16, 16]).reshape([-1, 256])
-      const d = blocks.get({}, { start: -1 }).bitcast(dtypes.float16).cast(dtypes.float32).expand([-1, 256])
-      return d.mul(xl.bitwise_or(xh).bitcast(dtypes.int8).sub(32)).flatten(-2).mul(scales)
+      const d = blocks.get({}, { start: -2 }).bitcast(dtypes.float16).cast(dtypes.float32).expand([-1, 256])
+      return d.mul(xl.bitwise_or(xh).bitcast(dtypes.int8).sub(32).flatten(-2)).mul(scales)
     }
   }
   throw new Error(`GGML type '${ggml_type}' is not supported!`)
 }
 
+const TYPES: [number, FmtStr, number][] = [[0, 'B', 1], [1, 'b', 1], [2, 'H', 2], [3, 'h', 2], [4, 'I', 4], [5, 'i', 4], [6, 'f', 4], [7, '?', 1], [10, 'Q', 8], [11, 'q', 8], [12, 'd', 8]]
 /**
  * Loads a gguf file from a tensor.
  *
@@ -225,17 +226,18 @@ export const ggml_data_to_tensor = (t: Tensor, n: number, ggml_type: number): Te
  */
 export const gguf_load = async (tensor: Tensor | string): Promise<[Record<string, any>, Record<string, Tensor>]> => {
   tensor = await accept_filename(tensor)
-  const reader = new TensorIO(tensor)
+  const reader = new TensorIO((await tensor.data()).bytes)
   const kv_data: Record<string, any> = {}, state_dict: Record<string, any> = {}
   const read_unpack = async (fmt: FmtStr, n: number) => {
-    return (await reader.read(n)).cast(fmt).getValue(0)
+    const res = new MemoryView(await reader.read(n)).cast(fmt)
+    if (res.length !== 1) throw new Error(`Res lenght should be 1, but was ${res.length}`)
+    return res.getValue(0)
   }
-  const read_str = async () => bytes_to_string((await reader.read(await read_uint64())).bytes)
-  const read_arr = async () => {
+  const read_str = async () => bytes_to_string(await reader.read(await read_uint64()))
+  const read_arr = async (): Promise<any[]> => {
     const reader = readers[await read_int32()], n = await read_uint64()
     const res = []
     for (let i = 0; i < n; i++) {
-      console.log(i, n)
       res.push(await reader())
     }
     return res
@@ -243,24 +245,24 @@ export const gguf_load = async (tensor: Tensor | string): Promise<[Record<string
   const readers: Record<number, () => Promise<any>> = {
     8: read_str,
     9: read_arr,
-    ...Object.fromEntries(([[0, 'B', 1], [1, 'b', 1], [2, 'H', 2], [3, 'h', 2], [4, 'I', 4], [5, 'i', 4], [6, 'f', 4], [7, '?', 1], [10, 'Q', 8], [11, 'q', 8], [12, 'd', 8]] satisfies [number, FmtStr, number][]).map(([t, f, nb]) => [t, async () => await read_unpack(f, nb)])),
+    ...Object.fromEntries(TYPES.map(([t, f, nb]) => [t, async () => await read_unpack(f, nb)])),
   }
-  const read_uint32 = readers[4], read_int32 = readers[5], read_uint64 = readers[10], read_int64 = readers[11]
+  const read_uint32: () => Promise<number> = readers[4], read_int32: () => Promise<number> = readers[5], read_uint64: () => Promise<bigint> = readers[10], read_int64: () => Promise<bigint> = readers[11]
 
-  const magic = await reader.read(4), version: number = await read_int32(), n_tensors: bigint = await read_int64(), n_kv: bigint = await read_int64()
-  if (bytes_to_string(magic.bytes) !== 'GGUF' || ![2, 3].includes(version)) throw new Error('Invalid GGUF format!')
+  const magic = await reader.read(4), version = await read_int32(), n_tensors = await read_int64(), n_kv = await read_int64()
+  if (bytes_to_string(magic) !== 'GGUF' || ![2, 3].includes(version)) throw new Error('Invalid GGUF format!')
   for (let i = 0n; i < n_kv; i++) {
     const k = await read_str(), typ = await read_int32()
     kv_data[k] = await readers[typ]()
   }
-  const t_infos = []
+  const t_infos: [string, number[], number, number][] = []
   for (let i = 0n; i < n_tensors; i++) {
+    const first = await read_str()
     const second = []
-    for (const _ of await read_uint32()) second.push(await read_uint64())
-    t_infos.push([await read_str(), second, await read_int32(), await read_uint64()])
+    for (const _ of range(await read_uint32())) second.push(Number(await read_uint64()))
+    t_infos.push([first, second, await read_int32(), Number(await read_uint64())])
   }
-  const alignment = kv_data.get('general.alignment', 32), pos = reader._position
-  const data_start = round_up(pos, alignment)
+  const data_start = round_up(reader._position, kv_data['general.alignment'] || 32)
 
   for (const [name, dims, typ, off] of t_infos) state_dict[name] = ggml_data_to_tensor(tensor.get({ start: data_start + off }), prod(dims), typ).reshape(dims.toReversed())
   return [kv_data, state_dict]
