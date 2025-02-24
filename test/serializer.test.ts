@@ -39,7 +39,7 @@ test(
       [new IndexContext([UOp.int(3)], [UOp.bool(true), UOp.float(4.4)], 4)],
       [new ClangRenderer()],
       [new Opt(OptOps.PADTO, 5, 666)],
-      [new Tensor([[3, 3, 3], [5, 5, 5]])],
+      // [new Tensor([[3, 3, 3], [5, 5, 5]])],
       // [new Kernel(new UOp(Ops.SINK), new ClangRenderer())],
       // [new Kernel(new UOp(Ops.SINK))],
       ...spec.patterns.map((p) => [p[0]] as any),

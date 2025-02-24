@@ -9,7 +9,7 @@ test(
   'realize.get_kernel',
   compare(
     kernelInputs,
-    (renderer, ast) => tsKernel(get_kernel(renderer, ast)),
+    async (renderer, ast) => tsKernel(await get_kernel(renderer, ast)),
     [
       'k = tiny.engine.realize.get_kernel(*data)',
       pyKernel,
@@ -20,7 +20,7 @@ test(
   'realize.get_optimized_ast',
   compare(
     kernelInputs,
-    (renderer, ast) => get_kernel(renderer, ast).get_optimized_ast(),
+    async (renderer, ast) => (await get_kernel(renderer, ast)).get_optimized_ast(),
     [
       'out(tiny.engine.realize.get_kernel(*data).get_optimized_ast())',
     ],
@@ -30,7 +30,7 @@ test(
   'realize.linearize',
   compare(
     kernelInputs,
-    (renderer, ast) => get_kernel(renderer, ast).linearize().uops,
+    async (renderer, ast) => (await get_kernel(renderer, ast)).linearize().uops,
     [
       'out(tiny.engine.realize.get_kernel(*data).linearize().uops)',
     ],
@@ -40,9 +40,9 @@ test(
   'realize.to_program',
   compare(
     kernelInputs,
-    (renderer, ast) => {
+    async (renderer, ast) => {
       Kernel.kernel_cnt.clear()
-      return get_kernel(renderer, ast).to_program()
+      return (await get_kernel(renderer, ast)).to_program()
     },
     'out(tiny.engine.realize.get_kernel(*data).to_program())',
     {},
@@ -53,9 +53,9 @@ test(
   'realize.get_runner',
   compare(
     () => kernelInputs().map(([r, ast]) => [r.device, ast] as [DeviceType, UOp]),
-    (d, ast) => {
+    async (d, ast) => {
       Kernel.kernel_cnt.clear()
-      const runner = get_runner(d, ast)
+      const runner = await get_runner(d, ast)
       return [runner.p]
     },
     [

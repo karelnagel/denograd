@@ -3,17 +3,48 @@ import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, NotI
 import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { Env } from './env/index.ts'
-import { ALL_DEVICES, type DeviceType } from './runtime/all.ts'
 import { Ops, type UOp } from './ops.ts'
 
 export * from './runtime/allocator.ts'
-export type { AllDevices, DeviceType } from './runtime/all.ts'
 
 // **************** Device ****************
-const DEVICES = Object.fromEntries(Object.entries(ALL_DEVICES).filter(([name]) => Env.DEVICES === undefined || Env.DEVICES.includes(name as DeviceType))) as typeof ALL_DEVICES
+export const ALL_DEVICES = {
+  CLANG: () => import('./runtime/ops_clang.ts').then((x) => x.CLANG),
+  WEBGPU: () => import('./runtime/ops_webgpu.ts').then((x) => x.WEBGPU),
+  WASM: () => import('./runtime/ops_wasm.ts').then((x) => x.WASM),
+  DISK: () => import('./runtime/ops_disk.ts').then((x) => x.DISK),
+  JS: () => import('./runtime/ops_js.ts').then((x) => x.JS),
+}
 
-// Importing all the supported devices for current environment
+export type AllDevices = keyof typeof ALL_DEVICES
+export type DeviceType = AllDevices | `${AllDevices}:${string}`
+
 export class _Device {
+  DEVICES: Record<string, typeof Compiled> = {}
+  DEFAULT!: AllDevices
+  init = async () => {
+    for (const [name, imp] of Object.entries(ALL_DEVICES)) {
+      if (Env.DEVICES !== undefined && !Env.DEVICES.includes(name as AllDevices)) continue
+      try {
+        const compiled = await imp()
+        await compiled.init()
+        this.DEVICES[name] = compiled
+      } catch (e) {
+        console.log(`Device ${name} failed: ${e}`)
+      }
+    }
+
+    // Setting default
+    const fromEnv = Object.keys(this.DEVICES).filter((d) => !['DISK'].includes(d) && get_number_env(d) === 1)[0]
+    if (fromEnv) {
+      this.DEFAULT = fromEnv as AllDevices
+      return
+    }
+    const device = Object.keys(this.DEVICES)[0]
+    if (!device) throw new Error('no usable devices')
+    Env.env.set(device, '1')
+    this.DEFAULT = device as AllDevices
+  }
   @cache
   _canonicalize(device: DeviceType): DeviceType {
     const d = device.split(':', 1)[0].toUpperCase()
@@ -23,45 +54,20 @@ export class _Device {
   canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
   get(device: DeviceType): Compiled {
     const ix = this.canonicalize(device)
-    const Device = DEVICES[ix.split(':')[0].toUpperCase() as keyof typeof DEVICES]!
+    const Device = this.DEVICES[ix.split(':')[0].toUpperCase() as AllDevices]!
     if (DEBUG >= 1) console.log(`opened device ${ix}`)
     return new Device(ix)
   }
   default = () => this.get(this.DEFAULT)
-  @cache
-  get_available_devices(): DeviceType[] {
-    const res: DeviceType[] = []
-    for (const device of Object.keys(DEVICES).filter((x) => x !== 'DISK')) {
-      try {
-        res.push(this.get(device as DeviceType).device)
-      } catch (e) {
-        console.log(e)
-        // Device not working
-      }
-    }
-    return res
-  }
-  private _DEFAULT?: DeviceType
-  get DEFAULT(): DeviceType {
-    if (this._DEFAULT) return this._DEFAULT
-
-    const fromEnv = Object.keys(DEVICES).filter((d) => !['DISK'].includes(d) && get_number_env(d) === 1)[0]
-    if (fromEnv) return fromEnv as DeviceType
-
-    const device = this.get_available_devices()[0]
-    if (!device) throw new Error('no usable devices')
+  setDefault = (device: AllDevices) => {
+    if (this.DEFAULT) Env.env.set(this.DEFAULT, '0')
     Env.env.set(device, '1')
-    this._DEFAULT = device
-    return device
-  }
-  setDefault = (device: DeviceType) => {
-    if (this._DEFAULT) Env.env.set(this._DEFAULT, '0')
-    Env.env.set(device, '1')
-    this._DEFAULT = device
+    this.DEFAULT = device
     return device
   }
 }
 export const Device = new _Device()
+await Device.init()
 
 // NOTE: these 3 functions should actually be under UOp, but Buffer caused circular import
 export const uop_buffer = (uop: UOp): Buffer => {
