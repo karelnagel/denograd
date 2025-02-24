@@ -19,14 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          submodules: "recursive"
+          submodules: 'recursive'
 
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.2.1
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: '3.x'
 
       - name: Install WebGPU deps
         # TODO: add back when runtimes are lazyily imported
@@ -41,4 +41,3 @@ jobs:
 
       - name: Train mnist
         run: ${{ matrix.runtime }}=1 BS=2 STEPS=10 deno -A denograd/models/mnist.ts
-

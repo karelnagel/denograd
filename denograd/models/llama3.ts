@@ -234,7 +234,7 @@ const build_transformer = async (model_path: string, model_size: keyof typeof MO
   if (Deno.statSync(model_path).isDirectory) {
     if (Deno.statSync(`${model_path}/model.safetensors.index.json`).isFile) weights = await load(`${model_path}/model.safetensors.index.json`)
     else if (Deno.statSync(`${model_path}/model.safetensors`).isFile) weights = await load(`${model_path}/model.safetensors`)
-    else weights = concat_weights(await Promise.all(range(MODEL_PARAMS[model_size].files).map((i) => load(`${model_path}/consolidated.${i.toString().padStart(2, '0')}.pth`))), Array.isArray(device) ? device[0] : device)
+    else weights = concat_weights(await Promise.all(range(MODEL_PARAMS[model_size].files).map(async (i) => await load(`${model_path}/consolidated.${i.toString().padStart(2, '0')}.pth`))), Array.isArray(device) ? device[0] : device)
   } else weights = await load(model_path)
   if ('model.embed_tokens.weight' in weights) {
     weights = convert_from_huggingface(weights, model, MODEL_PARAMS[model_size]['args']['n_heads'], MODEL_PARAMS[model_size]['args']['n_kv_heads'])

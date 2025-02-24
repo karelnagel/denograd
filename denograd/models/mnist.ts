@@ -59,4 +59,4 @@ const main = async () => {
   // await model.save('./mnist.safetensors')
 }
 
-if (import.meta.main) main()
+if (import.meta.main) await main()

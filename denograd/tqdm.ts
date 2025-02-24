@@ -1,3 +1,4 @@
+// deno-lint-ignore-file custom-lint-rules/no-null custom-lint-rules/no-floating-promises
 // https://github.com/thesephist/tsqdm/blob/main/src/tqdm.ts
 
 import { Env } from './env/index.ts'
