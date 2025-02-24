@@ -360,7 +360,7 @@ if (import.meta.main) {
 
   const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
   console.log(system, tokenizer.decode(system))
-  const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` as DeviceType) : Device.DEFAULT
+  const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` satisfies DeviceType) : Device.DEFAULT
   const model = await build_transformer(args.model, args.size, args.quantize, device)
 
   let start_pos = await prefill(model, system, undefined, device)
@@ -377,7 +377,7 @@ if (import.meta.main) {
       start_pos += 1
       last_tok = tok
       if (tokenizer.stop_tokens.includes(tok)) break
-      console.log(tokenizer.decode([tok]))
+      console.log(tok, tokenizer.decode([tok]))
     }
   }
 }

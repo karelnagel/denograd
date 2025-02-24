@@ -50,7 +50,6 @@ export class Attention {
     this.n_kv_heads = n_kv_heads !== undefined ? n_kv_heads : n_heads // n_kv_heads != n_heads implies MQA [arxiv/2307.09288, A.2.1]
     this.head_dim = idiv(dim, n_heads)
     this.n_rep = idiv(this.n_heads, this.n_kv_heads)
-    this.max_context = max_context
 
     this.wq = new linear(dim, this.n_heads * this.head_dim, false)
     this.wk = new linear(dim, this.n_kv_heads * this.head_dim, false)
@@ -142,33 +141,35 @@ const sample = (logits: Tensor, temp: number, k: number, p: number, af: number, 
     if (alpha_counter === undefined) {
       alpha_counter = logits.zeros_like({ dtype: dtypes.int32 }).contiguous()
     }
-    logits = logits.sub(alpha_counter.mul(af).add((alpha_counter.ge(0)).mul(ap)))
+    logits = logits.sub(alpha_counter.mul(af).add(alpha_counter.ge(0).mul(ap)))
   }
 
   // replace NaNs with -inf
-  logits = (logits.ne(logits)).where(-Infinity, logits)
+  logits = logits.ne(logits).where(-Infinity, logits)
 
   // softmax
-  let t = (logits.div(temp)).softmax()
+  let t = logits.div(temp).softmax()
 
-  const counter = Tensor.arange(t.numel() as number, undefined, undefined, { device: logits.device }).contiguous(), counter2 = Tensor.arange(t.numel() as number - 1, -1, -1, { device: logits.device }).contiguous()
+  const counter = Tensor.arange(t.numel() as number, undefined, undefined, { device: logits.device }).contiguous()
+  const counter2 = Tensor.arange(t.numel() as number - 1, -1, -1, { device: logits.device }).contiguous()
   // top k
   let output, output_indices, output_token
   if (k) {
-    output = Tensor.zeros([k], { device: logits.device }).contiguous(), output_indices = Tensor.zeros([k], { device: logits.device, dtype: dtypes.int32 }).contiguous()
+    output = Tensor.zeros([k], { device: logits.device }).contiguous()
+    output_indices = Tensor.zeros([k], { device: logits.device, dtype: dtypes.int32 }).contiguous()
     for (const i of range(k)) {
       const t_max = t.max()
-      const t_argmax = ((t.eq(t_max)).mul(counter2)).max().sub(t.numel() as number).sub(1).cast(dtypes.default_int)
+      const t_argmax = t.eq(t_max).mul(counter2).max().sub(t.numel() as number, true).sub(1).cast(dtypes.default_int)
       output = output.add(t_max.unsqueeze(0).pad([i, k - i - 1]))
       output_indices = output_indices.add(t_argmax.unsqueeze(0).pad([[i, k - i - 1]]))
-      t = (counter.eq(t_argmax)).where(0, t)
+      t = counter.eq(t_argmax).where(0, t)
     }
 
     // approximate top p
     // because we are already limited to top k elements we can do top p "without sorting"
     const output_cumsum = output.get({ step: -1 }).cumsum().get({ step: -1 }).add(t.sum())
-    output = (output_cumsum.ge(1 - p)).mul(output)
-    output_indices = (output_cumsum.ge(1 - p)).mul(output_indices)
+    output = output_cumsum.ge(1 - p).mul(output)
+    output_indices = output_cumsum.ge(1 - p).mul(output_indices)
 
     // sample
     const output_idx = output.multinomial()
@@ -177,13 +178,8 @@ const sample = (logits: Tensor, temp: number, k: number, p: number, af: number, 
     output_token = t.multinomial()
   }
   // increase alpha counter
-  if (af || ap) {
-    alpha_counter = (counter.eq(output_token)).where(alpha_counter!.add(1), alpha_counter!)
-  }
+  if (af || ap) alpha_counter = counter.eq(output_token).where(alpha_counter!.add(1), alpha_counter!)
   return output_token
-}
-const TinyJit = (x: any): any => {
-  throw new NotImplemented()
 }
 export class Transformer {
   layers: TransformerBlock[]
@@ -198,6 +194,7 @@ export class Transformer {
     this.tok_embeddings = new Embedding(vocab_size, dim)
     this.output = new Linear(dim, vocab_size, false)
     this.freqs_cis = precompute_freqs_cis(idiv(dim, n_heads), this.max_context * 2, rope_theta).contiguous()
+    if (jit) throw new Error('JIT not implemented')
     // this.forward_jit = jit ? TinyJit(this.forward) : undefined
   }
   forward = async (tokens: Tensor, start_pos: number, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number) => {
