@@ -583,13 +583,10 @@ export class GlobalCounters {
 }
 
 // **************** timer and profiler ****************
-
-export class Timing {
-  //   def __init__(self, prefix="", on_exit=None, enabled=True): self.prefix, self.on_exit, self.enabled = prefix, on_exit, enabled
-  //   def __enter__(self): self.st = time.perf_counter_ns()
-  //   def __exit__(self, *exc):
-  //     self.et = time.perf_counter_ns() - self.st
-  //     if self.enabled: print(f"{self.prefix}{self.et*1e-6:6.2f} ms"+(self.on_exit(self.et) if self.on_exit else ""))
+export const Timing = async <T>(fn: () => Promise<T>): Promise<[T, number]> => {
+  const st = performance.now()
+  const res = await fn()
+  return [res, performance.now() - st]
 }
 export const _format_fcn = (fcn: any[]) => `${fcn[0]}:${fcn[1]}:${fcn[2]}`
 export class Profiling {

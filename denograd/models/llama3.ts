@@ -8,6 +8,7 @@ import { convert_from_gguf, convert_from_huggingface, fix_bf16, Transformer } fr
 import { Linear } from '../nn/index.ts'
 import { parseArgs } from '../zod-cli.ts'
 import z from 'npm:zod'
+import { Tqdm } from '../tqdm.ts'
 
 class Tokenizer {
   pat = new RegExp("(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+", 'gu')
@@ -286,7 +287,7 @@ const prefill = async (model: Transformer, toks: number[], start_pos = 0, device
   }
 
   // prefill the model
-  for (const tok of toks) {
+  for await (const tok of new Tqdm(toks)) {
     GlobalCounters.reset()
     await (await model.call(new Tensor([[tok]], { device: device }), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)).realize()
     start_pos += 1
@@ -358,26 +359,28 @@ if (import.meta.main) {
     return [...encode_role(role), ...tokenizer.encode(content.trim()), tokenizer.special_tokens.get('<|eot_id|>')!]
   }
 
-  const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
-  console.log(system, tokenizer.decode(system))
   const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` satisfies DeviceType) : Device.DEFAULT
   const model = await build_transformer(args.model, args.size, args.quantize, device)
 
+  const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
   let start_pos = await prefill(model, system, undefined, device)
   while (true) {
-    const toks = [...encode_message('user', prompt('Q: ')!), ...encode_role('assistant')]
-    console.log(start_pos, toks, tokenizer.decode(toks))
+    const query = prompt('Q: ')!
+    const toks = [...encode_message('user', query), ...encode_role('assistant')]
 
     start_pos = await prefill(model, toks.slice(0, -1), start_pos, device)
     let last_tok = toks.at(-1)
+    const st = performance.now()
+    let tokens = 0
     while (true) {
       GlobalCounters.reset()
-      const out = await model.call(new Tensor([[last_tok]], { device: device }), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P)
-      const tok = await out.item()
+      const tok = await model.call(new Tensor([[last_tok]], { device: device }), start_pos, TEMPERATURE, TOP_K, TOP_P, ALPHA_F, ALPHA_P).then((x) => x.item())
+      tokens++
       start_pos += 1
       last_tok = tok
       if (tokenizer.stop_tokens.includes(tok)) break
-      console.log(tok, tokenizer.decode([tok]))
+      await Deno.stdout.write(string_to_bytes(tokenizer.decode([tok])))
     }
+    await Deno.stdout.write(string_to_bytes(` (${(tokens / ((performance.now() - st) / 1000)).toFixed(2)} tokens/s)\n`))
   }
 }
