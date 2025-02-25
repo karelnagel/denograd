@@ -44,7 +44,8 @@ export class DenoEnv extends Environment {
     const valueType = typeof value === 'string' ? 'TEXT' : value instanceof Uint8Array ? 'BLOB' : undefined
     if (!valueType) throw new Error(`Invalid value type ${valueType}`)
 
-    const db = await this.get_db(), name = `${table}_${this.DB_VERSION}`
+    const db = await this.get_db()
+    const name = `${table}_${this.DB_VERSION}`
     if (!this.tables.includes(name)) {
       db.exec(`CREATE TABLE IF NOT EXISTS ${name} (key TEXT PRIMARY KEY, value ${valueType});`)
       this.tables.push(name)
