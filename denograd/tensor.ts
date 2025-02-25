@@ -1156,9 +1156,9 @@ export class Tensor extends MathTrait<Tensor> {
     if (!(1 <= this.ndim && this.ndim <= 2 && num_samples > 0)) throw new Error(`ndim=${this.ndim} must be 1 or 2 dim, num_samples=${num_samples} must be positive`)
     if (!replacement && num_samples !== 1) throw new Error('no replacement only supports num_samples = 1')
     const weight = this.ndim === 1 ? this.unsqueeze(0) : this
-    const cw = weight.cumsum(1).float(), cdf = cw.div(cw.get({}, 1).unsqueeze(1))
+    const cw = weight.cumsum(1).float(), cdf = cw.div(cw.get({}, -1).unsqueeze(1))
     const unif_samples = Tensor.rand([num_samples, cdf.shape[0], 1]).to(this.device)
-    const indices = (unif_samples.expand([-1, -1, cdf.shape[1]]).ge(cdf)).sum(2).permute(1, 0)
+    const indices = unif_samples.expand([-1, -1, cdf.shape[1]]).ge(cdf).sum(2).permute(1, 0)
     return (this.ndim === 1 ? indices.squeeze(0) : indices).cast(dtypes.int32)
   }
 
