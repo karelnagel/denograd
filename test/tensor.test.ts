@@ -590,9 +590,9 @@ test(
   'arange.sin',
   compare(
     [
-      [0,1,2,28,29,30,32,64,128,256,]
+      [0, 1, 2, 28, 29, 30, 32, 64, 128, 256],
     ],
-    async (...nums:number[]) => new Tensor(nums).sin(),
+    async (...nums: number[]) => new Tensor(nums).sin(),
     'out(tiny.Tensor(data).sin())',
   ),
 )
