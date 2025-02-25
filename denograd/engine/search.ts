@@ -43,7 +43,7 @@ export const _time_program = async (p: ProgramSpec, lib: Uint8Array, var_vals: M
     p.global_size = global_size
   }
   try {
-    car = new CompiledRunner(p, lib)
+    car = await CompiledRunner.init(p, lib)
   } catch {
     return range(cnt).map((x) => Infinity)
   }

@@ -16,13 +16,15 @@ const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
   uniforms[val] = buf
   return buf
 }
+
 class WebGPUProgram extends Program {
-  prg: GPUShaderModule
+  prg!: GPUShaderModule
   bind_group_layout?: GPUBindGroupLayout
   compute_pipeline?: GPUComputePipeline
-  constructor(name: string, lib: Uint8Array) {
-    super(name, lib)
-    this.prg = WEBGPU.device.createShaderModule({ code: bytes_to_string(this.lib) })
+  static override init = (name: string, lib: Uint8Array) => {
+    const res = new WebGPUProgram(name, lib)
+    res.prg = WEBGPU.device.createShaderModule({ code: bytes_to_string(res.lib) })
+    return res
   }
   override call = cpu_time_execution(async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const isStorage = (i: number) => i < bufs.length && bytes_to_string(this.lib).split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')

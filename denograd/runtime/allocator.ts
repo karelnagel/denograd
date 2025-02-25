@@ -96,7 +96,9 @@ export const MAP_JIT = 0x0800
 
 export type ProgramCallArgs = { global_size?: number[]; local_size?: number[]; vals?: number[] }
 export class Program {
-  constructor(public name: string, public lib: Uint8Array) {
+  constructor(public name: string, public lib: Uint8Array) {}
+  static init = (name: string, lib: Uint8Array): Promise<Program> | Program => {
+    throw new Error('You need to override init()')
   }
   call = (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> | number => {
     throw new NotImplemented()
@@ -122,8 +124,8 @@ export class Compiler {
   constructor(cachekey?: string) {
     this.cachekey = get_env('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
-  compile = (src: string): Uint8Array => string_to_bytes(src) // NOTE: empty compiler is the default
-  compile_cached = (src: string): Uint8Array => {
+  compile = (src: string): Promise<Uint8Array> | Uint8Array => string_to_bytes(src) // NOTE: empty compiler is the default
+  compile_cached = (src: string): Promise<Uint8Array> | Uint8Array => {
     let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
     if (lib === undefined) {
       if (get_env('ASSERT_COMPILE')) throw new Error(`tried to compile with ASSERT_COMPILE set\n${src}`)

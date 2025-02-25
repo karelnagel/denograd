@@ -58,10 +58,11 @@ const serialize = (data: PyUOp[]): Uint8Array => string_to_bytes(JSON.stringify(
 const deserialize = (data: Uint8Array): PyUOp[] => JSON.parse(bytes_to_string(data), jsonRevive)
 
 export class PythonProgram extends Program {
-  uops: PyUOp[]
-  constructor(name: string, lib: Uint8Array) {
-    super(name, lib)
-    this.uops = deserialize(lib)
+  uops!: PyUOp[]
+  static override init = (name: string, lib: Uint8Array) => {
+    const res = new PythonProgram(name, lib)
+    res.uops = deserialize(lib)
+    return res
   }
   // KAREL: TODO: use Web workers maybe?
   override call = cpu_time_execution((bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {

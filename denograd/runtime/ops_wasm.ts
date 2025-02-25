@@ -21,9 +21,7 @@ self.onmessage = ({ data }) => {
 const url = URL.createObjectURL(new Blob([workerScript], { type: 'application/javascript' }))
 
 class WASMProgram extends Program {
-  constructor(name: string, lib: Uint8Array) {
-    super(name, lib)
-  }
+  static override init = (name: string, lib: Uint8Array) => new WASMProgram(name, lib)
   override call = cpu_time_execution(async (bufs: Uint8Array[], { global_size, local_size, vals }: ProgramCallArgs, wait = false) => {
     if (global_size || local_size || vals?.length) throw new Error(`I don't know what to do with these: ${global_size}, ${local_size}, ${vals}`)
     const offsets = bufs.reduce((acc, x) => [...acc, acc.at(-1)! + round_up(x.length, 128)], [0]) // rounding up to 128 because otherwise sometimes v128.store will override other buffer's value
