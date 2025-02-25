@@ -5,20 +5,20 @@ import { Embedding, Linear, RMSNorm } from '../nn/index.ts'
 import { Tensor } from '../tensor.ts'
 
 // https://github.com/facebookresearch/llama/blob/1076b9c51c77ad06e9d7ba8a4c6df775741732bd/llama/model.py#L47
-const precompute_freqs_cis = (dim: number, end: number, theta = 10000.0): Tensor => {
+export const precompute_freqs_cis = (dim: number, end: number, theta = 10000.0): Tensor => {
   let freqs = Tensor.arange(0, dim, 2).get({ stop: idiv(dim, 2) }).div(dim).pow(theta, true).div(1.0, true)
   freqs = Tensor.arange(end).unsqueeze(1).mul(freqs.unsqueeze(0))
   return Tensor.stack([freqs.cos(), freqs.sin()], -1).reshape([1, end, 1, idiv(dim, 2), 2])
 }
 
 // (a+i*b) * (c+i*d) = (ac-bd) + i*(ad+bc)
-const complex_mult = (A: Tensor, c: Tensor, d: Tensor) => {
+export const complex_mult = (A: Tensor, c: Tensor, d: Tensor) => {
   const a = A.get('...', { start: 0, stop: 1 }), b = A.get('...', { start: 1, stop: 2 })
   const ro = a.mul(c).sub(b.mul(d))
   const co = a.mul(d).add(b.mul(c))
   return ro.cat([co], -1)
 }
-const apply_rotary_emb = (xq: Tensor, xk: Tensor, freqs_cis: Tensor): [Tensor, Tensor] => {
+export const apply_rotary_emb = (xq: Tensor, xk: Tensor, freqs_cis: Tensor): [Tensor, Tensor] => {
   if (freqs_cis.shape[1] !== xq.shape[1] || xq.shape[1] !== xk.shape[1]) throw new Error(`freqs_cis shape mismatch ${freqs_cis.shape} xq:${xq.shape} xk:${xk.shape}`)
   xq = xq.reshape([...xq.shape.slice(0, -1), -1, 2])
   xk = xk.reshape([...xk.shape.slice(0, -1), -1, 2])
@@ -29,7 +29,7 @@ const apply_rotary_emb = (xq: Tensor, xk: Tensor, freqs_cis: Tensor): [Tensor, T
   return [xq_out.flatten(3), xk_out.flatten(3)]
 }
 
-const repeat_kv = (x: Tensor, n_rep: number): Tensor => {
+export const repeat_kv = (x: Tensor, n_rep: number): Tensor => {
   const [bs, seqlen, n_kv_heads, head_dim] = x.shape
   if (n_rep === 1) return x
   // NOTE: this is different from x.repeat((1, 1, n_rep, 1))
@@ -126,7 +126,7 @@ export class TransformerBlock {
 }
 // standard openai sampling
 let alpha_counter: Tensor | undefined = undefined
-const sample = (logits: Tensor, temp: number, k: number, p: number, af: number, ap: number) => {
+export const sample = (logits: Tensor, temp: number, k: number, p: number, af: number, ap: number) => {
   if (logits.ndim !== 1) throw new Error('only works on 1d tensors')
   if (p < 0 || p > 1) throw new Error('p must be between 0 and 1')
   if (k < 0 || k > (logits.numel() as number)) throw new Error('k must be between 0 and numel')
