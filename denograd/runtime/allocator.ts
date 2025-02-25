@@ -1,8 +1,9 @@
 import type { ImageDType } from '../dtype.ts'
-import { ArrayMap, diskcache_get, diskcache_put, get_env, get_key, LRU, NotImplemented, PROFILE, string_to_bytes, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, get_env, get_key, LRU, NotImplemented, PROFILE, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
+import { Env } from '../env/index.ts'
 
 // **************** Buffer + Allocators ****************
 export class BufferSpec {
@@ -96,7 +97,9 @@ export const MAP_JIT = 0x0800
 
 export type ProgramCallArgs = { global_size?: number[]; local_size?: number[]; vals?: number[] }
 export class Program {
-  constructor(public name: string, public lib: Uint8Array) {
+  constructor(public name: string, public lib: Uint8Array) {}
+  static init = (name: string, lib: Uint8Array): Promise<Program> | Program => {
+    throw new Error('You need to override init()')
   }
   call = (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> | number => {
     throw new NotImplemented()
@@ -122,14 +125,14 @@ export class Compiler {
   constructor(cachekey?: string) {
     this.cachekey = get_env('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
-  compile = (src: string): Uint8Array => string_to_bytes(src) // NOTE: empty compiler is the default
-  compile_cached = (src: string): Uint8Array => {
-    let lib = this.cachekey ? diskcache_get(this.cachekey, src) : undefined
-    if (lib === undefined) {
-      if (get_env('ASSERT_COMPILE')) throw new Error(`tried to compile with ASSERT_COMPILE set\n${src}`)
-      lib = this.compile(src)
-      if (this.cachekey !== undefined) diskcache_put(this.cachekey, src, lib)
-    }
+  compile = (src: string): Promise<Uint8Array> | Uint8Array => string_to_bytes(src) // NOTE: empty compiler is the default
+  compile_cached = async (src: string): Promise<Uint8Array> => {
+    let lib = this.cachekey ? await Env.disk_get(this.cachekey, src) : undefined
+    if (lib) return lib
+
+    if (get_env('ASSERT_COMPILE')) throw new Error(`tried to compile with ASSERT_COMPILE set\n${src}`)
+    lib = await this.compile(src)
+    if (this.cachekey !== undefined) await Env.disk_put(this.cachekey, src, lib)
     return lib
   }
   disassemble = (lib: Uint8Array) => {/** pass */}

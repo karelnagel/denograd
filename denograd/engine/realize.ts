@@ -41,15 +41,20 @@ export class Runner {
 }
 
 export class CompiledRunner extends Runner {
-  _prg: Program
-  constructor(public p: ProgramSpec, public lib?: Uint8Array) {
-    super(p.name, p.device, p.estimates)
+  _prg!: Program
+  p!: ProgramSpec
+  lib?: Uint8Array
+  static init = async (p: ProgramSpec, lib?: Uint8Array) => {
+    const res = new CompiledRunner(p.name, p.device, p.estimates)
+    res.p = p
+    res.lib = lib
     if (DEBUG >= 4) console.log(p.src)
-    if (!this.lib) this.lib = Device.get(p.device).compiler.compile_cached(p.src)
-    if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(this.lib)
+    if (!res.lib) res.lib = await Device.get(p.device).compiler.compile_cached(p.src)
+    if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(res.lib)
     const Runtime = Device.get(p.device).runtime!
     // KAREL: TODO: should be p.function_name
-    this._prg = new Runtime(to_function_name(p.name), this.lib)
+    res._prg = await Runtime.init(to_function_name(p.name), res.lib)
+    return res
   }
   __reduce__ = () => [this.p, this.lib]
 
@@ -131,11 +136,11 @@ export const get_runner = async (device: DeviceType, ast: UOp): Promise<Compiled
   let ret
   const bret = method_cache[bkey]
   if (bret) {
-    ret = new CompiledRunner(replace(bret.p, { device: device }), bret.lib)
+    ret = await CompiledRunner.init(replace(bret.p, { device: device }), bret.lib)
     method_cache[ckey] = ret
   } else {
     const prg: ProgramSpec = (await get_kernel(Device.get(device).renderer, ast)).to_program()
-    ret = new CompiledRunner(replace(prg, { device: device }))
+    ret = await CompiledRunner.init(replace(prg, { device: device }))
     method_cache[ckey] = ret
     method_cache[bkey] = ret
   }

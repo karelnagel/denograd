@@ -212,7 +212,7 @@ export class NotImplemented extends Error {
   }
 }
 export const floatString = (x: number) => Number.isInteger(x) ? x + '.0' : x.toString()
-
+export const constToNumeric = (x: ConstType) => typeof x === 'boolean' ? Number(x) : x
 export const max = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
 export const abs = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.abs(Number(x)) : x < 0n ? -x : x
@@ -399,7 +399,7 @@ export function range(start: number, stop?: number, step = 1): number[] {
     stop = start
     start = 0
   }
-  if (!Number.isFinite(start) || !Number.isFinite(stop)) throw new Error(`Range should be finite`)
+  if (!Number.isFinite(start) || !Number.isFinite(stop)) throw new Error(`Range should be finite, start=${start}, stop=${stop}`)
   if (step > 0) { for (let i = start; i < stop; i += step) result.push(i) }
   else if (step < 0) { for (let i = start; i > stop; i += step) result.push(i) }
   return result
@@ -583,13 +583,10 @@ export class GlobalCounters {
 }
 
 // **************** timer and profiler ****************
-
-export class Timing {
-  //   def __init__(self, prefix="", on_exit=None, enabled=True): self.prefix, self.on_exit, self.enabled = prefix, on_exit, enabled
-  //   def __enter__(self): self.st = time.perf_counter_ns()
-  //   def __exit__(self, *exc):
-  //     self.et = time.perf_counter_ns() - self.st
-  //     if self.enabled: print(f"{self.prefix}{self.et*1e-6:6.2f} ms"+(self.on_exit(self.et) if self.on_exit else ""))
+export const Timing = async <T>(fn: () => Promise<T>): Promise<[T, number]> => {
+  const st = performance.now()
+  const res = await fn()
+  return [res, performance.now() - st]
 }
 export const _format_fcn = (fcn: any[]) => `${fcn[0]}:${fcn[1]}:${fcn[2]}`
 export class Profiling {
@@ -614,62 +611,7 @@ export class Profiling {
 }
 // *** universal database cache ***
 
-const cache_dir = get_env('XDG_CACHE_HOME', OSX ? `${Env.homedir()}/Library/Caches` : `${Env.homedir()}/.cache`)
-export const CACHEDB = get_env('CACHEDB', `${cache_dir}/tinygrad/cache.db`)
 
-// VERSION = 16
-const _db_connection = undefined
-export const db_connection = () => {
-  //   global _db_connection
-  //   if _db_connection is None:
-  //     os.makedirs(CACHEDB.rsplit(os.sep, 1)[0], exist_ok=True)
-  //     _db_connection = sqlite3.connect(CACHEDB, timeout=60, isolation_level="IMMEDIATE")
-  // another connection has set it already or is in the process of setting it
-  // that connection will lock the database
-  //     with contextlib.suppress(sqlite3.OperationalError): _db_connection.execute("PRAGMA journal_mode=WAL").fetchone()
-  //     if DEBUG >= 7: _db_connection.set_trace_callback(print)
-  //   return _db_connection
-}
-export const diskcache_clear = () => {
-  //   cur = db_connection().cursor()
-  //   drop_tables = cur.execute("SELECT 'DROP TABLE IF EXISTS ' || quote(name) || ';' FROM sqlite_master WHERE type = 'table';").fetchall()
-  //   cur.executescript("\n".join([s[0] for s in drop_tables] + ["VACUUM;"]))
-}
-export const diskcache_get = (table: string, key: any): any | undefined => {
-  //   if CACHELEVEL == 0: return None
-  //   if isinstance(key, (str,int)): key = {"key": key}
-  //   conn = db_connection()
-  //   cur = conn.cursor()
-  //   try:
-  //     res = cur.execute(f"SELECT val FROM '{table}_{VERSION}' WHERE {' AND '.join([f'{x}=?' for x in key.keys()])}", tuple(key.values()))
-  //   except sqlite3.OperationalError:
-  //     return None  # table doesn't exist
-  //   if (val:=res.fetchone()) is not None: return pickle.loads(val[0])
-  return undefined
-}
-// _db_tables = set()
-export const diskcache_put = (table: string, key: any, val: any, prepickled = false) => {
-  //   if CACHELEVEL == 0: return val
-  //   if isinstance(key, (str,int)): key = {"key": key}
-  //   conn = db_connection()
-  //   cur = conn.cursor()
-  //   if table not in _db_tables:
-  //     TYPES = {str: "text", bool: "integer", int: "integer", float: "numeric", bytes: "blob"}
-  //     ltypes = ', '.join(f"{k} {TYPES[type(key[k])]}" for k in key.keys())
-  //     cur.execute(f"CREATE TABLE IF NOT EXISTS '{table}_{VERSION}' ({ltypes}, val blob, PRIMARY KEY ({', '.join(key.keys())}))")
-  //     _db_tables.add(table)
-  //   cur.execute(f"REPLACE INTO '{table}_{VERSION}' ({', '.join(key.keys())}, val) VALUES ({', '.join(['?']*len(key.keys()))}, ?)", tuple(key.values()) + (pickle.dumps(val), ))  # noqa: E501
-  //   conn.commit()
-  //   cur.close()
-  //   return val
-}
-export const diskcache = (func: any) => {
-  //   def wrapper(*args, **kwargs) -> bytes:
-  //     table, key = f"cache_{func.__name__}", hashlib.sha256(pickle.dumps((args, kwargs))).hexdigest()
-  //     if (ret:=diskcache_get(table, key)): return ret
-  //     return diskcache_put(table, key, func(*args, **kwargs))
-  //   return wrapper
-}
 // *** http support ***
 export const CAPTURE_PROCESS_REPLAY = get_env('RUN_PROCESS_REPLAY') || get_env('CAPTURE_PROCESS_REPLAY')
 

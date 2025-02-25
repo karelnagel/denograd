@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -657,8 +657,8 @@ export class UOp extends MathTrait<UOp> {
           if (s1_vmin < 0 && s0_vmin >= 0) return [-idiv(s0_vmax, -s1_vmin), -idiv(s0_vmin, -s1_vmin)]
         }
         // don't know exact bounds, but know the sign
-        if ((s0_vmax <= 0 && s1_vmin < 0) || (s0_vmin >= 0 && s1_vmin > 0)) return [0, Number(dtypes.max(this.dtype))]
-        if ((s0_vmax <= 0 && s1_vmin > 0) || (s0_vmin >= 0 && s1_vmin < 0)) return [Number(dtypes.min(this.dtype)), 0]
+        if ((s0_vmax <= 0 && s1_vmin < 0) || (s0_vmin >= 0 && s1_vmin > 0)) return [0, constToNumeric(dtypes.max(this.dtype))]
+        if ((s0_vmax <= 0 && s1_vmin > 0) || (s0_vmin >= 0 && s1_vmin < 0)) return [constToNumeric(dtypes.min(this.dtype)), 0]
       }
       if (this.op === Ops.MAX) return [max([s0_vmin, s1_vmin]), max([s0_vmax, s1_vmax])]
       if (this.op === Ops.CMPLT) return [Number(s0_vmax < s1_vmin), Number(s0_vmin < s1_vmax)]
@@ -679,7 +679,7 @@ export class UOp extends MathTrait<UOp> {
     if (this.op === Ops.SPECIAL) return [0, typeof this.arg[1] === 'number' ? (this.arg[1] - 1) : this.arg[1].vmax]
     if (this.op === Ops.CONST) return [this.arg, this.arg]
     if (this.op === Ops.VCONST) return [min(this.arg), max(this.arg)]
-    return [Number(dtypes.min(this.dtype)), Number(dtypes.max(this.dtype))]
+    return [constToNumeric(dtypes.min(this.dtype)), constToNumeric(dtypes.max(this.dtype))]
   }
   @cache
   get _sym_fxn(): [(m: Record<string, number>) => number, string[]] {
@@ -1463,8 +1463,8 @@ export const exponent_bias = (d: DType): number => new Map([[dtypes.float64, 102
 export const exponent_mask = (d: DType): number => new Map([[dtypes.float64, 2047], [dtypes.float32, 255], [dtypes.float16, 31]] as const).get(d)!
 
 // **** utils ****
-export const shr = (x: UOp, y: number): UOp => x.idiv(2 ** y)
-export const shl = (x: UOp, y: number): UOp => x.mul(2 ** y)
+export const shr = (x: UOp, y: number): UOp => x.idiv(2n ** BigInt(y))
+export const shl = (x: UOp, y: number): UOp => x.mul(2n ** BigInt(y))
 
 /**round d:float to int away from 0*/
 export const rintk = (d: UOp): UOp => {
@@ -1501,12 +1501,12 @@ export const ldexp2k = (d: UOp, e: UOp): UOp => {
 export const frexp = (v: UOp): [UOp, UOp] => {
   assert(TRANSCENDENTAL_SUPPORTED_DTYPES.includes(v.dtype))
   // m1 = masks for mantissa, m2 = masks to normalize the mantissa.
-  const m1 = new Map([[dtypes.float64, 0x000FFFFFFFFFFFFF], [dtypes.float32, 0x807FFFFF], [dtypes.float16, 0x83FF]]).get(v.dtype)!
-  const m2 = new Map([[dtypes.float64, 0x3FE0000000000000], [dtypes.float32, 0x3F000000], [dtypes.float16, 0x3800]]).get(v.dtype)!
+  const m1 = new Map<DType, number | bigint>([[dtypes.float64, 0x000FFFFFFFFFFFFFn], [dtypes.float32, 0x807FFFFF], [dtypes.float16, 0x83FF]]).get(v.dtype)!
+  const m2 = new Map<DType, number | bigint>([[dtypes.float64, 0x3FE0000000000000n], [dtypes.float32, 0x3F000000], [dtypes.float16, 0x3800]]).get(v.dtype)!
   const bits = v.bitcast(new Map([[dtypes.float64, dtypes.uint64], [dtypes.float32, dtypes.uint32], [dtypes.float16, dtypes.uint16]]).get(v.dtype)!)
   const exponent = shr(bits, mantissa_bits(v.dtype)).bitwise_and(exponent_mask(v.dtype))
   // Set the exponent bits appropriately to normalize the mantissa into the range of [0.5, 1.0).
-  const mantissa = ((bits.bitwise_and(m1)).bitwise_or(m2)).bitcast(v.dtype)
+  const mantissa = bits.bitwise_and(m1).bitwise_or(m2).bitcast(v.dtype)
   const exp = exponent.sub(exponent_bias(v.dtype)).add(1)
   return [mantissa, exp]
 }
@@ -1540,8 +1540,8 @@ export const payne_hanek_reduction = (d: UOp): [UOp, UOp] => {
     }
     return an
   }
-  const _shl_lazy = (x: UOp, y: UOp) => (x.cast(dtypes.uint64).mul(pow2if(y, d.dtype).cast(dtypes.uint64))).cast(dtypes.uint32)
-  const _shr_lazy = (x: UOp, y: UOp) => (x.cast(dtypes.uint64).idiv(pow2if(y, d.dtype).cast(dtypes.uint64))).cast(dtypes.uint32)
+  const _shl_lazy = (x: UOp, y: UOp) => x.cast(dtypes.uint64).mul(pow2if(y, d.dtype).cast(dtypes.uint64)).cast(dtypes.uint32)
+  const _shr_lazy = (x: UOp, y: UOp) => x.cast(dtypes.uint64).idiv(pow2if(y, d.dtype).cast(dtypes.uint64)).cast(dtypes.uint32)
 
   const a = range(4).map((i) => _take(UOp.const(dtypes.uint32, 0), i))
   //  (two_over_pi_f[Int(i) + n] << e) | (two_over_pi_f[Int(i) + n+1] >> (nbits - e))
@@ -1549,7 +1549,6 @@ export const payne_hanek_reduction = (d: UOp): [UOp, UOp] => {
   const hi = _shl_lazy(a[0], e).bitwise_or(_shr_lazy(a[1], offset))
   const mi = _shl_lazy(a[1], e).bitwise_or(_shr_lazy(a[2], offset))
   const lo = _shl_lazy(a[2], e).bitwise_or(_shr_lazy(a[3], offset))
-
   const _hp_mul = (x: UOp, y: UOp) => x.cast(dtypes.uint64).mul(y.cast(dtypes.uint64))
   // compute x * 2/pi
   let p = shl(_hp_mul(ia, hi), 32).add(_hp_mul(ia, mi)).add(shr(_hp_mul(ia, lo), 32))
@@ -1560,7 +1559,7 @@ export const payne_hanek_reduction = (d: UOp): [UOp, UOp] => {
   const r = (p.cast(intermediate_dtype).mul(3.4061215800865545e-19)).cast(d.dtype)
 
   // if fraction >= 0.5, r -= pi/2, q += 1
-  return [(f.lt(0.5)).where(r, r.sub(Math.PI / 2)), (f.lt(0.5)).where(q, q.add(1))]
+  return [f.lt(0.5).where(r, r.sub(Math.PI / 2)), f.lt(0.5).where(q, q.add(1))]
 }
 
 /**
@@ -1608,7 +1607,7 @@ export const sin_poly = (d: UOp): UOp => {
   )
 }
 
-const _ifand = (q: UOp, n: number) => (q.bitwise_and(n)).ne(0)
+const _ifand = (q: UOp, n: number) => q.bitwise_and(n).ne(0)
 
 export const sin_poly_small = (d: UOp, q: UOp): UOp => {
   const r = sin_poly(d)
@@ -1631,7 +1630,7 @@ export const xsin = ({ d, fast = false, switch_over = 30.0 }: { d: UOp; fast?: b
   //  mask +-inf/nan as zero
   const x = _lazy_map_numbers(d, d.const_like(0.0), d.const_like(0.0), d.const_like(0.0), d)
   //  x_sign = sign(x)
-  const x_sign = x.ne(0).where((x.lt(0)).where(x.const_like(-1), x.const_like(1)), x.const_like(0))
+  const x_sign = x.ne(0).where(x.lt(0).where(x.const_like(-1), x.const_like(1)), x.const_like(0))
   const x_abs = x.mul(x_sign)
   const [r, q] = (fast ? cody_waite_reduction : payne_hanek_reduction)(x_abs)
   let result
@@ -1639,7 +1638,7 @@ export const xsin = ({ d, fast = false, switch_over = 30.0 }: { d: UOp; fast?: b
   else {
     // Payne Hanek Reduction assumes abs(x) >= pi/4, so for smaller values, use cody_waite_reduction.
     const [r_small, q_small] = cody_waite_reduction(x_abs)
-    result = (x_abs.lt(switch_over)).where(sin_poly_small(r_small, q_small), sin_poly_large(r, q))
+    result = x_abs.lt(switch_over).where(sin_poly_small(r_small, q_small), sin_poly_large(r, q))
   }
   // adjusts the sign for abs(x)
   result = result.mul(x_sign)
@@ -1686,7 +1685,7 @@ export const xlog2 = ({ d }: { d: UOp }): UOp => {
   if (d.dtype === dtypes.float16) return xlog2({ d: d.cast(dtypes.float32) }).cast(dtypes.float16)
   const FLT_MIN = d.const_like(d.dtype === dtypes.float16 ? 1e-6 : 1e-4)
   const is_denormal = d.lt(FLT_MIN)
-  const a = is_denormal.where(d.mul(2 ** 64), d)
+  const a = is_denormal.where(d.mul(2n ** 64n), d)
 
   let e = ilogb2k(a.mul(1.0 / 0.75)).cast(a.dtype)
   const m = ldexp3k(a, e.neg())

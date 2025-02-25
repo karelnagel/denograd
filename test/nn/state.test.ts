@@ -1,6 +1,6 @@
 import { expect } from 'expect/expect'
 import { Tensor } from '../../denograd/tensor.ts'
-import { get_parameters, get_state_dict, safe_load } from '../../denograd/nn/state.ts'
+import { get_parameters, get_state_dict, gguf_load, safe_load } from '../../denograd/nn/state.ts'
 import { zip } from '../../denograd/helpers.ts'
 import { safe_save } from '../../denograd/nn/state.ts'
 import { python, test } from '../helpers.ts'
@@ -69,3 +69,15 @@ test('safe_load', async () => {
     expect(await entry[1].tolist()).toEqual(expected[1])
   }
 })
+
+test('gguf_load', async () => {
+  const path = 'weights/llama3-1b-instruct/Llama-3.2-1B-Instruct-Q6_K.gguf'
+  const [py1, py2] = await python([
+    'from tinygrad.nn.state import gguf_load',
+    `res = gguf_load("${path}")`,
+    `out([[key for key in res[0]], [key for key in res[1]]])`,
+  ])
+  const [ts1, ts2] = await gguf_load(path)
+  expect(Object.keys(ts1)).toEqual(py1)
+  expect(Object.keys(ts2)).toEqual(py2)
+}, { ignore: true })

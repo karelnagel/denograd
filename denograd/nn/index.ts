@@ -404,13 +404,12 @@ export class LayerNorm2d extends LayerNorm {
  * ```
  */
 export class RMSNorm {
-  eps: number
   weight: Tensor
-  constructor(dim: number, eps = 1e-6) {
-    this.eps = eps, this.weight = Tensor.ones([dim])
+  constructor(dim: number, public eps = 1e-6) {
+    this.weight = Tensor.ones([dim])
   }
 
-  _norm = (x: Tensor): Tensor => x.mul((x.square().mean(-1, true).add(this.eps)).rsqrt())
+  _norm = (x: Tensor): Tensor => x.mul(x.square().mean(-1, true).add(this.eps).rsqrt())
 
   call = (x: Tensor): Tensor => this._norm(x.float()).cast(x.dtype).mul(this.weight)
 }
@@ -434,8 +433,9 @@ export class Embedding {
   call = (idx: Tensor): Tensor => {
     if (this.arange === undefined) this.arange = Tensor.arange(this.vocab_size, undefined, undefined, { requires_grad: false, device: this.weight.device }).unsqueeze(-1)
     const big_shp = [...idx.shape, this.vocab_size, this.embed_size]
-    const arange = this.arange.expand(big_shp), idx2 = idx.reshape([...idx.shape, 1, 1]).expand(big_shp), vals = this.weight!.expand(big_shp)
-    return (arange.eq(idx2)).mul(vals).sum(-2, undefined, vals.dtype)
+    const arange = this.arange.expand(big_shp), vals = this.weight!.expand(big_shp)
+    idx = idx.reshape([...idx.shape, 1, 1]).expand(big_shp)
+    return arange.eq(idx).mul(vals).sum(-2, undefined, vals.dtype)
   }
 }
 

@@ -5,6 +5,7 @@ export abstract class Environment {
   abstract PLATFORM: 'aix' | 'android' | 'haiku' | 'cygwin' | 'netbsd' | 'darwin' | 'freebsd' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'web'
   DEVICES: AllDevices[] | undefined
   CPU_DEVICE: AllDevices = 'CLANG'
+  DB_VERSION = 1
   notImplemented = () => {
     throw new Error(`This feature is not available in ${this.NAME} environment`)
   }
@@ -21,4 +22,7 @@ export abstract class Environment {
   abstract homedir: () => string
   abstract env: { get: (k: string) => string | undefined; set: (k: string, v: string) => void }
   abstract sha256: (v: Uint8Array) => Uint8Array
+
+  abstract disk_get: (table: string, key: string) => Promise<any | undefined>
+  abstract disk_put: (table: string, key: string, value: any) => Promise<void>
 }
