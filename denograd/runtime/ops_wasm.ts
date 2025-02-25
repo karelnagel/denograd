@@ -62,7 +62,7 @@ export class WASMAllocator extends Allocator<Uint8Array> {
 export class WASM extends Compiled {
   static wabt: any
   constructor(device: DeviceType) {
-    super(device, new WASMAllocator(), new WASMRenderer(), new WASMCompiler(), WASMProgram)
+    super(device, new WASMAllocator(), new WASMRenderer(), new WASMCompiler('wasm'), WASMProgram)
   }
   static override init = async () => {
     WASM.wabt = await WabtModule()
