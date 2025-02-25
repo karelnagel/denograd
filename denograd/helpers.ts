@@ -212,7 +212,7 @@ export class NotImplemented extends Error {
   }
 }
 export const floatString = (x: number) => Number.isInteger(x) ? x + '.0' : x.toString()
-
+export const constToNumeric = (x: ConstType) => typeof x === 'boolean' ? Number(x) : x
 export const max = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.max(...v as number[]) : v.reduce((max, curr) => curr > max ? curr : max)
 export const min = <T extends ConstType>(v: T[]) => typeof v[0] !== 'bigint' ? Math.min(...v as number[]) : v.reduce((min, curr) => curr < min ? curr : min)
 export const abs = <T extends ConstType>(x: T) => typeof x !== 'bigint' ? Math.abs(Number(x)) : x < 0n ? -x : x

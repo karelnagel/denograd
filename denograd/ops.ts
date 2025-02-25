@@ -2,7 +2,7 @@
 import type { Buffer, DeviceType } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, xor } from './helpers.ts'
+import { accumulate, add, AMX, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -657,8 +657,8 @@ export class UOp extends MathTrait<UOp> {
           if (s1_vmin < 0 && s0_vmin >= 0) return [-idiv(s0_vmax, -s1_vmin), -idiv(s0_vmin, -s1_vmin)]
         }
         // don't know exact bounds, but know the sign
-        if ((s0_vmax <= 0 && s1_vmin < 0) || (s0_vmin >= 0 && s1_vmin > 0)) return [0, Number(dtypes.max(this.dtype))]
-        if ((s0_vmax <= 0 && s1_vmin > 0) || (s0_vmin >= 0 && s1_vmin < 0)) return [Number(dtypes.min(this.dtype)), 0]
+        if ((s0_vmax <= 0 && s1_vmin < 0) || (s0_vmin >= 0 && s1_vmin > 0)) return [0, constToNumeric(dtypes.max(this.dtype))]
+        if ((s0_vmax <= 0 && s1_vmin > 0) || (s0_vmin >= 0 && s1_vmin < 0)) return [constToNumeric(dtypes.min(this.dtype)), 0]
       }
       if (this.op === Ops.MAX) return [max([s0_vmin, s1_vmin]), max([s0_vmax, s1_vmax])]
       if (this.op === Ops.CMPLT) return [Number(s0_vmax < s1_vmin), Number(s0_vmin < s1_vmax)]
@@ -679,7 +679,7 @@ export class UOp extends MathTrait<UOp> {
     if (this.op === Ops.SPECIAL) return [0, typeof this.arg[1] === 'number' ? (this.arg[1] - 1) : this.arg[1].vmax]
     if (this.op === Ops.CONST) return [this.arg, this.arg]
     if (this.op === Ops.VCONST) return [min(this.arg), max(this.arg)]
-    return [Number(dtypes.min(this.dtype)), Number(dtypes.max(this.dtype))]
+    return [constToNumeric(dtypes.min(this.dtype)), constToNumeric(dtypes.max(this.dtype))]
   }
   @cache
   get _sym_fxn(): [(m: Record<string, number>) => number, string[]] {
@@ -1549,7 +1549,6 @@ export const payne_hanek_reduction = (d: UOp): [UOp, UOp] => {
   const hi = _shl_lazy(a[0], e).bitwise_or(_shr_lazy(a[1], offset))
   const mi = _shl_lazy(a[1], e).bitwise_or(_shr_lazy(a[2], offset))
   const lo = _shl_lazy(a[2], e).bitwise_or(_shr_lazy(a[3], offset))
-
   const _hp_mul = (x: UOp, y: UOp) => x.cast(dtypes.uint64).mul(y.cast(dtypes.uint64))
   // compute x * 2/pi
   let p = shl(_hp_mul(ia, hi), 32).add(_hp_mul(ia, mi)).add(shr(_hp_mul(ia, lo), 32))
