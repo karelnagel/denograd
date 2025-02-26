@@ -1,5 +1,5 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, cpu_time_execution, DEBUG, isInt, memsize_to_str, round_up } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, DEBUG, get_number_env, isInt, memsize_to_str, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
@@ -91,7 +91,8 @@ export class WEBGPU extends Compiled {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
   static override init = async () => {
-    WEBGPU.adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
+    if (!get_number_env('WEBGPU')) return
+    WEBGPU.adapter = await navigator.gpu.requestAdapter()
     if (!WEBGPU.adapter) throw new Error('No adapter')
     WEBGPU.device = await WEBGPU.adapter.requestDevice({ requiredFeatures: ['shader-f16'] })
   }
