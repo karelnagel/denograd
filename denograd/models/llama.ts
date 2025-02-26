@@ -1,8 +1,9 @@
 import { Device } from '../device.ts'
 import { dtypes } from '../dtype.ts'
 import { TinyJit } from '../engine/jit.ts'
-import { assert, get_env, get_number_env, idiv, is_eq, range } from '../helpers.ts'
+import { add, assert, ge, get_env, get_number_env, idiv, is_eq, range } from '../helpers.ts'
 import { Embedding, Linear, RMSNorm } from '../nn/index.ts'
+import { UOp, type Variable } from '../ops.ts'
 import { Tensor } from '../tensor.ts'
 
 // https://github.com/facebookresearch/llama/blob/1076b9c51c77ad06e9d7ba8a4c6df775741732bd/llama/model.py#L47
@@ -57,7 +58,7 @@ export class Attention {
     this.wv = new linear(dim, this.n_kv_heads * this.head_dim, false)
     this.wo = new linear(this.n_heads * this.head_dim, dim, false)
   }
-  call = async (x: Tensor, start_pos: number, freqs_cis: Tensor, mask?: Tensor): Promise<Tensor> => {
+  call = async (x: Tensor, start_pos: number | Variable, freqs_cis: Tensor, mask?: Tensor): Promise<Tensor> => {
     let xq, xk, xv
     if (get_env('WQKV')) {
       if (this.wqkv === undefined) this.wqkv = Tensor.cat([this.wq.weight, this.wk.weight, this.wv.weight])
@@ -83,10 +84,10 @@ export class Attention {
     }
     // update the cache
     if (xk.dtype !== xv.dtype || xv.dtype !== this.cache_kv.dtype) throw new Error(`${xk.dtype}, ${xv.dtype}, ${this.cache_kv.dtype}`)
-    await this.cache_kv.shrink([undefined, undefined, [start_pos, start_pos + seqlen], undefined, undefined]).assign(Tensor.stack([xk, xv])).realize()
+    await this.cache_kv.shrink([undefined, undefined, [start_pos, add(start_pos, seqlen)], undefined, undefined]).assign(Tensor.stack([xk, xv])).realize()
 
-    let keys = start_pos > 0 ? this.cache_kv.get(0).shrink([undefined, [0, start_pos + seqlen], undefined, undefined]) : xk
-    let values = start_pos > 0 ? this.cache_kv.get(1).shrink([undefined, [0, start_pos + seqlen], undefined, undefined]) : xv
+    let keys = ge(start_pos, 0) ? this.cache_kv.get(0).shrink([undefined, [0, add(start_pos, seqlen)], undefined, undefined]) : xk
+    let values = ge(start_pos, 0) ? this.cache_kv.get(1).shrink([undefined, [0, add(start_pos, seqlen)], undefined, undefined]) : xv
 
     keys = repeat_kv(keys, this.n_rep), values = repeat_kv(values, this.n_rep)
     xq = xq.transpose(1, 2), keys = keys.transpose(1, 2), values = values.transpose(1, 2)
@@ -120,7 +121,7 @@ export class TransformerBlock {
     this.ffn_norm = new RMSNorm(dim, norm_eps)
   }
 
-  call = async (x: Tensor, start_pos: number, freqs_cis: Tensor, mask?: Tensor) => {
+  call = async (x: Tensor, start_pos: number | Variable, freqs_cis: Tensor, mask?: Tensor) => {
     const h = x.add(await this.attention.call(this.attention_norm.call(x), start_pos, freqs_cis, mask))
     return h.add(this.feed_forward.call(this.ffn_norm.call(h))).contiguous()
   }
@@ -188,7 +189,7 @@ export class Transformer {
   tok_embeddings: Embedding
   output: Linear
   freqs_cis: Tensor
-  forward_jit?: TinyJit<[tokens: Tensor, start_pos: number, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number], Tensor> = undefined
+  forward_jit?: TinyJit<[tokens: Tensor, start_pos: number | Variable, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number], Tensor> = undefined
   constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, n_kv_heads?: number, rope_theta = 10000, public max_context = 1024, jit = true, feed_forward = FeedForward) {
     this.layers = range(n_layers).map(() => new TransformerBlock(dim, hidden_dim, n_heads, n_kv_heads, norm_eps, max_context, linear, feed_forward))
     this.norm = new RMSNorm(dim, norm_eps)
@@ -197,14 +198,14 @@ export class Transformer {
     this.freqs_cis = precompute_freqs_cis(idiv(dim, n_heads), this.max_context * 2, rope_theta).contiguous()
     this.forward_jit = jit ? new TinyJit(this.forward) : undefined
   }
-  forward = async (tokens: Tensor, start_pos: number, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number) => {
+  forward = async (tokens: Tensor, start_pos: number | Variable, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number) => {
     const [_bsz, seqlen] = tokens.shape
     let h = this.tok_embeddings.call(tokens)
 
     this.freqs_cis = await this.freqs_cis.cast(h.dtype).realize()
-    const freqs_cis = this.freqs_cis.shrink([undefined, [start_pos, start_pos + seqlen], undefined, undefined, undefined])
+    const freqs_cis = this.freqs_cis.shrink([undefined, [start_pos, add(start_pos, seqlen)], undefined, undefined, undefined])
 
-    const mask = seqlen > 1 ? await Tensor.full([1, 1, seqlen, start_pos + seqlen], -Infinity, { dtype: h.dtype, device: h.device }).triu(start_pos + 1).realize() : undefined
+    const mask = seqlen > 1 ? await Tensor.full([1, 1, seqlen, add(start_pos, seqlen)], -Infinity, { dtype: h.dtype, device: h.device }).triu((start_pos as number) + 1).realize() : undefined
     for (const layer of this.layers) h = await layer.call(h, start_pos, freqs_cis, mask)
     const logits = this.output.call(this.norm.call(h)).float().get({}, -1, {})
 
@@ -213,7 +214,7 @@ export class Transformer {
   call = async (tokens: Tensor, start_pos: number, temperature = 0.0, top_k: number = 0, top_p: number = 0.8, alpha_f: number = 0.0, alpha_p: number = 0.0) => {
     // TODO: better way to handle the first call v.s. the rest?
     if (is_eq(tokens.shape.slice(0, 2), [1, 1]) && this.forward_jit !== undefined && start_pos !== 0) {
-      return await this.forward_jit.call(tokens, start_pos, temperature, top_k, top_p, alpha_f, alpha_p)
+      return await this.forward_jit.call(tokens, UOp.variable('start_pos', 1, this.max_context).bind(start_pos), temperature, top_k, top_p, alpha_f, alpha_p)
     }
     return await this.forward(tokens, start_pos, temperature, top_k, top_p, alpha_f, alpha_p)
   }
