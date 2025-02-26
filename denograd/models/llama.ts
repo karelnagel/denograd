@@ -188,7 +188,7 @@ export class Transformer {
   tok_embeddings: Embedding
   output: Linear
   freqs_cis: Tensor
-  forward_jit?: TinyJit<[tokens: Tensor, start_pos: number, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number], Promise<Tensor>> = undefined
+  forward_jit?: TinyJit<[tokens: Tensor, start_pos: number, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number], Tensor> = undefined
   constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, n_kv_heads?: number, rope_theta = 10000, public max_context = 1024, jit = true, feed_forward = FeedForward) {
     this.layers = range(n_layers).map(() => new TransformerBlock(dim, hidden_dim, n_heads, n_kv_heads, norm_eps, max_context, linear, feed_forward))
     this.norm = new RMSNorm(dim, norm_eps)

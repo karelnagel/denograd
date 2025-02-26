@@ -119,10 +119,10 @@ export class BufferCopy extends Runner {
     return 0
   }
 }
-class BufferXfer extends BufferCopy {
-  override copy = (dest: Buffer, src: Buffer) => {
-    throw new Error('KAREL: implement _transfer')
-    // return dest.allocator._transfer(dest._buf, src._buf, dest.nbytes, src_dev = src.allocator.dev, dest_dev = dest.allocator.dev)
+export class BufferXfer extends BufferCopy {
+  override copy = async (dest: Buffer, src: Buffer) => {
+    if (!dest.allocator?._transfer) throw new Error()
+    return dest.allocator!._transfer!(dest._buf, src._buf, dest.nbytes, (src.allocator as any).dev, (dest.allocator as any).dev)
   }
 }
 // **************** method cache ****************

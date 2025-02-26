@@ -5,7 +5,7 @@ import { DEBUG, dedup, DefaultMap, get_key, NO_MEMORY_PLANNER } from '../helpers
 import { Ops } from '../ops.ts'
 import { ScheduleItem } from './schedule.ts'
 
-const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[], debug_prefix = ''): Map<Buffer, Buffer> => {
+export const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[], debug_prefix = ''): Map<Buffer, Buffer> => {
   if (NO_MEMORY_PLANNER) return new Map()
   const [first_appearance, last_appearance] = [new Map<Buffer, number>(), new Map<Buffer, number>()]
   for (const [i, u] of buffers.entries()) {

@@ -1,122 +1,142 @@
-import type { Buffer } from '../device.ts'
-import { type ArrayMap, NotImplemented } from '../helpers.ts'
-import type { Variable } from '../ops.ts'
+import { Buffer, type Compiled, Device, type DeviceType, uop_realized } from '../device.ts'
+import type { DType } from '../dtype.ts'
+import { ArrayMap, colored, DEBUG, DefaultMap, flatten, get_number_env, is_eq, JIT, merge_maps, partition, WeakKeyMap } from '../helpers.ts'
+import { get_parameters } from '../nn/state.ts'
+import { Ops, sym_infer, UOp, type Variable } from '../ops.ts'
 import { Estimates } from '../renderer/index.ts'
-import { type ExecItem, Runner } from './realize.ts'
+import type { ShapeTracker } from '../shape/shapetracker.ts'
+import { Tensor } from '../tensor.ts'
+import { _internal_memory_planner } from './memory.ts'
+import { BufferCopy, BufferXfer, CompiledRunner, ExecItem, Runner, ViewOp } from './realize.ts'
 
 export class GraphException extends Error {}
 
 export const apply_graph_to_jit = (jit_cache: ExecItem[], input_rawbuffers: Buffer[], var_vals: Map<Variable, number>, max_batch_size = 0): ExecItem[] => {
-  // # Split JIT cache into batches for faster graph execution.
-  // # This allows the accelerator to run some batches while subsequent graphs are still being updated.
-  // graphed_jit_cache: list[ExecItem] = []
-  // current_batch: list[ExecItem] = []
-  // current_device: Optional[Compiled] = None
+  // Split JIT cache into batches for faster graph execution.
+  // This allows the accelerator to run some batches while subsequent graphs are still being updated.
+  const graphed_jit_cache: ExecItem[] = []
+  let current_batch: ExecItem[] = []
+  let current_device: undefined | Compiled
 
-  // def flush_batch():
-  //   nonlocal current_batch, current_device, max_batch_size
-  //   try:
-  //     if len(current_batch) <= 1 or current_device is None: raise GraphException("only one kernel doesn't graph")
-  //     graph_runner = current_device.graph(current_batch, input_rawbuffers, var_vals)
-  //     # clear jit inputs to allow their memory to be freed/reused
-  //     for (j,i) in graph_runner.input_replace.keys(): graph_runner.jit_cache[j].bufs[i] = None
-  //     graphed_jit_cache.append(ExecItem(graph_runner, cast(list[Optional[Buffer]], input_rawbuffers)))
-  //     max_batch_size *= 2
-  //     if DEBUG >= 2: print(f"JIT GRAPHing batch with {len(current_batch)} kernels on device {current_device}")
-  //   except GraphException as e:
-  //     graphed_jit_cache.extend(current_batch)
-  //     if DEBUG >= 2: print(f"JIT GRAPHing failed batch with {len(current_batch)} kernels on device {current_device}: {e}")
-  //   current_batch = []
-  //   current_device = None
+  const flush_batch = () => {
+    try {
+      if (current_batch.length <= 1 || current_device === undefined) throw new GraphException("only one kernel doesn't graph")
+      const graph_runner = current_device.graph(current_batch, input_rawbuffers, var_vals)
+      // clear jit inputs to allow their memory to be freed/reused
+      for (const [j, i] of graph_runner.input_replace.keys()) graph_runner.jit_cache[j].bufs[i] = undefined
+      graphed_jit_cache.push(new ExecItem(graph_runner, input_rawbuffers))
+      max_batch_size *= 2
+      if (DEBUG >= 2) console.log(`JIT GRAPHing batch with ${current_batch.length} kernels on device ${current_device}`)
+    } catch (e) {
+      if (e instanceof GraphException) {
+        graphed_jit_cache.push(...current_batch)
+        if (DEBUG >= 2) console.log(`JIT GRAPHing failed batch with ${current_batch.length} kernels on device ${current_device}: ${e}`)
+      }
+      throw e
+    }
+    current_batch = []
+    current_device = undefined
+  }
+  for (const ji of jit_cache) {
+    if (ji.prg instanceof ViewOp) continue
+    let ji_graph_dev: undefined | Compiled // device on which the ji will be graphed. Not graphed if None.
+    if (ji.prg instanceof CompiledRunner) ji_graph_dev = ji.prg.dev
+    else if (ji.prg instanceof BufferXfer && ji.bufs[0] && ['CUDA', 'NV', 'AMD'].includes(ji.bufs[0].device.split(':', 1)[0])) ji_graph_dev = Device.get(ji.bufs[0].device)
 
-  // for ji in jit_cache:
-  //   if isinstance(ji.prg, ViewOp): continue
-  //   ji_graph_dev: Optional[Compiled] = None # device on which the ji will be graphed. Not graphed if None.
-  //   if isinstance(ji.prg, CompiledRunner): ji_graph_dev = ji.prg.dev
-  //   elif isinstance(ji.prg, BufferXfer) and ji.bufs[0] and ji.bufs[0].device.split(":", 1)[0] in {"CUDA", "NV", "AMD"}:
-  //     ji_graph_dev = Device[ji.bufs[0].device]
+    const graph_class = ji_graph_dev ? (ji_graph_dev.graph instanceof Object ? ji_graph_dev.graph.func : ji_graph_dev.graph) : undefined // KAREL: TODO: Object should be functools.partial
+    const can_be_graphed = ji_graph_dev && ji_graph_dev.graph
+    const can_share_graph = ji_graph_dev === current_device || (graph_class instanceof MultiGraphRunner) && ji_graph_dev?.constructor.name === current_device?.constructor.name
+    const can_extend_graph_batch = can_be_graphed && (max_batch_size === 0 || current_batch.length < max_batch_size) && can_share_graph
+    if (!can_extend_graph_batch && current_batch.length > 0) flush_batch()
 
-  //   graph_class = (ji_graph_dev.graph.func if isinstance(ji_graph_dev.graph, functools.partial) else ji_graph_dev.graph) if ji_graph_dev else None
-  //   can_be_graphed = ji_graph_dev and ji_graph_dev.graph
-  //   can_share_graph = (ji_graph_dev == current_device or (isinstance(graph_class, type) and issubclass(graph_class, MultiGraphRunner)) and
-  //                      type(ji_graph_dev) is type(current_device))
-  //   can_extend_graph_batch = can_be_graphed and (max_batch_size == 0 or len(current_batch) < max_batch_size) and can_share_graph
-  //   if not can_extend_graph_batch and len(current_batch) > 0: flush_batch()
+    if (can_be_graphed) current_batch.push(ji)
+    else graphed_jit_cache.push(ji)
 
-  //   if can_be_graphed: current_batch.append(ji)
-  //   else: graphed_jit_cache.append(ji)
+    current_device = ji_graph_dev
+  }
 
-  //   current_device = ji_graph_dev
-
-  // if len(current_batch) > 0: flush_batch()
-  // return graphed_jit_cache
+  if (current_batch.length > 0) flush_batch()
+  return graphed_jit_cache
 }
 export const get_input_replace = (jit_cache: ExecItem[], input_rawbuffers: Buffer[]): ArrayMap<[number, number], number> => {
-  // input_replace: dict[tuple[int, int], int] = {}
-  // for j,ji in enumerate(jit_cache):
-  //   for i,a in enumerate(ji.bufs):
-  //     if a in input_rawbuffers:
-  //       input_replace[(j,i)] = input_rawbuffers.index(a)
-  // return input_replace
+  const input_replace = new ArrayMap<[number, number], number>()
+  for (const [j, ji] of jit_cache.entries()) {
+    for (const [i, a] of ji.bufs.entries()) {
+      if (input_rawbuffers.includes(a!)) input_replace.set([j, i], input_rawbuffers.indexOf(a!))
+    }
+  }
+  return input_replace
 }
 
 export class GraphRunner extends Runner {
-  constructor(jit_cache: ExecItem[], input_rawbuffers: Buffer[], var_vals: Map<Variable, number>) {
-    // self.jit_cache = jit_cache  # NOTE: this is not used, but you have to keep these objects alive for the Graph
-    // self.input_replace:dict[tuple[int, int], int] = get_input_replace(jit_cache, input_rawbuffers)
-    // self.var_vals_replace:dict[int, list[int]] = {}
-    // self.launch_dims_replace:dict[int, tuple[Optional[int], Optional[int]]] = {}
-    // self.launch_dims_base:dict[int, tuple[tuple[int, ...], tuple[int, ...]]] = {}
+  input_replace: ArrayMap<[number, number], number>
 
-    // def is_sym_dim(dim) -> bool: return not all(isinstance(d, (int, float)) for d in dim)
+  var_vals_replace = new Map<number, number[]>()
+  launch_dims_replace = new Map<number, [number?, number?]>()
+  launch_dims_base = new Map<number, [number[], number[]]>()
+  vars: UOp[]
+  symbolic_dims: ArrayMap<(number[] | undefined), number> // value is array index in python
 
-    // self.vars = sorted(var_vals.keys(), key=lambda v: v.expr)
-    // self.symbolic_dims = dedup([tuple(d) for ji in jit_cache if isinstance(ji.prg, CompiledRunner) and (d:=ji.prg.p.local_size) and is_sym_dim(d)] +
-    //                            [tuple(d) for ji in jit_cache if isinstance(ji.prg, CompiledRunner) and (d:=ji.prg.p.global_size) and is_sym_dim(d)])
-    // def find_symbolic_dim(dim): return self.symbolic_dims.index(tuple(dim)) if dim is not None and tuple(dim) in self.symbolic_dims else None
+  // used in MultiGraphRunner. the ints are id() of _bufs
+  w_dependency_map = new Map<string, any>()
+  r_dependency_map = new DefaultMap<string, any[]>(undefined, () => [])
+  constructor(public jit_cache: ExecItem[], input_rawbuffers: Buffer[], var_vals: Map<Variable, number>) {
+    super(colored(`<batched ${jit_cache.length}>`, 'cyan'), jit_cache[0].prg.device.split(':')[0] as DeviceType, new Estimates())
+    this.input_replace = get_input_replace(jit_cache, input_rawbuffers)
+    const is_sym_dim = (dim: number[]): boolean => !dim.every((d) => typeof d === 'number')
 
-    // estimates = Estimates()
-    // for j,ji in enumerate(jit_cache):
-    //   estimates += ji.prg.estimates
-    //   if isinstance(ji.prg, CompiledRunner):
-    //     if ji.prg.p.vars: self.var_vals_replace[j] = [self.vars.index(v) for v in ji.prg.p.vars]
+    this.vars = [...var_vals.keys()].toSorted((a, b) => b.expr - a.expr)
+    this.symbolic_dims = new ArrayMap([
+      ...jit_cache.filter((ji) => ji.prg instanceof CompiledRunner && ji.prg.p.local_size?.length && is_sym_dim(ji.prg.p.local_size)).map((ji) => (ji.prg as CompiledRunner).p.local_size),
+      ...jit_cache.filter((ji) => ji.prg instanceof CompiledRunner && ji.prg.p.global_size?.length && is_sym_dim(ji.prg.p.global_size)).map((ji) => (ji.prg as CompiledRunner).p.global_size),
+    ].map((key, i) => [key, i]))
+    const find_symbolic_dim = (dim?: number[]) => dim !== undefined && this.symbolic_dims.has(dim) ? this.symbolic_dims.get(dim) : undefined
 
-    //     global_dim_idx, local_dim_idx = find_symbolic_dim(ji.prg.p.global_size), find_symbolic_dim(ji.prg.p.local_size)
-    //     if global_dim_idx is not None or local_dim_idx is not None:
-    //       self.launch_dims_replace[j] = (global_dim_idx, local_dim_idx)
-    //       assert ji.prg.p.global_size is not None and ji.prg.p.local_size is not None
-    //       self.launch_dims_base[j] = (tuple(ji.prg.p.global_size), tuple(ji.prg.p.local_size))
+    for (const [j, ji] of jit_cache.entries()) {
+      this.estimates = this.estimates.add(ji.prg.estimates)
+      if (ji.prg instanceof CompiledRunner) {
+        if (ji.prg.p.vars.length) this.var_vals_replace.set(j, ji.prg.p.vars.map((v) => this.vars.indexOf(v)))
 
-    // # used in MultiGraphRunner. the ints are id() of _bufs
-    // self.w_dependency_map: dict[int, Any] = {}
-    // self.r_dependency_map: dict[int, list[Any]] = collections.defaultdict(list)
-
-    // super().__init__(colored(f"<batched {len(jit_cache)}>", "cyan"), jit_cache[0].prg.device.split(":")[0], estimates.simplify())
+        const global_dim_idx = find_symbolic_dim(ji.prg.p.global_size), local_dim_idx = find_symbolic_dim(ji.prg.p.local_size)
+        if (global_dim_idx !== undefined || local_dim_idx !== undefined) {
+          this.launch_dims_replace.set(j, [global_dim_idx, local_dim_idx])
+          if (ji.prg.p.global_size === undefined || ji.prg.p.local_size === undefined) throw new Error()
+          this.launch_dims_base.set(j, [ji.prg.p.global_size, ji.prg.p.local_size])
+        }
+      }
+    }
+    this.estimates = this.estimates.simplify()
   }
 
-  updated_vars = (var_vals: Map<Variable, number>) => {
-    // vals = [var_vals[v] for v in self.vars]
-    // for j, vidxs in self.var_vals_replace.items():
-    //   for i, v in enumerate(vidxs): yield j, i, vals[v]
+  *updated_vars(var_vals: Map<Variable, number>) {
+    const vals = this.vars.map((v) => var_vals.get(v))
+    for (const [j, vidxs] of this.var_vals_replace.entries()) {
+      for (const [i, v] of vidxs.entries()) yield [j, i, vals[v]]
+    }
   }
-  updated_launch_dims = (var_vals: Map<Variable, number>) => {
-    // dims = [tuple(sym_infer(s, var_vals) for s in dim) for dim in self.symbolic_dims]
-    // for j, (gl, lc) in self.launch_dims_replace.items():
-    //   yield j, (dims[gl] if gl is not None else self.launch_dims_base[j][0]), (dims[lc] if lc is not None else self.launch_dims_base[j][1])
+  *updated_launch_dims(var_vals: Map<Variable, number>) {
+    const dims = this.symbolic_dims.keys().map((dim) => dim!.map((s) => sym_infer(s, var_vals)))
+    for (const [j, [gl, lc]] of this.launch_dims_replace.entries()) {
+      yield [j, gl !== undefined ? dims[gl] : this.launch_dims_base.get(j)![0], lc !== undefined ? dims[lc] : this.launch_dims_base.get(j)![1]]
+    }
   }
   _access_resources = (rawbufs: Buffer[], write: number[], new_dependency: any) => {
-    // # To synchronize access to resources, we monitor the necessary prerequisites for accessing each resource,
-    // # whether for write or read operations. A resource can be accessed by either a single writer or multiple readers.
-    // wait_nodes = []
+    // To synchronize access to resources, we monitor the necessary prerequisites for accessing each resource,
+    // whether for write or read operations. A resource can be accessed by either a single writer or multiple readers.
+    const wait_nodes = []
 
-    // for i,rawbuf in enumerate(rawbufs):
-    //   if id(rawbuf.base._buf) in self.w_dependency_map: wait_nodes.append(self.w_dependency_map[id(rawbuf.base._buf)])
-    //   if i in write:
-    //     if id(rawbuf.base._buf) in self.r_dependency_map: wait_nodes.extend(self.r_dependency_map.pop(id(rawbuf.base._buf)))
-    //     self.w_dependency_map[id(rawbuf.base._buf)] = new_dependency
-    //   else: self.r_dependency_map[id(rawbuf.base._buf)].append(new_dependency)
-
-    // return list({id(x):x for x in wait_nodes}.values())
+    for (const [i, rawbuf] of rawbufs.entries()) {
+      if (this.w_dependency_map.has(rawbuf.base.key)) wait_nodes.push(this.w_dependency_map.get(rawbuf.base.key))
+      if (write.includes(i)) {
+        if (this.r_dependency_map.has(rawbuf.base.key)) {
+          wait_nodes.push(...this.r_dependency_map.get(rawbuf.base.key))
+          this.r_dependency_map.delete(rawbuf.base.key)
+        }
+        this.w_dependency_map.set(rawbuf.base.key, new_dependency)
+      } else this.r_dependency_map.get(rawbuf.base.key).push(new_dependency)
+    }
+    // return  list({id(x):x for x in wait_nodes}.values())
+    return wait_nodes //TODO: id() not good rn
   }
 }
 
@@ -124,185 +144,211 @@ export class GraphRunner extends Runner {
 export class MultiGraphRunner extends GraphRunner {}
 
 export const update_depends = (depends: Set<Buffer | undefined>, jit_cache: ExecItem[]) => {
-  // for ei in jit_cache:
-  // if any(b in depends for b in ei.bufs):
-  //   if isinstance(ei.prg, CompiledRunner):
-  //     depends.update(cast(Buffer, ei.bufs[out]) for out in ei.prg.p.outs if out not in ei.prg.p.ins)
-  //   if isinstance(ei.prg, (BufferCopy, BufferXfer)):
-  //     depends.add(cast(Buffer, ei.bufs[0]))
+  for (const ei of jit_cache) {
+    if (ei.bufs.some((b) => depends.has(b))) {
+      if (ei.prg instanceof CompiledRunner) {
+        for (const out of ei.prg.p.outs) if (!ei.prg.p.ins.includes(out)) depends.add(ei.bufs[out])
+      }
+      if (ei.prg instanceof BufferCopy || ei.prg instanceof BufferXfer) depends.add(ei.bufs[0])
+    }
+  }
 }
 // ReturnType = TypeVar('ReturnType')
-export class CapturedJit {
-  // ret: Any  # includes the Tensors or any other returned object
-  // jit_cache: list[ExecItem]
-  // input_replace: dict[tuple[int, int], int]
-  // extra_view_inputs: list[tuple[int, int, str, int, DType]]
-  // expected_names: list[Union[int, str]]
-  // expected_st_vars_dtype_device: list[tuple[ShapeTracker, tuple[Variable, ...], DType, str]]
+export class CapturedJit<Return extends any> {
+  constructor(
+    public ret: Return, // includes the Tensors or any other returned object
+    public jit_cache: ExecItem[],
+    public input_replace: ArrayMap<[number, number], number>,
+    public extra_view_inputs: [number, number, string, number, DType][],
+    public expected_names: number[],
+    public expected_st_vars_dtype_device: [ShapeTracker, Variable[], DType, DeviceType | DeviceType[]][],
+  ) {
+    this.init()
+  }
 
-  // def __reduce__(self):
-  //   # TODO: free_intermediates here?
-  //   return self.__class__, (self.ret, self.jit_cache, self.input_replace, self.extra_view_inputs,
-  //                           self.expected_names, self.expected_st_vars_dtype_device)
+  _jit_cache!: ExecItem[]
+  _input_replace!: ArrayMap<[number, number], number>
+  _first_run!: boolean
+  init = () => {
+    this._jit_cache = this.jit_cache
+    this._input_replace = this.input_replace
+    this._first_run = true
+    this._clear_inputs()
+  }
+  _clear_inputs = () => {
+    for (const [j, i] of this._input_replace.keys()) this._jit_cache[j].bufs[i] = undefined
+  }
+  free_intermediates = () => {
+    const depends = new Set<Buffer | undefined>([undefined])
+    update_depends(depends, this.jit_cache)
+    for (const b of depends) {
+      if (b !== undefined) b.deallocate()
+    }
+    this.init() // reset the graph state
+  }
+  // jit exec
+  call = (input_buffers: Buffer[], var_vals: Map<Variable, number>): Return => {
+    // assign inputs
+    for (const [idx, offset, device, size, dtype] of this.extra_view_inputs) {
+      input_buffers.push(new Buffer(device as DeviceType, size, dtype, undefined, undefined, undefined, undefined, input_buffers[idx], offset).ensure_allocated())
+    }
+    for (const [[j, i], input_idx] of this._input_replace.entries()) this._jit_cache[j].bufs[i] = input_buffers[input_idx]
 
-  // def __post_init__(self):
-  //   self._jit_cache: list[ExecItem] = self.jit_cache
-  //   self._input_replace: dict[tuple[int, int], int] = self.input_replace
-  //   self._first_run = True
-  //   self._clear_inputs()
+    // Condense the items into a graph executor.
+    if (this._first_run) {
+      // allocate intermediates if freed
+      for (const ji of this.jit_cache) {
+        for (const b of ji.bufs) {
+          if (b !== undefined) b.ensure_allocated()
+        }
+      }
+      // create graph if needed
+      if (JIT < 2) {
+        this._jit_cache = apply_graph_to_jit(this.jit_cache, input_buffers, var_vals, get_number_env('JIT_BATCH_SIZE', 32))
+        this._input_replace = get_input_replace(this._jit_cache, input_buffers)
+      }
+      this._first_run = false
+    }
 
-  // def _clear_inputs(self):
-  //   for (j,i) in self._input_replace.keys(): self._jit_cache[j].bufs[i] = None
-
-  // def free_intermediates(self):
-  //   depends: set[Buffer|None] = set([None])
-  //   update_depends(depends, self.jit_cache)
-  //   for b in depends:
-  //     if b is not None: b.deallocate()
-  //   self.__post_init__()   # reset the graph state
-
-  // # jit exec
-  // def __call__(self, input_buffers:list[Buffer], var_vals:dict[Variable, int]) -> ReturnType:
-  //   # assign inputs
-  //   for idx, offset, device, size, dtype in self.extra_view_inputs:
-  //     input_buffers.append(Buffer(device, size, dtype, base=input_buffers[idx], offset=offset).ensure_allocated())
-  //   for (j,i),input_idx in self._input_replace.items(): self._jit_cache[j].bufs[i] = input_buffers[input_idx]
-
-  //   # Condense the items into a graph executor.
-  //   if self._first_run:
-  //     # allocate intermediates if freed
-  //     for ji in self.jit_cache:
-  //       for b in ji.bufs:
-  //         if b is not None: b.ensure_allocated()
-  //     # create graph if needed
-  //     if JIT < 2:
-  //       self._jit_cache = apply_graph_to_jit(self.jit_cache, input_buffers, var_vals, max_batch_size=getenv("JIT_BATCH_SIZE", 32))
-  //       self._input_replace = get_input_replace(self._jit_cache, input_buffers)
-  //     self._first_run = False
-
-  //   if DEBUG >= 1 and len(self._jit_cache) >= 10: print(f"jit execs {len(self._jit_cache)} kernels")
-  //   for ei in self._jit_cache: ei.run(var_vals, jit=True)
-  //   self._clear_inputs()
-  //   return self.ret
+    if (DEBUG >= 1 && this._jit_cache.length >= 10) console.log(`jit execs ${this._jit_cache.length} kernels`)
+    for (const ei of this._jit_cache) ei.run(var_vals, undefined, true)
+    this._clear_inputs()
+    return this.ret
+  }
 }
-export const _prepare_jit_inputs = (args: any, kwargs: any) => {
-  // input_tensors: list[tuple[int|str, Tensor]] = [(name,t) for name,t in list(enumerate(args))+sorted(kwargs.items()) if t.__class__ is Tensor]
-  // names, tensors = [name for name,_ in input_tensors], [t for _,t in input_tensors]
-  // if tensors: Tensor.realize(*tensors)
-  // # TODO: should we be unpacking multi here?
-  // lbs: list[UOp] = flatten([t.lazydata.src if t.lazydata.op is Ops.MULTI else [t.lazydata] for t in tensors])
-  // input_buffers: list[Buffer] = [lb.base.realized for lb in lbs if lb.base.realized is not None]
-  // assert len(set(input_buffers)) == len(input_buffers), "duplicate inputs to JIT"
-  // st_varval_dtype_device = [(*unwrap(lb.st).unbind(), lb.dtype, lb.device) for lb in lbs]
-  // var_vals = merge_dicts([x[1] for x in st_varval_dtype_device] + [dict(v.unbind() for v in (args + tuple(kwargs.values())) if isinstance(v, UOp))])
-  // st_vars_dtype_device = [(x[0], tuple(sorted(x[1].keys(), key=lambda v: v.expr)), x[2], x[3]) for x in st_varval_dtype_device]
-  // return input_buffers, var_vals, names, st_vars_dtype_device
+export const _prepare_jit_inputs = async (...args: any[]) => {
+  const input_tensors: [number, Tensor][] = args.filter((t) => t instanceof Tensor).map((t, name) => [name, t as Tensor])
+  const names = input_tensors.map(([name]) => name), tensors = input_tensors.map(([_, t]) => t)
+  if (tensors.length) await Tensor.realize(tensors)
+  // TODO: should we be unpacking multi here?
+  const lbs = flatten(tensors.map((t) => t.lazydata.op === Ops.MULTI ? t.lazydata.src : [t.lazydata]))
+  const input_buffers = lbs.filter((lb) => uop_realized(lb.base) !== undefined).map((lb) => uop_realized(lb.base))
+  if (new Set(input_buffers).size !== input_buffers.length) throw new Error('duplicate inputs to JIT')
+  const st_varval_dtype_device = lbs.map((lb) => [...lb.st!.unbind(), lb.dtype, lb.device] as const)
+  const var_vals = merge_maps([
+    ...st_varval_dtype_device.map((x) => x[1]),
+    new Map(args.filter((v) => v instanceof UOp).map((v) => v.unbind())),
+  ])
+  const st_vars_dtype_device = st_varval_dtype_device.map((x) => [x[0], [...x[1].keys()].toSorted((a, b) => b.expr - a.expr), x[2], x[3]] satisfies [ShapeTracker, UOp[], DType, DeviceType | DeviceType[]])
+  return [input_buffers as Buffer[], var_vals, names, st_vars_dtype_device] as const
 }
+
+const capturing = new Set<TinyJit<any, any>>()
 export class TinyJit<Args extends any[], Return extends any> {
-  constructor(fxn: (...a: Args) => Return, captured?: CapturedJit, prune = false) {
-    // assert fxn or captured, "need either a function or a CapturedJit"
-    // self.fxn = fxn
-    // self.captured: Optional[CapturedJit] = captured
-    // self.cnt: int = 2 if self.fxn is None else 0
-    // self.prune = prune
+  cnt: number
+  _buffer_replace?: WeakKeyMap<Buffer, Buffer>
+  _jit_cache?: ExecItem[]
+  constructor(public fxn?: (...a: Args) => Promise<Return>, public captured?: CapturedJit<Return>, public prune = false) {
+    if (!fxn && !captured) throw new Error('need either a function or a CapturedJit')
+    this.cnt = this.fxn === undefined ? 2 : 0
   }
   add_buffer = (b: Buffer): Buffer => {
-    // if found:=self._buffer_replace.get(b, None): return found
-    // if b.is_allocated() or b.lb_refcount > 0: return b
-    // if b._base is not None:
-    //   self._buffer_replace[b] = ret = Buffer(b.device, b.size, b.dtype, base=self.add_buffer(b._base), offset=b.offset)
-    // else:
-    //   self._buffer_replace[b] = ret = Buffer(b.device, b.size, b.dtype, options=b.options)
-    // return ret
+    if (!this._buffer_replace) throw new Error()
+    const found = this._buffer_replace.get(b)
+    if (found) return found
+    if (b.is_allocated() || b.lb_refcount > 0) return b
+    const ret = b._base !== undefined ? new Buffer(b.device, b.size, b.dtype, undefined, undefined, undefined, undefined, this.add_buffer(b._base), b.offset) : new Buffer(b.device, b.size, b.dtype, undefined, b.options)
+    this._buffer_replace.set(b, ret)
+    return ret
   }
   add = (ei: ExecItem) => {
-    // self._jit_cache.append(ExecItem(ei.prg, [self.add_buffer(buf) for buf in ei.bufs if buf is not None]))
+    this._jit_cache!.push(new ExecItem(ei.prg, ei.bufs.filter((buf) => buf !== undefined).map((buf) => this.add_buffer(buf))))
   }
   reset = () => {
-    // assert self.fxn is not None, "can't reset without function"
-    // self.cnt = 0
-    // self.captured = None
+    if (this.fxn === undefined) throw new Error("can't reset without function")
+    this.cnt = 0
+    this.captured = undefined
   }
 
   // keep legacy code working
   get jit_cache(): ExecItem[] {
-    //  return self.captured._jit_cache if self.captured is not None else []
+    return this.captured !== undefined ? this.captured._jit_cache : []
   }
-  get input_replace(): Map<[number, number], number> {
-    //  return self.captured._input_replace if self.captured is not None else {}
+  get input_replace(): ArrayMap<[number, number], number> {
+    return this.captured !== undefined ? this.captured._input_replace : new ArrayMap()
   }
 
-  get = (obj, objtype) => () => this.call(obj) // add support for instance methods
+  // get = (obj, objtype) => () => this.call(obj) // add support for instance methods
 
-  call = (...args: Args): Return => {
-    // input_buffers, var_vals, names, st_vars_dtype_device = _prepare_jit_inputs(args, kwargs)
-    // if not JIT or self.cnt == 0:
-    //   # jit ignore
-    //   assert self.fxn is not None
-    //   with Context(BEAM=0 if getenv("IGNORE_JIT_FIRST_BEAM") else BEAM.value):
-    //     ret = self.fxn(*args, **kwargs)
-    //     if len(params:=get_parameters(ret)): Tensor.realize(params[0], *params[1:])
-    // elif self.cnt == 1:
-    //   # jit capture
-    //   assert self.fxn is not None
-    //   if capturing: raise RuntimeError(f"having TinyJit inside another TinyJit is not supported {len(capturing)=} {capturing=}")
-    //   self._jit_cache: list[ExecItem] = []
-    //   self._buffer_replace: WeakKeyDictionary[Buffer, Buffer] = WeakKeyDictionary()
-    //   # TODO: should we always disable the memory planner here? it must be off for prune
-    //   with Context(BEAM=getenv("JITBEAM", BEAM.value), NO_MEMORY_PLANNER=int(self.prune)):
-    //     capturing.append(self)
-    //     try:
-    //       ret = self.fxn(*args, **kwargs)
-    //       if len(params:=get_parameters(ret)): Tensor.realize(params[0], *params[1:])
-    //     except Exception as e: raise e
-    //     finally: capturing.clear()
-    //   jit_cache = self._jit_cache
-    //   del self._buffer_replace, self._jit_cache
-    //   assert len(jit_cache), "didn't JIT anything!"
-    //   if DEBUG >= 1: print(f"JIT captured {len(jit_cache)} kernels with {len(input_buffers)} inputs")
+  call = async (...args: Args): Promise<Return> => {
+    const [input_buffers, var_vals, names, st_vars_dtype_device] = await _prepare_jit_inputs(...args)
+    let ret: Return
+    if (!JIT || this.cnt === 0) {
+      // jit ignore
+      if (!this.fxn) throw new Error()
+      // TODO:
+      //   with Context(BEAM=0 if getenv("IGNORE_JIT_FIRST_BEAM") else BEAM.value):
+      ret = await this.fxn(...args)
+      const params = get_parameters(ret)
+      if (params.length) Tensor.realize([params[0], ...params.slice(1)])
+    } else if (this.cnt === 1) {
+      // jit capture
+      if (!this.fxn) throw new Error()
+      // if (capturing) throw new Error(`having TinyJit inside another TinyJit is not supported ${capturing.length} ${capturing}`)
+      this._jit_cache = []
+      this._buffer_replace = new WeakKeyMap()
+      // TODO: should we always disable the memory planner here? it must be off for prune
+      // TODO:
+      //   with Context(BEAM=getenv("JITBEAM", BEAM.value), NO_MEMORY_PLANNER=int(this.prune)):
+      capturing.add(this)
+      try {
+        ret = await this.fxn(...args)
+        const params = get_parameters(ret)
+        if (params.length) await Tensor.realize(params)
+      } catch (e) {
+        throw e
+      } finally {
+        capturing.clear()
+      }
+      let jit_cache = this._jit_cache
+      this._buffer_replace = undefined, this._jit_cache = undefined
+      if (!jit_cache.length) throw new Error("didn't JIT anything!")
+      if (DEBUG >= 1) console.log(`JIT captured ${jit_cache.length} kernels with ${input_buffers.length} inputs`)
 
-    //   # track inputs that are views of buffers
-    //   # TODO: eventually expected_buffers should live in ExecItem
-    //   extra_view_inputs: list[tuple[int, int, str, int, DType]] = []
-    //   for item in jit_cache:
-    //     for b in item.bufs:
-    //       if b is not None and b._base is not None and b._base in input_buffers:
-    //         input_buffers.append(b)
-    //         extra_view_inputs.append((input_buffers.index(b.base), b.offset, b.device, b.size, b.dtype))
+      // track inputs that are views of buffers
+      // TODO: eventually expected_buffers should live in ExecItem
+      const extra_view_inputs: [number, number, string, number, DType][] = []
+      for (const item of jit_cache) {
+        for (const b of item.bufs) {
+          if (b !== undefined && b._base !== undefined && input_buffers.includes(b._base)) {
+            input_buffers.push(b)
+            extra_view_inputs.push([input_buffers.indexOf(b.base), b.offset, b.device, b.size, b.dtype])
+          }
+        }
+      }
 
-    //   # prune independent kernels (optional)
-    //   if self.prune:
-    //     depends = set(input_buffers)
-    //     update_depends(depends, jit_cache)
-    //     pruned, onetime = partition(jit_cache,
-    //                                 lambda ei: not isinstance(ei.prg, CompiledRunner) or any(ei.bufs[out] in depends for out in ei.prg.p.outs))
-    //     if DEBUG >= 1: print(f"pruned from {len(jit_cache)} -> {len(pruned)} kernels")
-    //     # run the onetime kernels here
-    //     for ei in onetime:
-    //       for b in ei.bufs: cast(Buffer, b).ensure_allocated()
-    //       ei.run(var_vals, jit=True)
-    //     jit_cache = pruned
+      // prune independent kernels (optional)
+      if (this.prune) {
+        const depends = new Set(input_buffers)
+        update_depends(depends, jit_cache)
+        const [pruned, onetime] = partition(jit_cache, (ei) => !(ei.prg instanceof CompiledRunner) || ei.prg.p.outs.some((out) => depends.has(ei.bufs[out] as Buffer)))
+        if (DEBUG >= 1) console.log(`pruned from ${jit_cache.length} -> ${pruned.length} kernels`)
+        // run the onetime kernels here
+        for (const ei of onetime) {
+          for (const b of ei.bufs) b!.ensure_allocated()
+          ei.run(var_vals, undefined, true)
+        }
+        jit_cache = pruned
+      }
+      // memory planning (optional)
+      // Exclude buffers involved in transfer ops to preserve parallelism.
+      const noopt_buffers = jit_cache.filter((ji) => ji.prg instanceof BufferXfer).flatMap((ji) => ji.bufs) as Buffer[]
+      const assigned = _internal_memory_planner(jit_cache.map((item) => item.bufs as Buffer[]), noopt_buffers, 'JIT ')
+      jit_cache = jit_cache.map((item) => new ExecItem(item.prg, item.bufs.filter((b) => b !== undefined).map((b) => (assigned.get(b) || b)!.ensure_allocated())))
 
-    //   # memory planning (optional)
-    //   # Exclude buffers involved in transfer ops to preserve parallelism.
-    //   noopt_buffers = {b for ji in jit_cache if isinstance(ji.prg, BufferXfer) for b in ji.bufs}
-    //   assigned = _internal_memory_planner([cast(list[Buffer], item.bufs) for item in jit_cache], noopt_buffers, debug_prefix="JIT ")
-    //   jit_cache = [ExecItem(item.prg, [assigned.get(b,b).ensure_allocated() for b in item.bufs if b is not None]) for item in jit_cache]
+      const input_replace = get_input_replace(jit_cache, input_buffers)
+      if (DEBUG >= 1 && new Set(input_replace.values()).size !== input_buffers.length) throw new Error('WARNING: some input tensors not found')
 
-    //   input_replace = get_input_replace(jit_cache, input_buffers)
-    //   if DEBUG >= 1 and len(set(input_replace.values())) != len(input_buffers): print("WARNING: some input tensors not found")
-
-    //   # set this for next run
-    //   self.captured = CapturedJit(ret, jit_cache, input_replace, extra_view_inputs, names, st_vars_dtype_device)
-    // elif self.cnt >= 2:
-    //   # jit exec
-    //   assert self.captured is not None
-    //   assert self.captured.expected_names == names, f"args mismatch in JIT: {self.captured.expected_names=} != {names}"
-    //   assert self.captured.expected_st_vars_dtype_device == st_vars_dtype_device, \
-    //     f"args mismatch in JIT: {self.captured.expected_st_vars_dtype_device=} != {st_vars_dtype_device=}"
-    //   ret = self.captured(input_buffers, var_vals)
-
-    // self.cnt += 1
-    // return ret
+      // set this for next run
+      this.captured = new CapturedJit(ret, jit_cache, input_replace, extra_view_inputs, names, st_vars_dtype_device)
+    } else {
+      // jit exec
+      if (this.captured === undefined) throw new Error()
+      if (!is_eq(this.captured.expected_names, names)) throw new Error(`args mismatch in JIT: ${this.captured.expected_names} != ${names}`)
+      if (!is_eq(this.captured.expected_st_vars_dtype_device, st_vars_dtype_device)) throw new Error(`args mismatch in JIT: ${this.captured.expected_st_vars_dtype_device} != ${st_vars_dtype_device}`)
+      ret = this.captured.call(input_buffers, var_vals)
+    }
+    this.cnt += 1
+    return ret
   }
 }
