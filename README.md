@@ -165,8 +165,9 @@ await model.save('./mnist.safetensors')
 - [x] get hand_coded_optimisations working correctly
 - [x] WEBGPU training MNIST in browser
 - [x] WASM runtime
+- [x] JIT
+- [x] Llama
 - [ ] docs
-- [ ] some LLM
 - [ ] whisper
 - [ ] bun support
 - [ ] node support
@@ -175,5 +176,4 @@ await model.save('./mnist.safetensors')
 - [ ] METAL runtime
 - [ ] AMD runtime
 - [ ] Nvidia runtime
-- [ ] JIT
 - [ ] Multi
