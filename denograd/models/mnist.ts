@@ -7,6 +7,7 @@ import { mnist } from '../nn/datasets.ts'
 import { BatchNorm, Conv2d, Linear, Model } from '../nn/index.ts'
 import { Adam } from '../nn/optim.ts'
 import { get_parameters } from '../nn/state.ts'
+import { TinyJit } from '../engine/jit.ts'
 
 export class MNIST extends Model {
   override DEFAULT_LOAD = 'https://denograd.com/mnist.safetensors'
@@ -37,7 +38,7 @@ const main = async () => {
   // await model.load('./mnist.safetensors').catch((x) => x)
   const opt = Adam(get_parameters(model))
 
-  const train_step = async (): Promise<Tensor> => {
+  const train_step = new TinyJit(async () => {
     Tensor.training = true
     opt.zero_grad()
     const samples = Tensor.randint([BS], undefined, X_train.shape[0])
@@ -45,16 +46,16 @@ const main = async () => {
     await opt.step()
     Tensor.training = false
     return loss
-  }
+  })
 
-  const get_test_acc = (): Tensor => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)
+  const get_test_acc = new TinyJit(async () => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100))
 
   let test_acc = NaN
   const t = new Tqdm(range(get_number_env('STEPS', 70)))
   for await (const i of t) {
-    const loss = await (await train_step()).item()
-    if (i % 10 === 9) test_acc = await get_test_acc().item()
-    t.set_description(`loss: ${loss.toFixed(2)}, test_accuracy: ${test_acc.toFixed(2)}`)
+    const loss = await train_step.call()
+    if (i % 10 === 9) test_acc = await get_test_acc.call().then((x) => x.item())
+    t.set_description(`loss: ${await loss.item().then((x) => x.toFixed(2))}, test_accuracy: ${test_acc.toFixed(2)}`)
   }
   // await model.save('./mnist.safetensors')
 }
