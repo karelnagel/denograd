@@ -7,7 +7,7 @@ import { Estimates } from '../renderer/index.ts'
 import type { ShapeTracker } from '../shape/shapetracker.ts'
 import { Tensor } from '../tensor.ts'
 import { _internal_memory_planner } from './memory.ts'
-import { BufferCopy, BufferXfer, CompiledRunner, ExecItem, Runner, ViewOp } from './realize.ts'
+import { BufferCopy, BufferXfer, capturing, CompiledRunner, ExecItem, Runner, ViewOp } from './realize.ts'
 
 export class GraphException extends Error {}
 
@@ -136,7 +136,7 @@ export class GraphRunner extends Runner {
       } else this.r_dependency_map.get(rawbuf.base.key).push(new_dependency)
     }
     // return  list({id(x):x for x in wait_nodes}.values())
-    return wait_nodes //TODO: id() not good rn
+    throw new Error('TODO: handle id(_buf)')
   }
 }
 
@@ -187,7 +187,7 @@ export class CapturedJit<Return extends any> {
     this.init() // reset the graph state
   }
   // jit exec
-  call = (input_buffers: Buffer[], var_vals: Map<Variable, number>): Return => {
+  call = async (input_buffers: Buffer[], var_vals: Map<Variable, number>): Promise<Return> => {
     // assign inputs
     for (const [idx, offset, device, size, dtype] of this.extra_view_inputs) {
       input_buffers.push(new Buffer(device as DeviceType, size, dtype, undefined, undefined, undefined, undefined, input_buffers[idx], offset).ensure_allocated())
@@ -211,7 +211,7 @@ export class CapturedJit<Return extends any> {
     }
 
     if (DEBUG >= 1 && this._jit_cache.length >= 10) console.log(`jit execs ${this._jit_cache.length} kernels`)
-    for (const ei of this._jit_cache) ei.run(var_vals, undefined, true)
+    for (const ei of this._jit_cache) await ei.run(var_vals, undefined, true)
     this._clear_inputs()
     return this.ret
   }
@@ -233,7 +233,6 @@ export const _prepare_jit_inputs = async (...args: any[]) => {
   return [input_buffers as Buffer[], var_vals, names, st_vars_dtype_device] as const
 }
 
-const capturing = new Set<TinyJit<any, any>>()
 export class TinyJit<Args extends any[], Return extends any> {
   cnt: number
   _buffer_replace?: WeakKeyMap<Buffer, Buffer>
@@ -280,7 +279,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       //   with Context(BEAM=0 if getenv("IGNORE_JIT_FIRST_BEAM") else BEAM.value):
       ret = await this.fxn(...args)
       const params = get_parameters(ret)
-      if (params.length) Tensor.realize([params[0], ...params.slice(1)])
+      if (params.length) await Tensor.realize(params)
     } else if (this.cnt === 1) {
       // jit capture
       if (!this.fxn) throw new Error()
@@ -290,7 +289,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       // TODO: should we always disable the memory planner here? it must be off for prune
       // TODO:
       //   with Context(BEAM=getenv("JITBEAM", BEAM.value), NO_MEMORY_PLANNER=int(this.prune)):
-      capturing.add(this)
+      capturing.push(this)
       try {
         ret = await this.fxn(...args)
         const params = get_parameters(ret)
@@ -298,7 +297,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       } catch (e) {
         throw e
       } finally {
-        capturing.clear()
+        capturing.pop()
       }
       let jit_cache = this._jit_cache
       this._buffer_replace = undefined, this._jit_cache = undefined
@@ -326,7 +325,7 @@ export class TinyJit<Args extends any[], Return extends any> {
         // run the onetime kernels here
         for (const ei of onetime) {
           for (const b of ei.bufs) b!.ensure_allocated()
-          ei.run(var_vals, undefined, true)
+          await ei.run(var_vals, undefined, true)
         }
         jit_cache = pruned
       }
@@ -346,7 +345,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       if (this.captured === undefined) throw new Error()
       if (!is_eq(this.captured.expected_names, names)) throw new Error(`args mismatch in JIT: ${this.captured.expected_names} != ${names}`)
       if (!is_eq(this.captured.expected_st_vars_dtype_device, st_vars_dtype_device)) throw new Error(`args mismatch in JIT: ${this.captured.expected_st_vars_dtype_device} != ${st_vars_dtype_device}`)
-      ret = this.captured.call(input_buffers, var_vals)
+      ret = await this.captured.call(input_buffers, var_vals)
     }
     this.cnt += 1
     return ret

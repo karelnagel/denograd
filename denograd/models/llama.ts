@@ -210,12 +210,12 @@ export class Transformer {
 
     return await sample(logits.flatten(), temperature, top_k, top_p, alpha_f, alpha_p).realize()
   }
-  call = (tokens: Tensor, start_pos: number, temperature = 0.0, top_k: number = 0, top_p: number = 0.8, alpha_f: number = 0.0, alpha_p: number = 0.0) => {
+  call = async (tokens: Tensor, start_pos: number, temperature = 0.0, top_k: number = 0, top_p: number = 0.8, alpha_f: number = 0.0, alpha_p: number = 0.0) => {
     // TODO: better way to handle the first call v.s. the rest?
     if (is_eq(tokens.shape.slice(0, 2), [1, 1]) && this.forward_jit !== undefined && start_pos !== 0) {
-      return this.forward_jit.call(tokens, start_pos, temperature, top_k, top_p, alpha_f, alpha_p)
+      return await this.forward_jit.call(tokens, start_pos, temperature, top_k, top_p, alpha_f, alpha_p)
     }
-    return this.forward(tokens, start_pos, temperature, top_k, top_p, alpha_f, alpha_p)
+    return await this.forward(tokens, start_pos, temperature, top_k, top_p, alpha_f, alpha_p)
   }
 }
 // # *** helpers ***
