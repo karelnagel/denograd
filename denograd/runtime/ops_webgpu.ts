@@ -91,8 +91,8 @@ export class WEBGPU extends Compiled {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
   static override init = async () => {
-    WEBGPU.adapter = await navigator.gpu.requestAdapter()
+    WEBGPU.adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
     if (!WEBGPU.adapter) throw new Error('No adapter')
-    WEBGPU.device = await WEBGPU.adapter.requestDevice()
+    WEBGPU.device = await WEBGPU.adapter.requestDevice({ requiredFeatures: ['shader-f16'] })
   }
 }
