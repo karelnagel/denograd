@@ -155,8 +155,8 @@ export class ExecItem {
   constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
   run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number> => {
     const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
-    const bufs = jit ? this.bufs.map((x) => x!.ensure_allocated()) : this.bufs.map((x) => x!.ensure_allocated())
-    const et = await this.prg.call(bufs, var_vals, wait = wait || DEBUG >= 2)
+    const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())
+    const et = await this.prg.call(bufs, var_vals, wait || DEBUG >= 2)
     if (do_update_stats) {
       GlobalCounters.kernel_count += 1
       const op_est = sym_infer(this.prg.estimates.ops, var_vals)

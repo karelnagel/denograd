@@ -44,6 +44,21 @@
       ],
       "attachSimplePort": 9229,
       "outputCapture": "std"
+    },
+    {
+      "request": "launch",
+      "name": "Deno llama3",
+      "type": "node",
+      "program": "${workspaceFolder}/denograd/models/llama3.ts",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": [
+        "run",
+        "--inspect",
+        "--allow-all"
+      ],
+      "attachSimplePort": 9229,
+      "outputCapture": "std"
     }
   ],
   "inputs": [
