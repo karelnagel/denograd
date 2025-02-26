@@ -4,6 +4,7 @@ import { type Buffer, Device, type DeviceType, type Program } from '../device.ts
 import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, mod, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
 import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
+import type { TinyJit } from './jit.ts'
 import type { ScheduleItem } from './schedule.ts'
 import { beam_search, bufs_from_lin, optimize_local_size } from './search.ts'
 
@@ -119,10 +120,10 @@ export class BufferCopy extends Runner {
     return 0
   }
 }
-class BufferXfer extends BufferCopy {
-  override copy = (dest: Buffer, src: Buffer) => {
-    throw new Error('KAREL: implement _transfer')
-    // return dest.allocator._transfer(dest._buf, src._buf, dest.nbytes, src_dev = src.allocator.dev, dest_dev = dest.allocator.dev)
+export class BufferXfer extends BufferCopy {
+  override copy = async (dest: Buffer, src: Buffer) => {
+    if (!dest.allocator?._transfer) throw new Error()
+    return dest.allocator!._transfer!(dest._buf, src._buf, dest.nbytes, (src.allocator as any).dev, (dest.allocator as any).dev)
   }
 }
 // **************** method cache ****************
@@ -155,7 +156,7 @@ export class ExecItem {
   run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number> => {
     const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
     const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())
-    const et = await this.prg.call(bufs, var_vals, wait = wait || DEBUG >= 2)
+    const et = await this.prg.call(bufs, var_vals, wait || DEBUG >= 2)
     if (do_update_stats) {
       GlobalCounters.kernel_count += 1
       const op_est = sym_infer(this.prg.estimates.ops, var_vals)
@@ -203,11 +204,11 @@ export const lower_schedule = async function* (schedule: ScheduleItem[]): AsyncG
 }
 // // **************** main run function ****************
 
-const capturing: ExecItem[][] = [] // put classes with an add method in here
+export const capturing: TinyJit<any, any>[] = [] // put classes with an add method in here
 
 export const run_schedule = async (schedule: ScheduleItem[], var_vals?: Map<Variable, number>, do_update_stats = true) => {
   for await (const ei of lower_schedule(schedule)) {
-    if (capturing.length && CAPTURING) capturing[0].push(ei)
+    if (capturing.length && CAPTURING) capturing[0].add(ei)
     await ei.run(var_vals, undefined, undefined, do_update_stats)
   }
 }

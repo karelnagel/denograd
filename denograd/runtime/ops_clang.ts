@@ -1,5 +1,5 @@
 import { Compiled, Compiler, MallocAllocator, Program, type ProgramCallArgs } from './allocator.ts'
-import { bytes_to_string, cpu_objdump, cpu_time_execution, range, temp } from '../helpers.ts'
+import { bytes_to_string, cpu_objdump, cpu_time_execution, temp } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { DeviceType } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
@@ -29,7 +29,7 @@ export class ClangCompiler extends Compiler {
 
 export class ClangProgram extends Program {
   file!: string
-  fxn?: Deno.DynamicLibrary<{ readonly call: { readonly parameters: 'buffer'[]; readonly result: 'void'; readonly name: string; readonly nonblocking: true } }>
+  fxn?: any
   static override init = async (name: string, lib: Uint8Array) => {
     const res = new ClangProgram(name, lib)
     if (!lib?.length) throw new Error('Lib is empty')
@@ -38,18 +38,20 @@ export class ClangProgram extends Program {
     await Deno.writeFile(res.file, res.lib)
     return res
   }
-  override call = cpu_time_execution(async (bufs: MemoryView[], vals: ProgramCallArgs, wait = false) => {
+  override call = cpu_time_execution(async (bufs: MemoryView[], args: ProgramCallArgs, wait = false) => {
+    const vals = args.vals || []
+    if (vals.some((x) => x === undefined)) throw new Error(`${vals}`)
     if (!this.fxn) {
       this.fxn = Deno.dlopen(this.file, {
         call: {
-          parameters: range(bufs.length).map(() => 'buffer'),
+          parameters: [...bufs.map(() => 'buffer' as Deno.NativeType), ...vals.map(() => 'i32' as Deno.NativeType)],
           result: 'void',
           name: this.name,
           nonblocking: true,
         },
       })
     }
-    await this.fxn.symbols.call(...bufs.map((b) => b.buffer))
+    await this.fxn.symbols.call(...bufs.map((x) => x.buffer), ...vals.map((x) => x))
   })
 }
 

@@ -154,7 +154,7 @@ export class View {
     const new_strides = this.strides.map((x) => substitute(x))
     const new_offset = substitute(this.offset)
     const new_mask = this.mask !== undefined ? this.mask.map((x) => [substitute(x[0]), substitute(x[1])] as [sint, sint]) : undefined
-    return [View.create(new_shape, new_strides, new_offset, new_mask), Object.fromEntries(var_unboundvar_val.map((x) => x[1]))]
+    return [View.create(new_shape, new_strides, new_offset, new_mask), new Map(var_unboundvar_val.map((x) => x[1]))]
   }
   @cache
   add(vm1: View): View | undefined {

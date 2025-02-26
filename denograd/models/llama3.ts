@@ -229,7 +229,7 @@ const build_transformer = async (model_path: string, model_size: keyof typeof MO
   else if (quantize === 'nf4') linear = NF4Linear(64)
   else linear = Linear
   const params = MODEL_PARAMS[model_size].args
-  const model = new Transformer(params.dim, params.hidden_dim, params.n_heads, params.n_layers, params.norm_eps, params.vocab_size, linear, params.n_kv_heads, params.rope_theta, 8192, false)
+  const model = new Transformer(params.dim, params.hidden_dim, params.n_heads, params.n_layers, params.norm_eps, params.vocab_size, linear, params.n_kv_heads, params.rope_theta, 8192, true)
   // load weights
   let weights: Record<string, Tensor>
   if (Deno.statSync(model_path).isDirectory) {
