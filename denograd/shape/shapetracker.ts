@@ -125,9 +125,8 @@ export class ShapeTracker {
   }
 
   unbind = (): [ShapeTracker, Map<Variable, number>] => {
-    const un = this.views.map((v) => v.unbind())
-    const unbound_views = un.map((x) => x[0]), var_vals = un.map((v) => v[1])
-    return [new ShapeTracker(unbound_views), merge_maps(var_vals)]
+    const [unbound_views, var_vals] = zip(...this.views.map((v) => v.unbind()))
+    return [new ShapeTracker(unbound_views as View[]), merge_maps(var_vals as Map<UOp, number>[])]
   }
   // NOTE: if a stride is not always valid, it will be None
   real_strides = (ignore_valid = false) => views_to_real_strides(this.views, ignore_valid)
