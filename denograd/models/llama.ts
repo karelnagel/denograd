@@ -1,6 +1,7 @@
 import { Device } from '../device.ts'
 import { dtypes } from '../dtype.ts'
-import { assert, get_env, get_number_env, idiv, is_eq, NotImplemented, range } from '../helpers.ts'
+import { TinyJit } from '../engine/jit.ts'
+import { assert, get_env, get_number_env, idiv, is_eq, range } from '../helpers.ts'
 import { Embedding, Linear, RMSNorm } from '../nn/index.ts'
 import { Tensor } from '../tensor.ts'
 
@@ -187,15 +188,14 @@ export class Transformer {
   tok_embeddings: Embedding
   output: Linear
   freqs_cis: Tensor
-  forward_jit: any = undefined
+  forward_jit?: TinyJit<[tokens: Tensor, start_pos: number, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number], Promise<Tensor>> = undefined
   constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, n_kv_heads?: number, rope_theta = 10000, public max_context = 1024, jit = true, feed_forward = FeedForward) {
     this.layers = range(n_layers).map(() => new TransformerBlock(dim, hidden_dim, n_heads, n_kv_heads, norm_eps, max_context, linear, feed_forward))
     this.norm = new RMSNorm(dim, norm_eps)
     this.tok_embeddings = new Embedding(vocab_size, dim)
     this.output = new Linear(dim, vocab_size, false)
     this.freqs_cis = precompute_freqs_cis(idiv(dim, n_heads), this.max_context * 2, rope_theta).contiguous()
-    if (jit) throw new Error('JIT not implemented')
-    // this.forward_jit = jit ? TinyJit(this.forward) : undefined
+    this.forward_jit = jit ? new TinyJit(this.forward) : undefined
   }
   forward = async (tokens: Tensor, start_pos: number, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number) => {
     const [_bsz, seqlen] = tokens.shape
@@ -213,8 +213,7 @@ export class Transformer {
   call = (tokens: Tensor, start_pos: number, temperature = 0.0, top_k: number = 0, top_p: number = 0.8, alpha_f: number = 0.0, alpha_p: number = 0.0) => {
     // TODO: better way to handle the first call v.s. the rest?
     if (is_eq(tokens.shape.slice(0, 2), [1, 1]) && this.forward_jit !== undefined && start_pos !== 0) {
-      throw new NotImplemented()
-      //   return this.forward_jit(tokens, Variable('start_pos', 1, this.max_context).bind(start_pos), temperature, top_k, top_p, alpha_f, alpha_p)
+      return this.forward_jit.call(tokens, start_pos, temperature, top_k, top_p, alpha_f, alpha_p)
     }
     return this.forward(tokens, start_pos, temperature, top_k, top_p, alpha_f, alpha_p)
   }
