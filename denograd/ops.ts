@@ -400,8 +400,10 @@ export class UOp extends MathTrait<UOp> {
     if ((this.dtype.vcount === i.length && is_eq(i, range(i.length))) || this.dtype === dtypes.void) return this
     return new UOp(Ops.GEP, i.length > 1 ? this.dtype.scalar().vec(i.length) : this.dtype.scalar(), [this], i)
   }
-  load = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.LOAD, kwargs?.dtype, kwargs?.src || [this, ...src], kwargs?.arg)
-  store = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.STORE, kwargs?.dtype || dtypes.void, kwargs?.src || [this, ...src], kwargs?.arg)
+  load = (src: UOp[], kwargs?: Partial<UOpInput>) => UOp.load([this, ...src], kwargs)
+  static load = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.LOAD, kwargs?.dtype, kwargs?.src || src, kwargs?.arg)
+  store = (src: UOp[], kwargs?: Partial<UOpInput>) => UOp.store([this, ...src], kwargs)
+  static store = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.STORE, kwargs?.dtype || dtypes.void, kwargs?.src || src, kwargs?.arg)
   override alu = (arg: Ops, ...src: UOp[]): UOp => {
     let out_dtype = [this, ...src].at(-1)!.dtype
     if ([Ops.CMPLT, Ops.CMPNE].includes(arg)) out_dtype = out_dtype.count > 1 ? dtypes.bool.vec(out_dtype.count) : dtypes.bool
