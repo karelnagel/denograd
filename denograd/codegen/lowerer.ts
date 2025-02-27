@@ -38,7 +38,7 @@ export const _split_dims = (dims: number[], max_sizes: number[]): number[] => {
   const _dims = [...dims, ...range(3 - dims.length).map(() => 1)]
   for (const i of range(_dims.length)) {
     while (_dims[i] > max_sizes[i]) {
-      let div = range(2, Math.ceil(Math.sqrt(_dims[i])) + 1).filter((d) => mod(_dims[1], d) === 0).shift()
+      let div = range(2, Math.ceil(Math.sqrt(_dims[i])) + 1).filter((d) => mod(_dims[i], d) === 0).shift()
       if (div === undefined) div = 1
       if (div === 1) throw new Error(`cannot limit dim ${dims}, ${max_sizes}`)
       ;[_dims[i], _dims[mod(i + 1, _dims.length)]] = [idiv(_dims[i], div), _dims[mod(i + 1, _dims.length)] * div]
@@ -94,7 +94,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const group_for_reduces = range(first_reduce, first_upcasted).filter((i) => local_loads.some((l) => l.st_arg.shape[i] !== ast.src[0].st_arg.shape[i])).length
   const global_dims = first_reduce - ki.local_dims
 
-  let idxs
+  let idxs: UOp[]
   if (opts.has_local) {
     if (ki.dont_use_locals) {
       if (ki.local_dims !== 0) throw new Error("can't use locals if there's no local dims")
