@@ -9,19 +9,19 @@ const sign_extend = (val: UOp, sext_am: number) => {
 }
 // store for char: buf[idx/4] <- (var << (idx%4)*8))
 const packed_store = (bidx: UOp, variable: UOp) => {
-  const shift_am: UOp = (bidx.src[1].cast(dtypes.uint32).mod(UOp.const(dtypes.uint32, idiv(4, variable.dtype.itemsize)))).mul(UOp.const(dtypes.uint32, 8 * variable.dtype.itemsize))
-  const new_v = (variable.bitwise_and(variable.dtype.itemsize === 1 ? 0xFF : 0xFFFF)).cast(dtypes.uint32).lshift(shift_am)
-  const mask = ((shift_am.lshift(variable.dtype.itemsize === 1 ? 0xFF : 0xFFFF, true)).xor(0xFFFFFFFF)).cast(dtypes.uint32)
+  const shift_am = bidx.src[1].cast(dtypes.uint32).mod(UOp.const(dtypes.uint32, idiv(4, variable.dtype.itemsize))).mul(UOp.const(dtypes.uint32, 8 * variable.dtype.itemsize))
+  const new_v = variable.bitwise_and(variable.dtype.itemsize === 1 ? 0xFF : 0xFFFF).cast(dtypes.uint32).lshift(shift_am)
+  const mask = shift_am.lshift(variable.dtype.itemsize === 1 ? 0xFF : 0xFFFF, true).xor(0xFFFFFFFF).cast(dtypes.uint32)
   const buf = UOp.load([new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, variable.dtype.itemsize))])], { dtype: dtypes.uint32 })
-  return UOp.store([new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, variable.dtype.itemsize))]), (buf.bitwise_and(mask)).bitwise_or(new_v.cast(dtypes.uint32))])
+  return UOp.store([new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], bidx.src[1].idiv(idiv(4, variable.dtype.itemsize))]), buf.bitwise_and(mask).bitwise_or(new_v.cast(dtypes.uint32))])
 }
 // load for char: sign_extend(buf[idx/4] >> ((idx%4)*8))
 const packed_load = (root: UOp, bidx: UOp, dtype: DType, variable?: UOp) => {
   const div_idx = bidx.src[1].idiv(idiv(4, dtype.itemsize))
   const shift_am = (bidx.src[1].cast(dtypes.uint32).mod(UOp.const(dtypes.uint32, idiv(4, dtype.itemsize)))).mul(UOp.const(dtypes.uint32, 8 * dtype.itemsize))
   let load
-  if (variable !== undefined) load = new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], div_idx]).load([variable, root.src[2]], { dtype: dtypes.uint32, arg: root.arg })
-  else load = new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], div_idx]).load(root.src.slice(1), { dtype: dtypes.uint32, arg: root.arg })
+  if (variable !== undefined) load = UOp.load([new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], div_idx]), variable, root.src[2]], { dtype: dtypes.uint32, arg: root.arg })
+  else load = UOp.load([new UOp(Ops.INDEX, bidx.dtype, [bidx.src[0], div_idx]), ...root.src.slice(1)], { dtype: dtypes.uint32, arg: root.arg })
   const val = (load.cast(dtypes.uint32).rshift(shift_am)).bitwise_and(dtype.itemsize === 1 ? 0xFF : 0xFFFF)
   return [dtypes.char, dtypes.short].includes(dtype) ? sign_extend(val, 8 * dtype.itemsize).cast(dtype) : val.cast(dtype)
 }
