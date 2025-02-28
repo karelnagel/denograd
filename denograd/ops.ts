@@ -2188,7 +2188,7 @@ export const expander = new PatternMatcher([
 
 export const no_vectorized_load_store = (ls: UOp) => {
   const idx = ls.src[0]
-  if (!isinstance(idx.dtype, PtrDType)) throw new Error()
+  if (!(idx.dtype instanceof PtrDType)) throw new Error()
   if (idx.dtype.v === 1) return undefined
   const tv = range(idx.dtype.v).map((i) => new UOp(ls.op, ls.dtype.scalar(), ls.src.map((j) => j.gep(i))))
   return new UOp(Ops.VECTORIZE, ls.dtype, tv)

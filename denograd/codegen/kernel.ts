@@ -516,11 +516,15 @@ export class Kernel {
     // should use matvec - TODO: adjust/tune based on the wide vs tall/large vs small mat
     const MV_BLOCKSIZE = get_number_env('MV_BLOCKSIZE', 4), MV_THREADS_PER_ROW = get_number_env('MV_THREADS_PER_ROW', 8), MV_ROWS_PER_THREAD = get_number_env('MV_ROWS_PER_THREAD', 4)
     const mulop = this.reduceop?.src[0]
-    if (this.opts.has_local && get_number_env('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) && this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 && this.opts.has_shared && mulop && mulop.op === Ops.MUL && mulop.src[0].op === Ops.LOAD && mulop.src[1].op === Ops.LOAD) {
+    if (
+      this.opts.has_local && get_number_env('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) &&
+      this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 && this.opts.has_shared &&
+      mulop && mulop.op === Ops.MUL && mulop.src[0].op === Ops.LOAD && mulop.src[1].op === Ops.LOAD
+    ) {
       const st0 = this.sts[this.bufs.indexOf(mulop.src[0])], st1 = this.sts[this.bufs.indexOf(mulop.src[1])]
       const strides0 = st0.real_strides(), strides1 = st1.real_strides()
-      const has_expanded_axis = (shape: sint[], strides: sint[]) => zip(shape, strides).some(([s, st]) => resolve(gt(s, 1)) && !resolve(ne(st, 0)))
-      if (strides0[this.first_reduce] === 1 && !(has_expanded_axis(st0.shape, strides0 as sint[]) && has_expanded_axis(st1.shape, strides1 as sint[]))) {
+      const has_expanded_axis = (shape: (sint | undefined)[], strides: (sint | undefined)[]) => zip(shape, strides).some(([s, st]) => s && st && resolve(gt(s, 1)) && !resolve(ne(st, 0)))
+      if (strides0[this.first_reduce] === 1 && !(has_expanded_axis(st0.shape, strides0) && has_expanded_axis(st1.shape, strides1))) {
         for (const global_idx of range(this.global_dims)) {
           if (mod(this.full_shape[this.first_reduce], MV_THREADS_PER_ROW) === 0 && mod(this.full_shape[global_idx], MV_BLOCKSIZE * MV_ROWS_PER_THREAD) === 0) {
             if (DEBUG >= 3) console.log(`MATVEC: ${this.full_shape} ${this.first_reduce} ${strides0} ${MV_BLOCKSIZE} ${MV_THREADS_PER_ROW} ${MV_ROWS_PER_THREAD}`)
