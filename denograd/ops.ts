@@ -400,8 +400,10 @@ export class UOp extends MathTrait<UOp> {
     if ((this.dtype.vcount === i.length && is_eq(i, range(i.length))) || this.dtype === dtypes.void) return this
     return new UOp(Ops.GEP, i.length > 1 ? this.dtype.scalar().vec(i.length) : this.dtype.scalar(), [this], i)
   }
-  load = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.LOAD, kwargs?.dtype, kwargs?.src || [this, ...src], kwargs?.arg)
-  store = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.STORE, kwargs?.dtype || dtypes.void, kwargs?.src || [this, ...src], kwargs?.arg)
+  load = (src: UOp[], kwargs?: Partial<UOpInput>) => UOp.load([this, ...src], kwargs)
+  static load = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.LOAD, kwargs?.dtype, kwargs?.src || src, kwargs?.arg)
+  store = (src: UOp[], kwargs?: Partial<UOpInput>) => UOp.store([this, ...src], kwargs)
+  static store = (src: UOp[], kwargs?: Partial<UOpInput>) => new UOp(kwargs?.op || Ops.STORE, kwargs?.dtype || dtypes.void, kwargs?.src || src, kwargs?.arg)
   override alu = (arg: Ops, ...src: UOp[]): UOp => {
     let out_dtype = [this, ...src].at(-1)!.dtype
     if ([Ops.CMPLT, Ops.CMPNE].includes(arg)) out_dtype = out_dtype.count > 1 ? dtypes.bool.vec(out_dtype.count) : dtypes.bool
@@ -2147,10 +2149,11 @@ export const no_vectorized_alu = (alu: UOp) => {
   const alus = range(alu.dtype.vcount).map((i) => new UOp(alu.op, alu.dtype.scalar(), alu.src.map((s) => s.gep(i)), alu.arg))
   return new UOp(Ops.VECTORIZE, alu.dtype, alus)
 }
-
 const _gate_srcs = cache_fn((u: UOp, gate: UOp): UOp => {
   if (u.op === Ops.BARRIER) return u
-  if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) return new UOp(u.op, u.dtype, [...u.src.toReversed(), new UOp(Ops.IF, dtypes.void, [gate, u.src.at(-1)!])], u.arg)
+  if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) {
+    return new UOp(u.op, u.dtype, [...u.src.slice(0, -1), new UOp(Ops.IF, dtypes.void, [gate, u.src.at(-1)!])], u.arg)
+  }
   const replace_source = u.src.map((x) => _gate_srcs(x, gate))
   return is_eq(replace_source, u.src) ? u : new UOp(u.op, u.dtype, replace_source, u.arg)
 })
@@ -2186,7 +2189,7 @@ export const expander = new PatternMatcher([
 
 export const no_vectorized_load_store = (ls: UOp) => {
   const idx = ls.src[0]
-  if (!isinstance(idx.dtype, PtrDType)) throw new Error()
+  if (!(idx.dtype instanceof PtrDType)) throw new Error()
   if (idx.dtype.v === 1) return undefined
   const tv = range(idx.dtype.v).map((i) => new UOp(ls.op, ls.dtype.scalar(), ls.src.map((j) => j.gep(i))))
   return new UOp(Ops.VECTORIZE, ls.dtype, tv)
@@ -2249,7 +2252,6 @@ export const pm_render = new PatternMatcher([
 ])
 
 // *** uop graph ***
-
 export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   if (sink.op !== Ops.SINK) throw new Error(`sink isn't sink, it's ${sink.op}`)
   const supported_ops = opts !== undefined ? [...opts.code_for_op.keys()] : []

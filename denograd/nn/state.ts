@@ -16,10 +16,6 @@ class TensorIO {
     this._position += size
     return data
   }
-  seek = (offset: number, whence: number = 0): number => {
-    this._position = Math.min(this._data.length, Math.max(0, [offset, this._position + offset, this._data.length + offset][whence]))
-    return this._position
-  }
 }
 
 const safe_dtypes = {
@@ -181,11 +177,11 @@ export const tar_extract = (t: Tensor): Record<string, Tensor> => {
  * Supported quantized types: Q4_0 (id: 2), Q4_1 (id: 3), Q8_0 (id: 8), Q6_K (id: 14)
  */
 // https://github.com/ggerganov/ggml/blob/6dccc647264f5429df2624f36138f601e7ce23e5/include/ggml.h#L356
-export const ggml_data_to_tensor = (t: Tensor, n: number, ggml_type: number): Tensor => {
+export const ggml_data_to_tensor = (t: Uint8Array, n: number, ggml_type: number): Tensor => {
   // native types
   const dtype = { 0: dtypes.float32, 1: dtypes.float16, 16: dtypes.int8, 17: dtypes.int16, 18: dtypes.int32 }[ggml_type]
   if (dtype !== undefined) {
-    return t.get({ stop: dtype.itemsize * n }).bitcast(dtype)
+    return new Tensor(t.slice(0, dtype.itemsize * n)).bitcast(dtype)
   }
 
   const q_to_uint8 = (t: Tensor, b: number): Tensor => {
@@ -197,7 +193,7 @@ export const ggml_data_to_tensor = (t: Tensor, n: number, ggml_type: number): Te
   // map to (number of elements, number of bytes)
   const nelements_nbytes = { 2: [32, 18], 3: [32, 20], 14: [256, 210], 8: [32, 34] }[ggml_type]
   if (nelements_nbytes !== undefined) {
-    const blocks = t.get({ stop: idiv(n, nelements_nbytes[0]) * nelements_nbytes[1] }).reshape([-1, nelements_nbytes[1]])
+    const blocks = new Tensor(t.slice(0, idiv(n, nelements_nbytes[0]) * nelements_nbytes[1])).reshape([-1, nelements_nbytes[1]])
     if (ggml_type === 2) return (q_to_uint8(blocks.get({}, { start: 2 }), 4).bitcast(dtypes.int8).sub(8)).mul(blocks.get({}, { stop: 2 }).bitcast(dtypes.float16).cast(dtypes.float32))
     if (ggml_type === 3) {
       const [d, m] = [0, 2].map((s) => blocks.get({}, { start: s, stop: s + 2 }).bitcast(dtypes.float16).cast(dtypes.float32))
@@ -224,9 +220,9 @@ const TYPES: [number, FmtStr, number][] = [[0, 'B', 1], [1, 'b', 1], [2, 'H', 2]
  * kv_data, state_dict = gguf_load(gguf_tensor)
  * ```
  */
-export const gguf_load = async (tensor: Tensor | string): Promise<[Record<string, any>, Record<string, Tensor>]> => {
-  tensor = await accept_filename(tensor)
-  const reader = new TensorIO((await tensor.data()).bytes)
+export const gguf_load = async (data: Uint8Array): Promise<[Record<string, any>, Record<string, Tensor>]> => {
+  // tensor = await accept_filename(tensor)
+  const reader = new TensorIO(data)
   const kv_data: Record<string, any> = {}, state_dict: Record<string, any> = {}
   const read_unpack = async (fmt: FmtStr, n: number) => {
     const res = new MemoryView(await reader.read(n)).cast(fmt)
@@ -250,7 +246,7 @@ export const gguf_load = async (tensor: Tensor | string): Promise<[Record<string
   const read_uint32: () => Promise<number> = readers[4], read_int32: () => Promise<number> = readers[5], read_uint64: () => Promise<bigint> = readers[10], read_int64: () => Promise<bigint> = readers[11]
 
   const magic = await reader.read(4), version = await read_int32(), n_tensors = await read_int64(), n_kv = await read_int64()
-  if (bytes_to_string(magic) !== 'GGUF' || ![2, 3].includes(version)) throw new Error('Invalid GGUF format!')
+  if (bytes_to_string(magic) !== 'GGUF' || ![2, 3].includes(version)) throw new Error(`Invalid GGUF format, magic= ${bytes_to_string(magic)}`)
   for (let i = 0n; i < n_kv; i++) {
     const k = await read_str(), typ = await read_int32()
     kv_data[k] = await readers[typ]()
@@ -264,6 +260,6 @@ export const gguf_load = async (tensor: Tensor | string): Promise<[Record<string
   }
   const data_start = round_up(reader._position, kv_data['general.alignment'] || 32)
 
-  for (const [name, dims, typ, off] of t_infos) state_dict[name] = ggml_data_to_tensor(tensor.get({ start: data_start + off }), prod(dims), typ).reshape(dims.toReversed())
+  for (const [name, dims, typ, off] of t_infos) state_dict[name] = ggml_data_to_tensor(data.slice(data_start + off), prod(dims), typ).reshape(dims.toReversed())
   return [kv_data, state_dict]
 }

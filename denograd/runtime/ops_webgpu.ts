@@ -1,5 +1,5 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, cpu_time_execution, DEBUG, isInt, memsize_to_str, round_up } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, DEBUG, get_number_env, isInt, memsize_to_str, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
@@ -27,11 +27,10 @@ class WebGPUProgram extends Program {
     return res
   }
   override call = cpu_time_execution(async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
-    const isStorage = (i: number) => i < bufs.length && bytes_to_string(this.lib).split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')
     if (!this.bind_group_layout || !this.compute_pipeline) {
       const binding_layouts: GPUBindGroupLayoutEntry[] = [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: isStorage(i) ? 'storage' : 'uniform' } })),
+        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } })),
       ]
 
       this.bind_group_layout = WEBGPU.device.createBindGroupLayout({ entries: binding_layouts })
@@ -91,8 +90,9 @@ export class WEBGPU extends Compiled {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
   static override init = async () => {
+    if (!get_number_env('WEBGPU')) return
     WEBGPU.adapter = await navigator.gpu.requestAdapter()
     if (!WEBGPU.adapter) throw new Error('No adapter')
-    WEBGPU.device = await WEBGPU.adapter.requestDevice()
+    WEBGPU.device = await WEBGPU.adapter.requestDevice({ requiredFeatures: ['shader-f16'] })
   }
 }
