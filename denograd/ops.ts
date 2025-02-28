@@ -2149,10 +2149,11 @@ export const no_vectorized_alu = (alu: UOp) => {
   const alus = range(alu.dtype.vcount).map((i) => new UOp(alu.op, alu.dtype.scalar(), alu.src.map((s) => s.gep(i)), alu.arg))
   return new UOp(Ops.VECTORIZE, alu.dtype, alus)
 }
-
 const _gate_srcs = cache_fn((u: UOp, gate: UOp): UOp => {
   if (u.op === Ops.BARRIER) return u
-  if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) return new UOp(u.op, u.dtype, [...u.src.toReversed(), new UOp(Ops.IF, dtypes.void, [gate, u.src.at(-1)!])], u.arg)
+  if (u.op === Ops.LOAD && u.src.at(-1)!.op === Ops.BARRIER) {
+    return new UOp(u.op, u.dtype, [...u.src.slice(0, -1), new UOp(Ops.IF, dtypes.void, [gate, u.src.at(-1)!])], u.arg)
+  }
   const replace_source = u.src.map((x) => _gate_srcs(x, gate))
   return is_eq(replace_source, u.src) ? u : new UOp(u.op, u.dtype, replace_source, u.arg)
 })
@@ -2251,7 +2252,6 @@ export const pm_render = new PatternMatcher([
 ])
 
 // *** uop graph ***
-
 export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   if (sink.op !== Ops.SINK) throw new Error(`sink isn't sink, it's ${sink.op}`)
   const supported_ops = opts !== undefined ? [...opts.code_for_op.keys()] : []
