@@ -132,8 +132,8 @@ const load = async (fn: string): Promise<Record<string, Tensor>> => {
     const parts = Object.fromEntries(await Promise.all([...new Set(Object.values(weight_map))].map(async (n) => [n, await load(`${fn.split('/').slice(0, -1).join('/')}/${n}`)])))
     return Object.fromEntries(Object.entries(weight_map).map(([k, n]) => [k, parts[n][k]]))
   } else if (fn.endsWith('.gguf')) {
-    const gguf_tensor = Tensor.empty([Deno.statSync(fn).size], { dtype: dtypes.uint8, device: `DISK:${fn}` }).to(Device.DEFAULT)
-    return (await gguf_load(gguf_tensor))[1]
+    const data = await Deno.readFile(fn)
+    return (await gguf_load(data))[1]
   } else if (fn.endsWith('.safetensors')) return await safe_load(fn)
   throw new Error('invalid file')
 }
