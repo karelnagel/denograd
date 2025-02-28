@@ -1,7 +1,7 @@
 import { Device } from '../device.ts'
 import { dtypes } from '../dtype.ts'
 import { TinyJit } from '../engine/jit.ts'
-import { add, assert, ge, get_env, get_number_env, idiv, is_eq, range } from '../helpers.ts'
+import { add, assert, get_env, get_number_env, idiv, is_eq, range } from '../helpers.ts'
 import { Embedding, Linear, RMSNorm } from '../nn/index.ts'
 import { UOp, type Variable } from '../ops.ts'
 import { Tensor } from '../tensor.ts'
@@ -86,8 +86,8 @@ export class Attention {
     if (xk.dtype !== xv.dtype || xv.dtype !== this.cache_kv.dtype) throw new Error(`${xk.dtype}, ${xv.dtype}, ${this.cache_kv.dtype}`)
     await this.cache_kv.shrink([undefined, undefined, [start_pos, add(start_pos, seqlen)], undefined, undefined]).assign(Tensor.stack([xk, xv])).realize()
 
-    let keys = ge(start_pos, 0) ? this.cache_kv.get(0).shrink([undefined, [0, add(start_pos, seqlen)], undefined, undefined]) : xk
-    let values = ge(start_pos, 0) ? this.cache_kv.get(1).shrink([undefined, [0, add(start_pos, seqlen)], undefined, undefined]) : xv
+    let keys = this.cache_kv.get(0).shrink([undefined, [0, add(start_pos, seqlen)], undefined, undefined])
+    let values = this.cache_kv.get(1).shrink([undefined, [0, add(start_pos, seqlen)], undefined, undefined])
 
     keys = repeat_kv(keys, this.n_rep), values = repeat_kv(values, this.n_rep)
     xq = xq.transpose(1, 2), keys = keys.transpose(1, 2), values = values.transpose(1, 2)
@@ -190,11 +190,11 @@ export class Transformer {
   output: Linear
   freqs_cis: Tensor
   forward_jit?: TinyJit<[tokens: Tensor, start_pos: number | Variable, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number], Tensor> = undefined
-  constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, n_kv_heads?: number, rope_theta = 10000, public max_context = 1024, jit = true, feed_forward = FeedForward) {
+  constructor(dim: number, hidden_dim: number, n_heads: number, n_layers: number, norm_eps: number, vocab_size: number, linear = Linear, embedding = Embedding, n_kv_heads?: number, rope_theta = 10000, public max_context = 1024, jit = true, feed_forward = FeedForward) {
     this.layers = range(n_layers).map(() => new TransformerBlock(dim, hidden_dim, n_heads, n_kv_heads, norm_eps, max_context, linear, feed_forward))
     this.norm = new RMSNorm(dim, norm_eps)
-    this.tok_embeddings = new Embedding(vocab_size, dim)
-    this.output = new Linear(dim, vocab_size, false)
+    this.tok_embeddings = new embedding(vocab_size, dim)
+    this.output = embedding === Embedding ? new Linear(dim, vocab_size, false) : new linear(dim, vocab_size, false)
     this.freqs_cis = precompute_freqs_cis(idiv(dim, n_heads), this.max_context * 2, rope_theta).contiguous()
     this.forward_jit = jit ? new TinyJit(this.forward) : undefined
   }

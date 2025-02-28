@@ -5,7 +5,7 @@ import { Tensor } from '../tensor.ts'
 import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/state.ts'
 import { dtypes } from '../dtype.ts'
 import { convert_from_gguf, convert_from_huggingface, fix_bf16, Transformer } from './llama.ts'
-import { Linear } from '../nn/index.ts'
+import { Embedding, Linear } from '../nn/index.ts'
 import { parseArgs } from '../zod-cli.ts'
 import z from 'npm:zod'
 import { Tqdm } from '../tqdm.ts'
@@ -147,15 +147,16 @@ class Int8Linear {
     this.weight = Tensor.ones([out_features, in_features], { dtype: dtypes.int8 })
     this.scale = Tensor.ones([out_features], { dtype: dtypes.half })
   }
-  call = (x: Tensor) => x.dot(this.weight.cast(dtypes.half).T.mul(this.scale))
+  call = (x: Tensor) => x.dot(this.weight.cast(this.scale.dtype).T.mul(this.scale))
 
-  static quantize = (tensors: Record<string, Tensor>, device?: DeviceType | DeviceType[]) => {
+  static quantize = (tensors: Record<string, Tensor>, device?: DeviceType | DeviceType[], scale_dtype = dtypes.float16, quantize_embeds = false) => {
     const new_tensors: Record<string, Tensor> = {}
-    for (const [name, v] of Object.entries(tensors)) {
-      if (name.includes('feed_forward') || name.includes('attention.w')) {
+    for (let [name, v] of Object.entries(tensors)) {
+      if (name.includes('feed_forward') || name.includes('attention.w') || (quantize_embeds && name.includes('tok_embeddings.weight'))) {
         if (!name.includes('weight')) throw new Error()
+        v = v.cast(scale_dtype)
         const scale = v.abs().max(1).div(127.0)
-        const int8_weight = (v.T.div(scale)).T.cast(dtypes.int8)
+        const int8_weight = (v.T.div(scale)).T.round().cast(dtypes.int8) // without round(), cast truncates -34.9 to -34
         new_tensors[name] = int8_weight
         new_tensors[name.replace('weight', 'scale')] = scale
         if (Array.isArray(device)) {
@@ -166,7 +167,28 @@ class Int8Linear {
         new_tensors[name] = v
       }
     }
+    if (quantize_embeds) {
+      new_tensors['output.weight'] = new_tensors['tok_embeddings.weight']
+      new_tensors['output.scale'] = new_tensors['tok_embeddings.scale']
+    }
     return new_tensors
+  }
+}
+
+class Int8Embedding {
+  weight: Tensor
+  scale: Tensor
+  arange?: Tensor
+  constructor(public vocab_size: number, public embed_size: number) {
+    this.weight = Tensor.ones([vocab_size, embed_size], { dtype: dtypes.int8 })
+    this.scale = Tensor.ones([vocab_size], { dtype: dtypes.half })
+  }
+  call = (idx: Tensor) => {
+    if (!this.arange) this.arange = Tensor.arange(this.vocab_size, undefined, undefined, { requires_grad: false, device: this.weight.device }).unsqueeze(-1)
+    const big_shp = [...idx.shape, this.vocab_size, this.embed_size]
+    idx = idx.reshape([...idx.shape, 1, 1]).expand(big_shp)
+    const arange = this.arange.expand(big_shp), vals = this.weight.cast(this.scale.dtype).T.mul(this.scale).T
+    return arange.eq(idx).mul(vals).sum(-2, undefined, vals.dtype)
   }
 }
 const NF4Linear = (block_size: number) => {
@@ -188,7 +210,7 @@ const NF4Linear = (block_size: number) => {
       const unscaled = CODE.get(unpacked).to(x.device).reshape([-1, block_size]).mul(this.scale)
       return x.linear(unscaled.reshape([this.out_features, this.in_features]).T)
     }
-    static quantize = (state_dict: Record<string, Tensor>, device: DeviceType) => {
+    static quantize = (state_dict: Record<string, Tensor>, device: DeviceType, scale_dtype = dtypes.float16) => {
       const new_state_dict: Record<string, Tensor> = {}
       for (const [k, v] of Object.entries(state_dict)) {
         if (k.includes('feed_forward') || k.includes('attention.w')) {
@@ -196,7 +218,7 @@ const NF4Linear = (block_size: number) => {
           const scale = grouped.abs().max(1, true)
           const coded = ((grouped.div(scale)).unsqueeze(-1).sub(CODE.to(v.device))).abs().argmin(-1).cast(dtypes.uint8).flatten()
           new_state_dict[k] = coded.get({ step: 2 }).mul(2 ** 4).add(coded.get({ start: 1, step: 2 }))
-          new_state_dict[k.replace('.weight', '.scale')] = scale.cast(dtypes.float16)
+          new_state_dict[k.replace('.weight', '.scale')] = scale.cast(scale_dtype)
           if (Array.isArray(device)) {
             new_state_dict[k].shard_(device, -1)
             new_state_dict[k.replace('weight', 'scale')].shard_(device)
@@ -222,14 +244,17 @@ const MODEL_PARAMS = {
     'files': 8,
   },
 }
-const build_transformer = async (model_path: string, model_size: keyof typeof MODEL_PARAMS = '8B', quantize?: 'int8' | 'nf4' | 'float16', device?: DeviceType | DeviceType[]) => {
+const build_transformer = async (model_path: string, model_size: keyof typeof MODEL_PARAMS = '8B', quantize?: 'int8' | 'nf4' | 'float16', scale_dtype = dtypes.float16, device?: DeviceType | DeviceType[], max_context = 8192, load_weights = true) => {
   // build model
-  let linear
-  if (quantize === 'int8') linear = Int8Linear
-  else if (quantize === 'nf4') linear = NF4Linear(64)
-  else linear = Linear
+  let linear, embedding, quantize_embeds
+  if (quantize === 'int8') linear = Int8Linear, embedding = Int8Embedding as typeof Embedding, quantize_embeds = true
+  else if (quantize === 'nf4') linear = NF4Linear(64), embedding = Embedding, quantize_embeds = false
+  else linear = Linear, embedding = Embedding, quantize_embeds = false
+
   const params = MODEL_PARAMS[model_size].args
-  const model = new Transformer(params.dim, params.hidden_dim, params.n_heads, params.n_layers, params.norm_eps, params.vocab_size, linear, params.n_kv_heads, params.rope_theta, 8192, true)
+  const model = new Transformer(params.dim, params.hidden_dim, params.n_heads, params.n_layers, params.norm_eps, params.vocab_size, linear, embedding, params.n_kv_heads, params.rope_theta, max_context, true)
+  if (!load_weights) return model
+
   // load weights
   let weights: Record<string, Tensor>
   if (Deno.statSync(model_path).isDirectory) {
@@ -248,7 +273,7 @@ const build_transformer = async (model_path: string, model_size: keyof typeof MO
   // quantize
   if (quantize === 'float16') weights = Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.cast(quantize).contiguous()]))
   else if (quantize !== undefined) {
-    weights = (linear as typeof Int8Linear).quantize(weights, device)
+    weights = (linear as typeof Int8Linear).quantize(weights, device, scale_dtype, quantize_embeds)
     for (const v of Object.values(weights)) await v.realize()
   }
   //     # shard
@@ -360,7 +385,7 @@ if (import.meta.main) {
   }
 
   const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` satisfies DeviceType) : Device.DEFAULT
-  const model = await build_transformer(args.model, args.size, args.quantize, device)
+  const model = await build_transformer(args.model, args.size, args.quantize, undefined, device)
 
   const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
   let start_pos = await prefill(model, system, undefined, device)
