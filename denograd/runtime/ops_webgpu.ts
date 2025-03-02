@@ -27,10 +27,11 @@ class WebGPUProgram extends Program {
     return res
   }
   override call = cpu_time_execution(async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+    const isStorage = (i: number) => i < bufs.length && bytes_to_string(this.lib).split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')
     if (!this.bind_group_layout || !this.compute_pipeline) {
       const binding_layouts: GPUBindGroupLayoutEntry[] = [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } })),
+        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: isStorage(i) ? 'storage' : 'uniform' } })),
       ]
 
       this.bind_group_layout = WEBGPU.device.createBindGroupLayout({ entries: binding_layouts })

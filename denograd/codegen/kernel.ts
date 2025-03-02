@@ -523,7 +523,7 @@ export class Kernel {
     ) {
       const st0 = this.sts[this.bufs.indexOf(mulop.src[0])], st1 = this.sts[this.bufs.indexOf(mulop.src[1])]
       const strides0 = st0.real_strides(), strides1 = st1.real_strides()
-      const has_expanded_axis = (shape: (sint | undefined)[], strides: (sint | undefined)[]) => zip(shape, strides).some(([s, st]) => s && st && resolve(gt(s, 1)) && !resolve(ne(st, 0)))
+      const has_expanded_axis = (shape: (sint | undefined)[], strides: (sint | undefined)[]) => zip(shape, strides).some(([s, st]) => (!s || resolve(gt(s, 1))) && (!st || !resolve(ne(st, 0))))
       if (strides0[this.first_reduce] === 1 && !(has_expanded_axis(st0.shape, strides0) && has_expanded_axis(st1.shape, strides1))) {
         for (const global_idx of range(this.global_dims)) {
           if (mod(this.full_shape[this.first_reduce], MV_THREADS_PER_ROW) === 0 && mod(this.full_shape[global_idx], MV_BLOCKSIZE * MV_ROWS_PER_THREAD) === 0) {
