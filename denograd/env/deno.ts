@@ -2,12 +2,10 @@ import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { WebEnv } from './web.ts'
-import type { AllDevices } from '../device.ts'
+import { WebEnv } from './index.ts'
 
 export class DenoEnv extends WebEnv {
   override NAME = 'DENO'
-  override DEVICES: AllDevices[] = ['CLANG', 'WEBGPU', 'WASM', 'JS']
   override PLATFORM = process.platform
   override readFile = Deno.readFile
   override writeFile = Deno.writeFile
@@ -17,7 +15,7 @@ export class DenoEnv extends WebEnv {
   override statSync = Deno.statSync
   override writeStdout = (p: Uint8Array) => void Deno.stdout.writeSync(p)
   override tempFile = Deno.makeTempFile
-  override homedir = () => os.homedir()
+  override homedir = os.homedir
 
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 

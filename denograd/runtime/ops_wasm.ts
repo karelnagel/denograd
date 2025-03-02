@@ -1,6 +1,6 @@
 import { cpu_time_execution, round_up, zip } from '../helpers.ts'
 import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
-import type { BufferSpec, DeviceType } from '../device.ts'
+import type { BufferSpec } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { WabtModule } from './autogen/wabt.js'
 import { WASMRenderer } from '../renderer/wat.ts'
@@ -61,10 +61,10 @@ export class WASMAllocator extends Allocator<Uint8Array> {
 
 export class WASM extends Compiled {
   static wabt: any
-  constructor(device: DeviceType) {
+  constructor(device: string) {
     super(device, new WASMAllocator(), new WASMRenderer(), new WASMCompiler('wasm'), WASMProgram)
   }
-  static override init = async () => {
+  override init = async () => {
     WASM.wabt = await WabtModule()
   }
 }

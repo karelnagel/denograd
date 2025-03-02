@@ -1,5 +1,4 @@
 import { Allocator, Compiled } from './allocator.ts'
-import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
 import { NotImplemented } from '../helpers.ts'
@@ -9,7 +8,7 @@ export class DISK extends Compiled {
   size?: number
   count = 0
   mem!: Uint8Array
-  constructor(device: DeviceType) {
+  constructor(device: string) {
     super(device, undefined, undefined, undefined, undefined)
     if (!DISK._tried_io_uring_init) this._iouring_setup()
     this.allocator = new DiskAllocator(this)

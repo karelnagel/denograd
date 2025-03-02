@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-this-alias
-import type { Buffer, DeviceType } from './device.ts'
+import type { Buffer } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { env } from './env/index.ts'
 import { accumulate, add, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, xor } from './helpers.ts'
@@ -478,7 +478,7 @@ export class UOp extends MathTrait<UOp> {
     return zip(this.src, this.real).filter(([lb, r]) => r).map(([lb]) => lb)
   }
 
-  shard = (devices: DeviceType[], axis?: number): UOp => {
+  shard = (devices: string[], axis?: number): UOp => {
     let lbs: UOp[]
     if (axis === undefined) lbs = range(devices.length).map(() => this)
     else {
@@ -516,7 +516,7 @@ export class UOp extends MathTrait<UOp> {
     const st = ShapeTracker.from_shape(shape)
     return new UOp(Ops.VIEW, dtype, [UOp.new_buffer(device, st.size, dtype)], st)
   }
-  copy_to_device = (device: DeviceType | DeviceType[], clone = false): UOp => {
+  copy_to_device = (device: string | string[], clone = false): UOp => {
     // if it's a shrink, do the shrink before the copy with CONTIGUOUS
     if (prod(this.shape) < prod(this.base.shape)) return this.contiguous().copy_to_device(device)
     // COPY is COPY(DEVICE, copyin.base) -> VIEW(copyin.st)
@@ -557,13 +557,13 @@ export class UOp extends MathTrait<UOp> {
   // *** uop Buffer stuff ***
   static buffer_num = counter(0)
   static new_buffer = (device: string, size: number, dtype: DType) => new UOp(Ops.BUFFER, dtype, [new UOp(Ops.DEVICE, undefined, undefined, device)], [UOp.buffer_num.next().value, size])
-  get device(): DeviceType | DeviceType[] {
+  get device(): string | string[] {
     return this._device!
   }
   @cache
-  get _device(): DeviceType | DeviceType[] | undefined {
+  get _device(): string | string[] | undefined {
     if (this.op === Ops.DEVICE) return this.arg
-    if (this.op === Ops.MULTI) return this.src.map((x) => x.device as DeviceType)
+    if (this.op === Ops.MULTI) return this.src.map((x) => x.device as string)
     return this.src.filter((x) => x._device !== undefined)[0]?._device
   }
   get buf_uop(): UOp {

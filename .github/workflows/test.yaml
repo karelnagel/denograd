@@ -37,7 +37,7 @@ jobs:
           sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/lib/libwebgpu_dawn.so
 
       - name: Run tests
-        run: ${{ matrix.runtime }}=1 TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHEDB=":memory:" deno test -A --no-check --parallel
+        run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHEDB=":memory:" deno test -A --no-check --parallel
 
       - name: Train mnist
         run: ${{ matrix.runtime }}=1 BS=2 STEPS=10 deno -A denograd/models/mnist.ts

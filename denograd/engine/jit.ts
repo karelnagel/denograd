@@ -1,4 +1,4 @@
-import { Buffer, type Compiled, Device, type DeviceType, uop_realized } from '../device.ts'
+import { Buffer, type Compiled, Device, uop_realized } from '../device.ts'
 import type { DType } from '../dtype.ts'
 import { env } from '../env/index.ts'
 import { ArrayMap, colored, DefaultMap, flatten, is_eq, merge_maps, partition, WeakKeyMap } from '../helpers.ts'
@@ -82,7 +82,7 @@ export class GraphRunner extends Runner {
   w_dependency_map = new Map<string, any>()
   r_dependency_map = new DefaultMap<string, any[]>(undefined, () => [])
   constructor(public jit_cache: ExecItem[], input_rawbuffers: Buffer[], var_vals: Map<Variable, number>) {
-    super(colored(`<batched ${jit_cache.length}>`, 'cyan'), jit_cache[0].prg.device.split(':')[0] as DeviceType, new Estimates())
+    super(colored(`<batched ${jit_cache.length}>`, 'cyan'), jit_cache[0].prg.device.split(':')[0], new Estimates())
     this.input_replace = get_input_replace(jit_cache, input_rawbuffers)
     const is_sym_dim = (dim: number[]): boolean => !dim.every((d) => typeof d === 'number')
 
@@ -162,7 +162,7 @@ export class CapturedJit<Return extends any> {
     public input_replace: ArrayMap<[number, number], number>,
     public extra_view_inputs: [number, number, string, number, DType][],
     public expected_names: number[],
-    public expected_st_vars_dtype_device: [ShapeTracker, Variable[], DType, DeviceType | DeviceType[]][],
+    public expected_st_vars_dtype_device: [ShapeTracker, Variable[], DType, string | string[]][],
   ) {
     this.init()
   }
@@ -191,7 +191,7 @@ export class CapturedJit<Return extends any> {
   call = async (input_buffers: Buffer[], var_vals: Map<Variable, number>): Promise<Return> => {
     // assign inputs
     for (const [idx, offset, device, size, dtype] of this.extra_view_inputs) {
-      input_buffers.push(new Buffer(device as DeviceType, size, dtype, undefined, undefined, undefined, undefined, input_buffers[idx], offset).ensure_allocated())
+      input_buffers.push(new Buffer(device, size, dtype, undefined, undefined, undefined, undefined, input_buffers[idx], offset).ensure_allocated())
     }
     for (const [[j, i], input_idx] of this._input_replace.entries()) this._jit_cache[j].bufs[i] = input_buffers[input_idx]
 
@@ -230,7 +230,7 @@ export const _prepare_jit_inputs = async (...args: any[]) => {
     ...st_varval_dtype_device.map((x) => x[1]),
     new Map(args.filter((v) => v instanceof UOp).map((v) => v.unbind())),
   ])
-  const st_vars_dtype_device = st_varval_dtype_device.map((x) => [x[0], [...x[1].keys()].toSorted((a, b) => b.expr - a.expr), x[2], x[3]] satisfies [ShapeTracker, UOp[], DType, DeviceType | DeviceType[]])
+  const st_vars_dtype_device = st_varval_dtype_device.map((x) => [x[0], [...x[1].keys()].toSorted((a, b) => b.expr - a.expr), x[2], x[3]] satisfies [ShapeTracker, UOp[], DType, string | string[]])
   return [input_buffers as Buffer[], var_vals, names, st_vars_dtype_device] as const
 }
 

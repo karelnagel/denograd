@@ -1,7 +1,6 @@
 import { Compiled, Compiler, MallocAllocator, Program, type ProgramCallArgs } from './allocator.ts'
 import { bytes_to_string, cpu_objdump, cpu_time_execution } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
-import type { DeviceType } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
 
@@ -57,7 +56,7 @@ export class ClangProgram extends Program {
 }
 
 export class CLANG extends Compiled {
-  constructor(device: DeviceType) {
+  constructor(device: string) {
     super(device, MallocAllocator, new ClangRenderer(), new ClangCompiler(), ClangProgram)
   }
 }

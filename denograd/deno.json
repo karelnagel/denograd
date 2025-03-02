@@ -1,6 +1,9 @@
 {
   "name": "@denograd/denograd",
   "version": "0.0.3",
-  "exports": "./mod.ts",
+  "exports": {
+    ".": "./mod.ts",
+    "./web": "./web.ts"
+  },
   "license": "MIT"
 }

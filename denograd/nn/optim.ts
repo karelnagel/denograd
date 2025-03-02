@@ -1,4 +1,3 @@
-import type { DeviceType } from '../device.ts'
 import { dtypes, least_upper_dtype } from '../dtype.ts'
 import { env } from '../env/index.ts'
 import { dedup, NotImplemented, zip } from '../helpers.ts'
@@ -6,7 +5,7 @@ import { Tensor } from '../tensor.ts'
 
 export class Optimizer {
   params: Tensor[]
-  device: DeviceType | DeviceType[]
+  device: string | string[]
   buffers: Tensor[]
   lr: Tensor
   constructor(params: Tensor[], lr: number) {

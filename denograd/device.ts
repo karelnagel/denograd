@@ -4,70 +4,45 @@ import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.t
 import { MemoryView } from './memoryview.ts'
 import { env } from './env/index.ts'
 import { Ops, type UOp } from './ops.ts'
+import { WEBGPU } from './runtime/ops_webgpu.ts'
+import { WASM } from './runtime/ops_wasm.ts'
+import { JS } from './runtime/ops_js.ts'
 
 export * from './runtime/allocator.ts'
 
+export let DEVICES: Record<string, typeof Compiled> = { WEBGPU, WASM, JS }
+export const setDevices = (devices: Record<string, typeof Compiled>) => DEVICES = devices
+
 // **************** Device ****************
-export const ALL_DEVICES = {
-  CLANG: () => import('./runtime/ops_clang.ts').then((x) => x.CLANG),
-  WEBGPU: () => import('./runtime/ops_webgpu.ts').then((x) => x.WEBGPU),
-  WASM: () => import('./runtime/ops_wasm.ts').then((x) => x.WASM),
-  DISK: () => import('./runtime/ops_disk.ts').then((x) => x.DISK),
-  JS: () => import('./runtime/ops_js.ts').then((x) => x.JS),
-}
-
-export type AllDevices = keyof typeof ALL_DEVICES
-export type DeviceType = AllDevices | `${AllDevices}:${string}`
-
 export class _Device {
-  DEVICES: Record<string, typeof Compiled> = {}
-  DEFAULT!: AllDevices
-  init = async () => {
-    for (const [name, imp] of Object.entries(ALL_DEVICES)) {
-      if (env.DEVICES !== undefined && !env.DEVICES.includes(name as AllDevices)) continue
-      try {
-        const compiled = await imp()
-        await compiled.init()
-        this.DEVICES[name] = compiled
-      } catch (e) {
-        console.log(`Device ${name} failed: ${e}`)
-      }
-    }
-
-    // Setting default
-    const fromEnv = Object.keys(this.DEVICES).filter((d) => !['DISK'].includes(d) && env.get_num(d) === 1)[0]
-    if (fromEnv) {
-      this.DEFAULT = fromEnv as AllDevices
-      return
-    }
-    const device = Object.keys(this.DEVICES)[0]
-    if (!device) throw new Error('no usable devices')
-    env.set(device, '1')
-    this.DEFAULT = device as AllDevices
+  get DEFAULT() {
+    if (env.DEVICE) return env.DEVICE
+    const dev = Object.keys(DEVICES)[0]
+    if (!dev) throw new Error('no usable devices')
+    env.set('DEVICE', dev)
+    return dev
   }
   @cache
-  _canonicalize(device: DeviceType): DeviceType {
+  _canonicalize(device: string): string {
     const d = device.split(':', 1)[0].toUpperCase()
-    return d + device.slice(d.length).replace(':0', '') as DeviceType
+    return d + device.slice(d.length).replace(':0', '')
   }
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
-  canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
-  get(device: DeviceType): Compiled {
+  canonicalize = (device?: string) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
+  get(device: string): Compiled {
     const ix = this.canonicalize(device)
-    const Device = this.DEVICES[ix.split(':')[0].toUpperCase() as AllDevices]!
+    const Device = DEVICES[ix.split(':')[0].toUpperCase()]!
     if (env.DEBUG >= 1) console.log(`opened device ${ix}`)
     return new Device(ix)
   }
   default = () => this.get(this.DEFAULT)
-  setDefault = (device: AllDevices) => {
-    if (this.DEFAULT) env.set(this.DEFAULT, '0')
-    env.set(device, '1')
-    this.DEFAULT = device
-    return device
+  setDefault = (dev: string) => {
+    if (!DEVICES[dev]) throw new Error(`Invalid device ${dev}, expected one of ${Object.keys(DEVICES)}`)
+    env.set('DEVICE', dev)
+    return dev
   }
 }
 export const Device = new _Device()
-await Device.init()
 
 // NOTE: these 3 functions should actually be under UOp, but Buffer caused circular import
 export const uop_buffer = (uop: UOp): Buffer => {
@@ -101,7 +76,7 @@ export class Buffer<Buf extends object = object> {
   })
 
   constructor(
-    public device: DeviceType,
+    public device: string,
     public size: number,
     public dtype: DType,
     opaque?: any,

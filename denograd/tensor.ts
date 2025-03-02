@@ -3,7 +3,7 @@ import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_
 import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
-import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
+import { BufferSpec, Device, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
 import { create_schedule_with_vars, type ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
@@ -325,7 +325,7 @@ export class Flip extends CreateFunction<[UOp, number[]]>() {
 
 // ************* function.py end *************
 
-export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: DeviceType | DeviceType[], arg?: any) => {
+export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: string | string[], arg?: any) => {
   if (typeof device === 'string') return UOp.metaop(op, shape, dtype, device, arg)
   return UOp.multi(device.map((d) => UOp.metaop(op, shape, dtype, d, arg)), undefined)
 }
@@ -349,7 +349,7 @@ export const _frompy = (x: ConstType[] | Uint8Array, dtype: DType): UOp => {
   return ret.buf_uop_view()
 }
 
-const _get_winograd_matcols = (mat: number[][], dims: number, shp: sint[], device: DeviceType | DeviceType[], dtype: DType): Tensor[][] => {
+const _get_winograd_matcols = (mat: number[][], dims: number, shp: sint[], device: string | string[], dtype: DType): Tensor[][] => {
   return range(mat[0].length).map((k) => range(dims).map((dim) => Tensor.cat(mat.map((m) => Tensor.full([...shp.slice(0, dim), 1, ...shp.slice(dim + 1)], Number(m[k]), { device: device, dtype: dtype }), dim))))
 }
 // winograd conv 3 kernel f(4x4,3x3) see: http://arxiv.org/abs/1509.09308
@@ -387,7 +387,7 @@ const _flat_to_grouped = (padding: sint[]): [sint, sint][] => zip(slice(padding,
 const ReductionStr = ['mean', 'sum', 'none']
 type ReductionStr = typeof ReductionStr[number]
 
-export type TensorOptions = { device?: DeviceType | DeviceType[]; dtype?: DType; requires_grad?: boolean }
+export type TensorOptions = { device?: string | string[]; dtype?: DType; requires_grad?: boolean }
 const sliceGetIndices = (index: Slice, size: number): [number, number, number] => {
   let start = index.start ?? 0
   let stop = index.stop ?? size
@@ -496,7 +496,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (!this.shape.length) throw new Error('len() of a 0-d tensor')
     return this.shape[0]
   }
-  get device(): DeviceType | DeviceType[] {
+  get device(): string | string[] {
     return this.lazydata.device
   }
   get shape(): number[] {
@@ -647,7 +647,7 @@ export class Tensor extends MathTrait<Tensor> {
   /**
    * Moves the tensor to the given device.
    */
-  to = (device?: DeviceType | DeviceType[]): Tensor => {
+  to = (device?: string | string[]): Tensor => {
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
     if (device === this.device) return this
     if (typeof device !== 'string') return this.shard(device)
@@ -659,7 +659,7 @@ export class Tensor extends MathTrait<Tensor> {
   /**
    * Moves the tensor to the given device in place.
    */
-  to_ = (device?: DeviceType | DeviceType[]) => {
+  to_ = (device?: string | string[]) => {
     const real = this.to(device)
     if (this.grad !== undefined && real.grad !== undefined) this.grad.replace(real.grad)
     return this.replace(real)
@@ -672,7 +672,7 @@ export class Tensor extends MathTrait<Tensor> {
    * print(t.shard((t.device, t.device), axis=1).lazydata)
    * ```
    */
-  shard = (devices: DeviceType[], axis?: number): Tensor => {
+  shard = (devices: string[], axis?: number): Tensor => {
     if (Array.isArray(this.device)) throw new Error("can't shard a MultiLazyBuffer")
     devices = devices.map((x) => Device.canonicalize(x))
     const mlb = this.lazydata.shard(devices, axis !== undefined ? this._resolve_dim(axis) : undefined)
@@ -681,7 +681,7 @@ export class Tensor extends MathTrait<Tensor> {
   /**
    * Shards the tensor across the given devices in place.
    */
-  shard_ = (devices: DeviceType[], axis?: number) => {
+  shard_ = (devices: string[], axis?: number) => {
     return this.replace(this.shard(devices, axis))
   }
   static from_uop = (y: UOp, opts: TensorOptions = {}): Tensor => {
@@ -1018,7 +1018,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (Array.isArray(this.device)) {
       if (opts.device !== undefined) throw new Error('cannot specify `device` on `rand_like` of a multi device tensor')
       if (this.lazydata.axis === undefined) return Tensor.rand(this.shape, undefined, { dtype: dtype, ...opts }).shard(this.device)
-      const rands = this.lazydata.src.map((lb) => Tensor.rand(lb.shape as number[], contiguous, { device: lb.device as DeviceType, dtype: dtype, ...opts }).lazydata)
+      const rands = this.lazydata.src.map((lb) => Tensor.rand(lb.shape as number[], contiguous, { device: lb.device, dtype: dtype, ...opts }).lazydata)
       return new Tensor(UOp.multi(rands, this.lazydata.axis), { device: this.device, dtype: dtype, ...opts })
     }
     return Tensor.rand(this.shape, undefined, { device: this.device, dtype: dtype, ...opts })

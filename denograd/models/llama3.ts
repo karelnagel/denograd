@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-invalid-regexp
 import { bytes_to_string, GlobalCounters, range, string_to_bytes, zip } from '../helpers.ts'
-import { Device, type DeviceType } from '../device.ts'
+import { Device } from '../device.ts'
 import { Tensor } from '../tensor.ts'
 import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/state.ts'
 import { dtypes } from '../dtype.ts'
@@ -112,7 +112,7 @@ class Tokenizer {
 }
 
 // **** helper functions ****
-const concat_weights = (models: Record<string, Tensor>[], device?: DeviceType): Record<string, Tensor> => {
+const concat_weights = (models: Record<string, Tensor>[], device?: string): Record<string, Tensor> => {
   const convert = (name: string): Tensor => {
     const disk_tensors: Tensor[] = models.map((model) => model[name])
     if (disk_tensors.length === 1 || disk_tensors[0].shape.length === 1) {
@@ -149,7 +149,7 @@ class Int8Linear {
   }
   call = (x: Tensor) => x.dot(this.weight.cast(this.scale.dtype).T.mul(this.scale))
 
-  static quantize = (tensors: Record<string, Tensor>, device?: DeviceType | DeviceType[], scale_dtype = dtypes.float16, quantize_embeds = false) => {
+  static quantize = (tensors: Record<string, Tensor>, device?: string | string[], scale_dtype = dtypes.float16, quantize_embeds = false) => {
     const new_tensors: Record<string, Tensor> = {}
     for (let [name, v] of Object.entries(tensors)) {
       if (name.includes('feed_forward') || name.includes('attention.w') || (quantize_embeds && name.includes('tok_embeddings.weight'))) {
@@ -210,7 +210,7 @@ const NF4Linear = (block_size: number) => {
       const unscaled = CODE.get(unpacked).to(x.device).reshape([-1, block_size]).mul(this.scale)
       return x.linear(unscaled.reshape([this.out_features, this.in_features]).T)
     }
-    static quantize = (state_dict: Record<string, Tensor>, device: DeviceType, scale_dtype = dtypes.float16) => {
+    static quantize = (state_dict: Record<string, Tensor>, device: string, scale_dtype = dtypes.float16) => {
       const new_state_dict: Record<string, Tensor> = {}
       for (const [k, v] of Object.entries(state_dict)) {
         if (k.includes('feed_forward') || k.includes('attention.w')) {
@@ -244,7 +244,7 @@ const MODEL_PARAMS = {
     'files': 8,
   },
 }
-const build_transformer = async (model_path: string, model_size: keyof typeof MODEL_PARAMS = '8B', quantize?: 'int8' | 'nf4' | 'float16', scale_dtype = dtypes.float16, device?: DeviceType | DeviceType[], max_context = 8192, load_weights = true) => {
+const build_transformer = async (model_path: string, model_size: keyof typeof MODEL_PARAMS = '8B', quantize?: 'int8' | 'nf4' | 'float16', scale_dtype = dtypes.float16, device?: string | string[], max_context = 8192, load_weights = true) => {
   // build model
   let linear, embedding, quantize_embeds
   if (quantize === 'int8') linear = Int8Linear, embedding = Int8Embedding as typeof Embedding, quantize_embeds = true
@@ -302,7 +302,7 @@ const ALPHA_F = 0.0
 const ALPHA_P = 0.0
 
 let last_seen_toks: number[] = []
-const prefill = async (model: Transformer, toks: number[], start_pos = 0, device: DeviceType | DeviceType[]) => {
+const prefill = async (model: Transformer, toks: number[], start_pos = 0, device: string | string[]) => {
   // we can skip part of the prompt if it is the same as last and start_pos=0
   if (start_pos === 0) {
     const i = zip(toks, last_seen_toks).every(([a, b]) => a === b) ? Math.min(toks.length, last_seen_toks.length) : 0
@@ -384,7 +384,7 @@ if (import.meta.main) {
     return [...encode_role(role), ...tokenizer.encode(content.trim()), tokenizer.special_tokens.get('<|eot_id|>')!]
   }
 
-  const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` satisfies DeviceType) : Device.DEFAULT
+  const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` satisfies string) : Device.DEFAULT
   const model = await build_transformer(args.model, args.size, args.quantize, undefined, device, undefined, true)
 
   const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]

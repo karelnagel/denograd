@@ -1,4 +1,3 @@
-import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, PtrDType } from '../dtype.ts'
 import { idiv, is_less_than, strip_parens } from '../helpers.ts'
 import { Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
@@ -42,7 +41,7 @@ export const wgsl_matcher = new PatternMatcher([
 const is_storage = (dtype: DType, mutable: boolean) => mutable || (dtype instanceof PtrDType && dtype.size > 512) || dtype.itemsize < 4
 
 export class WGSLRenderer extends CStyleLanguage {
-  override device: DeviceType = 'WEBGPU'
+  override device: string = 'WEBGPU'
   override global_max: [number, number, number] = [65535, 65535, 65535]
   override local_max: [number, number, number] = [256, 256, 64]
   override code_for_workitem: Record<string, (...x: any[]) => string> = { 'g': (x: any) => `i32(gindex.${'xyz'[Number(x)]})`, 'l': (x: any) => `i32(lindex.${'xyz'[Number(x)]})` }

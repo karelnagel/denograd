@@ -1,7 +1,6 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
 import { bytes_to_string, cpu_time_execution, isInt, memsize_to_str, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
-import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
@@ -83,17 +82,16 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
 
 export class WEBGPU extends Compiled {
   static device: GPUDevice
-  static adapter: GPUAdapter | null
-  constructor(device: DeviceType) {
+  constructor(device: string) {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
-  static override init = async () => {
-    // if (!get_number_env('WEBGPU')) return
+  override init = async () => {
+    if (WEBGPU.device) return
 
-    WEBGPU.adapter = await navigator.gpu.requestAdapter()
-    if (!WEBGPU.adapter) throw new Error('No adapter')
-    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize } = WEBGPU.adapter.limits
-    WEBGPU.device = await WEBGPU.adapter.requestDevice({
+    const adapter = await navigator.gpu.requestAdapter()
+    if (!adapter) throw new Error('No adapter')
+    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize } = adapter.limits
+    WEBGPU.device = await adapter.requestDevice({
       requiredFeatures: ['shader-f16'],
       requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize },
     })

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file custom-lint-rules/no-floating-promises
 import { Kernel } from '../codegen/kernel.ts'
-import { type Buffer, Device, type DeviceType, type Program } from '../device.ts'
+import { type Buffer, Device, type Program } from '../device.ts'
 import { env } from '../env/index.ts'
 import { all_int, all_same, colored, get_key, GlobalCounters, idiv, type Metadata, mod, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
@@ -31,7 +31,7 @@ export const get_kernel = async (renderer: Renderer, ast: UOp): Promise<Kernel> 
 
 export class Runner {
   first_run = true
-  constructor(public display_name: string, public device: DeviceType, public estimates = new Estimates()) {}
+  constructor(public display_name: string, public device: string, public estimates = new Estimates()) {}
 
   get dev() {
     return Device.get(this.device)
@@ -50,9 +50,11 @@ export class CompiledRunner extends Runner {
     const res = new CompiledRunner(p.name, p.device, p.estimates)
     res.p = p
     res.lib = lib
+    const dev = Device.get(p.device)
+    await dev.init()
     if (env.DEBUG >= 4) console.log(p.src)
-    if (!res.lib) res.lib = await Device.get(p.device).compiler.compile_cached(p.src)
-    if (env.DEBUG >= 6) Device.get(p.device).compiler.disassemble(res.lib)
+    if (!res.lib) res.lib = await dev.compiler.compile_cached(p.src)
+    if (env.DEBUG >= 6) dev.compiler.disassemble(res.lib)
     const Runtime = Device.get(p.device).runtime!
     // KAREL: TODO: should be p.function_name
     res._prg = await Runtime.init(to_function_name(p.name), res.lib)
@@ -91,7 +93,7 @@ export class ViewOp extends Runner {
   }
 }
 export class BufferCopy extends Runner {
-  constructor(total_sz: number, dest_device: DeviceType, src_device: DeviceType) {
+  constructor(total_sz: number, dest_device: string, src_device: string) {
     let name
     if (total_sz >= 1e6) name = `copy ${(total_sz / 1e6).toFixed(2)}M, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
     else name = `copy ${total_sz.toFixed(0).padStart(8)}, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
@@ -130,7 +132,7 @@ export class BufferXfer extends BufferCopy {
 // **************** method cache ****************
 
 const method_cache: Record<string, CompiledRunner> = {}
-export const get_runner = async (device: DeviceType, ast: UOp): Promise<CompiledRunner> => {
+export const get_runner = async (device: string, ast: UOp): Promise<CompiledRunner> => {
   const ckey = get_key(device, ast.key, env.BEAM, env.NOOPT, false)
   const cret = method_cache[ckey]
   if (cret) return cret

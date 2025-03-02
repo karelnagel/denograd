@@ -1,7 +1,6 @@
 import type { ImageDType } from '../dtype.ts'
 import { ArrayMap, get_key, NotImplemented, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
-import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
 
@@ -178,14 +177,14 @@ export class Compiled {
   static profile_events: ProfileEvent[] = [new ProfileDeviceEvent('CPU')]
 
   constructor(
-    public device: DeviceType,
+    public device: string,
     public allocator?: Allocator<any>,
     public renderer: Renderer = new Renderer(),
     public compiler: Compiler = new Compiler(),
     public runtime?: typeof Program,
     public graph?: any,
   ) {}
-  static init = async () => {}
+  init = async () => {}
   /**
    * Synchronize all pending operations on the device.
    *

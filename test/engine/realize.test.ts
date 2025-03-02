@@ -1,5 +1,4 @@
 import { Kernel } from '../../denograd/codegen/kernel.ts'
-import type { DeviceType } from '../../denograd/device.ts'
 import { get_kernel, get_runner } from '../../denograd/engine/realize.ts'
 import type { UOp } from '../../denograd/ops.ts'
 import { compare, test } from '../helpers.ts'
@@ -52,7 +51,7 @@ test(
 test(
   'realize.get_runner',
   compare(
-    () => kernelInputs().map(([r, ast]) => [r.device, ast] as [DeviceType, UOp]),
+    () => kernelInputs().map(([r, ast]) => [r.device, ast] as [string, UOp]),
     async (d, ast) => {
       Kernel.kernel_cnt.clear()
       const runner = await get_runner(d, ast)

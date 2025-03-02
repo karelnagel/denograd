@@ -1,9 +1,8 @@
 import { all_same, assert, bytes_to_string, cpu_time_execution, flatten, get_single_element, idiv, is_eq, isinstance, mod, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
-import { Allocator, type BufferSpec, Compiled, Compiler, Program } from './allocator.ts'
+import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate } from '../dtype.ts'
-import type { DeviceType, ProgramCallArgs } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
 import { AMDRenderer, ClangRenderer, CUDARenderer, IntelRenderer, MetalRenderer } from '../renderer/cstyle.ts'
 import { env } from '../env/index.ts'
@@ -247,15 +246,15 @@ export class PythonProgram extends Program {
 }
 
 export class PythonRenderer extends Renderer {
-  override device: DeviceType = 'JS'
+  override device: string = 'JS'
   constructor() {
     super()
-    if (env.get('EMULATE_METAL')) this.device = 'METAL' as DeviceType, this.tensor_cores = new MetalRenderer().tensor_cores
-    if (env.get('EMULATE_AMD')) this.device = 'AMD' as DeviceType, this.tensor_cores = new AMDRenderer().tensor_cores
-    if (env.get('EMULATE_CUDA')) this.device = 'CUDA' as DeviceType, this.tensor_cores = new CUDARenderer().tensor_cores
-    // if (get_env("EMULATE_CUDA_SM75")) this.device="CUDA" as DeviceType, this.tensor_cores = new CUDARenderer().tc_sm75
-    if (env.get('EMULATE_INTEL')) this.device = 'INTEL' as DeviceType, this.suffix = 'INTEL', this.tensor_cores = new IntelRenderer().tensor_cores
-    if (env.get('EMULATE_AMX')) this.device = 'CLANG' as DeviceType, this.tensor_cores = new ClangRenderer().tensor_cores
+    if (env.get('EMULATE_METAL')) this.device = 'METAL', this.tensor_cores = new MetalRenderer().tensor_cores
+    if (env.get('EMULATE_AMD')) this.device = 'AMD', this.tensor_cores = new AMDRenderer().tensor_cores
+    if (env.get('EMULATE_CUDA')) this.device = 'CUDA', this.tensor_cores = new CUDARenderer().tensor_cores
+    // if (get_env("EMULATE_CUDA_SM75")) this.device="CUDA" , this.tensor_cores = new CUDARenderer().tc_sm75
+    if (env.get('EMULATE_INTEL')) this.device = 'INTEL', this.suffix = 'INTEL', this.tensor_cores = new IntelRenderer().tensor_cores
+    if (env.get('EMULATE_AMX')) this.device = 'CLANG', this.tensor_cores = new ClangRenderer().tensor_cores
   }
   override render = (name: string, uops: UOp[]): string => {
     const lops = uops.map((u) => [u.op, u.dtype, u.src.map((v) => uops.indexOf(v)), u.arg] as PyUOp)
@@ -278,7 +277,7 @@ export class PythonAllocator extends Allocator<MemoryView> {
 }
 
 export class JS extends Compiled {
-  constructor(device: DeviceType) {
+  constructor(device: string) {
     super(device, new PythonAllocator(), new PythonRenderer(), new PythonCompiler(), PythonProgram)
   }
 }
