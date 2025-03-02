@@ -743,7 +743,7 @@ export class Tensor extends MathTrait<Tensor> {
     // checking if it is gzipped, using this instead of a flag cause, sometimes fetch automatically ungzips
     const preview = new Uint8Array(data.slice(0, 2))
     if (preview.length === 2 && preview[0] === 0x1f && preview[1] === 0x8b) {
-      data = await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+      data = await env.gunzip(res)
     }
     return new Tensor(new Uint8Array(data), opts)
   }

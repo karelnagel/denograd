@@ -48,7 +48,8 @@
   "exclude": [
     "tinygrad*",
     "website/.astro*",
-    "denograd/runtime/autogen*"
+    "denograd/runtime/autogen*",
+    "denograd/env/bun.ts"
   ],
   "compilerOptions": {
     "lib": [

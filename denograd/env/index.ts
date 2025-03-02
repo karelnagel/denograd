@@ -7,7 +7,7 @@ export class WebEnv {
   CPU_DEVICE: string = 'JS'
   DB_VERSION = 1
   // @ts-ignore import.meta.env
-  _env!: Record<string, string> = (typeof import.meta !== 'undefined' ? import.meta?.env : typeof process !== 'undefined' ? process.env : {}) || {}
+  _env!: Record<string, string> = (typeof import.meta?.env !== 'undefined' ? import.meta.env : typeof process?.env !== 'undefined' ? process.env : {}) || {}
 
   // env
   get = (key: string, def?: string) => this._env[key] || def
@@ -31,6 +31,7 @@ export class WebEnv {
   tempFile = (): Promise<string> => this.notImplemented()
   writeStdout = (p: Uint8Array) => console.log(new TextDecoder().decode(p))
   homedir = () => '/home'
+  gunzip = async (res:Response):Promise<ArrayBuffer> => await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
 
   //
   sha256 = (data: Uint8Array): Uint8Array => data
@@ -77,7 +78,7 @@ export class WebEnv {
       request.onerror = () => reject(request.error)
     })
   }
-  get DEVICE() { return this.get('DEVICE') }
+  get DEVICE() { return this.get('DEVICE') || this.get("D") }
   get OSX(){ return this.PLATFORM === 'darwin'}
   get WINDOWS(){ return this.PLATFORM === 'win32'}
   get CACHE_DIR (){ return `${this.get('CACHE_DIR') || this.get('XDG_CACHE_HOME') || (this.OSX ? `${this.homedir()}/Library/Caches` : `${this.homedir()}/.cache`)}/denograd` }

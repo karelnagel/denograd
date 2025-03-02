@@ -40,10 +40,10 @@ export const parseArgs = <T extends z.ZodRawShape>(args: string[], schema: z.Zod
   }
   if (obj.help) {
     console.log(help(schema))
-    Deno.exit()
+    throw new Error()
   }
   const res = schema.safeParse(obj)
   if (res.success) return res.data
   console.log(res.error.issues.map((x) => colored(`Error with '${x.path.join('.')}': ${x.message}`, 'red')).join('\n') + '\n\n' + help(schema))
-  Deno.exit(1)
+  throw new Error()
 }

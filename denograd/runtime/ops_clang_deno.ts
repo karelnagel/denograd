@@ -10,7 +10,7 @@ export class ClangCompiler extends Compiler {
   }
 
   override compile = async (src: string): Promise<Uint8Array> => {
-    // KAREL: TODO: try without files
+    // KAREL: TODO: do without files
     const code = await env.tempFile()
     const bin = await env.tempFile()
     await env.writeTextFile(code, src)
