@@ -91,7 +91,7 @@ export class WEBGPU extends Compiled {
   }
   static override init = async () => {
     if (!get_number_env('WEBGPU')) return
-    WEBGPU.adapter = await navigator.gpu.requestAdapter()
+    WEBGPU.adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
     if (!WEBGPU.adapter) throw new Error('No adapter')
     WEBGPU.device = await WEBGPU.adapter.requestDevice({ requiredFeatures: ['shader-f16'] })
   }

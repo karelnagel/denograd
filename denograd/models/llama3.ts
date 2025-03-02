@@ -385,7 +385,7 @@ if (import.meta.main) {
   }
 
   const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` satisfies DeviceType) : Device.DEFAULT
-  const model = await build_transformer(args.model, args.size, args.quantize, undefined, device)
+  const model = await build_transformer(args.model, args.size, args.quantize, undefined, device, undefined, true)
 
   const system = [tokenizer.bos_id, ...encode_message('system', 'You are an helpful assistant.')]
   let start_pos = await prefill(model, system, undefined, device)
