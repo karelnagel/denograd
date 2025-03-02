@@ -5,10 +5,14 @@ import { Database } from 'bun:sqlite'
 import { mkdir, realpath, stat, unlink } from 'fs/promises'
 import { statSync } from 'fs'
 import { WebEnv } from './index.ts'
+import { CLANG } from '../runtime/ops_clang_bun.ts'
+import { JS } from '../runtime/ops_js.ts'
+import { WASM } from '../runtime/ops_wasm.ts'
 
 export class BunEnv extends WebEnv {
   override NAME = 'BUN'
   override PLATFORM = process.platform
+  override DEVICES = { CLANG, WASM, JS }
 
   override readFile = async (path: string) => new Uint8Array(await Bun.file(path).arrayBuffer())
   override writeFile = (path: string, data: Uint8Array) => Bun.write(path, data)

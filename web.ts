@@ -10,7 +10,7 @@ const build = await esbuild.build({
   write: false,
   logLevel: 'error',
   target: ['chrome100'],
-  external: ['./denograd/env/deno.ts'],
+  external: ['./denograd/env/deno.ts', './denograd/env/bun.ts'],
 })
 const code = build.outputFiles[0].text + ';console.log("ASYNC_CODE_COMPLETE");'
 

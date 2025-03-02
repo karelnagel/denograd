@@ -3,10 +3,16 @@ import os from 'node:os'
 import { createHash } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { WebEnv } from './index.ts'
+import { DISK } from '../runtime/ops_disk_deno.ts'
+import { JS } from '../runtime/ops_js.ts'
+import { WASM } from '../runtime/ops_wasm.ts'
+import { WEBGPU } from '../runtime/ops_webgpu.ts'
+import { CLANG } from '../runtime/ops_clang_deno.ts'
 
 export class DenoEnv extends WebEnv {
   override NAME = 'DENO'
   override PLATFORM = process.platform
+  override DEVICES = { CLANG, WEBGPU, WASM, JS, DISK }
   override readFile = Deno.readFile
   override writeFile = Deno.writeFile
   override remove = Deno.remove

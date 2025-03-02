@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-process-global
+import type { Compiled } from '../runtime/allocator.ts'
 
 // deno-fmt-ignore
 export class WebEnv {
@@ -6,8 +7,9 @@ export class WebEnv {
   PLATFORM = 'web'
   CPU_DEVICE: string = 'JS'
   DB_VERSION = 1
+  DEVICES:Record<string,typeof Compiled> = {}
   // @ts-ignore import.meta.env
-  _env!: Record<string, string> = (typeof import.meta?.env !== 'undefined' ? import.meta.env : typeof process?.env !== 'undefined' ? process.env : {}) || {}
+  _env!: Record<string, string> = (typeof import.meta?.env !== 'undefined' ? import.meta.env : (typeof process !== 'undefined' && process.env) ? process.env : {}) || {}
 
   // env
   get = (key: string, def?: string) => this._env[key] || def
