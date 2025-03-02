@@ -205,7 +205,7 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
     // NOTE: this requires bf16 buffer support
     return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !CI && !get_env('PTX')
   }
-  if (device === 'WEBGPU') return [dtypes.bool, dtypes.char, dtypes.uchar, dtypes.short, dtypes.ushort, dtypes.float, dtypes.int32, dtypes.uint32].includes(dtype)
+  if (device === 'WEBGPU') return [dtypes.bool, dtypes.char, dtypes.uchar, dtypes.short, dtypes.ushort, dtypes.float, dtypes.int32, dtypes.uint32, dtypes.half].includes(dtype)
   // for CI GPU and OSX, cl_khr_fp16 isn't supported
   // for CI LLVM, it segfaults because it can't link to the casting function
   // CI CUDA architecture is sm_35 but we need at least sm_70 to run fp16 ALUs

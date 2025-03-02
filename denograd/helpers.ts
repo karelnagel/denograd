@@ -611,7 +611,6 @@ export class Profiling {
 }
 // *** universal database cache ***
 
-
 // *** http support ***
 export const CAPTURE_PROCESS_REPLAY = get_env('RUN_PROCESS_REPLAY') || get_env('CAPTURE_PROCESS_REPLAY')
 
@@ -816,7 +815,12 @@ export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) =>
 
 export type Math = ConstType | MathTrait<any>
 type Return<A, B> = A extends MathTrait<any> ? A : B extends MathTrait<any> ? B : A extends bigint ? bigint : B extends bigint ? bigint : number
-const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>, numberFn: (a: number, b: number) => number, bigintFn?: (a: bigint, b: bigint) => bigint) => {
+const _meta = (
+  mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean) => MathTrait<any>,
+  numberFn: (a: number, b: number) => number,
+  bigintFn?: (a: bigint, b: bigint) => bigint,
+  calcNumbersAsBigInt?: boolean,
+) => {
   if (!bigintFn) bigintFn = numberFn as unknown as (a: bigint, b: bigint) => bigint
   return <A extends Math, B extends Math>(a: A, b: B): Return<A, B> => {
     if (typeof a === 'string') throw new Error(`a is string, a=${a}`)
@@ -824,6 +828,7 @@ const _meta = (mathFn: (a: MathTrait<MathTrait<any>>, b: Math, reverse: boolean)
     if (!isConst(a)) return mathFn(a, b, false) as Return<A, B>
     else if (!isConst(b)) return mathFn(b, a, true) as Return<A, B>
     else if (typeof a === 'bigint' || typeof b === 'bigint') return bigintFn(BigInt(a), BigInt(b)) as Return<A, B>
+    else if (calcNumbersAsBigInt && Number.isInteger(a) && Number.isInteger(b)) return Number(bigintFn(BigInt(a), BigInt(b))) as Return<A, B>
     else return numberFn(Number(a), Number(b)) as Return<A, B>
   }
 }
@@ -837,9 +842,9 @@ export const mod = _meta((a, b, r) => a.mod(b, r), (a, b) => ((a % b) + b) % b)
 
 export const and = _meta((a, b, r) => a.bitwise_and(b, r), (a, b) => a & b)
 export const or = _meta((a, b, r) => a.bitwise_or(b, r), (a, b) => a | b)
-export const xor = _meta((a, b, r) => a.xor(b, r), (a, b) => a ^ b)
-export const lshift = _meta((a, b, r) => a.lshift(b, r), (a, b) => a << b)
-export const rshift = _meta((a, b, r) => a.rshift(b, r), (a, b) => a >> b)
+export const xor = _meta((a, b, r) => a.xor(b, r), (a, b) => a ^ b, undefined, true)
+export const lshift = _meta((a, b, r) => a.lshift(b, r), (a, b) => a << b, undefined, true)
+export const rshift = _meta((a, b, r) => a.rshift(b, r), (a, b) => a >> b, undefined, true)
 
 export const lt = _meta((a, b, r) => !r ? a.lt(b) : a.const_like(b as any).lt(a), (a, b) => Number(a < b), (a, b) => BigInt(a < b))
 export const gt = _meta((a, b, r) => !r ? a.gt(b) : a.const_like(b as any).gt(a), (a, b) => Number(a > b), (a, b) => BigInt(a > b))
@@ -852,7 +857,7 @@ export const polyN = <T extends Math>(x: T, p: Math[]): T => p.reduce((acc, c) =
 export const prod = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => mul(acc, curr) as T, 1 as T)
 export const sum = <T extends Math>(x: T[]): T => x.reduce((acc, curr) => add(acc, curr) as T, 0 as T)
 export const ceildiv = <A extends Math, B extends Math>(num: A, amt: B): Return<A, B> => neg(idiv(num, neg(amt))) as Return<A, B>
-export const pow = _meta((a, b, r) => (a as any).pow(b, r), (a, b) => a ** b)
+export const pow = _meta((a, b, r) => (a as any).pow(b, r), (a, b) => a ** b, undefined, true)
 
 export function* pairwise<T>(iterable: Iterable<T>): Generator<[T, T], void, unknown> {
   let previous: T | undefined

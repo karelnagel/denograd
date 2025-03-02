@@ -1,5 +1,5 @@
 import { dtypes, type PtrDType } from '../dtype.ts'
-import { all_int, is_eq, isinstance, min, partition, prod, range, zip } from '../helpers.ts'
+import { add, all_int, idiv, is_eq, isinstance, min, mod, mul, partition, prod, range, zip } from '../helpers.ts'
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, type sint, sint_to_uop, UOp, UPat } from '../ops.ts'
 import type { Renderer } from '../renderer/index.ts'
 
@@ -16,28 +16,49 @@ export const get_contraction = (old_shape: sint[], new_shape: sint[]): number[][
 }
 // ***** indexing *****
 
-export const _limit_dims = (dims: sint[], max_sizes: number[]) => {
+export const _group_dims = (dims: sint[], max_sizes: number[]) => {
   // TODO: symbolic shape
   if (!all_int(dims)) return dims
   while (dims.length > max_sizes.length || zip(dims, max_sizes).some(([d, m]) => (d as number) > m)) {
     let found = false
     for (const [i, m] of max_sizes.entries()) {
-      if ((dims[i] as number) * (dims[i + 1] as number) <= m) {
+      if (i < (dims.length - 1) && (dims[i] as number) * (dims[i + 1] as number) <= m) {
         dims = [...dims.slice(0, i), (dims[i] as number) * (dims[i + 1] as number), ...dims.slice(i + 2)]
         found = true
         break
       }
-      if (!found) throw new Error(`can not limit dim dims=${dims}, max_size=${max_sizes}`)
+      if (!found) return undefined
     }
   }
   return dims
 }
+
+export const _split_dims = (dims: number[], max_sizes: number[]): number[] => {
+  if (zip(dims, max_sizes).every(([d, m]) => d <= m)) return dims
+  const _dims = [...dims, ...range(3 - dims.length).map(() => 1)]
+  for (const i of range(_dims.length)) {
+    while (_dims[i] > max_sizes[i]) {
+      let div = range(2, Math.ceil(Math.sqrt(_dims[i])) + 1).filter((d) => mod(_dims[i], d) === 0).shift()
+      if (div === undefined) div = 1
+      if (div === 1) throw new Error(`cannot limit dim ${dims}, ${max_sizes}`)
+      ;[_dims[i], _dims[mod(i + 1, _dims.length)]] = [idiv(_dims[i], div), _dims[mod(i + 1, _dims.length)] * div]
+    }
+  }
+  return _dims[2] === 1 ? _dims.slice(0, 2) : is_eq(_dims.slice(1, 3), [1, 1]) ? _dims[0] as any : _dims
+}
+
 export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[], reverse = false): UOp[] => {
   if (reverse) dims = dims.toReversed()
-  const limited = max_sizes !== undefined ? _limit_dims(dims, max_sizes) : dims
-  const raw_idxs = limited.map((s, i) => new UOp(Ops.SPECIAL, dtypes.int, [], [`${prefix}${i}`, s]))
-  let ret = raw_idxs
-  if (!is_eq(limited, dims)) {
+  // try to group first: (a, b, c, d) -> (ab, c, d)
+  const grouped = max_sizes ? _group_dims(dims, max_sizes) : undefined
+  let limited = grouped?.length ? grouped : dims
+  // check if grouping failed
+  if (max_sizes !== undefined && limited.length > max_sizes.length) throw new Error(`cannot limit dim ${dims}, ${max_sizes}`)
+  // try to split up dims: (a,) -> (b, c)
+  if (is_eq(limited, dims)) limited = max_sizes !== undefined ? _split_dims(dims as number[], max_sizes) : dims
+
+  let raw_idxs = limited.map((s, i) => new UOp(Ops.SPECIAL, dtypes.int, [], [`${prefix}${i}`, s])), ret = raw_idxs
+  if (limited.length < dims.length) {
     ret = []
     const contraction = get_contraction(dims, limited)
     if (contraction === undefined) throw new Error(`get_contraction should !be undefined dims=${dims} limited=${limited}`)
@@ -48,7 +69,13 @@ export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[]
       }
       ret.push(idx)
     }
+  } else if (limited.length > dims.length) {
+    const a = limited.length, b = dims.length
+    if (a === 2 && b === 1) ret = [add(mul(raw_idxs[0], limited[1]), raw_idxs[1])]
+    if (a === 3 && b === 1) ret = [add(add(mul(raw_idxs[0], mul(limited[1], limited[2])), mul(raw_idxs[1], limited[2])), raw_idxs[2])]
+    if (a === 3 && b === 2) ret = [add(mul(raw_idxs[0], limited[1]), raw_idxs[1]), raw_idxs[2]]
   }
+
   return reverse ? ret.toReversed() : ret
 }
 
@@ -67,7 +94,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   const group_for_reduces = range(first_reduce, first_upcasted).filter((i) => local_loads.some((l) => l.st_arg.shape[i] !== ast.src[0].st_arg.shape[i])).length
   const global_dims = first_reduce - ki.local_dims
 
-  let idxs
+  let idxs: UOp[]
   if (opts.has_local) {
     if (ki.dont_use_locals) {
       if (ki.local_dims !== 0) throw new Error("can't use locals if there's no local dims")
@@ -139,8 +166,15 @@ export const lower_load_store = (ctx: IndexContext, x: UOp): UOp => {
   }
   return new UOp(Ops.STORE, dtypes.void, [buf.index(idx, valid), x.src[2]])
 }
+
+const lower_const = (x: UOp) => {
+  if (!x.st!.views.every((v) => v.mask === undefined)) throw new Error(`VIEW in CONST/DEFINE_VAR source must be unmasked, got ${x.st}`)
+  return x.replace({ src: [] })
+}
+
 export const pm_lowerer = new PatternMatcher<IndexContext>([
   new UPat(Ops.REDUCE_AXIS).named('x').fn(({ ctx, x }) => lower_reduce_axis(ctx, x)),
+  new UPat([Ops.CONST, Ops.DEFINE_VAR], undefined, [new UPat(Ops.VIEW)]).named('x').fn(({ x }) => lower_const(x)),
   new UPat(Ops.VALID, undefined, [new UPat(Ops.VIEW)], undefined, 'x').fn(({ ctx, x }) => x.st_arg.to_indexed_uops(ctx.idxs)[1]),
   // rewrite LOAD/STORE VIEW to LOAD/STORE with indexed
   new UPat([Ops.LOAD, Ops.STORE], undefined, [new UPat(), new UPat(Ops.VIEW)], undefined, 'x', true).fn(({ ctx, x }) => lower_load_store(ctx, x)),

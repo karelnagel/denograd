@@ -77,7 +77,8 @@ test('gguf_load', async () => {
     `res = gguf_load("${path}")`,
     `out([[key for key in res[0]], [key for key in res[1]]])`,
   ])
-  const [ts1, ts2] = await gguf_load(path)
+  const data = await Deno.readFile(path)
+  const [ts1, ts2] = await gguf_load(data)
   expect(Object.keys(ts1)).toEqual(py1)
   expect(Object.keys(ts2)).toEqual(py2)
 }, { ignore: true })
