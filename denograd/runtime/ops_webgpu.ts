@@ -91,8 +91,13 @@ export class WEBGPU extends Compiled {
   }
   static override init = async () => {
     if (!get_number_env('WEBGPU')) return
-    WEBGPU.adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
+
+    WEBGPU.adapter = await navigator.gpu.requestAdapter()
     if (!WEBGPU.adapter) throw new Error('No adapter')
-    WEBGPU.device = await WEBGPU.adapter.requestDevice({ requiredFeatures: ['shader-f16'] })
+    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize } = WEBGPU.adapter.limits
+    WEBGPU.device = await WEBGPU.adapter.requestDevice({
+      requiredFeatures: ['shader-f16'],
+      requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize },
+    })
   }
 }
