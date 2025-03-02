@@ -5,6 +5,7 @@ import { setDevices } from '../device.ts'
 import { WEBGPU } from '../runtime/ops_webgpu.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
 import { JS } from '../runtime/ops_js.ts'
+import { CLANG as BunCLANG } from '../runtime/ops_clang_bun.ts'
 
 if (typeof Deno !== 'undefined') {
   setRuntime(new (await import('./deno.ts').then((x) => x.DenoEnv))())
@@ -12,5 +13,5 @@ if (typeof Deno !== 'undefined') {
 } // @ts-ignore Bun
 else if (typeof Bun !== 'undefined') {
   setRuntime(new (await import('./bun.ts').then((x) => x.BunEnv))())
-  setDevices({ WASM, JS, DISK })
+  setDevices({ CLANG: BunCLANG, WASM, JS, DISK })
 }

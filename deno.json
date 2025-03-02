@@ -49,7 +49,9 @@
     "tinygrad*",
     "website/.astro*",
     "denograd/runtime/autogen*",
-    "denograd/env/bun.ts"
+    "denograd/env/bun.ts",
+    "denograd/runtime/ops_clang_bun.ts",
+    "denograd/runtime/ops_disk_bun.ts"
   ],
   "compilerOptions": {
     "lib": [
