@@ -28,9 +28,11 @@
     "npm:astro@^5.2.5": "5.2.5_vite@6.1.0_zod@3.24.1",
     "npm:create-astro@latest": "4.10.0",
     "npm:create-vite-extra@latest": "3.0.0",
+    "npm:esbuild@*": "0.24.2",
     "npm:linkedom@0.18": "0.18.5",
     "npm:nodejs-polars@0.14": "0.14.0",
     "npm:pako@*": "2.1.0",
+    "npm:playwright@*": "1.50.1",
     "npm:react-dom@19": "19.0.0_react@19.0.0",
     "npm:react@19": "19.0.0",
     "npm:tailwindcss@3.4.16": "3.4.16_postcss@8.5.1",
@@ -985,7 +987,7 @@
       "dependencies": [
         "anymatch",
         "braces",
-        "fsevents",
+        "fsevents@2.3.3",
         "glob-parent@5.1.2",
         "is-binary-path",
         "is-glob",
@@ -1525,6 +1527,9 @@
       "dependencies": [
         "minipass@3.3.6"
       ]
+    },
+    "fsevents@2.3.2": {
+      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="
     },
     "fsevents@2.3.3": {
       "integrity": "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="
@@ -2530,6 +2535,16 @@
         "find-up"
       ]
     },
+    "playwright-core@1.50.1": {
+      "integrity": "sha512-ra9fsNWayuYumt+NiM069M6OkcRb1FZSK8bgi66AtpFoWkg2+y0bJSNmkFrWhMbEBbVKC/EruAHH3g0zmtwGmQ=="
+    },
+    "playwright@1.50.1": {
+      "integrity": "sha512-G8rwsOQJ63XG6BbKj2w5rHeavFjy5zynBA9zsJMMtBoe/Uf757oG12NXz6e6OirF7RCrTVAKFXbLmn1RbL7Qaw==",
+      "dependencies": [
+        "fsevents@2.3.2",
+        "playwright-core"
+      ]
+    },
     "postcss-import@15.1.0_postcss@8.5.1": {
       "integrity": "sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==",
       "dependencies": [
@@ -2804,7 +2819,7 @@
         "@rollup/rollup-win32-ia32-msvc",
         "@rollup/rollup-win32-x64-msvc",
         "@types/estree",
-        "fsevents"
+        "fsevents@2.3.3"
       ]
     },
     "run-parallel@1.2.0": {
@@ -3221,7 +3236,7 @@
       "integrity": "sha512-RjjMipCKVoR4hVfPY6GQTgveinjNuyLw+qruksLDvA5ktI1150VmcMBKmQaEWJhg/j6Uaf6dNCNA0AfdzUb/hQ==",
       "dependencies": [
         "esbuild",
-        "fsevents",
+        "fsevents@2.3.3",
         "postcss",
         "rollup"
       ]

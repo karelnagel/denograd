@@ -1,7 +1,7 @@
 import { Allocator, Compiled } from './allocator.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
-import { Env } from '../env/index.ts'
+import { env } from '../env/index.ts'
 import { NotImplemented } from '../helpers.ts'
 
 export class DISK extends Compiled {
@@ -23,7 +23,7 @@ export class DISK extends Compiled {
     if (this.size !== undefined) return
     this.size = size
 
-    if (Env.PLATFORM !== 'win32' && this.filename.startsWith('shm:')) {
+    if (env.PLATFORM !== 'win32' && this.filename.startsWith('shm:')) {
       throw new NotImplemented()
     } else {
       const fo = Deno.openSync(this.filename, { read: true, write: true, create: true })

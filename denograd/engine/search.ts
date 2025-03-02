@@ -1,6 +1,7 @@
 import type { Kernel } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
-import { get_env, idiv, isInf, mod, NotImplemented, prod, range, zip } from '../helpers.ts'
+import { env } from '../env/index.ts'
+import { idiv, isInf, mod, NotImplemented, prod, range, zip } from '../helpers.ts'
 import { sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -83,8 +84,8 @@ export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, K
   throw new NotImplemented()
 }
 
-export const [beam_pool, BEAM_DEBUG, CAPTURE_BEAM] = [undefined, get_env('BEAM_DEBUG'), get_env('CAPTURE_BEAM', '')]
-export const beam_search = (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = get_env('IGNORE_BEAM_CACHE')): Kernel => {
+export const [beam_pool, BEAM_DEBUG, CAPTURE_BEAM] = [undefined, env.get('BEAM_DEBUG'), env.get('CAPTURE_BEAM', '')]
+export const beam_search = (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = env.get('IGNORE_BEAM_CACHE')): Kernel => {
   throw new NotImplemented()
 }
 

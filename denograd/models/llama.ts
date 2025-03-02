@@ -1,7 +1,8 @@
 import { Device } from '../device.ts'
 import { dtypes } from '../dtype.ts'
 import { TinyJit } from '../engine/jit.ts'
-import { add, assert, get_env, get_number_env, idiv, is_eq, range } from '../helpers.ts'
+import { env } from '../env/index.ts'
+import { add, assert, idiv, is_eq, range } from '../helpers.ts'
 import { Embedding, Linear, RMSNorm } from '../nn/index.ts'
 import { UOp, type Variable } from '../ops.ts'
 import { Tensor } from '../tensor.ts'
@@ -60,7 +61,7 @@ export class Attention {
   }
   call = async (x: Tensor, start_pos: number | Variable, freqs_cis: Tensor, mask?: Tensor): Promise<Tensor> => {
     let xq, xk, xv
-    if (get_env('WQKV')) {
+    if (env.get('WQKV')) {
       if (this.wqkv === undefined) this.wqkv = Tensor.cat([this.wq.weight, this.wk.weight, this.wv.weight])
       const xqkv = x.matmul(this.wqkv.T)
       ;[xq, xk, xv] = xqkv.split([this.wq.weight.shape[0], this.wk.weight.shape[0], this.wv.weight.shape[0]], 2)
@@ -79,7 +80,7 @@ export class Attention {
       this.cache_kv = await Tensor.zeros([2, bsz, this.max_context, this.n_kv_heads, this.head_dim], { dtype: x.dtype }).contiguous().realize()
       if (Array.isArray(x.device)) {
         // TODO: instead of specifying how to shard, it can follow how xk and xv are being sharded
-        await this.cache_kv.shard_(x.device, get_env('SHARD_KVCACHE') ? 3 : undefined).realize()
+        await this.cache_kv.shard_(x.device, env.get('SHARD_KVCACHE') ? 3 : undefined).realize()
       }
     }
     // update the cache
@@ -270,7 +271,7 @@ export const convert_from_gguf = (weights: Record<string, Tensor>, model: Transf
 }
 
 export const fix_bf16 = (weights: Record<string, Tensor>) => {
-  if (get_number_env('SUPPORT_BF16', 1)) {
+  if (env.get_num('SUPPORT_BF16', 1)) {
     // TODO: without casting to float16, 70B llama OOM on tinybox.
     return Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.dtype === dtypes.bfloat16 ? v.cast(dtypes.float32).cast(dtypes.float16) : v]))
   }

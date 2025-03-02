@@ -1,8 +1,8 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, NotImplemented, OSX, PROFILE, random_id } from './helpers.ts'
+import { assert, cache, GlobalCounters, NotImplemented, random_id } from './helpers.ts'
 import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
-import { Env } from './env/index.ts'
+import { env } from './env/index.ts'
 import { Ops, type UOp } from './ops.ts'
 
 export * from './runtime/allocator.ts'
@@ -24,7 +24,7 @@ export class _Device {
   DEFAULT!: AllDevices
   init = async () => {
     for (const [name, imp] of Object.entries(ALL_DEVICES)) {
-      if (Env.DEVICES !== undefined && !Env.DEVICES.includes(name as AllDevices)) continue
+      if (env.DEVICES !== undefined && !env.DEVICES.includes(name as AllDevices)) continue
       try {
         const compiled = await imp()
         await compiled.init()
@@ -35,14 +35,14 @@ export class _Device {
     }
 
     // Setting default
-    const fromEnv = Object.keys(this.DEVICES).filter((d) => !['DISK'].includes(d) && get_number_env(d) === 1)[0]
+    const fromEnv = Object.keys(this.DEVICES).filter((d) => !['DISK'].includes(d) && env.get_num(d) === 1)[0]
     if (fromEnv) {
       this.DEFAULT = fromEnv as AllDevices
       return
     }
     const device = Object.keys(this.DEVICES)[0]
     if (!device) throw new Error('no usable devices')
-    Env.env.set(device, '1')
+    env.set(device, '1')
     this.DEFAULT = device as AllDevices
   }
   @cache
@@ -55,13 +55,13 @@ export class _Device {
   get(device: DeviceType): Compiled {
     const ix = this.canonicalize(device)
     const Device = this.DEVICES[ix.split(':')[0].toUpperCase() as AllDevices]!
-    if (DEBUG >= 1) console.log(`opened device ${ix}`)
+    if (env.DEBUG >= 1) console.log(`opened device ${ix}`)
     return new Device(ix)
   }
   default = () => this.get(this.DEFAULT)
   setDefault = (device: AllDevices) => {
-    if (this.DEFAULT) Env.env.set(this.DEFAULT, '0')
-    Env.env.set(device, '1')
+    if (this.DEFAULT) env.set(this.DEFAULT, '0')
+    env.set(device, '1')
     this.DEFAULT = device
     return device
   }
@@ -203,7 +203,7 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   if (device === undefined) device = Device.DEFAULT
   if (dtype === dtypes.bfloat16) {
     // NOTE: this requires bf16 buffer support
-    return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !CI && !get_env('PTX')
+    return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !env.CI && !env.get('PTX')
   }
   if (device === 'WEBGPU') return [dtypes.bool, dtypes.char, dtypes.uchar, dtypes.short, dtypes.ushort, dtypes.float, dtypes.int32, dtypes.uint32, dtypes.half].includes(dtype)
   // for CI GPU and OSX, cl_khr_fp16 isn't supported
@@ -211,15 +211,15 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   // CI CUDA architecture is sm_35 but we need at least sm_70 to run fp16 ALUs
   // JS supports half memoryview in 3.12+ https://github.com/python/cpython/issues/90751
   if (dtype === dtypes.half) {
-    if (device === 'GPU') return !CI && !OSX
-    if (['CUDA', 'NV'].includes(device)) return !CI
-    if (device === 'LLVM') return OSX
+    if (device === 'GPU') return !env.CI && !env.OSX
+    if (['CUDA', 'NV'].includes(device)) return !env.CI
+    if (device === 'LLVM') return env.OSX
     // if device === "JS": return sys.version_info >= (3, 12)
   }
-  if (dtype === dtypes.float64) return device !== 'METAL' && !(OSX && device === 'GPU')
+  if (dtype === dtypes.float64) return device !== 'METAL' && !(env.OSX && device === 'GPU')
   return true
 }
 
-if (PROFILE) {
+if (env.PROFILE) {
   throw new NotImplemented()
 }

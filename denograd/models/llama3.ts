@@ -6,7 +6,7 @@ import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/sta
 import { dtypes } from '../dtype.ts'
 import { convert_from_gguf, convert_from_huggingface, fix_bf16, Transformer } from './llama.ts'
 import { Embedding, Linear } from '../nn/index.ts'
-import { parseArgs } from '../zod-cli.ts'
+import { parseArgs } from '../../cli/zod-cli.ts'
 import z from 'npm:zod'
 import { Tqdm } from '../tqdm.ts'
 

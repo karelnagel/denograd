@@ -10,7 +10,8 @@
   },
   "workspace": [
     "./denograd",
-    "./website"
+    "./website",
+    "./cli"
   ],
   "nodeModulesDir": "auto",
   "fmt": {

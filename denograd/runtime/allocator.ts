@@ -1,9 +1,9 @@
 import type { ImageDType } from '../dtype.ts'
-import { ArrayMap, get_env, get_key, LRU, NotImplemented, PROFILE, string_to_bytes, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, get_key, NotImplemented, string_to_bytes, WeakValueMap } from '../helpers.ts'
 import { Renderer } from '../renderer/index.ts'
 import type { DeviceType } from '../device.ts'
 import { MemoryView } from '../memoryview.ts'
-import { Env } from '../env/index.ts'
+import { env } from '../env/index.ts'
 
 // **************** Buffer + Allocators ****************
 export class BufferSpec {
@@ -70,7 +70,7 @@ export abstract class LRUAllocator extends Allocator<MemoryView> {
   }
   // KAREL: TODO: free gets never called
   override free = (opaque: MemoryView, size: number, options?: BufferSpec) => {
-    if (LRU && (options === undefined || !options.nolru)) {
+    if (env.LRU && (options === undefined || !options.nolru)) {
       this.cache.setDefault([size, options], []).push(opaque)
     } else super.free(opaque, size, options)
   }
@@ -123,16 +123,16 @@ export class CompileError extends Error {}
 export class Compiler {
   cachekey?: string
   constructor(cachekey?: string) {
-    this.cachekey = get_env('DISABLE_COMPILER_CACHE') ? undefined : cachekey
+    this.cachekey = env.get('DISABLE_COMPILER_CACHE') ? undefined : cachekey
   }
   compile = (src: string): Promise<Uint8Array> | Uint8Array => string_to_bytes(src) // NOTE: empty compiler is the default
   compile_cached = async (src: string): Promise<Uint8Array> => {
-    let lib = this.cachekey ? await Env.disk_get(this.cachekey, src) : undefined
+    let lib = this.cachekey ? await env.disk_get(this.cachekey, src) : undefined
     if (lib) return lib
 
-    if (get_env('ASSERT_COMPILE')) throw new Error(`tried to compile with ASSERT_COMPILE set\n${src}`)
+    if (env.get('ASSERT_COMPILE')) throw new Error(`tried to compile with ASSERT_COMPILE set\n${src}`)
     lib = await this.compile(src)
-    if (this.cachekey !== undefined) await Env.disk_put(this.cachekey, src, lib)
+    if (this.cachekey !== undefined) await env.disk_put(this.cachekey, src, lib)
     return lib
   }
   disassemble = (lib: Uint8Array) => {/** pass */}
@@ -168,7 +168,7 @@ export const cpu_profile = (name: string, device = 'CPU', is_copy = false, displ
   const st = performance.now(), res = new ProfileResult(st)
   const en = performance.now()
   res.en = en
-  if (PROFILE && display) {
+  if (env.PROFILE && display) {
     Compiled.profile_events = [...Compiled.profile_events, new ProfileRangeEvent(device, name, st / 1000, en / 1000, is_copy)]
   }
   return res

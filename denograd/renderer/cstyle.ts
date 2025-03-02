@@ -1,6 +1,7 @@
 import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
-import { AMX, dedup, DefaultMap, floatString, get_env, idiv, NotImplemented, set_default, strip_parens } from '../helpers.ts'
+import { env } from '../env/index.ts'
+import { dedup, DefaultMap, floatString, idiv, NotImplemented, set_default, strip_parens } from '../helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -184,7 +185,7 @@ export class CStyleLanguage extends Renderer {
         [Ops.CONST, Ops.GEP, Ops.INDEX].includes(u.op) ||
         ([Ops.VECTORIZE, ...GroupOp.ALU, Ops.CAST, Ops.BITCAST].includes(u.op) &&
           (child_count.get(u) || 0) === 1 &&
-          !get_env('EXPAND_SSA'))
+          !env.get('EXPAND_SSA'))
       ) {
         r.set(u, l!)
       } else {
@@ -223,7 +224,7 @@ export class ClangRenderer extends CStyleLanguage {
   ])
   // LLVM legalizes double => half cast on systems that don't support it natively (like x86 cpus without AVX512-FP16) into a compiler-rt libcall.
   override extra_matcher = new PatternMatcher([[UPat.var('x', dtypes.float64).cast(dtypes.float16), ({ x }) => x.cast(dtypes.float32).cast(dtypes.float16)]]).add(new CStyleLanguage().extra_matcher)
-  override tensor_cores = !AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: 1, elements_per_thread: [sz, sz, sz * sz], dtype_in: dt, dtype_out: dt, swizzle: [undefined, [[], [4, 5, 6, 7, 0, 1, 2, 3]]], opts: ['u0', 'u0', 'u0', 'u0', 'u1', 'u1', 'u1', 'u1'] }))
+  override tensor_cores = !env.AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: 1, elements_per_thread: [sz, sz, sz * sz], dtype_in: dt, dtype_out: dt, swizzle: [undefined, [[], [4, 5, 6, 7, 0, 1, 2, 3]]], opts: ['u0', 'u0', 'u0', 'u0', 'u1', 'u1', 'u1', 'u1'] }))
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 

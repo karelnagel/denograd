@@ -1,8 +1,8 @@
 // deno-lint-ignore-file custom-lint-rules/no-null custom-lint-rules/no-floating-promises
 // https://github.com/thesephist/tsqdm/blob/main/src/tqdm.ts
 
-import { Env } from './env/index.ts'
-import { memsize_to_str, string_to_bytes } from './helpers.ts'
+import { env } from './env/index.ts'
+import { string_to_bytes } from './helpers.ts'
 
 type RenderBarOptions = {
   i: number
@@ -30,7 +30,7 @@ function renderBarWithSize({ i, label, size, width, elapsed }: RenderBarOptions 
   const rate = i / elapsed
   const remaining = (size - i) / rate
   const percent = i / size * 100
-  const graph = `${label ? label + ': ' : ''}${percent.toFixed(1)}% |${bar}${gap}| ${i}/${size} | ${elapsed.toFixed(2)}>${remaining.toFixed(2)}s ${rate.toFixed(2)}it/s | Memory: ${memsize_to_str(Deno.memoryUsage().rss)}`
+  const graph = `${label ? label + ': ' : ''}${percent.toFixed(1)}% |${bar}${gap}| ${i}/${size} | ${elapsed.toFixed(2)}>${remaining.toFixed(2)}s ${rate.toFixed(2)}it/s`
   if (graph === '' && n > 0) return '▏'
   return graph
 }
@@ -91,7 +91,7 @@ export class Tqdm<T> implements AsyncIterableIterator<T> {
     this.width = width
   }
 
-  private print = async (s: string) => await Env.writeStdout(string_to_bytes(s))
+  private print = async (s: string) => env.writeStdout(string_to_bytes(s))
 
   set_description = (label: string) => this.label = label
 
