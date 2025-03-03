@@ -9,22 +9,9 @@ import { Allocator, Compiled, Program } from './allocator.ts'
 import { createHash } from 'node:crypto'
 
 // ***** API *****
-const serialize = (x: any): string | undefined => {
-  if (typeof x === 'boolean') return x ? 'True' : 'False'
-  if (typeof x === 'undefined') return 'None'
-  if (typeof x === 'bigint' || typeof x === 'number') return x.toString()
-  if (typeof x === 'string') return `'${x}'`
-  if (x instanceof CloudRequest) return x.serialize()
-  if (x instanceof BufferSpec) return `BufferSpec(image=${serialize(x.image)}, uncached=${serialize(x.uncached)}, cpu_access=${serialize(x.cpu_access)}, host=${serialize(x.host)}, nolru=${serialize(x.nolru)}, external_ptr=${serialize(x.external_ptr)})`
-  if (Array.isArray(x)) return `[${x.map(serialize).join(', ')}]`
-  if (typeof x === 'function') return undefined
-  throw new Error(`Can't serialize ${x}`)
-}
 
 class CloudRequest {
   serialize = () => {
-    const args = Object.entries(this).map(([k, v]) => [k, serialize(v)]).filter(([k, v]) => v !== undefined)
-    return `${this.constructor.name}(${args.map(([k, v]) => `${k}=${v}`).join(', ')})`
   }
 }
 
@@ -62,6 +49,36 @@ class ProgramExec extends CloudRequest {
   constructor(public name: string, public datahash: string, public bufs: number[], public vals: number[], public global_size?: number[], public local_size?: number[], public wait?: boolean) {
     super()
   }
+}
+const CLASSES = [BufferSpec, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramFree, ProgramExec]
+
+const serialize = (x: any): string | undefined => {
+  if (typeof x === 'boolean') return x ? 'True' : 'False'
+  if (typeof x === 'undefined') return 'None'
+  if (typeof x === 'bigint' || typeof x === 'number') return x.toString()
+  if (typeof x === 'string') return `'${x}'`
+  if (Array.isArray(x)) return `[${x.map(serialize).join(', ')}]`
+  if (typeof x === 'function') return undefined
+  if (!CLASSES.some((c) => x instanceof c)) throw new Error(`Can't serialize ${x}`)
+
+  const args = Object.entries(x).map(([k, v]) => [k, serialize(v)]).filter(([k, v]) => k !== 'key' && v !== undefined)
+  return `${x.constructor.name}(${args.map(([k, v]) => `${k}=${v}`).join(', ')})`
+}
+
+const deserialize = (x: string): any => {
+  if (x === 'True') return true
+  if (x === 'False') return false
+  if (x === 'None') return undefined
+  if (!isNaN(Number(x)) && x.trim() !== '') return Number(x) // TODO: bigint
+  if (x.startsWith("'") && x.endsWith("'")) return x.slice(1, -1)
+  if (x.startsWith('[') && x.endsWith(']')) return x.slice(1, -1).split(', ').map(deserialize)
+
+  const [name, argstr] = x.slice(0, -1).split('(')
+  const cls = CLASSES.find((c) => c.name === name)
+  if (!cls) throw new Error(`Can't deserialize ${x}`)
+
+  const args = argstr.split(', ').map((x) => x.split('=')).map(([k, v]) => deserialize(v))
+  return new (cls as any)(...args)
 }
 
 class BatchRequest {
