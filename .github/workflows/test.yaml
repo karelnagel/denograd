@@ -31,8 +31,8 @@ jobs:
       - name: Install WebGPU deps
         if: matrix.runtime == 'WEBGPU'
         run: |
-          sudo apt update
-          sudo apt install -y mesa-vulkan-drivers libvulkan1 libegl1
+          sudo apt update -y || true
+          sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
           sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/local/lib/libwebgpu_dawn.so
           sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o ./libwebgpu_dawn.so
           sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/lib/libwebgpu_dawn.so
