@@ -29,6 +29,7 @@ export class DenoEnv extends WebEnv {
 
   private db?: DatabaseSync
   private tables: string[] = []
+  private db_name = (table:string) => `${table}_${this.DB_VERSION}`
   private get_db = async () => {
     if (this.db) return this.db
     await Deno.mkdir(this.CACHE_DIR, { recursive: true })
@@ -38,7 +39,7 @@ export class DenoEnv extends WebEnv {
   override disk_get = async (table: string, key: string) => {
     const db = await this.get_db()
     try {
-      const row = db.prepare(`SELECT * FROM ${table}_${this.DB_VERSION} WHERE key = ?`).get(key) as { value: any | undefined }
+      const row = db.prepare(`SELECT * FROM "${this.db_name(table)}" WHERE key = ?`).get(key) as { value: any | undefined }
       return row?.value
     } catch (e) {
       return undefined
@@ -49,12 +50,11 @@ export class DenoEnv extends WebEnv {
     if (!valueType) throw new Error(`Invalid value type ${valueType}`)
 
     const db = await this.get_db()
-    const name = `${table}_${this.DB_VERSION}`
-    if (!this.tables.includes(name)) {
-      db.exec(`CREATE TABLE IF NOT EXISTS ${name} (key TEXT PRIMARY KEY, value ${valueType});`)
-      this.tables.push(name)
+    if (!this.tables.includes(this.db_name(table))) {
+      db.exec(`CREATE TABLE IF NOT EXISTS "${this.db_name(table)}"  (key TEXT PRIMARY KEY, value ${valueType});`)
+      this.tables.push(this.db_name(table))
     }
 
-    db.prepare(`INSERT INTO ${name} (key, value) VALUES (?, ?);`).run(key, value)
+    db.prepare(`INSERT INTO "${this.db_name}"  (key, value) VALUES (?, ?);`).run(key, value)
   }
 }
