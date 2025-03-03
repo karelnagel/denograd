@@ -1,8 +1,5 @@
-import '../denograd/env/install.ts'
-import { Device, DEVICES } from '../denograd/device.ts'
-import { colored, is_eq } from '../denograd/helpers.ts'
-import { Tensor } from '../denograd/tensor.ts'
-
+import { DEVICES } from '../denograd/device.ts'
+import { colored, Device, is_eq, Tensor } from '../denograd/mod.ts'
 for (const device in DEVICES) {
   if (device === 'DISK') continue
   let result

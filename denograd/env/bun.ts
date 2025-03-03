@@ -2,7 +2,7 @@ import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
 import { Database } from 'bun:sqlite'
-import { mkdir, realpath, stat, unlink } from 'node:fs/promises'
+import { mkdir, realpath, unlink } from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import { WebEnv } from './index.ts'
 import { CLANG } from '../runtime/ops_clang_bun.ts'
@@ -18,8 +18,11 @@ export class BunEnv extends WebEnv {
   override writeFile = async (path: string, data: Uint8Array) => void Bun.write(path, data)
   override remove = (path: string) => unlink(path)
   override realPath = (path: string) => realpath(path)
-  override stat = (path: string) => stat(path)
-  override statSync = statSync
+  override stat = async (path: string) => this.statSync(path)
+  override statSync = (path: string) => {
+    const res = statSync(path)
+    return { isFile: res.isFile(), size: res.size }
+  }
   override writeStdout = (p: Uint8Array) => void Bun.stdout.write(p)
   override tempFile = async () => {
     const path = `${os.tmpdir()}/tmp-${Date.now()}-${Math.random().toString(36).substring(2)}`
@@ -27,6 +30,9 @@ export class BunEnv extends WebEnv {
     return path
   }
   override homedir = os.homedir
+  override mkdir = async (path: string) => void await mkdir(path, { recursive: true })
+  override args = () => Bun.argv
+
   override gunzip = async (res: Response) => Bun.gunzipSync(new Uint8Array(await res.arrayBuffer())).buffer as ArrayBuffer
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 

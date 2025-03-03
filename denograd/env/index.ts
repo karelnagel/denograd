@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-process-global
 import type { Compiled } from '../runtime/allocator.ts'
 
+export type Stat = { size: number; isFile: boolean }
 // deno-fmt-ignore
 export class WebEnv {
   NAME = 'WEB'
@@ -22,18 +23,34 @@ export class WebEnv {
   }
 
   // files
-  readFile = (path: string): Promise<Uint8Array> => this.notImplemented()
+  readFile = async (path: string): Promise<Uint8Array> => await this.disk_get("fs", path)
   readTextFile = async (path: string): Promise<string> => new TextDecoder().decode(await this.readFile(path))
-  writeFile = (path: string, data: Uint8Array): Promise<void> => this.notImplemented()
+  writeFile = async (path: string, data: Uint8Array): Promise<void> => await this.disk_put("fs", path, data)
   writeTextFile = async (path: string, data: string) => await this.writeFile(path, new TextEncoder().encode(data))
-  remove = (path: string): Promise<void> => this.notImplemented()
-  realPath = (path: string): Promise<string> => this.notImplemented()
-  stat = (path: string): Promise<{ size: number }> => this.notImplemented()
-  statSync = (path: string): { size: number } => this.notImplemented()
-  tempFile = (): Promise<string> => this.notImplemented()
+  remove = async (path: string): Promise<void> => {
+    const db = await this._open_db()
+    const transaction = db.transaction(['denograd'], 'readwrite')
+    const store = transaction.objectStore('denograd')
+    const request = store.delete(`fs_${path}`)
+
+    await new Promise<void>((resolve, reject) => {
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+  }
+  realPath = async (path: string): Promise<string> =>path
+  stat = async (path: string): Promise<Stat> => {
+    const res = await this.disk_get("fs", path)
+    if (!res || !(res instanceof Uint8Array)) throw new Error(`No entry for ${path}`)
+    return { isFile:!!res, size:res.length }
+  }
+  statSync = (path: string): Stat => this.notImplemented()
+  tempFile = async (): Promise<string> => `/tmp/${(Math.random() * 100000000).toFixed(0)}`
   writeStdout = (p: Uint8Array) => console.log(new TextDecoder().decode(p))
   homedir = () => '/home'
   gunzip = async (res:Response):Promise<ArrayBuffer> => await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+  mkdir = async (path:string): Promise<void> => {}
+  args = (): string[] => (window as any).args || []
 
   //
   sha256 = (data: Uint8Array): Uint8Array => data

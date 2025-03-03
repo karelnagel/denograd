@@ -1,5 +1,5 @@
 // deno-lint-ignore-file custom-lint-rules/no-null
-import '../denograd/env/install.ts'
+import '../denograd/env/server.ts'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../denograd/dtype.ts'
 import { ArrayMap, bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
 import { expect } from 'expect'

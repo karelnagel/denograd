@@ -1,5 +1,5 @@
 export { Tensor, type TensorIndice, type TensorOptions } from './tensor.ts'
-export { is_eq, range } from './helpers.ts'
+export * from './helpers.ts'
 export * from './models/index.ts'
 export { Device } from './device.ts'
 export * from './nn/index.ts'

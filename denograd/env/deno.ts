@@ -22,6 +22,8 @@ export class DenoEnv extends WebEnv {
   override writeStdout = (p: Uint8Array) => void Deno.stdout.writeSync(p)
   override tempFile = Deno.makeTempFile
   override homedir = os.homedir
+  override mkdir = async (path: string) => await Deno.mkdir(path, { recursive: true })
+  override args = () => Deno.args
 
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 

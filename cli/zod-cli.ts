@@ -1,4 +1,4 @@
-import type { z } from 'npm:zod'
+import type { z } from 'zod'
 import { colored } from '../denograd/helpers.ts'
 
 const getZodTypeString = (zod: any): string => {

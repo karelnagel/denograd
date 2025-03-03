@@ -2,8 +2,9 @@
 import { chromium } from 'npm:playwright'
 import esbuild from 'npm:esbuild'
 
+const [entry, ...args] = Deno.args
 const build = await esbuild.build({
-  entryPoints: [Deno.args[0]],
+  entryPoints: [entry],
   format: 'esm',
   bundle: true,
   platform: 'browser',
@@ -11,10 +12,13 @@ const build = await esbuild.build({
   logLevel: 'error',
   target: ['chrome100'],
   external: ['./denograd/env/deno.ts', './denograd/env/bun.ts'],
+  define: {
+    'window.args': JSON.stringify(args),
+  },
 })
 const code = build.outputFiles[0].text + ';console.log("ASYNC_CODE_COMPLETE");'
 
-const browser = await chromium.launch({ headless: true, args: ['--disable-web-security'] })
+const browser = await chromium.launchPersistentContext('.playwright', { headless: true, args: ['--disable-web-security'] })
 const page = await browser.newPage()
 await page.goto('https://denograd.com')
 await page.setContent('<html><body></body></html>')
