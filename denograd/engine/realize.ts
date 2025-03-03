@@ -51,7 +51,6 @@ export class CompiledRunner extends Runner {
     res.p = p
     res.lib = lib
     const dev = Device.get(p.device)
-    await dev.init()
     if (env.DEBUG >= 4) console.log(p.src)
     if (!res.lib) res.lib = await dev.compiler.compile_cached(p.src)
     if (env.DEBUG >= 6) dev.compiler.disassemble(res.lib)
@@ -133,6 +132,7 @@ export class BufferXfer extends BufferCopy {
 
 const method_cache: Record<string, CompiledRunner> = {}
 export const get_runner = async (device: string, ast: UOp): Promise<CompiledRunner> => {
+  await Device.get(device).init()
   const ckey = get_key(device, ast.key, env.BEAM, env.NOOPT, false)
   const cret = method_cache[ckey]
   if (cret) return cret
@@ -143,7 +143,7 @@ export const get_runner = async (device: string, ast: UOp): Promise<CompiledRunn
     ret = await CompiledRunner.init(replace(bret.p, { device: device }), bret.lib)
     method_cache[ckey] = ret
   } else {
-    const prg: ProgramSpec = (await get_kernel(Device.get(device).renderer, ast)).to_program()
+    const prg: ProgramSpec = (await get_kernel(Device.get(device).renderer!, ast)).to_program()
     ret = await CompiledRunner.init(replace(prg, { device: device }))
     method_cache[ckey] = ret
     method_cache[bkey] = ret
@@ -153,12 +153,11 @@ export const get_runner = async (device: string, ast: UOp): Promise<CompiledRunn
 
 // // **************** lowering functions ****************
 
-// @DataClass
 export class ExecItem {
   constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
   run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number> => {
-    const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
     await Device.get(this.prg.device).init()
+    const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
     const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())
     const et = await this.prg.call(bufs, var_vals, wait || env.DEBUG >= 2)
     if (do_update_stats) {

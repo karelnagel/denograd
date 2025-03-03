@@ -1,6 +1,6 @@
 import type { ImageDType } from '../dtype.ts'
 import { ArrayMap, get_key, NotImplemented, string_to_bytes, WeakValueMap } from '../helpers.ts'
-import { Renderer } from '../renderer/index.ts'
+import type { Renderer } from '../renderer/index.ts'
 import { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
 
@@ -179,7 +179,7 @@ export class Compiled {
   constructor(
     public device: string,
     public allocator?: Allocator<any>,
-    public renderer: Renderer = new Renderer(),
+    public renderer?: Renderer,
     public compiler: Compiler = new Compiler(),
     public runtime?: typeof Program,
     public graph?: any,

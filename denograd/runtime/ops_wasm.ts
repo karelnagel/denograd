@@ -3,7 +3,7 @@ import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './
 import type { BufferSpec } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { WabtModule } from './autogen/wabt.js'
-import { WASMRenderer } from '../renderer/wat.ts'
+import { WATRenderer } from '../renderer/wat.ts'
 
 const workerScript = `
 self.onmessage = ({ data }) => {
@@ -62,7 +62,7 @@ export class WASMAllocator extends Allocator<Uint8Array> {
 export class WASM extends Compiled {
   static wabt: any
   constructor(device: string) {
-    super(device, new WASMAllocator(), new WASMRenderer(), new WASMCompiler('wasm'), WASMProgram)
+    super(device, new WASMAllocator(), new WATRenderer(), new WASMCompiler('wasm'), WASMProgram)
   }
   override init = async () => {
     WASM.wabt = await WabtModule()

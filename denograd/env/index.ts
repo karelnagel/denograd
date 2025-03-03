@@ -128,5 +128,7 @@ export class WebEnv {
 }
 
 export let env = new WebEnv()
-export const setRuntime = (e: WebEnv) => env = e
-if (env.get('DEBUG')) console.log(`Using env ${env.NAME}`)
+export const setRuntime = (e: WebEnv) => {
+  env = e
+  if (env.DEBUG === 1) console.log(`Using env ${env.NAME}`)
+}
