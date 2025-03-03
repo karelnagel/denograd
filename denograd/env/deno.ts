@@ -55,6 +55,6 @@ export class DenoEnv extends WebEnv {
       this.tables.push(this.db_name(table))
     }
 
-    db.prepare(`INSERT INTO "${this.db_name}"  (key, value) VALUES (?, ?);`).run(key, value)
+    db.prepare(`INSERT INTO "${this.db_name(table)}" (key, value) VALUES (?, ?);`).run(key, value)
   }
 }
