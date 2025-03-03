@@ -15,7 +15,7 @@ jobs:
         runtime: [CLANG, WEBGPU, WASM]
 
     name: Test (${{ matrix.runtime }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
         with:
@@ -31,12 +31,10 @@ jobs:
       - name: Install WebGPU deps
         if: matrix.runtime == 'WEBGPU'
         run: |
+          sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/local/lib/libwebgpu_dawn.so
           sudo apt update -y || true
           sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
-          sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/local/lib/libwebgpu_dawn.so
-          sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o ./libwebgpu_dawn.so
-          sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/lib/libwebgpu_dawn.so
-          sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/local/libwebgpu_dawn.so
+
 
       - name: Run tests
         run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHE_DB=":memory:" deno test -A --no-check --parallel
