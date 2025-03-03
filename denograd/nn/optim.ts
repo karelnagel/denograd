@@ -1,11 +1,11 @@
-import type { DeviceType } from '../device.ts'
 import { dtypes, least_upper_dtype } from '../dtype.ts'
-import { dedup, get_env, NotImplemented, zip } from '../helpers.ts'
+import { env } from '../env/index.ts'
+import { dedup, NotImplemented, zip } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export class Optimizer {
   params: Tensor[]
-  device: DeviceType | DeviceType[]
+  device: string | string[]
   buffers: Tensor[]
   lr: Tensor
   constructor(params: Tensor[], lr: number) {
@@ -17,7 +17,7 @@ export class Optimizer {
     this.device = this.params[0].device
     this.buffers = dedup(params.filter((x) => !x.requires_grad)) // buffers are still realized
     // store lr in at least float32 precision
-    this.lr = new Tensor(get_env('CONST_LR') ? lr : [lr], {
+    this.lr = new Tensor(env.get('CONST_LR') ? lr : [lr], {
       requires_grad: false,
       device: this.device,
       dtype: least_upper_dtype(dtypes.default_float, dtypes.float32),

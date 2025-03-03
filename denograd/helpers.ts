@@ -1,5 +1,4 @@
 // deno-lint-ignore-file no-explicit-any no-control-regex camelcase
-import { Env } from './env/index.ts'
 import type { MathTrait } from './ops.ts'
 
 // Python Map/Set implementations
@@ -437,13 +436,6 @@ export function math_gcd(...numbers: number[]): number {
   if (numbers.length === 0) throw new Error('At least one number must be provided')
   return numbers.reduce((acc, num) => gcdTwo(acc, num))
 }
-// TINYGRAD CODE
-// NOTE: it returns int 1 if x is empty regardless of the type of x
-export const OSX = Env.PLATFORM === 'darwin'
-export const CI = !!Env.env.get('CI')
-
-if (Env.PLATFORM === 'win32') Env.writeStdout(string_to_bytes(''))
-
 // TODO: probably should just filter out duplicates + use isEq
 export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
 
@@ -521,18 +513,8 @@ export const getChild = (obj: any, key: string): any => key.split('.').reduce((c
 
 export const word_wrap = (x: string, wrap = 80): string => x.length <= wrap || x.slice(0, wrap).includes('\n') ? x : x.slice(0, wrap) + '\n' + word_wrap(x.slice(wrap), wrap)
 export const to_function_name = (s: string) => ansistrip(s).split('').map((c) => /[A-Za-z0-9_]/.test(c) ? c : c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')).join('')
-export const get_env = (key: string, defaultVal = '') => Env.env.get(key) || defaultVal
-export const get_number_env = (key: string, defaultVal?: number) => Number(Env.env.get(key) || defaultVal)
-export const temp = (x?: string): string => `${Env.tmpdir()}/${x || random_id()}`
 
 // TODO JIT should be automatic
-export const DEBUG = get_number_env('DEBUG', 0), IMAGE = get_number_env('IMAGE', 0), BEAM = get_number_env('BEAM', 0), NOOPT = get_number_env('NOOPT', 0), JIT = get_number_env('JIT', 1)
-export const WINO = get_number_env('WINO', 0), CAPTURING = get_number_env('CAPTURING', 1), TRACEMETA = get_number_env('TRACEMETA', 1)
-export const USE_TC = get_number_env('TC', 1), TC_OPT = get_number_env('TC_OPT', 0), AMX = get_number_env('AMX', 0), TRANSCENDENTAL = get_number_env('TRANSCENDENTAL', 1)
-export const FUSE_ARANGE = get_number_env('FUSE_ARANGE', 0), FUSE_CONV_BW = get_number_env('FUSE_CONV_BW', 0)
-export const SPLIT_REDUCEOP = get_number_env('SPLIT_REDUCEOP', 1), NO_MEMORY_PLANNER = get_number_env('NO_MEMORY_PLANNER', 0), RING = get_number_env('RING', 1)
-export const PICKLE_BUFFERS = get_number_env('PICKLE_BUFFERS', 1), PROFILE = get_env('PROFILE', get_env('VIZ')), LRU = get_number_env('LRU', 1)
-export const CACHELEVEL = get_number_env('CACHELEVEL', 2)
 
 export class Metadata {
   key: string
@@ -612,8 +594,6 @@ export class Profiling {
 // *** universal database cache ***
 
 // *** http support ***
-export const CAPTURE_PROCESS_REPLAY = get_env('RUN_PROCESS_REPLAY') || get_env('CAPTURE_PROCESS_REPLAY')
-
 export const _ensure_downloads_dir = (): string => {
   throw new NotImplemented()
   // if we are on a tinybox, use the raid array
@@ -659,14 +639,7 @@ export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Pr
 }
 
 export const cpu_objdump = (lib: Uint8Array, objdumpTool = 'objdump') => {
-  const outputFile = temp('temp_output.so')
-  Env.writeFileSync(outputFile, lib)
-  try {
-    const output = Env.execSync(objdumpTool, { args: ['-d', outputFile] })
-    console.log(output)
-  } finally {
-    Env.removeSync(outputFile)
-  }
+  throw new NotImplemented()
 }
 
 export const capstone_flatdump = (lib: Uint8Array) => {

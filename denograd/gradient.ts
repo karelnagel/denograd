@@ -1,4 +1,3 @@
-import type { DeviceType } from './device.ts'
 import { dtypes, sum_acc_dtype } from './dtype.ts'
 import { add, argsort, cache_fn, sub, zip } from './helpers.ts'
 import { Ops, PatternMatcher, type sint, type UOp, UPat } from './ops.ts'
@@ -37,7 +36,7 @@ export const pm_gradient = new PatternMatcher<UOp, (UOp | undefined)[] | undefin
   new UPat(Ops.SHRINK).named('ret').fn(({ ctx, ret }) => [ctx.pad(zip(ret.src[0].shape, ret.arg as [sint, sint][]).map(([s, p]) => [p[0], sub(s, p[1])]))]),
   new UPat(Ops.STRIDE).named('ret').fn(({ ctx, ret }) => [ret.arg.every((x: number) => [-1, 1].includes(x)) ? ctx.stride(ret.arg) : undefined]), // TODO: this cast can be removed by putting the casts around the EXPAND
   new UPat(Ops.EXPAND).named('ret').fn(({ ctx, ret }) => [ctx.cast(sum_acc_dtype(ctx.dtype)).r(Ops.ADD, [...zip(ret.src[0].shape, ret.arg).entries()].filter(([i, [si, so]]) => si !== so).map(([i]) => i)).cast(ctx.dtype)]),
-  new UPat(Ops.MULTI).named('ret').fn(({ ctx, ret }) => ctx.shard(ret.device as DeviceType[], ret.axis).src), // there's no gradient for bitcast
+  new UPat(Ops.MULTI).named('ret').fn(({ ctx, ret }) => ctx.shard(ret.device as string[], ret.axis).src), // there's no gradient for bitcast
   new UPat(Ops.BITCAST).fn(({ ctx }) => [undefined]),
 ])
 

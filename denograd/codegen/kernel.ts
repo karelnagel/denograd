@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, AMX, ansilen, assert, cache, CAPTURE_PROCESS_REPLAY, colored, DEBUG, dedup, DefaultMap, Enum, ge, get_env, get_key, get_number_env, gt, isinstance, isInt, NotImplemented, product, range, round_up, set_default, sorted, sum, TC_OPT, to_function_name, USE_TC, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, cache, colored, dedup, DefaultMap, Enum, ge, get_key, gt, isinstance, isInt, NotImplemented, product, range, round_up, set_default, sorted, sum, to_function_name, WeakValueMap, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, type_verify, UOp, type Variable, view_left } from '../ops.ts'
 import { idiv, le, mod, mul, ne, prod } from '../helpers.ts'
 import { ProgramSpec, type Renderer, type TensorCore } from '../renderer/index.ts'
@@ -9,6 +9,7 @@ import { strides_for_shape } from '../shape/view.ts'
 import { linearize_uop } from './linearize.ts'
 import { get_contraction, rewrite_shapetracker_with_index } from './lowerer.ts'
 import { full_graph_rewrite } from '../ops.ts'
+import { env } from '../env/index.ts'
 
 export class OptOps<Name extends string = string, Value extends number = number> extends Enum {
   private static VALUES: OptOps[] = []
@@ -337,7 +338,7 @@ export class Kernel {
     const s0 = axis_choices.at(-(axis + 1))![0][0], s1 = axis_choices.at(-(axis + 1))![1][0], s2 = axis_choices.at(-(axis + 1))![2] // s0 is n, s1 is m, s2 is k
     const axis_pads = [...[s0, s1, s2].entries()].filter(([i, x]) => resolve(ne(mod(this.full_shape[x], tc.dims[i]), 0))).map(([i, x]) => [x, tc.dims[i]] as [number, number])
     if (axis_pads.length && (opt_level < 2)) return undefined
-    if (DEBUG >= 3) console.log('TENSOR CORES', axis_buf0, axis_buf1, tc)
+    if (env.DEBUG >= 3) console.log('TENSOR CORES', axis_buf0, axis_buf1, tc)
     return new TensorCoreOptions([s0, s1, s2], [true, true], axis_pads)
   }
   _apply_tc_opt = (use_tensor_cores: number, axis: number, opt_level: number): boolean => {
@@ -381,7 +382,7 @@ export class Kernel {
    * 2: allows kernels with M, N, K axes that are not multiples of the tensor core dimensions by applying padding those axes as needed
    */
   apply_tensor_cores = (use_tensor_cores = 1, extra_opts?: Opt[], axis = 0, tc_opt?: number): boolean => {
-    if (tc_opt === undefined) tc_opt = TC_OPT
+    if (tc_opt === undefined) tc_opt = env.TC_OPT
     if (!this.opts.tensor_cores?.length && use_tensor_cores !== 2) return false
     try { // check TC first and apply hand-coded opts if successful
       this.apply_opt(new Opt(OptOps.TC, axis, tc_opt))
@@ -390,7 +391,7 @@ export class Kernel {
         if (extra_opts !== undefined) {
           for (const opt of extra_opts) this.apply_opt(opt)
         } else {
-          if (this.opts.device === 'CLANG' && AMX) return true // skip hand-coded TC opts if AMX, upcasting will make kernel slower
+          if (this.opts.device === 'CLANG' && env.AMX) return true // skip hand-coded TC opts if AMX, upcasting will make kernel slower
           // hand-coded TC opts
           for (const tc_dim of [1, 0].filter((tc_dim) => tc_opts.axes_exist[tc_dim])) { // attempt to upcast M and N
             const szs = [5, 4, 3, 2].filter((sz) => mod(this.full_shape[tc_opts.axes[tc_dim]], sz) === 0)
@@ -415,8 +416,8 @@ export class Kernel {
     if (opt.op === OptOps.TC) {
       check(this.applied_opts.length === 0, 'tensor core opts must be first') // TODO: things like PADTO might be fine
       check(opt.axis !== undefined && opt.amt !== undefined, 'tensor core opts must have an axis && amt')
-      check(USE_TC === 2 || (this.opts.tensor_cores?.length || 0) > 0, 'must have tensor cores ||TC=2')
-      check(this._apply_tc_opt(USE_TC, opt.axis!, opt.amt!), 'no tensor core available')
+      check(env.USE_TC === 2 || (this.opts.tensor_cores?.length || 0) > 0, 'must have tensor cores ||TC=2')
+      check(this._apply_tc_opt(env.USE_TC, opt.axis!, opt.amt!), 'no tensor core available')
       this.applied_opts.push(opt)
       return
     }
@@ -514,10 +515,10 @@ export class Kernel {
     this.required_optimizations()
 
     // should use matvec - TODO: adjust/tune based on the wide vs tall/large vs small mat
-    const MV_BLOCKSIZE = get_number_env('MV_BLOCKSIZE', 4), MV_THREADS_PER_ROW = get_number_env('MV_THREADS_PER_ROW', 8), MV_ROWS_PER_THREAD = get_number_env('MV_ROWS_PER_THREAD', 4)
+    const MV_BLOCKSIZE = env.get_num('MV_BLOCKSIZE', 4), MV_THREADS_PER_ROW = env.get_num('MV_THREADS_PER_ROW', 8), MV_ROWS_PER_THREAD = env.get_num('MV_ROWS_PER_THREAD', 4)
     const mulop = this.reduceop?.src[0]
     if (
-      this.opts.has_local && get_number_env('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) &&
+      this.opts.has_local && env.get_num('MV', 1) !== 0 && (MV_BLOCKSIZE > 1 || MV_THREADS_PER_ROW > 1 || MV_ROWS_PER_THREAD > 1) &&
       this.reduceop !== undefined && this.reduceop.arg[0] === Ops.ADD && this.full_shape.length >= 2 && this.opts.has_shared &&
       mulop && mulop.op === Ops.MUL && mulop.src[0].op === Ops.LOAD && mulop.src[1].op === Ops.LOAD
     ) {
@@ -527,7 +528,7 @@ export class Kernel {
       if (strides0[this.first_reduce] === 1 && !(has_expanded_axis(st0.shape, strides0) && has_expanded_axis(st1.shape, strides1))) {
         for (const global_idx of range(this.global_dims)) {
           if (mod(this.full_shape[this.first_reduce], MV_THREADS_PER_ROW) === 0 && mod(this.full_shape[global_idx], MV_BLOCKSIZE * MV_ROWS_PER_THREAD) === 0) {
-            if (DEBUG >= 3) console.log(`MATVEC: ${this.full_shape} ${this.first_reduce} ${strides0} ${MV_BLOCKSIZE} ${MV_THREADS_PER_ROW} ${MV_ROWS_PER_THREAD}`)
+            if (env.DEBUG >= 3) console.log(`MATVEC: ${this.full_shape} ${this.first_reduce} ${strides0} ${MV_BLOCKSIZE} ${MV_THREADS_PER_ROW} ${MV_ROWS_PER_THREAD}`)
             if (MV_THREADS_PER_ROW > 1) this.apply_opt(new Opt(OptOps.GROUP, 0, MV_THREADS_PER_ROW))
             if (MV_BLOCKSIZE > 1) this.apply_opt(new Opt(OptOps.LOCAL, global_idx, MV_BLOCKSIZE))
             if (MV_ROWS_PER_THREAD > 1) this.apply_opt(new Opt(OptOps.UPCAST, global_idx, MV_ROWS_PER_THREAD))
@@ -580,7 +581,7 @@ export class Kernel {
       // we might want to be able to split axes that are masked, or refuse to merge them in simplify_merge_adjacent
       // for now skip upcasting here if there is a symbolic axis
       if (typeof this.full_shape[axis] === 'number' && this.full_shape[axis] <= 7 && this.sts.some((st) => st.axis_is_masked(axis)) && prod(this.full_shape.slice(this.first_upcast) as number[]) * prod(to_upcast.map((j) => this.full_shape[j]) as number[]) * this.full_shape[axis] <= 7 * 7) {
-        if (DEBUG >= 4) console.log(`upcasting masked axis : ${axis}`)
+        if (env.DEBUG >= 4) console.log(`upcasting masked axis : ${axis}`)
         to_upcast.push(axis)
       }
     }
@@ -598,7 +599,7 @@ export class Kernel {
       }
       if (xb_choices.length) {
         xb_choices = sorted(xb_choices)
-        if (DEBUG >= 4) console.log(`float4 merging axis : ${xb_choices}`)
+        if (env.DEBUG >= 4) console.log(`float4 merging axis : ${xb_choices}`)
         this.apply_opt(new Opt(OptOps.UPCAST, xb_choices[0][2], xb_choices[0][3]))
         upcasted_axis.add(xb_choices[0][2])
       } else break
@@ -632,7 +633,7 @@ export class Kernel {
     // **** local groups ****
 
     if (this.opts.has_local) {
-      if (get_env('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) {
+      if (env.get('NOLOCALS') && this.local_dims === 0 && !this.group_for_reduces) {
         this.apply_opt(new Opt(OptOps.NOLOCALS))
       } else {
         // prioritize making expand axes local
@@ -719,15 +720,15 @@ export class Kernel {
   //   @track_rewrites()
   linearize = (): Kernel => {
     const modified_ast = this.get_optimized_ast()
-    if (DEBUG >= 3) {
+    if (env.DEBUG >= 3) {
       console.log(this.name)
-      if (get_env('RAWAST')) console.log(this.ast)
+      if (env.get('RAWAST')) console.log(this.ast)
       console.log(modified_ast)
       console.log(this.applied_opts)
       verify_ast(modified_ast)
     }
     this.uops = linearize_uop(full_graph_rewrite(rewrite_shapetracker_with_index(modified_ast, this.opts), this.opts))
-    if (DEBUG >= 5) print_uops(this.uops)
+    if (env.DEBUG >= 5) print_uops(this.uops)
     return this
   }
   to_program = (name_override?: string): ProgramSpec => {
@@ -736,7 +737,7 @@ export class Kernel {
     const name = to_function_name(ansiname)
     const src = this.opts.render(name, this.uops!)
 
-    if (CAPTURE_PROCESS_REPLAY) {
+    if (env.CAPTURE_PROCESS_REPLAY) {
       throw new NotImplemented()
     }
 

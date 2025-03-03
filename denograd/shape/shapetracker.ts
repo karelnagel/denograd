@@ -1,6 +1,7 @@
 import { dtypes } from '../dtype.ts'
+import { env } from '../env/index.ts'
 import { cache_fn, get_key, gt, is_eq, list_str, lt, range, WeakValueMap } from '../helpers.ts'
-import { get_number_env, merge_maps, zip } from '../helpers.ts'
+import { merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, Ops, simplify_valid, type sint, sint_to_uop, split_uop, sym, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, unravel, View } from './view.ts'
 
@@ -153,7 +154,7 @@ export class ShapeTracker {
   stride = (multi: number[]) => new ShapeTracker([...this.views.slice(0, -1), this.views.at(-1)!.stride(multi)])
 
   reshape = (new_shape: sint[]): ShapeTracker => {
-    if (get_number_env('MERGE_VIEW', 1)) {
+    if (env.get_num('MERGE_VIEW', 1)) {
       const new_view = this.views.at(-1)?.reshape(new_shape)
       if (new_view !== undefined) return new ShapeTracker([...this.views.slice(0, -1), new_view])
     }

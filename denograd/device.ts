@@ -1,73 +1,48 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, cache, CI, DEBUG, get_env, get_number_env, GlobalCounters, NotImplemented, OSX, PROFILE, random_id } from './helpers.ts'
+import { assert, cache, GlobalCounters, NotImplemented, random_id } from './helpers.ts'
 import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
-import { Env } from './env/index.ts'
+import { env } from './env/index.ts'
 import { Ops, type UOp } from './ops.ts'
+import { WEBGPU } from './runtime/ops_webgpu.ts'
+import { WASM } from './runtime/ops_wasm.ts'
+import { JS } from './runtime/ops_js.ts'
 
 export * from './runtime/allocator.ts'
 
+export let DEVICES: Record<string, typeof Compiled> = { WEBGPU, WASM, JS }
+export const setDevices = (devices: Record<string, typeof Compiled>) => DEVICES = devices
+
 // **************** Device ****************
-export const ALL_DEVICES = {
-  CLANG: () => import('./runtime/ops_clang.ts').then((x) => x.CLANG),
-  WEBGPU: () => import('./runtime/ops_webgpu.ts').then((x) => x.WEBGPU),
-  WASM: () => import('./runtime/ops_wasm.ts').then((x) => x.WASM),
-  DISK: () => import('./runtime/ops_disk.ts').then((x) => x.DISK),
-  JS: () => import('./runtime/ops_js.ts').then((x) => x.JS),
-}
-
-export type AllDevices = keyof typeof ALL_DEVICES
-export type DeviceType = AllDevices | `${AllDevices}:${string}`
-
 export class _Device {
-  DEVICES: Record<string, typeof Compiled> = {}
-  DEFAULT!: AllDevices
-  init = async () => {
-    for (const [name, imp] of Object.entries(ALL_DEVICES)) {
-      if (Env.DEVICES !== undefined && !Env.DEVICES.includes(name as AllDevices)) continue
-      try {
-        const compiled = await imp()
-        await compiled.init()
-        this.DEVICES[name] = compiled
-      } catch (e) {
-        console.log(`Device ${name} failed: ${e}`)
-      }
-    }
-
-    // Setting default
-    const fromEnv = Object.keys(this.DEVICES).filter((d) => !['DISK'].includes(d) && get_number_env(d) === 1)[0]
-    if (fromEnv) {
-      this.DEFAULT = fromEnv as AllDevices
-      return
-    }
-    const device = Object.keys(this.DEVICES)[0]
-    if (!device) throw new Error('no usable devices')
-    Env.env.set(device, '1')
-    this.DEFAULT = device as AllDevices
+  get DEFAULT() {
+    if (env.DEVICE) return env.DEVICE
+    const dev = Object.keys(DEVICES)[0]
+    if (!dev) throw new Error('no usable devices')
+    env.set('DEVICE', dev)
+    return dev
   }
   @cache
-  _canonicalize(device: DeviceType): DeviceType {
+  _canonicalize(device: string): string {
     const d = device.split(':', 1)[0].toUpperCase()
-    return d + device.slice(d.length).replace(':0', '') as DeviceType
+    return d + device.slice(d.length).replace(':0', '')
   }
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
-  canonicalize = (device?: DeviceType) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
-  get(device: DeviceType): Compiled {
+  canonicalize = (device?: string) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
+  get(device: string): Compiled {
     const ix = this.canonicalize(device)
-    const Device = this.DEVICES[ix.split(':')[0].toUpperCase() as AllDevices]!
-    if (DEBUG >= 1) console.log(`opened device ${ix}`)
+    const Device = DEVICES[ix.split(':')[0].toUpperCase()]!
+    if (env.DEBUG >= 1) console.log(`opened device ${ix}`)
     return new Device(ix)
   }
   default = () => this.get(this.DEFAULT)
-  setDefault = (device: AllDevices) => {
-    if (this.DEFAULT) Env.env.set(this.DEFAULT, '0')
-    Env.env.set(device, '1')
-    this.DEFAULT = device
-    return device
+  setDefault = (dev: string) => {
+    if (!DEVICES[dev]) throw new Error(`Invalid device ${dev}, expected one of ${Object.keys(DEVICES)}`)
+    env.set('DEVICE', dev)
+    return dev
   }
 }
 export const Device = new _Device()
-await Device.init()
 
 // NOTE: these 3 functions should actually be under UOp, but Buffer caused circular import
 export const uop_buffer = (uop: UOp): Buffer => {
@@ -101,7 +76,7 @@ export class Buffer<Buf extends object = object> {
   })
 
   constructor(
-    public device: DeviceType,
+    public device: string,
     public size: number,
     public dtype: DType,
     opaque?: any,
@@ -203,7 +178,7 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   if (device === undefined) device = Device.DEFAULT
   if (dtype === dtypes.bfloat16) {
     // NOTE: this requires bf16 buffer support
-    return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !CI && !get_env('PTX')
+    return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !env.CI && !env.get('PTX')
   }
   if (device === 'WEBGPU') return [dtypes.bool, dtypes.char, dtypes.uchar, dtypes.short, dtypes.ushort, dtypes.float, dtypes.int32, dtypes.uint32, dtypes.half].includes(dtype)
   // for CI GPU and OSX, cl_khr_fp16 isn't supported
@@ -211,15 +186,15 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   // CI CUDA architecture is sm_35 but we need at least sm_70 to run fp16 ALUs
   // JS supports half memoryview in 3.12+ https://github.com/python/cpython/issues/90751
   if (dtype === dtypes.half) {
-    if (device === 'GPU') return !CI && !OSX
-    if (['CUDA', 'NV'].includes(device)) return !CI
-    if (device === 'LLVM') return OSX
+    if (device === 'GPU') return !env.CI && !env.OSX
+    if (['CUDA', 'NV'].includes(device)) return !env.CI
+    if (device === 'LLVM') return env.OSX
     // if device === "JS": return sys.version_info >= (3, 12)
   }
-  if (dtype === dtypes.float64) return device !== 'METAL' && !(OSX && device === 'GPU')
+  if (dtype === dtypes.float64) return device !== 'METAL' && !(env.OSX && device === 'GPU')
   return true
 }
 
-if (PROFILE) {
+if (env.PROFILE) {
   throw new NotImplemented()
 }

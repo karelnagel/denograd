@@ -1,9 +1,9 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, cpu_time_execution, DEBUG, get_number_env, isInt, memsize_to_str, round_up } from '../helpers.ts'
+import { bytes_to_string, cpu_time_execution, isInt, memsize_to_str, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
-import type { DeviceType } from '../device.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import type { MemoryView } from '../memoryview.ts'
+import { env } from '../env/index.ts'
 
 const uniforms: { [key: number]: GPUBuffer } = {}
 const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
@@ -26,14 +26,14 @@ class WebGPUProgram extends Program {
   }
   override call = cpu_time_execution(async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const isStorage = (i: number) => i < bufs.length && bytes_to_string(this.lib).split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')
-      const binding_layouts: GPUBindGroupLayoutEntry[] = [
-        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: isStorage(i) ? 'storage' : 'uniform' } })),
-      ]
+    const binding_layouts: GPUBindGroupLayoutEntry[] = [
+      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+      ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: isStorage(i) ? 'storage' : 'uniform' } })),
+    ]
 
-      const bind_group_layout = WEBGPU.device.createBindGroupLayout({ entries: binding_layouts })
-      const pipeline_layout = WEBGPU.device.createPipelineLayout({ bindGroupLayouts: [bind_group_layout] })
-      const compute_pipeline = WEBGPU.device.createComputePipeline({ layout: pipeline_layout, compute: { module: this.prg, entryPoint: this.name } })
+    const bind_group_layout = WEBGPU.device.createBindGroupLayout({ entries: binding_layouts })
+    const pipeline_layout = WEBGPU.device.createPipelineLayout({ bindGroupLayouts: [bind_group_layout] })
+    const compute_pipeline = WEBGPU.device.createComputePipeline({ layout: pipeline_layout, compute: { module: this.prg, entryPoint: this.name } })
     const bindings: GPUBindGroupEntry[] = [
       { binding: 0, resource: { buffer: create_uniform(WEBGPU.device, Infinity), offset: 0, size: 4 } },
       ...[...bufs, ...vals].map<GPUBindGroupEntry>((x, i) => (
@@ -60,7 +60,7 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
     // WebGPU buffers have to be 4-byte aligned
     const buf = WEBGPU.device.createBuffer({ size: round_up(size, 16), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
     allocated += buf.size
-    if (DEBUG === 1) console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
+    if (env.DEBUG === 1) console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
     return buf
   }
   _copyin = (dest: GPUBuffer, src: MemoryView) => WEBGPU.device.queue.writeBuffer(dest, 0, src.bytes)
@@ -76,23 +76,22 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
   _free = (opaque: GPUBuffer, options?: BufferSpec) => {
     freed += opaque.size
     opaque.destroy()
-    if (DEBUG === 1) console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
+    if (env.DEBUG === 1) console.log({ allocated: memsize_to_str(allocated), freed: memsize_to_str(freed) })
   }
 }
 
 export class WEBGPU extends Compiled {
   static device: GPUDevice
-  static adapter: GPUAdapter | null
-  constructor(device: DeviceType) {
+  constructor(device: string) {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
-  static override init = async () => {
-    if (!get_number_env('WEBGPU')) return
+  override init = async () => {
+    if (WEBGPU.device) return
 
-    WEBGPU.adapter = await navigator.gpu.requestAdapter()
-    if (!WEBGPU.adapter) throw new Error('No adapter')
-    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize } = WEBGPU.adapter.limits
-    WEBGPU.device = await WEBGPU.adapter.requestDevice({
+    const adapter = await navigator.gpu.requestAdapter()
+    if (!adapter) throw new Error('No adapter')
+    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize } = adapter.limits
+    WEBGPU.device = await adapter.requestDevice({
       requiredFeatures: ['shader-f16'],
       requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize },
     })

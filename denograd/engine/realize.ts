@@ -1,7 +1,8 @@
 // deno-lint-ignore-file custom-lint-rules/no-floating-promises
 import { Kernel } from '../codegen/kernel.ts'
-import { type Buffer, Device, type DeviceType, type Program } from '../device.ts'
-import { all_int, all_same, BEAM, CAPTURING, colored, DEBUG, get_key, get_number_env, GlobalCounters, idiv, type Metadata, mod, NOOPT, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
+import { type Buffer, Device, type Program } from '../device.ts'
+import { env } from '../env/index.ts'
+import { all_int, all_same, colored, get_key, GlobalCounters, idiv, type Metadata, mod, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
 import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
 import type { TinyJit } from './jit.ts'
@@ -12,25 +13,25 @@ import { beam_search, bufs_from_lin, optimize_local_size } from './search.ts'
 
 // const [logkerns, logkerns_level] = [getEnv('LOGKERNS', '') ? open(getEnv('LOGKERNS', ''), 'a') : undefined, getNumberEnv('LOGKERNS_LEVEL', 1)]
 export const get_kernel = async (renderer: Renderer, ast: UOp): Promise<Kernel> => {
-  if (DEBUG >= 5) console.log(ast)
+  if (env.DEBUG >= 5) console.log(ast)
   let k = new Kernel(ast, renderer).required_optimizations()
-  if (!NOOPT) {
-    if (!k.apply_tensor_cores(get_number_env('TC', 1))) k.hand_coded_optimizations()
-    if (BEAM >= 1) {
+  if (!env.NOOPT) {
+    if (!k.apply_tensor_cores(env.get_num('TC', 1))) k.hand_coded_optimizations()
+    if (env.BEAM >= 1) {
       const kb = new Kernel(ast, renderer).required_optimizations()
       const rawbufs = bufs_from_lin(kb, false)
-      k = beam_search(kb, rawbufs, BEAM, Boolean(get_number_env('BEAM_ESTIMATE', 1)))
+      k = beam_search(kb, rawbufs, env.BEAM, Boolean(env.get_num('BEAM_ESTIMATE', 1)))
     }
   }
   // if (logkerns !== undefined) logkerns.writelines([`${(k.ast, k.applied_opts)}\n`])
-  if (DEBUG >= 5) console.log((k.ast, k.applied_opts)) // print here to show final applied_opts for all kernels instead of just in beam_search
+  if (env.DEBUG >= 5) console.log((k.ast, k.applied_opts)) // print here to show final applied_opts for all kernels instead of just in beam_search
   return k
 }
 // **************** Runners ****************
 
 export class Runner {
   first_run = true
-  constructor(public display_name: string, public device: DeviceType, public estimates = new Estimates()) {}
+  constructor(public display_name: string, public device: string, public estimates = new Estimates()) {}
 
   get dev() {
     return Device.get(this.device)
@@ -49,9 +50,11 @@ export class CompiledRunner extends Runner {
     const res = new CompiledRunner(p.name, p.device, p.estimates)
     res.p = p
     res.lib = lib
-    if (DEBUG >= 4) console.log(p.src)
-    if (!res.lib) res.lib = await Device.get(p.device).compiler.compile_cached(p.src)
-    if (DEBUG >= 6) Device.get(p.device).compiler.disassemble(res.lib)
+    const dev = Device.get(p.device)
+    await dev.init()
+    if (env.DEBUG >= 4) console.log(p.src)
+    if (!res.lib) res.lib = await dev.compiler.compile_cached(p.src)
+    if (env.DEBUG >= 6) dev.compiler.disassemble(res.lib)
     const Runtime = Device.get(p.device).runtime!
     // KAREL: TODO: should be p.function_name
     res._prg = await Runtime.init(to_function_name(p.name), res.lib)
@@ -90,7 +93,7 @@ export class ViewOp extends Runner {
   }
 }
 export class BufferCopy extends Runner {
-  constructor(total_sz: number, dest_device: DeviceType, src_device: DeviceType) {
+  constructor(total_sz: number, dest_device: string, src_device: string) {
     let name
     if (total_sz >= 1e6) name = `copy ${(total_sz / 1e6).toFixed(2)}M, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
     else name = `copy ${total_sz.toFixed(0).padStart(8)}, ${dest_device.slice(0, 7).padStart(7)} <- ${src_device.slice(0, 7).padEnd(7)}`
@@ -129,11 +132,11 @@ export class BufferXfer extends BufferCopy {
 // **************** method cache ****************
 
 const method_cache: Record<string, CompiledRunner> = {}
-export const get_runner = async (device: DeviceType, ast: UOp): Promise<CompiledRunner> => {
-  const ckey = get_key(device, ast.key, BEAM, NOOPT, false)
+export const get_runner = async (device: string, ast: UOp): Promise<CompiledRunner> => {
+  const ckey = get_key(device, ast.key, env.BEAM, env.NOOPT, false)
   const cret = method_cache[ckey]
   if (cret) return cret
-  const bkey = get_key(device.split(':')[0], ast.key, BEAM, NOOPT, true)
+  const bkey = get_key(device.split(':')[0], ast.key, env.BEAM, env.NOOPT, true)
   let ret
   const bret = method_cache[bkey]
   if (bret) {
@@ -155,8 +158,9 @@ export class ExecItem {
   constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
   run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number> => {
     const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
+    await Device.get(this.prg.device).init()
     const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())
-    const et = await this.prg.call(bufs, var_vals, wait || DEBUG >= 2)
+    const et = await this.prg.call(bufs, var_vals, wait || env.DEBUG >= 2)
     if (do_update_stats) {
       GlobalCounters.kernel_count += 1
       const op_est = sym_infer(this.prg.estimates.ops, var_vals)
@@ -164,7 +168,7 @@ export class ExecItem {
       let mem_est = sym_infer(this.prg.estimates.ops, var_vals)
       GlobalCounters.global_mem += mem_est
       if (et !== undefined) GlobalCounters.time_sum_s += et
-      if (DEBUG >= 2) {
+      if (env.DEBUG >= 2) {
         throw new NotImplemented()
         // KAREL: skipping this for now
         //         console.log(`${colored(f'*** {this.prg.device[:7]:7s} ${GlobalCounters.kernel_count:4d}', 'magenta' if (jit else ('green' if this.prg.first_run else undefined))} ${this.prg.display_name+' '*(41-ansithis.prg.display_name.length)} arg ${bufs.length:2d} mem ${GlobalCounters.mem_used/1e9:5.2f} GB ` +  // noqa) E501
@@ -193,7 +197,7 @@ export const lower_schedule = async function* (schedule: ScheduleItem[]): AsyncG
     try {
       yield await lower_schedule_item(si!)
     } catch (e) {
-      if (DEBUG >= 2) {
+      if (env.DEBUG >= 2) {
         console.log(`error lowering ${si!.ast.op}`)
         console.log('tensor operations:')
         console.log(si!.metadata)
@@ -208,7 +212,7 @@ export const capturing: TinyJit<any, any>[] = [] // put classes with an add meth
 
 export const run_schedule = async (schedule: ScheduleItem[], var_vals?: Map<Variable, number>, do_update_stats = true) => {
   for await (const ei of lower_schedule(schedule)) {
-    if (capturing.length && CAPTURING) capturing[0].add(ei)
+    if (capturing.length && env.CAPTURING) capturing[0].add(ei)
     await ei.run(var_vals, undefined, undefined, do_update_stats)
   }
 }

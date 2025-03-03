@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-this-alias
-import type { Buffer, DeviceType } from './device.ts'
+import type { Buffer } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { Env } from './env/index.ts'
-import { accumulate, add, AMX, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, get_env, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, TRANSCENDENTAL, xor } from './helpers.ts'
-import { _METADATA, abs, all_int, all_same, assert, cache, counter, DEBUG, divmod, Enum, get_key, get_number_env, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, SPLIT_REDUCEOP, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
+import { env } from './env/index.ts'
+import { accumulate, add, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, xor } from './helpers.ts'
+import { _METADATA, abs, all_int, all_same, assert, cache, counter, divmod, Enum, get_key, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
 
@@ -431,7 +431,7 @@ export class UOp extends MathTrait<UOp> {
 
     // TODO: can we split symbolic shape if the reduce axis is not symbolic?
     // TODO: this shouldn't be here, it belongs in scheduler! that's why it broke multi
-    if (!SPLIT_REDUCEOP || Array.isArray(this._device) || !all_int(this.shape) || this.shape.includes(0) || (idiv(prod(this.shape), prod(new_shape)) as number) < get_number_env('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
+    if (!env.SPLIT_REDUCEOP || Array.isArray(this._device) || !all_int(this.shape) || this.shape.includes(0) || (idiv(prod(this.shape), prod(new_shape)) as number) < env.get_num('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
       return this._reduce_op(op, axis)
     }
 
@@ -441,13 +441,13 @@ export class UOp extends MathTrait<UOp> {
     // 256 split maximum should be "negligible reduce" for low prod(new_shape), 8 split minimum.
     // split is moved to the end to provide maximum locality for the second phase reduce.
     const self_real_strides = this.st!.real_strides(true)
-    const split_candidates = range(Math.min(256, (2 ** get_number_env('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape) as number)), 8 - 1, -1)
+    const split_candidates = range(Math.min(256, (2 ** env.get_num('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape) as number)), 8 - 1, -1)
       .flatMap((x) => axis.filter((i) => mod(this.shape[i] as number, x) === 0 && self_real_strides[i] !== 0).map((i) => [i, x]))
     if (!split_candidates.length) return this._reduce_op(op, axis)
     const [dim_to_split, divisor] = split_candidates[0]
     const splitted_shape = [...this.shape.slice(0, dim_to_split), divisor, idiv(this.shape[dim_to_split], divisor), ...this.shape.slice(dim_to_split + 1)]
     const splitted = this.reshape(splitted_shape).permute([...range(splitted_shape.length).filter((x) => x !== dim_to_split), dim_to_split])
-    if (DEBUG >= 3) console.log(`split ${divisor}: ${this.shape} -> ${splitted.shape} -> ${new_shape}`)
+    if (env.DEBUG >= 3) console.log(`split ${divisor}: ${this.shape} -> ${splitted.shape} -> ${new_shape}`)
     return splitted._reduce_op(op, axis)._reduce_op(op, [new_shape.length]).reshape(new_shape) // reduce original axes, then split  assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
   }
   assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
@@ -478,7 +478,7 @@ export class UOp extends MathTrait<UOp> {
     return zip(this.src, this.real).filter(([lb, r]) => r).map(([lb]) => lb)
   }
 
-  shard = (devices: DeviceType[], axis?: number): UOp => {
+  shard = (devices: string[], axis?: number): UOp => {
     let lbs: UOp[]
     if (axis === undefined) lbs = range(devices.length).map(() => this)
     else {
@@ -516,7 +516,7 @@ export class UOp extends MathTrait<UOp> {
     const st = ShapeTracker.from_shape(shape)
     return new UOp(Ops.VIEW, dtype, [UOp.new_buffer(device, st.size, dtype)], st)
   }
-  copy_to_device = (device: DeviceType | DeviceType[], clone = false): UOp => {
+  copy_to_device = (device: string | string[], clone = false): UOp => {
     // if it's a shrink, do the shrink before the copy with CONTIGUOUS
     if (prod(this.shape) < prod(this.base.shape)) return this.contiguous().copy_to_device(device)
     // COPY is COPY(DEVICE, copyin.base) -> VIEW(copyin.st)
@@ -557,13 +557,13 @@ export class UOp extends MathTrait<UOp> {
   // *** uop Buffer stuff ***
   static buffer_num = counter(0)
   static new_buffer = (device: string, size: number, dtype: DType) => new UOp(Ops.BUFFER, dtype, [new UOp(Ops.DEVICE, undefined, undefined, device)], [UOp.buffer_num.next().value, size])
-  get device(): DeviceType | DeviceType[] {
+  get device(): string | string[] {
     return this._device!
   }
   @cache
-  get _device(): DeviceType | DeviceType[] | undefined {
+  get _device(): string | string[] | undefined {
     if (this.op === Ops.DEVICE) return this.arg
-    if (this.op === Ops.MULTI) return this.src.map((x) => x.device as DeviceType)
+    if (this.op === Ops.MULTI) return this.src.map((x) => x.device as string)
     return this.src.filter((x) => x._device !== undefined)[0]?._device
   }
   get buf_uop(): UOp {
@@ -770,9 +770,6 @@ function getLocation(): [string, number] {
   const [file, line] = ['todo.ts', 1]
   return [file, Number(line)]
 }
-const lines = (fn: string): string[] => {
-  return Env.readFileSync(fn).toString().split('\n')
-}
 
 export type UPatInput = { op?: Ops | Ops[]; dtype?: DType | DType[]; src?: UPat | UPat[] | [UPat[]]; arg?: any; name?: string; allow_any_len?: boolean; location?: any; custom_early_reject?: Ops[] }
 export type UPatFn<Ctx = unknown, Res = UOp | undefined> = (args: Record<string, UOp> & { ctx: Ctx }) => Res
@@ -841,13 +838,6 @@ export class UPat extends MathTrait<UPat> {
     return new UPat(op, [Ops.CMPLT, Ops.CMPNE].includes(op) ? dtypes.bool : asrc.at(-1)?.dtype, GroupOp.Commutative.includes(op) ? [asrc] : asrc)
   }
 
-  printable = (): string => {
-    try {
-      return lines(this.location[0])[this.location[1] - 1].trim()
-    } catch {
-      return '<missing>'
-    }
-  }
   override toString = () => `new UPat(${list_str(this.op?.map((o) => o.toString()))}, ${list_str(this.dtype)}, ${list_str(this.src)}, ${list_str(this.arg)}, ${this.name}, ${this.allowed_len === 0})`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
@@ -909,7 +899,7 @@ export class PatternMatcher<Ctx = unknown, Res = UOp | undefined> {
   }
 }
 
-const TRACK_MATCH_STATS = get_number_env('TRACK_MATCH_STATS', get_env('VIZ') ? 2 : 0)
+const TRACK_MATCH_STATS = env.get_num('TRACK_MATCH_STATS', env.get('VIZ') ? 2 : 0)
 const match_stats = new Map<UPat, number[]>()
 export class TrackedGraphRewrite {
   loc!: [string, number] // location that called graph_rewrite
@@ -1747,7 +1737,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
     offsets_rootsrc.get(root_src)!.set(arg, i)
   }
   // then rewrite everything we can
-  const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && get_env('ALLOW_HALF8') ? [8, 4, 2] : (AMX ? [16, 8, 4, 2] : [4, 2]))
+  const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && env.get('ALLOW_HALF8') ? [8, 4, 2] : (env.AMX ? [16, 8, 4, 2] : [4, 2]))
   let used: [UOp, any][] = []
   for (const [rootsrc, offsets] of offsets_rootsrc.entries()) {
     for (const o of offsets.keys()) {
@@ -1904,11 +1894,11 @@ export const sigmoid_like = (x: UOp, y: UOp) => {
 // ***** main rewriter *****
 
 export const loop_collapse = (compval: UOp, multconst: UOp, rng: UOp, acc: UOp, idx2?: UOp, idx3?: UOp, extra?: UOp, vec?: UOp, ne?: UOp, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
-  if (get_env('DISABLE_LOOP_COLLAPSE') || !acc.src.includes(rng)) return undefined // must be the right REDUCE
+  if (env.get('DISABLE_LOOP_COLLAPSE') || !acc.src.includes(rng)) return undefined // must be the right REDUCE
   let [loop_start, loop_end] = rng.src
   if (loop_start.arg !== 0) {
     // TODO: support and test this with other mul and loop_starts
-    if (DEBUG >= 1) console.log(`WARNING, NOT FOLDING: mul:${mul.arg} loop_start:${loop_start.arg}`)
+    if (env.DEBUG >= 1) console.log(`WARNING, NOT FOLDING: mul:${mul.arg} loop_start:${loop_start.arg}`)
     return undefined
   }
   if (idx2 !== undefined) add = add.add(idx2)
@@ -2182,8 +2172,8 @@ export const expander = new PatternMatcher([
   // empty EXPAND is NOOP
   new UPat(Ops.UNROLL, undefined, [UPat.var('x')], []).fn(({ x }) => x),
   // EXPAND GEP (needed for WMMA, generalize this) -> vectorized ALU
-  new UPat(Ops.UNROLL, undefined, range(AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i)))).named('ex').fn(
-    ({ ex, x, y }) => new UOp(Ops.UNROLL, ex.dtype, range(AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
+  new UPat(Ops.UNROLL, undefined, range(env.AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i)))).named('ex').fn(
+    ({ ex, x, y }) => new UOp(Ops.UNROLL, ex.dtype, range(env.AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
   ),
 ])
 
@@ -2266,6 +2256,6 @@ export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   sink = graph_rewrite(sink, sym.add((opts !== undefined && opts.supports_float4) ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing).add(mulacc_unrolled))
 
   // final rules for the renderer (without sym)
-  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops, TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
+  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops, env.TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
   return sink
 }

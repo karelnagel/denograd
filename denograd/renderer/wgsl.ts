@@ -1,4 +1,3 @@
-import type { DeviceType } from '../device.ts'
 import { type DType, dtypes, PtrDType } from '../dtype.ts'
 import { idiv, is_less_than, strip_parens } from '../helpers.ts'
 import { Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
@@ -42,7 +41,7 @@ export const wgsl_matcher = new PatternMatcher([
 const is_storage = (dtype: DType, mutable: boolean) => mutable || (dtype instanceof PtrDType && dtype.size > 512) || dtype.itemsize < 4
 
 export class WGSLRenderer extends CStyleLanguage {
-  override device: DeviceType = 'WEBGPU'
+  override device: string = 'WEBGPU'
   override global_max: [number, number, number] = [65535, 65535, 65535]
   override local_max: [number, number, number] = [256, 256, 64]
   override code_for_workitem: Record<string, (...x: any[]) => string> = { 'g': (x: any) => `i32(gindex.${'xyz'[Number(x)]})`, 'l': (x: any) => `i32(lindex.${'xyz'[Number(x)]})` }
@@ -66,8 +65,8 @@ export class WGSLRenderer extends CStyleLanguage {
     UPat.load([UPat.var('b')], { allow_any_len: true }).fn(({ ctx, b }) => ctx.render_load(ctx.get(b)!, b.src[0].dtype)),
     UPat.index(UPat.var('b'), UPat.var('idx')).fn(({ ctx, b, idx }) => {
       const data = ctx.get(b), index = idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)
-      const { dtype, mutable } = ctx.bufs!.get(b)!
-      return is_storage(dtype, mutable) ? `${data}[${index}]` : `${data}[${index} / 4][${index} % 4]`
+      const res = ctx.bufs!.get(b)!
+      return !res || is_storage(res.dtype, res.mutable) ? `${data}[${index}]` : `${data}[${index} / 4][${index} % 4]`
     }),
     // (load & mask) | var -> mask = v.src[0].src[1], var = v.src[1]
     UPat.store([UPat.var('b'), UPat.var('v')], { allow_any_len: true }).fn(({ ctx, b, v }) => is_packed(b.src[0].dtype) ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`),

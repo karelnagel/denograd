@@ -1,4 +1,5 @@
-import { cache, cache_fn, type ConstType, get_env, get_key, intersection, is_less_than, WeakValueMap } from './helpers.ts'
+import { env } from './env/index.ts'
+import { cache, cache_fn, type ConstType, get_key, intersection, is_less_than, WeakValueMap } from './helpers.ts'
 import { type FmtStr, MemoryView } from './memoryview.ts'
 export type { FmtStr } from './memoryview.ts'
 export type { ConstType } from './helpers.ts'
@@ -207,7 +208,7 @@ export class dtypes {
   static ints = [...dtypes.uints, ...dtypes.sints]
   static bigints = [dtypes.uint64, dtypes.int64]
 }
-const envDefaultFloat = get_env('DEFAULT_FLOAT', '')
+const envDefaultFloat = env.get('DEFAULT_FLOAT', '')
 if (envDefaultFloat) {
   dtypes.default_float = dtypes[envDefaultFloat as keyof dtypes]
   if (!dtypes.is_float(dtypes.default_float)) throw new Error(`${envDefaultFloat} is not a float dtype`)

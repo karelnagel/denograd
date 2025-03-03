@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, DEBUG, dedup, flatten, fully_flatten, get_env, get_number_env, IMAGE, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, sorted, WeakValueMap, WINO, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
-import { BufferSpec, Device, type DeviceType, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
+import { BufferSpec, Device, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
 import { create_schedule_with_vars, type ScheduleItem } from './engine/schedule.ts'
 import { memory_planner } from './engine/memory.ts'
 import { run_schedule } from './engine/realize.ts'
@@ -11,7 +11,7 @@ import { run_schedule } from './engine/realize.ts'
 import { isInt, make_tuple, round_up } from './helpers.ts'
 import { argsort } from './helpers.ts'
 import { MemoryView } from './memoryview.ts'
-import { Env } from './env/index.ts'
+import { env } from './env/index.ts'
 import { compute_gradient } from './gradient.ts'
 import { get_multi_map } from './multi.ts'
 
@@ -325,7 +325,7 @@ export class Flip extends CreateFunction<[UOp, number[]]>() {
 
 // ************* function.py end *************
 
-export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: DeviceType | DeviceType[], arg?: any) => {
+export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: string | string[], arg?: any) => {
   if (typeof device === 'string') return UOp.metaop(op, shape, dtype, device, arg)
   return UOp.multi(device.map((d) => UOp.metaop(op, shape, dtype, d, arg)), undefined)
 }
@@ -349,7 +349,7 @@ export const _frompy = (x: ConstType[] | Uint8Array, dtype: DType): UOp => {
   return ret.buf_uop_view()
 }
 
-const _get_winograd_matcols = (mat: number[][], dims: number, shp: sint[], device: DeviceType | DeviceType[], dtype: DType): Tensor[][] => {
+const _get_winograd_matcols = (mat: number[][], dims: number, shp: sint[], device: string | string[], dtype: DType): Tensor[][] => {
   return range(mat[0].length).map((k) => range(dims).map((dim) => Tensor.cat(mat.map((m) => Tensor.full([...shp.slice(0, dim), 1, ...shp.slice(dim + 1)], Number(m[k]), { device: device, dtype: dtype }), dim))))
 }
 // winograd conv 3 kernel f(4x4,3x3) see: http://arxiv.org/abs/1509.09308
@@ -387,7 +387,7 @@ const _flat_to_grouped = (padding: sint[]): [sint, sint][] => zip(slice(padding,
 const ReductionStr = ['mean', 'sum', 'none']
 type ReductionStr = typeof ReductionStr[number]
 
-export type TensorOptions = { device?: DeviceType | DeviceType[]; dtype?: DType; requires_grad?: boolean }
+export type TensorOptions = { device?: string | string[]; dtype?: DType; requires_grad?: boolean }
 const sliceGetIndices = (index: Slice, size: number): [number, number, number] => {
   let start = index.start ?? 0
   let stop = index.stop ?? size
@@ -433,7 +433,6 @@ export class Tensor extends MathTrait<Tensor> {
     if (dtype !== undefined) dtype = to_dtype(dtype)
     if (dtype !== undefined && !(dtype instanceof DType)) throw new Error(`invalid dtype ${dtype}`)
     if (device === undefined && typeof data === 'string') {
-      data = Env.realPathSync(data)
       device = `DISK:${data}`
     } // keep it on the disk if device === undefined
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
@@ -464,7 +463,7 @@ export class Tensor extends MathTrait<Tensor> {
       else data = _frompy(data, dtype)
     } else if (typeof data === 'string') {
       dtype = dtype || dtypes.uint8
-      data = _metaop(Ops.EMPTY, [idiv(Env.statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
+      data = _metaop(Ops.EMPTY, [idiv(env.statSync(data).size, dtype.itemsize)], dtype, `DISK:${data}`)
     }
 
     // by this point, it has to be a LazyBuffer
@@ -497,7 +496,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (!this.shape.length) throw new Error('len() of a 0-d tensor')
     return this.shape[0]
   }
-  get device(): DeviceType | DeviceType[] {
+  get device(): string | string[] {
     return this.lazydata.device
   }
   get shape(): number[] {
@@ -571,7 +570,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     //   // TODO: this is a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) throw new Error("Use async assign_disk instead, until disk get's good assign")
-    if (DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
+    if (env.DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign
     if (!is_eq(this.shape, x.shape)) throw new Error(`assign shape mismatch ${this.shape} !== ${x.shape}`)
@@ -591,11 +590,11 @@ export class Tensor extends MathTrait<Tensor> {
   _data = async (): Promise<MemoryView> => {
     if (this.shape.includes(0)) return new MemoryView(0)
     // NOTE: this realizes on the object from as_buffer being a Python object
-    const cpu = await this.cast(this.dtype.base).contiguous().to(Env.CPU_DEVICE).realize()
+    const cpu = await this.cast(this.dtype.base).contiguous().to(env.CPU_DEVICE).realize()
     const buf = uop_realized((cpu.lazydata as UOp).base)
     if (buf === undefined) throw new Error(`${cpu.lazydata.base} was not realized`)
-    if (this.device !== Env.CPU_DEVICE) buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
-    return await buf!.as_buffer(this.device !== Env.CPU_DEVICE ? true : false)
+    if (this.device !== env.CPU_DEVICE) buf!.options = new BufferSpec(undefined, undefined, undefined, undefined, true)
+    return await buf!.as_buffer(this.device !== env.CPU_DEVICE ? true : false)
   }
   /**
    * Returns the data of this tensor as a memoryview.
@@ -648,7 +647,7 @@ export class Tensor extends MathTrait<Tensor> {
   /**
    * Moves the tensor to the given device.
    */
-  to = (device?: DeviceType | DeviceType[]): Tensor => {
+  to = (device?: string | string[]): Tensor => {
     device = Array.isArray(device) ? device.map((x) => Device.canonicalize(x)) : Device.canonicalize(device)
     if (device === this.device) return this
     if (typeof device !== 'string') return this.shard(device)
@@ -660,7 +659,7 @@ export class Tensor extends MathTrait<Tensor> {
   /**
    * Moves the tensor to the given device in place.
    */
-  to_ = (device?: DeviceType | DeviceType[]) => {
+  to_ = (device?: string | string[]) => {
     const real = this.to(device)
     if (this.grad !== undefined && real.grad !== undefined) this.grad.replace(real.grad)
     return this.replace(real)
@@ -673,7 +672,7 @@ export class Tensor extends MathTrait<Tensor> {
    * print(t.shard((t.device, t.device), axis=1).lazydata)
    * ```
    */
-  shard = (devices: DeviceType[], axis?: number): Tensor => {
+  shard = (devices: string[], axis?: number): Tensor => {
     if (Array.isArray(this.device)) throw new Error("can't shard a MultiLazyBuffer")
     devices = devices.map((x) => Device.canonicalize(x))
     const mlb = this.lazydata.shard(devices, axis !== undefined ? this._resolve_dim(axis) : undefined)
@@ -682,7 +681,7 @@ export class Tensor extends MathTrait<Tensor> {
   /**
    * Shards the tensor across the given devices in place.
    */
-  shard_ = (devices: DeviceType[], axis?: number) => {
+  shard_ = (devices: string[], axis?: number) => {
     return this.replace(this.shard(devices, axis))
   }
   static from_uop = (y: UOp, opts: TensorOptions = {}): Tensor => {
@@ -744,7 +743,7 @@ export class Tensor extends MathTrait<Tensor> {
     // checking if it is gzipped, using this instead of a flag cause, sometimes fetch automatically ungzips
     const preview = new Uint8Array(data.slice(0, 2))
     if (preview.length === 2 && preview[0] === 0x1f && preview[1] === 0x8b) {
-      data = await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+      data = await env.gunzip(res)
     }
     return new Tensor(new Uint8Array(data), opts)
   }
@@ -803,12 +802,12 @@ export class Tensor extends MathTrait<Tensor> {
     const num = ceildiv(numel * dtype.itemsize, 4)
 
     // when using MOCKGPU && NV generate rand on CLANG
-    if (get_env('MOCKGPU') && device.startsWith('NV')) device = Env.CPU_DEVICE
+    if (env.get('MOCKGPU') && device.startsWith('NV')) device = env.CPU_DEVICE
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     if (!Tensor._device_seeds[device]) {
       Tensor._device_seeds[device] = new Tensor(
-        [mod(bytes_to_bigint(Env.sha256(int_to_bytes(Object.keys(Tensor._device_seeds).length))), 2n ** 32n), Tensor._seed],
+        [mod(bytes_to_bigint(env.sha256(int_to_bytes(Object.keys(Tensor._device_seeds).length))), 2n ** 32n), Tensor._seed],
         { device: device, dtype: dtypes.uint32, requires_grad: false },
       )
       Tensor._device_rng_counters[device] = new Tensor([0], { device: device, dtype: dtypes.uint32, requires_grad: false })
@@ -832,7 +831,7 @@ export class Tensor extends MathTrait<Tensor> {
     let out = bits.contiguous().bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
 
     // move back to the original device if we were using MOCKGPU
-    if (get_env('MOCKGPU') && _device) out = out.to(_device)
+    if (env.get('MOCKGPU') && _device) out = out.to(_device)
 
     out.requires_grad = opts.requires_grad
     return contiguous ? out.contiguous() : out
@@ -1019,7 +1018,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (Array.isArray(this.device)) {
       if (opts.device !== undefined) throw new Error('cannot specify `device` on `rand_like` of a multi device tensor')
       if (this.lazydata.axis === undefined) return Tensor.rand(this.shape, undefined, { dtype: dtype, ...opts }).shard(this.device)
-      const rands = this.lazydata.src.map((lb) => Tensor.rand(lb.shape as number[], contiguous, { device: lb.device as DeviceType, dtype: dtype, ...opts }).lazydata)
+      const rands = this.lazydata.src.map((lb) => Tensor.rand(lb.shape as number[], contiguous, { device: lb.device, dtype: dtype, ...opts }).lazydata)
       return new Tensor(UOp.multi(rands, this.lazydata.axis), { device: this.device, dtype: dtype, ...opts })
     }
     return Tensor.rand(this.shape, undefined, { device: this.device, dtype: dtype, ...opts })
@@ -2476,7 +2475,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
-    if (IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype as DType)
+    if (env.IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype as DType)
     const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
     const padding_ = this._resolve_pool_pads(padding, HW.length)
     if (!(groups * (cin as number) === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * (cin as number)} vs. ${cin_})`)
@@ -2484,7 +2483,7 @@ export class Tensor extends MathTrait<Tensor> {
     // conv2d === a pooling op (with padding)
     let x = this.pad(padding_)._pool(HW, stride, dilation) // (bs, groups*cin, oy, ox, H, W)
     const [rcout, oyx] = [idiv(cout, groups), x.shape.slice(2, -HW.length)]
-    if (!HW.every((x) => x === 3) || stride !== 1 || dilation !== 1 || !WINO) {
+    if (!HW.every((x) => x === 3) || stride !== 1 || dilation !== 1 || !env.WINO) {
       // normal conv
       x = x.reshape([bs, groups, cin, 1, ...oyx, ...HW]).expand([bs, groups, cin, rcout, ...oyx, ...HW]).permute(0, 1, 3, ...range(oyx.length).map((i) => 4 + i), 2, ...range(HW.length).map((i) => 4 + oyx.length + i))
 
@@ -2582,7 +2581,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   dot = (w: Tensor, acc_dtype?: DTypeLike): Tensor => {
-    if (IMAGE) {
+    if (env.IMAGE) {
       throw new Error('KAREL: implement image_dot')
       // return this.image_dot(w, acc_dtype)
     }
@@ -4236,7 +4235,7 @@ export class Tensor extends MathTrait<Tensor> {
     return cx.image_conv2d(cw, undefined, groups, undefined, undefined, undefined, acc_dtype).reshape(out_shape_t).transpose(this.ndim - 1, this.ndim - 2)
   }
   image_conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DType): Tensor => {
-    const base_image_type = get_number_env('FLOAT16', 0) ? dtypes.imageh : dtypes.imagef
+    const base_image_type = env.get_num('FLOAT16', 0) ? dtypes.imageh : dtypes.imagef
 
     let [bs, _, iy, ix] = this.shape, [cout, cin, H, W] = weight.shape
     let x: Tensor = this, rcout = idiv(cout, groups), w = weight.reshape([groups, rcout, cin, H, W])
@@ -4267,7 +4266,7 @@ export class Tensor extends MathTrait<Tensor> {
     else w = w.reshape([idiv(cout, 4), 4, idiv(cin, 4), 4, H, W]).permute(0, 4, 2, 5, 3, 1)
 
     // contiguous creates the image, and early realize static weights (TODO: test for the static weight)
-    if (IMAGE >= 2) x = x.cast(base_image_type(bs * iy, idiv(ix * groups * cin, 4), 4)), w = w.cast(base_image_type(idiv(cout, 4), H * W * cin, 4))
+    if (env.IMAGE >= 2) x = x.cast(base_image_type(bs * iy, idiv(ix * groups * cin, 4), 4)), w = w.cast(base_image_type(idiv(cout, 4), H * W * cin, 4))
     x = x.contiguous(), w = w.contiguous()
 
     // expand out
@@ -4286,7 +4285,7 @@ export class Tensor extends MathTrait<Tensor> {
     w = w.permute(0, 4, 2, 5, 1, 3).reshape([1, 1, 1, ...cout_expand, rcin_hi, rcin_lo, H, W])
 
     // the conv!
-    let ret = (x.mul(w)).cast(IMAGE >= 2 ? base_image_type(bs * oy, idiv(ox * cout, 4), 4) : dtypes.float32).sum([-4, -3, -2, -1], undefined, acc_dtype)
+    let ret = (x.mul(w)).cast(env.IMAGE >= 2 ? base_image_type(bs * oy, idiv(ox * cout, 4), 4) : dtypes.float32).sum([-4, -3, -2, -1], undefined, acc_dtype)
 
     // undo hack for non multiples of 4 on C.rcout
     if (added_output_channels !== 0) {

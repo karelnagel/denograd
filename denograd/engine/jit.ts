@@ -1,6 +1,7 @@
-import { Buffer, type Compiled, Device, type DeviceType, uop_realized } from '../device.ts'
+import { Buffer, type Compiled, Device, uop_realized } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { ArrayMap, colored, DEBUG, DefaultMap, flatten, get_number_env, is_eq, JIT, merge_maps, partition, WeakKeyMap } from '../helpers.ts'
+import { env } from '../env/index.ts'
+import { ArrayMap, colored, DefaultMap, flatten, is_eq, merge_maps, partition, WeakKeyMap } from '../helpers.ts'
 import { get_parameters } from '../nn/state.ts'
 import { Ops, sym_infer, UOp, type Variable } from '../ops.ts'
 import { Estimates } from '../renderer/index.ts'
@@ -26,11 +27,11 @@ export const apply_graph_to_jit = (jit_cache: ExecItem[], input_rawbuffers: Buff
       for (const [j, i] of graph_runner.input_replace.keys()) graph_runner.jit_cache[j].bufs[i] = undefined
       graphed_jit_cache.push(new ExecItem(graph_runner, input_rawbuffers))
       max_batch_size *= 2
-      if (DEBUG >= 2) console.log(`JIT GRAPHing batch with ${current_batch.length} kernels on device ${current_device}`)
+      if (env.DEBUG >= 2) console.log(`JIT GRAPHing batch with ${current_batch.length} kernels on device ${current_device}`)
     } catch (e) {
       if (e instanceof GraphException) {
         graphed_jit_cache.push(...current_batch)
-        if (DEBUG >= 2) console.log(`JIT GRAPHing failed batch with ${current_batch.length} kernels on device ${current_device}: ${e}`)
+        if (env.DEBUG >= 2) console.log(`JIT GRAPHing failed batch with ${current_batch.length} kernels on device ${current_device}: ${e}`)
       }
       throw e
     }
@@ -81,7 +82,7 @@ export class GraphRunner extends Runner {
   w_dependency_map = new Map<string, any>()
   r_dependency_map = new DefaultMap<string, any[]>(undefined, () => [])
   constructor(public jit_cache: ExecItem[], input_rawbuffers: Buffer[], var_vals: Map<Variable, number>) {
-    super(colored(`<batched ${jit_cache.length}>`, 'cyan'), jit_cache[0].prg.device.split(':')[0] as DeviceType, new Estimates())
+    super(colored(`<batched ${jit_cache.length}>`, 'cyan'), jit_cache[0].prg.device.split(':')[0], new Estimates())
     this.input_replace = get_input_replace(jit_cache, input_rawbuffers)
     const is_sym_dim = (dim: number[]): boolean => !dim.every((d) => typeof d === 'number')
 
@@ -161,7 +162,7 @@ export class CapturedJit<Return extends any> {
     public input_replace: ArrayMap<[number, number], number>,
     public extra_view_inputs: [number, number, string, number, DType][],
     public expected_names: number[],
-    public expected_st_vars_dtype_device: [ShapeTracker, Variable[], DType, DeviceType | DeviceType[]][],
+    public expected_st_vars_dtype_device: [ShapeTracker, Variable[], DType, string | string[]][],
   ) {
     this.init()
   }
@@ -190,7 +191,7 @@ export class CapturedJit<Return extends any> {
   call = async (input_buffers: Buffer[], var_vals: Map<Variable, number>): Promise<Return> => {
     // assign inputs
     for (const [idx, offset, device, size, dtype] of this.extra_view_inputs) {
-      input_buffers.push(new Buffer(device as DeviceType, size, dtype, undefined, undefined, undefined, undefined, input_buffers[idx], offset).ensure_allocated())
+      input_buffers.push(new Buffer(device, size, dtype, undefined, undefined, undefined, undefined, input_buffers[idx], offset).ensure_allocated())
     }
     for (const [[j, i], input_idx] of this._input_replace.entries()) this._jit_cache[j].bufs[i] = input_buffers[input_idx]
 
@@ -203,14 +204,14 @@ export class CapturedJit<Return extends any> {
         }
       }
       // create graph if needed
-      if (JIT < 2) {
-        this._jit_cache = apply_graph_to_jit(this.jit_cache, input_buffers, var_vals, get_number_env('JIT_BATCH_SIZE', 32))
+      if (env.JIT < 2) {
+        this._jit_cache = apply_graph_to_jit(this.jit_cache, input_buffers, var_vals, env.get_num('JIT_BATCH_SIZE', 32))
         this._input_replace = get_input_replace(this._jit_cache, input_buffers)
       }
       this._first_run = false
     }
 
-    if (DEBUG >= 1 && this._jit_cache.length >= 10) console.log(`jit execs ${this._jit_cache.length} kernels`)
+    if (env.DEBUG >= 1 && this._jit_cache.length >= 10) console.log(`jit execs ${this._jit_cache.length} kernels`)
     for (const ei of this._jit_cache) await ei.run(var_vals, undefined, true)
     this._clear_inputs()
     return this.ret
@@ -229,7 +230,7 @@ export const _prepare_jit_inputs = async (...args: any[]) => {
     ...st_varval_dtype_device.map((x) => x[1]),
     new Map(args.filter((v) => v instanceof UOp).map((v) => v.unbind())),
   ])
-  const st_vars_dtype_device = st_varval_dtype_device.map((x) => [x[0], [...x[1].keys()].toSorted((a, b) => b.expr - a.expr), x[2], x[3]] satisfies [ShapeTracker, UOp[], DType, DeviceType | DeviceType[]])
+  const st_vars_dtype_device = st_varval_dtype_device.map((x) => [x[0], [...x[1].keys()].toSorted((a, b) => b.expr - a.expr), x[2], x[3]] satisfies [ShapeTracker, UOp[], DType, string | string[]])
   return [input_buffers as Buffer[], var_vals, names, st_vars_dtype_device] as const
 }
 
@@ -237,7 +238,7 @@ export class TinyJit<Args extends any[], Return extends any> {
   cnt: number
   _buffer_replace?: WeakKeyMap<Buffer, Buffer>
   _jit_cache?: ExecItem[]
-  constructor(public fxn?: (...a: Args) => Promise<Return>, public captured?: CapturedJit<Return>, public prune = false) {
+  constructor(public fxn?: (...a: Args) => Return | Promise<Return>, public captured?: CapturedJit<Return>, public prune = false) {
     if (!fxn && !captured) throw new Error('need either a function or a CapturedJit')
     this.cnt = this.fxn === undefined ? 2 : 0
   }
@@ -272,7 +273,7 @@ export class TinyJit<Args extends any[], Return extends any> {
   call = async (...args: Args): Promise<Return> => {
     const [input_buffers, var_vals, names, st_vars_dtype_device] = await _prepare_jit_inputs(...args)
     let ret: Return
-    if (!JIT || this.cnt === 0) {
+    if (!env.JIT || this.cnt === 0) {
       // jit ignore
       if (!this.fxn) throw new Error()
       // TODO:
@@ -302,7 +303,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       let jit_cache = this._jit_cache
       this._buffer_replace = undefined, this._jit_cache = undefined
       if (!jit_cache.length) throw new Error("didn't JIT anything!")
-      if (DEBUG >= 1) console.log(`JIT captured ${jit_cache.length} kernels with ${input_buffers.length} inputs`)
+      if (env.DEBUG >= 1) console.log(`JIT captured ${jit_cache.length} kernels with ${input_buffers.length} inputs`)
 
       // track inputs that are views of buffers
       // TODO: eventually expected_buffers should live in ExecItem
@@ -321,7 +322,7 @@ export class TinyJit<Args extends any[], Return extends any> {
         const depends = new Set(input_buffers)
         update_depends(depends, jit_cache)
         const [pruned, onetime] = partition(jit_cache, (ei) => !(ei.prg instanceof CompiledRunner) || ei.prg.p.outs.some((out) => depends.has(ei.bufs[out] as Buffer)))
-        if (DEBUG >= 1) console.log(`pruned from ${jit_cache.length} -> ${pruned.length} kernels`)
+        if (env.DEBUG >= 1) console.log(`pruned from ${jit_cache.length} -> ${pruned.length} kernels`)
         // run the onetime kernels here
         for (const ei of onetime) {
           for (const b of ei.bufs) b!.ensure_allocated()
@@ -336,7 +337,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       jit_cache = jit_cache.map((item) => new ExecItem(item.prg, item.bufs.filter((b) => b !== undefined).map((b) => (assigned.get(b) || b)!.ensure_allocated())))
 
       const input_replace = get_input_replace(jit_cache, input_buffers)
-      if (DEBUG >= 1 && new Set(input_replace.values()).size !== input_buffers.length) throw new Error('WARNING: some input tensors not found')
+      if (env.DEBUG >= 1 && new Set(input_replace.values()).size !== input_buffers.length) throw new Error('WARNING: some input tensors not found')
 
       // set this for next run
       this.captured = new CapturedJit(ret, jit_cache, input_replace, extra_view_inputs, names, st_vars_dtype_device)

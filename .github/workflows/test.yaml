@@ -15,29 +15,29 @@ jobs:
         runtime: [CLANG, WEBGPU, WASM]
 
     name: Test (${{ matrix.runtime }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
         with:
-          submodules: 'recursive'
+          submodules: "recursive"
 
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.2.2
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install WebGPU deps
-        # TODO: add back when runtimes are lazyily imported
-        # if: matrix.runtime == 'WEBGPU'
+        if: matrix.runtime == 'WEBGPU'
         run: |
-          sudo apt update
-          sudo apt install -y mesa-vulkan-drivers libvulkan1 libegl1
-          sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/lib/libwebgpu_dawn.so
+          sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/local/lib/libwebgpu_dawn.so
+          sudo apt update -y || true
+          sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
+
 
       - name: Run tests
-        run: ${{ matrix.runtime }}=1 TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHEDB=":memory:" deno test -A --no-check --parallel
+        run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHE_DB=":memory:" deno test -A --no-check --parallel
 
       - name: Train mnist
-        run: ${{ matrix.runtime }}=1 BS=2 STEPS=10 deno -A denograd/models/mnist.ts
+        run: ${{ matrix.runtime }}=1 BS=2 STEPS=10 deno -A cli/mnist.ts

@@ -1,4 +1,3 @@
-import type { DeviceType } from '../device.ts'
 import type { DType } from '../dtype.ts'
 import { add, assert, cache, dedup, get_key, idiv, mul, prod, range, replace, sorted, WeakValueMap } from '../helpers.ts'
 import { GroupOp, Ops, type sint, ssimplify, sym_infer, type UOp, type Variable } from '../ops.ts'
@@ -83,7 +82,7 @@ export class ProgramSpec {
   constructor(
     public name: string,
     public src: string,
-    public device: DeviceType,
+    public device: string,
     public uops?: UOp[],
     public mem_estimate = 0,
     public global_size?: number[],
@@ -134,7 +133,7 @@ export class ProgramSpec {
 }
 
 export class Renderer {
-  device!: DeviceType
+  device!: string
   suffix = ''
   // TODO: make this generic with a list of supported types
   supports_float4 = true

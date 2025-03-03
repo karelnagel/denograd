@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Adam, Device, get_parameters, is_eq, MNIST, mnist, Tensor } from '../../../denograd/mod.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
-import { Env } from '../../../denograd/env/index.ts'
+import { env } from '../../../denograd/env/index.ts'
 
 const toast = (msg: string) => alert(msg)
 
@@ -82,7 +82,7 @@ export const MnistExample = () => {
             setOpt(Adam(get_parameters(mnist)))
           }}
         >
-          {Env.DEVICES!.map((x) => <option key={x} value={x}>{x}</option>)}
+          {Object.keys(env.DEVICES).map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
       </div>
       <button

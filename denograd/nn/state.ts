@@ -1,6 +1,6 @@
 import { dtypes, type FmtStr } from '../dtype.ts'
-import { Env } from '../env/index.ts'
-import { bytes_to_string, DEBUG, idiv, is_eq, isinstance, NotImplemented, prod, range, round_up, string_to_bytes } from '../helpers.ts'
+import { env } from '../env/index.ts'
+import { bytes_to_string, idiv, is_eq, isinstance, NotImplemented, prod, range, round_up, string_to_bytes } from '../helpers.ts'
 import { MemoryView } from '../memoryview.ts'
 import { Tensor } from '../tensor.ts'
 
@@ -47,7 +47,7 @@ export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, n
 
 const accept_filename = async (fn: Tensor | string): Promise<Tensor> => {
   if (typeof fn === 'string') {
-    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: Env.CPU_DEVICE }) : new Tensor(fn)
+    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: env.CPU_DEVICE }) : new Tensor(fn)
   }
   return fn
 }
@@ -146,13 +146,13 @@ export const get_parameters = (obj: any): Tensor[] => {
  */
 export const load_state_dict = async (model: any, state_dict: Record<string, Tensor>, strict = true, verbose = true, consume = false) => {
   const model_state_dict = get_state_dict(model)
-  if (DEBUG >= 1 && Object.keys(state_dict).length > Object.keys(model_state_dict).length) {
+  if (env.DEBUG >= 1 && Object.keys(state_dict).length > Object.keys(model_state_dict).length) {
     console.log('WARNING: unused weights in state_dict', Object.keys(state_dict).filter((x) => !Object.keys(model_state_dict).includes(x)).toSorted())
   }
   const t = Object.entries(model_state_dict)
   for await (const [k, v] of t) {
     if (state_dict[k] === undefined && !strict) {
-      if (DEBUG >= 1) console.log(`WARNING: !loading ${k}`)
+      if (env.DEBUG >= 1) console.log(`WARNING: !loading ${k}`)
       continue
     }
     if (!is_eq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)
