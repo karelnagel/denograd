@@ -2,8 +2,8 @@ import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
 import { Database } from 'bun:sqlite'
-import { mkdir, realpath, stat, unlink } from 'fs/promises'
-import { statSync } from 'fs'
+import { mkdir, realpath, stat, unlink } from 'node:fs/promises'
+import { statSync } from 'node:fs'
 import { WebEnv } from './index.ts'
 import { CLANG } from '../runtime/ops_clang_bun.ts'
 import { JS } from '../runtime/ops_js.ts'
@@ -15,7 +15,7 @@ export class BunEnv extends WebEnv {
   override DEVICES = { CLANG, WASM, JS }
 
   override readFile = async (path: string) => new Uint8Array(await Bun.file(path).arrayBuffer())
-  override writeFile = (path: string, data: Uint8Array) => Bun.write(path, data)
+  override writeFile = async (path: string, data: Uint8Array) => void Bun.write(path, data)
   override remove = (path: string) => unlink(path)
   override realPath = (path: string) => realpath(path)
   override stat = (path: string) => stat(path)
@@ -27,7 +27,7 @@ export class BunEnv extends WebEnv {
     return path
   }
   override homedir = os.homedir
-  override gunzip = async (res: Response) => Bun.gunzipSync(new Uint8Array(await res.arrayBuffer()))
+  override gunzip = async (res: Response) => Bun.gunzipSync(new Uint8Array(await res.arrayBuffer())).buffer as ArrayBuffer
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 
   private db?: Database

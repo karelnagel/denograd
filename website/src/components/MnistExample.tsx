@@ -82,7 +82,7 @@ export const MnistExample = () => {
             setOpt(Adam(get_parameters(mnist)))
           }}
         >
-          {env.DEVICES!.map((x) => <option key={x} value={x}>{x}</option>)}
+          {Object.keys(env.DEVICES).map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
       </div>
       <button

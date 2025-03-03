@@ -84,7 +84,7 @@ export class WebEnv {
   get OSX(){ return this.PLATFORM === 'darwin'}
   get WINDOWS(){ return this.PLATFORM === 'win32'}
   get CACHE_DIR (){ return `${this.get('CACHE_DIR') || this.get('XDG_CACHE_HOME') || (this.OSX ? `${this.homedir()}/Library/Caches` : `${this.homedir()}/.cache`)}/denograd` }
-  get CACHE_DB (){return this.get('CACHEDB') || `${this.CACHE_DIR}/denograd.db` }
+  get CACHE_DB (){return this.get('CACHE_DB') || `${this.CACHE_DIR}/denograd.db` }
   get CI (){ return !!this.get_num('CI') }
   get DEBUG (){ return this.get_num('DEBUG', 0) }
   get IMAGE (){ return this.get_num('IMAGE', 0) }
