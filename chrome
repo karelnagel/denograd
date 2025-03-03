@@ -23,9 +23,9 @@ const build = await esbuild.build({
 
 const code = build.outputFiles[0].text + ';console.log("ASYNC_CODE_COMPLETE");'
 
-const browser = await chromium.launchPersistentContext('.playwright', { headless: true, args: ['--disable-web-security'] })
+const browser = await chromium.launchPersistentContext('.playwright', { headless: !process.env.SHOW, args: ['--disable-web-security'] })
 const page = await browser.newPage()
-await page.goto('https://denograd.com')
+await page.goto('https://denograd.com') // needed cause indexedDB won't work in about:blank
 await page.setContent('<html><body></body></html>')
 
 page.on('pageerror', (e) => {
