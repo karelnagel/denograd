@@ -90,7 +90,7 @@ export class Kernel {
   constructor(ast: UOp, opts?: Renderer) {
     if (ast.op === Ops.SINK) this.ast = ast
 
-    this.opts = opts !== undefined ? opts : Device.get(Device.DEFAULT).renderer
+    this.opts = opts !== undefined ? opts : Device.get(Device.DEFAULT).renderer!
     try {
       verify_ast(this.ast)
     } catch (e) {

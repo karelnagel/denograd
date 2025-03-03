@@ -1,5 +1,6 @@
 import { DEVICES } from '../denograd/device.ts'
 import { colored, Device, is_eq, Tensor } from '../denograd/mod.ts'
+
 for (const device in DEVICES) {
   if (device === 'DISK') continue
   let result

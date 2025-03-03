@@ -8,11 +8,12 @@ import { JS } from '../runtime/ops_js.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
 import { WEBGPU } from '../runtime/ops_webgpu.ts'
 import { CLANG } from '../runtime/ops_clang_deno.ts'
+import { CLOUD } from '../runtime/ops_cloud.ts'
 
 export class DenoEnv extends WebEnv {
   override NAME = 'DENO'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, WEBGPU, WASM, JS, DISK }
+  override DEVICES = { CLANG, WEBGPU, WASM, JS, DISK, CLOUD }
   override readFile = Deno.readFile
   override writeFile = Deno.writeFile
   override remove = Deno.remove

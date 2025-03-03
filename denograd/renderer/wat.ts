@@ -43,7 +43,7 @@ const get_dtype = (dtype: DType): string => {
   if (dtype.vcount > 1) return `${get_dtype(dtype.scalar())}x4`
   throw new Error(`${dtype} not supported`)
 }
-const cast = (from: UOp, to: UOp, ctx: WASMRenderer): string[] => {
+const cast = (from: UOp, to: UOp, ctx: WATRenderer): string[] => {
   if (to.dtype === dtypes.bool) return [`(${get_dtype(from.dtype)}.ne`, `(${get_dtype(from.dtype)}.const 0)`, ...ctx.get_var(from), ')']
   if (from.dtype instanceof PtrDType && to.dtype instanceof PtrDType) return [`;; Should be casted from ${from.dtype} to ${to.dtype}`, ...ctx.get_var(from)]
 
@@ -79,7 +79,7 @@ const constant = (num: ConstType) => {
 }
 // TODO: handle NaNs and Infinity
 // TODO: handle uints correcly, should use '..._u' functions for those
-const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
+const string_rewrite = new PatternMatcher<WATRenderer, string[] | undefined>([
   new UPat(Ops.DEFINE_ACC).named('acc').fn(({ acc, ctx }) => [`(local.set ${ctx.get(acc)} ${ctx.get(acc.src[0])})`]),
   // ALU
   new UPat(Ops.WHERE, undefined, [UPat.var('cond'), UPat.var('a'), UPat.var('b')]).fn(({ ctx, a, b, cond }) => ['(select', ...ctx.get_var(a), ...ctx.get_var(b), ...ctx.get_var(cond), ')']),
@@ -106,7 +106,8 @@ const string_rewrite = new PatternMatcher<WASMRenderer, string[] | undefined>([
   new UPat(Ops.VECTORIZE, undefined, range(4).map(() => UPat.const())).named('x').fn(({ x, ctx }) => [`(v128.const ${get_dtype(x.dtype.scalar())}x4 ${x.src.map((x) => x.arg).join(' ')})`]),
   new UPat(Ops.VECTORIZE).named('x').fn(({ x, ctx }) => ['(v128.const f32x4 0 0 0 0)', ...x.src.flatMap((x, i) => [...ctx.get_var(x), `(f32x4.replace_lane ${i})`])]),
 ])
-export class WASMRenderer extends Renderer {
+
+export class WATRenderer extends Renderer {
   override has_local = false
   override has_shared = false
   override extra_matcher = new PatternMatcher([

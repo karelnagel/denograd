@@ -7,14 +7,15 @@ import { Ops, type UOp } from './ops.ts'
 import { WEBGPU } from './runtime/ops_webgpu.ts'
 import { WASM } from './runtime/ops_wasm.ts'
 import { JS } from './runtime/ops_js.ts'
-
+import { CLOUD } from './runtime/ops_cloud.ts'
 export * from './runtime/allocator.ts'
 
-export let DEVICES: Record<string, typeof Compiled> = { WEBGPU, WASM, JS }
+export let DEVICES: Record<string, typeof Compiled> = { WEBGPU, WASM, JS, CLOUD }
 export const setDevices = (devices: Record<string, typeof Compiled>) => DEVICES = devices
 
 // **************** Device ****************
 export class _Device {
+  opened = new Map<string, Compiled>()
   get DEFAULT() {
     if (env.DEVICE) return env.DEVICE
     const dev = Object.keys(DEVICES)[0]
@@ -30,10 +31,13 @@ export class _Device {
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
   canonicalize = (device?: string) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
   get(device: string): Compiled {
+    if (this.opened.has(device)) return this.opened.get(device)!
     const ix = this.canonicalize(device)
     const Device = DEVICES[ix.split(':')[0].toUpperCase()]!
     if (env.DEBUG >= 1) console.log(`opened device ${ix}`)
-    return new Device(ix)
+    const dev = new Device(ix)
+    this.opened.set(device, dev)
+    return dev
   }
   default = () => this.get(this.DEFAULT)
   setDefault = (dev: string) => {
