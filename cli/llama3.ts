@@ -26,8 +26,7 @@ if (!args.model) args.model = await model.download()
 const device = Number(args.shard) > 1 ? range(Number(args.shard)).map((i) => `${Device.DEFAULT}:${i}` satisfies string) : Device.DEFAULT
 await model.load(args.model, undefined, device)
 
-const tokenizerPath = `${args.model.split('/').slice(0, -1).join('/')}/tokenizer.model`
-const tokenizer = await Tokenizer.init(tokenizerPath)
+const tokenizer = await Tokenizer.init(`${args.model.split('/').slice(0, -1).join('/')}/tokenizer.model`)
 
 const system = [tokenizer.bos_id, ...tokenizer.encode_message('system', 'You are an helpful assistant.')]
 let start_pos = await model.prefill(system, undefined, device)

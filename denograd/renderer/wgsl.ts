@@ -65,8 +65,8 @@ export class WGSLRenderer extends CStyleLanguage {
     UPat.load([UPat.var('b')], { allow_any_len: true }).fn(({ ctx, b }) => ctx.render_load(ctx.get(b)!, b.src[0].dtype)),
     UPat.index(UPat.var('b'), UPat.var('idx')).fn(({ ctx, b, idx }) => {
       const data = ctx.get(b), index = idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)
-      const { dtype, mutable } = ctx.bufs!.get(b)!
-      return is_storage(dtype, mutable) ? `${data}[${index}]` : `${data}[${index} / 4][${index} % 4]`
+      const res = ctx.bufs!.get(b)!
+      return !res || is_storage(res.dtype, res.mutable) ? `${data}[${index}]` : `${data}[${index} / 4][${index} % 4]`
     }),
     // (load & mask) | var -> mask = v.src[0].src[1], var = v.src[1]
     UPat.store([UPat.var('b'), UPat.var('v')], { allow_any_len: true }).fn(({ ctx, b, v }) => is_packed(b.src[0].dtype) ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`),
