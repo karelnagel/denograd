@@ -174,10 +174,10 @@ export class CLOUD extends Compiled {
     // TODO replace _init with renderer
     if (this.renderer) return
     // TODO: how to we have BEAM be cached on the backend? this should just send a specification of the compute. rethink what goes in Renderer
-    const clouddev = await this.send('GET', 'renderer').then((x) => x.json()).then((x) => x[1])
-    const renderer = RENDERERS[clouddev]
+    const clouddev = await this.send('GET', 'renderer').then((x) => x.json())
+    const renderer = (RENDERERS as any)[clouddev[1]]
     if (!renderer) throw new Error(`Invalid renderer ${clouddev}`)
-    this.renderer = new renderer()
+    this.renderer = new renderer(...clouddev[2])
     if (env.DEBUG >= 1) console.log(`remote has device ${clouddev}`)
   }
   del = async () => {
