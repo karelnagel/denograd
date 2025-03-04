@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import { colored } from '../denograd/helpers.ts'
+import { env } from '../denograd/mod.ts'
 
 const getZodTypeString = (zod: any): string => {
   switch (zod._def.typeName) {
@@ -27,22 +28,21 @@ const help = (schema: z.ZodObject<z.ZodRawShape>): string => {
   return res
 }
 
-export const parseArgs = <T extends z.ZodRawShape>(args: string[], schema: z.ZodObject<T>): z.infer<z.ZodObject<T>> => {
+export const parseArgs = <T extends z.ZodRawShape>(schema: z.ZodObject<T>): z.infer<z.ZodObject<T>> => {
+  const args = env.args().join(' ').split('--').filter(Boolean)
   const obj: Record<string, unknown> = {}
-  for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith('--')) {
-      const key = args[i].replace('--', ''), value = args[i + 1]
-      if (value === 'true' || value === '' || value === undefined) obj[key] = true
-      else if (value === 'false') obj[key] = false
-      else if (!isNaN(Number(value))) obj[key] = Number(value)
-      else obj[key] = value
-    }
+  for (const arg of args) {
+    const [key, value] = arg.split(/[ |=]/)
+    if (value === 'true' || value === '' || value === undefined) obj[key] = true
+    else if (value === 'false') obj[key] = false
+    else if (!isNaN(Number(value))) obj[key] = Number(value)
+    else obj[key] = value
   }
   if (obj.help) {
     console.log(help(schema))
     throw new Error()
   }
-  const res = schema.safeParse(obj)
+  const res = schema.strict().safeParse(obj)
   if (res.success) return res.data
   console.log(res.error.issues.map((x) => colored(`Error with '${x.path.join('.')}': ${x.message}`, 'red')).join('\n') + '\n\n' + help(schema))
   throw new Error()

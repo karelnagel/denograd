@@ -1,6 +1,15 @@
 import type { BufferSpec, Program } from '../denograd/device.ts'
 import { ArrayMap, bytes_to_string, DefaultMap, Device, env, MemoryView, string_to_bytes } from '../denograd/mod.ts'
 import { BatchRequest, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramExec, ProgramFree } from '../denograd/runtime/ops_cloud.ts'
+import { bin, install, Tunnel } from 'npm:cloudflared'
+import { parseArgs } from './zod-cli.ts'
+import z from 'zod'
+
+const args = parseArgs(z.object({
+  port: z.number().default(8080).describe('Port'),
+  hostname: z.string().default('0.0.0.0').describe('Hostname'),
+  tunnel: z.boolean().optional().describe('Starts a publicly accessible Cloudflare tunnel'),
+}))
 
 class CloudSession {
   programs = new ArrayMap<[string, string], Program>()
@@ -14,8 +23,23 @@ await Device.get(device).init()
 
 Deno.serve(
   {
-    port: 6667,
-    onListen: ({ port, hostname }) => console.log(`start cloud server on http://${hostname}:${port} with device ${device}`),
+    port: args.port,
+    hostname: args.hostname,
+    onListen: async ({ port, hostname }) => {
+      const host = `http://${hostname}:${port}`
+      console.log(`start cloud server on ${host} with device ${device}`)
+
+      if (args.tunnel) {
+        console.log(`starting cloudflare tunnel...`)
+        if (!await env.stat(bin).catch(() => false)) {
+          console.log(`installing cloudflare binary to ${bin}`)
+          await install(bin)
+        }
+        const tunnel = Tunnel.quick(host)
+        const url = await new Promise((r) => tunnel.once('url', r))
+        console.log(`cloudflare url: ${url}`)
+      }
+    },
   },
   async (req: Request, info) => {
     console.log(req.method, req.url)

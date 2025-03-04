@@ -3,7 +3,6 @@ import { Device, env, GlobalCounters, Llama3, range, string_to_bytes, Tensor, To
 import { parseArgs } from './zod-cli.ts'
 
 const args = parseArgs(
-  env.args(),
   z.object({
     model: z.string().optional().describe('Model path'),
     size: z.enum(['1B', '8B', '70B']).default('1B').describe('Model size'),

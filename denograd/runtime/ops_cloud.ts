@@ -1,13 +1,11 @@
-import { Buffer } from 'node:buffer'
 import { BufferSpec, Compiler, type ProgramCallArgs } from '../device.ts'
 import { env } from '../env/index.ts'
-import { bytes_to_string, random_id, string_to_bytes } from '../helpers.ts'
+import { bytes_to_hex, bytes_to_string, concat_bytes, random_id, string_to_bytes } from '../helpers.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import { WATRenderer } from '../renderer/wat.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import { Allocator, Compiled, Program } from './allocator.ts'
-import { createHash } from 'node:crypto'
 
 // ***** API *****
 export class CloudRequest {}
@@ -94,20 +92,20 @@ export class BatchRequest {
   _q: CloudRequest[] = []
   _h: Record<string, Uint8Array> = {}
   h = (d: Uint8Array): string => {
-    const binhash = createHash('sha256').update(d).digest()
-    const datahash = binhash.toString('hex')
-    this._h[datahash] = new Uint8Array([...binhash, ...new Uint8Array(new BigUint64Array([BigInt(d.length)]).buffer), ...d])
+    const binhash = env.sha256(d)
+    const datahash = bytes_to_hex(binhash)
+    this._h[datahash] = concat_bytes(binhash, new Uint8Array(new BigUint64Array([BigInt(d.length)]).buffer), d)
     return datahash
   }
   q = (x: CloudRequest) => this._q.push(x)
   serialize = (): Uint8Array => {
     this.h(string_to_bytes(serialize(this._q)!))
-    return new Uint8Array(Object.values(this._h).flatMap((x) => [...x]))
+    return concat_bytes(...Object.values(this._h))
   }
   static deserialize = (dat: Uint8Array): BatchRequest => {
     let res = new BatchRequest(), ptr = 0
     while (ptr < dat.length) {
-      const datahash = Buffer.from(dat.slice(ptr, ptr + 0x20)).toString('hex')
+      const datahash = bytes_to_hex(dat.slice(ptr, ptr + 0x20))
       const datalen = Number(new BigUint64Array(dat.slice(ptr + 0x20, ptr + 0x28).buffer)[0])
       res._h[datahash] = dat.slice(ptr + 0x28, ptr + 0x28 + datalen)
       ptr += 0x28 + datalen
@@ -161,7 +159,7 @@ const getCloudProgram = (dev: CLOUD) => {
 const RENDERERS = [ClangRenderer, WGSLRenderer, WATRenderer]
 
 export class CLOUD extends Compiled {
-  host = env.DEVICE?.startsWith('CLOUD:') ? env.DEVICE.replace('CLOUD:', '') : env.get('HOST', 'http://127.0.0.1:6667')
+  host = env.DEVICE?.startsWith('CLOUD:') ? env.DEVICE.replace('CLOUD:', '') : env.get('HOST', 'http://127.0.0.1:8080')
   // state for the connection
   session = random_id()
   buffer_num = 0
