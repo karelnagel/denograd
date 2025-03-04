@@ -3,13 +3,14 @@ import { env } from '../env/index.ts'
 import { bytes_to_hex, bytes_to_string, concat_bytes, random_id, string_to_bytes } from '../helpers.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
+import type { Renderer } from '../renderer/index.ts'
 import { WATRenderer } from '../renderer/wat.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import { Allocator, Compiled, Program } from './allocator.ts'
 
 // ***** API *****
 export class CloudRequest {
-  constructor(public __name: string) {}
+  constructor(public __name: string) {} // We could use constructor.name instead, but esbuild sometimes can change classnames while bundling
 }
 
 export class BufferAlloc extends CloudRequest {
@@ -47,7 +48,7 @@ export class ProgramExec extends CloudRequest {
     super('ProgramExec')
   }
 }
-const CLASSES = [BufferSpec, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramFree, ProgramExec]
+const CLASSES: Record<string, any> = { BufferSpec, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramFree, ProgramExec }
 
 export const serialize = (x: any): string | undefined => {
   if (typeof x === 'boolean') return x ? 'True' : 'False'
@@ -56,7 +57,7 @@ export const serialize = (x: any): string | undefined => {
   if (typeof x === 'string') return `'${x}'`
   if (Array.isArray(x)) return `[${x.map(serialize).join(', ')}]`
   if (typeof x === 'function') return undefined
-  if (!CLASSES.some((c) => x instanceof c)) throw new Error(`Can't serialize ${x}`)
+  if (!CLASSES[x?.__name]) throw new Error(`Can't serialize ${x}`)
 
   const args = Object.entries(x).map(([k, v]) => [k, serialize(v)]).filter(([k, v]) => k !== 'key' && k !== '__name' && v !== undefined)
   return `${x.__name}(${args.map(([k, v]) => `${k}=${v}`).join(', ')})`
@@ -82,10 +83,10 @@ export const deserialize = (x: string): any => {
   if (x.startsWith('[') && x.endsWith(']')) return split_commas(x.slice(1, -1)).map(deserialize)
 
   const [name, argstr] = x.slice(0, -1).split('(')
-  const cls = CLASSES.find((c) => new (c as any)().__name === name)
+  const cls = CLASSES[name]
   if (cls) {
     const args = split_commas(argstr).map((x) => x.split('=')).map(([k, v]) => deserialize(v))
-    return new (cls as any)(...args)
+    return new cls(...args)
   }
   return x
 }
@@ -158,7 +159,7 @@ const getCloudProgram = (dev: CLOUD) => {
   }
 }
 
-const RENDERERS = [ClangRenderer, WGSLRenderer, WATRenderer]
+const RENDERERS: Record<string, typeof Renderer> = { ClangRenderer, WGSLRenderer, WATRenderer }
 
 export class CLOUD extends Compiled {
   host = env.DEVICE?.startsWith('CLOUD:') ? env.DEVICE.replace('CLOUD:', '') : env.get('HOST', 'http://127.0.0.1:8080')
@@ -179,7 +180,7 @@ export class CLOUD extends Compiled {
     if (this.renderer) return
     // TODO: how to we have BEAM be cached on the backend? this should just send a specification of the compute. rethink what goes in Renderer
     const clouddev = await this.send('GET', 'renderer').then((x) => x.json()).then((x) => x[1])
-    const renderer = RENDERERS.find((x) => x.name === clouddev)!
+    const renderer = RENDERERS[clouddev]
     if (!renderer) throw new Error(`Invalid renderer ${clouddev}`)
     this.renderer = new renderer()
     if (env.DEBUG >= 1) console.log(`remote has device ${clouddev}`)
