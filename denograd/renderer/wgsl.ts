@@ -50,16 +50,16 @@ export class WGSLRenderer extends CStyleLanguage {
   override barrier = 'workgroupBarrier();'
   override code_for_op = new Map<Ops, (...a: (string | DType)[]) => string>([...new CStyleLanguage().code_for_op, [Ops.WHERE, (a, b, c, dtype) => `select(${c},${b},${a})`]])
   override nan = 'nan()'
-  override _type_map = new Map([[dtypes.float, 'f32'], [dtypes.uchar, 'u32'], [dtypes.ushort, 'u32'], [dtypes.short, 'i32'], [dtypes.char, 'i32'], [dtypes.int32, 'i32'], [dtypes.uint32, 'u32'], [dtypes.bool, 'bool'], [dtypes.half, 'f16']])
+  override type_map = new Map([[dtypes.float, 'f32'], [dtypes.uchar, 'u32'], [dtypes.ushort, 'u32'], [dtypes.short, 'i32'], [dtypes.char, 'i32'], [dtypes.int32, 'i32'], [dtypes.uint32, 'u32'], [dtypes.bool, 'bool'], [dtypes.half, 'f16']])
   override string_rewrite = new PatternMatcher<WGSLRenderer, string | undefined>([
     new UPat(Ops.CONST, dtypes.bool).named('x').fn(({ ctx, x }) => x.arg ? 'true' : 'false'),
     new UPat(Ops.CONST, [dtypes.uchar, dtypes.ushort, dtypes.uint32]).named('x').fn(({ ctx, x }) => x.arg < 0 ? `bitcast<u32>(${x.arg})` : `${BigInt(x.arg) & 0xFFFFFFFFn}u`),
     new UPat(Ops.DEFINE_LOCAL).named('x').fn(({ ctx, x }) => `var<workgroup> ${ctx.get(x)}: array<${ctx.buf_map(x.dtype.base)}, ${(x.dtype as PtrDType).size}>;`),
 
     new UPat(Ops.BITCAST, dtypes.half).named('x').fn(({ ctx, x }) => [dtypes.short, dtypes.ushort, dtypes.uint32].includes(x.src[0].dtype) ? `bitcast<vec2<f16>>(${ctx.get(x.src[0])})[0]` : undefined),
-    new UPat(Ops.BITCAST, [dtypes.char, dtypes.uchar]).named('x').fn(({ ctx, x }) => `bitcast<${ctx._type_map.get(x.dtype)}>(${ctx.get(x.src[0])}&0xFF)`),
-    new UPat(Ops.BITCAST, [dtypes.short, dtypes.ushort]).named('x').fn(({ ctx, x }) => x.src[0].dtype === dtypes.half ? `bitcast<${ctx._type_map.get(x.dtype)}>(vec2<f16>(${ctx.get(x.src[0])},0))` : `bitcast<${ctx._type_map.get(x.dtype)}>(${ctx.get(x.src[0])}&0xFFFF)`),
-    new UPat(Ops.BITCAST).named('x').fn(({ ctx, x }) => `bitcast<${ctx._type_map.get(x.dtype)}>(${ctx.get(x.src[0])})`),
+    new UPat(Ops.BITCAST, [dtypes.char, dtypes.uchar]).named('x').fn(({ ctx, x }) => `bitcast<${ctx.type_map.get(x.dtype)}>(${ctx.get(x.src[0])}&0xFF)`),
+    new UPat(Ops.BITCAST, [dtypes.short, dtypes.ushort]).named('x').fn(({ ctx, x }) => x.src[0].dtype === dtypes.half ? `bitcast<${ctx.type_map.get(x.dtype)}>(vec2<f16>(${ctx.get(x.src[0])},0))` : `bitcast<${ctx.type_map.get(x.dtype)}>(${ctx.get(x.src[0])}&0xFFFF)`),
+    new UPat(Ops.BITCAST).named('x').fn(({ ctx, x }) => `bitcast<${ctx.type_map.get(x.dtype)}>(${ctx.get(x.src[0])})`),
 
     UPat.load([UPat.var('b'), UPat.var('v'), UPat.var('g')]).fn(({ ctx, b, v, g }) => `select(${ctx.get(v)}, ${ctx.render_load(ctx.get(b)!, b.src[0].dtype)}, ${ctx.get(g)})`),
     UPat.load([UPat.var('b')], { allow_any_len: true }).fn(({ ctx, b }) => ctx.render_load(ctx.get(b)!, b.src[0].dtype)),

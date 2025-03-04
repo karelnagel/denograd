@@ -442,7 +442,13 @@ export function math_gcd(...numbers: number[]): number {
   return numbers.reduce((acc, num) => gcdTwo(acc, num))
 }
 // TODO: probably should just filter out duplicates + use isEq
-export const dedup = <T>(x: T[]): T[] => [...new Set(x)] // retains list order
+export const dedup = <T>(arr: T[]): T[] => {
+  const res: T[] = []
+  for (const item of arr) {
+    if (!res.some((x) => is_eq(x, item))) res.push(item)
+  }
+  return res
+}
 
 export const argsort = <T>(x: T[]) => range(x.length).sort((a, b) => x[a] < x[b] ? -1 : x[a] > x[b] ? 1 : 0)
 export const all_same = <T>(items: T[]) => items.every((x) => is_eq(x, items[0]))
