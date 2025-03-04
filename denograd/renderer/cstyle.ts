@@ -12,10 +12,10 @@ export const base_rewrite = new PatternMatcher<CStyleLanguage, string | undefine
   new UPat(Ops.WMMA).named('x').fn(({ ctx, x }) => `__${x.arg[0]}(${ctx.get(x.src[0])}, ${ctx.get(x.src[1])}, ${ctx.get(x.src[2])})`),
   // r method accesses
   new UPat(Ops.RANGE).named('x').fn(({ ctx, x }) => `for (${ctx.render_dtype(x.dtype)} ${ctx.get(x)} = ${ctx.get(x.src[0])}; ${ctx.get(x)} < ${ctx.get(x.src[1])}; ${ctx.get(x)}++) {`),
-  [
-    new UPat(Ops.VECTORIZE).named('x'),
-    ({ ctx, x }) => `${ctx.float4!.replace('float4', ctx.render_dtype(x.dtype))}` + (ctx.device === 'CLANG' ? `{${x.src.map((y: any) => ctx.get(y)).join(',')}}` : `(${x.src.map((y: any) => ctx.get(y)).join(',')})`),
-  ],
+  new UPat(Ops.VECTORIZE).named('x').fn(({ ctx, x }) =>
+    `${ctx.float4?.replace('float4', ctx.render_dtype(x.dtype))}` +
+    (ctx.device === 'CLANG' ? `{${x.src.map((y) => ctx.get(y)).join(',')}}` : `(${x.src.map((y) => ctx.get(y)).join(',')})`)
+  ),
   new UPat(Ops.CAST).named('x').fn(({ ctx, x }) => `(${ctx.render_cast(x.dtype, ctx.get(x.src[0])!)})`),
   new UPat(Ops.BITCAST).named('x').fn(({ ctx, x }) => `(*((${ctx.buffer_prefix}${ctx.render_dtype(x.dtype)}*)&${ctx.get(x.src[0])}))`),
   new UPat(Ops.DEFINE_LOCAL).named('x').fn(({ ctx, x }) => `${ctx.smem_align}${ctx.smem_prefix}${ctx.render_dtype(x.dtype.base)} ${ctx.get(x)}[${x.arg[1]}];`),
@@ -442,8 +442,8 @@ export class AMDRenderer extends CStyleLanguage {
   static ockl = ['local_id', 'group_id', 'local_size'].map((name) => [`__ockl_get_${name}`, 'unsigned int', 'size_t', 'const'])
   static ocml = [dtypes.float, dtypes.double, dtypes.half].map((dtype) => [dtype.name, dtype.itemsize * 8]).flatMap(([dt, n]) => [['fmax', 'const'], ['exp2', 'pure'], ['log2', 'pure'], ['sqrt', 'const'], ['sin', '']].map(([name, atr]) => [`__ocml_${name}_f${n}`, 'fmax' === name ? `${dt}, ${dt}` : dt, dt, atr]))
 
-  static kernel_prefix = [...[...AMDRenderer.ockl, ...AMDRenderer.ocml].map(([meth, dti, dto, atr]) => `extern "C" __attribute__((device{f", ${atr}" if atr else ""})) ${dto} ${meth}(${dti});`), 'extern "C" __attribute__((global))'].join('\n')
-  override code_for_workitem: Record<string, (...x: any[]) => string> = { 'g': (x) => `__ockl_get_group_id(${x})`, 'l': (x) => `__ockl_get_local_id({x})`, 'i': (x) => `(__ockl_get_group_id(${x})*__ockl_get_local_size(${x})+__ockl_get_local_id(${x}))` }
+  override kernel_prefix = [...[...AMDRenderer.ockl, ...AMDRenderer.ocml].map(([meth, dti, dto, atr]) => `extern "C" __attribute__((device${atr ? `, ${atr}` : ''})) ${dto} ${meth}(${dti});`), 'extern "C" __attribute__((global))'].join('\n')
+  override code_for_workitem: Record<string, (...x: any[]) => string> = { 'g': (x) => `__ockl_get_group_id(${x})`, 'l': (x) => `__ockl_get_local_id(${x})`, 'i': (x) => `(__ockl_get_group_id(${x})*__ockl_get_local_size(${x})+__ockl_get_local_id(${x}))` }
   override code_for_op = new Map<Ops, (...args: any[]) => string>([
     ...new CStyleLanguage().code_for_op,
     [Ops.SIN, (x, dtype) => `__ocml_sin_f${dtype === dtypes.half ? 16 : dtype === dtypes.double ? 64 : 32}(${x})`],
@@ -471,7 +471,7 @@ export class AMDRenderer extends CStyleLanguage {
 
   render_vector_prefix(dtype: DType): string {
     const vec = this.render_dtype(dtype), scal = this.render_dtype(dtype.scalar())
-    return `typedef ${scal} ${vec} __attribute__((ext_vector_type(${dtype.count})));\nstatic inline __attribute__((device)) ` + `${vec} make_${vec}(${_nms.split('').map((x) => `${scal} ${x}`).join(', ')}) { return { ${_nms.split('').slice(0, dtype.count).join(', ')} }; }`
+    return `typedef ${scal} ${vec} __attribute__((ext_vector_type(${dtype.count})));\nstatic inline __attribute__((device)) ` + `${vec} make_${vec}(${_nms.split('').slice(0,dtype.count).map((x) => `${scal} ${x}`).join(', ')}) { return { ${_nms.split('').slice(0, dtype.count).join(', ')} }; }`
   }
   override render_kernel({ function_name, kernel, bufs, uops, prefix }: RenderKernelArgs): string {
     prefix = ['#define INFINITY (__builtin_inff())', '#define NAN (__builtin_nanf(""))', 'typedef long unsigned int size_t;', '#define half _Float16']
