@@ -44,7 +44,7 @@ Deno.serve(
   async (req: Request, info) => {
     console.log(req.method, req.url)
     if (req.method === 'POST' && req.url.includes('/batch')) {
-      const session = sessions.get(req.headers.get('Cookie')!.split('session=')[1])
+      const session = sessions.get(req.headers.get('session')!)
       const r = BatchRequest.deserialize(new Uint8Array(await req.arrayBuffer()))
       let ret: Uint8Array | undefined = undefined
       for (const c of r._q) {

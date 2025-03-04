@@ -6,6 +6,7 @@ import { env } from '../env/index.ts'
 
 // **************** Buffer + Allocators ****************
 export class BufferSpec {
+  __name = 'BufferSpec'
   key: string
   static cache = new WeakValueMap<string, BufferSpec>()
   // TODO: move device, size, dtype here?

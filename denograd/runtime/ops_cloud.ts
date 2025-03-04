@@ -8,41 +8,43 @@ import { WGSLRenderer } from '../renderer/wgsl.ts'
 import { Allocator, Compiled, Program } from './allocator.ts'
 
 // ***** API *****
-export class CloudRequest {}
+export class CloudRequest {
+  constructor(public __name: string) {}
+}
 
 export class BufferAlloc extends CloudRequest {
   constructor(public buffer_num: number, public size: number, public options: BufferSpec) {
-    super()
+    super('BufferAlloc')
   }
 }
 export class BufferFree extends CloudRequest {
   constructor(public buffer_num: number) {
-    super()
+    super('BufferFree')
   }
 }
 export class CopyIn extends CloudRequest {
   constructor(public buffer_num: number, public datahash: string) {
-    super()
+    super('CopyIn')
   }
 }
 export class CopyOut extends CloudRequest {
   constructor(public buffer_num: number) {
-    super()
+    super('CopyOut')
   }
 }
 export class ProgramAlloc extends CloudRequest {
   constructor(public name: string, public datahash: string) {
-    super()
+    super('ProgramAlloc')
   }
 }
 export class ProgramFree extends CloudRequest {
   constructor(public name: string, public datahash: string) {
-    super()
+    super('ProgramFree')
   }
 }
 export class ProgramExec extends CloudRequest {
   constructor(public name: string, public datahash: string, public bufs: number[], public vals: number[], public global_size?: number[], public local_size?: number[], public wait?: boolean) {
-    super()
+    super('ProgramExec')
   }
 }
 const CLASSES = [BufferSpec, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramFree, ProgramExec]
@@ -56,8 +58,8 @@ export const serialize = (x: any): string | undefined => {
   if (typeof x === 'function') return undefined
   if (!CLASSES.some((c) => x instanceof c)) throw new Error(`Can't serialize ${x}`)
 
-  const args = Object.entries(x).map(([k, v]) => [k, serialize(v)]).filter(([k, v]) => k !== 'key' && v !== undefined)
-  return `${x.constructor.name}(${args.map(([k, v]) => `${k}=${v}`).join(', ')})`
+  const args = Object.entries(x).map(([k, v]) => [k, serialize(v)]).filter(([k, v]) => k !== 'key' && k !== '__name' && v !== undefined)
+  return `${x.__name}(${args.map(([k, v]) => `${k}=${v}`).join(', ')})`
 }
 
 const split_commas = (string: string): string[] => {
@@ -80,7 +82,7 @@ export const deserialize = (x: string): any => {
   if (x.startsWith('[') && x.endsWith(']')) return split_commas(x.slice(1, -1)).map(deserialize)
 
   const [name, argstr] = x.slice(0, -1).split('(')
-  const cls = CLASSES.find((c) => c.name === name)
+  const cls = CLASSES.find((c) => new (c as any)().__name === name)
   if (cls) {
     const args = split_commas(argstr).map((x) => x.split('=')).map(([k, v]) => deserialize(v))
     return new (cls as any)(...args)
@@ -197,7 +199,7 @@ export class CLOUD extends Compiled {
 
   send = async (method: string, path: string, data?: Uint8Array) => {
     // TODO: retry logic
-    const res = await fetch(this.host + '/' + path, { method, body: data, headers: { 'Cookie': `session=${this.session}` }, keepalive: true })
+    const res = await fetch(this.host + '/' + path, { method, body: data, headers: { 'session': this.session } })
     if (res.status !== 200) throw new Error(`failed on ${method} ${path} ${await res.text()}`)
     return res
   }
