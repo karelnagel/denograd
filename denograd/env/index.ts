@@ -51,6 +51,7 @@ export class WebEnv {
   gunzip = async (res:Response):Promise<ArrayBuffer> => await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
   mkdir = async (path:string): Promise<void> => {}
   args = (): string[] => (window as any).args || []
+  machine = () => "browser"
 
   //
   sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())
