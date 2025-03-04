@@ -110,7 +110,7 @@ export class CStyleLanguage extends Renderer {
   render_kernel({ bufs, function_name, kernel, uops, prefix }: RenderKernelArgs) {
     const tmp = bufs.values().some(({ dtype }) => dtype instanceof ImageDType) ? 'const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n' : ''
     const buftypes = [...bufs.values()].map(({ name, dtype, mutable }) => [name, (dtype instanceof ImageDType || dtype instanceof PtrDType) ? this.render_dtype(dtype, mutable) + this.buffer_suffix : dtype === dtypes.int ? this.arg_int_prefix : undefined])
-    const prg = [`${this.kernel_prefix}void ${this.get_kernel_modifier(uops)}${function_name}(`, ...buftypes.map(([name, t]) => `${t} ${name}`).join(', '), ...this.extra_args.join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
+    const prg = [`${this.kernel_prefix}void ${this.get_kernel_modifier(uops)}${function_name}(`, ...[...buftypes.map(([name, t]) => `${t} ${name}`), ...this.extra_args].join(', '), ') {\n' + tmp, kernel.join('\n'), '\n}'].join('')
     return prefix === undefined ? prg : `${prefix.join('\n')}\n${prg}`
   }
   render_cast = (dt: DType, val: string): string => `(${this.render_dtype(dt)})(${val})`
