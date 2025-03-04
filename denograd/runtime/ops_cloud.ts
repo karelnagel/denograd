@@ -2,10 +2,7 @@ import { BufferSpec, Compiler, type ProgramCallArgs } from '../device.ts'
 import { env } from '../env/index.ts'
 import { bytes_to_hex, bytes_to_string, concat_bytes, random_id, string_to_bytes } from '../helpers.ts'
 import type { MemoryView } from '../memoryview.ts'
-import { ClangRenderer } from '../renderer/cstyle.ts'
-import type { Renderer } from '../renderer/index.ts'
-import { WATRenderer } from '../renderer/wat.ts'
-import { WGSLRenderer } from '../renderer/wgsl.ts'
+import { RENDERERS } from '../renderer/all.ts'
 import { Allocator, Compiled, Program } from './allocator.ts'
 
 // ***** API *****
@@ -159,8 +156,6 @@ const getCloudProgram = (dev: CLOUD) => {
   }
 }
 
-const RENDERERS: Record<string, typeof Renderer> = { ClangRenderer, WGSLRenderer, WATRenderer }
-
 export class CLOUD extends Compiled {
   host = env.DEVICE?.startsWith('CLOUD:') ? env.DEVICE.replace('CLOUD:', '') : env.get('HOST', 'http://127.0.0.1:8080')
   // state for the connection
@@ -179,10 +174,10 @@ export class CLOUD extends Compiled {
     // TODO replace _init with renderer
     if (this.renderer) return
     // TODO: how to we have BEAM be cached on the backend? this should just send a specification of the compute. rethink what goes in Renderer
-    const clouddev = await this.send('GET', 'renderer').then((x) => x.json()).then((x) => x[1])
-    const renderer = RENDERERS[clouddev]
+    const clouddev = await this.send('GET', 'renderer').then((x) => x.json())
+    const renderer = (RENDERERS as any)[clouddev[1]]
     if (!renderer) throw new Error(`Invalid renderer ${clouddev}`)
-    this.renderer = new renderer()
+    this.renderer = new renderer(...clouddev[2])
     if (env.DEBUG >= 1) console.log(`remote has device ${clouddev}`)
   }
   del = async () => {
