@@ -100,7 +100,7 @@ export class Program {
   static init = (name: string, lib: Uint8Array): Promise<Program> | Program => {
     throw new Error('You need to override init()')
   }
-  call = (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> | number => {
+  call = (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number | undefined> | number | undefined => {
     throw new NotImplemented()
   }
 }

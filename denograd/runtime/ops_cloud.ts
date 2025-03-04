@@ -1,6 +1,7 @@
+import { Buffer } from 'node:buffer'
 import { BufferSpec, Compiler, type ProgramCallArgs } from '../device.ts'
 import { env } from '../env/index.ts'
-import { random_id, string_to_bytes } from '../helpers.ts'
+import { bytes_to_string, random_id, string_to_bytes } from '../helpers.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import { WATRenderer } from '../renderer/wat.ts'
@@ -9,50 +10,46 @@ import { Allocator, Compiled, Program } from './allocator.ts'
 import { createHash } from 'node:crypto'
 
 // ***** API *****
+export class CloudRequest {}
 
-class CloudRequest {
-  serialize = () => {
-  }
-}
-
-class BufferAlloc extends CloudRequest {
+export class BufferAlloc extends CloudRequest {
   constructor(public buffer_num: number, public size: number, public options: BufferSpec) {
     super()
   }
 }
-class BufferFree extends CloudRequest {
+export class BufferFree extends CloudRequest {
   constructor(public buffer_num: number) {
     super()
   }
 }
-class CopyIn extends CloudRequest {
+export class CopyIn extends CloudRequest {
   constructor(public buffer_num: number, public datahash: string) {
     super()
   }
 }
-class CopyOut extends CloudRequest {
+export class CopyOut extends CloudRequest {
   constructor(public buffer_num: number) {
     super()
   }
 }
-class ProgramAlloc extends CloudRequest {
+export class ProgramAlloc extends CloudRequest {
   constructor(public name: string, public datahash: string) {
     super()
   }
 }
-class ProgramFree extends CloudRequest {
+export class ProgramFree extends CloudRequest {
   constructor(public name: string, public datahash: string) {
     super()
   }
 }
-class ProgramExec extends CloudRequest {
+export class ProgramExec extends CloudRequest {
   constructor(public name: string, public datahash: string, public bufs: number[], public vals: number[], public global_size?: number[], public local_size?: number[], public wait?: boolean) {
     super()
   }
 }
 const CLASSES = [BufferSpec, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramFree, ProgramExec]
 
-const serialize = (x: any): string | undefined => {
+export const serialize = (x: any): string | undefined => {
   if (typeof x === 'boolean') return x ? 'True' : 'False'
   if (typeof x === 'undefined') return 'None'
   if (typeof x === 'bigint' || typeof x === 'number') return x.toString()
@@ -65,23 +62,35 @@ const serialize = (x: any): string | undefined => {
   return `${x.constructor.name}(${args.map(([k, v]) => `${k}=${v}`).join(', ')})`
 }
 
-const deserialize = (x: string): any => {
+const split_commas = (string: string): string[] => {
+  let brackets = 0, current = '', res: string[] = []
+  for (const char of string) {
+    if (['(', '['].includes(char)) brackets++
+    else if ([')', ']'].includes(char)) brackets--
+
+    if (char === ',' && brackets === 0) res.push(current.trim()), current = ''
+    else current += char
+  }
+  return [...res, current.trim()].filter(Boolean)
+}
+export const deserialize = (x: string): any => {
   if (x === 'True') return true
   if (x === 'False') return false
   if (x === 'None') return undefined
   if (!isNaN(Number(x)) && x.trim() !== '') return Number(x) // TODO: bigint
   if (x.startsWith("'") && x.endsWith("'")) return x.slice(1, -1)
-  if (x.startsWith('[') && x.endsWith(']')) return x.slice(1, -1).split(', ').map(deserialize)
+  if (x.startsWith('[') && x.endsWith(']')) return split_commas(x.slice(1, -1)).map(deserialize)
 
   const [name, argstr] = x.slice(0, -1).split('(')
   const cls = CLASSES.find((c) => c.name === name)
-  if (!cls) throw new Error(`Can't deserialize ${x}`)
-
-  const args = argstr.split(', ').map((x) => x.split('=')).map(([k, v]) => deserialize(v))
-  return new (cls as any)(...args)
+  if (cls) {
+    const args = split_commas(argstr).map((x) => x.split('=')).map(([k, v]) => deserialize(v))
+    return new (cls as any)(...args)
+  }
+  return x
 }
 
-class BatchRequest {
+export class BatchRequest {
   _q: CloudRequest[] = []
   _h: Record<string, Uint8Array> = {}
   h = (d: Uint8Array): string => {
@@ -95,8 +104,16 @@ class BatchRequest {
     this.h(string_to_bytes(serialize(this._q)!))
     return new Uint8Array(Object.values(this._h).flatMap((x) => [...x]))
   }
-  deserialize = (dat: Uint8Array): BatchRequest => {
-    throw new Error('not implemented')
+  static deserialize = (dat: Uint8Array): BatchRequest => {
+    let res = new BatchRequest(), ptr = 0
+    while (ptr < dat.length) {
+      const datahash = Buffer.from(dat.slice(ptr, ptr + 0x20)).toString('hex')
+      const datalen = Number(new BigUint64Array(dat.slice(ptr + 0x20, ptr + 0x28).buffer)[0])
+      res._h[datahash] = dat.slice(ptr + 0x28, ptr + 0x28 + datalen)
+      ptr += 0x28 + datalen
+      res._q = deserialize(bytes_to_string(res._h[datahash]))
+    }
+    return res
   }
 }
 
@@ -137,7 +154,6 @@ const getCloudProgram = (dev: CLOUD) => {
     override call = async (bufs: number[], { global_size, local_size, vals = [] }: ProgramCallArgs, wait = false) => {
       this.dev.req.q(new ProgramExec(this.name, this.datahash, bufs, vals, global_size, local_size, wait))
       if (wait) return Number(await this.dev.batch_submit())
-      return 0
     }
   }
 }
@@ -183,8 +199,8 @@ export class CLOUD extends Compiled {
 
   send = async (method: string, path: string, data?: Uint8Array) => {
     // TODO: retry logic
-    const res = await fetch(this.host + '/' + path, { method, body: data, headers: { 'Cookie': `session=${this.session}` } })
-    if (res.status !== 200) throw new Error(`failed on ${method} ${path}`)
+    const res = await fetch(this.host + '/' + path, { method, body: data, headers: { 'Cookie': `session=${this.session}` }, keepalive: true })
+    if (res.status !== 200) throw new Error(`failed on ${method} ${path} ${await res.text()}`)
     return res
   }
 }

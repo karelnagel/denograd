@@ -1,4 +1,4 @@
-import { cpu_time_execution, round_up, zip } from '../helpers.ts'
+import { round_up, zip } from '../helpers.ts'
 import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { BufferSpec } from '../device.ts'
 import type { MemoryView } from '../memoryview.ts'
@@ -22,7 +22,7 @@ const url = URL.createObjectURL(new Blob([workerScript], { type: 'application/ja
 
 class WASMProgram extends Program {
   static override init = (name: string, lib: Uint8Array) => new WASMProgram(name, lib)
-  override call = cpu_time_execution(async (bufs: Uint8Array[], { global_size, local_size, vals }: ProgramCallArgs, wait = false) => {
+  override call = async (bufs: Uint8Array[], { global_size, local_size, vals }: ProgramCallArgs, wait = false) => {
     if (global_size || local_size || vals?.length) throw new Error(`I don't know what to do with these: ${global_size}, ${local_size}, ${vals}`)
     const offsets = bufs.reduce((acc, x) => [...acc, acc.at(-1)! + round_up(x.length, 128)], [0]) // rounding up to 128 because otherwise sometimes v128.store will override other buffer's value
 
@@ -30,12 +30,15 @@ class WASMProgram extends Program {
     for (const [buf, offset] of zip(bufs, offsets)) mem.set(buf, offset)
 
     const worker = new Worker(url, { type: 'module' })
+    const st = performance.now()
     worker.postMessage({ mem, offsets, name: this.name, lib: this.lib })
     mem = await new Promise((res) => worker.onmessage = ({ data: { mem } }) => res(mem))
+    const res = performance.now() - st
     worker.terminate()
 
     for (const [buf, offset] of zip(bufs, offsets)) buf.set(mem.slice(offset, offset + buf.length))
-  })
+    if (wait) return res
+  }
 }
 
 class WASMCompiler extends Compiler {

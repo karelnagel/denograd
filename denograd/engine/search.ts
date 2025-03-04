@@ -57,7 +57,7 @@ export const _time_program = async (p: ProgramSpec, lib: Uint8Array, var_vals: M
       else await Tensor.ones([1024, 1024]).contiguous().realize(undefined, false)
       //TODO:  with Context(DEBUG=0, BEAM=0, CAPTURING=0, TRACK_MATCH_STATS=0): Tensor.ones(1024,1024).contiguous().realize(do_update_stats=false)
     }
-    tms.push(await car.call(input_bufs, var_vals as Map<UOp, number>, true)! * factor)
+    tms.push((await car.call(input_bufs, var_vals as Map<UOp, number>, true))! * factor)
     if (early_stop !== undefined && early_stop < Math.min(...tms)) break
   }
   return tms
@@ -96,10 +96,10 @@ export const optimize_local_size = async (_prg: Program, global_size: number[], 
   const local_sizes = [...local_dims.reduce((acc, curr) => acc.flatMap((x) => curr.map((y) => [...x, y])), [[]] as number[][])].filter((x) => prod(x) <= MAX_WORKGROUP).flatMap((x) => [x, x]) // try each valid size twice
   const try_exec = async (local_size: number[]): Promise<number> => {
     try {
-      return await _prg.call(test_rawbuffers.map((x) => x._buf), {
+      return (await _prg.call(test_rawbuffers.map((x) => x._buf), {
         global_size: zip(global_size, local_size).map(([g, l]) => mod(g, l) === 0 ? idiv(g, l) : g / l),
         local_size,
-      }, true)
+      }, true))!
     } catch {
       return Infinity
     }
