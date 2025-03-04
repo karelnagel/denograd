@@ -36,8 +36,8 @@ export class Runner {
   get dev() {
     return Device.get(this.device)
   }
-  exec = async (rawbufs: Buffer[], var_vals?: Map<Variable, number>): Promise<number> => await this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
-  call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> | number => {
+  exec = async (rawbufs: Buffer[], var_vals?: Map<Variable, number>): Promise<number | undefined> => await this.call(rawbufs, var_vals === undefined ? new Map() : var_vals)
+  call = (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number | undefined> | number | undefined => {
     throw new Error('override this')
   }
 }
@@ -61,7 +61,7 @@ export class CompiledRunner extends Runner {
   }
   __reduce__ = () => [this.p, this.lib]
 
-  override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number> => {
+  override call = async (rawbufs: Buffer[], var_vals: Map<Variable, number>, wait = false): Promise<number | undefined> => {
     let [global_size, local_size] = this.p.launch_dims(var_vals)
     if (global_size !== undefined && local_size === undefined && all_int(this.p.global_size!)) {
       local_size = await optimize_local_size(this._prg, global_size, rawbufs)
@@ -155,7 +155,7 @@ export const get_runner = async (device: string, ast: UOp): Promise<CompiledRunn
 
 export class ExecItem {
   constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
-  run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number> => {
+  run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number|undefined> => {
     await Device.get(this.prg.device).init()
     const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
     const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())

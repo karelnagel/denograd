@@ -1,4 +1,4 @@
-import { all_same, assert, bytes_to_string, cpu_time_execution, flatten, get_single_element, idiv, is_eq, isinstance, mod, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
+import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, isinstance, mod, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
@@ -65,7 +65,8 @@ export class PythonProgram extends Program {
     return res
   }
   // KAREL: TODO: use Web workers maybe?
-  override call = cpu_time_execution((bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+  override call = (bufs: MemoryView[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+    const st = performance.now()
     const warp = product(...local_size.toReversed().map((x) => range(x)))
     const warp_size = warp.length
     for (const idxs of product(...global_size.toReversed().map((x) => range(x)))) {
@@ -242,7 +243,8 @@ export class PythonProgram extends Program {
         i += 1
       }
     }
-  })
+    if (wait) return performance.now() - st
+  }
 }
 
 export class PythonRenderer extends Renderer {

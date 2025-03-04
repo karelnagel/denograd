@@ -294,7 +294,12 @@ export function hash(input: string): string {
 export const string_to_bytes = (text: string) => new TextEncoder().encode(text)
 export const bytes_to_string = (bytes: Uint8Array) => new TextDecoder().decode(bytes)
 export const bytes_to_hex = (arr: Uint8Array) => Array.from(arr).map((byte) => byte.toString(16).padStart(2, '0')).join('')
-
+export const concat_bytes = (...arrays: Uint8Array[]): Uint8Array => {
+  const res = new Uint8Array(arrays.reduce((acc, x) => acc + x.length, 0))
+  let offset = 0
+  for (const arr of arrays) res.set(arr, offset), offset += arr.length
+  return res
+}
 // @ts-ignore overriding BigInt toJSON, probably can be removed
 BigInt.prototype.toJSON = function () {
   return this.toString()

@@ -6,6 +6,7 @@ import { env } from '../env/index.ts'
 
 // **************** Buffer + Allocators ****************
 export class BufferSpec {
+  __name = 'BufferSpec'
   key: string
   static cache = new WeakValueMap<string, BufferSpec>()
   // TODO: move device, size, dtype here?
@@ -100,7 +101,7 @@ export class Program {
   static init = (name: string, lib: Uint8Array): Promise<Program> | Program => {
     throw new Error('You need to override init()')
   }
-  call = (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number> | number => {
+  call = (bufs: any[], args: ProgramCallArgs, wait: boolean): Promise<number | undefined> | number | undefined => {
     throw new NotImplemented()
   }
 }

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-process-global
 import type { Compiled } from '../runtime/allocator.ts'
-
+import { Sha256 } from '../sha256.js'
 export type Stat = { size: number; isFile: boolean }
 // deno-fmt-ignore
 export class WebEnv {
@@ -53,7 +53,7 @@ export class WebEnv {
   args = (): string[] => (window as any).args || []
 
   //
-  sha256 = (data: Uint8Array): Uint8Array => data
+  sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())
 
   // storage
   private _db: IDBDatabase | undefined = undefined

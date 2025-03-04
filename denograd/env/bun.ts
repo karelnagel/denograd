@@ -8,11 +8,12 @@ import { WebEnv } from './index.ts'
 import { CLANG } from '../runtime/ops_clang_bun.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
+import { CLOUD } from '../runtime/ops_cloud.ts'
 
 export class BunEnv extends WebEnv {
   override NAME = 'BUN'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, WASM, JS }
+  override DEVICES = { CLANG, WASM, JS, CLOUD }
 
   override readFile = async (path: string) => new Uint8Array(await Bun.file(path).arrayBuffer())
   override writeFile = async (path: string, data: Uint8Array) => void Bun.write(path, data)

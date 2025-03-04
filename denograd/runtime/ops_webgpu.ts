@@ -1,5 +1,5 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, cpu_time_execution, isInt, memsize_to_str, round_up } from '../helpers.ts'
+import { bytes_to_string, isInt, memsize_to_str, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import type { MemoryView } from '../memoryview.ts'
@@ -24,7 +24,7 @@ class WebGPUProgram extends Program {
     res.prg = WEBGPU.device.createShaderModule({ code: bytes_to_string(res.lib) })
     return res
   }
-  override call = cpu_time_execution(async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+  override call = async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
     const isStorage = (i: number) => i < bufs.length && bytes_to_string(this.lib).split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')
     const binding_layouts: GPUBindGroupLayoutEntry[] = [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
@@ -47,11 +47,13 @@ class WebGPUProgram extends Program {
     compute_pass.setBindGroup(0, bind_group)
     compute_pass.dispatchWorkgroups(global_size[0], global_size[1], global_size[2]) // x y z
     compute_pass.end()
-
+    const st = performance.now()
     WEBGPU.device.queue.submit([encoder.finish()])
-    // TODO: remove 'if' when Deno supports this
-    if (typeof Deno === 'undefined') await WEBGPU.device.queue.onSubmittedWorkDone()
-  })
+    if (wait) {
+      await WEBGPU.device.queue.onSubmittedWorkDone()
+      return performance.now() - st
+    }
+  }
 }
 
 let allocated = 0, freed = 0

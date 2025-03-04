@@ -1,5 +1,5 @@
 import { Compiled, Compiler, MallocAllocator, Program, type ProgramCallArgs } from './allocator.ts'
-import { cpu_objdump, cpu_time_execution } from '../helpers.ts'
+import { cpu_objdump } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
@@ -40,7 +40,7 @@ export class ClangProgram extends Program {
     return res
   }
 
-  override call = cpu_time_execution(async (bufs: MemoryView[], args: ProgramCallArgs, wait = false) => {
+  override call = async (bufs: MemoryView[], args: ProgramCallArgs, wait = false) => {
     const vals = args.vals || []
     console.log(this.lib)
     this.fxn = dlopen(this.file, {
@@ -49,8 +49,10 @@ export class ClangProgram extends Program {
         returns: FFIType.void,
       },
     })
+    const st = performance.now()
     this.fxn.symbols[this.name](...bufs.map((x) => x.buffer), ...vals)
-  })
+    if (wait) return performance.now() - st
+  }
 }
 
 export class CLANG extends Compiled {

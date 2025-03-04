@@ -27,6 +27,7 @@
     "npm:astro@5.2.5": "5.2.5_vite@6.1.0_zod@3.24.1",
     "npm:astro@^5.2.5": "5.2.5_vite@6.1.0_zod@3.24.1",
     "npm:bun-types@*": "1.2.4",
+    "npm:cloudflared@*": "0.7.0",
     "npm:create-astro@latest": "4.10.0",
     "npm:create-vite-extra@latest": "3.0.0",
     "npm:esbuild@*": "0.24.2",
@@ -1036,6 +1037,9 @@
       "dependencies": [
         "restore-cursor"
       ]
+    },
+    "cloudflared@0.7.0": {
+      "integrity": "sha512-CB60WqD8N/ZoT3cNVlLai8X4fIk9bY3cfx7/7h8RAi1LDrEe/ioZS9Fin3ohr9pKrzXGStiYKtm6qPyFbx3S6w=="
     },
     "clsx@2.1.1": {
       "integrity": "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA=="
