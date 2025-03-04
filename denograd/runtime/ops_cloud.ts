@@ -2,10 +2,7 @@ import { BufferSpec, Compiler, type ProgramCallArgs } from '../device.ts'
 import { env } from '../env/index.ts'
 import { bytes_to_hex, bytes_to_string, concat_bytes, random_id, string_to_bytes } from '../helpers.ts'
 import type { MemoryView } from '../memoryview.ts'
-import { ClangRenderer } from '../renderer/cstyle.ts'
-import type { Renderer } from '../renderer/index.ts'
-import { WATRenderer } from '../renderer/wat.ts'
-import { WGSLRenderer } from '../renderer/wgsl.ts'
+import { RENDERERS } from '../renderer/all.ts'
 import { Allocator, Compiled, Program } from './allocator.ts'
 
 // ***** API *****
@@ -158,8 +155,6 @@ const getCloudProgram = (dev: CLOUD) => {
     }
   }
 }
-
-const RENDERERS: Record<string, typeof Renderer> = { ClangRenderer, WGSLRenderer, WATRenderer }
 
 export class CLOUD extends Compiled {
   host = env.DEVICE?.startsWith('CLOUD:') ? env.DEVICE.replace('CLOUD:', '') : env.get('HOST', 'http://127.0.0.1:8080')

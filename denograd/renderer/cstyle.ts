@@ -251,7 +251,7 @@ export class ClangRenderer extends CStyleLanguage {
   }
 }
 
-class OpenCLRenderer extends CStyleLanguage {
+export class OpenCLRenderer extends CStyleLanguage {
   override device = 'GPU'
 
   // language options
