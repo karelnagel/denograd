@@ -193,9 +193,9 @@ export class CLOUD extends Compiled {
     return ret
   }
 
-  send = async (method: string, path: string, data?: Uint8Array) => {
+  send = async (method: string, path: string, body?: Uint8Array) => {
     // TODO: retry logic
-    const res = await fetch(this.host + '/' + path, { method, body: data, headers: { 'session': this.session } })
+    const res = await fetch(`${this.host}/${path}?session=${this.session}`, { method, body })
     if (res.status !== 200) throw new Error(`failed on ${method} ${path} ${await res.text()}`)
     return res
   }
