@@ -58,7 +58,6 @@ test('word_wrap', compare([['This is a long string that needs to be wrapped to f
 
 test('to_function_name', compare([['test'], ['not sure how this should work'], ['letsTryThisOne']], helpers.to_function_name, `out(tiny.helpers.to_function_name(*data))`))
 
-
 test(
   'slice',
   compare(

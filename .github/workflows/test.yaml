@@ -19,14 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          submodules: "recursive"
+          submodules: 'recursive'
 
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.2.2
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: '3.x'
 
       - name: Install WebGPU deps
         if: matrix.runtime == 'WEBGPU'

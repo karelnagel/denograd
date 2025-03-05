@@ -471,7 +471,7 @@ export class AMDRenderer extends CStyleLanguage {
 
   render_vector_prefix(dtype: DType): string {
     const vec = this.render_dtype(dtype), scal = this.render_dtype(dtype.scalar())
-    return `typedef ${scal} ${vec} __attribute__((ext_vector_type(${dtype.count})));\nstatic inline __attribute__((device)) ` + `${vec} make_${vec}(${_nms.split('').slice(0,dtype.count).map((x) => `${scal} ${x}`).join(', ')}) { return { ${_nms.split('').slice(0, dtype.count).join(', ')} }; }`
+    return `typedef ${scal} ${vec} __attribute__((ext_vector_type(${dtype.count})));\nstatic inline __attribute__((device)) ` + `${vec} make_${vec}(${_nms.split('').slice(0, dtype.count).map((x) => `${scal} ${x}`).join(', ')}) { return { ${_nms.split('').slice(0, dtype.count).join(', ')} }; }`
   }
   override render_kernel({ function_name, kernel, bufs, uops, prefix }: RenderKernelArgs): string {
     prefix = ['#define INFINITY (__builtin_inff())', '#define NAN (__builtin_nanf(""))', 'typedef long unsigned int size_t;', '#define half _Float16']

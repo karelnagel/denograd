@@ -6,8 +6,8 @@
     "./web": "./web.ts"
   },
   "imports": {
-    "bun:ffi":"npm:bun-types",
-    "bun:sqlite":"npm:bun-types"
+    "bun:ffi": "npm:bun-types",
+    "bun:sqlite": "npm:bun-types"
   },
   "license": "MIT"
 }

@@ -253,8 +253,8 @@ export class PythonRenderer extends Renderer {
     super()
     if (env.get('EMULATE_METAL')) this.device = 'METAL', this.tensor_cores = new MetalRenderer().tensor_cores
     if (env.get('EMULATE_AMD')) this.device = 'AMD', this.tensor_cores = new AMDRenderer().tensor_cores
-    if (env.get('EMULATE_CUDA')) this.device = 'CUDA', this.tensor_cores = new CUDARenderer().tensor_cores
-    // if (get_env("EMULATE_CUDA_SM75")) this.device="CUDA" , this.tensor_cores = new CUDARenderer().tc_sm75
+    if (env.get('EMULATE_CUDA')) this.device = 'CUDA', this.tensor_cores = new CUDARenderer('').tensor_cores
+    if (env.get('EMULATE_CUDA_SM75')) this.device = 'CUDA', this.tensor_cores = CUDARenderer.tc_sm75
     if (env.get('EMULATE_INTEL')) this.device = 'INTEL', this.suffix = 'INTEL', this.tensor_cores = new IntelRenderer().tensor_cores
     if (env.get('EMULATE_AMX')) this.device = 'CLANG', this.tensor_cores = new ClangRenderer().tensor_cores
   }

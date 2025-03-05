@@ -48,7 +48,8 @@
   "exclude": [
     "tinygrad*",
     "website/.astro*",
-    "denograd/runtime/autogen*"
+    "denograd/runtime/autogen*",
+    "denograd/sha256.js"
   ],
   "compilerOptions": {
     "lib": [

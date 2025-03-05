@@ -15,9 +15,10 @@ export * from './datasets.ts'
  * Abstract model to simplify calling, loading and saving different models.
  * You only need to implement list of layers to create a new model
  * ```ts
+ * import { Layer, Tensor } from "@denograd/denograd"
  * export class MNIST extends Model {
  *  layers: Layer[] = [
- *    new nn.Conv2d(1, 32, 5),
+ *    new Conv2d(1, 32, 5),
  *    Tensor.relu,
  *    // ...other layers
  *  ]
@@ -40,7 +41,9 @@ export abstract class Model {
   /**
    * Call model with a Tensor input, returns a Tensor with output.
    * ```ts
-   * const model = new Model()
+   * import { MNIST, Tensor } from "@denograd/denograd"
+   *
+   * const model = new MNIST()
    * const res = model.call(Tensor.rand([1, 1, 28, 28]))
    * console.log(await res.tolist())
    * ```
@@ -49,7 +52,8 @@ export abstract class Model {
   /**
    * Load model weights from a .safetensors file at the given path or absolute URL
    * ```ts
-   * const model = new Model()
+   * import { MNIST } from "@denograd/denograd"
+   * const model = new MNIST()
    * await model.load("./model.safetensors")
    * ```
    */
@@ -61,7 +65,9 @@ export abstract class Model {
   /**
    * Save model weights to a .safetensors file at the given path
    * ```ts
-   * const model = new Model()
+   * import { MNIST } from "@denograd/denograd"
+   *
+   * const model = new MNIST()
    * await model.save("./model.safetensors")
    * ```
    */

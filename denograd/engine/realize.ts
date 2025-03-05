@@ -155,7 +155,7 @@ export const get_runner = async (device: string, ast: UOp): Promise<CompiledRunn
 
 export class ExecItem {
   constructor(public prg: Runner, public bufs: (Buffer | undefined)[], public metadata?: Metadata[]) {}
-  run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number|undefined> => {
+  run = async (_var_vals?: Map<Variable, number>, wait = false, jit = false, do_update_stats = true): Promise<number | undefined> => {
     await Device.get(this.prg.device).init()
     const var_vals = _var_vals === undefined ? new Map<UOp, number>() : _var_vals
     const bufs = jit ? this.bufs.map((x) => x!) : this.bufs.map((x) => x!.ensure_allocated())

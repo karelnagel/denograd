@@ -96,7 +96,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
    * Reinterpret the underlying type.
    *
    * ```ts
-   * new MemoryView(new Uint8Array([1, 0, 0, 0])).cast("i").asTypedArray // new Int32Array([1])
+   * new MemoryView(new Uint8Array([1, 0, 0, 0])).cast("i").typedArray // new Int32Array([1])
    * ```
    */
   cast = <NewF extends FmtStr>(fmt: NewF, shape?: number[]): MemoryView<NewF> => {
@@ -105,7 +105,7 @@ export class MemoryView<F extends FmtStr = 'B'> {
   /**
    * Converts to a new format
    * ```ts
-   * new MemoryView(new Uint8Array([1, 0, 0, 0])).convert("i").asTypedArray // new Int32Array([1, 0, 0, 0])
+   * new MemoryView(new Uint8Array([1, 0, 0, 0])).convert("i").typedArray // new Int32Array([1, 0, 0, 0])
    * ```
    */
   convert = <NewF extends FmtStr>(fmt: NewF, shape?: number[]): MemoryView<NewF> => {
