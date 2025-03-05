@@ -41,7 +41,7 @@ export class _Device {
   }
   default = () => this.get(this.DEFAULT)
   setDefault = (dev: string) => {
-    if (!DEVICES[dev]) throw new Error(`Invalid device ${dev}, expected one of ${Object.keys(DEVICES)}`)
+    if (!DEVICES[dev.split(':')[0]]) throw new Error(`Invalid device ${dev}, expected one of ${Object.keys(DEVICES).join(', ')}`)
     env.set('DEVICE', dev)
     return dev
   }

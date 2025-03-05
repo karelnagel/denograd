@@ -1,9 +1,8 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
-import { Adam, Device, get_parameters, is_eq, MNIST, mnist, Tensor } from '../../../denograd/mod.ts'
+import { Adam, Device, DEVICES, get_parameters, is_eq, MNIST, mnist, Tensor, TinyJit } from '../../../denograd/web.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
-import { env } from '../../../denograd/env/index.ts'
 
 const toast = (msg: string) => alert(msg)
 
@@ -15,7 +14,14 @@ export const MnistExample = () => {
   const [res, setRes] = useState<number[]>([])
   const [model, setModel] = useState(() => new MNIST())
   const [opt, setOpt] = useState(() => Adam(get_parameters(model)))
-
+  const [device, _setDevice] = useState(Device.DEFAULT)
+  const setDevice = (device: string) => {
+    Device.setDefault(device)
+    _setDevice(device)
+    const mnist = new MNIST()
+    setModel(mnist)
+    setOpt(Adam(get_parameters(mnist)))
+  }
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (!model || is_eq(image, EMPTY)) return
@@ -37,54 +43,116 @@ export const MnistExample = () => {
   const [maxSteps, setMaxSteps] = useState(70)
   const [steps, setSteps] = useState<{ acc?: number; duration?: number; step: number; loss?: number }[]>([])
 
-  const train = async () => {
-    const [X_train, Y_train] = await getData()
-    opt.zero_grad()
+  const train = async ([X_train, Y_train, X_test, Y_test]: Tensor[]) => {
     setSteps([])
 
-    const trainStep = async () => {
+    const trainStep = new TinyJit(async () => {
       Tensor.training = true
       opt.zero_grad()
       const samples = Tensor.randint([BS], undefined, X_train.shape[0])
       const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
       await opt.step()
       Tensor.training = false
-      return await loss.item()
+      return loss
+    })
+    const test = async () => {
+      const res = await new TinyJit(async () => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100)).call()
+      return await res.item()
     }
-
     const acc = await test()
     setSteps((steps) => [...steps, { acc, step: 0, duration: undefined }])
     for (let step = 0; step < maxSteps; step++) {
       let time = performance.now()
-      const loss = await trainStep()
+      const loss = await trainStep.call().then((x) => x.item())
       const duration = performance.now() - time
       const acc = (step % 10 === 9) ? await test() : undefined
       setSteps((steps) => [...steps, { loss, acc, step: step + 1, duration }])
     }
   }
-  const test = async () => {
-    const [_, __, X_test, Y_test] = await getData()
-    return await model.call(X_test).argmax(1).eq(Y_test).mean().mul(100).item()
-  }
+
   const maxDuration = steps.length ? Math.max(...steps.map((x) => x.duration!).filter(Boolean)) : 0
   const currentStep = steps.at(-1)
   return (
     <div className='flex flex-col items-center gap-2'>
-      <div className='flex flex-col items-center mb-4'>
-        <p>Choose Device</p>
+      <p>Choose Device</p>
+      <div className='flex gap-3'>
         <select
-          className='bg-transparent'
-          defaultValue={Device.DEFAULT}
-          onChange={(e) => {
-            Device.setDefault(e.target.value as any)
-            const mnist = new MNIST()
-            setModel(mnist)
-            setOpt(Adam(get_parameters(mnist)))
-          }}
+          className='bg-transparent outline rounded-md'
+          defaultValue={device}
+          onChange={(e) => setDevice(e.target.value)}
         >
-          {Object.keys(env.DEVICES).map((x) => <option key={x} value={x}>{x}</option>)}
+          {Object.keys(DEVICES).map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
+        {device.startsWith('CLOUD') && (
+          <input
+            value={device.replace(/CLOUD:?/, '')}
+            onChange={(e) => setDevice(`CLOUD:${e.target.value}`)}
+            placeholder='CLOUD URL'
+            className='p-1 bg-transparent outline rounded-md w-96'
+          />
+        )}
       </div>
+      <label className='flex flex-col text-center'>
+        Batch size
+        <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
+      </label>
+      <label className='flex flex-col text-center'>
+        Steps
+        <input type='text' className='bg-transparent outline rounded-md p-1' value={maxSteps.toString()} onChange={(e) => setMaxSteps(Number(e.target.value))} />
+      </label>
+      <button
+        type='button'
+        className='rounded-lg bg-blue-500 p-2'
+        onClick={async () => {
+          const data = await getData()
+          await train(data)
+        }}
+      >
+        Start training for {maxSteps} steps
+      </button>
+      <Plot.Plot
+        className='bg-white text-black rounded-lg'
+        options={{
+          x: { label: 'step', grid: true, domain: [0, maxSteps] },
+          y: { label: 'accuracy', grid: true, domain: [0, 100] },
+          height: 400,
+          width: 1000,
+          marks: [
+            Plot.axisY({ color: 'red', anchor: 'left', label: 'loss', tickFormat: (x) => (x / 33.33).toFixed(1) }),
+            Plot.axisY({ color: 'blue', anchor: 'right', label: 'accuracy (%)' }),
+            Plot.line(steps, {
+              x: (d) => d.step,
+              y: (d) => d.loss * 33.33,
+              stroke: 'red',
+              strokeWidth: 2,
+            }),
+            Plot.line(steps.filter(({ acc }) => acc), {
+              x: (d) => d.step,
+              y: (d) => d.acc,
+              stroke: 'blue',
+              strokeWidth: 2,
+            }),
+            Plot.line(steps, {
+              x: (d) => d.step,
+              y: (d) => d.duration * 100 / maxDuration,
+              strokeWidth: 2,
+              stroke: 'green',
+            }),
+          ],
+          color: {
+            legend: true,
+            domain: ['Accuracy', 'Loss', `Step time (max: ${maxDuration.toFixed(0)}ms)`],
+            range: ['blue', 'red', 'green'],
+          },
+        }}
+      />
+      {currentStep && (
+        <div>
+          loss:{currentStep.loss?.toFixed(2)}, accuracy: {currentStep.acc?.toFixed(2)}, step: {currentStep.step}/{maxSteps}, step time: {currentStep.duration?.toFixed(0)}ms
+        </div>
+      )}
+
+      <br />
       <button
         type='button'
         className='rounded-lg bg-blue-500 p-2 '
@@ -130,67 +198,6 @@ export const MnistExample = () => {
       </div>
 
       <br />
-
-      <p className='text-2xl font-bold'>Training</p>
-      <p>Can use a lot of RAM</p>
-      <label className='flex flex-col text-center'>
-        Batch size
-        <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
-      </label>
-      <label className='flex flex-col text-center'>
-        Steps
-        <input type='text' className='bg-transparent outline rounded-md p-1' value={maxSteps.toString()} onChange={(e) => setMaxSteps(Number(e.target.value))} />
-      </label>
-      <button type='button' className='rounded-lg bg-blue-500 p-2' onClick={train}>
-        Start training for {maxSteps} steps
-      </button>
-      <button type='button' className='rounded-lg bg-blue-500 p-2' onClick={test}>
-        Test accuracy
-      </button>
-      <Plot.Plot
-        className='bg-white text-black rounded-lg'
-        options={{
-          x: { label: 'step', grid: true, domain: [0, maxSteps] },
-          y: { label: 'accuracy', grid: true, domain: [0, 100] },
-          height: 400,
-          width: 1000,
-          marks: [
-            Plot.axisY({ color: 'red', anchor: 'left', label: 'loss', tickFormat: (x) => (x / 33.33).toFixed(1) }),
-            Plot.axisY({ color: 'blue', anchor: 'right', label: 'accuracy (%)' }),
-            Plot.line(steps, {
-              x: (d) => d.step,
-              y: (d) => d.loss * 33.33,
-              stroke: 'red',
-              strokeWidth: 2,
-            }),
-            Plot.line(steps.filter(({ acc }) => acc), {
-              x: (d) => d.step,
-              y: (d) => d.acc,
-              stroke: 'blue',
-              strokeWidth: 2,
-            }),
-            Plot.line(steps, {
-              x: (d) => d.step,
-              y: (d) => d.duration * 100 / maxDuration,
-              strokeWidth: 2,
-              stroke: 'green',
-            }),
-          ],
-          color: {
-            legend: true,
-            domain: ['Accuracy', 'Loss', `Step time (max: ${maxDuration.toFixed(0)}ms)`],
-            range: ['blue', 'red', 'green'],
-          },
-        }}
-      />
-      {currentStep && (
-        <div>
-          loss:{currentStep.loss?.toFixed(2)}, accuracy: {currentStep.acc?.toFixed(2)}, step: {currentStep.step}/{maxSteps}, step time: {currentStep.duration?.toFixed(0)}ms
-        </div>
-      )}
-
-      <br />
-
       <a className='text-blue-400' href='https://github.com/karelnagel/denograd/blob/main/website/src/components/MnistExample.tsx'>
         See this page's code here
       </a>

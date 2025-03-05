@@ -21,6 +21,10 @@ const sessions = new DefaultMap<string, CloudSession>(undefined, () => new Cloud
 let device: string = Device.DEFAULT.startsWith('CLOUD') ? env.get('CLOUDDEV', 'METAL')! : Device.DEFAULT
 await Device.get(device).init()
 
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+}
 Deno.serve(
   {
     port: args.port,
@@ -44,7 +48,7 @@ Deno.serve(
   async (req: Request, info) => {
     console.log(req.method, req.url)
     if (req.method === 'POST' && req.url.includes('/batch')) {
-      const session = sessions.get(req.headers.get('session')!)
+      const session = sessions.get(new URL(req.url).searchParams.get('session')!)
       const r = BatchRequest.deserialize(new Uint8Array(await req.arrayBuffer()))
       let ret: Uint8Array | undefined = undefined
       for (const c of r._q) {
@@ -73,12 +77,12 @@ Deno.serve(
           if (r !== undefined) ret = string_to_bytes(r.toString())
         } else return new Response(`Unknown instance ${c}`, { status: 400 })
       }
-      return new Response(ret)
+      return new Response(ret, { headers })
     }
     if (req.method === 'GET' && req.url.includes('/renderer')) {
       console.log(`connection established with ${info.remoteAddr.hostname}`)
-      return new Response(JSON.stringify(['', Device.get(device!).renderer!.constructor.name, '']))
+      return new Response(JSON.stringify(['', Device.get(device!).renderer!.constructor.name, '']), { headers })
     }
-    return new Response('Not found', { status: 404 })
+    return new Response('Not found', { status: 400 })
   },
 )
