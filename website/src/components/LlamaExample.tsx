@@ -1,6 +1,6 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
-import { Device, Llama3, Tensor, Tokenizer, Tqdm, type TqdmProgress } from '../../web.ts'
+import { Device, Llama3, Tensor, Tokenizer, Tqdm, type TqdmProgress } from '../../../denograd/web.ts'
 
 export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
   initOnLoad = false
