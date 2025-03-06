@@ -1,6 +1,8 @@
 // deno-lint-ignore-file no-process-global
+import { concat_bytes } from '../helpers.ts'
 import type { Compiled } from '../runtime/allocator.ts'
 import { Sha256 } from '../sha256.js'
+import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 export type Stat = { size: number; isFile: boolean }
 // deno-fmt-ignore
 export class WebEnv {
@@ -46,7 +48,7 @@ export class WebEnv {
   }
   statSync = (path: string): Stat => this.notImplemented()
   tempFile = async (): Promise<string> => `/tmp/${(Math.random() * 100000000).toFixed(0)}`
-  writeStdout = (p: Uint8Array) => console.log(new TextDecoder().decode(p))
+  writeStdout = (p: Uint8Array) => console.log(new TextDecoder().decode(p)+'\u200B')
   homedir = () => '/home'
   gunzip = async (res:Response):Promise<ArrayBuffer> => await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
   mkdir = async (path:string): Promise<void> => {}
@@ -97,6 +99,32 @@ export class WebEnv {
       request.onsuccess = () => resolve()
       request.onerror = () => reject(request.error)
     })
+  }
+  fetchSave = async (url: string, path: string, dir: string, onProgress?: TqdmOnProgress) => {
+    path = `${dir}/${path}`
+    await env.mkdir(dir)
+    if (await env.stat(path).then((x) => x.isFile).catch(() => false)) {
+      console.log(`File ${path} already exists, skipping`)
+      return path
+    }
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    const reader = res.body?.getReader()
+    if (!reader) throw new Error('Response body not readable!')
+    let size = Number(res.headers.get('content-length')), i = 0
+    const chunks: Uint8Array[] = [], t = new Tqdm(size, { onProgress, label: `Downloading ${path}` })
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        chunks.push(value)
+        i += value.length
+        t.render(i)
+      }
+    }
+    const data = concat_bytes(...chunks)
+    await env.writeFile(path, new Uint8Array(data))
+    return path
   }
   get DEVICE() { return this.get('DEVICE') || this.get("D") }
   get OSX(){ return this.PLATFORM === 'darwin'}

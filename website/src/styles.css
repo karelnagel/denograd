@@ -1,0 +1,9 @@
+input,
+select,
+textarea {
+  @apply bg-transparent outline outline-1 rounded-md p-1;
+}
+
+.btn {
+  @apply p-1 border border-white rounded-lg px-3;
+}
