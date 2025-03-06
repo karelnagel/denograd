@@ -9,7 +9,7 @@ export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
   const [progress, onProgress] = useState<TqdmProgress>()
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<Llama3Message[]>([])
-  const [usage, setUsage] = useState<Llama3Usage>({ output_tokens: 10, time_to_first_token: 10, input_tokens: 10, tokens_per_second: 10 })
+  const [usage, setUsage] = useState<Llama3Usage>()
   const ref = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => void (initOnLoad ? init() : undefined), [])
