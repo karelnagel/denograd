@@ -3,6 +3,7 @@ import { env } from '../env/index.ts'
 import { bytes_to_string, idiv, is_eq, isinstance, NotImplemented, prod, range, round_up, string_to_bytes } from '../helpers.ts'
 import { MemoryView } from '../memoryview.ts'
 import { Tensor } from '../tensor.ts'
+import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 
 class TensorIO {
   // TODO: if mmap working for disk device, then it should use tensor
@@ -144,13 +145,13 @@ export const get_parameters = (obj: any): Tensor[] => {
  * nn.state.load_state_dict(net, state_dict)
  * ```
  */
-export const load_state_dict = async (model: any, state_dict: Record<string, Tensor>, strict = true, verbose = true, consume = false) => {
+export const load_state_dict = async (model: any, state_dict: Record<string, Tensor>, strict = true, verbose = true, consume = false, onProgress?: TqdmOnProgress) => {
   const model_state_dict = get_state_dict(model)
   if (env.DEBUG >= 1 && Object.keys(state_dict).length > Object.keys(model_state_dict).length) {
     console.log('WARNING: unused weights in state_dict', Object.keys(state_dict).filter((x) => !Object.keys(model_state_dict).includes(x)).toSorted())
   }
   const t = Object.entries(model_state_dict)
-  for await (const [k, v] of t) {
+  for (const [k, v] of new Tqdm(t, { label: `Loading state dict`, onProgress })) {
     if (state_dict[k] === undefined && !strict) {
       if (env.DEBUG >= 1) console.log(`WARNING: !loading ${k}`)
       continue
@@ -220,7 +221,7 @@ const TYPES: [number, FmtStr, number][] = [[0, 'B', 1], [1, 'b', 1], [2, 'H', 2]
  * kv_data, state_dict = gguf_load(gguf_tensor)
  * ```
  */
-export const gguf_load = async (data: Uint8Array): Promise<[Record<string, any>, Record<string, Tensor>]> => {
+export const gguf_load = async (data: Uint8Array, onProgress?: TqdmOnProgress): Promise<[Record<string, any>, Record<string, Tensor>]> => {
   // tensor = await accept_filename(tensor)
   const reader = new TensorIO(data)
   const kv_data: Record<string, any> = {}, state_dict: Record<string, any> = {}
@@ -247,12 +248,12 @@ export const gguf_load = async (data: Uint8Array): Promise<[Record<string, any>,
 
   const magic = await reader.read(4), version = await read_int32(), n_tensors = await read_int64(), n_kv = await read_int64()
   if (bytes_to_string(magic) !== 'GGUF' || ![2, 3].includes(version)) throw new Error(`Invalid GGUF format, magic= ${bytes_to_string(magic)}`)
-  for (let i = 0n; i < n_kv; i++) {
+  for (const i of new Tqdm(Number(n_kv), { onProgress, label: 'Loading gguf kv data' })) {
     const k = await read_str(), typ = await read_int32()
     kv_data[k] = await readers[typ]()
   }
   const t_infos: [string, number[], number, number][] = []
-  for (let i = 0n; i < n_tensors; i++) {
+  for (const i of new Tqdm(Number(n_tensors), { onProgress, label: `Loading gguf tensors` })) {
     const first = await read_str()
     const second = []
     for (const _ of range(await read_uint32())) second.push(Number(await read_uint64()))

@@ -1,11 +1,13 @@
 ---
 import Layout from "../components/Layout.astro";
 import { MnistExample } from "../components/MnistExample";
+import { LlamaExample } from "../components/LlamaExample";
 ---
 
 <Layout>
   <div class="flex flex-col items-center pt-10 gap-10">
     <h1 class="text-3xl font-bold">MNIST Training</h1>
     <MnistExample client:only />
+    <LlamaExample client:only />
   </div>
 </Layout>

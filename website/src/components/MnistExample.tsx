@@ -73,11 +73,10 @@ export const MnistExample = () => {
   const maxDuration = steps.length ? Math.max(...steps.map((x) => x.duration!).filter(Boolean)) : 0
   const currentStep = steps.at(-1)
   return (
-    <div className='flex flex-col items-center gap-2'>
+    <div className='flex flex-col items-center gap-6'>
       <p>Choose Device</p>
       <div className='flex gap-3'>
         <select
-          className='bg-transparent outline rounded-md'
           defaultValue={device}
           onChange={(e) => setDevice(e.target.value)}
         >
@@ -88,21 +87,21 @@ export const MnistExample = () => {
             value={device.replace(/CLOUD:?/, '')}
             onChange={(e) => setDevice(`CLOUD:${e.target.value}`)}
             placeholder='CLOUD URL'
-            className='p-1 bg-transparent outline rounded-md w-96'
+            className=' w-96'
           />
         )}
       </div>
       <label className='flex flex-col text-center'>
         Batch size
-        <input type='text' className='bg-transparent outline rounded-md p-1' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
+        <input type='text' className='' value={BS.toString()} onChange={(e) => setBS(Number(e.target.value))} />
       </label>
       <label className='flex flex-col text-center'>
         Steps
-        <input type='text' className='bg-transparent outline rounded-md p-1' value={maxSteps.toString()} onChange={(e) => setMaxSteps(Number(e.target.value))} />
+        <input type='text' className='' value={maxSteps.toString()} onChange={(e) => setMaxSteps(Number(e.target.value))} />
       </label>
       <button
         type='button'
-        className='rounded-lg bg-blue-500 p-2'
+        className='btn'
         onClick={async () => {
           const data = await getData()
           await train(data)
@@ -155,7 +154,7 @@ export const MnistExample = () => {
       <br />
       <button
         type='button'
-        className='rounded-lg bg-blue-500 p-2 '
+        className='btn'
         onClick={async () => {
           await model.load()
           toast('Pretrained model loaded')
@@ -174,7 +173,7 @@ export const MnistExample = () => {
               setImage(EMPTY)
               setRes([])
             }}
-            className='p-1 outline outline-white rounded-lg px-3'
+            className='btn'
           >
             Clear
           </button>

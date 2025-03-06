@@ -1,33 +1,45 @@
-// deno-lint-ignore-file custom-lint-rules/no-null custom-lint-rules/no-floating-promises
 // https://github.com/thesephist/tsqdm/blob/main/src/tqdm.ts
 
 import { env } from './env/index.ts'
 import { string_to_bytes } from './helpers.ts'
 
-type RenderBarOptions = {
+export type RenderBarOptions = {
   i: number
   label?: string
   size?: number
   width: number
   elapsed: number
 }
+export type TqdmProgress = {
+  i?: number
+  label?: string
+  size?: number
+  elapsed?: number
+}
+export type TqdmOnProgress = (progress: TqdmProgress) => void
 
 export type TqdmOptions = {
   label?: string
   size?: number
   width?: number
+  onProgress?: TqdmOnProgress
 }
 
 const markers = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█']
 const filledMarker = markers.at(-1)
 
-function renderBarWithSize({ i, label, size, width, elapsed }: RenderBarOptions & { size: number }): string {
+function renderBar({ i, label, size, width, elapsed }: RenderBarOptions): string {
+  const rate = i / elapsed
+  if (size === undefined) {
+    const graph = `${label ? label + ': ' : ''}${i} | ${elapsed.toFixed(2)}s ${rate.toFixed(2)}it/s`
+    if (graph === '' && i > 0) return '▏'
+    return graph
+  }
   const n = Math.max(i * 8 * width / size, 0)
   const whole = Math.floor(n / 8)
   const rem = Math.round(n % 8)
   const bar = new Array(whole).fill(filledMarker).join('') + markers[rem]
   const gap = new Array(width - bar.length).fill(' ').join('')
-  const rate = i / elapsed
   const remaining = (size - i) / rate
   const percent = i / size * 100
   const graph = `${label ? label + ': ' : ''}${percent.toFixed(1)}% |${bar}${gap}| ${i}/${size} | ${elapsed.toFixed(2)}>${remaining.toFixed(2)}s ${rate.toFixed(2)}it/s`
@@ -35,53 +47,30 @@ function renderBarWithSize({ i, label, size, width, elapsed }: RenderBarOptions 
   return graph
 }
 
-function renderBarWithoutSize({ i, label, elapsed }: RenderBarOptions & { size: undefined }): string {
-  const rate = i / elapsed
-  const graph = `${label ? label + ': ' : ''}${i} | ${elapsed.toFixed(2)}s ${rate.toFixed(2)}it/s`
-  if (graph === '' && i > 0) return '▏'
-  return graph
-}
-
-/**
- * TQDM bar rendering logic extracted out for easy testing and modularity.
- * Renders the full bar string given all necessary inputs.
- */
-function renderBar({ size, ...options }: RenderBarOptions): string {
-  if (size === undefined) return renderBarWithoutSize({ size: undefined, ...options })
-  return renderBarWithSize({ size, ...options })
-}
-
 function* arrayToIterableIterator<T>(iter: T[]): IterableIterator<T> {
   yield* iter
 }
 
-function isIterableIterator<T>(value: IterableIterator<T> | AsyncIterableIterator<T>): value is IterableIterator<T> {
-  return value !== null &&
-    typeof (value as IterableIterator<T>)[Symbol.iterator] === 'function' &&
-    typeof value.next === 'function'
+function* iterator(len = Infinity): IterableIterator<number> {
+  for (let i = 0; i < len; i++) yield i
 }
 
-async function* toAsyncIterableIterator<T>(iter: IterableIterator<T>): AsyncIterableIterator<T> {
-  for (const it of iter) {
-    yield it
-  }
-}
-
-export class Tqdm<T> implements AsyncIterableIterator<T> {
-  private iter: AsyncIterableIterator<T>
+export class Tqdm<T> implements IterableIterator<T> {
+  private iter: IterableIterator<T>
   private i: number
   private start: number
   private label: string | undefined
   private size: number | undefined
   private width: number
+  private onProgress?: TqdmOnProgress
 
-  constructor(iter: Array<T> | IterableIterator<T> | AsyncIterableIterator<T>, { label, size, width = 16 }: TqdmOptions = {}) {
-    if (Array.isArray(iter)) {
+  constructor(iter: Array<T> | IterableIterator<T> | undefined | number, { label, size, width = 16, onProgress }: TqdmOptions = {}) {
+    if (typeof iter === 'undefined' || typeof iter === 'number') {
+      size = iter
+      iter = iterator(iter) as IterableIterator<T>
+    } else if (Array.isArray(iter)) {
       size = iter.length
       iter = arrayToIterableIterator(iter)
-    }
-    if (isIterableIterator(iter)) {
-      iter = toAsyncIterableIterator(iter)
     }
     this.iter = iter
     this.i = 0
@@ -89,23 +78,27 @@ export class Tqdm<T> implements AsyncIterableIterator<T> {
     this.label = label
     this.size = size
     this.width = width
+    this.onProgress = onProgress
   }
 
-  private print = async (s: string) => env.writeStdout(string_to_bytes(s))
+  private print = (s: string) => env.writeStdout(string_to_bytes(s))
 
   set_description = (label: string) => this.label = label
 
-  next = async (): Promise<IteratorResult<T>> => {
-    const result = await this.iter.next()
-    if (!result.done) {
-      const elapsed = (Date.now() - this.start) / 1000
-      await this.print(renderBar({ i: this.i, label: this.label, size: this.size, width: this.width, elapsed }) + '\x1b[1G')
-      this.i++
-    } else {
-      await this.print('\n')
-    }
+  render = (newI?: number) => {
+    if (newI) this.i = newI
+    const elapsed = (Date.now() - this.start) / 1000
+    this.onProgress?.({ i: this.i, label: this.label, size: this.size, elapsed })
+    this.print(renderBar({ i: this.i, label: this.label, size: this.size, width: this.width, elapsed }) + '\x1b[1G')
+  }
+
+  next = (): IteratorResult<T> => {
+    const result = this.iter.next()
+    this.render()
+    if (result.done) this.print('\n')
+    this.i++
     return result
   };
 
-  [Symbol.asyncIterator] = (): AsyncIterableIterator<T> => this
+  [Symbol.iterator] = (): IterableIterator<T> => this
 }
