@@ -20,7 +20,7 @@ export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
   const init = async () => {
     if (model || progress) return
     Tensor.no_grad = true
-    const _model = new Llama3('1B', 'int8')
+    const _model = new Llama3('1B', 'float16')
     const weights = await _model.download(undefined, (p) => setProgress(p))
     await _model.load(weights, undefined, Device.DEFAULT, (p) => setProgress(p))
     setProgress({ label: 'Loading tokenizer' })
