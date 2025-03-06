@@ -1,64 +1,38 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
-import { Device, Llama3, Tensor, Tokenizer, Tqdm, type TqdmProgress } from '../../../denograd/web.ts'
+import { Llama3, type Llama3Message, type Llama3Usage, type TqdmProgress } from '../../../denograd/web.ts'
 
 export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
   initOnLoad = false
   const [model, setModel] = useState<Llama3>()
-  const [tokenizer, setTokenizer] = useState<Tokenizer>()
-  const [startPos, setStartPos] = useState<number>()
-  const [progress, _setProgress] = useState<TqdmProgress>()
-  const setProgress = (progress: TqdmProgress | undefined) => {
-    document.querySelector('#progress')!.textContent = JSON.stringify(progress)
-    _setProgress(progress)
-  }
+  const [progress, onProgress] = useState<TqdmProgress>()
   const [message, setMessage] = useState('')
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string; tokens: number; tps?: number; ttft?: number }[]>([])
+  const [messages, setMessages] = useState<Llama3Message[]>([])
+  const [usage, setUsage] = useState<Llama3Usage>()
 
   useEffect(() => void (initOnLoad ? init() : undefined), [])
 
   const init = async () => {
     if (model || progress) return
-    Tensor.no_grad = true
-    const _model = new Llama3('1B', 'float16')
-    const weights = await _model.download(undefined, (p) => setProgress(p))
-    await _model.load(weights, undefined, Device.DEFAULT, (p) => setProgress(p))
-    setProgress({ label: 'Loading tokenizer' })
-    const _tokenizer = await Tokenizer.init(`${weights.split('/').slice(0, -1).join('/')}/tokenizer.model`)
-    const system = [_tokenizer.bos_id, ..._tokenizer.encode_message('system', 'You are an helpful assistant.')]
-    setStartPos(await _model.prefill(system, undefined, Device.DEFAULT, (p) => setProgress(p)))
-    setProgress(undefined)
+    const _model = await Llama3.load({ size: '1B', quantize: 'float16', system: 'You are an helpful assistant.', onProgress })
+    onProgress(undefined)
     setModel(_model)
-    setTokenizer(_tokenizer)
   }
 
   const chat = async () => {
-    if (!tokenizer || !model) throw new Error('Tokenizer or model not loaded')
-    if (progress) return
+    if (!model || progress) return
 
-    let st = performance.now()
-    const toks = [...tokenizer.encode_message('user', message), ...tokenizer.encode_role('assistant')]
-    setMessages((x) => [...x, { role: 'user', content: message, tokens: toks.length }, { role: 'assistant', content: '', tokens: 0 }])
+    setMessages((x) => [...x, { role: 'user', content: message }, { role: 'assistant', content: '' }])
     setMessage('')
-    let start_pos = await model.prefill(toks.slice(0, -1), startPos, Device.DEFAULT, (p) => setProgress(p))
-    const ttft = (performance.now() - st) / 1000
-    st = performance.now()
-    let last_tok = toks.at(-1)
-    for (const _ of new Tqdm(undefined, { label: 'Generating', onProgress: setProgress })) {
-      const tok = await model.call(new Tensor([[last_tok]]), start_pos)
-      start_pos += 1
-      last_tok = tok
-      if (tokenizer.stop_tokens.includes(tok)) break
-      setMessages((x) => {
-        const old = x.slice(0, -1), last = x.at(-1)!, tokens = last.tokens + 1
-        return [
-          ...old,
-          { ...last, content: last.content + tokenizer.decode([tok]), tokens, tps: tokens / ((performance.now() - st) / 1000), ttft },
-        ]
-      })
-    }
-    setProgress(undefined)
-    setStartPos(start_pos)
+    await model.chat({
+      messages: [{ role: 'user', content: message }],
+      onToken: (res) => {
+        setMessages((x) => [...x.slice(0, -1), res.message])
+        setUsage(res.usage)
+      },
+      onProgress,
+    })
+    onProgress(undefined)
   }
 
   return (
@@ -81,11 +55,13 @@ export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
           )}
       </div>
       <p id='progress'>{JSON.stringify(progress)}</p>
-      <div className='flex gap-3'>
-        <p>{messages.at(-1)?.ttft?.toFixed(2) || 0} sec to first token</p>
-        <p>{messages.at(-1)?.tps?.toFixed(2) || 0} tokens/sec</p>
-        <p>{messages.at(-1)?.tokens} tokens</p>
-      </div>
+      {!!usage && (
+        <div className='flex gap-3'>
+          <p>{usage.time_to_first_token.toFixed(2) || 0} sec to first token</p>
+          <p>{usage.tokens_per_second?.toFixed(2) || 0} tokens/sec</p>
+          <p>{usage.output_tokens} tokens</p>
+        </div>
+      )}
       <form
         onClick={init}
         onSubmit={(e) => {
