@@ -212,7 +212,7 @@ export class Llama3 implements Llama3Constructor {
   }
 
   load = async ({ onProgress, system }: Llama3Load) => {
-    const model_path = await this._download()
+    const model_path = await this._download(undefined, onProgress)
     const scale_dtype = dtypes.float16
     // load weights
     let weights: Record<string, Tensor>
