@@ -16,29 +16,10 @@ See MNIST inference and training example on [denograd.com](https://denograd.com)
 
 There are multiple ways to use denograd:
 
-## Hosted script in HTML
-
-```html
-<html>
-  <head>
-    <!-- Makes `dg` available globally -->
-    <script src="https://denograd.com/denograd.js"></script>
-    <script>
-      const run = async () => {
-        const mnist = await new dg.MNIST().load()
-        console.log(await mnist.call(dg.Tensor.ones([1, 1, 28, 28])).tolist())
-      }
-      run()
-    </script>
-  </head>
-  <body></body>
-</html>
-```
-
-## Hosted esm script in JS
+## Hosted esm script in JS ([minimal Llama HTLM example](/llama.html))
 
 ```js
-import { MNIST, Tensor } from 'https://denograd.com/denograd.mjs'
+import { MNIST, Tensor } from 'https://esm.sh/jsr/@denograd/denograd'
 
 const mnist = await new MNIST().load()
 console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist())

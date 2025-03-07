@@ -17,7 +17,11 @@
   "fmt": {
     "lineWidth": 10000,
     "semiColons": false,
-    "singleQuote": true
+    "singleQuote": true,
+    "exclude": [
+      "denograd/runtime/autogen*",
+      "denograd/sha256.js"
+    ]
   },
   "lint": {
     "plugins": [
@@ -47,9 +51,7 @@
   },
   "exclude": [
     "tinygrad*",
-    "website/.astro*",
-    "denograd/runtime/autogen*",
-    "denograd/sha256.js"
+    "website/.astro*"
   ],
   "compilerOptions": {
     "lib": [

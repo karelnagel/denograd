@@ -6,8 +6,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro",
-    "build:web": "vite build --config vite.web.config.ts"
+    "astro": "astro"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.0",

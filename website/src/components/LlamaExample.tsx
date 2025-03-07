@@ -91,9 +91,9 @@ export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
         <form
           className='w-full flex items-end gap-2 max-w-screen-xl mx-auto'
           onClick={init}
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault()
-            chat()
+            await chat()
           }}
         >
           <textarea
@@ -102,10 +102,10 @@ export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
             className='bg-white/10 outline-none w-full rounded-xl p-3 overflow-auto resize-none'
             rows={1}
             value={message}
-            onKeyDown={(e) => {
+            onKeyDown={async (e) => {
               if (e.key === 'Enter' && !e.altKey && !e.shiftKey) {
                 e.preventDefault()
-                chat()
+                await chat()
               }
             }}
             onChange={(e) => setMessage(e.target.value)}

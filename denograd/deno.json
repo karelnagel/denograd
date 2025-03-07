@@ -1,13 +1,13 @@
 {
   "name": "@denograd/denograd",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "exports": {
     ".": "./mod.ts",
     "./web": "./web.ts"
   },
   "imports": {
-    "bun:ffi": "npm:bun-types",
-    "bun:sqlite": "npm:bun-types"
+    "bun:ffi": "npm:bun-types@1.2.4",
+    "bun:sqlite": "npm:bun-types@1.2.4"
   },
   "license": "MIT"
 }

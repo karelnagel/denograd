@@ -188,7 +188,7 @@ export class Llama3 implements Llama3Constructor {
   private linear: typeof Linear
   private embedding: typeof Embedding
   constructor(args: Llama3Constructor) {
-    this.size = args.size, this.quantize = args.quantize, this.max_context = args.max_context ?? 8192, this.device = args.device ?? Device.DEFAULT
+    this.size = args.size, this.quantize = args.quantize ?? 'float16', this.max_context = args.max_context ?? 8192, this.device = args.device ?? Device.DEFAULT
     this.temperature = args.temperature ?? 0.95, this.top_k = args.top_k ?? 0, this.top_p = args.top_p ?? 0, this.alpha_f = args.alpha_f ?? 0, this.alpha_p = args.alpha_p ?? 0
     if (this.quantize === 'int8') this.linear = Int8Linear, this.embedding = Int8Embedding as typeof Embedding, this.quantize_embeds = true
     else if (this.quantize === 'nf4') this.linear = NF4Linear(64), this.embedding = Embedding, this.quantize_embeds = false
