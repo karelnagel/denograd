@@ -26,7 +26,7 @@ export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
   const init = async () => {
     if (model || progress) return
     onProgress({ label: 'Loading model...', size: 1 })
-    const _model = await Llama3.load({ size: '1B', quantize: 'float16', system: 'You are an helpful assistant.', onProgress })
+    const _model = await Llama3.load({ size: '1B', system: 'You are an helpful assistant.', onProgress })
     onProgress(undefined)
     setModel(_model)
   }
