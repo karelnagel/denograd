@@ -94,7 +94,7 @@ export class WEBGPU extends Compiled {
     if (!adapter) throw new Error('No adapter')
     const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize } = adapter.limits
     WEBGPU.device = await adapter.requestDevice({
-      requiredFeatures: ['shader-f16'],
+      requiredFeatures: [],
       requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize },
     })
   }
