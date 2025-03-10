@@ -38,7 +38,7 @@ export const wgsl_matcher = new PatternMatcher([
   UPat.var('a').lshift(UPat.var('b')).fn(({ a, b }) => b.dtype !== dtypes.uint32 ? (a.bitcast(dtypes.uint32).lshift(b.cast(dtypes.uint32))).bitcast(a.dtype) : undefined),
 ]).add(extra_pm)
 
-const is_storage = (dtype: DType, mutable: boolean) => mutable || (dtype instanceof PtrDType && dtype.size > 512) || dtype.itemsize < 4
+const is_storage = (dtype: DType, mutable: boolean) => mutable || (dtype instanceof PtrDType && dtype.size > 512)
 
 export class WGSLRenderer extends CStyleLanguage {
   override device: string = 'WEBGPU'
@@ -66,7 +66,7 @@ export class WGSLRenderer extends CStyleLanguage {
     UPat.index(UPat.var('b'), UPat.var('idx')).fn(({ ctx, b, idx }) => {
       const data = ctx.get(b), index = idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)
       const res = ctx.bufs!.get(b)!
-      return !res || is_storage(res.dtype, res.mutable) ? `${data}[${index}]` : `${data}[${index} / 4][${index} % 4]`
+      return !res || is_storage(res.dtype, res.mutable) ? `${data}[${index}]` : `${data}[${index} / ${b.dtype.itemsize}][${index} % ${b.dtype.itemsize}]`
     }),
     // (load & mask) | var -> mask = v.src[0].src[1], var = v.src[1]
     UPat.store([UPat.var('b'), UPat.var('v')], { allow_any_len: true }).fn(({ ctx, b, v }) => is_packed(b.src[0].dtype) ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`),
