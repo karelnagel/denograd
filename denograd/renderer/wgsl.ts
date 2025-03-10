@@ -82,13 +82,13 @@ export class WGSLRenderer extends CStyleLanguage {
     kernel = kernel.filter((line) => !line.includes('var<workgroup>'))
     let prg = uops.some((uop) => uop.dtype.base === dtypes.half) ? 'enable f16;\n' : ''
     prg += 'fn nan() -> f32 { let bits = 0xffffffffu; return bitcast<f32>(bits); }\n'
-    prg += '@group(0) @binding(0)var<uniform> INFINITY : f32;\n'
+    prg += '@group(0) @binding(0) var<uniform> INFINITY: f32;\n'
     prg += [
       ...external_local_bufs,
       ...[...bufs.values()].map(({ name, dtype, mutable }, i) =>
-        `@group(0) @binding(${i + 1})` +
-        `${dtype instanceof PtrDType && (mutable || dtype.size > 512 || is_packed(dtype)) ? 'var<storage,read_write>' : 'var<uniform>'}` +
-        `${name}:${dtype instanceof PtrDType ? (is_packed(dtype) ? `array<${this.buf_map(dtype)}>` : `array<vec4<${this.buf_map(dtype)}>, ${Math.ceil(dtype.size / 4)}>`) : this.buf_map(dtype)};`
+        `@group(0) @binding(${i + 1}) ` +
+        (dtype instanceof PtrDType && (mutable || dtype.size > 512 || is_packed(dtype)) ? 'var<storage,read_write>' : 'var<uniform>') +
+        ` ${name}: ${dtype instanceof PtrDType ? (is_packed(dtype) ? `array<${this.buf_map(dtype)}, ${Math.ceil(dtype.size / (4 / dtype.itemsize))}>` : `array<vec4<${this.buf_map(dtype)}>, ${Math.ceil(dtype.size / 4)}>`) : this.buf_map(dtype)};`
       ),
     ].join('\n')
     prg += `\n@compute @workgroup_size(${local_size.join(',')}) fn ${function_name}(@builtin(workgroup_id) gindex: vec3<u32>,`
