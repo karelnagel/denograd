@@ -17,33 +17,41 @@ const create_uniform = (wgpu_device: GPUDevice, val: number): GPUBuffer => {
   return buf
 }
 
+const isStorage = (code: string, i: number, bufsLen: number) => i < bufsLen && code.split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')
+
 class WebGPUProgram extends Program {
   prg!: GPUShaderModule
+  code!: string
+  bind_group_layout?: GPUBindGroupLayout
+  compute_pipeline?: GPUComputePipeline
   static override init = (name: string, lib: Uint8Array) => {
     const res = new WebGPUProgram(name, lib)
-    res.prg = WEBGPU.device.createShaderModule({ code: bytes_to_string(res.lib) })
+    res.code = bytes_to_string(res.lib)
+    res.prg = WEBGPU.device.createShaderModule({ code: res.code })
     return res
   }
   override call = async (bufs: GPUBuffer[], { global_size = [1, 1, 1], local_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
-    const isStorage = (i: number) => i < bufs.length && bytes_to_string(this.lib).split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')
-    const binding_layouts: GPUBindGroupLayoutEntry[] = [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-      ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: isStorage(i) ? 'storage' : 'uniform' } })),
-    ]
+    if (!this.bind_group_layout || !this.compute_pipeline) {
+      const binding_layouts: GPUBindGroupLayoutEntry[] = [
+        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: isStorage(this.code, i, bufs.length) ? 'storage' : 'uniform' } })),
+      ]
 
-    const bind_group_layout = WEBGPU.device.createBindGroupLayout({ entries: binding_layouts })
-    const pipeline_layout = WEBGPU.device.createPipelineLayout({ bindGroupLayouts: [bind_group_layout] })
-    const compute_pipeline = WEBGPU.device.createComputePipeline({ layout: pipeline_layout, compute: { module: this.prg, entryPoint: this.name } })
+      this.bind_group_layout = WEBGPU.device.createBindGroupLayout({ entries: binding_layouts })
+      const pipeline_layout = WEBGPU.device.createPipelineLayout({ bindGroupLayouts: [this.bind_group_layout] })
+      this.compute_pipeline = WEBGPU.device.createComputePipeline({ layout: pipeline_layout, compute: { module: this.prg, entryPoint: this.name } })
+    }
+
     const bindings: GPUBindGroupEntry[] = [
       { binding: 0, resource: { buffer: create_uniform(WEBGPU.device, Infinity), offset: 0, size: 4 } },
       ...[...bufs, ...vals].map<GPUBindGroupEntry>((x, i) => (
         typeof x === 'number' ? { binding: i + 1, resource: { buffer: create_uniform(WEBGPU.device, x), offset: 0, size: 4 } } : { binding: i + 1, resource: { buffer: x, offset: 0, size: x.size } }
       )),
     ]
-    const bind_group = WEBGPU.device.createBindGroup({ layout: bind_group_layout, entries: bindings })
+    const bind_group = WEBGPU.device.createBindGroup({ layout: this.bind_group_layout, entries: bindings })
     const encoder = WEBGPU.device.createCommandEncoder()
     const compute_pass = encoder.beginComputePass()
-    compute_pass.setPipeline(compute_pipeline)
+    compute_pass.setPipeline(this.compute_pipeline)
     compute_pass.setBindGroup(0, bind_group)
     compute_pass.dispatchWorkgroups(global_size[0], global_size[1], global_size[2]) // x y z
     compute_pass.end()
