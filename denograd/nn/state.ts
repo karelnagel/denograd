@@ -261,6 +261,6 @@ export const gguf_load = async (data: Uint8Array, onProgress?: TqdmOnProgress): 
   }
   const data_start = round_up(reader._position, kv_data['general.alignment'] || 32)
 
-  for (const [name, dims, typ, off] of t_infos) state_dict[name] = ggml_data_to_tensor(data.slice(data_start + off), prod(dims), typ).reshape(dims.toReversed())
+  for (const [name, dims, typ, off] of new Tqdm(t_infos, { label: 'ggml data to tensor' })) state_dict[name] = ggml_data_to_tensor(data.slice(data_start + off), prod(dims), typ).reshape(dims.toReversed())
   return [kv_data, state_dict]
 }

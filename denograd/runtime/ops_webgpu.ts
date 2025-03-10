@@ -65,7 +65,7 @@ class WebGPUProgram extends Program {
 class WebGpuAllocator extends Allocator<GPUBuffer> {
   _alloc = (size: number, options?: BufferSpec) => {
     // WebGPU buffers have to be 4-byte aligned
-    const buf = WEBGPU.device.createBuffer({ size: round_up(size, 16), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
+    const buf = WEBGPU.device.createBuffer({ size: round_up(size, 4), usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC })
     return buf
   }
   _copyin = (dest: GPUBuffer, src: MemoryView) => WEBGPU.device.queue.writeBuffer(dest, 0, src.bytes)

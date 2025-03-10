@@ -85,7 +85,7 @@ export class WGSLRenderer extends CStyleLanguage {
       ...[...bufs.values()].map(({ name, dtype }, i) =>
         `@group(0) @binding(${i + 1}) ` +
         (dtype instanceof PtrDType ? 'var<storage,read_write>' : 'var<uniform>') +
-        ` ${name}: ${dtype instanceof PtrDType ? `array<${this.buf_map(dtype)}, ${Math.ceil(dtype.size / (4 / dtype.itemsize))}>` : this.buf_map(dtype)};`
+        ` ${name}: ${dtype instanceof PtrDType ? `array<${this.buf_map(dtype)}>` : this.buf_map(dtype)};`
       ),
     ].join('\n')
     prg += `\n@compute @workgroup_size(${local_size.join(',')}) fn ${function_name}(@builtin(workgroup_id) gindex: vec3<u32>,`
