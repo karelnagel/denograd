@@ -61,10 +61,7 @@ export class WGSLRenderer extends CStyleLanguage {
 
     UPat.load([UPat.var('b'), UPat.var('v'), UPat.var('g')]).fn(({ ctx, b, v, g }) => `select(${ctx.get(v)}, ${ctx.render_load(ctx.get(b)!, b.src[0].dtype)}, ${ctx.get(g)})`),
     UPat.load([UPat.var('b')], { allow_any_len: true }).fn(({ ctx, b }) => ctx.render_load(ctx.get(b)!, b.src[0].dtype)),
-    UPat.index(UPat.var('b'), UPat.var('idx')).fn(({ ctx, b, idx }) => {
-      const data = ctx.get(b), index = idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)
-      return is_packed(b.dtype) ? `${data}[${index}]` : `${data}[${index} / 4][${index} % 4]`
-    }),
+    UPat.index(UPat.var('b'), UPat.var('idx')).fn(({ ctx, b, idx }) => `${ctx.get(b)}[${idx.arg === Ops.ADD ? strip_parens(ctx.get(idx)!) : ctx.get(idx)}]`),
     // (load & mask) | var -> mask = v.src[0].src[1], var = v.src[1]
     UPat.store([UPat.var('b'), UPat.var('v')], { allow_any_len: true }).fn(({ ctx, b, v }) => is_packed(b.src[0].dtype) ? `atomicAnd(&${ctx.get(b)},${ctx.get(v.src[0].src[1])});\n  atomicAdd(&${ctx.get(b)},${ctx.get(v.src[1])});` : `${ctx.get(b)} = ${ctx.get(v)};`),
     // fix nan check: 'a != a -> is_nan()'
@@ -85,10 +82,10 @@ export class WGSLRenderer extends CStyleLanguage {
     prg += '@group(0) @binding(0) var<uniform> INFINITY: f32;\n'
     prg += [
       ...external_local_bufs,
-      ...[...bufs.values()].map(({ name, dtype, mutable }, i) =>
+      ...[...bufs.values()].map(({ name, dtype }, i) =>
         `@group(0) @binding(${i + 1}) ` +
-        (dtype instanceof PtrDType && (mutable || dtype.size > 512 || is_packed(dtype)) ? 'var<storage,read_write>' : 'var<uniform>') +
-        ` ${name}: ${dtype instanceof PtrDType ? (is_packed(dtype) ? `array<${this.buf_map(dtype)}, ${Math.ceil(dtype.size / (4 / dtype.itemsize))}>` : `array<vec4<${this.buf_map(dtype)}>, ${Math.ceil(dtype.size / 4)}>`) : this.buf_map(dtype)};`
+        (dtype instanceof PtrDType ? 'var<storage,read_write>' : 'var<uniform>') +
+        ` ${name}: ${dtype instanceof PtrDType ? `array<${this.buf_map(dtype)}, ${Math.ceil(dtype.size / (4 / dtype.itemsize))}>` : this.buf_map(dtype)};`
       ),
     ].join('\n')
     prg += `\n@compute @workgroup_size(${local_size.join(',')}) fn ${function_name}(@builtin(workgroup_id) gindex: vec3<u32>,`

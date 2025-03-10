@@ -16,7 +16,6 @@ const create_uniform = (val: number): GPUBuffer => {
   return buf
 }
 
-const is_storage = (code: string, i: number) => code.split('\n').find((x) => x.includes(`binding(${i + 1})`))?.includes('var<storage,read_write>')
 
 class WebGPUProgram extends Program {
   prg!: GPUShaderModule
@@ -33,7 +32,7 @@ class WebGPUProgram extends Program {
     if (!this.bind_group_layout || !this.compute_pipeline) {
       const binding_layouts: GPUBindGroupLayoutEntry[] = [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: is_storage(this.code, i) ? 'storage' : 'uniform' } })),
+        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: i<bufs.length ? 'storage' : 'uniform' } })),
       ]
 
       this.bind_group_layout = WEBGPU.device.createBindGroupLayout({ entries: binding_layouts })
@@ -92,10 +91,10 @@ export class WEBGPU extends Compiled {
 
     const adapter = await navigator.gpu.requestAdapter()
     if (!adapter) throw new Error('No adapter')
-    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize } = adapter.limits
+    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize, maxStorageBuffersPerShaderStage } = adapter.limits
     WEBGPU.device = await adapter.requestDevice({
       requiredFeatures: ['shader-f16'],
-      requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize },
+      requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize, maxStorageBuffersPerShaderStage },
     })
   }
 }

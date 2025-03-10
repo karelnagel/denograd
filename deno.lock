@@ -10,6 +10,7 @@
     "npm:@astrojs/react@^4.2.0": "4.2.1_@types+react@19.0.10_@types+react-dom@19.0.4__@types+react@19.0.10_react@19.0.0_react-dom@19.0.0__react@19.0.0_vite@6.2.0",
     "npm:@astrojs/tailwind@6": "6.0.0_astro@5.4.2__vite@6.2.0__zod@3.24.2_tailwindcss@3.4.16__postcss@8.5.3_postcss@8.5.3",
     "npm:@observablehq/plot@~0.6.16": "0.6.17",
+    "npm:@types/node@*": "22.12.0",
     "npm:@types/react-dom@*": "19.0.4_@types+react@19.0.10",
     "npm:@types/react-dom@^19.0.3": "19.0.4_@types+react@19.0.10",
     "npm:@types/react@*": "19.0.10",
