@@ -18,6 +18,8 @@
     "npm:astro@^5.2.5": "5.4.2_vite@6.2.0_zod@3.24.2",
     "npm:bun-types@1.2.4": "1.2.4",
     "npm:cloudflared@*": "0.7.0",
+    "npm:esbuild@*": "0.25.0",
+    "npm:playwright@*": "1.51.0",
     "npm:react-dom@19": "19.0.0_react@19.0.0",
     "npm:react@19": "19.0.0",
     "npm:tailwindcss@3.4.16": "3.4.16_postcss@8.5.3",
@@ -934,7 +936,7 @@
       "dependencies": [
         "anymatch",
         "braces",
-        "fsevents",
+        "fsevents@2.3.3",
         "glob-parent@5.1.2",
         "is-binary-path",
         "is-glob",
@@ -1418,6 +1420,9 @@
     },
     "fraction.js@4.3.7": {
       "integrity": "sha512-ZsDfxO51wGAXREY55a7la9LScWpwv9RxIrYABrlvOFBlH/ShPnrtsXeuUIfXKKOVicNxQ+o8JTbJvjS4M89yew=="
+    },
+    "fsevents@2.3.2": {
+      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="
     },
     "fsevents@2.3.3": {
       "integrity": "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="
@@ -2310,6 +2315,16 @@
         "find-up"
       ]
     },
+    "playwright-core@1.51.0": {
+      "integrity": "sha512-x47yPE3Zwhlil7wlNU/iktF7t2r/URR3VLbH6EknJd/04Qc/PSJ0EY3CMXipmglLG+zyRxW6HNo2EGbKLHPWMg=="
+    },
+    "playwright@1.51.0": {
+      "integrity": "sha512-442pTfGM0xxfCYxuBa/Pu6B2OqxqqaYq39JS8QDMGThUvIOCd6s0ANDog3uwA0cHavVlnTQzGCN7Id2YekDSXA==",
+      "dependencies": [
+        "fsevents@2.3.2",
+        "playwright-core"
+      ]
+    },
     "postcss-import@15.1.0_postcss@8.5.3": {
       "integrity": "sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==",
       "dependencies": [
@@ -2583,7 +2598,7 @@
         "@rollup/rollup-win32-ia32-msvc",
         "@rollup/rollup-win32-x64-msvc",
         "@types/estree",
-        "fsevents"
+        "fsevents@2.3.3"
       ]
     },
     "run-parallel@1.2.0": {
@@ -2950,7 +2965,7 @@
       "integrity": "sha512-7dPxoo+WsT/64rDcwoOjk76XHj+TqNTIvHKcuMQ1k4/SeHDaQt5GFAeLYzrimZrMpn/O6DtdI03WUjdxuPM0oQ==",
       "dependencies": [
         "esbuild",
-        "fsevents",
+        "fsevents@2.3.3",
         "postcss",
         "rollup"
       ]
