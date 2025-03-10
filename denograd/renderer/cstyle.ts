@@ -120,7 +120,6 @@ export class CStyleLanguage extends Renderer {
     const scalar = dt.scalar()
     return (this.type_map.get(scalar) || scalar.name) + ((dt.count) > 1 ? dt.count.toString() : '')
   }
-  bufs?: Map<UOp, Buf>
   get = (key: UOp) => this.r?.get(key) // hacky helper
   override render = (name: string, uops: UOp[]): string => {
     const r = new Map<UOp, string>()
@@ -131,21 +130,7 @@ export class CStyleLanguage extends Renderer {
       for (const v of u.src) child_count.set(v, (child_count.get(v) || 0) + 1)
     }
 
-    this.bufs = new Map()
-    // TODO: Getting all bufs at once, cause webgpu needs to know which are mutable, should moved back to the for loop below
-    for (const u of uops) {
-      if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_VAR].includes(u.op)) {
-        this.bufs.set(u, { name: u.op === Ops.DEFINE_GLOBAL ? `data${u.arg}` : u.arg[0], dtype: u.dtype, mutable: false })
-        continue
-      }
-
-      // mark buffers that we store to writable
-      if (u.op === Ops.STORE) {
-        for (const up of u.src[0].toposort) {
-          if (up.op === Ops.DEFINE_GLOBAL) this.bufs.set(up, { name: this.bufs.get(up)!.name, dtype: this.bufs.get(up)!.dtype, mutable: true })
-        }
-      }
-    }
+    const bufs = new Map<UOp, Buf>()
 
     const kernel = []
     let depth = 1
@@ -153,7 +138,15 @@ export class CStyleLanguage extends Renderer {
     for (const u of uops) {
       if ([Ops.DEFINE_GLOBAL, Ops.DEFINE_VAR].includes(u.op)) {
         r.set(u, u.op === Ops.DEFINE_GLOBAL ? `data${u.arg}` : u.arg[0])
+        bufs.set(u, { name: u.op === Ops.DEFINE_GLOBAL ? `data${u.arg}` : u.arg[0], dtype: u.dtype, mutable: false })
         continue
+      }
+
+      // mark buffers that we store to writable
+      if (u.op === Ops.STORE) {
+        for (const up of u.src[0].toposort) {
+          if (up.op === Ops.DEFINE_GLOBAL) bufs.set(up, { name: bufs.get(up)!.name, dtype: bufs.get(up)!.dtype, mutable: true })
+        }
       }
 
       // naming
@@ -201,9 +194,8 @@ export class CStyleLanguage extends Renderer {
       if ([Ops.IF, Ops.RANGE].includes(u.op)) depth += 1
     }
     //  NOTE: this relies on bufs dict preserving order
-    const res = this.render_kernel({ function_name: name, kernel, bufs: this.bufs, uops })
+    const res = this.render_kernel({ function_name: name, kernel, bufs, uops })
     this.r = undefined
-    this.bufs = undefined
     return res
   }
 }
