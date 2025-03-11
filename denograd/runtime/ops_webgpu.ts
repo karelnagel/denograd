@@ -3,6 +3,7 @@ import { bytes_to_string, isInt, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import type { MemoryView } from '../memoryview.ts'
+import { env } from '../env/index.ts'
 
 const uniforms: { [key: number]: GPUBuffer } = {}
 const create_uniform = (val: number): GPUBuffer => {
@@ -15,7 +16,6 @@ const create_uniform = (val: number): GPUBuffer => {
   uniforms[val] = buf
   return buf
 }
-
 
 class WebGPUProgram extends Program {
   prg!: GPUShaderModule
@@ -32,7 +32,7 @@ class WebGPUProgram extends Program {
     if (!this.bind_group_layout || !this.compute_pipeline) {
       const binding_layouts: GPUBindGroupLayoutEntry[] = [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: i<bufs.length ? 'storage' : 'uniform' } })),
+        ...[...bufs, ...vals].map<GPUBindGroupLayoutEntry>((_, i) => ({ binding: i + 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: i < bufs.length ? 'storage' : 'uniform' } })),
       ]
 
       this.bind_group_layout = WEBGPU.device.createBindGroupLayout({ entries: binding_layouts })
@@ -56,7 +56,8 @@ class WebGPUProgram extends Program {
     const st = performance.now()
     WEBGPU.device.queue.submit([encoder.finish()])
     if (wait) {
-      await WEBGPU.device.queue.onSubmittedWorkDone()
+      // TODO: Deno has error with this, in deno 2.2.2
+      if (env.NAME !== 'deno') await WEBGPU.device.queue.onSubmittedWorkDone()
       return performance.now() - st
     }
   }

@@ -541,29 +541,20 @@ export class Metadata {
 }
 
 class ContextVar<T> {
-  static _cache: Record<string, ContextVar<any>> = {}
-  initialValue!: string
-  key!: string
-  value!: T
-  tokens: Record<string, T> = {}
-  constructor(key: string, value: T) {
-    const cached = ContextVar._cache[key]
-    if (cached) return cached
-    this.key = key
-    this.value = value
-  }
+  private tokens: Record<string, T> = {}
+  constructor(private value: T) {}
   get = () => this.value
   set = (v: T): string => {
     const token = random_id()
+    this.tokens[token] = this.value
     this.value = v
-    this.tokens[token] = v
     return token
   }
   reset = (token: string) => {
     this.value = this.tokens[token]
   }
 }
-export const _METADATA = new ContextVar<Metadata | undefined>('_METADATA', undefined)
+export const _METADATA = new ContextVar<Metadata | undefined>(undefined)
 // **************** global state Counters ****************
 
 export class GlobalCounters {

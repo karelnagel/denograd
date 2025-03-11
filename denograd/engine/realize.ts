@@ -2,7 +2,7 @@
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type Program } from '../device.ts'
 import { env } from '../env/index.ts'
-import { all_int, all_same, ansilen, colored, get_key, GlobalCounters, idiv, type Metadata, mod, replace, to_function_name, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, colored, get_key, GlobalCounters, idiv, list_str, type Metadata, mod, replace, to_function_name, zip } from '../helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
 import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
 import type { TinyJit } from './jit.ts'
@@ -175,7 +175,7 @@ export class ExecItem {
           colored(`*** ${this.prg.device.slice(0, 7).padEnd(7)} ${GlobalCounters.kernel_count.toString().padStart(4)}`, jit ? 'magenta' : (this.prg.first_run ? 'green' : undefined)) +
             ` ${this.prg.display_name + ' '.repeat(41 - ansilen(this.prg.display_name))} arg ` +
             `${bufs.length.toString().padStart(2)} mem  ${(GlobalCounters.mem_used / 1e9).toFixed(2)} GB ` +
-            (et === undefined ? '' : `tm ${ptm}/${(GlobalCounters.time_sum_s * 1e3).toFixed(2).padStart(9)}ms (${(op_est / ((et || 1e-20) * 1e9)).toFixed(2).padStart(9)} GFLOPS ${(mem_est / ((et || 1e-20) * 1e9)).toFixed(1).padStart(6)}|${(lds_est / ((et || 1e-20) * 1e9)).toFixed(1).padEnd(7)} GB/s)` + ` ${this.metadata?.length ? this.metadata.map((m) => env.TRACEMETA >= 2 ? String(m) : `${JSON.stringify(m)}`) : ''}`),
+            (et === undefined ? '' : `tm ${ptm}/${(GlobalCounters.time_sum_s * 1e3).toFixed(2).padStart(9)}ms (${(op_est / ((et || 1e-20) * 1e9)).toFixed(2).padStart(9)} GFLOPS ${(mem_est / ((et || 1e-20) * 1e9)).toFixed(1).padStart(6)}|${(lds_est / ((et || 1e-20) * 1e9)).toFixed(1).padEnd(7)} GB/s)` + ` ${this.metadata?.length ? list_str(this.metadata.map((m) => m.name)) : ''}`),
         )
       }
       this.prg.first_run = false
