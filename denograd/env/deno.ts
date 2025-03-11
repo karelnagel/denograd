@@ -12,6 +12,7 @@ import { CLOUD } from '../runtime/ops_cloud.ts'
 
 export class DenoEnv extends WebEnv {
   override NAME = 'deno'
+  override CPU_DEVICE = 'CLANG'
   override PLATFORM = process.platform
   override DEVICES = { CLANG, WEBGPU, WASM, JS, DISK, CLOUD }
   override readFile = Deno.readFile

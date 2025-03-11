@@ -2,7 +2,7 @@ import { type Kernel, KernelOptError, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
 import { env, withEnvAsync } from '../env/index.ts'
-import { add, colored, type ConstType, DefaultMap, flatten, idiv, isInf, mod, mul, prod, range, to_function_name, zip } from '../helpers.ts'
+import { add, colored, type ConstType, DefaultMap, flatten, idiv, isInf, mod, mul, prod, range, string_to_bytes, to_function_name, zip } from '../helpers.ts'
 import { Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -80,8 +80,7 @@ export const _try_compile_linearized_w_idx = async (x: [number, Kernel], compile
     if (p.uops.length >= env.get_num('BEAM_UOPS_MAX', 3000) && env.get_num('BEAM_UOPS_MAX', 3000) > 0) throw new Error('too many uops')
     const st = performance.now()
     const prog = await compiler.compile(p.src)
-    const et = performance.now() - st
-    ret = [p, prog, et]
+    ret = [p, prog, perf(st)]
   } catch (e) {
     if (env.DEBUG >= 4) console.trace()
     if (env.get_num('BEAM_STRICT_MODE')) throw e
@@ -134,6 +133,7 @@ export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, K
   }
   return acted_lins
 }
+const perf = (st: number) => (performance.now() - st) / 1000
 
 export const BEAM_DEBUG = env.get_num('BEAM_DEBUG')
 export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = env.get('IGNORE_BEAM_CACHE')): Promise<Kernel> => {
@@ -180,15 +180,15 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
           continue
         }
         timed_lins.push([acted_lins[i], Math.min(...tms)])
-        if (BEAM_DEBUG > 1) console.log(`${(performance.now() - st).toFixed(2).padEnd(7)}s: ${i.toString().padEnd(5)} ${p.uops!.length.toString().padEnd(5)} uops ${(compile_et! * 1e6).toFixed(2).padEnd(12)} us compile/${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padEnd(12)} us run       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}`)
-        else if (env.DEBUG >= 2) console.log(`\r${(performance.now() - st).toFixed(2).padEnd(7)}s: ${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padEnd(12)} us       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}`)
+        if (BEAM_DEBUG > 1) console.log(`${(perf(st)).toFixed(2).padEnd(7)}s: ${i.toString().padEnd(5)} ${p.uops!.length.toString().padEnd(5)} uops ${(compile_et! * 1e6).toFixed(2).padEnd(12)} us compile/${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padEnd(12)} us run       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}`)
+        else if (env.DEBUG >= 2) env.writeStdout(string_to_bytes(`\r${(perf(st)).toFixed(2).padStart(7)}s: ${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padStart(12)} us       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}\x1b[K`))
       }
       // done
       const opts = timed_lins.toSorted((a, b) => b[1] - a[1])
-      const exiting = opts.length === 0 || (opts[0][1] < min_progress) || (beam.length > 0 && ((beam[0][1] - opts[0][1]) < min_progress))
+      exiting = opts.length === 0 || (opts[0][1] < min_progress) || (beam.length > 0 && ((beam[0][1] - opts[0][1]) < min_progress))
       if (!exiting) beam = opts.slice(0, amt)
       else if (opts.length > 0 && opts[0][1] < beam[0][1]) beam = opts.slice(0, 1)
-      if (env.DEBUG >= 2) console.log(`\r${(performance.now() - st).toFixed(2).padEnd(7)}s:`, colored(`${(beam[0][1] * 1e6).toFixed(2).padEnd(12)} us`, exiting ? 'green' : undefined), `from ${acted_lins.length.toString().padEnd(3)} -> ${opts.length.toString().padEnd(3)} actions`, beam[0][0].colored_shape())
+      if (env.DEBUG >= 2) console.log(`\r${(perf(st)).toFixed(2).padStart(7)}s:`, colored(`${(beam[0][1] * 1e6).toFixed(2).padStart(12)} us`, exiting ? 'green' : undefined), `from ${acted_lins.length.toString().padStart(3)} -> ${opts.length.toString().padStart(3)} actions\x1b[K`, beam[0][0].colored_shape())
     }
   } catch (e) {
     //   if beam_pool is not None: beam_pool.terminate()

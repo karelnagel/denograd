@@ -45,7 +45,10 @@ export class Opt {
     Object.freeze(this)
     return Opt.cache.setDefault(this.key, this)
   }
-  toString = () => `Opt(op=${this.op}, axis=${this.axis}, amt=${this.amt})`
+  toString = () => `new Opt(${this.op}, ${this.axis}, ${this.amt})`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   real_axis = (k: Kernel): number => {
     if (this.axis === undefined) return -1
     if (this.op === OptOps.UNROLL) return k.first_reduce + this.axis
