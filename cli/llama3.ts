@@ -10,6 +10,7 @@ const args = parseArgs(
     quantize: z.enum(['int8', 'nf4', 'float16']).optional().describe('Quantization method'),
     seed: z.number().optional().describe('Random seed'),
     temperature: z.number().default(0.85).describe('Temperature'),
+    query: z.string().optional().describe('Query'),
   }).describe('Run Llama 3 locally, supported sizes: 1B, 8B and 70B'),
 )
 
@@ -22,13 +23,18 @@ const model = await Llama3.load({
   quantize: args.quantize,
 })
 
-while (true) {
-  const content = prompt('Q: ')!
-  await model.chat({
-    messages: [{ role: 'user', content }],
-    onToken: (res) => {
-      env.writeStdout(string_to_bytes(res.token))
-    },
-  })
-  env.writeStdout(string_to_bytes('\n'))
+if (args.query) {
+  const res = await model.chat({ messages: [{ role: 'user', content: args.query }] })
+  console.log(res.message.content)
+} else {
+  while (true) {
+    const content = prompt('Q: ')!
+    await model.chat({
+      messages: [{ role: 'user', content }],
+      onToken: (res) => {
+        env.writeStdout(string_to_bytes(res.token))
+      },
+    })
+    env.writeStdout(string_to_bytes('\n'))
+  }
 }
