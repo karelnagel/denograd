@@ -192,7 +192,6 @@ export class Compiled {
    * This method ensures that all previously queued operations on the device have been completed before proceeding.
    */
   synchronize = () => {
-    throw new NotImplemented()
   }
   /**
    * Called at the end of profiling to allow the device to finalize any profiling.

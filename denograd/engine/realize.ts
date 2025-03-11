@@ -2,7 +2,7 @@
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type Program } from '../device.ts'
 import { env } from '../env/index.ts'
-import { all_int, all_same, colored, get_key, GlobalCounters, idiv, type Metadata, mod, NotImplemented, replace, to_function_name, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, colored, get_key, GlobalCounters, idiv, type Metadata, mod, replace, to_function_name, zip } from '../helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
 import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
 import type { TinyJit } from './jit.ts'
@@ -168,11 +168,15 @@ export class ExecItem {
       GlobalCounters.global_mem += mem_est
       if (et !== undefined) GlobalCounters.time_sum_s += et
       if (env.DEBUG >= 2) {
-        throw new NotImplemented()
-        // KAREL: skipping this for now
-        //         console.log(`${colored(f'*** {this.prg.device[:7]:7s} ${GlobalCounters.kernel_count:4d}', 'magenta' if (jit else ('green' if this.prg.first_run else undefined))} ${this.prg.display_name+' '*(41-ansithis.prg.display_name.length)} arg ${bufs.length:2d} mem ${GlobalCounters.mem_used/1e9:5.2f} GB ` +  // noqa) E501
-        //               (string() if (et === undefined else `tm ${ptm}/${GlobalCounters.time_sum_s*1e3:9.2f}ms (${op_est/((et || 1e-20)*1e9):9.2f} GFLOPS ${mem_est/((et || 1e-20)*1e9):6.1f}|${lds_est/((et || 1e-20)*1e9):<7.1f} GB/s)` +  // noqa) E501
-        //                ` ${[repr(m) if TRACEMETA >= 2 else string(m) for m in this.metadata] if this.metadata else ''}`))
+        const lds_est = sym_infer(this.prg.estimates.lds, var_vals)
+        mem_est = Math.min(mem_est, lds_est) // there can't be more memory accessed than loads/stores. remove this when symbolic is fixed
+        const ptm = et === undefined ? '' : et > 0.01 ? colored(`${(et * 1e3).toFixed(2).padStart(9)}ms`, 'yellow') : `${(et * 1e6).toFixed(2).padStart(9)}us`
+        console.log(
+          colored(`*** ${this.prg.device.slice(0, 7).padEnd(7)} ${GlobalCounters.kernel_count.toString().padStart(4)}`, jit ? 'magenta' : (this.prg.first_run ? 'green' : undefined)) +
+            ` ${this.prg.display_name + ' '.repeat(41 - ansilen(this.prg.display_name))} arg ` +
+            `${bufs.length.toString().padStart(2)} mem  ${(GlobalCounters.mem_used / 1e9).toFixed(2)} GB ` +
+            (et === undefined ? '' : `tm ${ptm}/${(GlobalCounters.time_sum_s * 1e3).toFixed(2).padStart(9)}ms (${(op_est / ((et || 1e-20) * 1e9)).toFixed(2).padStart(9)} GFLOPS ${(mem_est / ((et || 1e-20) * 1e9)).toFixed(1).padStart(6)}|${(lds_est / ((et || 1e-20) * 1e9)).toFixed(1).padEnd(7)} GB/s)` + ` ${this.metadata?.length ? this.metadata.map((m) => env.TRACEMETA >= 2 ? String(m) : `${JSON.stringify(m)}`) : ''}`),
+        )
       }
       this.prg.first_run = false
     }
