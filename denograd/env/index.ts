@@ -15,7 +15,7 @@ export class WebEnv {
   _env!: Record<string, string | number> = (typeof import.meta?.env !== 'undefined' ? import.meta.env : (typeof process !== 'undefined' && process.env) ? process.env : {}) || {}
 
   // env
-  get = (key: string, def?: string) => this._env[key] !== undefined ? this._env.toString() : def
+  get = (key: string, def?: string) => this._env[key] !== undefined ? this._env[key].toString() : def
   get_num = (key: string, def?: number) => Number(this._env[key] || def)
   set = (key: string, value: string) => {
     this._env[key] = value
