@@ -239,7 +239,7 @@ export const smax = (...lst: sint[]) => _suop(lst, (...x) => x.reduce((acc, x) =
 export const smin = (...lst: sint[]) => _suop(lst, (...x) => x.reduce((acc, x) => acc.minimum(x)), (...x) => min(x))
 
 export const ssimplify = (uop: UOp) => uop instanceof UOp ? uop.ssimplify() : uop
-export const sym_infer = (uop: sint, varVals: Map<UOp, number>): number => uop instanceof UOp ? uop.sym_infer(varVals) : uop
+export const sym_infer = (uop: sint, varVals: Map<UOp, ConstType>): number => uop instanceof UOp ? uop.sym_infer(varVals) : uop
 
 type UOpInput = { op: Ops; dtype?: DType; src?: UOp[]; arg?: any }
 
@@ -684,13 +684,13 @@ export class UOp extends MathTrait<UOp> {
     return [constToNumeric(dtypes.min(this.dtype)), constToNumeric(dtypes.max(this.dtype))]
   }
   @cache
-  get _sym_fxn(): [(m: Record<string, number>) => number, string[]] {
+  get _sym_fxn(): [(m: Record<string, ConstType>) => number, string[]] {
     const sthis = this.simplify()
     const varnames: string[] = [...sthis.toposort].filter((x) => x.op === Ops.DEFINE_VAR).map((x) => x.arg[0])
     // TODO: sanitize varnames, or don't use naked eval while staying fast
     return [eval(`({${varnames.join(',')}})=>${sthis.render()}`), varnames]
   }
-  sym_infer = (varVals: Map<UOp, number>) => {
+  sym_infer = (varVals: Map<UOp, ConstType>) => {
     const [fxn, varnames] = this._sym_fxn
     const args = Object.fromEntries(varVals.entries().filter(([k, _]) => varnames.includes(k.arg[0])).map(([k, v]) => [k.arg[0] as string, v]))
     return fxn(args)

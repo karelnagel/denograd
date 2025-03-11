@@ -20,7 +20,7 @@ export const get_kernel = async (renderer: Renderer, ast: UOp): Promise<Kernel> 
     if (env.BEAM >= 1) {
       const kb = new Kernel(ast, renderer).required_optimizations()
       const rawbufs = bufs_from_lin(kb, false)
-      k = beam_search(kb, rawbufs, env.BEAM, Boolean(env.get_num('BEAM_ESTIMATE', 1)))
+      k = await beam_search(kb, rawbufs, env.BEAM, Boolean(env.get_num('BEAM_ESTIMATE', 1)))
     }
   }
   // if (logkerns !== undefined) logkerns.writelines([`${(k.ast, k.applied_opts)}\n`])
