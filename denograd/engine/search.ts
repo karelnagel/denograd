@@ -1,27 +1,26 @@
-import type { Kernel } from '../codegen/kernel.ts'
+import { type Kernel, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
-import { env } from '../env/index.ts'
+import { env, withEnvAsync } from '../env/index.ts'
 import { idiv, isInf, mod, NotImplemented, prod, range, zip } from '../helpers.ts'
 import { sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
 import { CompiledRunner } from './realize.ts'
 
-// TODO: Causes circular import
-// export const actions: Opt[] = [
-//   ...range(6).flatMap((axis) => [0, 2, 3, 4, 5, 7].map((amt) => new Opt(OptOps.UPCAST, axis, amt))),
-//   ...range(5).flatMap((axis) => [0, 4, 7].map((amt) => new Opt(OptOps.UNROLL, axis, amt))),
-//   ...range(6).flatMap((axis) => [2, 3, 4, 8, 13, 16, 29].map((amt) => new Opt(OptOps.LOCAL, axis, amt))),
-//   ...range(3).flatMap((axis) => [13, 16, 28, 29, 32, 49, 64, 256].map((amt) => new Opt(OptOps.GROUPTOP, axis, amt))),
-//   ...range(3).flatMap((axis) => [0, 4, 8, 16].map((amt) => new Opt(OptOps.GROUP, axis, amt))),
-//   ...(get_number_env('BEAM_PADTO', 1) ? range(7).flatMap((axis) => [32].map((amt) => new Opt(OptOps.PADTO, axis, amt))) : []),
-//   new Opt(OptOps.LOCAL, 0, 32),
-//   new Opt(OptOps.LOCAL, 6, 2),
-//   new Opt(OptOps.TC, 0, 0),
-//   ...range(9).map((axis) => new Opt(OptOps.TC, axis, get_number_env('TC_OPT', 2))), // covers resnet kernels (3 global * 3 reduce)
-//   ...range(5).flatMap((axis) => range(axis + 1, 5).map((amt) => new Opt(OptOps.SWAP, axis, amt))),
-//   ...(get_env('NOLOCALS') ? [new Opt(OptOps.NOLOCALS)] : []),
-// ]
+export const actions: Opt[] = [
+  ...range(6).flatMap((axis) => [0, 2, 3, 4, 5, 7].map((amt) => new Opt(OptOps.UPCAST, axis, amt))),
+  ...range(5).flatMap((axis) => [0, 4, 7].map((amt) => new Opt(OptOps.UNROLL, axis, amt))),
+  ...range(6).flatMap((axis) => [2, 3, 4, 8, 13, 16, 29].map((amt) => new Opt(OptOps.LOCAL, axis, amt))),
+  ...range(3).flatMap((axis) => [13, 16, 28, 29, 32, 49, 64, 256].map((amt) => new Opt(OptOps.GROUPTOP, axis, amt))),
+  ...range(3).flatMap((axis) => [0, 4, 8, 16].map((amt) => new Opt(OptOps.GROUP, axis, amt))),
+  ...(env.get_num('BEAM_PADTO', 1) ? range(7).flatMap((axis) => [32].map((amt) => new Opt(OptOps.PADTO, axis, amt))) : []),
+  new Opt(OptOps.LOCAL, 0, 32),
+  new Opt(OptOps.LOCAL, 6, 2),
+  new Opt(OptOps.TC, 0, 0),
+  ...range(9).map((axis) => new Opt(OptOps.TC, axis, env.get_num('TC_OPT', 2))), // covers resnet kernels (3 global * 3 reduce)
+  ...range(5).flatMap((axis) => range(axis + 1, 5).map((amt) => new Opt(OptOps.SWAP, axis, amt))),
+  ...(env.get('NOLOCALS') ? [new Opt(OptOps.NOLOCALS)] : []),
+]
 
 export const _get_test_global_size = (global_size: number[], max_global_size: number, var_vals: Map<UOp, number>): [number[], number] => {
   let [test_global_size, factor] = [global_size.map((sz) => sym_infer(sz, var_vals)), 1]
@@ -54,8 +53,11 @@ export const _time_program = async (p: ProgramSpec, lib: Uint8Array, var_vals: M
     if (clear_l2) {
       const dev = Device.get(p.device)
       if ('invalidate_caches' in dev) (dev.invalidate_caches as any)()
-      else await Tensor.ones([1024, 1024]).contiguous().realize(undefined, false)
-      //TODO:  with Context(DEBUG=0, BEAM=0, CAPTURING=0, TRACK_MATCH_STATS=0): Tensor.ones(1024,1024).contiguous().realize(do_update_stats=false)
+      else {
+        await withEnvAsync({ DEBUG: 0, BEAM: 0, CAPTURING: 0, TRACK_MATCH_STATS: 0 }, async () => {
+          await Tensor.ones([1024, 1024]).contiguous().realize(undefined, false)
+        })
+      }
     }
     tms.push((await car.call(input_bufs, var_vals as Map<UOp, number>, true))! * factor)
     if (early_stop !== undefined && early_stop < Math.min(...tms)) break

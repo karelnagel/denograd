@@ -4,7 +4,7 @@ import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/sta
 import { dtypes } from '../dtype.ts'
 import { convert_from_gguf, convert_from_huggingface, fix_bf16, Transformer } from './llama.ts'
 import { Embedding, Linear } from '../nn/index.ts'
-import { env } from '../env/index.ts'
+import { env, withEnvAsync } from '../env/index.ts'
 import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 import { Device } from '../device.ts'
 import { Tokenizer } from './tokenizer.ts'
@@ -224,28 +224,29 @@ export class Llama3 implements Llama3Constructor {
     }
     weights = fix_bf16(weights)
 
-    // TODO: with Context(BEAM=0):
-    // quantize
-    if (this.quantize === 'float16') weights = Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.cast(dtypes.float16).contiguous()]))
-    else if (this.quantize !== undefined) {
-      weights = (this.linear as typeof Int8Linear).quantize(weights, this.device, scale_dtype, this.quantize_embeds)
-      for (const v of new Tqdm(Object.values(weights), { onProgress, label: `Quantizing to ${this.quantize}` })) await v.realize()
-    }
-    // shard
-    if (Array.isArray(this.device)) {
-      for (const [k, v] of Object.entries(get_state_dict(this.model))) {
-        if (k.includes('scale')) v.shard_(this.device) // from quantized
-        else if (k.includes('.attention.')) v.shard_(this.device, -1)
-        else if (k.includes('.feed_forward.w1.')) v.shard_(this.device, 0)
-        else if (k.includes('.feed_forward.w3.')) v.shard_(this.device, 0)
-        else if (k.includes('.feed_forward.')) v.shard_(this.device, -1)
-        else if (k.includes('tok_embeddings.weight')) v.shard_(this.device, 0)
-        else if (k.includes('output.weight')) v.shard_(this.device, 0)
-        else v.shard_(this.device)
+    await withEnvAsync({ BEAM: 0 }, async () => {
+      // quantize
+      if (this.quantize === 'float16') weights = Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.cast(dtypes.float16).contiguous()]))
+      else if (this.quantize !== undefined) {
+        weights = (this.linear as typeof Int8Linear).quantize(weights, this.device, scale_dtype, this.quantize_embeds)
+        for (const v of new Tqdm(Object.values(weights), { onProgress, label: `Quantizing to ${this.quantize}` })) await v.realize()
       }
-    }
-    // replace weights in model
-    await load_state_dict(this.model, weights, false, undefined, true, onProgress)
+      // shard
+      if (Array.isArray(this.device)) {
+        for (const [k, v] of Object.entries(get_state_dict(this.model))) {
+          if (k.includes('scale')) v.shard_(this.device) // from quantized
+          else if (k.includes('.attention.')) v.shard_(this.device, -1)
+          else if (k.includes('.feed_forward.w1.')) v.shard_(this.device, 0)
+          else if (k.includes('.feed_forward.w3.')) v.shard_(this.device, 0)
+          else if (k.includes('.feed_forward.')) v.shard_(this.device, -1)
+          else if (k.includes('tok_embeddings.weight')) v.shard_(this.device, 0)
+          else if (k.includes('output.weight')) v.shard_(this.device, 0)
+          else v.shard_(this.device)
+        }
+      }
+      // replace weights in model
+      await load_state_dict(this.model, weights, false, undefined, true, onProgress)
+    })
     this.tokenizer = await Tokenizer.init(`${model_path.split('/').slice(0, -1).join('/')}/tokenizer.model`)
     await this._system(system, onProgress)
     return this

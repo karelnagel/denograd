@@ -6,7 +6,7 @@ import { ge, lt, mul, pow, prod, sub } from '../helpers.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, type Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape, View } from '../shape/view.ts'
-import { env } from '../env/index.ts'
+import { env, withEnv } from '../env/index.ts'
 
 // **** Tensor UOp spec
 
@@ -125,8 +125,7 @@ const add_buffers = (buf: UOp, tensor_map: Map<UOp, UOp[]>, ctx: ScheduleContext
 // ** movement ops
 
 export const apply_swizzle = (u: UOp): UOp => {
-  // TODO add "with Context(TRACK_MATCH_STATS=0):""
-  return graph_rewrite(u, view_left)
+  return withEnv({ TRACK_MATCH_STATS: 0 }, () => graph_rewrite(u, view_left))
 }
 
 const swizzle_r = (r: UOp, src: UOp, st: ShapeTracker): UOp => {

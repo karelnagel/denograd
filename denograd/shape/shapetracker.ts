@@ -1,5 +1,5 @@
 import { dtypes } from '../dtype.ts'
-import { env } from '../env/index.ts'
+import { env, withEnv } from '../env/index.ts'
 import { cache_fn, get_key, gt, is_eq, list_str, lt, range, WeakValueMap } from '../helpers.ts'
 import { merge_maps, zip } from '../helpers.ts'
 import { graph_rewrite, Ops, simplify_valid, type sint, sint_to_uop, split_uop, sym, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
@@ -23,8 +23,7 @@ export const upcast = (u: UOp): UOp => {
 }
 // pooling op may overflow before folding causing unnecessary upcast
 export const folded_upcast = (u: UOp) => {
-  // with Context(TRACK_MATCH_STATS=0):
-  return upcast(graph_rewrite(u, sym, new Map()))
+  return withEnv({ TRACK_MATCH_STATS: 0 }, () => upcast(graph_rewrite(u, sym, new Map())))
 }
 
 const views_to_indexed_uops = cache_fn((views: View[], _idxs?: UOp[]): [UOp, UOp] => {

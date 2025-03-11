@@ -12,10 +12,10 @@ export class WebEnv {
   DB_VERSION = 1
   DEVICES:Record<string,typeof Compiled> = {}
   // @ts-ignore import.meta.env
-  _env!: Record<string, string> = (typeof import.meta?.env !== 'undefined' ? import.meta.env : (typeof process !== 'undefined' && process.env) ? process.env : {}) || {}
+  _env!: Record<string, string | number> = (typeof import.meta?.env !== 'undefined' ? import.meta.env : (typeof process !== 'undefined' && process.env) ? process.env : {}) || {}
 
   // env
-  get = (key: string, def?: string) => this._env[key] || def
+  get = (key: string, def?: string) => this._env[key] !== undefined ? this._env.toString() : def
   get_num = (key: string, def?: number) => Number(this._env[key] || def)
   set = (key: string, value: string) => {
     this._env[key] = value
@@ -161,3 +161,21 @@ export const setRuntime = (e: WebEnv) => {
   env = e
   if (env.DEBUG === 1) console.log(`Using env ${env.NAME}`)
 }
+
+export const withEnv = <Res>(overrides: Record<string, string | number>, fn: () => Res): Res => {
+  const old = env._env
+  env._env = { ...env._env, ...overrides as any }
+  const res = fn()
+  env._env = old
+  return res
+}
+
+export const withEnvAsync = async <Res>(overrides: Record<string, string | number>, fn: () => Promise<Res>): Promise<Res> => {
+  const old = env._env
+  env._env = { ...env._env, ...overrides as any }
+  const res = await fn()
+  env._env = old
+  return res
+}
+
+await withEnv({ AMX: 1 }, async () => {})
