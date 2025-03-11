@@ -1,4 +1,4 @@
-import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, isinstance, mod, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
+import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, isinstance, mod, perf, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
@@ -243,7 +243,7 @@ export class PythonProgram extends Program {
         i += 1
       }
     }
-    if (wait) return performance.now() - st
+    if (wait) return perf(st)
   }
 }
 

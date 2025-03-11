@@ -1,4 +1,4 @@
-import { GlobalCounters, range, zip } from '../helpers.ts'
+import { GlobalCounters, perf, range, zip } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/state.ts'
 import { dtypes } from '../dtype.ts'
@@ -267,7 +267,7 @@ export class Llama3 implements Llama3Constructor {
 
     let st = performance.now()
     await this._prefill(toks.slice(0, -1), onProgress)
-    const time_to_first_token = (performance.now() - st) / 1000
+    const time_to_first_token = perf(st)
 
     let last_tok = toks.at(-1), message: Llama3Message = { role: 'assistant', content: '' }
     let usage = { input_tokens: toks.length - 1, time_to_first_token, output_tokens: 0, tokens_per_second: 0 }
@@ -277,7 +277,7 @@ export class Llama3 implements Llama3Constructor {
       const tok = await this._call(new Tensor([[last_tok]], { device: this.device }))
       this.start_pos += 1
       usage.output_tokens++
-      usage.tokens_per_second = usage.output_tokens / ((performance.now() - st) / 1000)
+      usage.tokens_per_second = usage.output_tokens / perf(st)
       last_tok = tok
       if (this.tokenizer!.stop_tokens.includes(tok)) return { stop_reason: 'end_turn', message, usage }
 

@@ -2,7 +2,7 @@
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type Program } from '../device.ts'
 import { env } from '../env/index.ts'
-import { all_int, all_same, ansilen, colored, get_key, GlobalCounters, idiv, list_str, type Metadata, mod, replace, to_function_name, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, colored, get_key, GlobalCounters, idiv, list_str, type Metadata, mod, perf, replace, to_function_name, zip } from '../helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
 import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
 import type { TinyJit } from './jit.ts'
@@ -117,7 +117,7 @@ export class BufferCopy extends Runner {
     await this.copy(dest, src)
     if (wait) {
       Device.get(dest.device).synchronize()
-      return performance.now() - st
+      return perf(st)
     }
     return 0
   }

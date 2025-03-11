@@ -567,10 +567,12 @@ export class GlobalCounters {
 }
 
 // **************** timer and profiler ****************
+export const perf = (start_ms: number) => (performance.now() - start_ms) / 1000
+export const round = (value: number, decimals: number = 2) => Math.round(value * (10 ** decimals)) / (10 ** decimals)
 export const Timing = async <T>(fn: () => Promise<T>): Promise<[T, number]> => {
   const st = performance.now()
   const res = await fn()
-  return [res, performance.now() - st]
+  return [res, perf(st)]
 }
 export const _format_fcn = (fcn: any[]) => `${fcn[0]}:${fcn[1]}:${fcn[2]}`
 export class Profiling {
@@ -636,7 +638,7 @@ export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Pr
   return async (...args: Args) => {
     const st = performance.now()
     await fn(...args)
-    return performance.now() - st
+    return perf(st)
   }
 }
 
@@ -768,24 +770,6 @@ export function cache_fn<Args extends any[], Return>(fn: (...args: Args) => Retu
     cache[key] = res
     return res
   }
-}
-
-export function debug<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMemberDecoratorContext) {
-  const name = String(_context.name)
-  return (...args: Args): Return => {
-    console.log(`'${name}' called: ${args}`)
-    const start = performance.now()
-    const res = target(...args)
-    console.log(`'${name}' returned in ${performance.now() - start}ms: ${res}`)
-    return res
-  }
-}
-
-export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) => {
-  const s = performance.now()
-  const res = await fn()
-  console.log(`${name} took ${Math.round(performance.now() - s) / 1000}s and returned ${res}`)
-  return res
 }
 
 export type Math = ConstType | MathTrait<any>

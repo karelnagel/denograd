@@ -1,6 +1,6 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
-import { Adam, Device, DEVICES, get_parameters, is_eq, MNIST, mnist, Tensor, TinyJit } from '../../../denograd/web.ts'
+import { Adam, Device, DEVICES, get_parameters, is_eq, MNIST, mnist, perf, round, Tensor, TinyJit } from '../../../denograd/web.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
 
@@ -62,9 +62,9 @@ export const MnistExample = () => {
     const acc = await test()
     setSteps((steps) => [...steps, { acc, step: 0, duration: undefined }])
     for (let step = 0; step < maxSteps; step++) {
-      let time = performance.now()
+      let st = performance.now()
       const loss = await trainStep.call().then((x) => x.item())
-      const duration = performance.now() - time
+      const duration = perf(st)
       const acc = (step % 10 === 9) ? await test() : undefined
       setSteps((steps) => [...steps, { loss, acc, step: step + 1, duration }])
     }
@@ -133,21 +133,21 @@ export const MnistExample = () => {
             }),
             Plot.line(steps, {
               x: (d) => d.step,
-              y: (d) => d.duration * 100 / maxDuration,
+              y: (d) => d.duration / maxDuration * 100,
               strokeWidth: 2,
               stroke: 'green',
             }),
           ],
           color: {
             legend: true,
-            domain: ['Accuracy', 'Loss', `Step time (max: ${maxDuration.toFixed(0)}ms)`],
+            domain: ['Accuracy', 'Loss', `Step time (max: ${maxDuration}s)`],
             range: ['blue', 'red', 'green'],
           },
         }}
       />
       {currentStep && (
         <div>
-          loss:{currentStep.loss?.toFixed(2)}, accuracy: {currentStep.acc?.toFixed(2)}, step: {currentStep.step}/{maxSteps}, step time: {currentStep.duration?.toFixed(0)}ms
+          loss:{currentStep.loss?.toFixed(2)}, accuracy: {currentStep.acc?.toFixed(2)}, step: {currentStep.step}/{maxSteps}, step time: {round(currentStep.duration || 0)}s
         </div>
       )}
 

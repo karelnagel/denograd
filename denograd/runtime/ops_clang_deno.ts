@@ -1,5 +1,5 @@
 import { Compiled, Compiler, MallocAllocator, Program, type ProgramCallArgs } from './allocator.ts'
-import { bytes_to_string, cpu_objdump } from '../helpers.ts'
+import { bytes_to_string, cpu_objdump, perf } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
@@ -53,7 +53,7 @@ export class ClangProgram extends Program {
     }
     const st = performance.now()
     await this.fxn.symbols.call(...bufs.map((x) => x.buffer), ...vals.map((x) => x))
-    if (wait) return performance.now() - st
+    if (wait) return perf(st)
   }
 }
 

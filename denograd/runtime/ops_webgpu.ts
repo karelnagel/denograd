@@ -1,5 +1,5 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, isInt, round_up } from '../helpers.ts'
+import { bytes_to_string, isInt, perf, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import type { MemoryView } from '../memoryview.ts'
@@ -58,7 +58,7 @@ class WebGPUProgram extends Program {
     if (wait) {
       // TODO: Deno has error with this, in deno 2.2.2
       if (env.NAME !== 'deno') await WEBGPU.device.queue.onSubmittedWorkDone()
-      return performance.now() - st
+      return perf(st)
     }
   }
 }

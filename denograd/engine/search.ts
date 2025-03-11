@@ -2,7 +2,7 @@ import { type Kernel, KernelOptError, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
 import { env, withEnvAsync } from '../env/index.ts'
-import { add, colored, type ConstType, DefaultMap, flatten, idiv, isInf, mod, mul, prod, range, string_to_bytes, to_function_name, zip } from '../helpers.ts'
+import { add, colored, type ConstType, DefaultMap, flatten, idiv, isInf, mod, mul, perf, prod, range, string_to_bytes, to_function_name, zip } from '../helpers.ts'
 import { Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -133,7 +133,6 @@ export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, K
   }
   return acted_lins
 }
-const perf = (st: number) => (performance.now() - st) / 1000
 
 export const BEAM_DEBUG = env.get_num('BEAM_DEBUG')
 export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = env.get('IGNORE_BEAM_CACHE')): Promise<Kernel> => {
