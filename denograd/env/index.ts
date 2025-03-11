@@ -6,7 +6,7 @@ import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 export type Stat = { size: number; isFile: boolean }
 // deno-fmt-ignore
 export class WebEnv {
-  NAME = 'WEB'
+  NAME = 'web'
   PLATFORM = 'web'
   CPU_DEVICE: string = 'JS'
   DB_VERSION = 1

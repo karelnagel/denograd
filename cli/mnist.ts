@@ -1,4 +1,4 @@
-import { Adam, env, get_parameters, MNIST, mnist, range, Tensor, TinyJit, Tqdm } from '../denograd/mod.ts'
+import { Adam, env, get_parameters, GlobalCounters, MNIST, mnist, Tensor, TinyJit, Tqdm } from '../denograd/mod.ts'
 
 const [X_train, Y_train, X_test, Y_test] = await mnist(undefined)
 const BS = env.get_num('BS', 512)
@@ -21,8 +21,9 @@ const train_step = new TinyJit(async () => {
 const get_test_acc = new TinyJit(() => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100))
 
 let test_acc = NaN
-const t = new Tqdm(range(env.get_num('STEPS', 70)))
+const t = new Tqdm<number>(env.get_num('STEPS', 70))
 for (const i of t) {
+  GlobalCounters.reset()
   const loss = await train_step.call()
   if (i % 10 === 9) test_acc = await get_test_acc.call().then((x) => x.item())
   t.set_description(`loss: ${await loss.item().then((x) => x.toFixed(2))}, test_accuracy: ${test_acc.toFixed(2)}`)

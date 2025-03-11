@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, type Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -49,17 +49,13 @@ type ReplaceUOpsWithTensor<Args extends any[]> = { [K in keyof Args]: Args[K] ex
 // Has to be a function cause you can't use generics for static functions
 function CreateFunction<Args extends any[] = [UOp]>() {
   return class Function {
-    device: string | string[]
     needs_input_grad: (boolean | undefined)[]
     requires_grad?: boolean
     parents?: Tensor[]
-    metadata?: Metadata
-    constructor(device: string | string[], tensors: Tensor[], metadata?: Metadata) {
-      this.device = device
+    constructor(public device: string | string[], tensors: Tensor[], public metadata?: Metadata) {
       this.needs_input_grad = tensors.map((t) => t.requires_grad)
       this.requires_grad = this.needs_input_grad.some((x) => x) ? true : this.needs_input_grad.includes(undefined) ? undefined : false
       if (this.requires_grad) this.parents = tensors
-      this.metadata = metadata
     }
     forward = (..._args: Args): UOp => {
       throw new Error(`forward !implemented for ${this}`)
@@ -72,7 +68,7 @@ function CreateFunction<Args extends any[] = [UOp]>() {
       if (!args.length) throw new Error('No args')
 
       const x = args.filter((x) => x instanceof Tensor)
-      const ctx = new this(x[0].device, x, _METADATA.value)
+      const ctx = new this(x[0].device, x, _METADATA.get())
 
       const ret = new Tensor(undefined, undefined, true)
       // @ts-expect-error it doesn't like the spread arguments
@@ -1232,7 +1228,7 @@ export class Tensor extends MathTrait<Tensor> {
     this.grad = gradient
     for (const t0 of toposorted.toReversed()) {
       if (t0.grad === undefined) throw new Error(`tensor ${t0} has no grad`)
-      const ctx = t0._ctx!, md = ctx.metadata, token = _METADATA.set(md !== undefined ? { ...md, backward: true } : undefined)
+      const ctx = t0._ctx!, md = ctx.metadata, token = _METADATA.set(md !== undefined ? new Metadata(md.name, md.caller, true) : undefined)
       const lazys = ctx.backward(t0.grad.lazydata as UOp)
       _METADATA.reset(token)
       const grads = (!Array.isArray(lazys) ? [lazys] : lazys).map((g) => g !== undefined ? new Tensor(g, { device: this.device, requires_grad: false }) : undefined)
@@ -4298,10 +4294,37 @@ export class Tensor extends MathTrait<Tensor> {
   }
 }
 
-export const _metadata_wrapper = (fn: any): any => {
-  throw new NotImplemented()
+// Metadata wrapper function
+const wrapper = <T extends (...args: any[]) => any>(fn: T, name: string) => {
+  return function (this: any, ...args: any[]): ReturnType<T> {
+    if (_METADATA.get()) return fn.apply(this, args)
+    let caller: string
+    if (env.TRACEMETA >= 2) {
+      throw new NotImplemented()
+    } else {
+      caller = ''
+    }
+    const token = _METADATA.set(new Metadata(name, caller))
+    const result = fn.apply(this, args)
+    _METADATA.reset(token)
+    return result
+  }
 }
-// TODO
-// if (TRACEMETA >= 1) {
-//   throw new NotImplemented()
-// }
+
+// Function to wrap Tensor class methods
+if (env.TRACEMETA >= 1) {
+  const IGNORED = ['constructor', 'backward', 'toString', 'sequential']
+  const instanceMethods = Object.getOwnPropertyNames(Tensor.prototype)
+    .filter((name) => typeof Object.getOwnPropertyDescriptor(Tensor.prototype, name)?.value === 'function' && !IGNORED.includes(name))
+
+  const staticMethods = Object.getOwnPropertyNames(Tensor)
+    .filter((name) => {
+      const descriptor = Object.getOwnPropertyDescriptor(Tensor, name)
+      return typeof descriptor?.value === 'function' &&
+        !['__class__', '__init__', '__new__', '__repr__', 'backward', 'sequential'].includes(name)
+    })
+
+  instanceMethods.forEach((name) => (Tensor.prototype as any)[name] = wrapper((Tensor.prototype as any)[name], name))
+
+  staticMethods.forEach((name) => (Tensor as any)[name] = wrapper((Tensor as any)[name], name))
+}

@@ -11,7 +11,7 @@ import { WASM } from '../runtime/ops_wasm.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 
 export class BunEnv extends WebEnv {
-  override NAME = 'BUN'
+  override NAME = 'bun'
   override PLATFORM = process.platform
   override DEVICES = { CLANG, WASM, JS, CLOUD }
 
