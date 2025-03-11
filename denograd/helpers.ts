@@ -264,10 +264,10 @@ export const bytes_to_bigint = (bytes: Uint8Array) => {
 }
 export const isInf = (x: number) => x === Infinity || x === -Infinity
 export abstract class Enum {
-  constructor(public readonly name: string, public readonly value: number) {}
-  toString = () => `${this.constructor.name}.${this.name}`;
+  constructor(private readonly className: string, public readonly name: string, public readonly value: number) {}
+  toString = () => `${this.className}.${this.name}`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
-    return `${this.constructor.name}.${this.name}`
+    return this.toString()
   }
 
   [Symbol.toPrimitive](hint: 'string' | 'number' | 'default') {

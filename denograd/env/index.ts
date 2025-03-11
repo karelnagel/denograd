@@ -89,7 +89,7 @@ export class WebEnv {
     })
   }
 
-  disk_put = async (table: string, key: string, value: any) => {
+  disk_put = async (table: string, key: string, value: string | Uint8Array) => {
     const db = await this._open_db()
     const transaction = db.transaction(['denograd'], 'readwrite')
     const store = transaction.objectStore('denograd')

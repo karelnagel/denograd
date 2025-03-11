@@ -141,7 +141,9 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
     const val = await env.disk_get('beam_search', key)
     if (val !== undefined) {
       const ret = lin.copy()
-      for (const o of val.slice(lin.applied_opts.length)) ret.apply_opt(o)
+      for (const o of JSON.parse(val).slice(lin.applied_opts.length)) {
+        ret.apply_opt(new Opt(OptOps.values().find((x) => x.name === o.op.name)!, o.axis, o.amt))
+      }
       return ret
     }
   }
@@ -194,7 +196,7 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
     throw e
   }
 
-  if (env.CACHELEVEL >= 1) env.disk_put('beam_search', key, beam[0][0].applied_opts)
+  if (env.CACHELEVEL >= 1) env.disk_put('beam_search', key, JSON.stringify(beam[0][0].applied_opts))
   if (BEAM_DEBUG) console.log(`BEAM_SEARCH: final tm=${(beam[0][1] * 1e6).toFixed(2)} us, applied_opts=${beam[0][0].applied_opts}`)
   return beam[0][0]
 }
@@ -223,7 +225,7 @@ export const time_linearizer = async (lin: Kernel, rawbufs: Buffer[], allow_test
   const key = JSON.stringify({ 'ast': lin.ast.key, 'opts': String(lin.applied_opts), 'allow_test_size': allow_test_size, 'max_global_size': max_global_size, 'clear_l2': clear_l2, 'device': lin.opts.device, 'suffix': lin.opts.suffix })
   if (!disable_cache && env.CACHELEVEL >= 2) {
     const val = await env.disk_get('time_linearizer', key)
-    if (val !== undefined) return Math.min(...val as number[])
+    if (val !== undefined) return Math.min(...JSON.parse(val))
   }
   const dev = Device.get(lin.opts.device)
   if (dev.compiler === undefined) throw new Error()
@@ -233,6 +235,6 @@ export const time_linearizer = async (lin: Kernel, rawbufs: Buffer[], allow_test
   const p = lin.to_program()
   const tms = await _time_program(p, await dev.compiler.compile(p.src), var_vals, rawbufs, undefined, allow_test_size ? max_global_size : undefined, clear_l2, cnt, to_function_name(lin.name))
 
-  if (env.CACHELEVEL >= 2) env.disk_put('time_linearizer', key, tms)
+  if (env.CACHELEVEL >= 2) env.disk_put('time_linearizer', key, JSON.stringify(tms))
   return Math.min(...tms)
 }

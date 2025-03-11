@@ -69,7 +69,7 @@ export class Ops<Name extends string = string> extends Enum {
   static values = () => [...Ops.VALUES]
   key: string
   constructor(name: Name) {
-    super(name, Ops.VALUES.length + 1)
+    super('Ops', name, Ops.VALUES.length + 1)
     Ops.VALUES.push(this)
     this.key = get_key(name, this.value)
   }

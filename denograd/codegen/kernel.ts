@@ -16,7 +16,7 @@ export class OptOps<Name extends string = string, Value extends number = number>
   static values = () => [...OptOps.VALUES]
   key: string
   constructor(name: Name) {
-    super(name, OptOps.VALUES.length + 1)
+    super('OptOps', name, OptOps.VALUES.length + 1)
     this.key = get_key(name, this.value)
     OptOps.VALUES.push(this)
   }
@@ -431,7 +431,7 @@ export class Kernel {
     else if (opt.amt !== undefined) {
       amt = opt.amt !== 0 ? opt.amt : (this.full_shape[axis] as number)
       check(isinstance(amt, Number) && amt !== 1, `shift/padto of amt=${amt}, 1 or symbolic amount is meaningless`)
-      if (opt.op !== OptOps.PADTO) check(mod(this.full_shape[axis], amt) === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}`)
+      if (opt.op !== OptOps.PADTO) check(mod(this.full_shape[axis], amt) === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}, ${opt}`)
     } else amt = -1
 
     if (this.reduceop !== undefined && ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op) || (this.group_for_reduces && ![OptOps.NOLOCALS, OptOps.PADTO].includes(opt.op)))) {
