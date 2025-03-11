@@ -535,6 +535,10 @@ export class Metadata {
     Object.freeze(this)
     return Metadata.cache.setDefault(this.key, this)
   }
+  toString = () => `new Metadata(${this.name}, ${this.backward}, ${this.backward})`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   // def __hash__(self): return hash(self.name)
   //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
   //   def __str__(self): return self.name + (" bw" if self.backward else "")
