@@ -39,4 +39,4 @@ jobs:
         run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHE_DB=":memory:" deno test -A --no-check --parallel
 
       - name: Train mnist
-        run: ${{ matrix.runtime }}=1 BS=2 STEPS=10 deno -A cli/mnist.ts
+        run: ${{ matrix.runtime }}=1 deno -A cli/mnist.ts --steps 10 --bs 2

@@ -1,7 +1,14 @@
-import { Adam, env, get_parameters, GlobalCounters, MNIST, mnist, Tensor, TinyJit, Tqdm } from '../denograd/mod.ts'
+import z from 'zod'
+import { Adam, get_parameters, GlobalCounters, MNIST, mnist, Tensor, TinyJit, Tqdm } from '../denograd/mod.ts'
+import { parseArgs } from './zod-cli.ts'
 
+const args = parseArgs(
+  z.object({
+    steps: z.number().default(70).describe('Steps'),
+    bs: z.number().default(512).describe('Batch size'),
+  }).describe('Train MNIST model'),
+)
 const [X_train, Y_train, X_test, Y_test] = await mnist(undefined)
-const BS = env.get_num('BS', 512)
 
 const model = new MNIST()
 
@@ -11,7 +18,7 @@ const opt = Adam(get_parameters(model))
 const train_step = new TinyJit(async () => {
   Tensor.training = true
   opt.zero_grad()
-  const samples = Tensor.randint([BS], undefined, X_train.shape[0])
+  const samples = Tensor.randint([args.bs], undefined, X_train.shape[0])
   const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
   await opt.step()
   Tensor.training = false
@@ -21,7 +28,7 @@ const train_step = new TinyJit(async () => {
 const get_test_acc = new TinyJit(() => model.call(X_test).argmax(1).eq(Y_test).mean().mul(100))
 
 let test_acc = NaN
-const t = new Tqdm<number>(env.get_num('STEPS', 70))
+const t = new Tqdm<number>(args.steps)
 for (const i of t) {
   GlobalCounters.reset()
   const loss = await train_step.call()
