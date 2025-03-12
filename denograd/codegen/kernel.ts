@@ -138,11 +138,11 @@ export class Kernel {
     ret.opts = this.opts, ret.ast = this.ast
 
     // things downstream of the AST
-    ret.reduceops = this.reduceops, ret.vars = this.vars, ret.bufs = this.bufs, ret.full_buf_index = this.full_buf_index
+    ret.reduceops = [...this.reduceops], ret.vars = [...this.vars], ret.bufs = [...this.bufs], ret.full_buf_index = this.full_buf_index
     ret.sts = this.sts.slice(0, ret.bufs.length + ret.reduceops.length * 2) // NOTE: must redo the local buffers with TC in beam
 
     // parameters for optimizations
-    ret.applied_opts = this.applied_opts, ret.group_for_reduces = this.group_for_reduces, ret.upcasted = this.upcasted, ret.local_dims = this.local_dims, ret.dont_use_locals = this.dont_use_locals
+    ret.applied_opts = [...this.applied_opts], ret.group_for_reduces = this.group_for_reduces, ret.upcasted = this.upcasted, ret.local_dims = this.local_dims, ret.dont_use_locals = this.dont_use_locals
     ret.tensor_core = this.tensor_core, ret.tensor_core_opts = this.tensor_core_opts, ret.use_tensor_cores = this.use_tensor_cores
 
     return ret
