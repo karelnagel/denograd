@@ -170,7 +170,8 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
       const timed_lins: [Kernel, number][] = []
       const _compile_fn = async (x: [number, Kernel]) => await _try_compile_linearized_w_idx(x, dev.compiler)
       let least_compute_ops = Infinity
-      for (const [i, proc] of await Promise.all(acted_lins.entries().map(async (x) => await _compile_fn(x)))) {
+      for (const x of acted_lins.entries()) {
+        const [i, proc] = await _compile_fn(x)
         if (proc === undefined) continue
         const [p, lib, compile_et] = proc
         if (seen_libs.has(get_key(lib))) continue
@@ -221,7 +222,10 @@ export const optimize_local_size = async (_prg: Program, global_size: number[], 
       return Infinity
     }
   }
-  const results = await Promise.all(local_sizes.map(async (local_size) => [await try_exec(local_size), local_size] as [number, number[]])) // KAREL: randomise local_sizes,
+  const results: [number, number[]][] = []
+  for (const local_size of local_sizes) { // TODO: randomize local sizes
+    results.push([await try_exec(local_size), local_size])
+  }
   const min = results.toSorted(([a], [b]) => a - b)[0]
   if (isInf(min[0])) throw new Error('all optimize_local_size exec failed')
   return min[1]
