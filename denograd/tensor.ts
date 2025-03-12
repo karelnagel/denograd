@@ -4296,11 +4296,9 @@ export class Tensor extends MathTrait<Tensor> {
 
 // Metadata wrapper function
 if (env.TRACEMETA >= 1) {
-  // Wrapper for regular and static functions
   const wrapper = (fn: any, name: string, isArrow: boolean = false) => {
     return function (this: any, ...args: any[]) {
       if (_METADATA.get()) {
-        // If metadata is already set, skip wrapping and call directly
         return isArrow ? fn(...args) : fn.apply(this, args)
       }
       let caller: string
@@ -4310,7 +4308,7 @@ if (env.TRACEMETA >= 1) {
         caller = ''
       }
       const token = _METADATA.set(new Metadata(name, caller))
-      const result = isArrow ? fn(...args) : fn.apply(this, args) // Preserve `this` for arrow funcs
+      const result = isArrow ? fn(...args) : fn.apply(this, args)
       _METADATA.reset(token)
       return result
     }
@@ -4330,7 +4328,6 @@ if (env.TRACEMETA >= 1) {
     construct(target, args) {
       const instance = new target(...args)
 
-      // Get all instance properties (including arrow functions)
       const instanceProps = Object.getOwnPropertyDescriptors(instance)
       for (const [name, descriptor] of Object.entries(instanceProps)) {
         const func = descriptor.value
@@ -4340,10 +4337,7 @@ if (env.TRACEMETA >= 1) {
           // Check if it's an arrow function (no prototype property is a heuristic)
           !Object.prototype.hasOwnProperty.call(func, 'prototype')
         ) {
-          Object.defineProperty(instance, name, {
-            ...descriptor,
-            value: wrapper(func, name, true), // Mark as arrow function
-          })
+          Object.defineProperty(instance, name, { ...descriptor, value: wrapper(func, name, true) })
         }
       }
       return instance
