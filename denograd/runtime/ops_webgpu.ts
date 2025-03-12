@@ -48,17 +48,34 @@ class WebGPUProgram extends Program {
     ]
     const bind_group = WEBGPU.device.createBindGroup({ layout: this.bind_group_layout, entries: bindings })
     const encoder = WEBGPU.device.createCommandEncoder()
-    const compute_pass = encoder.beginComputePass()
+    let timestampWrites: GPUComputePassTimestampWrites | undefined, querySet: GPUQuerySet | undefined, queryBuf: GPUBuffer | undefined
+    if (wait && env.NAME !== 'deno') {
+      querySet = WEBGPU.device.createQuerySet({ type: 'timestamp', count: 2 })
+      queryBuf = WEBGPU.device.createBuffer({ size: 16, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC })
+      timestampWrites = { querySet, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 }
+    }
+    const compute_pass = encoder.beginComputePass(timestampWrites ? { timestampWrites } : undefined)
     compute_pass.setPipeline(this.compute_pipeline)
     compute_pass.setBindGroup(0, bind_group)
     compute_pass.dispatchWorkgroups(global_size[0], global_size[1], global_size[2]) // x y z
     compute_pass.end()
+    if (wait && env.NAME !== 'deno') encoder.resolveQuerySet(querySet!, 0, 2, queryBuf!, 0)
     const st = performance.now()
     WEBGPU.device.queue.submit([encoder.finish()])
+
     if (wait) {
-      // TODO: Deno has error with this, in deno 2.2.2
-      if (env.NAME !== 'deno') await WEBGPU.device.queue.onSubmittedWorkDone()
-      return perf(st)
+      if (env.NAME === 'deno') return perf(st)
+
+      await WEBGPU.device.queue.onSubmittedWorkDone()
+
+      const staging = WEBGPU.device.createBuffer({ size: 16, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST })
+      const commandEncoder = WEBGPU.device.createCommandEncoder()
+      commandEncoder.copyBufferToBuffer(queryBuf!, 0, staging, 0, queryBuf!.size)
+      WEBGPU.device.queue.submit([commandEncoder.finish()])
+      await staging.mapAsync(GPUMapMode.READ)
+      const timestamps = [...new BigUint64Array(staging.getMappedRange())]
+      staging.destroy(), queryBuf!.destroy(), querySet!.destroy()
+      return Number(timestamps[1] - timestamps[0]) / 1e9
     }
   }
 }
@@ -84,6 +101,8 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
 
 export class WEBGPU extends Compiled {
   static device: GPUDevice
+  static timestamp_supported: boolean
+  static f16_supported: boolean
   constructor(device: string) {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
@@ -92,9 +111,12 @@ export class WEBGPU extends Compiled {
 
     const adapter = await navigator.gpu.requestAdapter()
     if (!adapter) throw new Error('No adapter')
+    WEBGPU.f16_supported = adapter.features.has('shader-f16')
+    WEBGPU.timestamp_supported = adapter.features.has('timestamp-query')
+
     const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize, maxStorageBuffersPerShaderStage, maxComputeInvocationsPerWorkgroup } = adapter.limits
     WEBGPU.device = await adapter.requestDevice({
-      requiredFeatures: ['shader-f16'],
+      requiredFeatures: [...(WEBGPU.f16_supported ? ['shader-f16' as const] : []), ...(WEBGPU.timestamp_supported ? ['timestamp-query' as const] : [])],
       requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize, maxStorageBuffersPerShaderStage, maxComputeInvocationsPerWorkgroup },
     })
   }

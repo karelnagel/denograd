@@ -146,7 +146,7 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
     const val = await env.disk_get('beam_search', key)
     if (val !== undefined) {
       const ret = lin.copy()
-      const opts = JSON.parse(val).map((o: any) => new Opt(OptOps.values().find((x) => x.name === o.op.name)!, o.axis, o.amt))
+      const opts = JSON.parse(val).map((o: any) => new Opt(OptOps.values().find((x) => x.name === o.op)!, o.axis, o.amt))
       if (BEAM_DEBUG) console.log(`BEAM_CACHE: opts=${opts}`)
       for (const o of opts.slice(lin.applied_opts.length)) ret.apply_opt(o)
       return ret
@@ -202,7 +202,7 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
     throw e
   }
 
-  if (env.CACHELEVEL >= 1) env.disk_put('beam_search', key, JSON.stringify(beam[0][0].applied_opts))
+  if (env.CACHELEVEL >= 1) env.disk_put('beam_search', key, JSON.stringify(beam[0][0].applied_opts.map((x) => ({ op: x.op.name, axis: x.axis, amt: x.amt }))))
   if (BEAM_DEBUG) console.log(`BEAM_SEARCH: final tm=${(beam[0][1] * 1e6).toFixed(2)} us, applied_opts=${beam[0][0].applied_opts}`)
   return beam[0][0]
 }
