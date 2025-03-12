@@ -2,7 +2,7 @@ import { type Kernel, KernelOptError, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
 import { env, withEnvAsync } from '../env/index.ts'
-import { add, colored, type ConstType, DefaultMap, flatten, idiv, isInf, mod, mul, perf, prod, range, string_to_bytes, to_function_name, zip } from '../helpers.ts'
+import { add, colored, type ConstType, DefaultMap, flatten, idiv, isInf, mod, mul, perf, prod, range, to_function_name, zip } from '../helpers.ts'
 import { Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -182,7 +182,7 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
         }
         timed_lins.push([acted_lins[i], Math.min(...tms)])
         if (BEAM_DEBUG > 1) console.log(`${(perf(st)).toFixed(2).padEnd(7)}s: ${i.toString().padEnd(5)} ${p.uops!.length.toString().padEnd(5)} uops ${(compile_et! * 1e6).toFixed(2).padEnd(12)} us compile/${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padEnd(12)} us run       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}`)
-        else if (env.DEBUG >= 2) env.writeStdout(string_to_bytes(`\r${(perf(st)).toFixed(2).padStart(7)}s: ${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padStart(12)} us       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}\x1b[K`))
+        else if (env.DEBUG >= 2) env.writeStdout(`\r${(perf(st)).toFixed(2).padStart(7)}s: ${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padStart(12)} us       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}\x1b[K`)
       }
       // done
       const opts = timed_lins.toSorted((a, b) => b[1] - a[1])
