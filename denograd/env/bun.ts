@@ -24,7 +24,7 @@ export class BunEnv extends WebEnv {
     const res = statSync(path)
     return { isFile: res.isFile(), size: res.size }
   }
-  override writeStdout = (p: Uint8Array) => void Bun.stdout.write(p)
+  override writeStdout = (p: string) => void Bun.stdout.write(p)
   override tempFile = async () => {
     const path = `${os.tmpdir()}/tmp-${Date.now()}-${Math.random().toString(36).substring(2)}`
     await Bun.write(path, '')

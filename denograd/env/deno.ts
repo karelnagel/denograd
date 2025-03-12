@@ -9,9 +9,11 @@ import { WASM } from '../runtime/ops_wasm.ts'
 import { WEBGPU } from '../runtime/ops_webgpu.ts'
 import { CLANG } from '../runtime/ops_clang_deno.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
+import { string_to_bytes } from '../helpers.ts'
 
 export class DenoEnv extends WebEnv {
   override NAME = 'deno'
+  override CPU_DEVICE = 'CLANG'
   override PLATFORM = process.platform
   override DEVICES = { CLANG, WEBGPU, WASM, JS, DISK, CLOUD }
   override readFile = Deno.readFile
@@ -20,7 +22,7 @@ export class DenoEnv extends WebEnv {
   override realPath = Deno.realPath
   override stat = Deno.stat
   override statSync = Deno.statSync
-  override writeStdout = (p: Uint8Array) => void Deno.stdout.writeSync(p)
+  override writeStdout = (p: string) => void Deno.stdout.writeSync(string_to_bytes(p))
   override tempFile = Deno.makeTempFile
   override homedir = os.homedir
   override mkdir = async (path: string) => await Deno.mkdir(path, { recursive: true })

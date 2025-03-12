@@ -1,7 +1,7 @@
 // https://github.com/thesephist/tsqdm/blob/main/src/tqdm.ts
 
 import { env } from './env/index.ts'
-import { string_to_bytes } from './helpers.ts'
+import { round } from './helpers.ts'
 
 export type RenderBarOptions = {
   i: number
@@ -9,6 +9,7 @@ export type RenderBarOptions = {
   size?: number
   width: number
   elapsed: number
+  format?: (val: number) => string
 }
 export type TqdmProgress = {
   i?: number
@@ -23,12 +24,13 @@ export type TqdmOptions = {
   size?: number
   width?: number
   onProgress?: TqdmOnProgress
+  format?: (val: number) => string
 }
 
 const markers = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█']
 const filledMarker = markers.at(-1)
 
-function renderBar({ i, label, size, width, elapsed }: RenderBarOptions): string {
+function renderBar({ i, label, size, width, elapsed, format = (val) => round(val, 2).toString() }: RenderBarOptions): string {
   const rate = i / elapsed
   if (size === undefined) {
     const graph = `${label ? label + ': ' : ''}${i} | ${elapsed.toFixed(2)}s ${rate.toFixed(2)}it/s`
@@ -42,7 +44,7 @@ function renderBar({ i, label, size, width, elapsed }: RenderBarOptions): string
   const gap = new Array(width - bar.length).fill(' ').join('')
   const remaining = (size - i) / rate
   const percent = i / size * 100
-  const graph = `${label ? label + ': ' : ''}${percent.toFixed(1)}% |${bar}${gap}| ${i}/${size} | ${elapsed.toFixed(2)}>${remaining.toFixed(2)}s ${rate.toFixed(2)}it/s`
+  const graph = `${label ? label + ': ' : ''}${percent.toFixed(1)}% |${bar}${gap}| ${format(i)}/${format(size)} | ${elapsed.toFixed(2)}>${remaining.toFixed(2)}s ${format(rate)}/s`
   if (graph === '' && n > 0) return '▏'
   return graph
 }
@@ -62,9 +64,10 @@ export class Tqdm<T> implements IterableIterator<T> {
   private label: string | undefined
   private size: number | undefined
   private width: number
+  private format?: (val: number) => string
   private onProgress?: TqdmOnProgress
 
-  constructor(iter: Array<T> | IterableIterator<T> | undefined | number, { label, size, width = 16, onProgress }: TqdmOptions = {}) {
+  constructor(iter: Array<T> | IterableIterator<T> | undefined | number, { label, size, width = 16, onProgress, format }: TqdmOptions = {}) {
     if (typeof iter === 'undefined' || typeof iter === 'number') {
       size = iter
       iter = iterator(iter) as IterableIterator<T>
@@ -78,10 +81,11 @@ export class Tqdm<T> implements IterableIterator<T> {
     this.label = label
     this.size = size
     this.width = width
+    this.format = format
     this.onProgress = onProgress
   }
 
-  private print = (s: string) => env.writeStdout(string_to_bytes(s))
+  private print = (s: string) => env.writeStdout(s)
 
   set_description = (label: string) => this.label = label
 
@@ -89,7 +93,7 @@ export class Tqdm<T> implements IterableIterator<T> {
     if (newI) this.i = newI
     const elapsed = (Date.now() - this.start) / 1000
     this.onProgress?.({ i: this.i, label: this.label, size: this.size, elapsed })
-    this.print(renderBar({ i: this.i, label: this.label, size: this.size, width: this.width, elapsed }) + '\x1b[1G')
+    this.print(renderBar({ i: this.i, label: this.label, size: this.size, width: this.width, elapsed, format: this.format }) + '\x1b[1G')
   }
 
   next = (): IteratorResult<T> => {

@@ -163,17 +163,6 @@ export class ProfileResult {
   constructor(public st?: number, public en?: number) {}
 }
 
-// @contextlib.contextmanager
-export const cpu_profile = (name: string, device = 'CPU', is_copy = false, display = true): ProfileResult => {
-  const st = performance.now(), res = new ProfileResult(st)
-  const en = performance.now()
-  res.en = en
-  if (env.PROFILE && display) {
-    Compiled.profile_events = [...Compiled.profile_events, new ProfileRangeEvent(device, name, st / 1000, en / 1000, is_copy)]
-  }
-  return res
-}
-
 export class Compiled {
   static profile_events: ProfileEvent[] = [new ProfileDeviceEvent('CPU')]
 

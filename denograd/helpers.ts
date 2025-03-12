@@ -71,7 +71,11 @@ function hashValue(item: any, h = FNV_OFFSET_BASIS_64) {
       break
     }
     case 'object': {
-      if (Array.isArray(item)) {
+      if (item instanceof Uint8Array) {
+        for (const i of item) {
+          h = fnv1a_64(h, i)
+        }
+      } else if (Array.isArray(item)) {
         h = fnv1a_64(h, 91)
         for (let i = 0; i < item.length; i++) {
           h = hashValue(item[i], h)
@@ -264,10 +268,10 @@ export const bytes_to_bigint = (bytes: Uint8Array) => {
 }
 export const isInf = (x: number) => x === Infinity || x === -Infinity
 export abstract class Enum {
-  constructor(public readonly name: string, public readonly value: number) {}
-  toString = () => `${this.constructor.name}.${this.name}`;
+  constructor(private readonly className: string, public readonly name: string, public readonly value: number) {}
+  toString = () => `${this.className}.${this.name}`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
-    return `${this.constructor.name}.${this.name}`
+    return this.toString()
   }
 
   [Symbol.toPrimitive](hint: 'string' | 'number' | 'default') {
@@ -535,6 +539,10 @@ export class Metadata {
     Object.freeze(this)
     return Metadata.cache.setDefault(this.key, this)
   }
+  toString = () => `new Metadata(${this.name}, ${this.backward}, ${this.backward})`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   // def __hash__(self): return hash(self.name)
   //   def __repr__(self): return str(self) + (f" - {self.caller}" if self.caller else "")
   //   def __str__(self): return self.name + (" bw" if self.backward else "")
@@ -567,10 +575,12 @@ export class GlobalCounters {
 }
 
 // **************** timer and profiler ****************
+export const perf = (start_ms: number) => (performance.now() - start_ms) / 1000
+export const round = (value: number, decimals: number = 2) => Math.round(value * (10 ** decimals)) / (10 ** decimals)
 export const Timing = async <T>(fn: () => Promise<T>): Promise<[T, number]> => {
   const st = performance.now()
   const res = await fn()
-  return [res, performance.now() - st]
+  return [res, perf(st)]
 }
 export const _format_fcn = (fcn: any[]) => `${fcn[0]}:${fcn[1]}:${fcn[2]}`
 export class Profiling {
@@ -636,7 +646,7 @@ export const cpu_time_execution = <Args extends any[]>(fn: (...args: Args) => Pr
   return async (...args: Args) => {
     const st = performance.now()
     await fn(...args)
-    return performance.now() - st
+    return perf(st)
   }
 }
 
@@ -768,24 +778,6 @@ export function cache_fn<Args extends any[], Return>(fn: (...args: Args) => Retu
     cache[key] = res
     return res
   }
-}
-
-export function debug<Args extends any[], Return>(target: (...args: Args) => Return, _context: ClassMemberDecoratorContext) {
-  const name = String(_context.name)
-  return (...args: Args): Return => {
-    console.log(`'${name}' called: ${args}`)
-    const start = performance.now()
-    const res = target(...args)
-    console.log(`'${name}' returned in ${performance.now() - start}ms: ${res}`)
-    return res
-  }
-}
-
-export const measure_time = async <T>(name: string, fn: () => Promise<T> | T) => {
-  const s = performance.now()
-  const res = await fn()
-  console.log(`${name} took ${Math.round(performance.now() - s) / 1000}s and returned ${res}`)
-  return res
 }
 
 export type Math = ConstType | MathTrait<any>

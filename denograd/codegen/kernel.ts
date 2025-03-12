@@ -16,7 +16,7 @@ export class OptOps<Name extends string = string, Value extends number = number>
   static values = () => [...OptOps.VALUES]
   key: string
   constructor(name: Name) {
-    super(name, OptOps.VALUES.length + 1)
+    super('OptOps', name, OptOps.VALUES.length + 1)
     this.key = get_key(name, this.value)
     OptOps.VALUES.push(this)
   }
@@ -45,7 +45,10 @@ export class Opt {
     Object.freeze(this)
     return Opt.cache.setDefault(this.key, this)
   }
-  toString = () => `Opt(op=${this.op}, axis=${this.axis}, amt=${this.amt})`
+  toString = () => `new Opt(${this.op}, ${this.axis}, ${this.amt})`;
+  [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
+    return this.toString()
+  }
   real_axis = (k: Kernel): number => {
     if (this.axis === undefined) return -1
     if (this.op === OptOps.UNROLL) return k.first_reduce + this.axis
@@ -135,11 +138,11 @@ export class Kernel {
     ret.opts = this.opts, ret.ast = this.ast
 
     // things downstream of the AST
-    ret.reduceops = this.reduceops, ret.vars = this.vars, ret.bufs = this.bufs, ret.full_buf_index = this.full_buf_index
+    ret.reduceops = [...this.reduceops], ret.vars = [...this.vars], ret.bufs = [...this.bufs], ret.full_buf_index = this.full_buf_index
     ret.sts = this.sts.slice(0, ret.bufs.length + ret.reduceops.length * 2) // NOTE: must redo the local buffers with TC in beam
 
     // parameters for optimizations
-    ret.applied_opts = this.applied_opts, ret.group_for_reduces = this.group_for_reduces, ret.upcasted = this.upcasted, ret.local_dims = this.local_dims, ret.dont_use_locals = this.dont_use_locals
+    ret.applied_opts = [...this.applied_opts], ret.group_for_reduces = this.group_for_reduces, ret.upcasted = this.upcasted, ret.local_dims = this.local_dims, ret.dont_use_locals = this.dont_use_locals
     ret.tensor_core = this.tensor_core, ret.tensor_core_opts = this.tensor_core_opts, ret.use_tensor_cores = this.use_tensor_cores
 
     return ret
@@ -416,7 +419,7 @@ export class Kernel {
     if (opt.op === OptOps.TC) {
       check(this.applied_opts.length === 0, 'tensor core opts must be first') // TODO: things like PADTO might be fine
       check(opt.axis !== undefined && opt.amt !== undefined, 'tensor core opts must have an axis && amt')
-      check(env.USE_TC === 2 || (this.opts.tensor_cores?.length || 0) > 0, 'must have tensor cores ||TC=2')
+      check(env.USE_TC === 2 || (this.opts.tensor_cores?.length || 0) > 0, 'must have tensor cores or TC=2')
       check(this._apply_tc_opt(env.USE_TC, opt.axis!, opt.amt!), 'no tensor core available')
       this.applied_opts.push(opt)
       return
@@ -428,7 +431,7 @@ export class Kernel {
     else if (opt.amt !== undefined) {
       amt = opt.amt !== 0 ? opt.amt : (this.full_shape[axis] as number)
       check(isinstance(amt, Number) && amt !== 1, `shift/padto of amt=${amt}, 1 or symbolic amount is meaningless`)
-      if (opt.op !== OptOps.PADTO) check(mod(this.full_shape[axis], amt) === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}`)
+      if (opt.op !== OptOps.PADTO) check(mod(this.full_shape[axis], amt) === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}, ${opt}`)
     } else amt = -1
 
     if (this.reduceop !== undefined && ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op) || (this.group_for_reduces && ![OptOps.NOLOCALS, OptOps.PADTO].includes(opt.op)))) {
@@ -441,11 +444,11 @@ export class Kernel {
 
     if (opt.op === OptOps.LOCAL) { // cyan
       check(this.opts.has_local, 'target does not support local')
-      check(axis < this.global_dims, 'local===for globals')
+      check(axis < this.global_dims, 'local is for globals')
       this.shift_to(axis, amt, undefined, this.first_reduce)
       this.local_dims += 1
     } else if ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op)) { // green
-      check(this.opts.has_local && this.opts.has_shared, 'target does not support local ||shared mem')
+      check(this.opts.has_local && this.opts.has_shared, 'target does not support local or shared mem')
       check(this.first_reduce + this.group_for_reduces <= axis && axis < this.first_upcast, 'must be reduce axis to group')
       check(!this.tensor_core, "can't group with tensor cores")
       const reduce_axes = this.reduceops.flatMap((r) => r.axis_arg.map((i) => i))
@@ -463,17 +466,17 @@ export class Kernel {
       this.shift_to(axis, amt, undefined, undefined)
       this.upcast()
     } else if (opt.op === OptOps.UPCAST) { // yellow
-      check(axis < this.first_reduce, 'upcast===for non-reduce')
+      check(axis < this.first_reduce, 'upcast is for non-reduce')
       check(!(this.tensor_core && this.global_dims <= axis && axis < this.global_dims + this.tensor_core.get_local_axes().length), "can't upcast TC locals")
       check(amt <= 16, "don't upcast more than 16")
       this.shift_to(axis, amt, undefined, undefined)
       this.upcast()
     } else if (opt.op === OptOps.NOLOCALS) {
-      check(this.opts.has_local && !this.dont_use_locals, 'NOLOCALS===meaningless if target does not support local ||already not using locals')
+      check(this.opts.has_local && !this.dont_use_locals, 'NOLOCALS is meaningless if target does not support local or already not using locals')
       check(this.local_dims === 0 && this.group_for_reduces === 0, "can't have no locals with locals")
       this.dont_use_locals = true
     } else if (opt.op === OptOps.SWAP) {
-      check(axis < amt && amt < this.global_dims, `swap===only for globals with axis < amt, getting amt=${amt}, axis=${axis}, this.global_dims=${this.global_dims}`)
+      check(axis < amt && amt < this.global_dims, `swap is only for globals with axis < amt, getting amt=${amt}, axis=${axis}, this.global_dims=${this.global_dims}`)
       const permute = range(this.shape_len)
       ;[permute[axis], permute[amt]] = [permute[amt], permute[axis]]
       this.reshape_and_permute(undefined, permute)

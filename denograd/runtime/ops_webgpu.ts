@@ -1,5 +1,5 @@
 import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, isInt, round_up } from '../helpers.ts'
+import { bytes_to_string, isInt, perf, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import type { MemoryView } from '../memoryview.ts'
@@ -29,6 +29,8 @@ class WebGPUProgram extends Program {
     return res
   }
   override call = async (bufs: GPUBuffer[], { global_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+    WEBGPU.device.pushErrorScope('validation')
+
     if (!this.bind_group_layout || !this.compute_pipeline) {
       const binding_layouts: GPUBindGroupLayoutEntry[] = [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
@@ -48,17 +50,37 @@ class WebGPUProgram extends Program {
     ]
     const bind_group = WEBGPU.device.createBindGroup({ layout: this.bind_group_layout, entries: bindings })
     const encoder = WEBGPU.device.createCommandEncoder()
-    const compute_pass = encoder.beginComputePass()
+    let timestampWrites: GPUComputePassTimestampWrites | undefined, querySet: GPUQuerySet | undefined, queryBuf: GPUBuffer | undefined
+    if (wait && env.NAME !== 'deno') {
+      querySet = WEBGPU.device.createQuerySet({ type: 'timestamp', count: 2 })
+      queryBuf = WEBGPU.device.createBuffer({ size: 16, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC })
+      timestampWrites = { querySet, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 }
+    }
+    const compute_pass = encoder.beginComputePass(timestampWrites ? { timestampWrites } : undefined)
     compute_pass.setPipeline(this.compute_pipeline)
     compute_pass.setBindGroup(0, bind_group)
     compute_pass.dispatchWorkgroups(global_size[0], global_size[1], global_size[2]) // x y z
     compute_pass.end()
+    if (wait && env.NAME !== 'deno') encoder.resolveQuerySet(querySet!, 0, 2, queryBuf!, 0)
     const st = performance.now()
     WEBGPU.device.queue.submit([encoder.finish()])
+
+    const error = await WEBGPU.device.popErrorScope()
+    if (error) throw new Error(error.message)
+
     if (wait) {
-      // TODO: Deno has error with this, in deno 2.2.2
-      if (env.NAME !== 'deno') await WEBGPU.device.queue.onSubmittedWorkDone()
-      return performance.now() - st
+      if (env.NAME === 'deno') return perf(st)
+
+      await WEBGPU.device.queue.onSubmittedWorkDone()
+
+      const staging = WEBGPU.device.createBuffer({ size: 16, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST })
+      const commandEncoder = WEBGPU.device.createCommandEncoder()
+      commandEncoder.copyBufferToBuffer(queryBuf!, 0, staging, 0, queryBuf!.size)
+      WEBGPU.device.queue.submit([commandEncoder.finish()])
+      await staging.mapAsync(GPUMapMode.READ)
+      const timestamps = [...new BigUint64Array(staging.getMappedRange())]
+      staging.destroy(), queryBuf!.destroy(), querySet!.destroy()
+      return Number(timestamps[1] - timestamps[0]) / 1e9
     }
   }
 }
@@ -84,6 +106,8 @@ class WebGpuAllocator extends Allocator<GPUBuffer> {
 
 export class WEBGPU extends Compiled {
   static device: GPUDevice
+  static timestamp_supported: boolean
+  static f16_supported: boolean
   constructor(device: string) {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
@@ -92,10 +116,13 @@ export class WEBGPU extends Compiled {
 
     const adapter = await navigator.gpu.requestAdapter()
     if (!adapter) throw new Error('No adapter')
-    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize, maxStorageBuffersPerShaderStage } = adapter.limits
+    WEBGPU.f16_supported = adapter.features.has('shader-f16')
+    WEBGPU.timestamp_supported = adapter.features.has('timestamp-query')
+
+    const { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize, maxStorageBuffersPerShaderStage, maxComputeInvocationsPerWorkgroup } = adapter.limits
     WEBGPU.device = await adapter.requestDevice({
-      requiredFeatures: ['shader-f16'],
-      requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize, maxStorageBuffersPerShaderStage },
+      requiredFeatures: [...(WEBGPU.f16_supported ? ['shader-f16' as const] : []), ...(WEBGPU.timestamp_supported ? ['timestamp-query' as const] : [])],
+      requiredLimits: { maxStorageBufferBindingSize, maxBufferSize, maxUniformBufferBindingSize, maxStorageBuffersPerShaderStage, maxComputeInvocationsPerWorkgroup },
     })
   }
 }

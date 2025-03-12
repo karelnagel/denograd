@@ -1,10 +1,10 @@
-import { GlobalCounters, range, zip } from '../helpers.ts'
+import { GlobalCounters, perf, range, zip } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/state.ts'
 import { dtypes } from '../dtype.ts'
 import { convert_from_gguf, convert_from_huggingface, fix_bf16, Transformer } from './llama.ts'
 import { Embedding, Linear } from '../nn/index.ts'
-import { env } from '../env/index.ts'
+import { env, withEnvAsync } from '../env/index.ts'
 import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 import { Device } from '../device.ts'
 import { Tokenizer } from './tokenizer.ts'
@@ -224,28 +224,29 @@ export class Llama3 implements Llama3Constructor {
     }
     weights = fix_bf16(weights)
 
-    // TODO: with Context(BEAM=0):
-    // quantize
-    if (this.quantize === 'float16') weights = Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.cast(dtypes.float16).contiguous()]))
-    else if (this.quantize !== undefined) {
-      weights = (this.linear as typeof Int8Linear).quantize(weights, this.device, scale_dtype, this.quantize_embeds)
-      for (const v of new Tqdm(Object.values(weights), { onProgress, label: `Quantizing to ${this.quantize}` })) await v.realize()
-    }
-    // shard
-    if (Array.isArray(this.device)) {
-      for (const [k, v] of Object.entries(get_state_dict(this.model))) {
-        if (k.includes('scale')) v.shard_(this.device) // from quantized
-        else if (k.includes('.attention.')) v.shard_(this.device, -1)
-        else if (k.includes('.feed_forward.w1.')) v.shard_(this.device, 0)
-        else if (k.includes('.feed_forward.w3.')) v.shard_(this.device, 0)
-        else if (k.includes('.feed_forward.')) v.shard_(this.device, -1)
-        else if (k.includes('tok_embeddings.weight')) v.shard_(this.device, 0)
-        else if (k.includes('output.weight')) v.shard_(this.device, 0)
-        else v.shard_(this.device)
+    await withEnvAsync({ BEAM: 0 }, async () => {
+      // quantize
+      if (this.quantize === 'float16') weights = Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.cast(dtypes.float16).contiguous()]))
+      else if (this.quantize !== undefined) {
+        weights = (this.linear as typeof Int8Linear).quantize(weights, this.device, scale_dtype, this.quantize_embeds)
+        for (const v of new Tqdm(Object.values(weights), { onProgress, label: `Quantizing to ${this.quantize}` })) await v.realize()
       }
-    }
-    // replace weights in model
-    await load_state_dict(this.model, weights, false, undefined, true, onProgress)
+      // shard
+      if (Array.isArray(this.device)) {
+        for (const [k, v] of Object.entries(get_state_dict(this.model))) {
+          if (k.includes('scale')) v.shard_(this.device) // from quantized
+          else if (k.includes('.attention.')) v.shard_(this.device, -1)
+          else if (k.includes('.feed_forward.w1.')) v.shard_(this.device, 0)
+          else if (k.includes('.feed_forward.w3.')) v.shard_(this.device, 0)
+          else if (k.includes('.feed_forward.')) v.shard_(this.device, -1)
+          else if (k.includes('tok_embeddings.weight')) v.shard_(this.device, 0)
+          else if (k.includes('output.weight')) v.shard_(this.device, 0)
+          else v.shard_(this.device)
+        }
+      }
+      // replace weights in model
+      await load_state_dict(this.model, weights, false, undefined, true, onProgress)
+    })
     this.tokenizer = await Tokenizer.init(`${model_path.split('/').slice(0, -1).join('/')}/tokenizer.model`)
     await this._system(system, onProgress)
     return this
@@ -266,7 +267,7 @@ export class Llama3 implements Llama3Constructor {
 
     let st = performance.now()
     await this._prefill(toks.slice(0, -1), onProgress)
-    const time_to_first_token = (performance.now() - st) / 1000
+    const time_to_first_token = perf(st)
 
     let last_tok = toks.at(-1), message: Llama3Message = { role: 'assistant', content: '' }
     let usage = { input_tokens: toks.length - 1, time_to_first_token, output_tokens: 0, tokens_per_second: 0 }
@@ -276,7 +277,7 @@ export class Llama3 implements Llama3Constructor {
       const tok = await this._call(new Tensor([[last_tok]], { device: this.device }))
       this.start_pos += 1
       usage.output_tokens++
-      usage.tokens_per_second = usage.output_tokens / ((performance.now() - st) / 1000)
+      usage.tokens_per_second = usage.output_tokens / perf(st)
       last_tok = tok
       if (this.tokenizer!.stop_tokens.includes(tok)) return { stop_reason: 'end_turn', message, usage }
 

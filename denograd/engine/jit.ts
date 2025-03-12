@@ -7,6 +7,7 @@ import { Ops, sym_infer, UOp, type Variable } from '../ops.ts'
 import { Estimates } from '../renderer/index.ts'
 import type { ShapeTracker } from '../shape/shapetracker.ts'
 import { Tensor } from '../tensor.ts'
+import { withEnvAsync } from '../web.ts'
 import { _internal_memory_planner } from './memory.ts'
 import { BufferCopy, BufferXfer, capturing, CompiledRunner, ExecItem, Runner, ViewOp } from './realize.ts'
 
@@ -276,11 +277,12 @@ export class TinyJit<Args extends any[], Return extends any> {
     if (!env.JIT || this.cnt === 0) {
       // jit ignore
       if (!this.fxn) throw new Error()
-      // TODO:
-      //   with Context(BEAM=0 if getenv("IGNORE_JIT_FIRST_BEAM") else BEAM.value):
-      ret = await this.fxn(...args)
-      const params = get_parameters(ret)
-      if (params.length) await Tensor.realize(params)
+      ret = await withEnvAsync({ BEAM: env.get('IGNORE_JIT_FIRST_BEAM') ? 0 : env.BEAM }, async () => {
+        ret = await this.fxn!(...args)
+        const params = get_parameters(ret)
+        if (params.length) await Tensor.realize(params)
+        return ret
+      })
     } else if (this.cnt === 1) {
       // jit capture
       if (!this.fxn) throw new Error()
@@ -288,18 +290,19 @@ export class TinyJit<Args extends any[], Return extends any> {
       this._jit_cache = []
       this._buffer_replace = new WeakKeyMap()
       // TODO: should we always disable the memory planner here? it must be off for prune
-      // TODO:
-      //   with Context(BEAM=getenv("JITBEAM", BEAM.value), NO_MEMORY_PLANNER=int(this.prune)):
-      capturing.push(this)
-      try {
-        ret = await this.fxn(...args)
-        const params = get_parameters(ret)
-        if (params.length) await Tensor.realize(params)
-      } catch (e) {
-        throw e
-      } finally {
-        capturing.pop()
-      }
+      ret = await withEnvAsync({ BEAM: env.get_num('JITBEAM', env.BEAM), NO_MEMORY_PLANNER: Number(this.prune) }, async () => {
+        capturing.push(this)
+        try {
+          ret = await this.fxn!(...args)
+          const params = get_parameters(ret)
+          if (params.length) await Tensor.realize(params)
+          return ret
+        } catch (e) {
+          throw e
+        } finally {
+          capturing.pop()
+        }
+      })
       let jit_cache = this._jit_cache
       this._buffer_replace = undefined, this._jit_cache = undefined
       if (!jit_cache.length) throw new Error("didn't JIT anything!")

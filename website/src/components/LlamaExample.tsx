@@ -1,8 +1,8 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useRef, useState } from 'react'
-import { Llama3, type Llama3Message, type Llama3Usage, type TqdmProgress } from '../../../denograd/web.ts'
+import { env, Llama3, type Llama3Message, type Llama3Usage, round, type TqdmProgress } from '../../../denograd/web.ts'
 
-const round = (val: number) => Math.round(val * 100) / 100
+env.BEAM = 2
 
 export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
   const [model, setModel] = useState<Llama3>()

@@ -1,5 +1,5 @@
 import z from 'zod'
-import { env, Llama3, string_to_bytes, Tensor } from '../denograd/mod.ts'
+import { env, Llama3, Tensor } from '../denograd/mod.ts'
 import { parseArgs } from './zod-cli.ts'
 
 const args = parseArgs(
@@ -18,7 +18,7 @@ const args = parseArgs(
 if (args.seed !== undefined) Tensor.manual_seed(args.seed)
 console.log(`seed = ${Tensor._seed}`)
 const model = await Llama3.load({
-  size: '1B',
+  size: args.size,
   temperature: args.temperature,
   quantize: args.quantize,
 })
@@ -32,9 +32,9 @@ if (args.query) {
     await model.chat({
       messages: [{ role: 'user', content }],
       onToken: (res) => {
-        env.writeStdout(string_to_bytes(res.token))
+        env.writeStdout(res.token)
       },
     })
-    env.writeStdout(string_to_bytes('\n'))
+    env.writeStdout('\n')
   }
 }

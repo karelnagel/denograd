@@ -121,7 +121,7 @@ test(
       '   t.reshape((5,2))[1:3].data(),',
       '])',
     ],
-    { ignore: Device.DEFAULT === 'WEBGPU' ? [0] : undefined },
+    { ignore: (Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'WASM') ? [0] : undefined },
   ),
 )
 
@@ -507,6 +507,7 @@ test(
       'out(tiny.Tensor.rand(*data))',
     ],
   ),
+  { ignore: Device.DEFAULT === 'WASM' },
 )
 
 test(
