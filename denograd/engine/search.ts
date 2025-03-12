@@ -141,9 +141,9 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
     const val = await env.disk_get('beam_search', key)
     if (val !== undefined) {
       const ret = lin.copy()
-      for (const o of JSON.parse(val).slice(lin.applied_opts.length)) {
-        ret.apply_opt(new Opt(OptOps.values().find((x) => x.name === o.op.name)!, o.axis, o.amt))
-      }
+      const opts = JSON.parse(val).map((o: any) => new Opt(OptOps.values().find((x) => x.name === o.op.name)!, o.axis, o.amt))
+      if (BEAM_DEBUG) console.log(`BEAM_CACHE: opts=${opts}`)
+      for (const o of opts.slice(lin.applied_opts.length)) ret.apply_opt(o)
       return ret
     }
   }
@@ -152,7 +152,7 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
   const seen_libs = new Set()
 
   const min_progress = env.get_num('BEAM_MIN_PROGRESS', 0.01) / 1e6
-  if (BEAM_DEBUG) console.log(`BEAM_SEARCH:\n${lin.ast}`)
+  if (BEAM_DEBUG >= 2) console.log(`BEAM_SEARCH:\n${lin.ast}`)
   if (env.DEBUG >= 2) console.log(`   0.00s:                 from   1 ->   1 actions ${lin.colored_shape()}`)
 
   try {

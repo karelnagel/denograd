@@ -472,11 +472,11 @@ export class Kernel {
       this.shift_to(axis, amt, undefined, undefined)
       this.upcast()
     } else if (opt.op === OptOps.NOLOCALS) {
-      check(this.opts.has_local && !this.dont_use_locals, 'NOLOCALS===meaningless if target does not support local ||already not using locals')
+      check(this.opts.has_local && !this.dont_use_locals, 'NOLOCALS is meaningless if target does not support local or already not using locals')
       check(this.local_dims === 0 && this.group_for_reduces === 0, "can't have no locals with locals")
       this.dont_use_locals = true
     } else if (opt.op === OptOps.SWAP) {
-      check(axis < amt && amt < this.global_dims, `swap===only for globals with axis < amt, getting amt=${amt}, axis=${axis}, this.global_dims=${this.global_dims}`)
+      check(axis < amt && amt < this.global_dims, `swap is only for globals with axis < amt, getting amt=${amt}, axis=${axis}, this.global_dims=${this.global_dims}`)
       const permute = range(this.shape_len)
       ;[permute[axis], permute[amt]] = [permute[amt], permute[axis]]
       this.reshape_and_permute(undefined, permute)
