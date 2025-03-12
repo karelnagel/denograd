@@ -419,7 +419,7 @@ export class Kernel {
     if (opt.op === OptOps.TC) {
       check(this.applied_opts.length === 0, 'tensor core opts must be first') // TODO: things like PADTO might be fine
       check(opt.axis !== undefined && opt.amt !== undefined, 'tensor core opts must have an axis && amt')
-      check(env.USE_TC === 2 || (this.opts.tensor_cores?.length || 0) > 0, 'must have tensor cores ||TC=2')
+      check(env.USE_TC === 2 || (this.opts.tensor_cores?.length || 0) > 0, 'must have tensor cores or TC=2')
       check(this._apply_tc_opt(env.USE_TC, opt.axis!, opt.amt!), 'no tensor core available')
       this.applied_opts.push(opt)
       return
@@ -444,11 +444,11 @@ export class Kernel {
 
     if (opt.op === OptOps.LOCAL) { // cyan
       check(this.opts.has_local, 'target does not support local')
-      check(axis < this.global_dims, 'local===for globals')
+      check(axis < this.global_dims, 'local is for globals')
       this.shift_to(axis, amt, undefined, this.first_reduce)
       this.local_dims += 1
     } else if ([OptOps.GROUP, OptOps.GROUPTOP].includes(opt.op)) { // green
-      check(this.opts.has_local && this.opts.has_shared, 'target does not support local ||shared mem')
+      check(this.opts.has_local && this.opts.has_shared, 'target does not support local or shared mem')
       check(this.first_reduce + this.group_for_reduces <= axis && axis < this.first_upcast, 'must be reduce axis to group')
       check(!this.tensor_core, "can't group with tensor cores")
       const reduce_axes = this.reduceops.flatMap((r) => r.axis_arg.map((i) => i))
@@ -466,7 +466,7 @@ export class Kernel {
       this.shift_to(axis, amt, undefined, undefined)
       this.upcast()
     } else if (opt.op === OptOps.UPCAST) { // yellow
-      check(axis < this.first_reduce, 'upcast===for non-reduce')
+      check(axis < this.first_reduce, 'upcast is for non-reduce')
       check(!(this.tensor_core && this.global_dims <= axis && axis < this.global_dims + this.tensor_core.get_local_axes().length), "can't upcast TC locals")
       check(amt <= 16, "don't upcast more than 16")
       this.shift_to(axis, amt, undefined, undefined)

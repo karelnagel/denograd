@@ -1,6 +1,4 @@
-import { Tensor } from './denograd/mod.ts'
+import {  Tensor } from './denograd/mod.ts'
 
-const a = Tensor.rand([2])
-const b = Tensor.rand([2])
+await Tensor.rand([2, 3, 4, 4]).tolist()
 
-await a.mul(b).tolist()

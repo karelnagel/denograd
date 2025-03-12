@@ -1,6 +1,4 @@
-from tinygrad import Tensor
+from tinygrad import Tensor, nn
 
-a = Tensor.rand([2])
-b = Tensor.rand([2])
+Tensor.rand(2, 3, 4, 4).tolist()
 
-(a * b).tolist()
