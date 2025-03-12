@@ -2,7 +2,7 @@ import { type Kernel, KernelOptError, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
 import { env, withEnvAsync } from '../env/index.ts'
-import { add, colored, type ConstType, DefaultMap, flatten, idiv, isInf, mod, mul, perf, prod, range, to_function_name, zip } from '../helpers.ts'
+import { add, colored, type ConstType, DefaultMap, flatten, get_key, idiv, isInf, mod, mul, perf, prod, range, to_function_name, zip } from '../helpers.ts'
 import { Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -38,7 +38,7 @@ export const _get_test_global_size = (global_size: number[], max_global_size: nu
 }
 
 export const _time_program = async (p: ProgramSpec, lib: Uint8Array, var_vals: Map<Variable, ConstType>, rawbufs: Buffer[], early_stop?: number, max_global_size = 65536, clear_l2 = false, cnt = 3, name = 'test'): Promise<number[]> => {
-  let factor = 1, global_size, car
+  let factor = 1, global_size: number[], car: CompiledRunner
   if (p.global_size !== undefined && max_global_size !== undefined) {
     ;[global_size, factor] = _get_test_global_size(p.global_size, max_global_size, var_vals)
     p.global_size = global_size
@@ -48,7 +48,7 @@ export const _time_program = async (p: ProgramSpec, lib: Uint8Array, var_vals: M
   } catch {
     return range(cnt).map((x) => Infinity)
   }
-  const tms = []
+  const tms: number[] = []
   const input_bufs = car.p.globals.map((i) => rawbufs[i])
   for (const _ of range(cnt)) {
     if (clear_l2) {
@@ -149,7 +149,7 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
   }
 
   let beam: [Kernel, number][] = [[lin, Infinity]]
-  const seen_libs = new Set()
+  const seen_libs = new Set<string>()
 
   const min_progress = env.get_num('BEAM_MIN_PROGRESS', 0.01) / 1e6
   if (BEAM_DEBUG >= 2) console.log(`BEAM_SEARCH:\n${lin.ast}`)
@@ -168,12 +168,12 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
       for (const [i, proc] of await Promise.all(acted_lins.entries().map(async (x) => await _compile_fn(x)))) {
         if (proc === undefined) continue
         const [p, lib, compile_et] = proc
-        if (seen_libs.has(lib)) continue
+        if (seen_libs.has(get_key(lib))) continue
         // filter out kernels that use 1000x more compute than the smallest
         const this_compute_ops = sym_infer(p.estimates.ops, var_vals)
         least_compute_ops = Math.min(this_compute_ops, least_compute_ops)
         if (least_compute_ops * 1000 < this_compute_ops) continue
-        seen_libs.add(lib)
+        seen_libs.add(get_key(lib))
         let tms: number[]
         try {
           tms = await _time_program(p, lib, var_vals, rawbufs, beam.length ? beam[0][1] * 3 : 1.0, undefined, 'invalidate_caches' in dev)
@@ -185,7 +185,7 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
         else if (env.DEBUG >= 2) env.writeStdout(`\r${(perf(st)).toFixed(2).padStart(7)}s: ${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padStart(12)} us       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}\x1b[K`)
       }
       // done
-      const opts = timed_lins.toSorted((a, b) => b[1] - a[1])
+      const opts = timed_lins.toSorted((a, b) => a[1] - b[1])
       exiting = opts.length === 0 || (opts[0][1] < min_progress) || (beam.length > 0 && ((beam[0][1] - opts[0][1]) < min_progress))
       if (!exiting) beam = opts.slice(0, amt)
       else if (opts.length > 0 && opts[0][1] < beam[0][1]) beam = opts.slice(0, 1)

@@ -71,7 +71,11 @@ function hashValue(item: any, h = FNV_OFFSET_BASIS_64) {
       break
     }
     case 'object': {
-      if (Array.isArray(item)) {
+      if (item instanceof Uint8Array) {
+        for (const i of item) {
+          h = fnv1a_64(h, i)
+        }
+      } else if (Array.isArray(item)) {
         h = fnv1a_64(h, 91)
         for (let i = 0; i < item.length; i++) {
           h = hashValue(item[i], h)
