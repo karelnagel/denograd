@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { env, Llama3, type Llama3Message, type Llama3Usage, round, type TqdmProgress } from '../../../denograd/web.ts'
 
-env.BEAM = 2
+env.BEAM = 8
 
 export const LlamaExample = ({ initOnLoad }: { initOnLoad?: boolean }) => {
   const [model, setModel] = useState<Llama3>()

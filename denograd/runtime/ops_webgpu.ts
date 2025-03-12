@@ -29,6 +29,8 @@ class WebGPUProgram extends Program {
     return res
   }
   override call = async (bufs: GPUBuffer[], { global_size = [1, 1, 1], vals = [] }: ProgramCallArgs, wait = false) => {
+    WEBGPU.device.pushErrorScope('validation')
+
     if (!this.bind_group_layout || !this.compute_pipeline) {
       const binding_layouts: GPUBindGroupLayoutEntry[] = [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
@@ -62,6 +64,9 @@ class WebGPUProgram extends Program {
     if (wait && env.NAME !== 'deno') encoder.resolveQuerySet(querySet!, 0, 2, queryBuf!, 0)
     const st = performance.now()
     WEBGPU.device.queue.submit([encoder.finish()])
+
+    const error = await WEBGPU.device.popErrorScope()
+    if (error) throw new Error(error.message)
 
     if (wait) {
       if (env.NAME === 'deno') return perf(st)
