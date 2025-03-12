@@ -1,3 +1,4 @@
+// deno-lint-ignore-file custom-lint-rules/no-floating-promises
 import { type Kernel, KernelOptError, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
@@ -71,16 +72,20 @@ export const timeout_handler = (signum: any, frame: any) => {
   throw new TimeoutException()
 }
 
+const timeout = async (seconds: number) => await new Promise((_, reject) => setTimeout(() => reject(new Error(`Timed out after ${seconds}s`)), seconds * 1000))
+
 export const _try_compile_linearized_w_idx = async (x: [number, Kernel], compiler: Compiler): Promise<[number, [ProgramSpec, Uint8Array, number | undefined] | undefined]> => {
-  // TODO: add timeout
   let ret: [ProgramSpec, Uint8Array, number | undefined] | undefined = undefined
   try {
-    const p = x[1].to_program('test')
-    if (p.uops === undefined) throw new Error("uop list wasn't generated?")
-    if (p.uops.length >= env.get_num('BEAM_UOPS_MAX', 3000) && env.get_num('BEAM_UOPS_MAX', 3000) > 0) throw new Error('too many uops')
-    const st = performance.now()
-    const prog = await compiler.compile(p.src)
-    ret = [p, prog, perf(st)]
+    const compile = async () => {
+      const p = x[1].to_program('test')
+      if (p.uops === undefined) throw new Error("uop list wasn't generated?")
+      if (p.uops.length >= env.get_num('BEAM_UOPS_MAX', 3000) && env.get_num('BEAM_UOPS_MAX', 3000) > 0) throw new Error('too many uops')
+      const st = performance.now()
+      const prog = await compiler.compile(p.src)
+      ret = [p, prog, perf(st)]
+    }
+    await Promise.race([compile(), timeout(env.get_num('BEAM_TIMEOUT_SEC', 10))])
   } catch (e) {
     if (env.DEBUG >= 4) console.trace()
     if (env.get_num('BEAM_STRICT_MODE')) throw e
@@ -217,7 +222,7 @@ export const optimize_local_size = async (_prg: Program, global_size: number[], 
     }
   }
   const results = await Promise.all(local_sizes.map(async (local_size) => [await try_exec(local_size), local_size] as [number, number[]])) // KAREL: randomise local_sizes,
-  const min = results.toSorted(([a], [b]) => b - a)[0]
+  const min = results.toSorted(([a], [b]) => a - b)[0]
   if (isInf(min[0])) throw new Error('all optimize_local_size exec failed')
   return min[1]
 }
