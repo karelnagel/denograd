@@ -1,4 +1,3 @@
-import {  Tensor } from './denograd/mod.ts'
+import { Tensor } from './denograd/mod.ts'
 
-await Tensor.rand([2, 3, 4, 4]).tolist()
-
+await Tensor.arange(1, 10, 1).tolist()
