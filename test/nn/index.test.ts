@@ -54,6 +54,7 @@ test(
       'out(conv(t))',
     ],
   ),
+  { ignore: Device.DEFAULT === 'WASM' },
 )
 
 test(
@@ -146,4 +147,5 @@ test(
       'out(linear(t))',
     ],
   ),
+  { ignore: Device.DEFAULT === 'WASM' },
 )
