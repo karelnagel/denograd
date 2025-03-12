@@ -823,8 +823,8 @@ export class Tensor extends MathTrait<Tensor> {
     const one = bits.ones_like({ device: bits.device, dtype: dtype }).bitcast(uint_dtype!)
     bits = bits.rshift((dtype.itemsize * 8) - nmant).bitwise_or(one)
     // bitcast back to the original dtype && reshape
-    // KAREL: this contiguous() fixes rand() for WASM, why?
-    let out = bits.contiguous().bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
+    // TODO: adding contiguous() after bits. fixes it for wasm
+    let out = bits.bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
 
     // move back to the original device if we were using MOCKGPU
     if (env.get('MOCKGPU') && _device) out = out.to(_device)
@@ -4295,36 +4295,58 @@ export class Tensor extends MathTrait<Tensor> {
 }
 
 // Metadata wrapper function
-const wrapper = <T extends (...args: any[]) => any>(fn: T, name: string) => {
-  return function (this: any, ...args: any[]): ReturnType<T> {
-    if (_METADATA.get()) return fn.apply(this, args)
-    let caller: string
-    if (env.TRACEMETA >= 2) {
-      throw new NotImplemented()
-    } else {
-      caller = ''
-    }
-    const token = _METADATA.set(new Metadata(name, caller))
-    const result = fn.apply(this, args)
-    _METADATA.reset(token)
-    return result
-  }
-}
-
-// Function to wrap Tensor class methods
 if (env.TRACEMETA >= 1) {
+  // Wrapper for regular and static functions
+  const wrapper = (fn: any, name: string, isArrow: boolean = false) => {
+    return function (this: any, ...args: any[]) {
+      if (_METADATA.get()) {
+        // If metadata is already set, skip wrapping and call directly
+        return isArrow ? fn(...args) : fn.apply(this, args)
+      }
+      let caller: string
+      if (env.TRACEMETA >= 2) {
+        throw new NotImplemented()
+      } else {
+        caller = ''
+      }
+      const token = _METADATA.set(new Metadata(name, caller))
+      const result = isArrow ? fn(...args) : fn.apply(this, args) // Preserve `this` for arrow funcs
+      _METADATA.reset(token)
+      return result
+    }
+  }
+
   const IGNORED = ['constructor', 'backward', 'toString', 'sequential']
-  const instanceMethods = Object.getOwnPropertyNames(Tensor.prototype)
-    .filter((name) => typeof Object.getOwnPropertyDescriptor(Tensor.prototype, name)?.value === 'function' && !IGNORED.includes(name))
 
-  const staticMethods = Object.getOwnPropertyNames(Tensor)
-    .filter((name) => {
-      const descriptor = Object.getOwnPropertyDescriptor(Tensor, name)
-      return typeof descriptor?.value === 'function' &&
-        !['__class__', '__init__', '__new__', '__repr__', 'backward', 'sequential'].includes(name)
-    })
+  const staticFuncs = Object.entries(Tensor).filter(([k, v]) => typeof v === 'function' && !IGNORED.includes(k))
+  for (const [name, func] of staticFuncs) (Tensor as any)[name] = wrapper(func, name)
 
-  instanceMethods.forEach((name) => (Tensor.prototype as any)[name] = wrapper((Tensor.prototype as any)[name], name))
+  const instanceFuncs = Object.getOwnPropertyNames(Tensor.prototype).map((k) => [k, Object.getOwnPropertyDescriptor(Tensor.prototype, k)?.value]).filter(([k, v]) => typeof v === 'function' && !IGNORED.includes(k))
+  for (const [name, func] of instanceFuncs) (Tensor.prototype as any)[name] = wrapper(func, name)
 
-  staticMethods.forEach((name) => (Tensor as any)[name] = wrapper((Tensor as any)[name], name))
+  // @ts-ignore reassigning Tensor
+  // deno-lint-ignore no-class-assign
+  Tensor = new Proxy(Tensor, {
+    construct(target, args) {
+      const instance = new target(...args)
+
+      // Get all instance properties (including arrow functions)
+      const instanceProps = Object.getOwnPropertyDescriptors(instance)
+      for (const [name, descriptor] of Object.entries(instanceProps)) {
+        const func = descriptor.value
+        if (
+          typeof func === 'function' &&
+          !IGNORED.includes(name) &&
+          // Check if it's an arrow function (no prototype property is a heuristic)
+          !Object.prototype.hasOwnProperty.call(func, 'prototype')
+        ) {
+          Object.defineProperty(instance, name, {
+            ...descriptor,
+            value: wrapper(func, name, true), // Mark as arrow function
+          })
+        }
+      }
+      return instance
+    },
+  })
 }
