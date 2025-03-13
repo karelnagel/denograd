@@ -188,7 +188,7 @@ export class Llama3 implements Llama3Constructor {
   private linear: typeof Linear
   private embedding: typeof Embedding
   constructor(args: Llama3Constructor) {
-    this.size = args.size, this.quantize = args.quantize ?? 'float16', this.max_context = args.max_context ?? 8192, this.device = args.device ?? Device.DEFAULT
+    this.size = args.size, this.quantize = args.quantize, this.max_context = args.max_context ?? 8192, this.device = args.device ?? Device.DEFAULT
     this.temperature = args.temperature ?? 0.95, this.top_k = args.top_k ?? 0, this.top_p = args.top_p ?? 0, this.alpha_f = args.alpha_f ?? 0, this.alpha_p = args.alpha_p ?? 0
     if (this.quantize === 'int8') this.linear = Int8Linear, this.embedding = Int8Embedding as typeof Embedding, this.quantize_embeds = true
     else if (this.quantize === 'nf4') this.linear = NF4Linear(64), this.embedding = Embedding, this.quantize_embeds = false
@@ -213,18 +213,21 @@ export class Llama3 implements Llama3Constructor {
 
   load = async ({ onProgress, system }: Llama3Load) => {
     const model_path = await this._download(undefined, onProgress)
-    const scale_dtype = dtypes.float16
+    const noF16Support = env.NAME === 'deno' && Device.DEFAULT === 'WEBGPU'
+    const scale_dtype = noF16Support ? dtypes.float32 : dtypes.float16
     // load weights
     let weights: Record<string, Tensor>
-    weights = await this._load(model_path, onProgress)
-    if ('model.embed_tokens.weight' in weights) {
-      weights = convert_from_huggingface(weights, this.model, MODEL_PARAMS[this.size]['args']['n_heads'], MODEL_PARAMS[this.size]['args']['n_kv_heads'])
-    } else if ('token_embd.weight' in weights) {
-      weights = convert_from_gguf(weights, this.model)
-    }
-    weights = fix_bf16(weights)
 
-    await withEnvAsync({ BEAM: 0 }, async () => {
+    // Deno WEBGPU doesn't support f16 yet, so we load weights in CLANG
+    await withEnvAsync({ BEAM: 0, DEVICE: noF16Support ? 'CLANG' : Device.DEFAULT }, async () => {
+      weights = await this._load(model_path, onProgress)
+      if ('model.embed_tokens.weight' in weights) {
+        weights = convert_from_huggingface(weights, this.model, MODEL_PARAMS[this.size].args.n_heads, MODEL_PARAMS[this.size].args.n_kv_heads)
+      } else if ('token_embd.weight' in weights) {
+        weights = convert_from_gguf(weights, this.model)
+      }
+      weights = fix_bf16(weights)
+
       // quantize
       if (this.quantize === 'float16') weights = Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, v.cast(dtypes.float16).contiguous()]))
       else if (this.quantize !== undefined) {
@@ -244,6 +247,9 @@ export class Llama3 implements Llama3Constructor {
           else v.shard_(this.device)
         }
       }
+    })
+
+    await withEnvAsync({ BEAM: 0 }, async () => {
       // replace weights in model
       await load_state_dict(this.model, weights, false, undefined, true, onProgress)
     })
