@@ -154,10 +154,10 @@ const getOffset = (offset: number, alignment: number) => Math.ceil(offset / alig
 
 export abstract class Struct<T extends Type<any>[]> extends Type<BufferSource> {
   items: T
-  constructor(pointer: Deno.PointerValue)
   constructor(...items: T)
+  constructor(pointer: Deno.PointerValue)
   constructor(...items: T | [Deno.PointerValue]) {
-    if (items[0] instanceof Type) throw new Error(`Not Type ${items[0]}`)
+    if (!(items[0] instanceof Type)) throw new Error(`Not Type ${items[0]}`)
     super(new Uint8Array())
     this.items = items as T
   }
