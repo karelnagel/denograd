@@ -7,6 +7,9 @@ export abstract class Type<T extends DenoFnType> {
   get value() {
     return this._value
   }
+  get alignment() {
+    return this.buffer.byteLength
+  }
   ptr() {
     const buf = this.buffer
     return new Pointer<typeof this>(Deno.UnsafePointer.of(buf))
@@ -16,49 +19,37 @@ export abstract class Type<T extends DenoFnType> {
 // UINTS
 export class U8 extends Type<number> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(1))
-    view.setUint8(0, this.value)
-    return view.buffer
+    return new Uint8Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getUint8(0)
+    this._value = new Uint8Array(buf)[0]
     return this
   }
 }
 export class U16 extends Type<number> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(2))
-    view.setUint16(0, this.value)
-    return view.buffer
+    return new Uint16Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getUint16(0)
+    this._value = new Uint16Array(buf)[0]
     return this
   }
 }
 export class U32 extends Type<number> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(4))
-    view.setUint32(0, this.value)
-    return view.buffer
+    return new Uint32Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getUint32(0)
+    this._value = new Uint32Array(buf)[0]
     return this
   }
 }
 export class U64 extends Type<bigint> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(8))
-    view.setBigUint64(0, this.value)
-    return view.buffer
+    return new BigUint64Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getBigUint64(0)
+    this._value = new BigUint64Array(buf)[0]
     return this
   }
 }
@@ -66,49 +57,37 @@ export class U64 extends Type<bigint> {
 // INTS
 export class I8 extends Type<number> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(1))
-    view.setInt8(0, this.value)
-    return view.buffer
+    return new Int8Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getInt8(0)
+    this._value = new Int8Array(buf)[0]
     return this
   }
 }
 export class I16 extends Type<number> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(2))
-    view.setInt16(0, this.value)
-    return view.buffer
+    return new Int16Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getInt16(0)
+    this._value = new Int16Array(buf)[0]
     return this
   }
 }
 export class I32 extends Type<number> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(4))
-    view.setInt32(0, this.value)
-    return view.buffer
+    return new Int32Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getInt32(0)
+    this._value = new Int32Array(buf)[0]
     return this
   }
 }
 export class I64 extends Type<bigint> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(8))
-    view.setBigInt64(0, this.value)
-    return view.buffer
+    return new BigInt64Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getBigInt64(0)
+    this._value = new BigInt64Array(buf)[0]
     return this
   }
 }
@@ -116,25 +95,19 @@ export class I64 extends Type<bigint> {
 // FLOATS
 export class F32 extends Type<number> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(4))
-    view.setFloat32(0, this.value)
-    return view.buffer
+    return new Float32Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getFloat32(0)
+    this._value = new Float32Array(buf)[0]
     return this
   }
 }
 export class F64 extends Type<number> {
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(8))
-    view.setFloat64(0, this.value)
-    return view.buffer
+    return new Float64Array([this.value]).buffer
   }
   override fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getFloat64(0)
+    this._value = new Float64Array(buf)[0]
     return this
   }
 }
@@ -159,13 +132,10 @@ export class Pointer<T extends Type<any>> extends Type<Deno.PointerValue> {
     super(value)
   }
   get buffer(): ArrayBuffer {
-    const view = new DataView(new ArrayBuffer(8))
-    view.setBigUint64(0, 0n) //Todo get the actual pointer value
-    return view.buffer
+    return new BigUint64Array([Deno.UnsafePointer.value(this._value)]).buffer
   }
   fromBuffer(buf: ArrayBuffer) {
-    const view = new DataView(buf)
-    this._value = view.getBigUint64(0) // TODO
+    this._value = Deno.UnsafePointer.create(new BigUint64Array(buf)[0])
     return this
   }
   override ptr(): any {
@@ -178,17 +148,7 @@ export class Pointer<T extends Type<any>> extends Type<Deno.PointerValue> {
 }
 
 // STRUCT
-function concatArrayBuffers(buffers: ArrayBuffer[]) {
-  const totalLength = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0)
-
-  let offset = 0, result = new Uint8Array(totalLength)
-  for (const buffer of buffers) {
-    result.set(new Uint8Array(buffer), offset)
-    offset += buffer.byteLength
-  }
-
-  return result.buffer
-}
+const getAlignedOffset = (offset: number, alignment: number) => Math.ceil(offset / alignment) * alignment
 
 export abstract class Struct<T extends Type<any>[]> extends Type<BufferSource> {
   items: T
@@ -199,16 +159,36 @@ export abstract class Struct<T extends Type<any>[]> extends Type<BufferSource> {
   override get value() {
     return this.buffer
   }
-  get buffer() {
-    return concatArrayBuffers(this.items.map((x) => x.buffer))
+  override get alignment(): number {
+    return Math.max(...this.items.map((x) => x.alignment))
   }
-  override fromBuffer(buf: ArrayBuffer): typeof this {
-    let offset = 0
+  get buffer(): ArrayBuffer {
+    let offsets: number[] = [], offset = 0
+
     for (const item of this.items) {
-      const len = item.buffer.byteLength
-      item.fromBuffer(buf.slice(offset, offset+len))
-      offset += len
+      const alignedOffset = getAlignedOffset(offset, item.alignment)
+      offsets.push(alignedOffset)
+      offset = alignedOffset + item.buffer.byteLength
     }
+
+    const totalLength = getAlignedOffset(offset, this.alignment)
+
+    const result = new Uint8Array(totalLength)
+    for (const [i, item] of this.items.entries()) result.set(new Uint8Array(item.buffer), offsets[i])
+
+    return result.buffer
+  }
+
+  override fromBuffer(buf: ArrayBuffer): this {
+    let offset = 0
+
+    for (const item of this.items) {
+      const alignedOffset = getAlignedOffset(offset, item.alignment)
+      const size = item.buffer.byteLength
+      item.fromBuffer(buf.slice(alignedOffset, alignedOffset + size))
+      offset = alignedOffset + size
+    }
+
     return this
   }
 }
