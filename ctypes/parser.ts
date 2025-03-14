@@ -13,28 +13,34 @@ const libTypeMap = {
   'int64_t': 'i64',
   ':float': 'f32',
   ':double': 'f64',
+  ':struct': 'buffer',
+  ':enum': 'u32',
+  ':function-pointer': 'function',
 }
 const getLibType = (type: Type): string => {
   if (type.tag in libTypeMap) return `'${libTypeMap[type.tag as keyof typeof libTypeMap]}'`
-  console.log(type)
-  if (type.tag.startsWith('WGPU')) return `'buffer'`
-  throw new Error('invalid')
+
+  const lines = data.filter((x) => x.name === type.tag && x.tag === 'typedef')
+  if (lines.length !== 1) throw new Error(`Can't find ${type.tag}`)
+  return getLibType(lines[0].type)
 }
+
 content += `const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dylib', {
   ${data.filter((x) => x.tag === 'function').map((x) => `${x.name}: { parameters: [${x.parameters.map((x: any) => getLibType(x.type)).join(', ')}], result: ${getLibType(x['return-type'])} },`).join('\n  ')}
 })\n\n`
 
+// TODO: all enums are consts are handled as uint32
 const consts: string[] = []
 for (const line of data) {
   if (line.tag !== 'const') continue
-  consts.push(`export const ${line.name} = new c.I32(${line.value})`)
+  consts.push(`export const ${line.name} = new c.U32(${line.value})`)
 }
 
 const enums: string[] = []
 for (const line of data) {
   if (line.tag !== 'enum') continue
-  enums.push(`export class ${line.name} extends c.I32 {
-  ${line.fields.map((x: any) => `static ${x.name} = new ${line.name}(${x.value})`).join('\n  ')}
+  enums.push(`export class ${line.name} extends c.U32 {
+  ${line.fields.map((x: any) => `static '${x.name.replace(`${line.name}_`, '')}' = new ${line.name}(${x.value})`).join('\n  ')}
 }`)
 }
 
@@ -85,5 +91,6 @@ for (const line of data) {
 
 content += Object.entries({ consts, enums, structs: Object.values(structs), types, functions })
   .map(([k, v]) => `// ${k}\n${v.join('\n')}`).join('\n\n')
+content += '\n'
 
 Deno.writeTextFile('ctypes/dawn.ts', content)

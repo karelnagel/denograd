@@ -3,1018 +3,1018 @@ import * as c from './mod.ts'
 const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dylib', {
   wgpuAdapterInfoFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuAdapterPropertiesMemoryHeapsFreeMembers: { parameters: ['buffer'], result: 'void' },
-  wgpuCreateInstance: { parameters: ['pointer'], result: 'buffer' },
+  wgpuCreateInstance: { parameters: ['pointer'], result: 'pointer' },
   wgpuDrmFormatCapabilitiesFreeMembers: { parameters: ['buffer'], result: 'void' },
-  wgpuGetInstanceFeatures: { parameters: ['pointer'], result: 'i32' },
-  wgpuGetProcAddress: { parameters: ['buffer'], result: 'buffer' },
+  wgpuGetInstanceFeatures: { parameters: ['pointer'], result: 'u32' },
+  wgpuGetProcAddress: { parameters: ['buffer'], result: 'function' },
   wgpuSharedBufferMemoryEndAccessStateFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuSharedTextureMemoryEndAccessStateFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuSupportedFeaturesFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuSurfaceCapabilitiesFreeMembers: { parameters: ['buffer'], result: 'void' },
-  wgpuAdapterCreateDevice: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuAdapterGetFeatures: { parameters: ['buffer', 'pointer'], result: 'void' },
-  wgpuAdapterGetFormatCapabilities: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
-  wgpuAdapterGetInfo: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuAdapterGetInstance: { parameters: ['buffer'], result: 'buffer' },
-  wgpuAdapterGetLimits: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuAdapterHasFeature: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuAdapterRequestDevice: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void' },
-  wgpuAdapterRequestDevice2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuAdapterRequestDeviceF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuAdapterAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuAdapterRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuBindGroupSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuBindGroupAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuBindGroupRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuBindGroupLayoutSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuBindGroupLayoutAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuBindGroupLayoutRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuBufferDestroy: { parameters: ['buffer'], result: 'void' },
-  wgpuBufferGetConstMappedRange: { parameters: ['buffer', 'usize', 'usize'], result: 'pointer' },
-  wgpuBufferGetMapState: { parameters: ['buffer'], result: 'buffer' },
-  wgpuBufferGetMappedRange: { parameters: ['buffer', 'usize', 'usize'], result: 'pointer' },
-  wgpuBufferGetSize: { parameters: ['buffer'], result: 'u64' },
-  wgpuBufferGetUsage: { parameters: ['buffer'], result: 'buffer' },
-  wgpuBufferMapAsync: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer', 'pointer'], result: 'void' },
-  wgpuBufferMapAsync2: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer'], result: 'buffer' },
-  wgpuBufferMapAsyncF: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer'], result: 'buffer' },
-  wgpuBufferSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuBufferUnmap: { parameters: ['buffer'], result: 'void' },
-  wgpuBufferAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuBufferRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuCommandBufferSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuCommandBufferAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuCommandBufferRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuCommandEncoderBeginComputePass: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuCommandEncoderBeginRenderPass: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuCommandEncoderClearBuffer: { parameters: ['buffer', 'buffer', 'u64', 'u64'], result: 'void' },
-  wgpuCommandEncoderCopyBufferToBuffer: { parameters: ['buffer', 'buffer', 'u64', 'buffer', 'u64', 'u64'], result: 'void' },
-  wgpuCommandEncoderCopyBufferToTexture: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void' },
-  wgpuCommandEncoderCopyTextureToBuffer: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void' },
-  wgpuCommandEncoderCopyTextureToTexture: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void' },
-  wgpuCommandEncoderFinish: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuCommandEncoderInjectValidationError: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuCommandEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuCommandEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void' },
-  wgpuCommandEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuCommandEncoderResolveQuerySet: { parameters: ['buffer', 'buffer', 'u32', 'u32', 'buffer', 'u64'], result: 'void' },
-  wgpuCommandEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuCommandEncoderWriteBuffer: { parameters: ['buffer', 'buffer', 'u64', 'pointer', 'u64'], result: 'void' },
-  wgpuCommandEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void' },
-  wgpuCommandEncoderAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuCommandEncoderRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuComputePassEncoderDispatchWorkgroups: { parameters: ['buffer', 'u32', 'u32', 'u32'], result: 'void' },
-  wgpuComputePassEncoderDispatchWorkgroupsIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
-  wgpuComputePassEncoderEnd: { parameters: ['buffer'], result: 'void' },
-  wgpuComputePassEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuComputePassEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void' },
-  wgpuComputePassEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuComputePassEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void' },
-  wgpuComputePassEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuComputePassEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuComputePassEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void' },
-  wgpuComputePassEncoderAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuComputePassEncoderRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuComputePipelineGetBindGroupLayout: { parameters: ['buffer', 'u32'], result: 'buffer' },
-  wgpuComputePipelineSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuComputePipelineAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuComputePipelineRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuDeviceCreateBindGroup: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateBindGroupLayout: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateCommandEncoder: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateComputePipeline: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateComputePipelineAsync: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void' },
-  wgpuDeviceCreateComputePipelineAsync2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuDeviceCreateComputePipelineAsyncF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuDeviceCreateErrorBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateErrorExternalTexture: { parameters: ['buffer'], result: 'buffer' },
-  wgpuDeviceCreateErrorShaderModule: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuDeviceCreateErrorTexture: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateExternalTexture: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreatePipelineLayout: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateQuerySet: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateRenderBundleEncoder: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateRenderPipeline: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateRenderPipelineAsync: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void' },
-  wgpuDeviceCreateRenderPipelineAsync2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuDeviceCreateRenderPipelineAsyncF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuDeviceCreateSampler: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateShaderModule: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceCreateTexture: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceDestroy: { parameters: ['buffer'], result: 'void' },
-  wgpuDeviceForceLoss: { parameters: ['buffer', 'buffer', 'buffer'], result: 'void' },
-  wgpuDeviceGetAHardwareBufferProperties: { parameters: ['buffer', 'pointer', 'pointer'], result: 'buffer' },
-  wgpuDeviceGetAdapter: { parameters: ['buffer'], result: 'buffer' },
-  wgpuDeviceGetAdapterInfo: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceGetFeatures: { parameters: ['buffer', 'pointer'], result: 'void' },
-  wgpuDeviceGetLimits: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceGetLostFuture: { parameters: ['buffer'], result: 'buffer' },
-  wgpuDeviceGetQueue: { parameters: ['buffer'], result: 'buffer' },
-  wgpuDeviceHasFeature: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuDeviceImportSharedBufferMemory: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceImportSharedFence: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceImportSharedTextureMemory: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuDeviceInjectError: { parameters: ['buffer', 'buffer', 'buffer'], result: 'void' },
-  wgpuDevicePopErrorScope: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void' },
-  wgpuDevicePopErrorScope2: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuDevicePopErrorScopeF: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuDevicePushErrorScope: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuDeviceSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuDeviceSetLoggingCallback: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void' },
-  wgpuDeviceTick: { parameters: ['buffer'], result: 'void' },
-  wgpuDeviceValidateTextureDescriptor: { parameters: ['buffer', 'pointer'], result: 'void' },
-  wgpuDeviceAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuDeviceRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuExternalTextureDestroy: { parameters: ['buffer'], result: 'void' },
-  wgpuExternalTextureExpire: { parameters: ['buffer'], result: 'void' },
-  wgpuExternalTextureRefresh: { parameters: ['buffer'], result: 'void' },
-  wgpuExternalTextureSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuExternalTextureAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuExternalTextureRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuInstanceCreateSurface: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuInstanceEnumerateWGSLLanguageFeatures: { parameters: ['buffer', 'pointer'], result: 'usize' },
-  wgpuInstanceHasWGSLLanguageFeature: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuInstanceProcessEvents: { parameters: ['buffer'], result: 'void' },
-  wgpuInstanceRequestAdapter: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void' },
-  wgpuInstanceRequestAdapter2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuInstanceRequestAdapterF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
-  wgpuInstanceWaitAny: { parameters: ['buffer', 'usize', 'pointer', 'u64'], result: 'buffer' },
-  wgpuInstanceAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuInstanceRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuPipelineLayoutSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuPipelineLayoutAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuPipelineLayoutRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuQuerySetDestroy: { parameters: ['buffer'], result: 'void' },
-  wgpuQuerySetGetCount: { parameters: ['buffer'], result: 'u32' },
-  wgpuQuerySetGetType: { parameters: ['buffer'], result: 'buffer' },
-  wgpuQuerySetSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuQuerySetAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuQuerySetRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuQueueCopyExternalTextureForBrowser: { parameters: ['buffer', 'pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
-  wgpuQueueCopyTextureForBrowser: { parameters: ['buffer', 'pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
-  wgpuQueueOnSubmittedWorkDone: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void' },
-  wgpuQueueOnSubmittedWorkDone2: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuQueueOnSubmittedWorkDoneF: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuQueueSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuQueueSubmit: { parameters: ['buffer', 'usize', 'pointer'], result: 'void' },
-  wgpuQueueWriteBuffer: { parameters: ['buffer', 'buffer', 'u64', 'pointer', 'usize'], result: 'void' },
-  wgpuQueueWriteTexture: { parameters: ['buffer', 'pointer', 'pointer', 'usize', 'pointer', 'pointer'], result: 'void' },
-  wgpuQueueAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuQueueRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderBundleSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderBundleAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderBundleRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderBundleEncoderDraw: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
-  wgpuRenderBundleEncoderDrawIndexed: { parameters: ['buffer', 'u32', 'u32', 'u32', 'i32', 'u32'], result: 'void' },
-  wgpuRenderBundleEncoderDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
-  wgpuRenderBundleEncoderDrawIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
-  wgpuRenderBundleEncoderFinish: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuRenderBundleEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderBundleEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderBundleEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderBundleEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void' },
-  wgpuRenderBundleEncoderSetIndexBuffer: { parameters: ['buffer', 'buffer', 'buffer', 'u64', 'u64'], result: 'void' },
-  wgpuRenderBundleEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderBundleEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderBundleEncoderSetVertexBuffer: { parameters: ['buffer', 'u32', 'buffer', 'u64', 'u64'], result: 'void' },
-  wgpuRenderBundleEncoderAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderBundleEncoderRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderPassEncoderBeginOcclusionQuery: { parameters: ['buffer', 'u32'], result: 'void' },
-  wgpuRenderPassEncoderDraw: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
-  wgpuRenderPassEncoderDrawIndexed: { parameters: ['buffer', 'u32', 'u32', 'u32', 'i32', 'u32'], result: 'void' },
-  wgpuRenderPassEncoderDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
-  wgpuRenderPassEncoderDrawIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
-  wgpuRenderPassEncoderEnd: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderPassEncoderEndOcclusionQuery: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderPassEncoderExecuteBundles: { parameters: ['buffer', 'usize', 'pointer'], result: 'void' },
-  wgpuRenderPassEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderPassEncoderMultiDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64', 'u32', 'buffer', 'u64'], result: 'void' },
-  wgpuRenderPassEncoderMultiDrawIndirect: { parameters: ['buffer', 'buffer', 'u64', 'u32', 'buffer', 'u64'], result: 'void' },
-  wgpuRenderPassEncoderPixelLocalStorageBarrier: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderPassEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderPassEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderPassEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void' },
-  wgpuRenderPassEncoderSetBlendConstant: { parameters: ['buffer', 'pointer'], result: 'void' },
-  wgpuRenderPassEncoderSetIndexBuffer: { parameters: ['buffer', 'buffer', 'buffer', 'u64', 'u64'], result: 'void' },
-  wgpuRenderPassEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderPassEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderPassEncoderSetScissorRect: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
-  wgpuRenderPassEncoderSetStencilReference: { parameters: ['buffer', 'u32'], result: 'void' },
-  wgpuRenderPassEncoderSetVertexBuffer: { parameters: ['buffer', 'u32', 'buffer', 'u64', 'u64'], result: 'void' },
-  wgpuRenderPassEncoderSetViewport: { parameters: ['buffer', 'f32', 'f32', 'f32', 'f32', 'f32', 'f32'], result: 'void' },
-  wgpuRenderPassEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void' },
-  wgpuRenderPassEncoderAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderPassEncoderRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderPipelineGetBindGroupLayout: { parameters: ['buffer', 'u32'], result: 'buffer' },
-  wgpuRenderPipelineSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuRenderPipelineAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuRenderPipelineRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuSamplerSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuSamplerAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuSamplerRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuShaderModuleGetCompilationInfo: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void' },
-  wgpuShaderModuleGetCompilationInfo2: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuShaderModuleGetCompilationInfoF: { parameters: ['buffer', 'buffer'], result: 'buffer' },
-  wgpuShaderModuleSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuShaderModuleAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuShaderModuleRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuSharedBufferMemoryBeginAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
-  wgpuSharedBufferMemoryCreateBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuSharedBufferMemoryEndAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
-  wgpuSharedBufferMemoryGetProperties: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuSharedBufferMemoryIsDeviceLost: { parameters: ['buffer'], result: 'buffer' },
-  wgpuSharedBufferMemorySetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuSharedBufferMemoryAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuSharedBufferMemoryRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuSharedFenceExportInfo: { parameters: ['buffer', 'pointer'], result: 'void' },
-  wgpuSharedFenceAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuSharedFenceRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuSharedTextureMemoryBeginAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
-  wgpuSharedTextureMemoryCreateTexture: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuSharedTextureMemoryEndAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
-  wgpuSharedTextureMemoryGetProperties: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuSharedTextureMemoryIsDeviceLost: { parameters: ['buffer'], result: 'buffer' },
-  wgpuSharedTextureMemorySetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuSharedTextureMemoryAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuSharedTextureMemoryRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuSurfaceConfigure: { parameters: ['buffer', 'pointer'], result: 'void' },
-  wgpuSurfaceGetCapabilities: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
-  wgpuSurfaceGetCurrentTexture: { parameters: ['buffer', 'pointer'], result: 'void' },
-  wgpuSurfacePresent: { parameters: ['buffer'], result: 'void' },
-  wgpuSurfaceSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuSurfaceUnconfigure: { parameters: ['buffer'], result: 'void' },
-  wgpuSurfaceAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuSurfaceRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuTextureCreateErrorView: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuTextureCreateView: { parameters: ['buffer', 'pointer'], result: 'buffer' },
-  wgpuTextureDestroy: { parameters: ['buffer'], result: 'void' },
-  wgpuTextureGetDepthOrArrayLayers: { parameters: ['buffer'], result: 'u32' },
-  wgpuTextureGetDimension: { parameters: ['buffer'], result: 'buffer' },
-  wgpuTextureGetFormat: { parameters: ['buffer'], result: 'buffer' },
-  wgpuTextureGetHeight: { parameters: ['buffer'], result: 'u32' },
-  wgpuTextureGetMipLevelCount: { parameters: ['buffer'], result: 'u32' },
-  wgpuTextureGetSampleCount: { parameters: ['buffer'], result: 'u32' },
-  wgpuTextureGetUsage: { parameters: ['buffer'], result: 'buffer' },
-  wgpuTextureGetWidth: { parameters: ['buffer'], result: 'u32' },
-  wgpuTextureSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuTextureAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuTextureRelease: { parameters: ['buffer'], result: 'void' },
-  wgpuTextureViewSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
-  wgpuTextureViewAddRef: { parameters: ['buffer'], result: 'void' },
-  wgpuTextureViewRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuAdapterCreateDevice: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuAdapterGetFeatures: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuAdapterGetFormatCapabilities: { parameters: ['pointer', 'u32', 'pointer'], result: 'u32' },
+  wgpuAdapterGetInfo: { parameters: ['pointer', 'pointer'], result: 'u32' },
+  wgpuAdapterGetInstance: { parameters: ['pointer'], result: 'pointer' },
+  wgpuAdapterGetLimits: { parameters: ['pointer', 'pointer'], result: 'u32' },
+  wgpuAdapterHasFeature: { parameters: ['pointer', 'u32'], result: 'u32' },
+  wgpuAdapterRequestDevice: { parameters: ['pointer', 'pointer', 'function', 'pointer'], result: 'void' },
+  wgpuAdapterRequestDevice2: { parameters: ['pointer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuAdapterRequestDeviceF: { parameters: ['pointer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuAdapterAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuAdapterRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuBindGroupSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuBindGroupAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuBindGroupRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuBindGroupLayoutSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuBindGroupLayoutAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuBindGroupLayoutRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuBufferDestroy: { parameters: ['pointer'], result: 'void' },
+  wgpuBufferGetConstMappedRange: { parameters: ['pointer', 'usize', 'usize'], result: 'pointer' },
+  wgpuBufferGetMapState: { parameters: ['pointer'], result: 'u32' },
+  wgpuBufferGetMappedRange: { parameters: ['pointer', 'usize', 'usize'], result: 'pointer' },
+  wgpuBufferGetSize: { parameters: ['pointer'], result: 'u64' },
+  wgpuBufferGetUsage: { parameters: ['pointer'], result: 'u64' },
+  wgpuBufferMapAsync: { parameters: ['pointer', 'u64', 'usize', 'usize', 'function', 'pointer'], result: 'void' },
+  wgpuBufferMapAsync2: { parameters: ['pointer', 'u64', 'usize', 'usize', 'buffer'], result: 'buffer' },
+  wgpuBufferMapAsyncF: { parameters: ['pointer', 'u64', 'usize', 'usize', 'buffer'], result: 'buffer' },
+  wgpuBufferSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuBufferUnmap: { parameters: ['pointer'], result: 'void' },
+  wgpuBufferAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuBufferRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuCommandBufferSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuCommandBufferAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuCommandBufferRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuCommandEncoderBeginComputePass: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuCommandEncoderBeginRenderPass: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuCommandEncoderClearBuffer: { parameters: ['pointer', 'pointer', 'u64', 'u64'], result: 'void' },
+  wgpuCommandEncoderCopyBufferToBuffer: { parameters: ['pointer', 'pointer', 'u64', 'pointer', 'u64', 'u64'], result: 'void' },
+  wgpuCommandEncoderCopyBufferToTexture: { parameters: ['pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuCommandEncoderCopyTextureToBuffer: { parameters: ['pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuCommandEncoderCopyTextureToTexture: { parameters: ['pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuCommandEncoderFinish: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuCommandEncoderInjectValidationError: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuCommandEncoderInsertDebugMarker: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuCommandEncoderPopDebugGroup: { parameters: ['pointer'], result: 'void' },
+  wgpuCommandEncoderPushDebugGroup: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuCommandEncoderResolveQuerySet: { parameters: ['pointer', 'pointer', 'u32', 'u32', 'pointer', 'u64'], result: 'void' },
+  wgpuCommandEncoderSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuCommandEncoderWriteBuffer: { parameters: ['pointer', 'pointer', 'u64', 'pointer', 'u64'], result: 'void' },
+  wgpuCommandEncoderWriteTimestamp: { parameters: ['pointer', 'pointer', 'u32'], result: 'void' },
+  wgpuCommandEncoderAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuCommandEncoderRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuComputePassEncoderDispatchWorkgroups: { parameters: ['pointer', 'u32', 'u32', 'u32'], result: 'void' },
+  wgpuComputePassEncoderDispatchWorkgroupsIndirect: { parameters: ['pointer', 'pointer', 'u64'], result: 'void' },
+  wgpuComputePassEncoderEnd: { parameters: ['pointer'], result: 'void' },
+  wgpuComputePassEncoderInsertDebugMarker: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuComputePassEncoderPopDebugGroup: { parameters: ['pointer'], result: 'void' },
+  wgpuComputePassEncoderPushDebugGroup: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuComputePassEncoderSetBindGroup: { parameters: ['pointer', 'u32', 'pointer', 'usize', 'pointer'], result: 'void' },
+  wgpuComputePassEncoderSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuComputePassEncoderSetPipeline: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuComputePassEncoderWriteTimestamp: { parameters: ['pointer', 'pointer', 'u32'], result: 'void' },
+  wgpuComputePassEncoderAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuComputePassEncoderRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuComputePipelineGetBindGroupLayout: { parameters: ['pointer', 'u32'], result: 'pointer' },
+  wgpuComputePipelineSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuComputePipelineAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuComputePipelineRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuDeviceCreateBindGroup: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateBindGroupLayout: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateBuffer: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateCommandEncoder: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateComputePipeline: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateComputePipelineAsync: { parameters: ['pointer', 'pointer', 'function', 'pointer'], result: 'void' },
+  wgpuDeviceCreateComputePipelineAsync2: { parameters: ['pointer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateComputePipelineAsyncF: { parameters: ['pointer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateErrorBuffer: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateErrorExternalTexture: { parameters: ['pointer'], result: 'pointer' },
+  wgpuDeviceCreateErrorShaderModule: { parameters: ['pointer', 'pointer', 'buffer'], result: 'pointer' },
+  wgpuDeviceCreateErrorTexture: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateExternalTexture: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreatePipelineLayout: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateQuerySet: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateRenderBundleEncoder: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateRenderPipeline: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateRenderPipelineAsync: { parameters: ['pointer', 'pointer', 'function', 'pointer'], result: 'void' },
+  wgpuDeviceCreateRenderPipelineAsync2: { parameters: ['pointer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateRenderPipelineAsyncF: { parameters: ['pointer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateSampler: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateShaderModule: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceCreateTexture: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceDestroy: { parameters: ['pointer'], result: 'void' },
+  wgpuDeviceForceLoss: { parameters: ['pointer', 'u32', 'buffer'], result: 'void' },
+  wgpuDeviceGetAHardwareBufferProperties: { parameters: ['pointer', 'pointer', 'pointer'], result: 'u32' },
+  wgpuDeviceGetAdapter: { parameters: ['pointer'], result: 'pointer' },
+  wgpuDeviceGetAdapterInfo: { parameters: ['pointer', 'pointer'], result: 'u32' },
+  wgpuDeviceGetFeatures: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuDeviceGetLimits: { parameters: ['pointer', 'pointer'], result: 'u32' },
+  wgpuDeviceGetLostFuture: { parameters: ['pointer'], result: 'buffer' },
+  wgpuDeviceGetQueue: { parameters: ['pointer'], result: 'pointer' },
+  wgpuDeviceHasFeature: { parameters: ['pointer', 'u32'], result: 'u32' },
+  wgpuDeviceImportSharedBufferMemory: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceImportSharedFence: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceImportSharedTextureMemory: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuDeviceInjectError: { parameters: ['pointer', 'u32', 'buffer'], result: 'void' },
+  wgpuDevicePopErrorScope: { parameters: ['pointer', 'function', 'pointer'], result: 'void' },
+  wgpuDevicePopErrorScope2: { parameters: ['pointer', 'buffer'], result: 'buffer' },
+  wgpuDevicePopErrorScopeF: { parameters: ['pointer', 'buffer'], result: 'buffer' },
+  wgpuDevicePushErrorScope: { parameters: ['pointer', 'u32'], result: 'void' },
+  wgpuDeviceSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuDeviceSetLoggingCallback: { parameters: ['pointer', 'function', 'pointer'], result: 'void' },
+  wgpuDeviceTick: { parameters: ['pointer'], result: 'void' },
+  wgpuDeviceValidateTextureDescriptor: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuDeviceAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuDeviceRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuExternalTextureDestroy: { parameters: ['pointer'], result: 'void' },
+  wgpuExternalTextureExpire: { parameters: ['pointer'], result: 'void' },
+  wgpuExternalTextureRefresh: { parameters: ['pointer'], result: 'void' },
+  wgpuExternalTextureSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuExternalTextureAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuExternalTextureRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuInstanceCreateSurface: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuInstanceEnumerateWGSLLanguageFeatures: { parameters: ['pointer', 'pointer'], result: 'usize' },
+  wgpuInstanceHasWGSLLanguageFeature: { parameters: ['pointer', 'u32'], result: 'u32' },
+  wgpuInstanceProcessEvents: { parameters: ['pointer'], result: 'void' },
+  wgpuInstanceRequestAdapter: { parameters: ['pointer', 'pointer', 'function', 'pointer'], result: 'void' },
+  wgpuInstanceRequestAdapter2: { parameters: ['pointer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuInstanceRequestAdapterF: { parameters: ['pointer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuInstanceWaitAny: { parameters: ['pointer', 'usize', 'pointer', 'u64'], result: 'u32' },
+  wgpuInstanceAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuInstanceRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuPipelineLayoutSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuPipelineLayoutAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuPipelineLayoutRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuQuerySetDestroy: { parameters: ['pointer'], result: 'void' },
+  wgpuQuerySetGetCount: { parameters: ['pointer'], result: 'u32' },
+  wgpuQuerySetGetType: { parameters: ['pointer'], result: 'u32' },
+  wgpuQuerySetSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuQuerySetAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuQuerySetRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuQueueCopyExternalTextureForBrowser: { parameters: ['pointer', 'pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuQueueCopyTextureForBrowser: { parameters: ['pointer', 'pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuQueueOnSubmittedWorkDone: { parameters: ['pointer', 'function', 'pointer'], result: 'void' },
+  wgpuQueueOnSubmittedWorkDone2: { parameters: ['pointer', 'buffer'], result: 'buffer' },
+  wgpuQueueOnSubmittedWorkDoneF: { parameters: ['pointer', 'buffer'], result: 'buffer' },
+  wgpuQueueSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuQueueSubmit: { parameters: ['pointer', 'usize', 'pointer'], result: 'void' },
+  wgpuQueueWriteBuffer: { parameters: ['pointer', 'pointer', 'u64', 'pointer', 'usize'], result: 'void' },
+  wgpuQueueWriteTexture: { parameters: ['pointer', 'pointer', 'pointer', 'usize', 'pointer', 'pointer'], result: 'void' },
+  wgpuQueueAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuQueueRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderBundleSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuRenderBundleAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderBundleRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderBundleEncoderDraw: { parameters: ['pointer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
+  wgpuRenderBundleEncoderDrawIndexed: { parameters: ['pointer', 'u32', 'u32', 'u32', 'i32', 'u32'], result: 'void' },
+  wgpuRenderBundleEncoderDrawIndexedIndirect: { parameters: ['pointer', 'pointer', 'u64'], result: 'void' },
+  wgpuRenderBundleEncoderDrawIndirect: { parameters: ['pointer', 'pointer', 'u64'], result: 'void' },
+  wgpuRenderBundleEncoderFinish: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuRenderBundleEncoderInsertDebugMarker: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuRenderBundleEncoderPopDebugGroup: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderBundleEncoderPushDebugGroup: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuRenderBundleEncoderSetBindGroup: { parameters: ['pointer', 'u32', 'pointer', 'usize', 'pointer'], result: 'void' },
+  wgpuRenderBundleEncoderSetIndexBuffer: { parameters: ['pointer', 'pointer', 'u32', 'u64', 'u64'], result: 'void' },
+  wgpuRenderBundleEncoderSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuRenderBundleEncoderSetPipeline: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuRenderBundleEncoderSetVertexBuffer: { parameters: ['pointer', 'u32', 'pointer', 'u64', 'u64'], result: 'void' },
+  wgpuRenderBundleEncoderAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderBundleEncoderRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderPassEncoderBeginOcclusionQuery: { parameters: ['pointer', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderDraw: { parameters: ['pointer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderDrawIndexed: { parameters: ['pointer', 'u32', 'u32', 'u32', 'i32', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderDrawIndexedIndirect: { parameters: ['pointer', 'pointer', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderDrawIndirect: { parameters: ['pointer', 'pointer', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderEnd: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderPassEncoderEndOcclusionQuery: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderPassEncoderExecuteBundles: { parameters: ['pointer', 'usize', 'pointer'], result: 'void' },
+  wgpuRenderPassEncoderInsertDebugMarker: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuRenderPassEncoderMultiDrawIndexedIndirect: { parameters: ['pointer', 'pointer', 'u64', 'u32', 'pointer', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderMultiDrawIndirect: { parameters: ['pointer', 'pointer', 'u64', 'u32', 'pointer', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderPixelLocalStorageBarrier: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderPassEncoderPopDebugGroup: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderPassEncoderPushDebugGroup: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuRenderPassEncoderSetBindGroup: { parameters: ['pointer', 'u32', 'pointer', 'usize', 'pointer'], result: 'void' },
+  wgpuRenderPassEncoderSetBlendConstant: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuRenderPassEncoderSetIndexBuffer: { parameters: ['pointer', 'pointer', 'u32', 'u64', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuRenderPassEncoderSetPipeline: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuRenderPassEncoderSetScissorRect: { parameters: ['pointer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderSetStencilReference: { parameters: ['pointer', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderSetVertexBuffer: { parameters: ['pointer', 'u32', 'pointer', 'u64', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderSetViewport: { parameters: ['pointer', 'f32', 'f32', 'f32', 'f32', 'f32', 'f32'], result: 'void' },
+  wgpuRenderPassEncoderWriteTimestamp: { parameters: ['pointer', 'pointer', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderPassEncoderRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderPipelineGetBindGroupLayout: { parameters: ['pointer', 'u32'], result: 'pointer' },
+  wgpuRenderPipelineSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuRenderPipelineAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuRenderPipelineRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuSamplerSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuSamplerAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuSamplerRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuShaderModuleGetCompilationInfo: { parameters: ['pointer', 'function', 'pointer'], result: 'void' },
+  wgpuShaderModuleGetCompilationInfo2: { parameters: ['pointer', 'buffer'], result: 'buffer' },
+  wgpuShaderModuleGetCompilationInfoF: { parameters: ['pointer', 'buffer'], result: 'buffer' },
+  wgpuShaderModuleSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuShaderModuleAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuShaderModuleRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuSharedBufferMemoryBeginAccess: { parameters: ['pointer', 'pointer', 'pointer'], result: 'u32' },
+  wgpuSharedBufferMemoryCreateBuffer: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuSharedBufferMemoryEndAccess: { parameters: ['pointer', 'pointer', 'pointer'], result: 'u32' },
+  wgpuSharedBufferMemoryGetProperties: { parameters: ['pointer', 'pointer'], result: 'u32' },
+  wgpuSharedBufferMemoryIsDeviceLost: { parameters: ['pointer'], result: 'u32' },
+  wgpuSharedBufferMemorySetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuSharedBufferMemoryAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuSharedBufferMemoryRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuSharedFenceExportInfo: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuSharedFenceAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuSharedFenceRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuSharedTextureMemoryBeginAccess: { parameters: ['pointer', 'pointer', 'pointer'], result: 'u32' },
+  wgpuSharedTextureMemoryCreateTexture: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuSharedTextureMemoryEndAccess: { parameters: ['pointer', 'pointer', 'pointer'], result: 'u32' },
+  wgpuSharedTextureMemoryGetProperties: { parameters: ['pointer', 'pointer'], result: 'u32' },
+  wgpuSharedTextureMemoryIsDeviceLost: { parameters: ['pointer'], result: 'u32' },
+  wgpuSharedTextureMemorySetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuSharedTextureMemoryAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuSharedTextureMemoryRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuSurfaceConfigure: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuSurfaceGetCapabilities: { parameters: ['pointer', 'pointer', 'pointer'], result: 'u32' },
+  wgpuSurfaceGetCurrentTexture: { parameters: ['pointer', 'pointer'], result: 'void' },
+  wgpuSurfacePresent: { parameters: ['pointer'], result: 'void' },
+  wgpuSurfaceSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuSurfaceUnconfigure: { parameters: ['pointer'], result: 'void' },
+  wgpuSurfaceAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuSurfaceRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuTextureCreateErrorView: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuTextureCreateView: { parameters: ['pointer', 'pointer'], result: 'pointer' },
+  wgpuTextureDestroy: { parameters: ['pointer'], result: 'void' },
+  wgpuTextureGetDepthOrArrayLayers: { parameters: ['pointer'], result: 'u32' },
+  wgpuTextureGetDimension: { parameters: ['pointer'], result: 'u32' },
+  wgpuTextureGetFormat: { parameters: ['pointer'], result: 'u32' },
+  wgpuTextureGetHeight: { parameters: ['pointer'], result: 'u32' },
+  wgpuTextureGetMipLevelCount: { parameters: ['pointer'], result: 'u32' },
+  wgpuTextureGetSampleCount: { parameters: ['pointer'], result: 'u32' },
+  wgpuTextureGetUsage: { parameters: ['pointer'], result: 'u64' },
+  wgpuTextureGetWidth: { parameters: ['pointer'], result: 'u32' },
+  wgpuTextureSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuTextureAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuTextureRelease: { parameters: ['pointer'], result: 'void' },
+  wgpuTextureViewSetLabel: { parameters: ['pointer', 'buffer'], result: 'void' },
+  wgpuTextureViewAddRef: { parameters: ['pointer'], result: 'void' },
+  wgpuTextureViewRelease: { parameters: ['pointer'], result: 'void' },
 })
 
 // consts
-export const WGPUBufferUsage_None = new c.I32(0)
-export const WGPUBufferUsage_MapRead = new c.I32(1)
-export const WGPUBufferUsage_MapWrite = new c.I32(2)
-export const WGPUBufferUsage_CopySrc = new c.I32(4)
-export const WGPUBufferUsage_CopyDst = new c.I32(8)
-export const WGPUBufferUsage_Index = new c.I32(16)
-export const WGPUBufferUsage_Vertex = new c.I32(32)
-export const WGPUBufferUsage_Uniform = new c.I32(64)
-export const WGPUBufferUsage_Storage = new c.I32(128)
-export const WGPUBufferUsage_Indirect = new c.I32(256)
-export const WGPUBufferUsage_QueryResolve = new c.I32(512)
-export const WGPUColorWriteMask_None = new c.I32(0)
-export const WGPUColorWriteMask_Red = new c.I32(1)
-export const WGPUColorWriteMask_Green = new c.I32(2)
-export const WGPUColorWriteMask_Blue = new c.I32(4)
-export const WGPUColorWriteMask_Alpha = new c.I32(8)
-export const WGPUColorWriteMask_All = new c.I32(15)
-export const WGPUHeapProperty_DeviceLocal = new c.I32(1)
-export const WGPUHeapProperty_HostVisible = new c.I32(2)
-export const WGPUHeapProperty_HostCoherent = new c.I32(4)
-export const WGPUHeapProperty_HostUncached = new c.I32(8)
-export const WGPUHeapProperty_HostCached = new c.I32(16)
-export const WGPUMapMode_None = new c.I32(0)
-export const WGPUMapMode_Read = new c.I32(1)
-export const WGPUMapMode_Write = new c.I32(2)
-export const WGPUShaderStage_None = new c.I32(0)
-export const WGPUShaderStage_Vertex = new c.I32(1)
-export const WGPUShaderStage_Fragment = new c.I32(2)
-export const WGPUShaderStage_Compute = new c.I32(4)
-export const WGPUTextureUsage_None = new c.I32(0)
-export const WGPUTextureUsage_CopySrc = new c.I32(1)
-export const WGPUTextureUsage_CopyDst = new c.I32(2)
-export const WGPUTextureUsage_TextureBinding = new c.I32(4)
-export const WGPUTextureUsage_StorageBinding = new c.I32(8)
-export const WGPUTextureUsage_RenderAttachment = new c.I32(16)
-export const WGPUTextureUsage_TransientAttachment = new c.I32(32)
-export const WGPUTextureUsage_StorageAttachment = new c.I32(64)
+export const WGPUBufferUsage_None = new c.U32(0)
+export const WGPUBufferUsage_MapRead = new c.U32(1)
+export const WGPUBufferUsage_MapWrite = new c.U32(2)
+export const WGPUBufferUsage_CopySrc = new c.U32(4)
+export const WGPUBufferUsage_CopyDst = new c.U32(8)
+export const WGPUBufferUsage_Index = new c.U32(16)
+export const WGPUBufferUsage_Vertex = new c.U32(32)
+export const WGPUBufferUsage_Uniform = new c.U32(64)
+export const WGPUBufferUsage_Storage = new c.U32(128)
+export const WGPUBufferUsage_Indirect = new c.U32(256)
+export const WGPUBufferUsage_QueryResolve = new c.U32(512)
+export const WGPUColorWriteMask_None = new c.U32(0)
+export const WGPUColorWriteMask_Red = new c.U32(1)
+export const WGPUColorWriteMask_Green = new c.U32(2)
+export const WGPUColorWriteMask_Blue = new c.U32(4)
+export const WGPUColorWriteMask_Alpha = new c.U32(8)
+export const WGPUColorWriteMask_All = new c.U32(15)
+export const WGPUHeapProperty_DeviceLocal = new c.U32(1)
+export const WGPUHeapProperty_HostVisible = new c.U32(2)
+export const WGPUHeapProperty_HostCoherent = new c.U32(4)
+export const WGPUHeapProperty_HostUncached = new c.U32(8)
+export const WGPUHeapProperty_HostCached = new c.U32(16)
+export const WGPUMapMode_None = new c.U32(0)
+export const WGPUMapMode_Read = new c.U32(1)
+export const WGPUMapMode_Write = new c.U32(2)
+export const WGPUShaderStage_None = new c.U32(0)
+export const WGPUShaderStage_Vertex = new c.U32(1)
+export const WGPUShaderStage_Fragment = new c.U32(2)
+export const WGPUShaderStage_Compute = new c.U32(4)
+export const WGPUTextureUsage_None = new c.U32(0)
+export const WGPUTextureUsage_CopySrc = new c.U32(1)
+export const WGPUTextureUsage_CopyDst = new c.U32(2)
+export const WGPUTextureUsage_TextureBinding = new c.U32(4)
+export const WGPUTextureUsage_StorageBinding = new c.U32(8)
+export const WGPUTextureUsage_RenderAttachment = new c.U32(16)
+export const WGPUTextureUsage_TransientAttachment = new c.U32(32)
+export const WGPUTextureUsage_StorageAttachment = new c.U32(64)
 
 // enums
-export class WGPUWGSLFeatureName extends c.I32 {
-  static WGPUWGSLFeatureName_ReadonlyAndReadwriteStorageTextures = new WGPUWGSLFeatureName(1)
-  static WGPUWGSLFeatureName_Packed4x8IntegerDotProduct = new WGPUWGSLFeatureName(2)
-  static WGPUWGSLFeatureName_UnrestrictedPointerParameters = new WGPUWGSLFeatureName(3)
-  static WGPUWGSLFeatureName_PointerCompositeAccess = new WGPUWGSLFeatureName(4)
-  static WGPUWGSLFeatureName_ChromiumTestingUnimplemented = new WGPUWGSLFeatureName(327680)
-  static WGPUWGSLFeatureName_ChromiumTestingUnsafeExperimental = new WGPUWGSLFeatureName(327681)
-  static WGPUWGSLFeatureName_ChromiumTestingExperimental = new WGPUWGSLFeatureName(327682)
-  static WGPUWGSLFeatureName_ChromiumTestingShippedWithKillswitch = new WGPUWGSLFeatureName(327683)
-  static WGPUWGSLFeatureName_ChromiumTestingShipped = new WGPUWGSLFeatureName(327684)
-  static WGPUWGSLFeatureName_Force32 = new WGPUWGSLFeatureName(2147483647)
+export class WGPUWGSLFeatureName extends c.U32 {
+  static 'ReadonlyAndReadwriteStorageTextures' = new WGPUWGSLFeatureName(1)
+  static 'Packed4x8IntegerDotProduct' = new WGPUWGSLFeatureName(2)
+  static 'UnrestrictedPointerParameters' = new WGPUWGSLFeatureName(3)
+  static 'PointerCompositeAccess' = new WGPUWGSLFeatureName(4)
+  static 'ChromiumTestingUnimplemented' = new WGPUWGSLFeatureName(327680)
+  static 'ChromiumTestingUnsafeExperimental' = new WGPUWGSLFeatureName(327681)
+  static 'ChromiumTestingExperimental' = new WGPUWGSLFeatureName(327682)
+  static 'ChromiumTestingShippedWithKillswitch' = new WGPUWGSLFeatureName(327683)
+  static 'ChromiumTestingShipped' = new WGPUWGSLFeatureName(327684)
+  static 'Force32' = new WGPUWGSLFeatureName(2147483647)
 }
-export class WGPUAdapterType extends c.I32 {
-  static WGPUAdapterType_DiscreteGPU = new WGPUAdapterType(1)
-  static WGPUAdapterType_IntegratedGPU = new WGPUAdapterType(2)
-  static WGPUAdapterType_CPU = new WGPUAdapterType(3)
-  static WGPUAdapterType_Unknown = new WGPUAdapterType(4)
-  static WGPUAdapterType_Force32 = new WGPUAdapterType(2147483647)
+export class WGPUAdapterType extends c.U32 {
+  static 'DiscreteGPU' = new WGPUAdapterType(1)
+  static 'IntegratedGPU' = new WGPUAdapterType(2)
+  static 'CPU' = new WGPUAdapterType(3)
+  static 'Unknown' = new WGPUAdapterType(4)
+  static 'Force32' = new WGPUAdapterType(2147483647)
 }
-export class WGPUAddressMode extends c.I32 {
-  static WGPUAddressMode_Undefined = new WGPUAddressMode(0)
-  static WGPUAddressMode_ClampToEdge = new WGPUAddressMode(1)
-  static WGPUAddressMode_Repeat = new WGPUAddressMode(2)
-  static WGPUAddressMode_MirrorRepeat = new WGPUAddressMode(3)
-  static WGPUAddressMode_Force32 = new WGPUAddressMode(2147483647)
+export class WGPUAddressMode extends c.U32 {
+  static 'Undefined' = new WGPUAddressMode(0)
+  static 'ClampToEdge' = new WGPUAddressMode(1)
+  static 'Repeat' = new WGPUAddressMode(2)
+  static 'MirrorRepeat' = new WGPUAddressMode(3)
+  static 'Force32' = new WGPUAddressMode(2147483647)
 }
-export class WGPUAlphaMode extends c.I32 {
-  static WGPUAlphaMode_Opaque = new WGPUAlphaMode(1)
-  static WGPUAlphaMode_Premultiplied = new WGPUAlphaMode(2)
-  static WGPUAlphaMode_Unpremultiplied = new WGPUAlphaMode(3)
-  static WGPUAlphaMode_Force32 = new WGPUAlphaMode(2147483647)
+export class WGPUAlphaMode extends c.U32 {
+  static 'Opaque' = new WGPUAlphaMode(1)
+  static 'Premultiplied' = new WGPUAlphaMode(2)
+  static 'Unpremultiplied' = new WGPUAlphaMode(3)
+  static 'Force32' = new WGPUAlphaMode(2147483647)
 }
-export class WGPUBackendType extends c.I32 {
-  static WGPUBackendType_Undefined = new WGPUBackendType(0)
-  static WGPUBackendType_Null = new WGPUBackendType(1)
-  static WGPUBackendType_WebGPU = new WGPUBackendType(2)
-  static WGPUBackendType_D3D11 = new WGPUBackendType(3)
-  static WGPUBackendType_D3D12 = new WGPUBackendType(4)
-  static WGPUBackendType_Metal = new WGPUBackendType(5)
-  static WGPUBackendType_Vulkan = new WGPUBackendType(6)
-  static WGPUBackendType_OpenGL = new WGPUBackendType(7)
-  static WGPUBackendType_OpenGLES = new WGPUBackendType(8)
-  static WGPUBackendType_Force32 = new WGPUBackendType(2147483647)
+export class WGPUBackendType extends c.U32 {
+  static 'Undefined' = new WGPUBackendType(0)
+  static 'Null' = new WGPUBackendType(1)
+  static 'WebGPU' = new WGPUBackendType(2)
+  static 'D3D11' = new WGPUBackendType(3)
+  static 'D3D12' = new WGPUBackendType(4)
+  static 'Metal' = new WGPUBackendType(5)
+  static 'Vulkan' = new WGPUBackendType(6)
+  static 'OpenGL' = new WGPUBackendType(7)
+  static 'OpenGLES' = new WGPUBackendType(8)
+  static 'Force32' = new WGPUBackendType(2147483647)
 }
-export class WGPUBlendFactor extends c.I32 {
-  static WGPUBlendFactor_Undefined = new WGPUBlendFactor(0)
-  static WGPUBlendFactor_Zero = new WGPUBlendFactor(1)
-  static WGPUBlendFactor_One = new WGPUBlendFactor(2)
-  static WGPUBlendFactor_Src = new WGPUBlendFactor(3)
-  static WGPUBlendFactor_OneMinusSrc = new WGPUBlendFactor(4)
-  static WGPUBlendFactor_SrcAlpha = new WGPUBlendFactor(5)
-  static WGPUBlendFactor_OneMinusSrcAlpha = new WGPUBlendFactor(6)
-  static WGPUBlendFactor_Dst = new WGPUBlendFactor(7)
-  static WGPUBlendFactor_OneMinusDst = new WGPUBlendFactor(8)
-  static WGPUBlendFactor_DstAlpha = new WGPUBlendFactor(9)
-  static WGPUBlendFactor_OneMinusDstAlpha = new WGPUBlendFactor(10)
-  static WGPUBlendFactor_SrcAlphaSaturated = new WGPUBlendFactor(11)
-  static WGPUBlendFactor_Constant = new WGPUBlendFactor(12)
-  static WGPUBlendFactor_OneMinusConstant = new WGPUBlendFactor(13)
-  static WGPUBlendFactor_Src1 = new WGPUBlendFactor(14)
-  static WGPUBlendFactor_OneMinusSrc1 = new WGPUBlendFactor(15)
-  static WGPUBlendFactor_Src1Alpha = new WGPUBlendFactor(16)
-  static WGPUBlendFactor_OneMinusSrc1Alpha = new WGPUBlendFactor(17)
-  static WGPUBlendFactor_Force32 = new WGPUBlendFactor(2147483647)
+export class WGPUBlendFactor extends c.U32 {
+  static 'Undefined' = new WGPUBlendFactor(0)
+  static 'Zero' = new WGPUBlendFactor(1)
+  static 'One' = new WGPUBlendFactor(2)
+  static 'Src' = new WGPUBlendFactor(3)
+  static 'OneMinusSrc' = new WGPUBlendFactor(4)
+  static 'SrcAlpha' = new WGPUBlendFactor(5)
+  static 'OneMinusSrcAlpha' = new WGPUBlendFactor(6)
+  static 'Dst' = new WGPUBlendFactor(7)
+  static 'OneMinusDst' = new WGPUBlendFactor(8)
+  static 'DstAlpha' = new WGPUBlendFactor(9)
+  static 'OneMinusDstAlpha' = new WGPUBlendFactor(10)
+  static 'SrcAlphaSaturated' = new WGPUBlendFactor(11)
+  static 'Constant' = new WGPUBlendFactor(12)
+  static 'OneMinusConstant' = new WGPUBlendFactor(13)
+  static 'Src1' = new WGPUBlendFactor(14)
+  static 'OneMinusSrc1' = new WGPUBlendFactor(15)
+  static 'Src1Alpha' = new WGPUBlendFactor(16)
+  static 'OneMinusSrc1Alpha' = new WGPUBlendFactor(17)
+  static 'Force32' = new WGPUBlendFactor(2147483647)
 }
-export class WGPUBlendOperation extends c.I32 {
-  static WGPUBlendOperation_Undefined = new WGPUBlendOperation(0)
-  static WGPUBlendOperation_Add = new WGPUBlendOperation(1)
-  static WGPUBlendOperation_Subtract = new WGPUBlendOperation(2)
-  static WGPUBlendOperation_ReverseSubtract = new WGPUBlendOperation(3)
-  static WGPUBlendOperation_Min = new WGPUBlendOperation(4)
-  static WGPUBlendOperation_Max = new WGPUBlendOperation(5)
-  static WGPUBlendOperation_Force32 = new WGPUBlendOperation(2147483647)
+export class WGPUBlendOperation extends c.U32 {
+  static 'Undefined' = new WGPUBlendOperation(0)
+  static 'Add' = new WGPUBlendOperation(1)
+  static 'Subtract' = new WGPUBlendOperation(2)
+  static 'ReverseSubtract' = new WGPUBlendOperation(3)
+  static 'Min' = new WGPUBlendOperation(4)
+  static 'Max' = new WGPUBlendOperation(5)
+  static 'Force32' = new WGPUBlendOperation(2147483647)
 }
-export class WGPUBufferBindingType extends c.I32 {
-  static WGPUBufferBindingType_BindingNotUsed = new WGPUBufferBindingType(0)
-  static WGPUBufferBindingType_Uniform = new WGPUBufferBindingType(1)
-  static WGPUBufferBindingType_Storage = new WGPUBufferBindingType(2)
-  static WGPUBufferBindingType_ReadOnlyStorage = new WGPUBufferBindingType(3)
-  static WGPUBufferBindingType_Force32 = new WGPUBufferBindingType(2147483647)
+export class WGPUBufferBindingType extends c.U32 {
+  static 'BindingNotUsed' = new WGPUBufferBindingType(0)
+  static 'Uniform' = new WGPUBufferBindingType(1)
+  static 'Storage' = new WGPUBufferBindingType(2)
+  static 'ReadOnlyStorage' = new WGPUBufferBindingType(3)
+  static 'Force32' = new WGPUBufferBindingType(2147483647)
 }
-export class WGPUBufferMapAsyncStatus extends c.I32 {
-  static WGPUBufferMapAsyncStatus_Success = new WGPUBufferMapAsyncStatus(1)
-  static WGPUBufferMapAsyncStatus_InstanceDropped = new WGPUBufferMapAsyncStatus(2)
-  static WGPUBufferMapAsyncStatus_ValidationError = new WGPUBufferMapAsyncStatus(3)
-  static WGPUBufferMapAsyncStatus_Unknown = new WGPUBufferMapAsyncStatus(4)
-  static WGPUBufferMapAsyncStatus_DeviceLost = new WGPUBufferMapAsyncStatus(5)
-  static WGPUBufferMapAsyncStatus_DestroyedBeforeCallback = new WGPUBufferMapAsyncStatus(6)
-  static WGPUBufferMapAsyncStatus_UnmappedBeforeCallback = new WGPUBufferMapAsyncStatus(7)
-  static WGPUBufferMapAsyncStatus_MappingAlreadyPending = new WGPUBufferMapAsyncStatus(8)
-  static WGPUBufferMapAsyncStatus_OffsetOutOfRange = new WGPUBufferMapAsyncStatus(9)
-  static WGPUBufferMapAsyncStatus_SizeOutOfRange = new WGPUBufferMapAsyncStatus(10)
-  static WGPUBufferMapAsyncStatus_Force32 = new WGPUBufferMapAsyncStatus(2147483647)
+export class WGPUBufferMapAsyncStatus extends c.U32 {
+  static 'Success' = new WGPUBufferMapAsyncStatus(1)
+  static 'InstanceDropped' = new WGPUBufferMapAsyncStatus(2)
+  static 'ValidationError' = new WGPUBufferMapAsyncStatus(3)
+  static 'Unknown' = new WGPUBufferMapAsyncStatus(4)
+  static 'DeviceLost' = new WGPUBufferMapAsyncStatus(5)
+  static 'DestroyedBeforeCallback' = new WGPUBufferMapAsyncStatus(6)
+  static 'UnmappedBeforeCallback' = new WGPUBufferMapAsyncStatus(7)
+  static 'MappingAlreadyPending' = new WGPUBufferMapAsyncStatus(8)
+  static 'OffsetOutOfRange' = new WGPUBufferMapAsyncStatus(9)
+  static 'SizeOutOfRange' = new WGPUBufferMapAsyncStatus(10)
+  static 'Force32' = new WGPUBufferMapAsyncStatus(2147483647)
 }
-export class WGPUBufferMapState extends c.I32 {
-  static WGPUBufferMapState_Unmapped = new WGPUBufferMapState(1)
-  static WGPUBufferMapState_Pending = new WGPUBufferMapState(2)
-  static WGPUBufferMapState_Mapped = new WGPUBufferMapState(3)
-  static WGPUBufferMapState_Force32 = new WGPUBufferMapState(2147483647)
+export class WGPUBufferMapState extends c.U32 {
+  static 'Unmapped' = new WGPUBufferMapState(1)
+  static 'Pending' = new WGPUBufferMapState(2)
+  static 'Mapped' = new WGPUBufferMapState(3)
+  static 'Force32' = new WGPUBufferMapState(2147483647)
 }
-export class WGPUCallbackMode extends c.I32 {
-  static WGPUCallbackMode_WaitAnyOnly = new WGPUCallbackMode(1)
-  static WGPUCallbackMode_AllowProcessEvents = new WGPUCallbackMode(2)
-  static WGPUCallbackMode_AllowSpontaneous = new WGPUCallbackMode(3)
-  static WGPUCallbackMode_Force32 = new WGPUCallbackMode(2147483647)
+export class WGPUCallbackMode extends c.U32 {
+  static 'WaitAnyOnly' = new WGPUCallbackMode(1)
+  static 'AllowProcessEvents' = new WGPUCallbackMode(2)
+  static 'AllowSpontaneous' = new WGPUCallbackMode(3)
+  static 'Force32' = new WGPUCallbackMode(2147483647)
 }
-export class WGPUCompareFunction extends c.I32 {
-  static WGPUCompareFunction_Undefined = new WGPUCompareFunction(0)
-  static WGPUCompareFunction_Never = new WGPUCompareFunction(1)
-  static WGPUCompareFunction_Less = new WGPUCompareFunction(2)
-  static WGPUCompareFunction_Equal = new WGPUCompareFunction(3)
-  static WGPUCompareFunction_LessEqual = new WGPUCompareFunction(4)
-  static WGPUCompareFunction_Greater = new WGPUCompareFunction(5)
-  static WGPUCompareFunction_NotEqual = new WGPUCompareFunction(6)
-  static WGPUCompareFunction_GreaterEqual = new WGPUCompareFunction(7)
-  static WGPUCompareFunction_Always = new WGPUCompareFunction(8)
-  static WGPUCompareFunction_Force32 = new WGPUCompareFunction(2147483647)
+export class WGPUCompareFunction extends c.U32 {
+  static 'Undefined' = new WGPUCompareFunction(0)
+  static 'Never' = new WGPUCompareFunction(1)
+  static 'Less' = new WGPUCompareFunction(2)
+  static 'Equal' = new WGPUCompareFunction(3)
+  static 'LessEqual' = new WGPUCompareFunction(4)
+  static 'Greater' = new WGPUCompareFunction(5)
+  static 'NotEqual' = new WGPUCompareFunction(6)
+  static 'GreaterEqual' = new WGPUCompareFunction(7)
+  static 'Always' = new WGPUCompareFunction(8)
+  static 'Force32' = new WGPUCompareFunction(2147483647)
 }
-export class WGPUCompilationInfoRequestStatus extends c.I32 {
-  static WGPUCompilationInfoRequestStatus_Success = new WGPUCompilationInfoRequestStatus(1)
-  static WGPUCompilationInfoRequestStatus_InstanceDropped = new WGPUCompilationInfoRequestStatus(2)
-  static WGPUCompilationInfoRequestStatus_Error = new WGPUCompilationInfoRequestStatus(3)
-  static WGPUCompilationInfoRequestStatus_DeviceLost = new WGPUCompilationInfoRequestStatus(4)
-  static WGPUCompilationInfoRequestStatus_Unknown = new WGPUCompilationInfoRequestStatus(5)
-  static WGPUCompilationInfoRequestStatus_Force32 = new WGPUCompilationInfoRequestStatus(2147483647)
+export class WGPUCompilationInfoRequestStatus extends c.U32 {
+  static 'Success' = new WGPUCompilationInfoRequestStatus(1)
+  static 'InstanceDropped' = new WGPUCompilationInfoRequestStatus(2)
+  static 'Error' = new WGPUCompilationInfoRequestStatus(3)
+  static 'DeviceLost' = new WGPUCompilationInfoRequestStatus(4)
+  static 'Unknown' = new WGPUCompilationInfoRequestStatus(5)
+  static 'Force32' = new WGPUCompilationInfoRequestStatus(2147483647)
 }
-export class WGPUCompilationMessageType extends c.I32 {
-  static WGPUCompilationMessageType_Error = new WGPUCompilationMessageType(1)
-  static WGPUCompilationMessageType_Warning = new WGPUCompilationMessageType(2)
-  static WGPUCompilationMessageType_Info = new WGPUCompilationMessageType(3)
-  static WGPUCompilationMessageType_Force32 = new WGPUCompilationMessageType(2147483647)
+export class WGPUCompilationMessageType extends c.U32 {
+  static 'Error' = new WGPUCompilationMessageType(1)
+  static 'Warning' = new WGPUCompilationMessageType(2)
+  static 'Info' = new WGPUCompilationMessageType(3)
+  static 'Force32' = new WGPUCompilationMessageType(2147483647)
 }
-export class WGPUCompositeAlphaMode extends c.I32 {
-  static WGPUCompositeAlphaMode_Auto = new WGPUCompositeAlphaMode(0)
-  static WGPUCompositeAlphaMode_Opaque = new WGPUCompositeAlphaMode(1)
-  static WGPUCompositeAlphaMode_Premultiplied = new WGPUCompositeAlphaMode(2)
-  static WGPUCompositeAlphaMode_Unpremultiplied = new WGPUCompositeAlphaMode(3)
-  static WGPUCompositeAlphaMode_Inherit = new WGPUCompositeAlphaMode(4)
-  static WGPUCompositeAlphaMode_Force32 = new WGPUCompositeAlphaMode(2147483647)
+export class WGPUCompositeAlphaMode extends c.U32 {
+  static 'Auto' = new WGPUCompositeAlphaMode(0)
+  static 'Opaque' = new WGPUCompositeAlphaMode(1)
+  static 'Premultiplied' = new WGPUCompositeAlphaMode(2)
+  static 'Unpremultiplied' = new WGPUCompositeAlphaMode(3)
+  static 'Inherit' = new WGPUCompositeAlphaMode(4)
+  static 'Force32' = new WGPUCompositeAlphaMode(2147483647)
 }
-export class WGPUCreatePipelineAsyncStatus extends c.I32 {
-  static WGPUCreatePipelineAsyncStatus_Success = new WGPUCreatePipelineAsyncStatus(1)
-  static WGPUCreatePipelineAsyncStatus_InstanceDropped = new WGPUCreatePipelineAsyncStatus(2)
-  static WGPUCreatePipelineAsyncStatus_ValidationError = new WGPUCreatePipelineAsyncStatus(3)
-  static WGPUCreatePipelineAsyncStatus_InternalError = new WGPUCreatePipelineAsyncStatus(4)
-  static WGPUCreatePipelineAsyncStatus_DeviceLost = new WGPUCreatePipelineAsyncStatus(5)
-  static WGPUCreatePipelineAsyncStatus_DeviceDestroyed = new WGPUCreatePipelineAsyncStatus(6)
-  static WGPUCreatePipelineAsyncStatus_Unknown = new WGPUCreatePipelineAsyncStatus(7)
-  static WGPUCreatePipelineAsyncStatus_Force32 = new WGPUCreatePipelineAsyncStatus(2147483647)
+export class WGPUCreatePipelineAsyncStatus extends c.U32 {
+  static 'Success' = new WGPUCreatePipelineAsyncStatus(1)
+  static 'InstanceDropped' = new WGPUCreatePipelineAsyncStatus(2)
+  static 'ValidationError' = new WGPUCreatePipelineAsyncStatus(3)
+  static 'InternalError' = new WGPUCreatePipelineAsyncStatus(4)
+  static 'DeviceLost' = new WGPUCreatePipelineAsyncStatus(5)
+  static 'DeviceDestroyed' = new WGPUCreatePipelineAsyncStatus(6)
+  static 'Unknown' = new WGPUCreatePipelineAsyncStatus(7)
+  static 'Force32' = new WGPUCreatePipelineAsyncStatus(2147483647)
 }
-export class WGPUCullMode extends c.I32 {
-  static WGPUCullMode_Undefined = new WGPUCullMode(0)
-  static WGPUCullMode_None = new WGPUCullMode(1)
-  static WGPUCullMode_Front = new WGPUCullMode(2)
-  static WGPUCullMode_Back = new WGPUCullMode(3)
-  static WGPUCullMode_Force32 = new WGPUCullMode(2147483647)
+export class WGPUCullMode extends c.U32 {
+  static 'Undefined' = new WGPUCullMode(0)
+  static 'None' = new WGPUCullMode(1)
+  static 'Front' = new WGPUCullMode(2)
+  static 'Back' = new WGPUCullMode(3)
+  static 'Force32' = new WGPUCullMode(2147483647)
 }
-export class WGPUDeviceLostReason extends c.I32 {
-  static WGPUDeviceLostReason_Unknown = new WGPUDeviceLostReason(1)
-  static WGPUDeviceLostReason_Destroyed = new WGPUDeviceLostReason(2)
-  static WGPUDeviceLostReason_InstanceDropped = new WGPUDeviceLostReason(3)
-  static WGPUDeviceLostReason_FailedCreation = new WGPUDeviceLostReason(4)
-  static WGPUDeviceLostReason_Force32 = new WGPUDeviceLostReason(2147483647)
+export class WGPUDeviceLostReason extends c.U32 {
+  static 'Unknown' = new WGPUDeviceLostReason(1)
+  static 'Destroyed' = new WGPUDeviceLostReason(2)
+  static 'InstanceDropped' = new WGPUDeviceLostReason(3)
+  static 'FailedCreation' = new WGPUDeviceLostReason(4)
+  static 'Force32' = new WGPUDeviceLostReason(2147483647)
 }
-export class WGPUErrorFilter extends c.I32 {
-  static WGPUErrorFilter_Validation = new WGPUErrorFilter(1)
-  static WGPUErrorFilter_OutOfMemory = new WGPUErrorFilter(2)
-  static WGPUErrorFilter_Internal = new WGPUErrorFilter(3)
-  static WGPUErrorFilter_Force32 = new WGPUErrorFilter(2147483647)
+export class WGPUErrorFilter extends c.U32 {
+  static 'Validation' = new WGPUErrorFilter(1)
+  static 'OutOfMemory' = new WGPUErrorFilter(2)
+  static 'Internal' = new WGPUErrorFilter(3)
+  static 'Force32' = new WGPUErrorFilter(2147483647)
 }
-export class WGPUErrorType extends c.I32 {
-  static WGPUErrorType_NoError = new WGPUErrorType(1)
-  static WGPUErrorType_Validation = new WGPUErrorType(2)
-  static WGPUErrorType_OutOfMemory = new WGPUErrorType(3)
-  static WGPUErrorType_Internal = new WGPUErrorType(4)
-  static WGPUErrorType_Unknown = new WGPUErrorType(5)
-  static WGPUErrorType_DeviceLost = new WGPUErrorType(6)
-  static WGPUErrorType_Force32 = new WGPUErrorType(2147483647)
+export class WGPUErrorType extends c.U32 {
+  static 'NoError' = new WGPUErrorType(1)
+  static 'Validation' = new WGPUErrorType(2)
+  static 'OutOfMemory' = new WGPUErrorType(3)
+  static 'Internal' = new WGPUErrorType(4)
+  static 'Unknown' = new WGPUErrorType(5)
+  static 'DeviceLost' = new WGPUErrorType(6)
+  static 'Force32' = new WGPUErrorType(2147483647)
 }
-export class WGPUExternalTextureRotation extends c.I32 {
-  static WGPUExternalTextureRotation_Rotate0Degrees = new WGPUExternalTextureRotation(1)
-  static WGPUExternalTextureRotation_Rotate90Degrees = new WGPUExternalTextureRotation(2)
-  static WGPUExternalTextureRotation_Rotate180Degrees = new WGPUExternalTextureRotation(3)
-  static WGPUExternalTextureRotation_Rotate270Degrees = new WGPUExternalTextureRotation(4)
-  static WGPUExternalTextureRotation_Force32 = new WGPUExternalTextureRotation(2147483647)
+export class WGPUExternalTextureRotation extends c.U32 {
+  static 'Rotate0Degrees' = new WGPUExternalTextureRotation(1)
+  static 'Rotate90Degrees' = new WGPUExternalTextureRotation(2)
+  static 'Rotate180Degrees' = new WGPUExternalTextureRotation(3)
+  static 'Rotate270Degrees' = new WGPUExternalTextureRotation(4)
+  static 'Force32' = new WGPUExternalTextureRotation(2147483647)
 }
-export class WGPUFeatureLevel extends c.I32 {
-  static WGPUFeatureLevel_Undefined = new WGPUFeatureLevel(0)
-  static WGPUFeatureLevel_Compatibility = new WGPUFeatureLevel(1)
-  static WGPUFeatureLevel_Core = new WGPUFeatureLevel(2)
-  static WGPUFeatureLevel_Force32 = new WGPUFeatureLevel(2147483647)
+export class WGPUFeatureLevel extends c.U32 {
+  static 'Undefined' = new WGPUFeatureLevel(0)
+  static 'Compatibility' = new WGPUFeatureLevel(1)
+  static 'Core' = new WGPUFeatureLevel(2)
+  static 'Force32' = new WGPUFeatureLevel(2147483647)
 }
-export class WGPUFeatureName extends c.I32 {
-  static WGPUFeatureName_DepthClipControl = new WGPUFeatureName(1)
-  static WGPUFeatureName_Depth32FloatStencil8 = new WGPUFeatureName(2)
-  static WGPUFeatureName_TimestampQuery = new WGPUFeatureName(3)
-  static WGPUFeatureName_TextureCompressionBC = new WGPUFeatureName(4)
-  static WGPUFeatureName_TextureCompressionETC2 = new WGPUFeatureName(5)
-  static WGPUFeatureName_TextureCompressionASTC = new WGPUFeatureName(6)
-  static WGPUFeatureName_IndirectFirstInstance = new WGPUFeatureName(7)
-  static WGPUFeatureName_ShaderF16 = new WGPUFeatureName(8)
-  static WGPUFeatureName_RG11B10UfloatRenderable = new WGPUFeatureName(9)
-  static WGPUFeatureName_BGRA8UnormStorage = new WGPUFeatureName(10)
-  static WGPUFeatureName_Float32Filterable = new WGPUFeatureName(11)
-  static WGPUFeatureName_Float32Blendable = new WGPUFeatureName(12)
-  static WGPUFeatureName_Subgroups = new WGPUFeatureName(13)
-  static WGPUFeatureName_SubgroupsF16 = new WGPUFeatureName(14)
-  static WGPUFeatureName_DawnInternalUsages = new WGPUFeatureName(327680)
-  static WGPUFeatureName_DawnMultiPlanarFormats = new WGPUFeatureName(327681)
-  static WGPUFeatureName_DawnNative = new WGPUFeatureName(327682)
-  static WGPUFeatureName_ChromiumExperimentalTimestampQueryInsidePasses = new WGPUFeatureName(327683)
-  static WGPUFeatureName_ImplicitDeviceSynchronization = new WGPUFeatureName(327684)
-  static WGPUFeatureName_ChromiumExperimentalImmediateData = new WGPUFeatureName(327685)
-  static WGPUFeatureName_TransientAttachments = new WGPUFeatureName(327686)
-  static WGPUFeatureName_MSAARenderToSingleSampled = new WGPUFeatureName(327687)
-  static WGPUFeatureName_DualSourceBlending = new WGPUFeatureName(327688)
-  static WGPUFeatureName_D3D11MultithreadProtected = new WGPUFeatureName(327689)
-  static WGPUFeatureName_ANGLETextureSharing = new WGPUFeatureName(327690)
-  static WGPUFeatureName_PixelLocalStorageCoherent = new WGPUFeatureName(327691)
-  static WGPUFeatureName_PixelLocalStorageNonCoherent = new WGPUFeatureName(327692)
-  static WGPUFeatureName_Unorm16TextureFormats = new WGPUFeatureName(327693)
-  static WGPUFeatureName_Snorm16TextureFormats = new WGPUFeatureName(327694)
-  static WGPUFeatureName_MultiPlanarFormatExtendedUsages = new WGPUFeatureName(327695)
-  static WGPUFeatureName_MultiPlanarFormatP010 = new WGPUFeatureName(327696)
-  static WGPUFeatureName_HostMappedPointer = new WGPUFeatureName(327697)
-  static WGPUFeatureName_MultiPlanarRenderTargets = new WGPUFeatureName(327698)
-  static WGPUFeatureName_MultiPlanarFormatNv12a = new WGPUFeatureName(327699)
-  static WGPUFeatureName_FramebufferFetch = new WGPUFeatureName(327700)
-  static WGPUFeatureName_BufferMapExtendedUsages = new WGPUFeatureName(327701)
-  static WGPUFeatureName_AdapterPropertiesMemoryHeaps = new WGPUFeatureName(327702)
-  static WGPUFeatureName_AdapterPropertiesD3D = new WGPUFeatureName(327703)
-  static WGPUFeatureName_AdapterPropertiesVk = new WGPUFeatureName(327704)
-  static WGPUFeatureName_R8UnormStorage = new WGPUFeatureName(327705)
-  static WGPUFeatureName_FormatCapabilities = new WGPUFeatureName(327706)
-  static WGPUFeatureName_DrmFormatCapabilities = new WGPUFeatureName(327707)
-  static WGPUFeatureName_Norm16TextureFormats = new WGPUFeatureName(327708)
-  static WGPUFeatureName_MultiPlanarFormatNv16 = new WGPUFeatureName(327709)
-  static WGPUFeatureName_MultiPlanarFormatNv24 = new WGPUFeatureName(327710)
-  static WGPUFeatureName_MultiPlanarFormatP210 = new WGPUFeatureName(327711)
-  static WGPUFeatureName_MultiPlanarFormatP410 = new WGPUFeatureName(327712)
-  static WGPUFeatureName_SharedTextureMemoryVkDedicatedAllocation = new WGPUFeatureName(327713)
-  static WGPUFeatureName_SharedTextureMemoryAHardwareBuffer = new WGPUFeatureName(327714)
-  static WGPUFeatureName_SharedTextureMemoryDmaBuf = new WGPUFeatureName(327715)
-  static WGPUFeatureName_SharedTextureMemoryOpaqueFD = new WGPUFeatureName(327716)
-  static WGPUFeatureName_SharedTextureMemoryZirconHandle = new WGPUFeatureName(327717)
-  static WGPUFeatureName_SharedTextureMemoryDXGISharedHandle = new WGPUFeatureName(327718)
-  static WGPUFeatureName_SharedTextureMemoryD3D11Texture2D = new WGPUFeatureName(327719)
-  static WGPUFeatureName_SharedTextureMemoryIOSurface = new WGPUFeatureName(327720)
-  static WGPUFeatureName_SharedTextureMemoryEGLImage = new WGPUFeatureName(327721)
-  static WGPUFeatureName_SharedFenceVkSemaphoreOpaqueFD = new WGPUFeatureName(327722)
-  static WGPUFeatureName_SharedFenceSyncFD = new WGPUFeatureName(327723)
-  static WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle = new WGPUFeatureName(327724)
-  static WGPUFeatureName_SharedFenceDXGISharedHandle = new WGPUFeatureName(327725)
-  static WGPUFeatureName_SharedFenceMTLSharedEvent = new WGPUFeatureName(327726)
-  static WGPUFeatureName_SharedBufferMemoryD3D12Resource = new WGPUFeatureName(327727)
-  static WGPUFeatureName_StaticSamplers = new WGPUFeatureName(327728)
-  static WGPUFeatureName_YCbCrVulkanSamplers = new WGPUFeatureName(327729)
-  static WGPUFeatureName_ShaderModuleCompilationOptions = new WGPUFeatureName(327730)
-  static WGPUFeatureName_DawnLoadResolveTexture = new WGPUFeatureName(327731)
-  static WGPUFeatureName_DawnPartialLoadResolveTexture = new WGPUFeatureName(327732)
-  static WGPUFeatureName_MultiDrawIndirect = new WGPUFeatureName(327733)
-  static WGPUFeatureName_ClipDistances = new WGPUFeatureName(327734)
-  static WGPUFeatureName_DawnTexelCopyBufferRowAlignment = new WGPUFeatureName(327735)
-  static WGPUFeatureName_FlexibleTextureViews = new WGPUFeatureName(327736)
-  static WGPUFeatureName_Force32 = new WGPUFeatureName(2147483647)
+export class WGPUFeatureName extends c.U32 {
+  static 'DepthClipControl' = new WGPUFeatureName(1)
+  static 'Depth32FloatStencil8' = new WGPUFeatureName(2)
+  static 'TimestampQuery' = new WGPUFeatureName(3)
+  static 'TextureCompressionBC' = new WGPUFeatureName(4)
+  static 'TextureCompressionETC2' = new WGPUFeatureName(5)
+  static 'TextureCompressionASTC' = new WGPUFeatureName(6)
+  static 'IndirectFirstInstance' = new WGPUFeatureName(7)
+  static 'ShaderF16' = new WGPUFeatureName(8)
+  static 'RG11B10UfloatRenderable' = new WGPUFeatureName(9)
+  static 'BGRA8UnormStorage' = new WGPUFeatureName(10)
+  static 'Float32Filterable' = new WGPUFeatureName(11)
+  static 'Float32Blendable' = new WGPUFeatureName(12)
+  static 'Subgroups' = new WGPUFeatureName(13)
+  static 'SubgroupsF16' = new WGPUFeatureName(14)
+  static 'DawnInternalUsages' = new WGPUFeatureName(327680)
+  static 'DawnMultiPlanarFormats' = new WGPUFeatureName(327681)
+  static 'DawnNative' = new WGPUFeatureName(327682)
+  static 'ChromiumExperimentalTimestampQueryInsidePasses' = new WGPUFeatureName(327683)
+  static 'ImplicitDeviceSynchronization' = new WGPUFeatureName(327684)
+  static 'ChromiumExperimentalImmediateData' = new WGPUFeatureName(327685)
+  static 'TransientAttachments' = new WGPUFeatureName(327686)
+  static 'MSAARenderToSingleSampled' = new WGPUFeatureName(327687)
+  static 'DualSourceBlending' = new WGPUFeatureName(327688)
+  static 'D3D11MultithreadProtected' = new WGPUFeatureName(327689)
+  static 'ANGLETextureSharing' = new WGPUFeatureName(327690)
+  static 'PixelLocalStorageCoherent' = new WGPUFeatureName(327691)
+  static 'PixelLocalStorageNonCoherent' = new WGPUFeatureName(327692)
+  static 'Unorm16TextureFormats' = new WGPUFeatureName(327693)
+  static 'Snorm16TextureFormats' = new WGPUFeatureName(327694)
+  static 'MultiPlanarFormatExtendedUsages' = new WGPUFeatureName(327695)
+  static 'MultiPlanarFormatP010' = new WGPUFeatureName(327696)
+  static 'HostMappedPointer' = new WGPUFeatureName(327697)
+  static 'MultiPlanarRenderTargets' = new WGPUFeatureName(327698)
+  static 'MultiPlanarFormatNv12a' = new WGPUFeatureName(327699)
+  static 'FramebufferFetch' = new WGPUFeatureName(327700)
+  static 'BufferMapExtendedUsages' = new WGPUFeatureName(327701)
+  static 'AdapterPropertiesMemoryHeaps' = new WGPUFeatureName(327702)
+  static 'AdapterPropertiesD3D' = new WGPUFeatureName(327703)
+  static 'AdapterPropertiesVk' = new WGPUFeatureName(327704)
+  static 'R8UnormStorage' = new WGPUFeatureName(327705)
+  static 'FormatCapabilities' = new WGPUFeatureName(327706)
+  static 'DrmFormatCapabilities' = new WGPUFeatureName(327707)
+  static 'Norm16TextureFormats' = new WGPUFeatureName(327708)
+  static 'MultiPlanarFormatNv16' = new WGPUFeatureName(327709)
+  static 'MultiPlanarFormatNv24' = new WGPUFeatureName(327710)
+  static 'MultiPlanarFormatP210' = new WGPUFeatureName(327711)
+  static 'MultiPlanarFormatP410' = new WGPUFeatureName(327712)
+  static 'SharedTextureMemoryVkDedicatedAllocation' = new WGPUFeatureName(327713)
+  static 'SharedTextureMemoryAHardwareBuffer' = new WGPUFeatureName(327714)
+  static 'SharedTextureMemoryDmaBuf' = new WGPUFeatureName(327715)
+  static 'SharedTextureMemoryOpaqueFD' = new WGPUFeatureName(327716)
+  static 'SharedTextureMemoryZirconHandle' = new WGPUFeatureName(327717)
+  static 'SharedTextureMemoryDXGISharedHandle' = new WGPUFeatureName(327718)
+  static 'SharedTextureMemoryD3D11Texture2D' = new WGPUFeatureName(327719)
+  static 'SharedTextureMemoryIOSurface' = new WGPUFeatureName(327720)
+  static 'SharedTextureMemoryEGLImage' = new WGPUFeatureName(327721)
+  static 'SharedFenceVkSemaphoreOpaqueFD' = new WGPUFeatureName(327722)
+  static 'SharedFenceSyncFD' = new WGPUFeatureName(327723)
+  static 'SharedFenceVkSemaphoreZirconHandle' = new WGPUFeatureName(327724)
+  static 'SharedFenceDXGISharedHandle' = new WGPUFeatureName(327725)
+  static 'SharedFenceMTLSharedEvent' = new WGPUFeatureName(327726)
+  static 'SharedBufferMemoryD3D12Resource' = new WGPUFeatureName(327727)
+  static 'StaticSamplers' = new WGPUFeatureName(327728)
+  static 'YCbCrVulkanSamplers' = new WGPUFeatureName(327729)
+  static 'ShaderModuleCompilationOptions' = new WGPUFeatureName(327730)
+  static 'DawnLoadResolveTexture' = new WGPUFeatureName(327731)
+  static 'DawnPartialLoadResolveTexture' = new WGPUFeatureName(327732)
+  static 'MultiDrawIndirect' = new WGPUFeatureName(327733)
+  static 'ClipDistances' = new WGPUFeatureName(327734)
+  static 'DawnTexelCopyBufferRowAlignment' = new WGPUFeatureName(327735)
+  static 'FlexibleTextureViews' = new WGPUFeatureName(327736)
+  static 'Force32' = new WGPUFeatureName(2147483647)
 }
-export class WGPUFilterMode extends c.I32 {
-  static WGPUFilterMode_Undefined = new WGPUFilterMode(0)
-  static WGPUFilterMode_Nearest = new WGPUFilterMode(1)
-  static WGPUFilterMode_Linear = new WGPUFilterMode(2)
-  static WGPUFilterMode_Force32 = new WGPUFilterMode(2147483647)
+export class WGPUFilterMode extends c.U32 {
+  static 'Undefined' = new WGPUFilterMode(0)
+  static 'Nearest' = new WGPUFilterMode(1)
+  static 'Linear' = new WGPUFilterMode(2)
+  static 'Force32' = new WGPUFilterMode(2147483647)
 }
-export class WGPUFrontFace extends c.I32 {
-  static WGPUFrontFace_Undefined = new WGPUFrontFace(0)
-  static WGPUFrontFace_CCW = new WGPUFrontFace(1)
-  static WGPUFrontFace_CW = new WGPUFrontFace(2)
-  static WGPUFrontFace_Force32 = new WGPUFrontFace(2147483647)
+export class WGPUFrontFace extends c.U32 {
+  static 'Undefined' = new WGPUFrontFace(0)
+  static 'CCW' = new WGPUFrontFace(1)
+  static 'CW' = new WGPUFrontFace(2)
+  static 'Force32' = new WGPUFrontFace(2147483647)
 }
-export class WGPUIndexFormat extends c.I32 {
-  static WGPUIndexFormat_Undefined = new WGPUIndexFormat(0)
-  static WGPUIndexFormat_Uint16 = new WGPUIndexFormat(1)
-  static WGPUIndexFormat_Uint32 = new WGPUIndexFormat(2)
-  static WGPUIndexFormat_Force32 = new WGPUIndexFormat(2147483647)
+export class WGPUIndexFormat extends c.U32 {
+  static 'Undefined' = new WGPUIndexFormat(0)
+  static 'Uint16' = new WGPUIndexFormat(1)
+  static 'Uint32' = new WGPUIndexFormat(2)
+  static 'Force32' = new WGPUIndexFormat(2147483647)
 }
-export class WGPULoadOp extends c.I32 {
-  static WGPULoadOp_Undefined = new WGPULoadOp(0)
-  static WGPULoadOp_Load = new WGPULoadOp(1)
-  static WGPULoadOp_Clear = new WGPULoadOp(2)
-  static WGPULoadOp_ExpandResolveTexture = new WGPULoadOp(327683)
-  static WGPULoadOp_Force32 = new WGPULoadOp(2147483647)
+export class WGPULoadOp extends c.U32 {
+  static 'Undefined' = new WGPULoadOp(0)
+  static 'Load' = new WGPULoadOp(1)
+  static 'Clear' = new WGPULoadOp(2)
+  static 'ExpandResolveTexture' = new WGPULoadOp(327683)
+  static 'Force32' = new WGPULoadOp(2147483647)
 }
-export class WGPULoggingType extends c.I32 {
-  static WGPULoggingType_Verbose = new WGPULoggingType(1)
-  static WGPULoggingType_Info = new WGPULoggingType(2)
-  static WGPULoggingType_Warning = new WGPULoggingType(3)
-  static WGPULoggingType_Error = new WGPULoggingType(4)
-  static WGPULoggingType_Force32 = new WGPULoggingType(2147483647)
+export class WGPULoggingType extends c.U32 {
+  static 'Verbose' = new WGPULoggingType(1)
+  static 'Info' = new WGPULoggingType(2)
+  static 'Warning' = new WGPULoggingType(3)
+  static 'Error' = new WGPULoggingType(4)
+  static 'Force32' = new WGPULoggingType(2147483647)
 }
-export class WGPUMapAsyncStatus extends c.I32 {
-  static WGPUMapAsyncStatus_Success = new WGPUMapAsyncStatus(1)
-  static WGPUMapAsyncStatus_InstanceDropped = new WGPUMapAsyncStatus(2)
-  static WGPUMapAsyncStatus_Error = new WGPUMapAsyncStatus(3)
-  static WGPUMapAsyncStatus_Aborted = new WGPUMapAsyncStatus(4)
-  static WGPUMapAsyncStatus_Unknown = new WGPUMapAsyncStatus(5)
-  static WGPUMapAsyncStatus_Force32 = new WGPUMapAsyncStatus(2147483647)
+export class WGPUMapAsyncStatus extends c.U32 {
+  static 'Success' = new WGPUMapAsyncStatus(1)
+  static 'InstanceDropped' = new WGPUMapAsyncStatus(2)
+  static 'Error' = new WGPUMapAsyncStatus(3)
+  static 'Aborted' = new WGPUMapAsyncStatus(4)
+  static 'Unknown' = new WGPUMapAsyncStatus(5)
+  static 'Force32' = new WGPUMapAsyncStatus(2147483647)
 }
-export class WGPUMipmapFilterMode extends c.I32 {
-  static WGPUMipmapFilterMode_Undefined = new WGPUMipmapFilterMode(0)
-  static WGPUMipmapFilterMode_Nearest = new WGPUMipmapFilterMode(1)
-  static WGPUMipmapFilterMode_Linear = new WGPUMipmapFilterMode(2)
-  static WGPUMipmapFilterMode_Force32 = new WGPUMipmapFilterMode(2147483647)
+export class WGPUMipmapFilterMode extends c.U32 {
+  static 'Undefined' = new WGPUMipmapFilterMode(0)
+  static 'Nearest' = new WGPUMipmapFilterMode(1)
+  static 'Linear' = new WGPUMipmapFilterMode(2)
+  static 'Force32' = new WGPUMipmapFilterMode(2147483647)
 }
-export class WGPUOptionalBool extends c.I32 {
-  static WGPUOptionalBool_False = new WGPUOptionalBool(0)
-  static WGPUOptionalBool_True = new WGPUOptionalBool(1)
-  static WGPUOptionalBool_Undefined = new WGPUOptionalBool(2)
-  static WGPUOptionalBool_Force32 = new WGPUOptionalBool(2147483647)
+export class WGPUOptionalBool extends c.U32 {
+  static 'False' = new WGPUOptionalBool(0)
+  static 'True' = new WGPUOptionalBool(1)
+  static 'Undefined' = new WGPUOptionalBool(2)
+  static 'Force32' = new WGPUOptionalBool(2147483647)
 }
-export class WGPUPopErrorScopeStatus extends c.I32 {
-  static WGPUPopErrorScopeStatus_Success = new WGPUPopErrorScopeStatus(1)
-  static WGPUPopErrorScopeStatus_InstanceDropped = new WGPUPopErrorScopeStatus(2)
-  static WGPUPopErrorScopeStatus_Force32 = new WGPUPopErrorScopeStatus(2147483647)
+export class WGPUPopErrorScopeStatus extends c.U32 {
+  static 'Success' = new WGPUPopErrorScopeStatus(1)
+  static 'InstanceDropped' = new WGPUPopErrorScopeStatus(2)
+  static 'Force32' = new WGPUPopErrorScopeStatus(2147483647)
 }
-export class WGPUPowerPreference extends c.I32 {
-  static WGPUPowerPreference_Undefined = new WGPUPowerPreference(0)
-  static WGPUPowerPreference_LowPower = new WGPUPowerPreference(1)
-  static WGPUPowerPreference_HighPerformance = new WGPUPowerPreference(2)
-  static WGPUPowerPreference_Force32 = new WGPUPowerPreference(2147483647)
+export class WGPUPowerPreference extends c.U32 {
+  static 'Undefined' = new WGPUPowerPreference(0)
+  static 'LowPower' = new WGPUPowerPreference(1)
+  static 'HighPerformance' = new WGPUPowerPreference(2)
+  static 'Force32' = new WGPUPowerPreference(2147483647)
 }
-export class WGPUPresentMode extends c.I32 {
-  static WGPUPresentMode_Fifo = new WGPUPresentMode(1)
-  static WGPUPresentMode_FifoRelaxed = new WGPUPresentMode(2)
-  static WGPUPresentMode_Immediate = new WGPUPresentMode(3)
-  static WGPUPresentMode_Mailbox = new WGPUPresentMode(4)
-  static WGPUPresentMode_Force32 = new WGPUPresentMode(2147483647)
+export class WGPUPresentMode extends c.U32 {
+  static 'Fifo' = new WGPUPresentMode(1)
+  static 'FifoRelaxed' = new WGPUPresentMode(2)
+  static 'Immediate' = new WGPUPresentMode(3)
+  static 'Mailbox' = new WGPUPresentMode(4)
+  static 'Force32' = new WGPUPresentMode(2147483647)
 }
-export class WGPUPrimitiveTopology extends c.I32 {
-  static WGPUPrimitiveTopology_Undefined = new WGPUPrimitiveTopology(0)
-  static WGPUPrimitiveTopology_PointList = new WGPUPrimitiveTopology(1)
-  static WGPUPrimitiveTopology_LineList = new WGPUPrimitiveTopology(2)
-  static WGPUPrimitiveTopology_LineStrip = new WGPUPrimitiveTopology(3)
-  static WGPUPrimitiveTopology_TriangleList = new WGPUPrimitiveTopology(4)
-  static WGPUPrimitiveTopology_TriangleStrip = new WGPUPrimitiveTopology(5)
-  static WGPUPrimitiveTopology_Force32 = new WGPUPrimitiveTopology(2147483647)
+export class WGPUPrimitiveTopology extends c.U32 {
+  static 'Undefined' = new WGPUPrimitiveTopology(0)
+  static 'PointList' = new WGPUPrimitiveTopology(1)
+  static 'LineList' = new WGPUPrimitiveTopology(2)
+  static 'LineStrip' = new WGPUPrimitiveTopology(3)
+  static 'TriangleList' = new WGPUPrimitiveTopology(4)
+  static 'TriangleStrip' = new WGPUPrimitiveTopology(5)
+  static 'Force32' = new WGPUPrimitiveTopology(2147483647)
 }
-export class WGPUQueryType extends c.I32 {
-  static WGPUQueryType_Occlusion = new WGPUQueryType(1)
-  static WGPUQueryType_Timestamp = new WGPUQueryType(2)
-  static WGPUQueryType_Force32 = new WGPUQueryType(2147483647)
+export class WGPUQueryType extends c.U32 {
+  static 'Occlusion' = new WGPUQueryType(1)
+  static 'Timestamp' = new WGPUQueryType(2)
+  static 'Force32' = new WGPUQueryType(2147483647)
 }
-export class WGPUQueueWorkDoneStatus extends c.I32 {
-  static WGPUQueueWorkDoneStatus_Success = new WGPUQueueWorkDoneStatus(1)
-  static WGPUQueueWorkDoneStatus_InstanceDropped = new WGPUQueueWorkDoneStatus(2)
-  static WGPUQueueWorkDoneStatus_Error = new WGPUQueueWorkDoneStatus(3)
-  static WGPUQueueWorkDoneStatus_Unknown = new WGPUQueueWorkDoneStatus(4)
-  static WGPUQueueWorkDoneStatus_DeviceLost = new WGPUQueueWorkDoneStatus(5)
-  static WGPUQueueWorkDoneStatus_Force32 = new WGPUQueueWorkDoneStatus(2147483647)
+export class WGPUQueueWorkDoneStatus extends c.U32 {
+  static 'Success' = new WGPUQueueWorkDoneStatus(1)
+  static 'InstanceDropped' = new WGPUQueueWorkDoneStatus(2)
+  static 'Error' = new WGPUQueueWorkDoneStatus(3)
+  static 'Unknown' = new WGPUQueueWorkDoneStatus(4)
+  static 'DeviceLost' = new WGPUQueueWorkDoneStatus(5)
+  static 'Force32' = new WGPUQueueWorkDoneStatus(2147483647)
 }
-export class WGPURequestAdapterStatus extends c.I32 {
-  static WGPURequestAdapterStatus_Success = new WGPURequestAdapterStatus(1)
-  static WGPURequestAdapterStatus_InstanceDropped = new WGPURequestAdapterStatus(2)
-  static WGPURequestAdapterStatus_Unavailable = new WGPURequestAdapterStatus(3)
-  static WGPURequestAdapterStatus_Error = new WGPURequestAdapterStatus(4)
-  static WGPURequestAdapterStatus_Unknown = new WGPURequestAdapterStatus(5)
-  static WGPURequestAdapterStatus_Force32 = new WGPURequestAdapterStatus(2147483647)
+export class WGPURequestAdapterStatus extends c.U32 {
+  static 'Success' = new WGPURequestAdapterStatus(1)
+  static 'InstanceDropped' = new WGPURequestAdapterStatus(2)
+  static 'Unavailable' = new WGPURequestAdapterStatus(3)
+  static 'Error' = new WGPURequestAdapterStatus(4)
+  static 'Unknown' = new WGPURequestAdapterStatus(5)
+  static 'Force32' = new WGPURequestAdapterStatus(2147483647)
 }
-export class WGPURequestDeviceStatus extends c.I32 {
-  static WGPURequestDeviceStatus_Success = new WGPURequestDeviceStatus(1)
-  static WGPURequestDeviceStatus_InstanceDropped = new WGPURequestDeviceStatus(2)
-  static WGPURequestDeviceStatus_Error = new WGPURequestDeviceStatus(3)
-  static WGPURequestDeviceStatus_Unknown = new WGPURequestDeviceStatus(4)
-  static WGPURequestDeviceStatus_Force32 = new WGPURequestDeviceStatus(2147483647)
+export class WGPURequestDeviceStatus extends c.U32 {
+  static 'Success' = new WGPURequestDeviceStatus(1)
+  static 'InstanceDropped' = new WGPURequestDeviceStatus(2)
+  static 'Error' = new WGPURequestDeviceStatus(3)
+  static 'Unknown' = new WGPURequestDeviceStatus(4)
+  static 'Force32' = new WGPURequestDeviceStatus(2147483647)
 }
-export class WGPUSType extends c.I32 {
-  static WGPUSType_ShaderSourceSPIRV = new WGPUSType(1)
-  static WGPUSType_ShaderSourceWGSL = new WGPUSType(2)
-  static WGPUSType_RenderPassMaxDrawCount = new WGPUSType(3)
-  static WGPUSType_SurfaceSourceMetalLayer = new WGPUSType(4)
-  static WGPUSType_SurfaceSourceWindowsHWND = new WGPUSType(5)
-  static WGPUSType_SurfaceSourceXlibWindow = new WGPUSType(6)
-  static WGPUSType_SurfaceSourceWaylandSurface = new WGPUSType(7)
-  static WGPUSType_SurfaceSourceAndroidNativeWindow = new WGPUSType(8)
-  static WGPUSType_SurfaceSourceXCBWindow = new WGPUSType(9)
-  static WGPUSType_AdapterPropertiesSubgroups = new WGPUSType(10)
-  static WGPUSType_TextureBindingViewDimensionDescriptor = new WGPUSType(131072)
-  static WGPUSType_SurfaceSourceCanvasHTMLSelector_Emscripten = new WGPUSType(262144)
-  static WGPUSType_SurfaceDescriptorFromWindowsCoreWindow = new WGPUSType(327680)
-  static WGPUSType_ExternalTextureBindingEntry = new WGPUSType(327681)
-  static WGPUSType_ExternalTextureBindingLayout = new WGPUSType(327682)
-  static WGPUSType_SurfaceDescriptorFromWindowsSwapChainPanel = new WGPUSType(327683)
-  static WGPUSType_DawnTextureInternalUsageDescriptor = new WGPUSType(327684)
-  static WGPUSType_DawnEncoderInternalUsageDescriptor = new WGPUSType(327685)
-  static WGPUSType_DawnInstanceDescriptor = new WGPUSType(327686)
-  static WGPUSType_DawnCacheDeviceDescriptor = new WGPUSType(327687)
-  static WGPUSType_DawnAdapterPropertiesPowerPreference = new WGPUSType(327688)
-  static WGPUSType_DawnBufferDescriptorErrorInfoFromWireClient = new WGPUSType(327689)
-  static WGPUSType_DawnTogglesDescriptor = new WGPUSType(327690)
-  static WGPUSType_DawnShaderModuleSPIRVOptionsDescriptor = new WGPUSType(327691)
-  static WGPUSType_RequestAdapterOptionsLUID = new WGPUSType(327692)
-  static WGPUSType_RequestAdapterOptionsGetGLProc = new WGPUSType(327693)
-  static WGPUSType_RequestAdapterOptionsD3D11Device = new WGPUSType(327694)
-  static WGPUSType_DawnRenderPassColorAttachmentRenderToSingleSampled = new WGPUSType(327695)
-  static WGPUSType_RenderPassPixelLocalStorage = new WGPUSType(327696)
-  static WGPUSType_PipelineLayoutPixelLocalStorage = new WGPUSType(327697)
-  static WGPUSType_BufferHostMappedPointer = new WGPUSType(327698)
-  static WGPUSType_DawnExperimentalSubgroupLimits = new WGPUSType(327699)
-  static WGPUSType_AdapterPropertiesMemoryHeaps = new WGPUSType(327700)
-  static WGPUSType_AdapterPropertiesD3D = new WGPUSType(327701)
-  static WGPUSType_AdapterPropertiesVk = new WGPUSType(327702)
-  static WGPUSType_DawnWireWGSLControl = new WGPUSType(327703)
-  static WGPUSType_DawnWGSLBlocklist = new WGPUSType(327704)
-  static WGPUSType_DrmFormatCapabilities = new WGPUSType(327705)
-  static WGPUSType_ShaderModuleCompilationOptions = new WGPUSType(327706)
-  static WGPUSType_ColorTargetStateExpandResolveTextureDawn = new WGPUSType(327707)
-  static WGPUSType_RenderPassDescriptorExpandResolveRect = new WGPUSType(327708)
-  static WGPUSType_SharedTextureMemoryVkDedicatedAllocationDescriptor = new WGPUSType(327709)
-  static WGPUSType_SharedTextureMemoryAHardwareBufferDescriptor = new WGPUSType(327710)
-  static WGPUSType_SharedTextureMemoryDmaBufDescriptor = new WGPUSType(327711)
-  static WGPUSType_SharedTextureMemoryOpaqueFDDescriptor = new WGPUSType(327712)
-  static WGPUSType_SharedTextureMemoryZirconHandleDescriptor = new WGPUSType(327713)
-  static WGPUSType_SharedTextureMemoryDXGISharedHandleDescriptor = new WGPUSType(327714)
-  static WGPUSType_SharedTextureMemoryD3D11Texture2DDescriptor = new WGPUSType(327715)
-  static WGPUSType_SharedTextureMemoryIOSurfaceDescriptor = new WGPUSType(327716)
-  static WGPUSType_SharedTextureMemoryEGLImageDescriptor = new WGPUSType(327717)
-  static WGPUSType_SharedTextureMemoryInitializedBeginState = new WGPUSType(327718)
-  static WGPUSType_SharedTextureMemoryInitializedEndState = new WGPUSType(327719)
-  static WGPUSType_SharedTextureMemoryVkImageLayoutBeginState = new WGPUSType(327720)
-  static WGPUSType_SharedTextureMemoryVkImageLayoutEndState = new WGPUSType(327721)
-  static WGPUSType_SharedTextureMemoryD3DSwapchainBeginState = new WGPUSType(327722)
-  static WGPUSType_SharedFenceVkSemaphoreOpaqueFDDescriptor = new WGPUSType(327723)
-  static WGPUSType_SharedFenceVkSemaphoreOpaqueFDExportInfo = new WGPUSType(327724)
-  static WGPUSType_SharedFenceSyncFDDescriptor = new WGPUSType(327725)
-  static WGPUSType_SharedFenceSyncFDExportInfo = new WGPUSType(327726)
-  static WGPUSType_SharedFenceVkSemaphoreZirconHandleDescriptor = new WGPUSType(327727)
-  static WGPUSType_SharedFenceVkSemaphoreZirconHandleExportInfo = new WGPUSType(327728)
-  static WGPUSType_SharedFenceDXGISharedHandleDescriptor = new WGPUSType(327729)
-  static WGPUSType_SharedFenceDXGISharedHandleExportInfo = new WGPUSType(327730)
-  static WGPUSType_SharedFenceMTLSharedEventDescriptor = new WGPUSType(327731)
-  static WGPUSType_SharedFenceMTLSharedEventExportInfo = new WGPUSType(327732)
-  static WGPUSType_SharedBufferMemoryD3D12ResourceDescriptor = new WGPUSType(327733)
-  static WGPUSType_StaticSamplerBindingLayout = new WGPUSType(327734)
-  static WGPUSType_YCbCrVkDescriptor = new WGPUSType(327735)
-  static WGPUSType_SharedTextureMemoryAHardwareBufferProperties = new WGPUSType(327736)
-  static WGPUSType_AHardwareBufferProperties = new WGPUSType(327737)
-  static WGPUSType_DawnExperimentalImmediateDataLimits = new WGPUSType(327738)
-  static WGPUSType_DawnTexelCopyBufferRowAlignmentLimits = new WGPUSType(327739)
-  static WGPUSType_Force32 = new WGPUSType(2147483647)
+export class WGPUSType extends c.U32 {
+  static 'ShaderSourceSPIRV' = new WGPUSType(1)
+  static 'ShaderSourceWGSL' = new WGPUSType(2)
+  static 'RenderPassMaxDrawCount' = new WGPUSType(3)
+  static 'SurfaceSourceMetalLayer' = new WGPUSType(4)
+  static 'SurfaceSourceWindowsHWND' = new WGPUSType(5)
+  static 'SurfaceSourceXlibWindow' = new WGPUSType(6)
+  static 'SurfaceSourceWaylandSurface' = new WGPUSType(7)
+  static 'SurfaceSourceAndroidNativeWindow' = new WGPUSType(8)
+  static 'SurfaceSourceXCBWindow' = new WGPUSType(9)
+  static 'AdapterPropertiesSubgroups' = new WGPUSType(10)
+  static 'TextureBindingViewDimensionDescriptor' = new WGPUSType(131072)
+  static 'SurfaceSourceCanvasHTMLSelector_Emscripten' = new WGPUSType(262144)
+  static 'SurfaceDescriptorFromWindowsCoreWindow' = new WGPUSType(327680)
+  static 'ExternalTextureBindingEntry' = new WGPUSType(327681)
+  static 'ExternalTextureBindingLayout' = new WGPUSType(327682)
+  static 'SurfaceDescriptorFromWindowsSwapChainPanel' = new WGPUSType(327683)
+  static 'DawnTextureInternalUsageDescriptor' = new WGPUSType(327684)
+  static 'DawnEncoderInternalUsageDescriptor' = new WGPUSType(327685)
+  static 'DawnInstanceDescriptor' = new WGPUSType(327686)
+  static 'DawnCacheDeviceDescriptor' = new WGPUSType(327687)
+  static 'DawnAdapterPropertiesPowerPreference' = new WGPUSType(327688)
+  static 'DawnBufferDescriptorErrorInfoFromWireClient' = new WGPUSType(327689)
+  static 'DawnTogglesDescriptor' = new WGPUSType(327690)
+  static 'DawnShaderModuleSPIRVOptionsDescriptor' = new WGPUSType(327691)
+  static 'RequestAdapterOptionsLUID' = new WGPUSType(327692)
+  static 'RequestAdapterOptionsGetGLProc' = new WGPUSType(327693)
+  static 'RequestAdapterOptionsD3D11Device' = new WGPUSType(327694)
+  static 'DawnRenderPassColorAttachmentRenderToSingleSampled' = new WGPUSType(327695)
+  static 'RenderPassPixelLocalStorage' = new WGPUSType(327696)
+  static 'PipelineLayoutPixelLocalStorage' = new WGPUSType(327697)
+  static 'BufferHostMappedPointer' = new WGPUSType(327698)
+  static 'DawnExperimentalSubgroupLimits' = new WGPUSType(327699)
+  static 'AdapterPropertiesMemoryHeaps' = new WGPUSType(327700)
+  static 'AdapterPropertiesD3D' = new WGPUSType(327701)
+  static 'AdapterPropertiesVk' = new WGPUSType(327702)
+  static 'DawnWireWGSLControl' = new WGPUSType(327703)
+  static 'DawnWGSLBlocklist' = new WGPUSType(327704)
+  static 'DrmFormatCapabilities' = new WGPUSType(327705)
+  static 'ShaderModuleCompilationOptions' = new WGPUSType(327706)
+  static 'ColorTargetStateExpandResolveTextureDawn' = new WGPUSType(327707)
+  static 'RenderPassDescriptorExpandResolveRect' = new WGPUSType(327708)
+  static 'SharedTextureMemoryVkDedicatedAllocationDescriptor' = new WGPUSType(327709)
+  static 'SharedTextureMemoryAHardwareBufferDescriptor' = new WGPUSType(327710)
+  static 'SharedTextureMemoryDmaBufDescriptor' = new WGPUSType(327711)
+  static 'SharedTextureMemoryOpaqueFDDescriptor' = new WGPUSType(327712)
+  static 'SharedTextureMemoryZirconHandleDescriptor' = new WGPUSType(327713)
+  static 'SharedTextureMemoryDXGISharedHandleDescriptor' = new WGPUSType(327714)
+  static 'SharedTextureMemoryD3D11Texture2DDescriptor' = new WGPUSType(327715)
+  static 'SharedTextureMemoryIOSurfaceDescriptor' = new WGPUSType(327716)
+  static 'SharedTextureMemoryEGLImageDescriptor' = new WGPUSType(327717)
+  static 'SharedTextureMemoryInitializedBeginState' = new WGPUSType(327718)
+  static 'SharedTextureMemoryInitializedEndState' = new WGPUSType(327719)
+  static 'SharedTextureMemoryVkImageLayoutBeginState' = new WGPUSType(327720)
+  static 'SharedTextureMemoryVkImageLayoutEndState' = new WGPUSType(327721)
+  static 'SharedTextureMemoryD3DSwapchainBeginState' = new WGPUSType(327722)
+  static 'SharedFenceVkSemaphoreOpaqueFDDescriptor' = new WGPUSType(327723)
+  static 'SharedFenceVkSemaphoreOpaqueFDExportInfo' = new WGPUSType(327724)
+  static 'SharedFenceSyncFDDescriptor' = new WGPUSType(327725)
+  static 'SharedFenceSyncFDExportInfo' = new WGPUSType(327726)
+  static 'SharedFenceVkSemaphoreZirconHandleDescriptor' = new WGPUSType(327727)
+  static 'SharedFenceVkSemaphoreZirconHandleExportInfo' = new WGPUSType(327728)
+  static 'SharedFenceDXGISharedHandleDescriptor' = new WGPUSType(327729)
+  static 'SharedFenceDXGISharedHandleExportInfo' = new WGPUSType(327730)
+  static 'SharedFenceMTLSharedEventDescriptor' = new WGPUSType(327731)
+  static 'SharedFenceMTLSharedEventExportInfo' = new WGPUSType(327732)
+  static 'SharedBufferMemoryD3D12ResourceDescriptor' = new WGPUSType(327733)
+  static 'StaticSamplerBindingLayout' = new WGPUSType(327734)
+  static 'YCbCrVkDescriptor' = new WGPUSType(327735)
+  static 'SharedTextureMemoryAHardwareBufferProperties' = new WGPUSType(327736)
+  static 'AHardwareBufferProperties' = new WGPUSType(327737)
+  static 'DawnExperimentalImmediateDataLimits' = new WGPUSType(327738)
+  static 'DawnTexelCopyBufferRowAlignmentLimits' = new WGPUSType(327739)
+  static 'Force32' = new WGPUSType(2147483647)
 }
-export class WGPUSamplerBindingType extends c.I32 {
-  static WGPUSamplerBindingType_BindingNotUsed = new WGPUSamplerBindingType(0)
-  static WGPUSamplerBindingType_Filtering = new WGPUSamplerBindingType(1)
-  static WGPUSamplerBindingType_NonFiltering = new WGPUSamplerBindingType(2)
-  static WGPUSamplerBindingType_Comparison = new WGPUSamplerBindingType(3)
-  static WGPUSamplerBindingType_Force32 = new WGPUSamplerBindingType(2147483647)
+export class WGPUSamplerBindingType extends c.U32 {
+  static 'BindingNotUsed' = new WGPUSamplerBindingType(0)
+  static 'Filtering' = new WGPUSamplerBindingType(1)
+  static 'NonFiltering' = new WGPUSamplerBindingType(2)
+  static 'Comparison' = new WGPUSamplerBindingType(3)
+  static 'Force32' = new WGPUSamplerBindingType(2147483647)
 }
-export class WGPUSharedFenceType extends c.I32 {
-  static WGPUSharedFenceType_VkSemaphoreOpaqueFD = new WGPUSharedFenceType(1)
-  static WGPUSharedFenceType_SyncFD = new WGPUSharedFenceType(2)
-  static WGPUSharedFenceType_VkSemaphoreZirconHandle = new WGPUSharedFenceType(3)
-  static WGPUSharedFenceType_DXGISharedHandle = new WGPUSharedFenceType(4)
-  static WGPUSharedFenceType_MTLSharedEvent = new WGPUSharedFenceType(5)
-  static WGPUSharedFenceType_Force32 = new WGPUSharedFenceType(2147483647)
+export class WGPUSharedFenceType extends c.U32 {
+  static 'VkSemaphoreOpaqueFD' = new WGPUSharedFenceType(1)
+  static 'SyncFD' = new WGPUSharedFenceType(2)
+  static 'VkSemaphoreZirconHandle' = new WGPUSharedFenceType(3)
+  static 'DXGISharedHandle' = new WGPUSharedFenceType(4)
+  static 'MTLSharedEvent' = new WGPUSharedFenceType(5)
+  static 'Force32' = new WGPUSharedFenceType(2147483647)
 }
-export class WGPUStatus extends c.I32 {
-  static WGPUStatus_Success = new WGPUStatus(1)
-  static WGPUStatus_Error = new WGPUStatus(2)
-  static WGPUStatus_Force32 = new WGPUStatus(2147483647)
+export class WGPUStatus extends c.U32 {
+  static 'Success' = new WGPUStatus(1)
+  static 'Error' = new WGPUStatus(2)
+  static 'Force32' = new WGPUStatus(2147483647)
 }
-export class WGPUStencilOperation extends c.I32 {
-  static WGPUStencilOperation_Undefined = new WGPUStencilOperation(0)
-  static WGPUStencilOperation_Keep = new WGPUStencilOperation(1)
-  static WGPUStencilOperation_Zero = new WGPUStencilOperation(2)
-  static WGPUStencilOperation_Replace = new WGPUStencilOperation(3)
-  static WGPUStencilOperation_Invert = new WGPUStencilOperation(4)
-  static WGPUStencilOperation_IncrementClamp = new WGPUStencilOperation(5)
-  static WGPUStencilOperation_DecrementClamp = new WGPUStencilOperation(6)
-  static WGPUStencilOperation_IncrementWrap = new WGPUStencilOperation(7)
-  static WGPUStencilOperation_DecrementWrap = new WGPUStencilOperation(8)
-  static WGPUStencilOperation_Force32 = new WGPUStencilOperation(2147483647)
+export class WGPUStencilOperation extends c.U32 {
+  static 'Undefined' = new WGPUStencilOperation(0)
+  static 'Keep' = new WGPUStencilOperation(1)
+  static 'Zero' = new WGPUStencilOperation(2)
+  static 'Replace' = new WGPUStencilOperation(3)
+  static 'Invert' = new WGPUStencilOperation(4)
+  static 'IncrementClamp' = new WGPUStencilOperation(5)
+  static 'DecrementClamp' = new WGPUStencilOperation(6)
+  static 'IncrementWrap' = new WGPUStencilOperation(7)
+  static 'DecrementWrap' = new WGPUStencilOperation(8)
+  static 'Force32' = new WGPUStencilOperation(2147483647)
 }
-export class WGPUStorageTextureAccess extends c.I32 {
-  static WGPUStorageTextureAccess_BindingNotUsed = new WGPUStorageTextureAccess(0)
-  static WGPUStorageTextureAccess_WriteOnly = new WGPUStorageTextureAccess(1)
-  static WGPUStorageTextureAccess_ReadOnly = new WGPUStorageTextureAccess(2)
-  static WGPUStorageTextureAccess_ReadWrite = new WGPUStorageTextureAccess(3)
-  static WGPUStorageTextureAccess_Force32 = new WGPUStorageTextureAccess(2147483647)
+export class WGPUStorageTextureAccess extends c.U32 {
+  static 'BindingNotUsed' = new WGPUStorageTextureAccess(0)
+  static 'WriteOnly' = new WGPUStorageTextureAccess(1)
+  static 'ReadOnly' = new WGPUStorageTextureAccess(2)
+  static 'ReadWrite' = new WGPUStorageTextureAccess(3)
+  static 'Force32' = new WGPUStorageTextureAccess(2147483647)
 }
-export class WGPUStoreOp extends c.I32 {
-  static WGPUStoreOp_Undefined = new WGPUStoreOp(0)
-  static WGPUStoreOp_Store = new WGPUStoreOp(1)
-  static WGPUStoreOp_Discard = new WGPUStoreOp(2)
-  static WGPUStoreOp_Force32 = new WGPUStoreOp(2147483647)
+export class WGPUStoreOp extends c.U32 {
+  static 'Undefined' = new WGPUStoreOp(0)
+  static 'Store' = new WGPUStoreOp(1)
+  static 'Discard' = new WGPUStoreOp(2)
+  static 'Force32' = new WGPUStoreOp(2147483647)
 }
-export class WGPUSurfaceGetCurrentTextureStatus extends c.I32 {
-  static WGPUSurfaceGetCurrentTextureStatus_Success = new WGPUSurfaceGetCurrentTextureStatus(1)
-  static WGPUSurfaceGetCurrentTextureStatus_Timeout = new WGPUSurfaceGetCurrentTextureStatus(2)
-  static WGPUSurfaceGetCurrentTextureStatus_Outdated = new WGPUSurfaceGetCurrentTextureStatus(3)
-  static WGPUSurfaceGetCurrentTextureStatus_Lost = new WGPUSurfaceGetCurrentTextureStatus(4)
-  static WGPUSurfaceGetCurrentTextureStatus_OutOfMemory = new WGPUSurfaceGetCurrentTextureStatus(5)
-  static WGPUSurfaceGetCurrentTextureStatus_DeviceLost = new WGPUSurfaceGetCurrentTextureStatus(6)
-  static WGPUSurfaceGetCurrentTextureStatus_Error = new WGPUSurfaceGetCurrentTextureStatus(7)
-  static WGPUSurfaceGetCurrentTextureStatus_Force32 = new WGPUSurfaceGetCurrentTextureStatus(2147483647)
+export class WGPUSurfaceGetCurrentTextureStatus extends c.U32 {
+  static 'Success' = new WGPUSurfaceGetCurrentTextureStatus(1)
+  static 'Timeout' = new WGPUSurfaceGetCurrentTextureStatus(2)
+  static 'Outdated' = new WGPUSurfaceGetCurrentTextureStatus(3)
+  static 'Lost' = new WGPUSurfaceGetCurrentTextureStatus(4)
+  static 'OutOfMemory' = new WGPUSurfaceGetCurrentTextureStatus(5)
+  static 'DeviceLost' = new WGPUSurfaceGetCurrentTextureStatus(6)
+  static 'Error' = new WGPUSurfaceGetCurrentTextureStatus(7)
+  static 'Force32' = new WGPUSurfaceGetCurrentTextureStatus(2147483647)
 }
-export class WGPUTextureAspect extends c.I32 {
-  static WGPUTextureAspect_Undefined = new WGPUTextureAspect(0)
-  static WGPUTextureAspect_All = new WGPUTextureAspect(1)
-  static WGPUTextureAspect_StencilOnly = new WGPUTextureAspect(2)
-  static WGPUTextureAspect_DepthOnly = new WGPUTextureAspect(3)
-  static WGPUTextureAspect_Plane0Only = new WGPUTextureAspect(327680)
-  static WGPUTextureAspect_Plane1Only = new WGPUTextureAspect(327681)
-  static WGPUTextureAspect_Plane2Only = new WGPUTextureAspect(327682)
-  static WGPUTextureAspect_Force32 = new WGPUTextureAspect(2147483647)
+export class WGPUTextureAspect extends c.U32 {
+  static 'Undefined' = new WGPUTextureAspect(0)
+  static 'All' = new WGPUTextureAspect(1)
+  static 'StencilOnly' = new WGPUTextureAspect(2)
+  static 'DepthOnly' = new WGPUTextureAspect(3)
+  static 'Plane0Only' = new WGPUTextureAspect(327680)
+  static 'Plane1Only' = new WGPUTextureAspect(327681)
+  static 'Plane2Only' = new WGPUTextureAspect(327682)
+  static 'Force32' = new WGPUTextureAspect(2147483647)
 }
-export class WGPUTextureDimension extends c.I32 {
-  static WGPUTextureDimension_Undefined = new WGPUTextureDimension(0)
-  static WGPUTextureDimension_1D = new WGPUTextureDimension(1)
-  static WGPUTextureDimension_2D = new WGPUTextureDimension(2)
-  static WGPUTextureDimension_3D = new WGPUTextureDimension(3)
-  static WGPUTextureDimension_Force32 = new WGPUTextureDimension(2147483647)
+export class WGPUTextureDimension extends c.U32 {
+  static 'Undefined' = new WGPUTextureDimension(0)
+  static '1D' = new WGPUTextureDimension(1)
+  static '2D' = new WGPUTextureDimension(2)
+  static '3D' = new WGPUTextureDimension(3)
+  static 'Force32' = new WGPUTextureDimension(2147483647)
 }
-export class WGPUTextureFormat extends c.I32 {
-  static WGPUTextureFormat_Undefined = new WGPUTextureFormat(0)
-  static WGPUTextureFormat_R8Unorm = new WGPUTextureFormat(1)
-  static WGPUTextureFormat_R8Snorm = new WGPUTextureFormat(2)
-  static WGPUTextureFormat_R8Uint = new WGPUTextureFormat(3)
-  static WGPUTextureFormat_R8Sint = new WGPUTextureFormat(4)
-  static WGPUTextureFormat_R16Uint = new WGPUTextureFormat(5)
-  static WGPUTextureFormat_R16Sint = new WGPUTextureFormat(6)
-  static WGPUTextureFormat_R16Float = new WGPUTextureFormat(7)
-  static WGPUTextureFormat_RG8Unorm = new WGPUTextureFormat(8)
-  static WGPUTextureFormat_RG8Snorm = new WGPUTextureFormat(9)
-  static WGPUTextureFormat_RG8Uint = new WGPUTextureFormat(10)
-  static WGPUTextureFormat_RG8Sint = new WGPUTextureFormat(11)
-  static WGPUTextureFormat_R32Float = new WGPUTextureFormat(12)
-  static WGPUTextureFormat_R32Uint = new WGPUTextureFormat(13)
-  static WGPUTextureFormat_R32Sint = new WGPUTextureFormat(14)
-  static WGPUTextureFormat_RG16Uint = new WGPUTextureFormat(15)
-  static WGPUTextureFormat_RG16Sint = new WGPUTextureFormat(16)
-  static WGPUTextureFormat_RG16Float = new WGPUTextureFormat(17)
-  static WGPUTextureFormat_RGBA8Unorm = new WGPUTextureFormat(18)
-  static WGPUTextureFormat_RGBA8UnormSrgb = new WGPUTextureFormat(19)
-  static WGPUTextureFormat_RGBA8Snorm = new WGPUTextureFormat(20)
-  static WGPUTextureFormat_RGBA8Uint = new WGPUTextureFormat(21)
-  static WGPUTextureFormat_RGBA8Sint = new WGPUTextureFormat(22)
-  static WGPUTextureFormat_BGRA8Unorm = new WGPUTextureFormat(23)
-  static WGPUTextureFormat_BGRA8UnormSrgb = new WGPUTextureFormat(24)
-  static WGPUTextureFormat_RGB10A2Uint = new WGPUTextureFormat(25)
-  static WGPUTextureFormat_RGB10A2Unorm = new WGPUTextureFormat(26)
-  static WGPUTextureFormat_RG11B10Ufloat = new WGPUTextureFormat(27)
-  static WGPUTextureFormat_RGB9E5Ufloat = new WGPUTextureFormat(28)
-  static WGPUTextureFormat_RG32Float = new WGPUTextureFormat(29)
-  static WGPUTextureFormat_RG32Uint = new WGPUTextureFormat(30)
-  static WGPUTextureFormat_RG32Sint = new WGPUTextureFormat(31)
-  static WGPUTextureFormat_RGBA16Uint = new WGPUTextureFormat(32)
-  static WGPUTextureFormat_RGBA16Sint = new WGPUTextureFormat(33)
-  static WGPUTextureFormat_RGBA16Float = new WGPUTextureFormat(34)
-  static WGPUTextureFormat_RGBA32Float = new WGPUTextureFormat(35)
-  static WGPUTextureFormat_RGBA32Uint = new WGPUTextureFormat(36)
-  static WGPUTextureFormat_RGBA32Sint = new WGPUTextureFormat(37)
-  static WGPUTextureFormat_Stencil8 = new WGPUTextureFormat(38)
-  static WGPUTextureFormat_Depth16Unorm = new WGPUTextureFormat(39)
-  static WGPUTextureFormat_Depth24Plus = new WGPUTextureFormat(40)
-  static WGPUTextureFormat_Depth24PlusStencil8 = new WGPUTextureFormat(41)
-  static WGPUTextureFormat_Depth32Float = new WGPUTextureFormat(42)
-  static WGPUTextureFormat_Depth32FloatStencil8 = new WGPUTextureFormat(43)
-  static WGPUTextureFormat_BC1RGBAUnorm = new WGPUTextureFormat(44)
-  static WGPUTextureFormat_BC1RGBAUnormSrgb = new WGPUTextureFormat(45)
-  static WGPUTextureFormat_BC2RGBAUnorm = new WGPUTextureFormat(46)
-  static WGPUTextureFormat_BC2RGBAUnormSrgb = new WGPUTextureFormat(47)
-  static WGPUTextureFormat_BC3RGBAUnorm = new WGPUTextureFormat(48)
-  static WGPUTextureFormat_BC3RGBAUnormSrgb = new WGPUTextureFormat(49)
-  static WGPUTextureFormat_BC4RUnorm = new WGPUTextureFormat(50)
-  static WGPUTextureFormat_BC4RSnorm = new WGPUTextureFormat(51)
-  static WGPUTextureFormat_BC5RGUnorm = new WGPUTextureFormat(52)
-  static WGPUTextureFormat_BC5RGSnorm = new WGPUTextureFormat(53)
-  static WGPUTextureFormat_BC6HRGBUfloat = new WGPUTextureFormat(54)
-  static WGPUTextureFormat_BC6HRGBFloat = new WGPUTextureFormat(55)
-  static WGPUTextureFormat_BC7RGBAUnorm = new WGPUTextureFormat(56)
-  static WGPUTextureFormat_BC7RGBAUnormSrgb = new WGPUTextureFormat(57)
-  static WGPUTextureFormat_ETC2RGB8Unorm = new WGPUTextureFormat(58)
-  static WGPUTextureFormat_ETC2RGB8UnormSrgb = new WGPUTextureFormat(59)
-  static WGPUTextureFormat_ETC2RGB8A1Unorm = new WGPUTextureFormat(60)
-  static WGPUTextureFormat_ETC2RGB8A1UnormSrgb = new WGPUTextureFormat(61)
-  static WGPUTextureFormat_ETC2RGBA8Unorm = new WGPUTextureFormat(62)
-  static WGPUTextureFormat_ETC2RGBA8UnormSrgb = new WGPUTextureFormat(63)
-  static WGPUTextureFormat_EACR11Unorm = new WGPUTextureFormat(64)
-  static WGPUTextureFormat_EACR11Snorm = new WGPUTextureFormat(65)
-  static WGPUTextureFormat_EACRG11Unorm = new WGPUTextureFormat(66)
-  static WGPUTextureFormat_EACRG11Snorm = new WGPUTextureFormat(67)
-  static WGPUTextureFormat_ASTC4x4Unorm = new WGPUTextureFormat(68)
-  static WGPUTextureFormat_ASTC4x4UnormSrgb = new WGPUTextureFormat(69)
-  static WGPUTextureFormat_ASTC5x4Unorm = new WGPUTextureFormat(70)
-  static WGPUTextureFormat_ASTC5x4UnormSrgb = new WGPUTextureFormat(71)
-  static WGPUTextureFormat_ASTC5x5Unorm = new WGPUTextureFormat(72)
-  static WGPUTextureFormat_ASTC5x5UnormSrgb = new WGPUTextureFormat(73)
-  static WGPUTextureFormat_ASTC6x5Unorm = new WGPUTextureFormat(74)
-  static WGPUTextureFormat_ASTC6x5UnormSrgb = new WGPUTextureFormat(75)
-  static WGPUTextureFormat_ASTC6x6Unorm = new WGPUTextureFormat(76)
-  static WGPUTextureFormat_ASTC6x6UnormSrgb = new WGPUTextureFormat(77)
-  static WGPUTextureFormat_ASTC8x5Unorm = new WGPUTextureFormat(78)
-  static WGPUTextureFormat_ASTC8x5UnormSrgb = new WGPUTextureFormat(79)
-  static WGPUTextureFormat_ASTC8x6Unorm = new WGPUTextureFormat(80)
-  static WGPUTextureFormat_ASTC8x6UnormSrgb = new WGPUTextureFormat(81)
-  static WGPUTextureFormat_ASTC8x8Unorm = new WGPUTextureFormat(82)
-  static WGPUTextureFormat_ASTC8x8UnormSrgb = new WGPUTextureFormat(83)
-  static WGPUTextureFormat_ASTC10x5Unorm = new WGPUTextureFormat(84)
-  static WGPUTextureFormat_ASTC10x5UnormSrgb = new WGPUTextureFormat(85)
-  static WGPUTextureFormat_ASTC10x6Unorm = new WGPUTextureFormat(86)
-  static WGPUTextureFormat_ASTC10x6UnormSrgb = new WGPUTextureFormat(87)
-  static WGPUTextureFormat_ASTC10x8Unorm = new WGPUTextureFormat(88)
-  static WGPUTextureFormat_ASTC10x8UnormSrgb = new WGPUTextureFormat(89)
-  static WGPUTextureFormat_ASTC10x10Unorm = new WGPUTextureFormat(90)
-  static WGPUTextureFormat_ASTC10x10UnormSrgb = new WGPUTextureFormat(91)
-  static WGPUTextureFormat_ASTC12x10Unorm = new WGPUTextureFormat(92)
-  static WGPUTextureFormat_ASTC12x10UnormSrgb = new WGPUTextureFormat(93)
-  static WGPUTextureFormat_ASTC12x12Unorm = new WGPUTextureFormat(94)
-  static WGPUTextureFormat_ASTC12x12UnormSrgb = new WGPUTextureFormat(95)
-  static WGPUTextureFormat_R16Unorm = new WGPUTextureFormat(327680)
-  static WGPUTextureFormat_RG16Unorm = new WGPUTextureFormat(327681)
-  static WGPUTextureFormat_RGBA16Unorm = new WGPUTextureFormat(327682)
-  static WGPUTextureFormat_R16Snorm = new WGPUTextureFormat(327683)
-  static WGPUTextureFormat_RG16Snorm = new WGPUTextureFormat(327684)
-  static WGPUTextureFormat_RGBA16Snorm = new WGPUTextureFormat(327685)
-  static WGPUTextureFormat_R8BG8Biplanar420Unorm = new WGPUTextureFormat(327686)
-  static WGPUTextureFormat_R10X6BG10X6Biplanar420Unorm = new WGPUTextureFormat(327687)
-  static WGPUTextureFormat_R8BG8A8Triplanar420Unorm = new WGPUTextureFormat(327688)
-  static WGPUTextureFormat_R8BG8Biplanar422Unorm = new WGPUTextureFormat(327689)
-  static WGPUTextureFormat_R8BG8Biplanar444Unorm = new WGPUTextureFormat(327690)
-  static WGPUTextureFormat_R10X6BG10X6Biplanar422Unorm = new WGPUTextureFormat(327691)
-  static WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm = new WGPUTextureFormat(327692)
-  static WGPUTextureFormat_External = new WGPUTextureFormat(327693)
-  static WGPUTextureFormat_Force32 = new WGPUTextureFormat(2147483647)
+export class WGPUTextureFormat extends c.U32 {
+  static 'Undefined' = new WGPUTextureFormat(0)
+  static 'R8Unorm' = new WGPUTextureFormat(1)
+  static 'R8Snorm' = new WGPUTextureFormat(2)
+  static 'R8Uint' = new WGPUTextureFormat(3)
+  static 'R8Sint' = new WGPUTextureFormat(4)
+  static 'R16Uint' = new WGPUTextureFormat(5)
+  static 'R16Sint' = new WGPUTextureFormat(6)
+  static 'R16Float' = new WGPUTextureFormat(7)
+  static 'RG8Unorm' = new WGPUTextureFormat(8)
+  static 'RG8Snorm' = new WGPUTextureFormat(9)
+  static 'RG8Uint' = new WGPUTextureFormat(10)
+  static 'RG8Sint' = new WGPUTextureFormat(11)
+  static 'R32Float' = new WGPUTextureFormat(12)
+  static 'R32Uint' = new WGPUTextureFormat(13)
+  static 'R32Sint' = new WGPUTextureFormat(14)
+  static 'RG16Uint' = new WGPUTextureFormat(15)
+  static 'RG16Sint' = new WGPUTextureFormat(16)
+  static 'RG16Float' = new WGPUTextureFormat(17)
+  static 'RGBA8Unorm' = new WGPUTextureFormat(18)
+  static 'RGBA8UnormSrgb' = new WGPUTextureFormat(19)
+  static 'RGBA8Snorm' = new WGPUTextureFormat(20)
+  static 'RGBA8Uint' = new WGPUTextureFormat(21)
+  static 'RGBA8Sint' = new WGPUTextureFormat(22)
+  static 'BGRA8Unorm' = new WGPUTextureFormat(23)
+  static 'BGRA8UnormSrgb' = new WGPUTextureFormat(24)
+  static 'RGB10A2Uint' = new WGPUTextureFormat(25)
+  static 'RGB10A2Unorm' = new WGPUTextureFormat(26)
+  static 'RG11B10Ufloat' = new WGPUTextureFormat(27)
+  static 'RGB9E5Ufloat' = new WGPUTextureFormat(28)
+  static 'RG32Float' = new WGPUTextureFormat(29)
+  static 'RG32Uint' = new WGPUTextureFormat(30)
+  static 'RG32Sint' = new WGPUTextureFormat(31)
+  static 'RGBA16Uint' = new WGPUTextureFormat(32)
+  static 'RGBA16Sint' = new WGPUTextureFormat(33)
+  static 'RGBA16Float' = new WGPUTextureFormat(34)
+  static 'RGBA32Float' = new WGPUTextureFormat(35)
+  static 'RGBA32Uint' = new WGPUTextureFormat(36)
+  static 'RGBA32Sint' = new WGPUTextureFormat(37)
+  static 'Stencil8' = new WGPUTextureFormat(38)
+  static 'Depth16Unorm' = new WGPUTextureFormat(39)
+  static 'Depth24Plus' = new WGPUTextureFormat(40)
+  static 'Depth24PlusStencil8' = new WGPUTextureFormat(41)
+  static 'Depth32Float' = new WGPUTextureFormat(42)
+  static 'Depth32FloatStencil8' = new WGPUTextureFormat(43)
+  static 'BC1RGBAUnorm' = new WGPUTextureFormat(44)
+  static 'BC1RGBAUnormSrgb' = new WGPUTextureFormat(45)
+  static 'BC2RGBAUnorm' = new WGPUTextureFormat(46)
+  static 'BC2RGBAUnormSrgb' = new WGPUTextureFormat(47)
+  static 'BC3RGBAUnorm' = new WGPUTextureFormat(48)
+  static 'BC3RGBAUnormSrgb' = new WGPUTextureFormat(49)
+  static 'BC4RUnorm' = new WGPUTextureFormat(50)
+  static 'BC4RSnorm' = new WGPUTextureFormat(51)
+  static 'BC5RGUnorm' = new WGPUTextureFormat(52)
+  static 'BC5RGSnorm' = new WGPUTextureFormat(53)
+  static 'BC6HRGBUfloat' = new WGPUTextureFormat(54)
+  static 'BC6HRGBFloat' = new WGPUTextureFormat(55)
+  static 'BC7RGBAUnorm' = new WGPUTextureFormat(56)
+  static 'BC7RGBAUnormSrgb' = new WGPUTextureFormat(57)
+  static 'ETC2RGB8Unorm' = new WGPUTextureFormat(58)
+  static 'ETC2RGB8UnormSrgb' = new WGPUTextureFormat(59)
+  static 'ETC2RGB8A1Unorm' = new WGPUTextureFormat(60)
+  static 'ETC2RGB8A1UnormSrgb' = new WGPUTextureFormat(61)
+  static 'ETC2RGBA8Unorm' = new WGPUTextureFormat(62)
+  static 'ETC2RGBA8UnormSrgb' = new WGPUTextureFormat(63)
+  static 'EACR11Unorm' = new WGPUTextureFormat(64)
+  static 'EACR11Snorm' = new WGPUTextureFormat(65)
+  static 'EACRG11Unorm' = new WGPUTextureFormat(66)
+  static 'EACRG11Snorm' = new WGPUTextureFormat(67)
+  static 'ASTC4x4Unorm' = new WGPUTextureFormat(68)
+  static 'ASTC4x4UnormSrgb' = new WGPUTextureFormat(69)
+  static 'ASTC5x4Unorm' = new WGPUTextureFormat(70)
+  static 'ASTC5x4UnormSrgb' = new WGPUTextureFormat(71)
+  static 'ASTC5x5Unorm' = new WGPUTextureFormat(72)
+  static 'ASTC5x5UnormSrgb' = new WGPUTextureFormat(73)
+  static 'ASTC6x5Unorm' = new WGPUTextureFormat(74)
+  static 'ASTC6x5UnormSrgb' = new WGPUTextureFormat(75)
+  static 'ASTC6x6Unorm' = new WGPUTextureFormat(76)
+  static 'ASTC6x6UnormSrgb' = new WGPUTextureFormat(77)
+  static 'ASTC8x5Unorm' = new WGPUTextureFormat(78)
+  static 'ASTC8x5UnormSrgb' = new WGPUTextureFormat(79)
+  static 'ASTC8x6Unorm' = new WGPUTextureFormat(80)
+  static 'ASTC8x6UnormSrgb' = new WGPUTextureFormat(81)
+  static 'ASTC8x8Unorm' = new WGPUTextureFormat(82)
+  static 'ASTC8x8UnormSrgb' = new WGPUTextureFormat(83)
+  static 'ASTC10x5Unorm' = new WGPUTextureFormat(84)
+  static 'ASTC10x5UnormSrgb' = new WGPUTextureFormat(85)
+  static 'ASTC10x6Unorm' = new WGPUTextureFormat(86)
+  static 'ASTC10x6UnormSrgb' = new WGPUTextureFormat(87)
+  static 'ASTC10x8Unorm' = new WGPUTextureFormat(88)
+  static 'ASTC10x8UnormSrgb' = new WGPUTextureFormat(89)
+  static 'ASTC10x10Unorm' = new WGPUTextureFormat(90)
+  static 'ASTC10x10UnormSrgb' = new WGPUTextureFormat(91)
+  static 'ASTC12x10Unorm' = new WGPUTextureFormat(92)
+  static 'ASTC12x10UnormSrgb' = new WGPUTextureFormat(93)
+  static 'ASTC12x12Unorm' = new WGPUTextureFormat(94)
+  static 'ASTC12x12UnormSrgb' = new WGPUTextureFormat(95)
+  static 'R16Unorm' = new WGPUTextureFormat(327680)
+  static 'RG16Unorm' = new WGPUTextureFormat(327681)
+  static 'RGBA16Unorm' = new WGPUTextureFormat(327682)
+  static 'R16Snorm' = new WGPUTextureFormat(327683)
+  static 'RG16Snorm' = new WGPUTextureFormat(327684)
+  static 'RGBA16Snorm' = new WGPUTextureFormat(327685)
+  static 'R8BG8Biplanar420Unorm' = new WGPUTextureFormat(327686)
+  static 'R10X6BG10X6Biplanar420Unorm' = new WGPUTextureFormat(327687)
+  static 'R8BG8A8Triplanar420Unorm' = new WGPUTextureFormat(327688)
+  static 'R8BG8Biplanar422Unorm' = new WGPUTextureFormat(327689)
+  static 'R8BG8Biplanar444Unorm' = new WGPUTextureFormat(327690)
+  static 'R10X6BG10X6Biplanar422Unorm' = new WGPUTextureFormat(327691)
+  static 'R10X6BG10X6Biplanar444Unorm' = new WGPUTextureFormat(327692)
+  static 'External' = new WGPUTextureFormat(327693)
+  static 'Force32' = new WGPUTextureFormat(2147483647)
 }
-export class WGPUTextureSampleType extends c.I32 {
-  static WGPUTextureSampleType_BindingNotUsed = new WGPUTextureSampleType(0)
-  static WGPUTextureSampleType_Float = new WGPUTextureSampleType(1)
-  static WGPUTextureSampleType_UnfilterableFloat = new WGPUTextureSampleType(2)
-  static WGPUTextureSampleType_Depth = new WGPUTextureSampleType(3)
-  static WGPUTextureSampleType_Sint = new WGPUTextureSampleType(4)
-  static WGPUTextureSampleType_Uint = new WGPUTextureSampleType(5)
-  static WGPUTextureSampleType_Force32 = new WGPUTextureSampleType(2147483647)
+export class WGPUTextureSampleType extends c.U32 {
+  static 'BindingNotUsed' = new WGPUTextureSampleType(0)
+  static 'Float' = new WGPUTextureSampleType(1)
+  static 'UnfilterableFloat' = new WGPUTextureSampleType(2)
+  static 'Depth' = new WGPUTextureSampleType(3)
+  static 'Sint' = new WGPUTextureSampleType(4)
+  static 'Uint' = new WGPUTextureSampleType(5)
+  static 'Force32' = new WGPUTextureSampleType(2147483647)
 }
-export class WGPUTextureViewDimension extends c.I32 {
-  static WGPUTextureViewDimension_Undefined = new WGPUTextureViewDimension(0)
-  static WGPUTextureViewDimension_1D = new WGPUTextureViewDimension(1)
-  static WGPUTextureViewDimension_2D = new WGPUTextureViewDimension(2)
-  static WGPUTextureViewDimension_2DArray = new WGPUTextureViewDimension(3)
-  static WGPUTextureViewDimension_Cube = new WGPUTextureViewDimension(4)
-  static WGPUTextureViewDimension_CubeArray = new WGPUTextureViewDimension(5)
-  static WGPUTextureViewDimension_3D = new WGPUTextureViewDimension(6)
-  static WGPUTextureViewDimension_Force32 = new WGPUTextureViewDimension(2147483647)
+export class WGPUTextureViewDimension extends c.U32 {
+  static 'Undefined' = new WGPUTextureViewDimension(0)
+  static '1D' = new WGPUTextureViewDimension(1)
+  static '2D' = new WGPUTextureViewDimension(2)
+  static '2DArray' = new WGPUTextureViewDimension(3)
+  static 'Cube' = new WGPUTextureViewDimension(4)
+  static 'CubeArray' = new WGPUTextureViewDimension(5)
+  static '3D' = new WGPUTextureViewDimension(6)
+  static 'Force32' = new WGPUTextureViewDimension(2147483647)
 }
-export class WGPUVertexFormat extends c.I32 {
-  static WGPUVertexFormat_Uint8 = new WGPUVertexFormat(1)
-  static WGPUVertexFormat_Uint8x2 = new WGPUVertexFormat(2)
-  static WGPUVertexFormat_Uint8x4 = new WGPUVertexFormat(3)
-  static WGPUVertexFormat_Sint8 = new WGPUVertexFormat(4)
-  static WGPUVertexFormat_Sint8x2 = new WGPUVertexFormat(5)
-  static WGPUVertexFormat_Sint8x4 = new WGPUVertexFormat(6)
-  static WGPUVertexFormat_Unorm8 = new WGPUVertexFormat(7)
-  static WGPUVertexFormat_Unorm8x2 = new WGPUVertexFormat(8)
-  static WGPUVertexFormat_Unorm8x4 = new WGPUVertexFormat(9)
-  static WGPUVertexFormat_Snorm8 = new WGPUVertexFormat(10)
-  static WGPUVertexFormat_Snorm8x2 = new WGPUVertexFormat(11)
-  static WGPUVertexFormat_Snorm8x4 = new WGPUVertexFormat(12)
-  static WGPUVertexFormat_Uint16 = new WGPUVertexFormat(13)
-  static WGPUVertexFormat_Uint16x2 = new WGPUVertexFormat(14)
-  static WGPUVertexFormat_Uint16x4 = new WGPUVertexFormat(15)
-  static WGPUVertexFormat_Sint16 = new WGPUVertexFormat(16)
-  static WGPUVertexFormat_Sint16x2 = new WGPUVertexFormat(17)
-  static WGPUVertexFormat_Sint16x4 = new WGPUVertexFormat(18)
-  static WGPUVertexFormat_Unorm16 = new WGPUVertexFormat(19)
-  static WGPUVertexFormat_Unorm16x2 = new WGPUVertexFormat(20)
-  static WGPUVertexFormat_Unorm16x4 = new WGPUVertexFormat(21)
-  static WGPUVertexFormat_Snorm16 = new WGPUVertexFormat(22)
-  static WGPUVertexFormat_Snorm16x2 = new WGPUVertexFormat(23)
-  static WGPUVertexFormat_Snorm16x4 = new WGPUVertexFormat(24)
-  static WGPUVertexFormat_Float16 = new WGPUVertexFormat(25)
-  static WGPUVertexFormat_Float16x2 = new WGPUVertexFormat(26)
-  static WGPUVertexFormat_Float16x4 = new WGPUVertexFormat(27)
-  static WGPUVertexFormat_Float32 = new WGPUVertexFormat(28)
-  static WGPUVertexFormat_Float32x2 = new WGPUVertexFormat(29)
-  static WGPUVertexFormat_Float32x3 = new WGPUVertexFormat(30)
-  static WGPUVertexFormat_Float32x4 = new WGPUVertexFormat(31)
-  static WGPUVertexFormat_Uint32 = new WGPUVertexFormat(32)
-  static WGPUVertexFormat_Uint32x2 = new WGPUVertexFormat(33)
-  static WGPUVertexFormat_Uint32x3 = new WGPUVertexFormat(34)
-  static WGPUVertexFormat_Uint32x4 = new WGPUVertexFormat(35)
-  static WGPUVertexFormat_Sint32 = new WGPUVertexFormat(36)
-  static WGPUVertexFormat_Sint32x2 = new WGPUVertexFormat(37)
-  static WGPUVertexFormat_Sint32x3 = new WGPUVertexFormat(38)
-  static WGPUVertexFormat_Sint32x4 = new WGPUVertexFormat(39)
-  static WGPUVertexFormat_Unorm10_10_10_2 = new WGPUVertexFormat(40)
-  static WGPUVertexFormat_Unorm8x4BGRA = new WGPUVertexFormat(41)
-  static WGPUVertexFormat_Force32 = new WGPUVertexFormat(2147483647)
+export class WGPUVertexFormat extends c.U32 {
+  static 'Uint8' = new WGPUVertexFormat(1)
+  static 'Uint8x2' = new WGPUVertexFormat(2)
+  static 'Uint8x4' = new WGPUVertexFormat(3)
+  static 'Sint8' = new WGPUVertexFormat(4)
+  static 'Sint8x2' = new WGPUVertexFormat(5)
+  static 'Sint8x4' = new WGPUVertexFormat(6)
+  static 'Unorm8' = new WGPUVertexFormat(7)
+  static 'Unorm8x2' = new WGPUVertexFormat(8)
+  static 'Unorm8x4' = new WGPUVertexFormat(9)
+  static 'Snorm8' = new WGPUVertexFormat(10)
+  static 'Snorm8x2' = new WGPUVertexFormat(11)
+  static 'Snorm8x4' = new WGPUVertexFormat(12)
+  static 'Uint16' = new WGPUVertexFormat(13)
+  static 'Uint16x2' = new WGPUVertexFormat(14)
+  static 'Uint16x4' = new WGPUVertexFormat(15)
+  static 'Sint16' = new WGPUVertexFormat(16)
+  static 'Sint16x2' = new WGPUVertexFormat(17)
+  static 'Sint16x4' = new WGPUVertexFormat(18)
+  static 'Unorm16' = new WGPUVertexFormat(19)
+  static 'Unorm16x2' = new WGPUVertexFormat(20)
+  static 'Unorm16x4' = new WGPUVertexFormat(21)
+  static 'Snorm16' = new WGPUVertexFormat(22)
+  static 'Snorm16x2' = new WGPUVertexFormat(23)
+  static 'Snorm16x4' = new WGPUVertexFormat(24)
+  static 'Float16' = new WGPUVertexFormat(25)
+  static 'Float16x2' = new WGPUVertexFormat(26)
+  static 'Float16x4' = new WGPUVertexFormat(27)
+  static 'Float32' = new WGPUVertexFormat(28)
+  static 'Float32x2' = new WGPUVertexFormat(29)
+  static 'Float32x3' = new WGPUVertexFormat(30)
+  static 'Float32x4' = new WGPUVertexFormat(31)
+  static 'Uint32' = new WGPUVertexFormat(32)
+  static 'Uint32x2' = new WGPUVertexFormat(33)
+  static 'Uint32x3' = new WGPUVertexFormat(34)
+  static 'Uint32x4' = new WGPUVertexFormat(35)
+  static 'Sint32' = new WGPUVertexFormat(36)
+  static 'Sint32x2' = new WGPUVertexFormat(37)
+  static 'Sint32x3' = new WGPUVertexFormat(38)
+  static 'Sint32x4' = new WGPUVertexFormat(39)
+  static 'Unorm10_10_10_2' = new WGPUVertexFormat(40)
+  static 'Unorm8x4BGRA' = new WGPUVertexFormat(41)
+  static 'Force32' = new WGPUVertexFormat(2147483647)
 }
-export class WGPUVertexStepMode extends c.I32 {
-  static WGPUVertexStepMode_Undefined = new WGPUVertexStepMode(0)
-  static WGPUVertexStepMode_Vertex = new WGPUVertexStepMode(1)
-  static WGPUVertexStepMode_Instance = new WGPUVertexStepMode(2)
-  static WGPUVertexStepMode_Force32 = new WGPUVertexStepMode(2147483647)
+export class WGPUVertexStepMode extends c.U32 {
+  static 'Undefined' = new WGPUVertexStepMode(0)
+  static 'Vertex' = new WGPUVertexStepMode(1)
+  static 'Instance' = new WGPUVertexStepMode(2)
+  static 'Force32' = new WGPUVertexStepMode(2147483647)
 }
-export class WGPUWaitStatus extends c.I32 {
-  static WGPUWaitStatus_Success = new WGPUWaitStatus(1)
-  static WGPUWaitStatus_TimedOut = new WGPUWaitStatus(2)
-  static WGPUWaitStatus_UnsupportedTimeout = new WGPUWaitStatus(3)
-  static WGPUWaitStatus_UnsupportedCount = new WGPUWaitStatus(4)
-  static WGPUWaitStatus_UnsupportedMixedSources = new WGPUWaitStatus(5)
-  static WGPUWaitStatus_Unknown = new WGPUWaitStatus(6)
-  static WGPUWaitStatus_Force32 = new WGPUWaitStatus(2147483647)
+export class WGPUWaitStatus extends c.U32 {
+  static 'Success' = new WGPUWaitStatus(1)
+  static 'TimedOut' = new WGPUWaitStatus(2)
+  static 'UnsupportedTimeout' = new WGPUWaitStatus(3)
+  static 'UnsupportedCount' = new WGPUWaitStatus(4)
+  static 'UnsupportedMixedSources' = new WGPUWaitStatus(5)
+  static 'Unknown' = new WGPUWaitStatus(6)
+  static 'Force32' = new WGPUWaitStatus(2147483647)
 }
 
 // structs
