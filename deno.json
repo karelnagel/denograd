@@ -11,7 +11,8 @@
   "workspace": [
     "./denograd",
     "./website",
-    "./cli"
+    "./cli",
+    "./ctypes"
   ],
   "nodeModulesDir": "auto",
   "fmt": {
