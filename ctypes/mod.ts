@@ -148,7 +148,7 @@ export class Pointer<T extends Type<any>> extends Type<Deno.PointerValue> {
 }
 
 // STRUCT
-const getAlignedOffset = (offset: number, alignment: number) => Math.ceil(offset / alignment) * alignment
+const getOffset = (offset: number, alignment: number) => Math.ceil(offset / alignment) * alignment
 
 export abstract class Struct<T extends Type<any>[]> extends Type<BufferSource> {
   items: T
@@ -166,14 +166,12 @@ export abstract class Struct<T extends Type<any>[]> extends Type<BufferSource> {
     let offsets: number[] = [], offset = 0
 
     for (const item of this.items) {
-      const alignedOffset = getAlignedOffset(offset, item.alignment)
+      const alignedOffset = getOffset(offset, item.alignment)
       offsets.push(alignedOffset)
       offset = alignedOffset + item.buffer.byteLength
     }
 
-    const totalLength = getAlignedOffset(offset, this.alignment)
-
-    const result = new Uint8Array(totalLength)
+    const result = new Uint8Array(getOffset(offset, this.alignment))
     for (const [i, item] of this.items.entries()) result.set(new Uint8Array(item.buffer), offsets[i])
 
     return result.buffer
@@ -183,7 +181,7 @@ export abstract class Struct<T extends Type<any>[]> extends Type<BufferSource> {
     let offset = 0
 
     for (const item of this.items) {
-      const alignedOffset = getAlignedOffset(offset, item.alignment)
+      const alignedOffset = getOffset(offset, item.alignment)
       const size = item.buffer.byteLength
       item.fromBuffer(buf.slice(alignedOffset, alignedOffset + size))
       offset = alignedOffset + size
