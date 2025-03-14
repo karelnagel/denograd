@@ -266,1552 +266,1552 @@ const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dyli
 })
 
 // consts
-export const WGPUBufferUsage_None = new c.U32(0)
-export const WGPUBufferUsage_MapRead = new c.U32(1)
-export const WGPUBufferUsage_MapWrite = new c.U32(2)
-export const WGPUBufferUsage_CopySrc = new c.U32(4)
-export const WGPUBufferUsage_CopyDst = new c.U32(8)
-export const WGPUBufferUsage_Index = new c.U32(16)
-export const WGPUBufferUsage_Vertex = new c.U32(32)
-export const WGPUBufferUsage_Uniform = new c.U32(64)
-export const WGPUBufferUsage_Storage = new c.U32(128)
-export const WGPUBufferUsage_Indirect = new c.U32(256)
-export const WGPUBufferUsage_QueryResolve = new c.U32(512)
-export const WGPUColorWriteMask_None = new c.U32(0)
-export const WGPUColorWriteMask_Red = new c.U32(1)
-export const WGPUColorWriteMask_Green = new c.U32(2)
-export const WGPUColorWriteMask_Blue = new c.U32(4)
-export const WGPUColorWriteMask_Alpha = new c.U32(8)
-export const WGPUColorWriteMask_All = new c.U32(15)
-export const WGPUHeapProperty_DeviceLocal = new c.U32(1)
-export const WGPUHeapProperty_HostVisible = new c.U32(2)
-export const WGPUHeapProperty_HostCoherent = new c.U32(4)
-export const WGPUHeapProperty_HostUncached = new c.U32(8)
-export const WGPUHeapProperty_HostCached = new c.U32(16)
-export const WGPUMapMode_None = new c.U32(0)
-export const WGPUMapMode_Read = new c.U32(1)
-export const WGPUMapMode_Write = new c.U32(2)
-export const WGPUShaderStage_None = new c.U32(0)
-export const WGPUShaderStage_Vertex = new c.U32(1)
-export const WGPUShaderStage_Fragment = new c.U32(2)
-export const WGPUShaderStage_Compute = new c.U32(4)
-export const WGPUTextureUsage_None = new c.U32(0)
-export const WGPUTextureUsage_CopySrc = new c.U32(1)
-export const WGPUTextureUsage_CopyDst = new c.U32(2)
-export const WGPUTextureUsage_TextureBinding = new c.U32(4)
-export const WGPUTextureUsage_StorageBinding = new c.U32(8)
-export const WGPUTextureUsage_RenderAttachment = new c.U32(16)
-export const WGPUTextureUsage_TransientAttachment = new c.U32(32)
-export const WGPUTextureUsage_StorageAttachment = new c.U32(64)
+export const BufferUsage_None = new c.U32(0)
+export const BufferUsage_MapRead = new c.U32(1)
+export const BufferUsage_MapWrite = new c.U32(2)
+export const BufferUsage_CopySrc = new c.U32(4)
+export const BufferUsage_CopyDst = new c.U32(8)
+export const BufferUsage_Index = new c.U32(16)
+export const BufferUsage_Vertex = new c.U32(32)
+export const BufferUsage_Uniform = new c.U32(64)
+export const BufferUsage_Storage = new c.U32(128)
+export const BufferUsage_Indirect = new c.U32(256)
+export const BufferUsage_QueryResolve = new c.U32(512)
+export const ColorWriteMask_None = new c.U32(0)
+export const ColorWriteMask_Red = new c.U32(1)
+export const ColorWriteMask_Green = new c.U32(2)
+export const ColorWriteMask_Blue = new c.U32(4)
+export const ColorWriteMask_Alpha = new c.U32(8)
+export const ColorWriteMask_All = new c.U32(15)
+export const HeapProperty_DeviceLocal = new c.U32(1)
+export const HeapProperty_HostVisible = new c.U32(2)
+export const HeapProperty_HostCoherent = new c.U32(4)
+export const HeapProperty_HostUncached = new c.U32(8)
+export const HeapProperty_HostCached = new c.U32(16)
+export const MapMode_None = new c.U32(0)
+export const MapMode_Read = new c.U32(1)
+export const MapMode_Write = new c.U32(2)
+export const ShaderStage_None = new c.U32(0)
+export const ShaderStage_Vertex = new c.U32(1)
+export const ShaderStage_Fragment = new c.U32(2)
+export const ShaderStage_Compute = new c.U32(4)
+export const TextureUsage_None = new c.U32(0)
+export const TextureUsage_CopySrc = new c.U32(1)
+export const TextureUsage_CopyDst = new c.U32(2)
+export const TextureUsage_TextureBinding = new c.U32(4)
+export const TextureUsage_StorageBinding = new c.U32(8)
+export const TextureUsage_RenderAttachment = new c.U32(16)
+export const TextureUsage_TransientAttachment = new c.U32(32)
+export const TextureUsage_StorageAttachment = new c.U32(64)
 
 // enums
-export class WGPUWGSLFeatureName extends c.U32 {
-  static 'ReadonlyAndReadwriteStorageTextures' = new WGPUWGSLFeatureName(1)
-  static 'Packed4x8IntegerDotProduct' = new WGPUWGSLFeatureName(2)
-  static 'UnrestrictedPointerParameters' = new WGPUWGSLFeatureName(3)
-  static 'PointerCompositeAccess' = new WGPUWGSLFeatureName(4)
-  static 'ChromiumTestingUnimplemented' = new WGPUWGSLFeatureName(327680)
-  static 'ChromiumTestingUnsafeExperimental' = new WGPUWGSLFeatureName(327681)
-  static 'ChromiumTestingExperimental' = new WGPUWGSLFeatureName(327682)
-  static 'ChromiumTestingShippedWithKillswitch' = new WGPUWGSLFeatureName(327683)
-  static 'ChromiumTestingShipped' = new WGPUWGSLFeatureName(327684)
-  static 'Force32' = new WGPUWGSLFeatureName(2147483647)
+export class WGSLFeatureName extends c.U32 {
+  static 'ReadonlyAndReadwriteStorageTextures' = new WGSLFeatureName(1)
+  static 'Packed4x8IntegerDotProduct' = new WGSLFeatureName(2)
+  static 'UnrestrictedPointerParameters' = new WGSLFeatureName(3)
+  static 'PointerCompositeAccess' = new WGSLFeatureName(4)
+  static 'ChromiumTestingUnimplemented' = new WGSLFeatureName(327680)
+  static 'ChromiumTestingUnsafeExperimental' = new WGSLFeatureName(327681)
+  static 'ChromiumTestingExperimental' = new WGSLFeatureName(327682)
+  static 'ChromiumTestingShippedWithKillswitch' = new WGSLFeatureName(327683)
+  static 'ChromiumTestingShipped' = new WGSLFeatureName(327684)
+  static 'Force32' = new WGSLFeatureName(2147483647)
 }
-export class WGPUAdapterType extends c.U32 {
-  static 'DiscreteGPU' = new WGPUAdapterType(1)
-  static 'IntegratedGPU' = new WGPUAdapterType(2)
-  static 'CPU' = new WGPUAdapterType(3)
-  static 'Unknown' = new WGPUAdapterType(4)
-  static 'Force32' = new WGPUAdapterType(2147483647)
+export class AdapterType extends c.U32 {
+  static 'DiscreteGPU' = new AdapterType(1)
+  static 'IntegratedGPU' = new AdapterType(2)
+  static 'CPU' = new AdapterType(3)
+  static 'Unknown' = new AdapterType(4)
+  static 'Force32' = new AdapterType(2147483647)
 }
-export class WGPUAddressMode extends c.U32 {
-  static 'Undefined' = new WGPUAddressMode(0)
-  static 'ClampToEdge' = new WGPUAddressMode(1)
-  static 'Repeat' = new WGPUAddressMode(2)
-  static 'MirrorRepeat' = new WGPUAddressMode(3)
-  static 'Force32' = new WGPUAddressMode(2147483647)
+export class AddressMode extends c.U32 {
+  static 'Undefined' = new AddressMode(0)
+  static 'ClampToEdge' = new AddressMode(1)
+  static 'Repeat' = new AddressMode(2)
+  static 'MirrorRepeat' = new AddressMode(3)
+  static 'Force32' = new AddressMode(2147483647)
 }
-export class WGPUAlphaMode extends c.U32 {
-  static 'Opaque' = new WGPUAlphaMode(1)
-  static 'Premultiplied' = new WGPUAlphaMode(2)
-  static 'Unpremultiplied' = new WGPUAlphaMode(3)
-  static 'Force32' = new WGPUAlphaMode(2147483647)
+export class AlphaMode extends c.U32 {
+  static 'Opaque' = new AlphaMode(1)
+  static 'Premultiplied' = new AlphaMode(2)
+  static 'Unpremultiplied' = new AlphaMode(3)
+  static 'Force32' = new AlphaMode(2147483647)
 }
-export class WGPUBackendType extends c.U32 {
-  static 'Undefined' = new WGPUBackendType(0)
-  static 'Null' = new WGPUBackendType(1)
-  static 'WebGPU' = new WGPUBackendType(2)
-  static 'D3D11' = new WGPUBackendType(3)
-  static 'D3D12' = new WGPUBackendType(4)
-  static 'Metal' = new WGPUBackendType(5)
-  static 'Vulkan' = new WGPUBackendType(6)
-  static 'OpenGL' = new WGPUBackendType(7)
-  static 'OpenGLES' = new WGPUBackendType(8)
-  static 'Force32' = new WGPUBackendType(2147483647)
+export class BackendType extends c.U32 {
+  static 'Undefined' = new BackendType(0)
+  static 'Null' = new BackendType(1)
+  static 'WebGPU' = new BackendType(2)
+  static 'D3D11' = new BackendType(3)
+  static 'D3D12' = new BackendType(4)
+  static 'Metal' = new BackendType(5)
+  static 'Vulkan' = new BackendType(6)
+  static 'OpenGL' = new BackendType(7)
+  static 'OpenGLES' = new BackendType(8)
+  static 'Force32' = new BackendType(2147483647)
 }
-export class WGPUBlendFactor extends c.U32 {
-  static 'Undefined' = new WGPUBlendFactor(0)
-  static 'Zero' = new WGPUBlendFactor(1)
-  static 'One' = new WGPUBlendFactor(2)
-  static 'Src' = new WGPUBlendFactor(3)
-  static 'OneMinusSrc' = new WGPUBlendFactor(4)
-  static 'SrcAlpha' = new WGPUBlendFactor(5)
-  static 'OneMinusSrcAlpha' = new WGPUBlendFactor(6)
-  static 'Dst' = new WGPUBlendFactor(7)
-  static 'OneMinusDst' = new WGPUBlendFactor(8)
-  static 'DstAlpha' = new WGPUBlendFactor(9)
-  static 'OneMinusDstAlpha' = new WGPUBlendFactor(10)
-  static 'SrcAlphaSaturated' = new WGPUBlendFactor(11)
-  static 'Constant' = new WGPUBlendFactor(12)
-  static 'OneMinusConstant' = new WGPUBlendFactor(13)
-  static 'Src1' = new WGPUBlendFactor(14)
-  static 'OneMinusSrc1' = new WGPUBlendFactor(15)
-  static 'Src1Alpha' = new WGPUBlendFactor(16)
-  static 'OneMinusSrc1Alpha' = new WGPUBlendFactor(17)
-  static 'Force32' = new WGPUBlendFactor(2147483647)
+export class BlendFactor extends c.U32 {
+  static 'Undefined' = new BlendFactor(0)
+  static 'Zero' = new BlendFactor(1)
+  static 'One' = new BlendFactor(2)
+  static 'Src' = new BlendFactor(3)
+  static 'OneMinusSrc' = new BlendFactor(4)
+  static 'SrcAlpha' = new BlendFactor(5)
+  static 'OneMinusSrcAlpha' = new BlendFactor(6)
+  static 'Dst' = new BlendFactor(7)
+  static 'OneMinusDst' = new BlendFactor(8)
+  static 'DstAlpha' = new BlendFactor(9)
+  static 'OneMinusDstAlpha' = new BlendFactor(10)
+  static 'SrcAlphaSaturated' = new BlendFactor(11)
+  static 'Constant' = new BlendFactor(12)
+  static 'OneMinusConstant' = new BlendFactor(13)
+  static 'Src1' = new BlendFactor(14)
+  static 'OneMinusSrc1' = new BlendFactor(15)
+  static 'Src1Alpha' = new BlendFactor(16)
+  static 'OneMinusSrc1Alpha' = new BlendFactor(17)
+  static 'Force32' = new BlendFactor(2147483647)
 }
-export class WGPUBlendOperation extends c.U32 {
-  static 'Undefined' = new WGPUBlendOperation(0)
-  static 'Add' = new WGPUBlendOperation(1)
-  static 'Subtract' = new WGPUBlendOperation(2)
-  static 'ReverseSubtract' = new WGPUBlendOperation(3)
-  static 'Min' = new WGPUBlendOperation(4)
-  static 'Max' = new WGPUBlendOperation(5)
-  static 'Force32' = new WGPUBlendOperation(2147483647)
+export class BlendOperation extends c.U32 {
+  static 'Undefined' = new BlendOperation(0)
+  static 'Add' = new BlendOperation(1)
+  static 'Subtract' = new BlendOperation(2)
+  static 'ReverseSubtract' = new BlendOperation(3)
+  static 'Min' = new BlendOperation(4)
+  static 'Max' = new BlendOperation(5)
+  static 'Force32' = new BlendOperation(2147483647)
 }
-export class WGPUBufferBindingType extends c.U32 {
-  static 'BindingNotUsed' = new WGPUBufferBindingType(0)
-  static 'Uniform' = new WGPUBufferBindingType(1)
-  static 'Storage' = new WGPUBufferBindingType(2)
-  static 'ReadOnlyStorage' = new WGPUBufferBindingType(3)
-  static 'Force32' = new WGPUBufferBindingType(2147483647)
+export class BufferBindingType extends c.U32 {
+  static 'BindingNotUsed' = new BufferBindingType(0)
+  static 'Uniform' = new BufferBindingType(1)
+  static 'Storage' = new BufferBindingType(2)
+  static 'ReadOnlyStorage' = new BufferBindingType(3)
+  static 'Force32' = new BufferBindingType(2147483647)
 }
-export class WGPUBufferMapAsyncStatus extends c.U32 {
-  static 'Success' = new WGPUBufferMapAsyncStatus(1)
-  static 'InstanceDropped' = new WGPUBufferMapAsyncStatus(2)
-  static 'ValidationError' = new WGPUBufferMapAsyncStatus(3)
-  static 'Unknown' = new WGPUBufferMapAsyncStatus(4)
-  static 'DeviceLost' = new WGPUBufferMapAsyncStatus(5)
-  static 'DestroyedBeforeCallback' = new WGPUBufferMapAsyncStatus(6)
-  static 'UnmappedBeforeCallback' = new WGPUBufferMapAsyncStatus(7)
-  static 'MappingAlreadyPending' = new WGPUBufferMapAsyncStatus(8)
-  static 'OffsetOutOfRange' = new WGPUBufferMapAsyncStatus(9)
-  static 'SizeOutOfRange' = new WGPUBufferMapAsyncStatus(10)
-  static 'Force32' = new WGPUBufferMapAsyncStatus(2147483647)
+export class BufferMapAsyncStatus extends c.U32 {
+  static 'Success' = new BufferMapAsyncStatus(1)
+  static 'InstanceDropped' = new BufferMapAsyncStatus(2)
+  static 'ValidationError' = new BufferMapAsyncStatus(3)
+  static 'Unknown' = new BufferMapAsyncStatus(4)
+  static 'DeviceLost' = new BufferMapAsyncStatus(5)
+  static 'DestroyedBeforeCallback' = new BufferMapAsyncStatus(6)
+  static 'UnmappedBeforeCallback' = new BufferMapAsyncStatus(7)
+  static 'MappingAlreadyPending' = new BufferMapAsyncStatus(8)
+  static 'OffsetOutOfRange' = new BufferMapAsyncStatus(9)
+  static 'SizeOutOfRange' = new BufferMapAsyncStatus(10)
+  static 'Force32' = new BufferMapAsyncStatus(2147483647)
 }
-export class WGPUBufferMapState extends c.U32 {
-  static 'Unmapped' = new WGPUBufferMapState(1)
-  static 'Pending' = new WGPUBufferMapState(2)
-  static 'Mapped' = new WGPUBufferMapState(3)
-  static 'Force32' = new WGPUBufferMapState(2147483647)
+export class BufferMapState extends c.U32 {
+  static 'Unmapped' = new BufferMapState(1)
+  static 'Pending' = new BufferMapState(2)
+  static 'Mapped' = new BufferMapState(3)
+  static 'Force32' = new BufferMapState(2147483647)
 }
-export class WGPUCallbackMode extends c.U32 {
-  static 'WaitAnyOnly' = new WGPUCallbackMode(1)
-  static 'AllowProcessEvents' = new WGPUCallbackMode(2)
-  static 'AllowSpontaneous' = new WGPUCallbackMode(3)
-  static 'Force32' = new WGPUCallbackMode(2147483647)
+export class CallbackMode extends c.U32 {
+  static 'WaitAnyOnly' = new CallbackMode(1)
+  static 'AllowProcessEvents' = new CallbackMode(2)
+  static 'AllowSpontaneous' = new CallbackMode(3)
+  static 'Force32' = new CallbackMode(2147483647)
 }
-export class WGPUCompareFunction extends c.U32 {
-  static 'Undefined' = new WGPUCompareFunction(0)
-  static 'Never' = new WGPUCompareFunction(1)
-  static 'Less' = new WGPUCompareFunction(2)
-  static 'Equal' = new WGPUCompareFunction(3)
-  static 'LessEqual' = new WGPUCompareFunction(4)
-  static 'Greater' = new WGPUCompareFunction(5)
-  static 'NotEqual' = new WGPUCompareFunction(6)
-  static 'GreaterEqual' = new WGPUCompareFunction(7)
-  static 'Always' = new WGPUCompareFunction(8)
-  static 'Force32' = new WGPUCompareFunction(2147483647)
+export class CompareFunction extends c.U32 {
+  static 'Undefined' = new CompareFunction(0)
+  static 'Never' = new CompareFunction(1)
+  static 'Less' = new CompareFunction(2)
+  static 'Equal' = new CompareFunction(3)
+  static 'LessEqual' = new CompareFunction(4)
+  static 'Greater' = new CompareFunction(5)
+  static 'NotEqual' = new CompareFunction(6)
+  static 'GreaterEqual' = new CompareFunction(7)
+  static 'Always' = new CompareFunction(8)
+  static 'Force32' = new CompareFunction(2147483647)
 }
-export class WGPUCompilationInfoRequestStatus extends c.U32 {
-  static 'Success' = new WGPUCompilationInfoRequestStatus(1)
-  static 'InstanceDropped' = new WGPUCompilationInfoRequestStatus(2)
-  static 'Error' = new WGPUCompilationInfoRequestStatus(3)
-  static 'DeviceLost' = new WGPUCompilationInfoRequestStatus(4)
-  static 'Unknown' = new WGPUCompilationInfoRequestStatus(5)
-  static 'Force32' = new WGPUCompilationInfoRequestStatus(2147483647)
+export class CompilationInfoRequestStatus extends c.U32 {
+  static 'Success' = new CompilationInfoRequestStatus(1)
+  static 'InstanceDropped' = new CompilationInfoRequestStatus(2)
+  static 'Error' = new CompilationInfoRequestStatus(3)
+  static 'DeviceLost' = new CompilationInfoRequestStatus(4)
+  static 'Unknown' = new CompilationInfoRequestStatus(5)
+  static 'Force32' = new CompilationInfoRequestStatus(2147483647)
 }
-export class WGPUCompilationMessageType extends c.U32 {
-  static 'Error' = new WGPUCompilationMessageType(1)
-  static 'Warning' = new WGPUCompilationMessageType(2)
-  static 'Info' = new WGPUCompilationMessageType(3)
-  static 'Force32' = new WGPUCompilationMessageType(2147483647)
+export class CompilationMessageType extends c.U32 {
+  static 'Error' = new CompilationMessageType(1)
+  static 'Warning' = new CompilationMessageType(2)
+  static 'Info' = new CompilationMessageType(3)
+  static 'Force32' = new CompilationMessageType(2147483647)
 }
-export class WGPUCompositeAlphaMode extends c.U32 {
-  static 'Auto' = new WGPUCompositeAlphaMode(0)
-  static 'Opaque' = new WGPUCompositeAlphaMode(1)
-  static 'Premultiplied' = new WGPUCompositeAlphaMode(2)
-  static 'Unpremultiplied' = new WGPUCompositeAlphaMode(3)
-  static 'Inherit' = new WGPUCompositeAlphaMode(4)
-  static 'Force32' = new WGPUCompositeAlphaMode(2147483647)
+export class CompositeAlphaMode extends c.U32 {
+  static 'Auto' = new CompositeAlphaMode(0)
+  static 'Opaque' = new CompositeAlphaMode(1)
+  static 'Premultiplied' = new CompositeAlphaMode(2)
+  static 'Unpremultiplied' = new CompositeAlphaMode(3)
+  static 'Inherit' = new CompositeAlphaMode(4)
+  static 'Force32' = new CompositeAlphaMode(2147483647)
 }
-export class WGPUCreatePipelineAsyncStatus extends c.U32 {
-  static 'Success' = new WGPUCreatePipelineAsyncStatus(1)
-  static 'InstanceDropped' = new WGPUCreatePipelineAsyncStatus(2)
-  static 'ValidationError' = new WGPUCreatePipelineAsyncStatus(3)
-  static 'InternalError' = new WGPUCreatePipelineAsyncStatus(4)
-  static 'DeviceLost' = new WGPUCreatePipelineAsyncStatus(5)
-  static 'DeviceDestroyed' = new WGPUCreatePipelineAsyncStatus(6)
-  static 'Unknown' = new WGPUCreatePipelineAsyncStatus(7)
-  static 'Force32' = new WGPUCreatePipelineAsyncStatus(2147483647)
+export class CreatePipelineAsyncStatus extends c.U32 {
+  static 'Success' = new CreatePipelineAsyncStatus(1)
+  static 'InstanceDropped' = new CreatePipelineAsyncStatus(2)
+  static 'ValidationError' = new CreatePipelineAsyncStatus(3)
+  static 'InternalError' = new CreatePipelineAsyncStatus(4)
+  static 'DeviceLost' = new CreatePipelineAsyncStatus(5)
+  static 'DeviceDestroyed' = new CreatePipelineAsyncStatus(6)
+  static 'Unknown' = new CreatePipelineAsyncStatus(7)
+  static 'Force32' = new CreatePipelineAsyncStatus(2147483647)
 }
-export class WGPUCullMode extends c.U32 {
-  static 'Undefined' = new WGPUCullMode(0)
-  static 'None' = new WGPUCullMode(1)
-  static 'Front' = new WGPUCullMode(2)
-  static 'Back' = new WGPUCullMode(3)
-  static 'Force32' = new WGPUCullMode(2147483647)
+export class CullMode extends c.U32 {
+  static 'Undefined' = new CullMode(0)
+  static 'None' = new CullMode(1)
+  static 'Front' = new CullMode(2)
+  static 'Back' = new CullMode(3)
+  static 'Force32' = new CullMode(2147483647)
 }
-export class WGPUDeviceLostReason extends c.U32 {
-  static 'Unknown' = new WGPUDeviceLostReason(1)
-  static 'Destroyed' = new WGPUDeviceLostReason(2)
-  static 'InstanceDropped' = new WGPUDeviceLostReason(3)
-  static 'FailedCreation' = new WGPUDeviceLostReason(4)
-  static 'Force32' = new WGPUDeviceLostReason(2147483647)
+export class DeviceLostReason extends c.U32 {
+  static 'Unknown' = new DeviceLostReason(1)
+  static 'Destroyed' = new DeviceLostReason(2)
+  static 'InstanceDropped' = new DeviceLostReason(3)
+  static 'FailedCreation' = new DeviceLostReason(4)
+  static 'Force32' = new DeviceLostReason(2147483647)
 }
-export class WGPUErrorFilter extends c.U32 {
-  static 'Validation' = new WGPUErrorFilter(1)
-  static 'OutOfMemory' = new WGPUErrorFilter(2)
-  static 'Internal' = new WGPUErrorFilter(3)
-  static 'Force32' = new WGPUErrorFilter(2147483647)
+export class ErrorFilter extends c.U32 {
+  static 'Validation' = new ErrorFilter(1)
+  static 'OutOfMemory' = new ErrorFilter(2)
+  static 'Internal' = new ErrorFilter(3)
+  static 'Force32' = new ErrorFilter(2147483647)
 }
-export class WGPUErrorType extends c.U32 {
-  static 'NoError' = new WGPUErrorType(1)
-  static 'Validation' = new WGPUErrorType(2)
-  static 'OutOfMemory' = new WGPUErrorType(3)
-  static 'Internal' = new WGPUErrorType(4)
-  static 'Unknown' = new WGPUErrorType(5)
-  static 'DeviceLost' = new WGPUErrorType(6)
-  static 'Force32' = new WGPUErrorType(2147483647)
+export class ErrorType extends c.U32 {
+  static 'NoError' = new ErrorType(1)
+  static 'Validation' = new ErrorType(2)
+  static 'OutOfMemory' = new ErrorType(3)
+  static 'Internal' = new ErrorType(4)
+  static 'Unknown' = new ErrorType(5)
+  static 'DeviceLost' = new ErrorType(6)
+  static 'Force32' = new ErrorType(2147483647)
 }
-export class WGPUExternalTextureRotation extends c.U32 {
-  static 'Rotate0Degrees' = new WGPUExternalTextureRotation(1)
-  static 'Rotate90Degrees' = new WGPUExternalTextureRotation(2)
-  static 'Rotate180Degrees' = new WGPUExternalTextureRotation(3)
-  static 'Rotate270Degrees' = new WGPUExternalTextureRotation(4)
-  static 'Force32' = new WGPUExternalTextureRotation(2147483647)
+export class ExternalTextureRotation extends c.U32 {
+  static 'Rotate0Degrees' = new ExternalTextureRotation(1)
+  static 'Rotate90Degrees' = new ExternalTextureRotation(2)
+  static 'Rotate180Degrees' = new ExternalTextureRotation(3)
+  static 'Rotate270Degrees' = new ExternalTextureRotation(4)
+  static 'Force32' = new ExternalTextureRotation(2147483647)
 }
-export class WGPUFeatureLevel extends c.U32 {
-  static 'Undefined' = new WGPUFeatureLevel(0)
-  static 'Compatibility' = new WGPUFeatureLevel(1)
-  static 'Core' = new WGPUFeatureLevel(2)
-  static 'Force32' = new WGPUFeatureLevel(2147483647)
+export class FeatureLevel extends c.U32 {
+  static 'Undefined' = new FeatureLevel(0)
+  static 'Compatibility' = new FeatureLevel(1)
+  static 'Core' = new FeatureLevel(2)
+  static 'Force32' = new FeatureLevel(2147483647)
 }
-export class WGPUFeatureName extends c.U32 {
-  static 'DepthClipControl' = new WGPUFeatureName(1)
-  static 'Depth32FloatStencil8' = new WGPUFeatureName(2)
-  static 'TimestampQuery' = new WGPUFeatureName(3)
-  static 'TextureCompressionBC' = new WGPUFeatureName(4)
-  static 'TextureCompressionETC2' = new WGPUFeatureName(5)
-  static 'TextureCompressionASTC' = new WGPUFeatureName(6)
-  static 'IndirectFirstInstance' = new WGPUFeatureName(7)
-  static 'ShaderF16' = new WGPUFeatureName(8)
-  static 'RG11B10UfloatRenderable' = new WGPUFeatureName(9)
-  static 'BGRA8UnormStorage' = new WGPUFeatureName(10)
-  static 'Float32Filterable' = new WGPUFeatureName(11)
-  static 'Float32Blendable' = new WGPUFeatureName(12)
-  static 'Subgroups' = new WGPUFeatureName(13)
-  static 'SubgroupsF16' = new WGPUFeatureName(14)
-  static 'DawnInternalUsages' = new WGPUFeatureName(327680)
-  static 'DawnMultiPlanarFormats' = new WGPUFeatureName(327681)
-  static 'DawnNative' = new WGPUFeatureName(327682)
-  static 'ChromiumExperimentalTimestampQueryInsidePasses' = new WGPUFeatureName(327683)
-  static 'ImplicitDeviceSynchronization' = new WGPUFeatureName(327684)
-  static 'ChromiumExperimentalImmediateData' = new WGPUFeatureName(327685)
-  static 'TransientAttachments' = new WGPUFeatureName(327686)
-  static 'MSAARenderToSingleSampled' = new WGPUFeatureName(327687)
-  static 'DualSourceBlending' = new WGPUFeatureName(327688)
-  static 'D3D11MultithreadProtected' = new WGPUFeatureName(327689)
-  static 'ANGLETextureSharing' = new WGPUFeatureName(327690)
-  static 'PixelLocalStorageCoherent' = new WGPUFeatureName(327691)
-  static 'PixelLocalStorageNonCoherent' = new WGPUFeatureName(327692)
-  static 'Unorm16TextureFormats' = new WGPUFeatureName(327693)
-  static 'Snorm16TextureFormats' = new WGPUFeatureName(327694)
-  static 'MultiPlanarFormatExtendedUsages' = new WGPUFeatureName(327695)
-  static 'MultiPlanarFormatP010' = new WGPUFeatureName(327696)
-  static 'HostMappedPointer' = new WGPUFeatureName(327697)
-  static 'MultiPlanarRenderTargets' = new WGPUFeatureName(327698)
-  static 'MultiPlanarFormatNv12a' = new WGPUFeatureName(327699)
-  static 'FramebufferFetch' = new WGPUFeatureName(327700)
-  static 'BufferMapExtendedUsages' = new WGPUFeatureName(327701)
-  static 'AdapterPropertiesMemoryHeaps' = new WGPUFeatureName(327702)
-  static 'AdapterPropertiesD3D' = new WGPUFeatureName(327703)
-  static 'AdapterPropertiesVk' = new WGPUFeatureName(327704)
-  static 'R8UnormStorage' = new WGPUFeatureName(327705)
-  static 'FormatCapabilities' = new WGPUFeatureName(327706)
-  static 'DrmFormatCapabilities' = new WGPUFeatureName(327707)
-  static 'Norm16TextureFormats' = new WGPUFeatureName(327708)
-  static 'MultiPlanarFormatNv16' = new WGPUFeatureName(327709)
-  static 'MultiPlanarFormatNv24' = new WGPUFeatureName(327710)
-  static 'MultiPlanarFormatP210' = new WGPUFeatureName(327711)
-  static 'MultiPlanarFormatP410' = new WGPUFeatureName(327712)
-  static 'SharedTextureMemoryVkDedicatedAllocation' = new WGPUFeatureName(327713)
-  static 'SharedTextureMemoryAHardwareBuffer' = new WGPUFeatureName(327714)
-  static 'SharedTextureMemoryDmaBuf' = new WGPUFeatureName(327715)
-  static 'SharedTextureMemoryOpaqueFD' = new WGPUFeatureName(327716)
-  static 'SharedTextureMemoryZirconHandle' = new WGPUFeatureName(327717)
-  static 'SharedTextureMemoryDXGISharedHandle' = new WGPUFeatureName(327718)
-  static 'SharedTextureMemoryD3D11Texture2D' = new WGPUFeatureName(327719)
-  static 'SharedTextureMemoryIOSurface' = new WGPUFeatureName(327720)
-  static 'SharedTextureMemoryEGLImage' = new WGPUFeatureName(327721)
-  static 'SharedFenceVkSemaphoreOpaqueFD' = new WGPUFeatureName(327722)
-  static 'SharedFenceSyncFD' = new WGPUFeatureName(327723)
-  static 'SharedFenceVkSemaphoreZirconHandle' = new WGPUFeatureName(327724)
-  static 'SharedFenceDXGISharedHandle' = new WGPUFeatureName(327725)
-  static 'SharedFenceMTLSharedEvent' = new WGPUFeatureName(327726)
-  static 'SharedBufferMemoryD3D12Resource' = new WGPUFeatureName(327727)
-  static 'StaticSamplers' = new WGPUFeatureName(327728)
-  static 'YCbCrVulkanSamplers' = new WGPUFeatureName(327729)
-  static 'ShaderModuleCompilationOptions' = new WGPUFeatureName(327730)
-  static 'DawnLoadResolveTexture' = new WGPUFeatureName(327731)
-  static 'DawnPartialLoadResolveTexture' = new WGPUFeatureName(327732)
-  static 'MultiDrawIndirect' = new WGPUFeatureName(327733)
-  static 'ClipDistances' = new WGPUFeatureName(327734)
-  static 'DawnTexelCopyBufferRowAlignment' = new WGPUFeatureName(327735)
-  static 'FlexibleTextureViews' = new WGPUFeatureName(327736)
-  static 'Force32' = new WGPUFeatureName(2147483647)
+export class FeatureName extends c.U32 {
+  static 'DepthClipControl' = new FeatureName(1)
+  static 'Depth32FloatStencil8' = new FeatureName(2)
+  static 'TimestampQuery' = new FeatureName(3)
+  static 'TextureCompressionBC' = new FeatureName(4)
+  static 'TextureCompressionETC2' = new FeatureName(5)
+  static 'TextureCompressionASTC' = new FeatureName(6)
+  static 'IndirectFirstInstance' = new FeatureName(7)
+  static 'ShaderF16' = new FeatureName(8)
+  static 'RG11B10UfloatRenderable' = new FeatureName(9)
+  static 'BGRA8UnormStorage' = new FeatureName(10)
+  static 'Float32Filterable' = new FeatureName(11)
+  static 'Float32Blendable' = new FeatureName(12)
+  static 'Subgroups' = new FeatureName(13)
+  static 'SubgroupsF16' = new FeatureName(14)
+  static 'DawnInternalUsages' = new FeatureName(327680)
+  static 'DawnMultiPlanarFormats' = new FeatureName(327681)
+  static 'DawnNative' = new FeatureName(327682)
+  static 'ChromiumExperimentalTimestampQueryInsidePasses' = new FeatureName(327683)
+  static 'ImplicitDeviceSynchronization' = new FeatureName(327684)
+  static 'ChromiumExperimentalImmediateData' = new FeatureName(327685)
+  static 'TransientAttachments' = new FeatureName(327686)
+  static 'MSAARenderToSingleSampled' = new FeatureName(327687)
+  static 'DualSourceBlending' = new FeatureName(327688)
+  static 'D3D11MultithreadProtected' = new FeatureName(327689)
+  static 'ANGLETextureSharing' = new FeatureName(327690)
+  static 'PixelLocalStorageCoherent' = new FeatureName(327691)
+  static 'PixelLocalStorageNonCoherent' = new FeatureName(327692)
+  static 'Unorm16TextureFormats' = new FeatureName(327693)
+  static 'Snorm16TextureFormats' = new FeatureName(327694)
+  static 'MultiPlanarFormatExtendedUsages' = new FeatureName(327695)
+  static 'MultiPlanarFormatP010' = new FeatureName(327696)
+  static 'HostMappedPointer' = new FeatureName(327697)
+  static 'MultiPlanarRenderTargets' = new FeatureName(327698)
+  static 'MultiPlanarFormatNv12a' = new FeatureName(327699)
+  static 'FramebufferFetch' = new FeatureName(327700)
+  static 'BufferMapExtendedUsages' = new FeatureName(327701)
+  static 'AdapterPropertiesMemoryHeaps' = new FeatureName(327702)
+  static 'AdapterPropertiesD3D' = new FeatureName(327703)
+  static 'AdapterPropertiesVk' = new FeatureName(327704)
+  static 'R8UnormStorage' = new FeatureName(327705)
+  static 'FormatCapabilities' = new FeatureName(327706)
+  static 'DrmFormatCapabilities' = new FeatureName(327707)
+  static 'Norm16TextureFormats' = new FeatureName(327708)
+  static 'MultiPlanarFormatNv16' = new FeatureName(327709)
+  static 'MultiPlanarFormatNv24' = new FeatureName(327710)
+  static 'MultiPlanarFormatP210' = new FeatureName(327711)
+  static 'MultiPlanarFormatP410' = new FeatureName(327712)
+  static 'SharedTextureMemoryVkDedicatedAllocation' = new FeatureName(327713)
+  static 'SharedTextureMemoryAHardwareBuffer' = new FeatureName(327714)
+  static 'SharedTextureMemoryDmaBuf' = new FeatureName(327715)
+  static 'SharedTextureMemoryOpaqueFD' = new FeatureName(327716)
+  static 'SharedTextureMemoryZirconHandle' = new FeatureName(327717)
+  static 'SharedTextureMemoryDXGISharedHandle' = new FeatureName(327718)
+  static 'SharedTextureMemoryD3D11Texture2D' = new FeatureName(327719)
+  static 'SharedTextureMemoryIOSurface' = new FeatureName(327720)
+  static 'SharedTextureMemoryEGLImage' = new FeatureName(327721)
+  static 'SharedFenceVkSemaphoreOpaqueFD' = new FeatureName(327722)
+  static 'SharedFenceSyncFD' = new FeatureName(327723)
+  static 'SharedFenceVkSemaphoreZirconHandle' = new FeatureName(327724)
+  static 'SharedFenceDXGISharedHandle' = new FeatureName(327725)
+  static 'SharedFenceMTLSharedEvent' = new FeatureName(327726)
+  static 'SharedBufferMemoryD3D12Resource' = new FeatureName(327727)
+  static 'StaticSamplers' = new FeatureName(327728)
+  static 'YCbCrVulkanSamplers' = new FeatureName(327729)
+  static 'ShaderModuleCompilationOptions' = new FeatureName(327730)
+  static 'DawnLoadResolveTexture' = new FeatureName(327731)
+  static 'DawnPartialLoadResolveTexture' = new FeatureName(327732)
+  static 'MultiDrawIndirect' = new FeatureName(327733)
+  static 'ClipDistances' = new FeatureName(327734)
+  static 'DawnTexelCopyBufferRowAlignment' = new FeatureName(327735)
+  static 'FlexibleTextureViews' = new FeatureName(327736)
+  static 'Force32' = new FeatureName(2147483647)
 }
-export class WGPUFilterMode extends c.U32 {
-  static 'Undefined' = new WGPUFilterMode(0)
-  static 'Nearest' = new WGPUFilterMode(1)
-  static 'Linear' = new WGPUFilterMode(2)
-  static 'Force32' = new WGPUFilterMode(2147483647)
+export class FilterMode extends c.U32 {
+  static 'Undefined' = new FilterMode(0)
+  static 'Nearest' = new FilterMode(1)
+  static 'Linear' = new FilterMode(2)
+  static 'Force32' = new FilterMode(2147483647)
 }
-export class WGPUFrontFace extends c.U32 {
-  static 'Undefined' = new WGPUFrontFace(0)
-  static 'CCW' = new WGPUFrontFace(1)
-  static 'CW' = new WGPUFrontFace(2)
-  static 'Force32' = new WGPUFrontFace(2147483647)
+export class FrontFace extends c.U32 {
+  static 'Undefined' = new FrontFace(0)
+  static 'CCW' = new FrontFace(1)
+  static 'CW' = new FrontFace(2)
+  static 'Force32' = new FrontFace(2147483647)
 }
-export class WGPUIndexFormat extends c.U32 {
-  static 'Undefined' = new WGPUIndexFormat(0)
-  static 'Uint16' = new WGPUIndexFormat(1)
-  static 'Uint32' = new WGPUIndexFormat(2)
-  static 'Force32' = new WGPUIndexFormat(2147483647)
+export class IndexFormat extends c.U32 {
+  static 'Undefined' = new IndexFormat(0)
+  static 'Uint16' = new IndexFormat(1)
+  static 'Uint32' = new IndexFormat(2)
+  static 'Force32' = new IndexFormat(2147483647)
 }
-export class WGPULoadOp extends c.U32 {
-  static 'Undefined' = new WGPULoadOp(0)
-  static 'Load' = new WGPULoadOp(1)
-  static 'Clear' = new WGPULoadOp(2)
-  static 'ExpandResolveTexture' = new WGPULoadOp(327683)
-  static 'Force32' = new WGPULoadOp(2147483647)
+export class LoadOp extends c.U32 {
+  static 'Undefined' = new LoadOp(0)
+  static 'Load' = new LoadOp(1)
+  static 'Clear' = new LoadOp(2)
+  static 'ExpandResolveTexture' = new LoadOp(327683)
+  static 'Force32' = new LoadOp(2147483647)
 }
-export class WGPULoggingType extends c.U32 {
-  static 'Verbose' = new WGPULoggingType(1)
-  static 'Info' = new WGPULoggingType(2)
-  static 'Warning' = new WGPULoggingType(3)
-  static 'Error' = new WGPULoggingType(4)
-  static 'Force32' = new WGPULoggingType(2147483647)
+export class LoggingType extends c.U32 {
+  static 'Verbose' = new LoggingType(1)
+  static 'Info' = new LoggingType(2)
+  static 'Warning' = new LoggingType(3)
+  static 'Error' = new LoggingType(4)
+  static 'Force32' = new LoggingType(2147483647)
 }
-export class WGPUMapAsyncStatus extends c.U32 {
-  static 'Success' = new WGPUMapAsyncStatus(1)
-  static 'InstanceDropped' = new WGPUMapAsyncStatus(2)
-  static 'Error' = new WGPUMapAsyncStatus(3)
-  static 'Aborted' = new WGPUMapAsyncStatus(4)
-  static 'Unknown' = new WGPUMapAsyncStatus(5)
-  static 'Force32' = new WGPUMapAsyncStatus(2147483647)
+export class MapAsyncStatus extends c.U32 {
+  static 'Success' = new MapAsyncStatus(1)
+  static 'InstanceDropped' = new MapAsyncStatus(2)
+  static 'Error' = new MapAsyncStatus(3)
+  static 'Aborted' = new MapAsyncStatus(4)
+  static 'Unknown' = new MapAsyncStatus(5)
+  static 'Force32' = new MapAsyncStatus(2147483647)
 }
-export class WGPUMipmapFilterMode extends c.U32 {
-  static 'Undefined' = new WGPUMipmapFilterMode(0)
-  static 'Nearest' = new WGPUMipmapFilterMode(1)
-  static 'Linear' = new WGPUMipmapFilterMode(2)
-  static 'Force32' = new WGPUMipmapFilterMode(2147483647)
+export class MipmapFilterMode extends c.U32 {
+  static 'Undefined' = new MipmapFilterMode(0)
+  static 'Nearest' = new MipmapFilterMode(1)
+  static 'Linear' = new MipmapFilterMode(2)
+  static 'Force32' = new MipmapFilterMode(2147483647)
 }
-export class WGPUOptionalBool extends c.U32 {
-  static 'False' = new WGPUOptionalBool(0)
-  static 'True' = new WGPUOptionalBool(1)
-  static 'Undefined' = new WGPUOptionalBool(2)
-  static 'Force32' = new WGPUOptionalBool(2147483647)
+export class OptionalBool extends c.U32 {
+  static 'False' = new OptionalBool(0)
+  static 'True' = new OptionalBool(1)
+  static 'Undefined' = new OptionalBool(2)
+  static 'Force32' = new OptionalBool(2147483647)
 }
-export class WGPUPopErrorScopeStatus extends c.U32 {
-  static 'Success' = new WGPUPopErrorScopeStatus(1)
-  static 'InstanceDropped' = new WGPUPopErrorScopeStatus(2)
-  static 'Force32' = new WGPUPopErrorScopeStatus(2147483647)
+export class PopErrorScopeStatus extends c.U32 {
+  static 'Success' = new PopErrorScopeStatus(1)
+  static 'InstanceDropped' = new PopErrorScopeStatus(2)
+  static 'Force32' = new PopErrorScopeStatus(2147483647)
 }
-export class WGPUPowerPreference extends c.U32 {
-  static 'Undefined' = new WGPUPowerPreference(0)
-  static 'LowPower' = new WGPUPowerPreference(1)
-  static 'HighPerformance' = new WGPUPowerPreference(2)
-  static 'Force32' = new WGPUPowerPreference(2147483647)
+export class PowerPreference extends c.U32 {
+  static 'Undefined' = new PowerPreference(0)
+  static 'LowPower' = new PowerPreference(1)
+  static 'HighPerformance' = new PowerPreference(2)
+  static 'Force32' = new PowerPreference(2147483647)
 }
-export class WGPUPresentMode extends c.U32 {
-  static 'Fifo' = new WGPUPresentMode(1)
-  static 'FifoRelaxed' = new WGPUPresentMode(2)
-  static 'Immediate' = new WGPUPresentMode(3)
-  static 'Mailbox' = new WGPUPresentMode(4)
-  static 'Force32' = new WGPUPresentMode(2147483647)
+export class PresentMode extends c.U32 {
+  static 'Fifo' = new PresentMode(1)
+  static 'FifoRelaxed' = new PresentMode(2)
+  static 'Immediate' = new PresentMode(3)
+  static 'Mailbox' = new PresentMode(4)
+  static 'Force32' = new PresentMode(2147483647)
 }
-export class WGPUPrimitiveTopology extends c.U32 {
-  static 'Undefined' = new WGPUPrimitiveTopology(0)
-  static 'PointList' = new WGPUPrimitiveTopology(1)
-  static 'LineList' = new WGPUPrimitiveTopology(2)
-  static 'LineStrip' = new WGPUPrimitiveTopology(3)
-  static 'TriangleList' = new WGPUPrimitiveTopology(4)
-  static 'TriangleStrip' = new WGPUPrimitiveTopology(5)
-  static 'Force32' = new WGPUPrimitiveTopology(2147483647)
+export class PrimitiveTopology extends c.U32 {
+  static 'Undefined' = new PrimitiveTopology(0)
+  static 'PointList' = new PrimitiveTopology(1)
+  static 'LineList' = new PrimitiveTopology(2)
+  static 'LineStrip' = new PrimitiveTopology(3)
+  static 'TriangleList' = new PrimitiveTopology(4)
+  static 'TriangleStrip' = new PrimitiveTopology(5)
+  static 'Force32' = new PrimitiveTopology(2147483647)
 }
-export class WGPUQueryType extends c.U32 {
-  static 'Occlusion' = new WGPUQueryType(1)
-  static 'Timestamp' = new WGPUQueryType(2)
-  static 'Force32' = new WGPUQueryType(2147483647)
+export class QueryType extends c.U32 {
+  static 'Occlusion' = new QueryType(1)
+  static 'Timestamp' = new QueryType(2)
+  static 'Force32' = new QueryType(2147483647)
 }
-export class WGPUQueueWorkDoneStatus extends c.U32 {
-  static 'Success' = new WGPUQueueWorkDoneStatus(1)
-  static 'InstanceDropped' = new WGPUQueueWorkDoneStatus(2)
-  static 'Error' = new WGPUQueueWorkDoneStatus(3)
-  static 'Unknown' = new WGPUQueueWorkDoneStatus(4)
-  static 'DeviceLost' = new WGPUQueueWorkDoneStatus(5)
-  static 'Force32' = new WGPUQueueWorkDoneStatus(2147483647)
+export class QueueWorkDoneStatus extends c.U32 {
+  static 'Success' = new QueueWorkDoneStatus(1)
+  static 'InstanceDropped' = new QueueWorkDoneStatus(2)
+  static 'Error' = new QueueWorkDoneStatus(3)
+  static 'Unknown' = new QueueWorkDoneStatus(4)
+  static 'DeviceLost' = new QueueWorkDoneStatus(5)
+  static 'Force32' = new QueueWorkDoneStatus(2147483647)
 }
-export class WGPURequestAdapterStatus extends c.U32 {
-  static 'Success' = new WGPURequestAdapterStatus(1)
-  static 'InstanceDropped' = new WGPURequestAdapterStatus(2)
-  static 'Unavailable' = new WGPURequestAdapterStatus(3)
-  static 'Error' = new WGPURequestAdapterStatus(4)
-  static 'Unknown' = new WGPURequestAdapterStatus(5)
-  static 'Force32' = new WGPURequestAdapterStatus(2147483647)
+export class RequestAdapterStatus extends c.U32 {
+  static 'Success' = new RequestAdapterStatus(1)
+  static 'InstanceDropped' = new RequestAdapterStatus(2)
+  static 'Unavailable' = new RequestAdapterStatus(3)
+  static 'Error' = new RequestAdapterStatus(4)
+  static 'Unknown' = new RequestAdapterStatus(5)
+  static 'Force32' = new RequestAdapterStatus(2147483647)
 }
-export class WGPURequestDeviceStatus extends c.U32 {
-  static 'Success' = new WGPURequestDeviceStatus(1)
-  static 'InstanceDropped' = new WGPURequestDeviceStatus(2)
-  static 'Error' = new WGPURequestDeviceStatus(3)
-  static 'Unknown' = new WGPURequestDeviceStatus(4)
-  static 'Force32' = new WGPURequestDeviceStatus(2147483647)
+export class RequestDeviceStatus extends c.U32 {
+  static 'Success' = new RequestDeviceStatus(1)
+  static 'InstanceDropped' = new RequestDeviceStatus(2)
+  static 'Error' = new RequestDeviceStatus(3)
+  static 'Unknown' = new RequestDeviceStatus(4)
+  static 'Force32' = new RequestDeviceStatus(2147483647)
 }
-export class WGPUSType extends c.U32 {
-  static 'ShaderSourceSPIRV' = new WGPUSType(1)
-  static 'ShaderSourceWGSL' = new WGPUSType(2)
-  static 'RenderPassMaxDrawCount' = new WGPUSType(3)
-  static 'SurfaceSourceMetalLayer' = new WGPUSType(4)
-  static 'SurfaceSourceWindowsHWND' = new WGPUSType(5)
-  static 'SurfaceSourceXlibWindow' = new WGPUSType(6)
-  static 'SurfaceSourceWaylandSurface' = new WGPUSType(7)
-  static 'SurfaceSourceAndroidNativeWindow' = new WGPUSType(8)
-  static 'SurfaceSourceXCBWindow' = new WGPUSType(9)
-  static 'AdapterPropertiesSubgroups' = new WGPUSType(10)
-  static 'TextureBindingViewDimensionDescriptor' = new WGPUSType(131072)
-  static 'SurfaceSourceCanvasHTMLSelector_Emscripten' = new WGPUSType(262144)
-  static 'SurfaceDescriptorFromWindowsCoreWindow' = new WGPUSType(327680)
-  static 'ExternalTextureBindingEntry' = new WGPUSType(327681)
-  static 'ExternalTextureBindingLayout' = new WGPUSType(327682)
-  static 'SurfaceDescriptorFromWindowsSwapChainPanel' = new WGPUSType(327683)
-  static 'DawnTextureInternalUsageDescriptor' = new WGPUSType(327684)
-  static 'DawnEncoderInternalUsageDescriptor' = new WGPUSType(327685)
-  static 'DawnInstanceDescriptor' = new WGPUSType(327686)
-  static 'DawnCacheDeviceDescriptor' = new WGPUSType(327687)
-  static 'DawnAdapterPropertiesPowerPreference' = new WGPUSType(327688)
-  static 'DawnBufferDescriptorErrorInfoFromWireClient' = new WGPUSType(327689)
-  static 'DawnTogglesDescriptor' = new WGPUSType(327690)
-  static 'DawnShaderModuleSPIRVOptionsDescriptor' = new WGPUSType(327691)
-  static 'RequestAdapterOptionsLUID' = new WGPUSType(327692)
-  static 'RequestAdapterOptionsGetGLProc' = new WGPUSType(327693)
-  static 'RequestAdapterOptionsD3D11Device' = new WGPUSType(327694)
-  static 'DawnRenderPassColorAttachmentRenderToSingleSampled' = new WGPUSType(327695)
-  static 'RenderPassPixelLocalStorage' = new WGPUSType(327696)
-  static 'PipelineLayoutPixelLocalStorage' = new WGPUSType(327697)
-  static 'BufferHostMappedPointer' = new WGPUSType(327698)
-  static 'DawnExperimentalSubgroupLimits' = new WGPUSType(327699)
-  static 'AdapterPropertiesMemoryHeaps' = new WGPUSType(327700)
-  static 'AdapterPropertiesD3D' = new WGPUSType(327701)
-  static 'AdapterPropertiesVk' = new WGPUSType(327702)
-  static 'DawnWireWGSLControl' = new WGPUSType(327703)
-  static 'DawnWGSLBlocklist' = new WGPUSType(327704)
-  static 'DrmFormatCapabilities' = new WGPUSType(327705)
-  static 'ShaderModuleCompilationOptions' = new WGPUSType(327706)
-  static 'ColorTargetStateExpandResolveTextureDawn' = new WGPUSType(327707)
-  static 'RenderPassDescriptorExpandResolveRect' = new WGPUSType(327708)
-  static 'SharedTextureMemoryVkDedicatedAllocationDescriptor' = new WGPUSType(327709)
-  static 'SharedTextureMemoryAHardwareBufferDescriptor' = new WGPUSType(327710)
-  static 'SharedTextureMemoryDmaBufDescriptor' = new WGPUSType(327711)
-  static 'SharedTextureMemoryOpaqueFDDescriptor' = new WGPUSType(327712)
-  static 'SharedTextureMemoryZirconHandleDescriptor' = new WGPUSType(327713)
-  static 'SharedTextureMemoryDXGISharedHandleDescriptor' = new WGPUSType(327714)
-  static 'SharedTextureMemoryD3D11Texture2DDescriptor' = new WGPUSType(327715)
-  static 'SharedTextureMemoryIOSurfaceDescriptor' = new WGPUSType(327716)
-  static 'SharedTextureMemoryEGLImageDescriptor' = new WGPUSType(327717)
-  static 'SharedTextureMemoryInitializedBeginState' = new WGPUSType(327718)
-  static 'SharedTextureMemoryInitializedEndState' = new WGPUSType(327719)
-  static 'SharedTextureMemoryVkImageLayoutBeginState' = new WGPUSType(327720)
-  static 'SharedTextureMemoryVkImageLayoutEndState' = new WGPUSType(327721)
-  static 'SharedTextureMemoryD3DSwapchainBeginState' = new WGPUSType(327722)
-  static 'SharedFenceVkSemaphoreOpaqueFDDescriptor' = new WGPUSType(327723)
-  static 'SharedFenceVkSemaphoreOpaqueFDExportInfo' = new WGPUSType(327724)
-  static 'SharedFenceSyncFDDescriptor' = new WGPUSType(327725)
-  static 'SharedFenceSyncFDExportInfo' = new WGPUSType(327726)
-  static 'SharedFenceVkSemaphoreZirconHandleDescriptor' = new WGPUSType(327727)
-  static 'SharedFenceVkSemaphoreZirconHandleExportInfo' = new WGPUSType(327728)
-  static 'SharedFenceDXGISharedHandleDescriptor' = new WGPUSType(327729)
-  static 'SharedFenceDXGISharedHandleExportInfo' = new WGPUSType(327730)
-  static 'SharedFenceMTLSharedEventDescriptor' = new WGPUSType(327731)
-  static 'SharedFenceMTLSharedEventExportInfo' = new WGPUSType(327732)
-  static 'SharedBufferMemoryD3D12ResourceDescriptor' = new WGPUSType(327733)
-  static 'StaticSamplerBindingLayout' = new WGPUSType(327734)
-  static 'YCbCrVkDescriptor' = new WGPUSType(327735)
-  static 'SharedTextureMemoryAHardwareBufferProperties' = new WGPUSType(327736)
-  static 'AHardwareBufferProperties' = new WGPUSType(327737)
-  static 'DawnExperimentalImmediateDataLimits' = new WGPUSType(327738)
-  static 'DawnTexelCopyBufferRowAlignmentLimits' = new WGPUSType(327739)
-  static 'Force32' = new WGPUSType(2147483647)
+export class SType extends c.U32 {
+  static 'ShaderSourceSPIRV' = new SType(1)
+  static 'ShaderSourceWGSL' = new SType(2)
+  static 'RenderPassMaxDrawCount' = new SType(3)
+  static 'SurfaceSourceMetalLayer' = new SType(4)
+  static 'SurfaceSourceWindowsHWND' = new SType(5)
+  static 'SurfaceSourceXlibWindow' = new SType(6)
+  static 'SurfaceSourceWaylandSurface' = new SType(7)
+  static 'SurfaceSourceAndroidNativeWindow' = new SType(8)
+  static 'SurfaceSourceXCBWindow' = new SType(9)
+  static 'AdapterPropertiesSubgroups' = new SType(10)
+  static 'TextureBindingViewDimensionDescriptor' = new SType(131072)
+  static 'SurfaceSourceCanvasHTMLSelector_Emscripten' = new SType(262144)
+  static 'SurfaceDescriptorFromWindowsCoreWindow' = new SType(327680)
+  static 'ExternalTextureBindingEntry' = new SType(327681)
+  static 'ExternalTextureBindingLayout' = new SType(327682)
+  static 'SurfaceDescriptorFromWindowsSwapChainPanel' = new SType(327683)
+  static 'DawnTextureInternalUsageDescriptor' = new SType(327684)
+  static 'DawnEncoderInternalUsageDescriptor' = new SType(327685)
+  static 'DawnInstanceDescriptor' = new SType(327686)
+  static 'DawnCacheDeviceDescriptor' = new SType(327687)
+  static 'DawnAdapterPropertiesPowerPreference' = new SType(327688)
+  static 'DawnBufferDescriptorErrorInfoFromWireClient' = new SType(327689)
+  static 'DawnTogglesDescriptor' = new SType(327690)
+  static 'DawnShaderModuleSPIRVOptionsDescriptor' = new SType(327691)
+  static 'RequestAdapterOptionsLUID' = new SType(327692)
+  static 'RequestAdapterOptionsGetGLProc' = new SType(327693)
+  static 'RequestAdapterOptionsD3D11Device' = new SType(327694)
+  static 'DawnRenderPassColorAttachmentRenderToSingleSampled' = new SType(327695)
+  static 'RenderPassPixelLocalStorage' = new SType(327696)
+  static 'PipelineLayoutPixelLocalStorage' = new SType(327697)
+  static 'BufferHostMappedPointer' = new SType(327698)
+  static 'DawnExperimentalSubgroupLimits' = new SType(327699)
+  static 'AdapterPropertiesMemoryHeaps' = new SType(327700)
+  static 'AdapterPropertiesD3D' = new SType(327701)
+  static 'AdapterPropertiesVk' = new SType(327702)
+  static 'DawnWireWGSLControl' = new SType(327703)
+  static 'DawnWGSLBlocklist' = new SType(327704)
+  static 'DrmFormatCapabilities' = new SType(327705)
+  static 'ShaderModuleCompilationOptions' = new SType(327706)
+  static 'ColorTargetStateExpandResolveTextureDawn' = new SType(327707)
+  static 'RenderPassDescriptorExpandResolveRect' = new SType(327708)
+  static 'SharedTextureMemoryVkDedicatedAllocationDescriptor' = new SType(327709)
+  static 'SharedTextureMemoryAHardwareBufferDescriptor' = new SType(327710)
+  static 'SharedTextureMemoryDmaBufDescriptor' = new SType(327711)
+  static 'SharedTextureMemoryOpaqueFDDescriptor' = new SType(327712)
+  static 'SharedTextureMemoryZirconHandleDescriptor' = new SType(327713)
+  static 'SharedTextureMemoryDXGISharedHandleDescriptor' = new SType(327714)
+  static 'SharedTextureMemoryD3D11Texture2DDescriptor' = new SType(327715)
+  static 'SharedTextureMemoryIOSurfaceDescriptor' = new SType(327716)
+  static 'SharedTextureMemoryEGLImageDescriptor' = new SType(327717)
+  static 'SharedTextureMemoryInitializedBeginState' = new SType(327718)
+  static 'SharedTextureMemoryInitializedEndState' = new SType(327719)
+  static 'SharedTextureMemoryVkImageLayoutBeginState' = new SType(327720)
+  static 'SharedTextureMemoryVkImageLayoutEndState' = new SType(327721)
+  static 'SharedTextureMemoryD3DSwapchainBeginState' = new SType(327722)
+  static 'SharedFenceVkSemaphoreOpaqueFDDescriptor' = new SType(327723)
+  static 'SharedFenceVkSemaphoreOpaqueFDExportInfo' = new SType(327724)
+  static 'SharedFenceSyncFDDescriptor' = new SType(327725)
+  static 'SharedFenceSyncFDExportInfo' = new SType(327726)
+  static 'SharedFenceVkSemaphoreZirconHandleDescriptor' = new SType(327727)
+  static 'SharedFenceVkSemaphoreZirconHandleExportInfo' = new SType(327728)
+  static 'SharedFenceDXGISharedHandleDescriptor' = new SType(327729)
+  static 'SharedFenceDXGISharedHandleExportInfo' = new SType(327730)
+  static 'SharedFenceMTLSharedEventDescriptor' = new SType(327731)
+  static 'SharedFenceMTLSharedEventExportInfo' = new SType(327732)
+  static 'SharedBufferMemoryD3D12ResourceDescriptor' = new SType(327733)
+  static 'StaticSamplerBindingLayout' = new SType(327734)
+  static 'YCbCrVkDescriptor' = new SType(327735)
+  static 'SharedTextureMemoryAHardwareBufferProperties' = new SType(327736)
+  static 'AHardwareBufferProperties' = new SType(327737)
+  static 'DawnExperimentalImmediateDataLimits' = new SType(327738)
+  static 'DawnTexelCopyBufferRowAlignmentLimits' = new SType(327739)
+  static 'Force32' = new SType(2147483647)
 }
-export class WGPUSamplerBindingType extends c.U32 {
-  static 'BindingNotUsed' = new WGPUSamplerBindingType(0)
-  static 'Filtering' = new WGPUSamplerBindingType(1)
-  static 'NonFiltering' = new WGPUSamplerBindingType(2)
-  static 'Comparison' = new WGPUSamplerBindingType(3)
-  static 'Force32' = new WGPUSamplerBindingType(2147483647)
+export class SamplerBindingType extends c.U32 {
+  static 'BindingNotUsed' = new SamplerBindingType(0)
+  static 'Filtering' = new SamplerBindingType(1)
+  static 'NonFiltering' = new SamplerBindingType(2)
+  static 'Comparison' = new SamplerBindingType(3)
+  static 'Force32' = new SamplerBindingType(2147483647)
 }
-export class WGPUSharedFenceType extends c.U32 {
-  static 'VkSemaphoreOpaqueFD' = new WGPUSharedFenceType(1)
-  static 'SyncFD' = new WGPUSharedFenceType(2)
-  static 'VkSemaphoreZirconHandle' = new WGPUSharedFenceType(3)
-  static 'DXGISharedHandle' = new WGPUSharedFenceType(4)
-  static 'MTLSharedEvent' = new WGPUSharedFenceType(5)
-  static 'Force32' = new WGPUSharedFenceType(2147483647)
+export class SharedFenceType extends c.U32 {
+  static 'VkSemaphoreOpaqueFD' = new SharedFenceType(1)
+  static 'SyncFD' = new SharedFenceType(2)
+  static 'VkSemaphoreZirconHandle' = new SharedFenceType(3)
+  static 'DXGISharedHandle' = new SharedFenceType(4)
+  static 'MTLSharedEvent' = new SharedFenceType(5)
+  static 'Force32' = new SharedFenceType(2147483647)
 }
-export class WGPUStatus extends c.U32 {
-  static 'Success' = new WGPUStatus(1)
-  static 'Error' = new WGPUStatus(2)
-  static 'Force32' = new WGPUStatus(2147483647)
+export class Status extends c.U32 {
+  static 'Success' = new Status(1)
+  static 'Error' = new Status(2)
+  static 'Force32' = new Status(2147483647)
 }
-export class WGPUStencilOperation extends c.U32 {
-  static 'Undefined' = new WGPUStencilOperation(0)
-  static 'Keep' = new WGPUStencilOperation(1)
-  static 'Zero' = new WGPUStencilOperation(2)
-  static 'Replace' = new WGPUStencilOperation(3)
-  static 'Invert' = new WGPUStencilOperation(4)
-  static 'IncrementClamp' = new WGPUStencilOperation(5)
-  static 'DecrementClamp' = new WGPUStencilOperation(6)
-  static 'IncrementWrap' = new WGPUStencilOperation(7)
-  static 'DecrementWrap' = new WGPUStencilOperation(8)
-  static 'Force32' = new WGPUStencilOperation(2147483647)
+export class StencilOperation extends c.U32 {
+  static 'Undefined' = new StencilOperation(0)
+  static 'Keep' = new StencilOperation(1)
+  static 'Zero' = new StencilOperation(2)
+  static 'Replace' = new StencilOperation(3)
+  static 'Invert' = new StencilOperation(4)
+  static 'IncrementClamp' = new StencilOperation(5)
+  static 'DecrementClamp' = new StencilOperation(6)
+  static 'IncrementWrap' = new StencilOperation(7)
+  static 'DecrementWrap' = new StencilOperation(8)
+  static 'Force32' = new StencilOperation(2147483647)
 }
-export class WGPUStorageTextureAccess extends c.U32 {
-  static 'BindingNotUsed' = new WGPUStorageTextureAccess(0)
-  static 'WriteOnly' = new WGPUStorageTextureAccess(1)
-  static 'ReadOnly' = new WGPUStorageTextureAccess(2)
-  static 'ReadWrite' = new WGPUStorageTextureAccess(3)
-  static 'Force32' = new WGPUStorageTextureAccess(2147483647)
+export class StorageTextureAccess extends c.U32 {
+  static 'BindingNotUsed' = new StorageTextureAccess(0)
+  static 'WriteOnly' = new StorageTextureAccess(1)
+  static 'ReadOnly' = new StorageTextureAccess(2)
+  static 'ReadWrite' = new StorageTextureAccess(3)
+  static 'Force32' = new StorageTextureAccess(2147483647)
 }
-export class WGPUStoreOp extends c.U32 {
-  static 'Undefined' = new WGPUStoreOp(0)
-  static 'Store' = new WGPUStoreOp(1)
-  static 'Discard' = new WGPUStoreOp(2)
-  static 'Force32' = new WGPUStoreOp(2147483647)
+export class StoreOp extends c.U32 {
+  static 'Undefined' = new StoreOp(0)
+  static 'Store' = new StoreOp(1)
+  static 'Discard' = new StoreOp(2)
+  static 'Force32' = new StoreOp(2147483647)
 }
-export class WGPUSurfaceGetCurrentTextureStatus extends c.U32 {
-  static 'Success' = new WGPUSurfaceGetCurrentTextureStatus(1)
-  static 'Timeout' = new WGPUSurfaceGetCurrentTextureStatus(2)
-  static 'Outdated' = new WGPUSurfaceGetCurrentTextureStatus(3)
-  static 'Lost' = new WGPUSurfaceGetCurrentTextureStatus(4)
-  static 'OutOfMemory' = new WGPUSurfaceGetCurrentTextureStatus(5)
-  static 'DeviceLost' = new WGPUSurfaceGetCurrentTextureStatus(6)
-  static 'Error' = new WGPUSurfaceGetCurrentTextureStatus(7)
-  static 'Force32' = new WGPUSurfaceGetCurrentTextureStatus(2147483647)
+export class SurfaceGetCurrentTextureStatus extends c.U32 {
+  static 'Success' = new SurfaceGetCurrentTextureStatus(1)
+  static 'Timeout' = new SurfaceGetCurrentTextureStatus(2)
+  static 'Outdated' = new SurfaceGetCurrentTextureStatus(3)
+  static 'Lost' = new SurfaceGetCurrentTextureStatus(4)
+  static 'OutOfMemory' = new SurfaceGetCurrentTextureStatus(5)
+  static 'DeviceLost' = new SurfaceGetCurrentTextureStatus(6)
+  static 'Error' = new SurfaceGetCurrentTextureStatus(7)
+  static 'Force32' = new SurfaceGetCurrentTextureStatus(2147483647)
 }
-export class WGPUTextureAspect extends c.U32 {
-  static 'Undefined' = new WGPUTextureAspect(0)
-  static 'All' = new WGPUTextureAspect(1)
-  static 'StencilOnly' = new WGPUTextureAspect(2)
-  static 'DepthOnly' = new WGPUTextureAspect(3)
-  static 'Plane0Only' = new WGPUTextureAspect(327680)
-  static 'Plane1Only' = new WGPUTextureAspect(327681)
-  static 'Plane2Only' = new WGPUTextureAspect(327682)
-  static 'Force32' = new WGPUTextureAspect(2147483647)
+export class TextureAspect extends c.U32 {
+  static 'Undefined' = new TextureAspect(0)
+  static 'All' = new TextureAspect(1)
+  static 'StencilOnly' = new TextureAspect(2)
+  static 'DepthOnly' = new TextureAspect(3)
+  static 'Plane0Only' = new TextureAspect(327680)
+  static 'Plane1Only' = new TextureAspect(327681)
+  static 'Plane2Only' = new TextureAspect(327682)
+  static 'Force32' = new TextureAspect(2147483647)
 }
-export class WGPUTextureDimension extends c.U32 {
-  static 'Undefined' = new WGPUTextureDimension(0)
-  static '1D' = new WGPUTextureDimension(1)
-  static '2D' = new WGPUTextureDimension(2)
-  static '3D' = new WGPUTextureDimension(3)
-  static 'Force32' = new WGPUTextureDimension(2147483647)
+export class TextureDimension extends c.U32 {
+  static 'Undefined' = new TextureDimension(0)
+  static '1D' = new TextureDimension(1)
+  static '2D' = new TextureDimension(2)
+  static '3D' = new TextureDimension(3)
+  static 'Force32' = new TextureDimension(2147483647)
 }
-export class WGPUTextureFormat extends c.U32 {
-  static 'Undefined' = new WGPUTextureFormat(0)
-  static 'R8Unorm' = new WGPUTextureFormat(1)
-  static 'R8Snorm' = new WGPUTextureFormat(2)
-  static 'R8Uint' = new WGPUTextureFormat(3)
-  static 'R8Sint' = new WGPUTextureFormat(4)
-  static 'R16Uint' = new WGPUTextureFormat(5)
-  static 'R16Sint' = new WGPUTextureFormat(6)
-  static 'R16Float' = new WGPUTextureFormat(7)
-  static 'RG8Unorm' = new WGPUTextureFormat(8)
-  static 'RG8Snorm' = new WGPUTextureFormat(9)
-  static 'RG8Uint' = new WGPUTextureFormat(10)
-  static 'RG8Sint' = new WGPUTextureFormat(11)
-  static 'R32Float' = new WGPUTextureFormat(12)
-  static 'R32Uint' = new WGPUTextureFormat(13)
-  static 'R32Sint' = new WGPUTextureFormat(14)
-  static 'RG16Uint' = new WGPUTextureFormat(15)
-  static 'RG16Sint' = new WGPUTextureFormat(16)
-  static 'RG16Float' = new WGPUTextureFormat(17)
-  static 'RGBA8Unorm' = new WGPUTextureFormat(18)
-  static 'RGBA8UnormSrgb' = new WGPUTextureFormat(19)
-  static 'RGBA8Snorm' = new WGPUTextureFormat(20)
-  static 'RGBA8Uint' = new WGPUTextureFormat(21)
-  static 'RGBA8Sint' = new WGPUTextureFormat(22)
-  static 'BGRA8Unorm' = new WGPUTextureFormat(23)
-  static 'BGRA8UnormSrgb' = new WGPUTextureFormat(24)
-  static 'RGB10A2Uint' = new WGPUTextureFormat(25)
-  static 'RGB10A2Unorm' = new WGPUTextureFormat(26)
-  static 'RG11B10Ufloat' = new WGPUTextureFormat(27)
-  static 'RGB9E5Ufloat' = new WGPUTextureFormat(28)
-  static 'RG32Float' = new WGPUTextureFormat(29)
-  static 'RG32Uint' = new WGPUTextureFormat(30)
-  static 'RG32Sint' = new WGPUTextureFormat(31)
-  static 'RGBA16Uint' = new WGPUTextureFormat(32)
-  static 'RGBA16Sint' = new WGPUTextureFormat(33)
-  static 'RGBA16Float' = new WGPUTextureFormat(34)
-  static 'RGBA32Float' = new WGPUTextureFormat(35)
-  static 'RGBA32Uint' = new WGPUTextureFormat(36)
-  static 'RGBA32Sint' = new WGPUTextureFormat(37)
-  static 'Stencil8' = new WGPUTextureFormat(38)
-  static 'Depth16Unorm' = new WGPUTextureFormat(39)
-  static 'Depth24Plus' = new WGPUTextureFormat(40)
-  static 'Depth24PlusStencil8' = new WGPUTextureFormat(41)
-  static 'Depth32Float' = new WGPUTextureFormat(42)
-  static 'Depth32FloatStencil8' = new WGPUTextureFormat(43)
-  static 'BC1RGBAUnorm' = new WGPUTextureFormat(44)
-  static 'BC1RGBAUnormSrgb' = new WGPUTextureFormat(45)
-  static 'BC2RGBAUnorm' = new WGPUTextureFormat(46)
-  static 'BC2RGBAUnormSrgb' = new WGPUTextureFormat(47)
-  static 'BC3RGBAUnorm' = new WGPUTextureFormat(48)
-  static 'BC3RGBAUnormSrgb' = new WGPUTextureFormat(49)
-  static 'BC4RUnorm' = new WGPUTextureFormat(50)
-  static 'BC4RSnorm' = new WGPUTextureFormat(51)
-  static 'BC5RGUnorm' = new WGPUTextureFormat(52)
-  static 'BC5RGSnorm' = new WGPUTextureFormat(53)
-  static 'BC6HRGBUfloat' = new WGPUTextureFormat(54)
-  static 'BC6HRGBFloat' = new WGPUTextureFormat(55)
-  static 'BC7RGBAUnorm' = new WGPUTextureFormat(56)
-  static 'BC7RGBAUnormSrgb' = new WGPUTextureFormat(57)
-  static 'ETC2RGB8Unorm' = new WGPUTextureFormat(58)
-  static 'ETC2RGB8UnormSrgb' = new WGPUTextureFormat(59)
-  static 'ETC2RGB8A1Unorm' = new WGPUTextureFormat(60)
-  static 'ETC2RGB8A1UnormSrgb' = new WGPUTextureFormat(61)
-  static 'ETC2RGBA8Unorm' = new WGPUTextureFormat(62)
-  static 'ETC2RGBA8UnormSrgb' = new WGPUTextureFormat(63)
-  static 'EACR11Unorm' = new WGPUTextureFormat(64)
-  static 'EACR11Snorm' = new WGPUTextureFormat(65)
-  static 'EACRG11Unorm' = new WGPUTextureFormat(66)
-  static 'EACRG11Snorm' = new WGPUTextureFormat(67)
-  static 'ASTC4x4Unorm' = new WGPUTextureFormat(68)
-  static 'ASTC4x4UnormSrgb' = new WGPUTextureFormat(69)
-  static 'ASTC5x4Unorm' = new WGPUTextureFormat(70)
-  static 'ASTC5x4UnormSrgb' = new WGPUTextureFormat(71)
-  static 'ASTC5x5Unorm' = new WGPUTextureFormat(72)
-  static 'ASTC5x5UnormSrgb' = new WGPUTextureFormat(73)
-  static 'ASTC6x5Unorm' = new WGPUTextureFormat(74)
-  static 'ASTC6x5UnormSrgb' = new WGPUTextureFormat(75)
-  static 'ASTC6x6Unorm' = new WGPUTextureFormat(76)
-  static 'ASTC6x6UnormSrgb' = new WGPUTextureFormat(77)
-  static 'ASTC8x5Unorm' = new WGPUTextureFormat(78)
-  static 'ASTC8x5UnormSrgb' = new WGPUTextureFormat(79)
-  static 'ASTC8x6Unorm' = new WGPUTextureFormat(80)
-  static 'ASTC8x6UnormSrgb' = new WGPUTextureFormat(81)
-  static 'ASTC8x8Unorm' = new WGPUTextureFormat(82)
-  static 'ASTC8x8UnormSrgb' = new WGPUTextureFormat(83)
-  static 'ASTC10x5Unorm' = new WGPUTextureFormat(84)
-  static 'ASTC10x5UnormSrgb' = new WGPUTextureFormat(85)
-  static 'ASTC10x6Unorm' = new WGPUTextureFormat(86)
-  static 'ASTC10x6UnormSrgb' = new WGPUTextureFormat(87)
-  static 'ASTC10x8Unorm' = new WGPUTextureFormat(88)
-  static 'ASTC10x8UnormSrgb' = new WGPUTextureFormat(89)
-  static 'ASTC10x10Unorm' = new WGPUTextureFormat(90)
-  static 'ASTC10x10UnormSrgb' = new WGPUTextureFormat(91)
-  static 'ASTC12x10Unorm' = new WGPUTextureFormat(92)
-  static 'ASTC12x10UnormSrgb' = new WGPUTextureFormat(93)
-  static 'ASTC12x12Unorm' = new WGPUTextureFormat(94)
-  static 'ASTC12x12UnormSrgb' = new WGPUTextureFormat(95)
-  static 'R16Unorm' = new WGPUTextureFormat(327680)
-  static 'RG16Unorm' = new WGPUTextureFormat(327681)
-  static 'RGBA16Unorm' = new WGPUTextureFormat(327682)
-  static 'R16Snorm' = new WGPUTextureFormat(327683)
-  static 'RG16Snorm' = new WGPUTextureFormat(327684)
-  static 'RGBA16Snorm' = new WGPUTextureFormat(327685)
-  static 'R8BG8Biplanar420Unorm' = new WGPUTextureFormat(327686)
-  static 'R10X6BG10X6Biplanar420Unorm' = new WGPUTextureFormat(327687)
-  static 'R8BG8A8Triplanar420Unorm' = new WGPUTextureFormat(327688)
-  static 'R8BG8Biplanar422Unorm' = new WGPUTextureFormat(327689)
-  static 'R8BG8Biplanar444Unorm' = new WGPUTextureFormat(327690)
-  static 'R10X6BG10X6Biplanar422Unorm' = new WGPUTextureFormat(327691)
-  static 'R10X6BG10X6Biplanar444Unorm' = new WGPUTextureFormat(327692)
-  static 'External' = new WGPUTextureFormat(327693)
-  static 'Force32' = new WGPUTextureFormat(2147483647)
+export class TextureFormat extends c.U32 {
+  static 'Undefined' = new TextureFormat(0)
+  static 'R8Unorm' = new TextureFormat(1)
+  static 'R8Snorm' = new TextureFormat(2)
+  static 'R8Uint' = new TextureFormat(3)
+  static 'R8Sint' = new TextureFormat(4)
+  static 'R16Uint' = new TextureFormat(5)
+  static 'R16Sint' = new TextureFormat(6)
+  static 'R16Float' = new TextureFormat(7)
+  static 'RG8Unorm' = new TextureFormat(8)
+  static 'RG8Snorm' = new TextureFormat(9)
+  static 'RG8Uint' = new TextureFormat(10)
+  static 'RG8Sint' = new TextureFormat(11)
+  static 'R32Float' = new TextureFormat(12)
+  static 'R32Uint' = new TextureFormat(13)
+  static 'R32Sint' = new TextureFormat(14)
+  static 'RG16Uint' = new TextureFormat(15)
+  static 'RG16Sint' = new TextureFormat(16)
+  static 'RG16Float' = new TextureFormat(17)
+  static 'RGBA8Unorm' = new TextureFormat(18)
+  static 'RGBA8UnormSrgb' = new TextureFormat(19)
+  static 'RGBA8Snorm' = new TextureFormat(20)
+  static 'RGBA8Uint' = new TextureFormat(21)
+  static 'RGBA8Sint' = new TextureFormat(22)
+  static 'BGRA8Unorm' = new TextureFormat(23)
+  static 'BGRA8UnormSrgb' = new TextureFormat(24)
+  static 'RGB10A2Uint' = new TextureFormat(25)
+  static 'RGB10A2Unorm' = new TextureFormat(26)
+  static 'RG11B10Ufloat' = new TextureFormat(27)
+  static 'RGB9E5Ufloat' = new TextureFormat(28)
+  static 'RG32Float' = new TextureFormat(29)
+  static 'RG32Uint' = new TextureFormat(30)
+  static 'RG32Sint' = new TextureFormat(31)
+  static 'RGBA16Uint' = new TextureFormat(32)
+  static 'RGBA16Sint' = new TextureFormat(33)
+  static 'RGBA16Float' = new TextureFormat(34)
+  static 'RGBA32Float' = new TextureFormat(35)
+  static 'RGBA32Uint' = new TextureFormat(36)
+  static 'RGBA32Sint' = new TextureFormat(37)
+  static 'Stencil8' = new TextureFormat(38)
+  static 'Depth16Unorm' = new TextureFormat(39)
+  static 'Depth24Plus' = new TextureFormat(40)
+  static 'Depth24PlusStencil8' = new TextureFormat(41)
+  static 'Depth32Float' = new TextureFormat(42)
+  static 'Depth32FloatStencil8' = new TextureFormat(43)
+  static 'BC1RGBAUnorm' = new TextureFormat(44)
+  static 'BC1RGBAUnormSrgb' = new TextureFormat(45)
+  static 'BC2RGBAUnorm' = new TextureFormat(46)
+  static 'BC2RGBAUnormSrgb' = new TextureFormat(47)
+  static 'BC3RGBAUnorm' = new TextureFormat(48)
+  static 'BC3RGBAUnormSrgb' = new TextureFormat(49)
+  static 'BC4RUnorm' = new TextureFormat(50)
+  static 'BC4RSnorm' = new TextureFormat(51)
+  static 'BC5RGUnorm' = new TextureFormat(52)
+  static 'BC5RGSnorm' = new TextureFormat(53)
+  static 'BC6HRGBUfloat' = new TextureFormat(54)
+  static 'BC6HRGBFloat' = new TextureFormat(55)
+  static 'BC7RGBAUnorm' = new TextureFormat(56)
+  static 'BC7RGBAUnormSrgb' = new TextureFormat(57)
+  static 'ETC2RGB8Unorm' = new TextureFormat(58)
+  static 'ETC2RGB8UnormSrgb' = new TextureFormat(59)
+  static 'ETC2RGB8A1Unorm' = new TextureFormat(60)
+  static 'ETC2RGB8A1UnormSrgb' = new TextureFormat(61)
+  static 'ETC2RGBA8Unorm' = new TextureFormat(62)
+  static 'ETC2RGBA8UnormSrgb' = new TextureFormat(63)
+  static 'EACR11Unorm' = new TextureFormat(64)
+  static 'EACR11Snorm' = new TextureFormat(65)
+  static 'EACRG11Unorm' = new TextureFormat(66)
+  static 'EACRG11Snorm' = new TextureFormat(67)
+  static 'ASTC4x4Unorm' = new TextureFormat(68)
+  static 'ASTC4x4UnormSrgb' = new TextureFormat(69)
+  static 'ASTC5x4Unorm' = new TextureFormat(70)
+  static 'ASTC5x4UnormSrgb' = new TextureFormat(71)
+  static 'ASTC5x5Unorm' = new TextureFormat(72)
+  static 'ASTC5x5UnormSrgb' = new TextureFormat(73)
+  static 'ASTC6x5Unorm' = new TextureFormat(74)
+  static 'ASTC6x5UnormSrgb' = new TextureFormat(75)
+  static 'ASTC6x6Unorm' = new TextureFormat(76)
+  static 'ASTC6x6UnormSrgb' = new TextureFormat(77)
+  static 'ASTC8x5Unorm' = new TextureFormat(78)
+  static 'ASTC8x5UnormSrgb' = new TextureFormat(79)
+  static 'ASTC8x6Unorm' = new TextureFormat(80)
+  static 'ASTC8x6UnormSrgb' = new TextureFormat(81)
+  static 'ASTC8x8Unorm' = new TextureFormat(82)
+  static 'ASTC8x8UnormSrgb' = new TextureFormat(83)
+  static 'ASTC10x5Unorm' = new TextureFormat(84)
+  static 'ASTC10x5UnormSrgb' = new TextureFormat(85)
+  static 'ASTC10x6Unorm' = new TextureFormat(86)
+  static 'ASTC10x6UnormSrgb' = new TextureFormat(87)
+  static 'ASTC10x8Unorm' = new TextureFormat(88)
+  static 'ASTC10x8UnormSrgb' = new TextureFormat(89)
+  static 'ASTC10x10Unorm' = new TextureFormat(90)
+  static 'ASTC10x10UnormSrgb' = new TextureFormat(91)
+  static 'ASTC12x10Unorm' = new TextureFormat(92)
+  static 'ASTC12x10UnormSrgb' = new TextureFormat(93)
+  static 'ASTC12x12Unorm' = new TextureFormat(94)
+  static 'ASTC12x12UnormSrgb' = new TextureFormat(95)
+  static 'R16Unorm' = new TextureFormat(327680)
+  static 'RG16Unorm' = new TextureFormat(327681)
+  static 'RGBA16Unorm' = new TextureFormat(327682)
+  static 'R16Snorm' = new TextureFormat(327683)
+  static 'RG16Snorm' = new TextureFormat(327684)
+  static 'RGBA16Snorm' = new TextureFormat(327685)
+  static 'R8BG8Biplanar420Unorm' = new TextureFormat(327686)
+  static 'R10X6BG10X6Biplanar420Unorm' = new TextureFormat(327687)
+  static 'R8BG8A8Triplanar420Unorm' = new TextureFormat(327688)
+  static 'R8BG8Biplanar422Unorm' = new TextureFormat(327689)
+  static 'R8BG8Biplanar444Unorm' = new TextureFormat(327690)
+  static 'R10X6BG10X6Biplanar422Unorm' = new TextureFormat(327691)
+  static 'R10X6BG10X6Biplanar444Unorm' = new TextureFormat(327692)
+  static 'External' = new TextureFormat(327693)
+  static 'Force32' = new TextureFormat(2147483647)
 }
-export class WGPUTextureSampleType extends c.U32 {
-  static 'BindingNotUsed' = new WGPUTextureSampleType(0)
-  static 'Float' = new WGPUTextureSampleType(1)
-  static 'UnfilterableFloat' = new WGPUTextureSampleType(2)
-  static 'Depth' = new WGPUTextureSampleType(3)
-  static 'Sint' = new WGPUTextureSampleType(4)
-  static 'Uint' = new WGPUTextureSampleType(5)
-  static 'Force32' = new WGPUTextureSampleType(2147483647)
+export class TextureSampleType extends c.U32 {
+  static 'BindingNotUsed' = new TextureSampleType(0)
+  static 'Float' = new TextureSampleType(1)
+  static 'UnfilterableFloat' = new TextureSampleType(2)
+  static 'Depth' = new TextureSampleType(3)
+  static 'Sint' = new TextureSampleType(4)
+  static 'Uint' = new TextureSampleType(5)
+  static 'Force32' = new TextureSampleType(2147483647)
 }
-export class WGPUTextureViewDimension extends c.U32 {
-  static 'Undefined' = new WGPUTextureViewDimension(0)
-  static '1D' = new WGPUTextureViewDimension(1)
-  static '2D' = new WGPUTextureViewDimension(2)
-  static '2DArray' = new WGPUTextureViewDimension(3)
-  static 'Cube' = new WGPUTextureViewDimension(4)
-  static 'CubeArray' = new WGPUTextureViewDimension(5)
-  static '3D' = new WGPUTextureViewDimension(6)
-  static 'Force32' = new WGPUTextureViewDimension(2147483647)
+export class TextureViewDimension extends c.U32 {
+  static 'Undefined' = new TextureViewDimension(0)
+  static '1D' = new TextureViewDimension(1)
+  static '2D' = new TextureViewDimension(2)
+  static '2DArray' = new TextureViewDimension(3)
+  static 'Cube' = new TextureViewDimension(4)
+  static 'CubeArray' = new TextureViewDimension(5)
+  static '3D' = new TextureViewDimension(6)
+  static 'Force32' = new TextureViewDimension(2147483647)
 }
-export class WGPUVertexFormat extends c.U32 {
-  static 'Uint8' = new WGPUVertexFormat(1)
-  static 'Uint8x2' = new WGPUVertexFormat(2)
-  static 'Uint8x4' = new WGPUVertexFormat(3)
-  static 'Sint8' = new WGPUVertexFormat(4)
-  static 'Sint8x2' = new WGPUVertexFormat(5)
-  static 'Sint8x4' = new WGPUVertexFormat(6)
-  static 'Unorm8' = new WGPUVertexFormat(7)
-  static 'Unorm8x2' = new WGPUVertexFormat(8)
-  static 'Unorm8x4' = new WGPUVertexFormat(9)
-  static 'Snorm8' = new WGPUVertexFormat(10)
-  static 'Snorm8x2' = new WGPUVertexFormat(11)
-  static 'Snorm8x4' = new WGPUVertexFormat(12)
-  static 'Uint16' = new WGPUVertexFormat(13)
-  static 'Uint16x2' = new WGPUVertexFormat(14)
-  static 'Uint16x4' = new WGPUVertexFormat(15)
-  static 'Sint16' = new WGPUVertexFormat(16)
-  static 'Sint16x2' = new WGPUVertexFormat(17)
-  static 'Sint16x4' = new WGPUVertexFormat(18)
-  static 'Unorm16' = new WGPUVertexFormat(19)
-  static 'Unorm16x2' = new WGPUVertexFormat(20)
-  static 'Unorm16x4' = new WGPUVertexFormat(21)
-  static 'Snorm16' = new WGPUVertexFormat(22)
-  static 'Snorm16x2' = new WGPUVertexFormat(23)
-  static 'Snorm16x4' = new WGPUVertexFormat(24)
-  static 'Float16' = new WGPUVertexFormat(25)
-  static 'Float16x2' = new WGPUVertexFormat(26)
-  static 'Float16x4' = new WGPUVertexFormat(27)
-  static 'Float32' = new WGPUVertexFormat(28)
-  static 'Float32x2' = new WGPUVertexFormat(29)
-  static 'Float32x3' = new WGPUVertexFormat(30)
-  static 'Float32x4' = new WGPUVertexFormat(31)
-  static 'Uint32' = new WGPUVertexFormat(32)
-  static 'Uint32x2' = new WGPUVertexFormat(33)
-  static 'Uint32x3' = new WGPUVertexFormat(34)
-  static 'Uint32x4' = new WGPUVertexFormat(35)
-  static 'Sint32' = new WGPUVertexFormat(36)
-  static 'Sint32x2' = new WGPUVertexFormat(37)
-  static 'Sint32x3' = new WGPUVertexFormat(38)
-  static 'Sint32x4' = new WGPUVertexFormat(39)
-  static 'Unorm10_10_10_2' = new WGPUVertexFormat(40)
-  static 'Unorm8x4BGRA' = new WGPUVertexFormat(41)
-  static 'Force32' = new WGPUVertexFormat(2147483647)
+export class VertexFormat extends c.U32 {
+  static 'Uint8' = new VertexFormat(1)
+  static 'Uint8x2' = new VertexFormat(2)
+  static 'Uint8x4' = new VertexFormat(3)
+  static 'Sint8' = new VertexFormat(4)
+  static 'Sint8x2' = new VertexFormat(5)
+  static 'Sint8x4' = new VertexFormat(6)
+  static 'Unorm8' = new VertexFormat(7)
+  static 'Unorm8x2' = new VertexFormat(8)
+  static 'Unorm8x4' = new VertexFormat(9)
+  static 'Snorm8' = new VertexFormat(10)
+  static 'Snorm8x2' = new VertexFormat(11)
+  static 'Snorm8x4' = new VertexFormat(12)
+  static 'Uint16' = new VertexFormat(13)
+  static 'Uint16x2' = new VertexFormat(14)
+  static 'Uint16x4' = new VertexFormat(15)
+  static 'Sint16' = new VertexFormat(16)
+  static 'Sint16x2' = new VertexFormat(17)
+  static 'Sint16x4' = new VertexFormat(18)
+  static 'Unorm16' = new VertexFormat(19)
+  static 'Unorm16x2' = new VertexFormat(20)
+  static 'Unorm16x4' = new VertexFormat(21)
+  static 'Snorm16' = new VertexFormat(22)
+  static 'Snorm16x2' = new VertexFormat(23)
+  static 'Snorm16x4' = new VertexFormat(24)
+  static 'Float16' = new VertexFormat(25)
+  static 'Float16x2' = new VertexFormat(26)
+  static 'Float16x4' = new VertexFormat(27)
+  static 'Float32' = new VertexFormat(28)
+  static 'Float32x2' = new VertexFormat(29)
+  static 'Float32x3' = new VertexFormat(30)
+  static 'Float32x4' = new VertexFormat(31)
+  static 'Uint32' = new VertexFormat(32)
+  static 'Uint32x2' = new VertexFormat(33)
+  static 'Uint32x3' = new VertexFormat(34)
+  static 'Uint32x4' = new VertexFormat(35)
+  static 'Sint32' = new VertexFormat(36)
+  static 'Sint32x2' = new VertexFormat(37)
+  static 'Sint32x3' = new VertexFormat(38)
+  static 'Sint32x4' = new VertexFormat(39)
+  static 'Unorm10_10_10_2' = new VertexFormat(40)
+  static 'Unorm8x4BGRA' = new VertexFormat(41)
+  static 'Force32' = new VertexFormat(2147483647)
 }
-export class WGPUVertexStepMode extends c.U32 {
-  static 'Undefined' = new WGPUVertexStepMode(0)
-  static 'Vertex' = new WGPUVertexStepMode(1)
-  static 'Instance' = new WGPUVertexStepMode(2)
-  static 'Force32' = new WGPUVertexStepMode(2147483647)
+export class VertexStepMode extends c.U32 {
+  static 'Undefined' = new VertexStepMode(0)
+  static 'Vertex' = new VertexStepMode(1)
+  static 'Instance' = new VertexStepMode(2)
+  static 'Force32' = new VertexStepMode(2147483647)
 }
-export class WGPUWaitStatus extends c.U32 {
-  static 'Success' = new WGPUWaitStatus(1)
-  static 'TimedOut' = new WGPUWaitStatus(2)
-  static 'UnsupportedTimeout' = new WGPUWaitStatus(3)
-  static 'UnsupportedCount' = new WGPUWaitStatus(4)
-  static 'UnsupportedMixedSources' = new WGPUWaitStatus(5)
-  static 'Unknown' = new WGPUWaitStatus(6)
-  static 'Force32' = new WGPUWaitStatus(2147483647)
+export class WaitStatus extends c.U32 {
+  static 'Success' = new WaitStatus(1)
+  static 'TimedOut' = new WaitStatus(2)
+  static 'UnsupportedTimeout' = new WaitStatus(3)
+  static 'UnsupportedCount' = new WaitStatus(4)
+  static 'UnsupportedMixedSources' = new WaitStatus(5)
+  static 'Unknown' = new WaitStatus(6)
+  static 'Force32' = new WaitStatus(2147483647)
 }
 
 // structs
-export class WGPUAdapterImpl extends c.Struct<[]> {}
-export class WGPUBindGroupImpl extends c.Struct<[]> {}
-export class WGPUBindGroupLayoutImpl extends c.Struct<[]> {}
-export class WGPUBufferImpl extends c.Struct<[]> {}
-export class WGPUCommandBufferImpl extends c.Struct<[]> {}
-export class WGPUCommandEncoderImpl extends c.Struct<[]> {}
-export class WGPUComputePassEncoderImpl extends c.Struct<[]> {}
-export class WGPUComputePipelineImpl extends c.Struct<[]> {}
-export class WGPUDeviceImpl extends c.Struct<[]> {}
-export class WGPUExternalTextureImpl extends c.Struct<[]> {}
-export class WGPUInstanceImpl extends c.Struct<[]> {}
-export class WGPUPipelineLayoutImpl extends c.Struct<[]> {}
-export class WGPUQuerySetImpl extends c.Struct<[]> {}
-export class WGPUQueueImpl extends c.Struct<[]> {}
-export class WGPURenderBundleImpl extends c.Struct<[]> {}
-export class WGPURenderBundleEncoderImpl extends c.Struct<[]> {}
-export class WGPURenderPassEncoderImpl extends c.Struct<[]> {}
-export class WGPURenderPipelineImpl extends c.Struct<[]> {}
-export class WGPUSamplerImpl extends c.Struct<[]> {}
-export class WGPUShaderModuleImpl extends c.Struct<[]> {}
-export class WGPUSharedBufferMemoryImpl extends c.Struct<[]> {}
-export class WGPUSharedFenceImpl extends c.Struct<[]> {}
-export class WGPUSharedTextureMemoryImpl extends c.Struct<[]> {}
-export class WGPUSurfaceImpl extends c.Struct<[]> {}
-export class WGPUTextureImpl extends c.Struct<[]> {}
-export class WGPUTextureViewImpl extends c.Struct<[]> {}
-export class WGPUINTERNAL__HAVE_EMDAWNWEBGPU_HEADER extends c.Struct<[unused: WGPUBool]> {}
-export class WGPUAdapterPropertiesD3D extends c.Struct<[chain: WGPUChainedStructOut, shaderModel: c.U32]> {}
-export class WGPUAdapterPropertiesSubgroups extends c.Struct<[chain: WGPUChainedStructOut, subgroupMinSize: c.U32, subgroupMaxSize: c.U32]> {}
-export class WGPUAdapterPropertiesVk extends c.Struct<[chain: WGPUChainedStructOut, driverVersion: c.U32]> {}
-export class WGPUBindGroupEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, binding: c.U32, buffer: WGPUBuffer, offset: c.U64, size: c.U64, sampler: WGPUSampler, textureView: WGPUTextureView]> {}
-export class WGPUBlendComponent extends c.Struct<[operation: WGPUBlendOperation, srcFactor: WGPUBlendFactor, dstFactor: WGPUBlendFactor]> {}
-export class WGPUBufferBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, type: WGPUBufferBindingType, hasDynamicOffset: WGPUBool, minBindingSize: c.U64]> {}
-export class WGPUBufferHostMappedPointer extends c.Struct<[chain: WGPUChainedStruct, pointer: c.Pointer<c.Void>, disposeCallback: WGPUCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPUBufferMapCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUBufferMapCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPUColor extends c.Struct<[r: c.F64, g: c.F64, b: c.F64, a: c.F64]> {}
-export class WGPUColorTargetStateExpandResolveTextureDawn extends c.Struct<[chain: WGPUChainedStruct, enabled: WGPUBool]> {}
-export class WGPUCompilationInfoCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCompilationInfoCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPUComputePassTimestampWrites extends c.Struct<[querySet: WGPUQuerySet, beginningOfPassWriteIndex: c.U32, endOfPassWriteIndex: c.U32]> {}
-export class WGPUCopyTextureForBrowserOptions extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, flipY: WGPUBool, needsColorSpaceConversion: WGPUBool, srcAlphaMode: WGPUAlphaMode, srcTransferFunctionParameters: c.Pointer<c.F32>, conversionMatrix: c.Pointer<c.F32>, dstTransferFunctionParameters: c.Pointer<c.F32>, dstAlphaMode: WGPUAlphaMode, internalUsage: WGPUBool]> {}
-export class WGPUCreateComputePipelineAsyncCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateComputePipelineAsyncCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPUCreateRenderPipelineAsyncCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateRenderPipelineAsyncCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPUDawnWGSLBlocklist extends c.Struct<[chain: WGPUChainedStruct, blocklistedFeatureCount: c.Size, blocklistedFeatures: c.Pointer<c.Pointer<c.U8>>]> {}
-export class WGPUDawnAdapterPropertiesPowerPreference extends c.Struct<[chain: WGPUChainedStructOut, powerPreference: WGPUPowerPreference]> {}
-export class WGPUDawnBufferDescriptorErrorInfoFromWireClient extends c.Struct<[chain: WGPUChainedStruct, outOfMemory: WGPUBool]> {}
-export class WGPUDawnEncoderInternalUsageDescriptor extends c.Struct<[chain: WGPUChainedStruct, useInternalUsages: WGPUBool]> {}
-export class WGPUDawnExperimentalImmediateDataLimits extends c.Struct<[chain: WGPUChainedStructOut, maxImmediateDataRangeByteSize: c.U32]> {}
-export class WGPUDawnExperimentalSubgroupLimits extends c.Struct<[chain: WGPUChainedStructOut, minSubgroupSize: c.U32, maxSubgroupSize: c.U32]> {}
-export class WGPUDawnRenderPassColorAttachmentRenderToSingleSampled extends c.Struct<[chain: WGPUChainedStruct, implicitSampleCount: c.U32]> {}
-export class WGPUDawnShaderModuleSPIRVOptionsDescriptor extends c.Struct<[chain: WGPUChainedStruct, allowNonUniformDerivatives: WGPUBool]> {}
-export class WGPUDawnTexelCopyBufferRowAlignmentLimits extends c.Struct<[chain: WGPUChainedStructOut, minTexelCopyBufferRowAlignment: c.U32]> {}
-export class WGPUDawnTextureInternalUsageDescriptor extends c.Struct<[chain: WGPUChainedStruct, internalUsage: WGPUTextureUsage]> {}
-export class WGPUDawnTogglesDescriptor extends c.Struct<[chain: WGPUChainedStruct, enabledToggleCount: c.Size, enabledToggles: c.Pointer<c.Pointer<c.U8>>, disabledToggleCount: c.Size, disabledToggles: c.Pointer<c.Pointer<c.U8>>]> {}
-export class WGPUDawnWireWGSLControl extends c.Struct<[chain: WGPUChainedStruct, enableExperimental: WGPUBool, enableUnsafe: WGPUBool, enableTesting: WGPUBool]> {}
-export class WGPUDeviceLostCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUDeviceLostCallbackNew, userdata: c.Pointer<c.Void>]> {}
-export class WGPUDrmFormatProperties extends c.Struct<[modifier: c.U64, modifierPlaneCount: c.U32]> {}
-export class WGPUExtent2D extends c.Struct<[width: c.U32, height: c.U32]> {}
-export class WGPUExtent3D extends c.Struct<[width: c.U32, height: c.U32, depthOrArrayLayers: c.U32]> {}
-export class WGPUExternalTextureBindingEntry extends c.Struct<[chain: WGPUChainedStruct, externalTexture: WGPUExternalTexture]> {}
-export class WGPUExternalTextureBindingLayout extends c.Struct<[chain: WGPUChainedStruct]> {}
-export class WGPUFormatCapabilities extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>]> {}
-export class WGPUFuture extends c.Struct<[id: c.U64]> {}
-export class WGPUInstanceFeatures extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, timedWaitAnyEnable: WGPUBool, timedWaitAnyMaxCount: c.Size]> {}
-export class WGPULimits extends c.Struct<[maxTextureDimension1D: c.U32, maxTextureDimension2D: c.U32, maxTextureDimension3D: c.U32, maxTextureArrayLayers: c.U32, maxBindGroups: c.U32, maxBindGroupsPlusVertexBuffers: c.U32, maxBindingsPerBindGroup: c.U32, maxDynamicUniformBuffersPerPipelineLayout: c.U32, maxDynamicStorageBuffersPerPipelineLayout: c.U32, maxSampledTexturesPerShaderStage: c.U32, maxSamplersPerShaderStage: c.U32, maxStorageBuffersPerShaderStage: c.U32, maxStorageTexturesPerShaderStage: c.U32, maxUniformBuffersPerShaderStage: c.U32, maxUniformBufferBindingSize: c.U64, maxStorageBufferBindingSize: c.U64, minUniformBufferOffsetAlignment: c.U32, minStorageBufferOffsetAlignment: c.U32, maxVertexBuffers: c.U32, maxBufferSize: c.U64, maxVertexAttributes: c.U32, maxVertexBufferArrayStride: c.U32, maxInterStageShaderComponents: c.U32, maxInterStageShaderVariables: c.U32, maxColorAttachments: c.U32, maxColorAttachmentBytesPerSample: c.U32, maxComputeWorkgroupStorageSize: c.U32, maxComputeInvocationsPerWorkgroup: c.U32, maxComputeWorkgroupSizeX: c.U32, maxComputeWorkgroupSizeY: c.U32, maxComputeWorkgroupSizeZ: c.U32, maxComputeWorkgroupsPerDimension: c.U32, maxStorageBuffersInVertexStage: c.U32, maxStorageTexturesInVertexStage: c.U32, maxStorageBuffersInFragmentStage: c.U32, maxStorageTexturesInFragmentStage: c.U32]> {}
-export class WGPUMemoryHeapInfo extends c.Struct<[properties: WGPUHeapProperty, size: c.U64]> {}
-export class WGPUMultisampleState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, count: c.U32, mask: c.U32, alphaToCoverageEnabled: WGPUBool]> {}
-export class WGPUOrigin2D extends c.Struct<[x: c.U32, y: c.U32]> {}
-export class WGPUOrigin3D extends c.Struct<[x: c.U32, y: c.U32, z: c.U32]> {}
-export class WGPUPipelineLayoutStorageAttachment extends c.Struct<[offset: c.U64, format: WGPUTextureFormat]> {}
-export class WGPUPopErrorScopeCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUPopErrorScopeCallback, oldCallback: WGPUErrorCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPUPrimitiveState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, topology: WGPUPrimitiveTopology, stripIndexFormat: WGPUIndexFormat, frontFace: WGPUFrontFace, cullMode: WGPUCullMode, unclippedDepth: WGPUBool]> {}
-export class WGPUQueueWorkDoneCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUQueueWorkDoneCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPURenderPassDepthStencilAttachment extends c.Struct<[view: WGPUTextureView, depthLoadOp: WGPULoadOp, depthStoreOp: WGPUStoreOp, depthClearValue: c.F32, depthReadOnly: WGPUBool, stencilLoadOp: WGPULoadOp, stencilStoreOp: WGPUStoreOp, stencilClearValue: c.U32, stencilReadOnly: WGPUBool]> {}
-export class WGPURenderPassDescriptorExpandResolveRect extends c.Struct<[chain: WGPUChainedStruct, x: c.U32, y: c.U32, width: c.U32, height: c.U32]> {}
-export class WGPURenderPassMaxDrawCount extends c.Struct<[chain: WGPUChainedStruct, maxDrawCount: c.U64]> {}
-export class WGPURenderPassTimestampWrites extends c.Struct<[querySet: WGPUQuerySet, beginningOfPassWriteIndex: c.U32, endOfPassWriteIndex: c.U32]> {}
-export class WGPURequestAdapterCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestAdapterCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPURequestAdapterOptions extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, compatibleSurface: WGPUSurface, featureLevel: WGPUFeatureLevel, powerPreference: WGPUPowerPreference, backendType: WGPUBackendType, forceFallbackAdapter: WGPUBool, compatibilityMode: WGPUBool]> {}
-export class WGPURequestDeviceCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestDeviceCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPUSamplerBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, type: WGPUSamplerBindingType]> {}
-export class WGPUShaderModuleCompilationOptions extends c.Struct<[chain: WGPUChainedStruct, strictMath: WGPUBool]> {}
-export class WGPUShaderSourceSPIRV extends c.Struct<[chain: WGPUChainedStruct, codeSize: c.U32, code: c.Pointer<c.U32>]> {}
-export class WGPUSharedBufferMemoryBeginAccessDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]> {}
-export class WGPUSharedBufferMemoryEndAccessState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]> {}
-export class WGPUSharedBufferMemoryProperties extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usage: WGPUBufferUsage, size: c.U64]> {}
-export class WGPUSharedFenceDXGISharedHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>]> {}
-export class WGPUSharedFenceDXGISharedHandleExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.Pointer<c.Void>]> {}
-export class WGPUSharedFenceMTLSharedEventDescriptor extends c.Struct<[chain: WGPUChainedStruct, sharedEvent: c.Pointer<c.Void>]> {}
-export class WGPUSharedFenceMTLSharedEventExportInfo extends c.Struct<[chain: WGPUChainedStructOut, sharedEvent: c.Pointer<c.Void>]> {}
-export class WGPUSharedFenceExportInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, type: WGPUSharedFenceType]> {}
-export class WGPUSharedFenceSyncFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.I32]> {}
-export class WGPUSharedFenceSyncFDExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.I32]> {}
-export class WGPUSharedFenceVkSemaphoreOpaqueFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.I32]> {}
-export class WGPUSharedFenceVkSemaphoreOpaqueFDExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.I32]> {}
-export class WGPUSharedFenceVkSemaphoreZirconHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.U32]> {}
-export class WGPUSharedFenceVkSemaphoreZirconHandleExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.U32]> {}
-export class WGPUSharedTextureMemoryD3DSwapchainBeginState extends c.Struct<[chain: WGPUChainedStruct, isSwapchain: WGPUBool]> {}
-export class WGPUSharedTextureMemoryDXGISharedHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>, useKeyedMutex: WGPUBool]> {}
-export class WGPUSharedTextureMemoryEGLImageDescriptor extends c.Struct<[chain: WGPUChainedStruct, image: c.Pointer<c.Void>]> {}
-export class WGPUSharedTextureMemoryIOSurfaceDescriptor extends c.Struct<[chain: WGPUChainedStruct, ioSurface: c.Pointer<c.Void>]> {}
-export class WGPUSharedTextureMemoryAHardwareBufferDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>, useExternalFormat: WGPUBool]> {}
-export class WGPUSharedTextureMemoryBeginAccessDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, concurrentRead: WGPUBool, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]> {}
-export class WGPUSharedTextureMemoryDmaBufPlane extends c.Struct<[fd: c.I32, offset: c.U64, stride: c.U32]> {}
-export class WGPUSharedTextureMemoryEndAccessState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]> {}
-export class WGPUSharedTextureMemoryOpaqueFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, vkImageCreateInfo: c.Pointer<c.Void>, memoryFD: c.I32, memoryTypeIndex: c.U32, allocationSize: c.U64, dedicatedAllocation: WGPUBool]> {}
-export class WGPUSharedTextureMemoryVkDedicatedAllocationDescriptor extends c.Struct<[chain: WGPUChainedStruct, dedicatedAllocation: WGPUBool]> {}
-export class WGPUSharedTextureMemoryVkImageLayoutBeginState extends c.Struct<[chain: WGPUChainedStruct, oldLayout: c.I32, newLayout: c.I32]> {}
-export class WGPUSharedTextureMemoryVkImageLayoutEndState extends c.Struct<[chain: WGPUChainedStructOut, oldLayout: c.I32, newLayout: c.I32]> {}
-export class WGPUSharedTextureMemoryZirconHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, memoryFD: c.U32, allocationSize: c.U64]> {}
-export class WGPUStaticSamplerBindingLayout extends c.Struct<[chain: WGPUChainedStruct, sampler: WGPUSampler, sampledTextureBinding: c.U32]> {}
-export class WGPUStencilFaceState extends c.Struct<[compare: WGPUCompareFunction, failOp: WGPUStencilOperation, depthFailOp: WGPUStencilOperation, passOp: WGPUStencilOperation]> {}
-export class WGPUStorageTextureBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, access: WGPUStorageTextureAccess, format: WGPUTextureFormat, viewDimension: WGPUTextureViewDimension]> {}
-export class WGPUStringView extends c.Struct<[data: c.Pointer<c.U8>, length: c.Size]> {}
-export class WGPUSupportedFeatures extends c.Struct<[featureCount: c.Size, features: c.Pointer<WGPUFeatureName>]> {}
-export class WGPUSurfaceCapabilities extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usages: WGPUTextureUsage, formatCount: c.Size, formats: c.Pointer<WGPUTextureFormat>, presentModeCount: c.Size, presentModes: c.Pointer<WGPUPresentMode>, alphaModeCount: c.Size, alphaModes: c.Pointer<WGPUCompositeAlphaMode>]> {}
-export class WGPUSurfaceConfiguration extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, device: WGPUDevice, format: WGPUTextureFormat, usage: WGPUTextureUsage, viewFormatCount: c.Size, viewFormats: c.Pointer<WGPUTextureFormat>, alphaMode: WGPUCompositeAlphaMode, width: c.U32, height: c.U32, presentMode: WGPUPresentMode]> {}
-export class WGPUSurfaceDescriptorFromWindowsCoreWindow extends c.Struct<[chain: WGPUChainedStruct, coreWindow: c.Pointer<c.Void>]> {}
-export class WGPUSurfaceDescriptorFromWindowsSwapChainPanel extends c.Struct<[chain: WGPUChainedStruct, swapChainPanel: c.Pointer<c.Void>]> {}
-export class WGPUSurfaceSourceXCBWindow extends c.Struct<[chain: WGPUChainedStruct, connection: c.Pointer<c.Void>, window: c.U32]> {}
-export class WGPUSurfaceSourceAndroidNativeWindow extends c.Struct<[chain: WGPUChainedStruct, window: c.Pointer<c.Void>]> {}
-export class WGPUSurfaceSourceMetalLayer extends c.Struct<[chain: WGPUChainedStruct, layer: c.Pointer<c.Void>]> {}
-export class WGPUSurfaceSourceWaylandSurface extends c.Struct<[chain: WGPUChainedStruct, display: c.Pointer<c.Void>, surface: c.Pointer<c.Void>]> {}
-export class WGPUSurfaceSourceWindowsHWND extends c.Struct<[chain: WGPUChainedStruct, hinstance: c.Pointer<c.Void>, hwnd: c.Pointer<c.Void>]> {}
-export class WGPUSurfaceSourceXlibWindow extends c.Struct<[chain: WGPUChainedStruct, display: c.Pointer<c.Void>, window: c.U64]> {}
-export class WGPUSurfaceTexture extends c.Struct<[texture: WGPUTexture, suboptimal: WGPUBool, status: WGPUSurfaceGetCurrentTextureStatus]> {}
-export class WGPUTextureBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, sampleType: WGPUTextureSampleType, viewDimension: WGPUTextureViewDimension, multisampled: WGPUBool]> {}
-export class WGPUTextureBindingViewDimensionDescriptor extends c.Struct<[chain: WGPUChainedStruct, textureBindingViewDimension: WGPUTextureViewDimension]> {}
-export class WGPUTextureDataLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, offset: c.U64, bytesPerRow: c.U32, rowsPerImage: c.U32]> {}
-export class WGPUUncapturedErrorCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, callback: WGPUErrorCallback, userdata: c.Pointer<c.Void>]> {}
-export class WGPUVertexAttribute extends c.Struct<[format: WGPUVertexFormat, offset: c.U64, shaderLocation: c.U32]> {}
-export class WGPUYCbCrVkDescriptor extends c.Struct<[chain: WGPUChainedStruct, vkFormat: c.U32, vkYCbCrModel: c.U32, vkYCbCrRange: c.U32, vkComponentSwizzleRed: c.U32, vkComponentSwizzleGreen: c.U32, vkComponentSwizzleBlue: c.U32, vkComponentSwizzleAlpha: c.U32, vkXChromaOffset: c.U32, vkYChromaOffset: c.U32, vkChromaFilter: WGPUFilterMode, forceExplicitReconstruction: WGPUBool, externalFormat: c.U64]> {}
-export class WGPUAHardwareBufferProperties extends c.Struct<[yCbCrInfo: WGPUYCbCrVkDescriptor]> {}
-export class WGPUAdapterInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, vendor: WGPUStringView, architecture: WGPUStringView, device: WGPUStringView, description: WGPUStringView, backendType: WGPUBackendType, adapterType: WGPUAdapterType, vendorID: c.U32, deviceID: c.U32, compatibilityMode: WGPUBool]> {}
-export class WGPUAdapterPropertiesMemoryHeaps extends c.Struct<[chain: WGPUChainedStructOut, heapCount: c.Size, heapInfo: c.Pointer<WGPUMemoryHeapInfo>]> {}
-export class WGPUBindGroupDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUBindGroupLayout, entryCount: c.Size, entries: c.Pointer<WGPUBindGroupEntry>]> {}
-export class WGPUBindGroupLayoutEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, binding: c.U32, visibility: WGPUShaderStage, buffer: WGPUBufferBindingLayout, sampler: WGPUSamplerBindingLayout, texture: WGPUTextureBindingLayout, storageTexture: WGPUStorageTextureBindingLayout]> {}
-export class WGPUBlendState extends c.Struct<[color: WGPUBlendComponent, alpha: WGPUBlendComponent]> {}
-export class WGPUBufferDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, usage: WGPUBufferUsage, size: c.U64, mappedAtCreation: WGPUBool]> {}
-export class WGPUCommandBufferDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPUCommandEncoderDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPUCompilationMessage extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, message: WGPUStringView, type: WGPUCompilationMessageType, lineNum: c.U64, linePos: c.U64, offset: c.U64, length: c.U64, utf16LinePos: c.U64, utf16Offset: c.U64, utf16Length: c.U64]> {}
-export class WGPUComputePassDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, timestampWrites: c.Pointer<WGPUComputePassTimestampWrites>]> {}
-export class WGPUConstantEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, key: WGPUStringView, value: c.F64]> {}
-export class WGPUDawnCacheDeviceDescriptor extends c.Struct<[chain: WGPUChainedStruct, isolationKey: WGPUStringView, loadDataFunction: WGPUDawnLoadCacheDataFunction, storeDataFunction: WGPUDawnStoreCacheDataFunction, functionUserdata: c.Pointer<c.Void>]> {}
-export class WGPUDepthStencilState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, format: WGPUTextureFormat, depthWriteEnabled: WGPUOptionalBool, depthCompare: WGPUCompareFunction, stencilFront: WGPUStencilFaceState, stencilBack: WGPUStencilFaceState, stencilReadMask: c.U32, stencilWriteMask: c.U32, depthBias: c.I32, depthBiasSlopeScale: c.F32, depthBiasClamp: c.F32]> {}
-export class WGPUDrmFormatCapabilities extends c.Struct<[chain: WGPUChainedStructOut, propertiesCount: c.Size, properties: c.Pointer<WGPUDrmFormatProperties>]> {}
-export class WGPUExternalTextureDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, plane0: WGPUTextureView, plane1: WGPUTextureView, cropOrigin: WGPUOrigin2D, cropSize: WGPUExtent2D, apparentSize: WGPUExtent2D, doYuvToRgbConversionOnly: WGPUBool, yuvToRgbConversionMatrix: c.Pointer<c.F32>, srcTransferFunctionParameters: c.Pointer<c.F32>, dstTransferFunctionParameters: c.Pointer<c.F32>, gamutConversionMatrix: c.Pointer<c.F32>, mirrored: WGPUBool, rotation: WGPUExternalTextureRotation]> {}
-export class WGPUFutureWaitInfo extends c.Struct<[future: WGPUFuture, completed: WGPUBool]> {}
-export class WGPUImageCopyBuffer extends c.Struct<[layout: WGPUTextureDataLayout, buffer: WGPUBuffer]> {}
-export class WGPUImageCopyExternalTexture extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, externalTexture: WGPUExternalTexture, origin: WGPUOrigin3D, naturalSize: WGPUExtent2D]> {}
-export class WGPUImageCopyTexture extends c.Struct<[texture: WGPUTexture, mipLevel: c.U32, origin: WGPUOrigin3D, aspect: WGPUTextureAspect]> {}
-export class WGPUInstanceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, features: WGPUInstanceFeatures]> {}
-export class WGPUPipelineLayoutDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, bindGroupLayoutCount: c.Size, bindGroupLayouts: c.Pointer<WGPUBindGroupLayout>, immediateDataRangeByteSize: c.U32]> {}
-export class WGPUPipelineLayoutPixelLocalStorage extends c.Struct<[chain: WGPUChainedStruct, totalPixelLocalStorageSize: c.U64, storageAttachmentCount: c.Size, storageAttachments: c.Pointer<WGPUPipelineLayoutStorageAttachment>]> {}
-export class WGPUQuerySetDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, type: WGPUQueryType, count: c.U32]> {}
-export class WGPUQueueDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPURenderBundleDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPURenderBundleEncoderDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, colorFormatCount: c.Size, colorFormats: c.Pointer<WGPUTextureFormat>, depthStencilFormat: WGPUTextureFormat, sampleCount: c.U32, depthReadOnly: WGPUBool, stencilReadOnly: WGPUBool]> {}
-export class WGPURenderPassColorAttachment extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, view: WGPUTextureView, depthSlice: c.U32, resolveTarget: WGPUTextureView, loadOp: WGPULoadOp, storeOp: WGPUStoreOp, clearValue: WGPUColor]> {}
-export class WGPURenderPassStorageAttachment extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, offset: c.U64, storage: WGPUTextureView, loadOp: WGPULoadOp, storeOp: WGPUStoreOp, clearValue: WGPUColor]> {}
-export class WGPURequiredLimits extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, limits: WGPULimits]> {}
-export class WGPUSamplerDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, addressModeU: WGPUAddressMode, addressModeV: WGPUAddressMode, addressModeW: WGPUAddressMode, magFilter: WGPUFilterMode, minFilter: WGPUFilterMode, mipmapFilter: WGPUMipmapFilterMode, lodMinClamp: c.F32, lodMaxClamp: c.F32, compare: WGPUCompareFunction, maxAnisotropy: c.U16]> {}
-export class WGPUShaderModuleDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPUShaderSourceWGSL extends c.Struct<[chain: WGPUChainedStruct, code: WGPUStringView]> {}
-export class WGPUSharedBufferMemoryDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPUSharedFenceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPUSharedTextureMemoryAHardwareBufferProperties extends c.Struct<[chain: WGPUChainedStructOut, yCbCrInfo: WGPUYCbCrVkDescriptor]> {}
-export class WGPUSharedTextureMemoryDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPUSharedTextureMemoryDmaBufDescriptor extends c.Struct<[chain: WGPUChainedStruct, size: WGPUExtent3D, drmFormat: c.U32, drmModifier: c.U64, planeCount: c.Size, planes: c.Pointer<WGPUSharedTextureMemoryDmaBufPlane>]> {}
-export class WGPUSharedTextureMemoryProperties extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usage: WGPUTextureUsage, size: WGPUExtent3D, format: WGPUTextureFormat]> {}
-export class WGPUSupportedLimits extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, limits: WGPULimits]> {}
-export class WGPUSurfaceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
-export class WGPUSurfaceSourceCanvasHTMLSelector_Emscripten extends c.Struct<[chain: WGPUChainedStruct, selector: WGPUStringView]> {}
-export class WGPUTextureDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, usage: WGPUTextureUsage, dimension: WGPUTextureDimension, size: WGPUExtent3D, format: WGPUTextureFormat, mipLevelCount: c.U32, sampleCount: c.U32, viewFormatCount: c.Size, viewFormats: c.Pointer<WGPUTextureFormat>]> {}
-export class WGPUTextureViewDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, format: WGPUTextureFormat, dimension: WGPUTextureViewDimension, baseMipLevel: c.U32, mipLevelCount: c.U32, baseArrayLayer: c.U32, arrayLayerCount: c.U32, aspect: WGPUTextureAspect, usage: WGPUTextureUsage]> {}
-export class WGPUVertexBufferLayout extends c.Struct<[arrayStride: c.U64, stepMode: WGPUVertexStepMode, attributeCount: c.Size, attributes: c.Pointer<WGPUVertexAttribute>]> {}
-export class WGPUBindGroupLayoutDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, entryCount: c.Size, entries: c.Pointer<WGPUBindGroupLayoutEntry>]> {}
-export class WGPUColorTargetState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, format: WGPUTextureFormat, blend: c.Pointer<WGPUBlendState>, writeMask: WGPUColorWriteMask]> {}
-export class WGPUCompilationInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, messageCount: c.Size, messages: c.Pointer<WGPUCompilationMessage>]> {}
-export class WGPUComputeState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>]> {}
-export class WGPUDeviceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, requiredFeatureCount: c.Size, requiredFeatures: c.Pointer<WGPUFeatureName>, requiredLimits: c.Pointer<WGPURequiredLimits>, defaultQueue: WGPUQueueDescriptor, deviceLostCallbackInfo2: WGPUDeviceLostCallbackInfo2, uncapturedErrorCallbackInfo2: WGPUUncapturedErrorCallbackInfo2]> {}
-export class WGPURenderPassDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, colorAttachmentCount: c.Size, colorAttachments: c.Pointer<WGPURenderPassColorAttachment>, depthStencilAttachment: c.Pointer<WGPURenderPassDepthStencilAttachment>, occlusionQuerySet: WGPUQuerySet, timestampWrites: c.Pointer<WGPURenderPassTimestampWrites>]> {}
-export class WGPURenderPassPixelLocalStorage extends c.Struct<[chain: WGPUChainedStruct, totalPixelLocalStorageSize: c.U64, storageAttachmentCount: c.Size, storageAttachments: c.Pointer<WGPURenderPassStorageAttachment>]> {}
-export class WGPUVertexState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>, bufferCount: c.Size, buffers: c.Pointer<WGPUVertexBufferLayout>]> {}
-export class WGPUComputePipelineDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUPipelineLayout, compute: WGPUComputeState]> {}
-export class WGPUFragmentState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>, targetCount: c.Size, targets: c.Pointer<WGPUColorTargetState>]> {}
-export class WGPURenderPipelineDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUPipelineLayout, vertex: WGPUVertexState, primitive: WGPUPrimitiveState, depthStencil: c.Pointer<WGPUDepthStencilState>, multisample: WGPUMultisampleState, fragment: c.Pointer<WGPUFragmentState>]> {}
-export class WGPUChainedStruct extends c.Struct<[next: c.Pointer<WGPUChainedStruct>, sType: WGPUSType]> {}
-export class WGPUChainedStructOut extends c.Struct<[next: c.Pointer<WGPUChainedStructOut>, sType: WGPUSType]> {}
-export class WGPUBufferMapCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUBufferMapCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPUCompilationInfoCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCompilationInfoCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPUCreateComputePipelineAsyncCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateComputePipelineAsyncCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPUCreateRenderPipelineAsyncCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateRenderPipelineAsyncCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPUDeviceLostCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUDeviceLostCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPUPopErrorScopeCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUPopErrorScopeCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPUQueueWorkDoneCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUQueueWorkDoneCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPURequestAdapterCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestAdapterCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPURequestDeviceCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestDeviceCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
-export class WGPUUncapturedErrorCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, callback: WGPUUncapturedErrorCallback, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class AdapterImpl extends c.Struct<[]> {}
+export class BindGroupImpl extends c.Struct<[]> {}
+export class BindGroupLayoutImpl extends c.Struct<[]> {}
+export class BufferImpl extends c.Struct<[]> {}
+export class CommandBufferImpl extends c.Struct<[]> {}
+export class CommandEncoderImpl extends c.Struct<[]> {}
+export class ComputePassEncoderImpl extends c.Struct<[]> {}
+export class ComputePipelineImpl extends c.Struct<[]> {}
+export class DeviceImpl extends c.Struct<[]> {}
+export class ExternalTextureImpl extends c.Struct<[]> {}
+export class InstanceImpl extends c.Struct<[]> {}
+export class PipelineLayoutImpl extends c.Struct<[]> {}
+export class QuerySetImpl extends c.Struct<[]> {}
+export class QueueImpl extends c.Struct<[]> {}
+export class RenderBundleImpl extends c.Struct<[]> {}
+export class RenderBundleEncoderImpl extends c.Struct<[]> {}
+export class RenderPassEncoderImpl extends c.Struct<[]> {}
+export class RenderPipelineImpl extends c.Struct<[]> {}
+export class SamplerImpl extends c.Struct<[]> {}
+export class ShaderModuleImpl extends c.Struct<[]> {}
+export class SharedBufferMemoryImpl extends c.Struct<[]> {}
+export class SharedFenceImpl extends c.Struct<[]> {}
+export class SharedTextureMemoryImpl extends c.Struct<[]> {}
+export class SurfaceImpl extends c.Struct<[]> {}
+export class TextureImpl extends c.Struct<[]> {}
+export class TextureViewImpl extends c.Struct<[]> {}
+export class INTERNAL__HAVE_EMDAWNWEBGPU_HEADER extends c.Struct<[unused: Bool]> {}
+export class AdapterPropertiesD3D extends c.Struct<[chain: ChainedStructOut, shaderModel: c.U32]> {}
+export class AdapterPropertiesSubgroups extends c.Struct<[chain: ChainedStructOut, subgroupMinSize: c.U32, subgroupMaxSize: c.U32]> {}
+export class AdapterPropertiesVk extends c.Struct<[chain: ChainedStructOut, driverVersion: c.U32]> {}
+export class BindGroupEntry extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, binding: c.U32, buffer: Buffer, offset: c.U64, size: c.U64, sampler: Sampler, textureView: TextureView]> {}
+export class BlendComponent extends c.Struct<[operation: BlendOperation, srcFactor: BlendFactor, dstFactor: BlendFactor]> {}
+export class BufferBindingLayout extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, type: BufferBindingType, hasDynamicOffset: Bool, minBindingSize: c.U64]> {}
+export class BufferHostMappedPointer extends c.Struct<[chain: ChainedStruct, pointer: c.Pointer<c.Void>, disposeCallback: Callback, userdata: c.Pointer<c.Void>]> {}
+export class BufferMapCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: BufferMapCallback, userdata: c.Pointer<c.Void>]> {}
+export class Color extends c.Struct<[r: c.F64, g: c.F64, b: c.F64, a: c.F64]> {}
+export class ColorTargetStateExpandResolveTextureDawn extends c.Struct<[chain: ChainedStruct, enabled: Bool]> {}
+export class CompilationInfoCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: CompilationInfoCallback, userdata: c.Pointer<c.Void>]> {}
+export class ComputePassTimestampWrites extends c.Struct<[querySet: QuerySet, beginningOfPassWriteIndex: c.U32, endOfPassWriteIndex: c.U32]> {}
+export class CopyTextureForBrowserOptions extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, flipY: Bool, needsColorSpaceConversion: Bool, srcAlphaMode: AlphaMode, srcTransferFunctionParameters: c.Pointer<c.F32>, conversionMatrix: c.Pointer<c.F32>, dstTransferFunctionParameters: c.Pointer<c.F32>, dstAlphaMode: AlphaMode, internalUsage: Bool]> {}
+export class CreateComputePipelineAsyncCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: CreateComputePipelineAsyncCallback, userdata: c.Pointer<c.Void>]> {}
+export class CreateRenderPipelineAsyncCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: CreateRenderPipelineAsyncCallback, userdata: c.Pointer<c.Void>]> {}
+export class DawnWGSLBlocklist extends c.Struct<[chain: ChainedStruct, blocklistedFeatureCount: c.Size, blocklistedFeatures: c.Pointer<c.Pointer<c.U8>>]> {}
+export class DawnAdapterPropertiesPowerPreference extends c.Struct<[chain: ChainedStructOut, powerPreference: PowerPreference]> {}
+export class DawnBufferDescriptorErrorInfoFromWireClient extends c.Struct<[chain: ChainedStruct, outOfMemory: Bool]> {}
+export class DawnEncoderInternalUsageDescriptor extends c.Struct<[chain: ChainedStruct, useInternalUsages: Bool]> {}
+export class DawnExperimentalImmediateDataLimits extends c.Struct<[chain: ChainedStructOut, maxImmediateDataRangeByteSize: c.U32]> {}
+export class DawnExperimentalSubgroupLimits extends c.Struct<[chain: ChainedStructOut, minSubgroupSize: c.U32, maxSubgroupSize: c.U32]> {}
+export class DawnRenderPassColorAttachmentRenderToSingleSampled extends c.Struct<[chain: ChainedStruct, implicitSampleCount: c.U32]> {}
+export class DawnShaderModuleSPIRVOptionsDescriptor extends c.Struct<[chain: ChainedStruct, allowNonUniformDerivatives: Bool]> {}
+export class DawnTexelCopyBufferRowAlignmentLimits extends c.Struct<[chain: ChainedStructOut, minTexelCopyBufferRowAlignment: c.U32]> {}
+export class DawnTextureInternalUsageDescriptor extends c.Struct<[chain: ChainedStruct, internalUsage: TextureUsage]> {}
+export class DawnTogglesDescriptor extends c.Struct<[chain: ChainedStruct, enabledToggleCount: c.Size, enabledToggles: c.Pointer<c.Pointer<c.U8>>, disabledToggleCount: c.Size, disabledToggles: c.Pointer<c.Pointer<c.U8>>]> {}
+export class DawnWireWGSLControl extends c.Struct<[chain: ChainedStruct, enableExperimental: Bool, enableUnsafe: Bool, enableTesting: Bool]> {}
+export class DeviceLostCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: DeviceLostCallbackNew, userdata: c.Pointer<c.Void>]> {}
+export class DrmFormatProperties extends c.Struct<[modifier: c.U64, modifierPlaneCount: c.U32]> {}
+export class Extent2D extends c.Struct<[width: c.U32, height: c.U32]> {}
+export class Extent3D extends c.Struct<[width: c.U32, height: c.U32, depthOrArrayLayers: c.U32]> {}
+export class ExternalTextureBindingEntry extends c.Struct<[chain: ChainedStruct, externalTexture: ExternalTexture]> {}
+export class ExternalTextureBindingLayout extends c.Struct<[chain: ChainedStruct]> {}
+export class FormatCapabilities extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>]> {}
+export class Future extends c.Struct<[id: c.U64]> {}
+export class InstanceFeatures extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, timedWaitAnyEnable: Bool, timedWaitAnyMaxCount: c.Size]> {}
+export class Limits extends c.Struct<[maxTextureDimension1D: c.U32, maxTextureDimension2D: c.U32, maxTextureDimension3D: c.U32, maxTextureArrayLayers: c.U32, maxBindGroups: c.U32, maxBindGroupsPlusVertexBuffers: c.U32, maxBindingsPerBindGroup: c.U32, maxDynamicUniformBuffersPerPipelineLayout: c.U32, maxDynamicStorageBuffersPerPipelineLayout: c.U32, maxSampledTexturesPerShaderStage: c.U32, maxSamplersPerShaderStage: c.U32, maxStorageBuffersPerShaderStage: c.U32, maxStorageTexturesPerShaderStage: c.U32, maxUniformBuffersPerShaderStage: c.U32, maxUniformBufferBindingSize: c.U64, maxStorageBufferBindingSize: c.U64, minUniformBufferOffsetAlignment: c.U32, minStorageBufferOffsetAlignment: c.U32, maxVertexBuffers: c.U32, maxBufferSize: c.U64, maxVertexAttributes: c.U32, maxVertexBufferArrayStride: c.U32, maxInterStageShaderComponents: c.U32, maxInterStageShaderVariables: c.U32, maxColorAttachments: c.U32, maxColorAttachmentBytesPerSample: c.U32, maxComputeWorkgroupStorageSize: c.U32, maxComputeInvocationsPerWorkgroup: c.U32, maxComputeWorkgroupSizeX: c.U32, maxComputeWorkgroupSizeY: c.U32, maxComputeWorkgroupSizeZ: c.U32, maxComputeWorkgroupsPerDimension: c.U32, maxStorageBuffersInVertexStage: c.U32, maxStorageTexturesInVertexStage: c.U32, maxStorageBuffersInFragmentStage: c.U32, maxStorageTexturesInFragmentStage: c.U32]> {}
+export class MemoryHeapInfo extends c.Struct<[properties: HeapProperty, size: c.U64]> {}
+export class MultisampleState extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, count: c.U32, mask: c.U32, alphaToCoverageEnabled: Bool]> {}
+export class Origin2D extends c.Struct<[x: c.U32, y: c.U32]> {}
+export class Origin3D extends c.Struct<[x: c.U32, y: c.U32, z: c.U32]> {}
+export class PipelineLayoutStorageAttachment extends c.Struct<[offset: c.U64, format: TextureFormat]> {}
+export class PopErrorScopeCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: PopErrorScopeCallback, oldCallback: ErrorCallback, userdata: c.Pointer<c.Void>]> {}
+export class PrimitiveState extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, topology: PrimitiveTopology, stripIndexFormat: IndexFormat, frontFace: FrontFace, cullMode: CullMode, unclippedDepth: Bool]> {}
+export class QueueWorkDoneCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: QueueWorkDoneCallback, userdata: c.Pointer<c.Void>]> {}
+export class RenderPassDepthStencilAttachment extends c.Struct<[view: TextureView, depthLoadOp: LoadOp, depthStoreOp: StoreOp, depthClearValue: c.F32, depthReadOnly: Bool, stencilLoadOp: LoadOp, stencilStoreOp: StoreOp, stencilClearValue: c.U32, stencilReadOnly: Bool]> {}
+export class RenderPassDescriptorExpandResolveRect extends c.Struct<[chain: ChainedStruct, x: c.U32, y: c.U32, width: c.U32, height: c.U32]> {}
+export class RenderPassMaxDrawCount extends c.Struct<[chain: ChainedStruct, maxDrawCount: c.U64]> {}
+export class RenderPassTimestampWrites extends c.Struct<[querySet: QuerySet, beginningOfPassWriteIndex: c.U32, endOfPassWriteIndex: c.U32]> {}
+export class RequestAdapterCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: RequestAdapterCallback, userdata: c.Pointer<c.Void>]> {}
+export class RequestAdapterOptions extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, compatibleSurface: Surface, featureLevel: FeatureLevel, powerPreference: PowerPreference, backendType: BackendType, forceFallbackAdapter: Bool, compatibilityMode: Bool]> {}
+export class RequestDeviceCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: RequestDeviceCallback, userdata: c.Pointer<c.Void>]> {}
+export class SamplerBindingLayout extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, type: SamplerBindingType]> {}
+export class ShaderModuleCompilationOptions extends c.Struct<[chain: ChainedStruct, strictMath: Bool]> {}
+export class ShaderSourceSPIRV extends c.Struct<[chain: ChainedStruct, codeSize: c.U32, code: c.Pointer<c.U32>]> {}
+export class SharedBufferMemoryBeginAccessDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, initialized: Bool, fenceCount: c.Size, fences: c.Pointer<SharedFence>, signaledValues: c.Pointer<c.U64>]> {}
+export class SharedBufferMemoryEndAccessState extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>, initialized: Bool, fenceCount: c.Size, fences: c.Pointer<SharedFence>, signaledValues: c.Pointer<c.U64>]> {}
+export class SharedBufferMemoryProperties extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>, usage: BufferUsage, size: c.U64]> {}
+export class SharedFenceDXGISharedHandleDescriptor extends c.Struct<[chain: ChainedStruct, handle: c.Pointer<c.Void>]> {}
+export class SharedFenceDXGISharedHandleExportInfo extends c.Struct<[chain: ChainedStructOut, handle: c.Pointer<c.Void>]> {}
+export class SharedFenceMTLSharedEventDescriptor extends c.Struct<[chain: ChainedStruct, sharedEvent: c.Pointer<c.Void>]> {}
+export class SharedFenceMTLSharedEventExportInfo extends c.Struct<[chain: ChainedStructOut, sharedEvent: c.Pointer<c.Void>]> {}
+export class SharedFenceExportInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>, type: SharedFenceType]> {}
+export class SharedFenceSyncFDDescriptor extends c.Struct<[chain: ChainedStruct, handle: c.I32]> {}
+export class SharedFenceSyncFDExportInfo extends c.Struct<[chain: ChainedStructOut, handle: c.I32]> {}
+export class SharedFenceVkSemaphoreOpaqueFDDescriptor extends c.Struct<[chain: ChainedStruct, handle: c.I32]> {}
+export class SharedFenceVkSemaphoreOpaqueFDExportInfo extends c.Struct<[chain: ChainedStructOut, handle: c.I32]> {}
+export class SharedFenceVkSemaphoreZirconHandleDescriptor extends c.Struct<[chain: ChainedStruct, handle: c.U32]> {}
+export class SharedFenceVkSemaphoreZirconHandleExportInfo extends c.Struct<[chain: ChainedStructOut, handle: c.U32]> {}
+export class SharedTextureMemoryD3DSwapchainBeginState extends c.Struct<[chain: ChainedStruct, isSwapchain: Bool]> {}
+export class SharedTextureMemoryDXGISharedHandleDescriptor extends c.Struct<[chain: ChainedStruct, handle: c.Pointer<c.Void>, useKeyedMutex: Bool]> {}
+export class SharedTextureMemoryEGLImageDescriptor extends c.Struct<[chain: ChainedStruct, image: c.Pointer<c.Void>]> {}
+export class SharedTextureMemoryIOSurfaceDescriptor extends c.Struct<[chain: ChainedStruct, ioSurface: c.Pointer<c.Void>]> {}
+export class SharedTextureMemoryAHardwareBufferDescriptor extends c.Struct<[chain: ChainedStruct, handle: c.Pointer<c.Void>, useExternalFormat: Bool]> {}
+export class SharedTextureMemoryBeginAccessDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, concurrentRead: Bool, initialized: Bool, fenceCount: c.Size, fences: c.Pointer<SharedFence>, signaledValues: c.Pointer<c.U64>]> {}
+export class SharedTextureMemoryDmaBufPlane extends c.Struct<[fd: c.I32, offset: c.U64, stride: c.U32]> {}
+export class SharedTextureMemoryEndAccessState extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>, initialized: Bool, fenceCount: c.Size, fences: c.Pointer<SharedFence>, signaledValues: c.Pointer<c.U64>]> {}
+export class SharedTextureMemoryOpaqueFDDescriptor extends c.Struct<[chain: ChainedStruct, vkImageCreateInfo: c.Pointer<c.Void>, memoryFD: c.I32, memoryTypeIndex: c.U32, allocationSize: c.U64, dedicatedAllocation: Bool]> {}
+export class SharedTextureMemoryVkDedicatedAllocationDescriptor extends c.Struct<[chain: ChainedStruct, dedicatedAllocation: Bool]> {}
+export class SharedTextureMemoryVkImageLayoutBeginState extends c.Struct<[chain: ChainedStruct, oldLayout: c.I32, newLayout: c.I32]> {}
+export class SharedTextureMemoryVkImageLayoutEndState extends c.Struct<[chain: ChainedStructOut, oldLayout: c.I32, newLayout: c.I32]> {}
+export class SharedTextureMemoryZirconHandleDescriptor extends c.Struct<[chain: ChainedStruct, memoryFD: c.U32, allocationSize: c.U64]> {}
+export class StaticSamplerBindingLayout extends c.Struct<[chain: ChainedStruct, sampler: Sampler, sampledTextureBinding: c.U32]> {}
+export class StencilFaceState extends c.Struct<[compare: CompareFunction, failOp: StencilOperation, depthFailOp: StencilOperation, passOp: StencilOperation]> {}
+export class StorageTextureBindingLayout extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, access: StorageTextureAccess, format: TextureFormat, viewDimension: TextureViewDimension]> {}
+export class StringView extends c.Struct<[data: c.Pointer<c.U8>, length: c.Size]> {}
+export class SupportedFeatures extends c.Struct<[featureCount: c.Size, features: c.Pointer<FeatureName>]> {}
+export class SurfaceCapabilities extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>, usages: TextureUsage, formatCount: c.Size, formats: c.Pointer<TextureFormat>, presentModeCount: c.Size, presentModes: c.Pointer<PresentMode>, alphaModeCount: c.Size, alphaModes: c.Pointer<CompositeAlphaMode>]> {}
+export class SurfaceConfiguration extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, device: Device, format: TextureFormat, usage: TextureUsage, viewFormatCount: c.Size, viewFormats: c.Pointer<TextureFormat>, alphaMode: CompositeAlphaMode, width: c.U32, height: c.U32, presentMode: PresentMode]> {}
+export class SurfaceDescriptorFromWindowsCoreWindow extends c.Struct<[chain: ChainedStruct, coreWindow: c.Pointer<c.Void>]> {}
+export class SurfaceDescriptorFromWindowsSwapChainPanel extends c.Struct<[chain: ChainedStruct, swapChainPanel: c.Pointer<c.Void>]> {}
+export class SurfaceSourceXCBWindow extends c.Struct<[chain: ChainedStruct, connection: c.Pointer<c.Void>, window: c.U32]> {}
+export class SurfaceSourceAndroidNativeWindow extends c.Struct<[chain: ChainedStruct, window: c.Pointer<c.Void>]> {}
+export class SurfaceSourceMetalLayer extends c.Struct<[chain: ChainedStruct, layer: c.Pointer<c.Void>]> {}
+export class SurfaceSourceWaylandSurface extends c.Struct<[chain: ChainedStruct, display: c.Pointer<c.Void>, surface: c.Pointer<c.Void>]> {}
+export class SurfaceSourceWindowsHWND extends c.Struct<[chain: ChainedStruct, hinstance: c.Pointer<c.Void>, hwnd: c.Pointer<c.Void>]> {}
+export class SurfaceSourceXlibWindow extends c.Struct<[chain: ChainedStruct, display: c.Pointer<c.Void>, window: c.U64]> {}
+export class SurfaceTexture extends c.Struct<[texture: Texture, suboptimal: Bool, status: SurfaceGetCurrentTextureStatus]> {}
+export class TextureBindingLayout extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, sampleType: TextureSampleType, viewDimension: TextureViewDimension, multisampled: Bool]> {}
+export class TextureBindingViewDimensionDescriptor extends c.Struct<[chain: ChainedStruct, textureBindingViewDimension: TextureViewDimension]> {}
+export class TextureDataLayout extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, offset: c.U64, bytesPerRow: c.U32, rowsPerImage: c.U32]> {}
+export class UncapturedErrorCallbackInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, callback: ErrorCallback, userdata: c.Pointer<c.Void>]> {}
+export class VertexAttribute extends c.Struct<[format: VertexFormat, offset: c.U64, shaderLocation: c.U32]> {}
+export class YCbCrVkDescriptor extends c.Struct<[chain: ChainedStruct, vkFormat: c.U32, vkYCbCrModel: c.U32, vkYCbCrRange: c.U32, vkComponentSwizzleRed: c.U32, vkComponentSwizzleGreen: c.U32, vkComponentSwizzleBlue: c.U32, vkComponentSwizzleAlpha: c.U32, vkXChromaOffset: c.U32, vkYChromaOffset: c.U32, vkChromaFilter: FilterMode, forceExplicitReconstruction: Bool, externalFormat: c.U64]> {}
+export class AHardwareBufferProperties extends c.Struct<[yCbCrInfo: YCbCrVkDescriptor]> {}
+export class AdapterInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>, vendor: StringView, architecture: StringView, device: StringView, description: StringView, backendType: BackendType, adapterType: AdapterType, vendorID: c.U32, deviceID: c.U32, compatibilityMode: Bool]> {}
+export class AdapterPropertiesMemoryHeaps extends c.Struct<[chain: ChainedStructOut, heapCount: c.Size, heapInfo: c.Pointer<MemoryHeapInfo>]> {}
+export class BindGroupDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, layout: BindGroupLayout, entryCount: c.Size, entries: c.Pointer<BindGroupEntry>]> {}
+export class BindGroupLayoutEntry extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, binding: c.U32, visibility: ShaderStage, buffer: BufferBindingLayout, sampler: SamplerBindingLayout, texture: TextureBindingLayout, storageTexture: StorageTextureBindingLayout]> {}
+export class BlendState extends c.Struct<[color: BlendComponent, alpha: BlendComponent]> {}
+export class BufferDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, usage: BufferUsage, size: c.U64, mappedAtCreation: Bool]> {}
+export class CommandBufferDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class CommandEncoderDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class CompilationMessage extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, message: StringView, type: CompilationMessageType, lineNum: c.U64, linePos: c.U64, offset: c.U64, length: c.U64, utf16LinePos: c.U64, utf16Offset: c.U64, utf16Length: c.U64]> {}
+export class ComputePassDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, timestampWrites: c.Pointer<ComputePassTimestampWrites>]> {}
+export class ConstantEntry extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, key: StringView, value: c.F64]> {}
+export class DawnCacheDeviceDescriptor extends c.Struct<[chain: ChainedStruct, isolationKey: StringView, loadDataFunction: DawnLoadCacheDataFunction, storeDataFunction: DawnStoreCacheDataFunction, functionUserdata: c.Pointer<c.Void>]> {}
+export class DepthStencilState extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, format: TextureFormat, depthWriteEnabled: OptionalBool, depthCompare: CompareFunction, stencilFront: StencilFaceState, stencilBack: StencilFaceState, stencilReadMask: c.U32, stencilWriteMask: c.U32, depthBias: c.I32, depthBiasSlopeScale: c.F32, depthBiasClamp: c.F32]> {}
+export class DrmFormatCapabilities extends c.Struct<[chain: ChainedStructOut, propertiesCount: c.Size, properties: c.Pointer<DrmFormatProperties>]> {}
+export class ExternalTextureDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, plane0: TextureView, plane1: TextureView, cropOrigin: Origin2D, cropSize: Extent2D, apparentSize: Extent2D, doYuvToRgbConversionOnly: Bool, yuvToRgbConversionMatrix: c.Pointer<c.F32>, srcTransferFunctionParameters: c.Pointer<c.F32>, dstTransferFunctionParameters: c.Pointer<c.F32>, gamutConversionMatrix: c.Pointer<c.F32>, mirrored: Bool, rotation: ExternalTextureRotation]> {}
+export class FutureWaitInfo extends c.Struct<[future: Future, completed: Bool]> {}
+export class ImageCopyBuffer extends c.Struct<[layout: TextureDataLayout, buffer: Buffer]> {}
+export class ImageCopyExternalTexture extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, externalTexture: ExternalTexture, origin: Origin3D, naturalSize: Extent2D]> {}
+export class ImageCopyTexture extends c.Struct<[texture: Texture, mipLevel: c.U32, origin: Origin3D, aspect: TextureAspect]> {}
+export class InstanceDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, features: InstanceFeatures]> {}
+export class PipelineLayoutDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, bindGroupLayoutCount: c.Size, bindGroupLayouts: c.Pointer<BindGroupLayout>, immediateDataRangeByteSize: c.U32]> {}
+export class PipelineLayoutPixelLocalStorage extends c.Struct<[chain: ChainedStruct, totalPixelLocalStorageSize: c.U64, storageAttachmentCount: c.Size, storageAttachments: c.Pointer<PipelineLayoutStorageAttachment>]> {}
+export class QuerySetDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, type: QueryType, count: c.U32]> {}
+export class QueueDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class RenderBundleDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class RenderBundleEncoderDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, colorFormatCount: c.Size, colorFormats: c.Pointer<TextureFormat>, depthStencilFormat: TextureFormat, sampleCount: c.U32, depthReadOnly: Bool, stencilReadOnly: Bool]> {}
+export class RenderPassColorAttachment extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, view: TextureView, depthSlice: c.U32, resolveTarget: TextureView, loadOp: LoadOp, storeOp: StoreOp, clearValue: Color]> {}
+export class RenderPassStorageAttachment extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, offset: c.U64, storage: TextureView, loadOp: LoadOp, storeOp: StoreOp, clearValue: Color]> {}
+export class RequiredLimits extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, limits: Limits]> {}
+export class SamplerDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, addressModeU: AddressMode, addressModeV: AddressMode, addressModeW: AddressMode, magFilter: FilterMode, minFilter: FilterMode, mipmapFilter: MipmapFilterMode, lodMinClamp: c.F32, lodMaxClamp: c.F32, compare: CompareFunction, maxAnisotropy: c.U16]> {}
+export class ShaderModuleDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class ShaderSourceWGSL extends c.Struct<[chain: ChainedStruct, code: StringView]> {}
+export class SharedBufferMemoryDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class SharedFenceDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class SharedTextureMemoryAHardwareBufferProperties extends c.Struct<[chain: ChainedStructOut, yCbCrInfo: YCbCrVkDescriptor]> {}
+export class SharedTextureMemoryDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class SharedTextureMemoryDmaBufDescriptor extends c.Struct<[chain: ChainedStruct, size: Extent3D, drmFormat: c.U32, drmModifier: c.U64, planeCount: c.Size, planes: c.Pointer<SharedTextureMemoryDmaBufPlane>]> {}
+export class SharedTextureMemoryProperties extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>, usage: TextureUsage, size: Extent3D, format: TextureFormat]> {}
+export class SupportedLimits extends c.Struct<[nextInChain: c.Pointer<ChainedStructOut>, limits: Limits]> {}
+export class SurfaceDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView]> {}
+export class SurfaceSourceCanvasHTMLSelector_Emscripten extends c.Struct<[chain: ChainedStruct, selector: StringView]> {}
+export class TextureDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, usage: TextureUsage, dimension: TextureDimension, size: Extent3D, format: TextureFormat, mipLevelCount: c.U32, sampleCount: c.U32, viewFormatCount: c.Size, viewFormats: c.Pointer<TextureFormat>]> {}
+export class TextureViewDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, format: TextureFormat, dimension: TextureViewDimension, baseMipLevel: c.U32, mipLevelCount: c.U32, baseArrayLayer: c.U32, arrayLayerCount: c.U32, aspect: TextureAspect, usage: TextureUsage]> {}
+export class VertexBufferLayout extends c.Struct<[arrayStride: c.U64, stepMode: VertexStepMode, attributeCount: c.Size, attributes: c.Pointer<VertexAttribute>]> {}
+export class BindGroupLayoutDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, entryCount: c.Size, entries: c.Pointer<BindGroupLayoutEntry>]> {}
+export class ColorTargetState extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, format: TextureFormat, blend: c.Pointer<BlendState>, writeMask: ColorWriteMask]> {}
+export class CompilationInfo extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, messageCount: c.Size, messages: c.Pointer<CompilationMessage>]> {}
+export class ComputeState extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, module: ShaderModule, entryPoint: StringView, constantCount: c.Size, constants: c.Pointer<ConstantEntry>]> {}
+export class DeviceDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, requiredFeatureCount: c.Size, requiredFeatures: c.Pointer<FeatureName>, requiredLimits: c.Pointer<RequiredLimits>, defaultQueue: QueueDescriptor, deviceLostCallbackInfo2: DeviceLostCallbackInfo2, uncapturedErrorCallbackInfo2: UncapturedErrorCallbackInfo2]> {}
+export class RenderPassDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, colorAttachmentCount: c.Size, colorAttachments: c.Pointer<RenderPassColorAttachment>, depthStencilAttachment: c.Pointer<RenderPassDepthStencilAttachment>, occlusionQuerySet: QuerySet, timestampWrites: c.Pointer<RenderPassTimestampWrites>]> {}
+export class RenderPassPixelLocalStorage extends c.Struct<[chain: ChainedStruct, totalPixelLocalStorageSize: c.U64, storageAttachmentCount: c.Size, storageAttachments: c.Pointer<RenderPassStorageAttachment>]> {}
+export class VertexState extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, module: ShaderModule, entryPoint: StringView, constantCount: c.Size, constants: c.Pointer<ConstantEntry>, bufferCount: c.Size, buffers: c.Pointer<VertexBufferLayout>]> {}
+export class ComputePipelineDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, layout: PipelineLayout, compute: ComputeState]> {}
+export class FragmentState extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, module: ShaderModule, entryPoint: StringView, constantCount: c.Size, constants: c.Pointer<ConstantEntry>, targetCount: c.Size, targets: c.Pointer<ColorTargetState>]> {}
+export class RenderPipelineDescriptor extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, label: StringView, layout: PipelineLayout, vertex: VertexState, primitive: PrimitiveState, depthStencil: c.Pointer<DepthStencilState>, multisample: MultisampleState, fragment: c.Pointer<FragmentState>]> {}
+export class ChainedStruct extends c.Struct<[next: c.Pointer<ChainedStruct>, sType: SType]> {}
+export class ChainedStructOut extends c.Struct<[next: c.Pointer<ChainedStructOut>, sType: SType]> {}
+export class BufferMapCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: BufferMapCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class CompilationInfoCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: CompilationInfoCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class CreateComputePipelineAsyncCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: CreateComputePipelineAsyncCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class CreateRenderPipelineAsyncCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: CreateRenderPipelineAsyncCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class DeviceLostCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: DeviceLostCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class PopErrorScopeCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: PopErrorScopeCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class QueueWorkDoneCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: QueueWorkDoneCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class RequestAdapterCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: RequestAdapterCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class RequestDeviceCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, mode: CallbackMode, callback: RequestDeviceCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class UncapturedErrorCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<ChainedStruct>, callback: UncapturedErrorCallback, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
 
 // types
-export class WGPUFlags extends c.U64 {}
-export class WGPUBool extends c.U32 {}
-export class WGPUAdapter extends c.Pointer<WGPUAdapterImpl> {}
-export class WGPUBindGroup extends c.Pointer<WGPUBindGroupImpl> {}
-export class WGPUBindGroupLayout extends c.Pointer<WGPUBindGroupLayoutImpl> {}
-export class WGPUBuffer extends c.Pointer<WGPUBufferImpl> {}
-export class WGPUCommandBuffer extends c.Pointer<WGPUCommandBufferImpl> {}
-export class WGPUCommandEncoder extends c.Pointer<WGPUCommandEncoderImpl> {}
-export class WGPUComputePassEncoder extends c.Pointer<WGPUComputePassEncoderImpl> {}
-export class WGPUComputePipeline extends c.Pointer<WGPUComputePipelineImpl> {}
-export class WGPUDevice extends c.Pointer<WGPUDeviceImpl> {}
-export class WGPUExternalTexture extends c.Pointer<WGPUExternalTextureImpl> {}
-export class WGPUInstance extends c.Pointer<WGPUInstanceImpl> {}
-export class WGPUPipelineLayout extends c.Pointer<WGPUPipelineLayoutImpl> {}
-export class WGPUQuerySet extends c.Pointer<WGPUQuerySetImpl> {}
-export class WGPUQueue extends c.Pointer<WGPUQueueImpl> {}
-export class WGPURenderBundle extends c.Pointer<WGPURenderBundleImpl> {}
-export class WGPURenderBundleEncoder extends c.Pointer<WGPURenderBundleEncoderImpl> {}
-export class WGPURenderPassEncoder extends c.Pointer<WGPURenderPassEncoderImpl> {}
-export class WGPURenderPipeline extends c.Pointer<WGPURenderPipelineImpl> {}
-export class WGPUSampler extends c.Pointer<WGPUSamplerImpl> {}
-export class WGPUShaderModule extends c.Pointer<WGPUShaderModuleImpl> {}
-export class WGPUSharedBufferMemory extends c.Pointer<WGPUSharedBufferMemoryImpl> {}
-export class WGPUSharedFence extends c.Pointer<WGPUSharedFenceImpl> {}
-export class WGPUSharedTextureMemory extends c.Pointer<WGPUSharedTextureMemoryImpl> {}
-export class WGPUSurface extends c.Pointer<WGPUSurfaceImpl> {}
-export class WGPUTexture extends c.Pointer<WGPUTextureImpl> {}
-export class WGPUTextureView extends c.Pointer<WGPUTextureViewImpl> {}
-export class WGPUBufferUsage extends WGPUFlags {}
-export class WGPUColorWriteMask extends WGPUFlags {}
-export class WGPUHeapProperty extends WGPUFlags {}
-export class WGPUMapMode extends WGPUFlags {}
-export class WGPUShaderStage extends WGPUFlags {}
-export class WGPUTextureUsage extends WGPUFlags {}
-export class WGPUBufferMapCallback extends c.Function {}
-export class WGPUCallback extends c.Function {}
-export class WGPUCompilationInfoCallback extends c.Function {}
-export class WGPUCreateComputePipelineAsyncCallback extends c.Function {}
-export class WGPUCreateRenderPipelineAsyncCallback extends c.Function {}
-export class WGPUDawnLoadCacheDataFunction extends c.Function {}
-export class WGPUDawnStoreCacheDataFunction extends c.Function {}
-export class WGPUDeviceLostCallback extends c.Function {}
-export class WGPUDeviceLostCallbackNew extends c.Function {}
-export class WGPUErrorCallback extends c.Function {}
-export class WGPULoggingCallback extends c.Function {}
-export class WGPUPopErrorScopeCallback extends c.Function {}
-export class WGPUProc extends c.Function {}
-export class WGPUQueueWorkDoneCallback extends c.Function {}
-export class WGPURequestAdapterCallback extends c.Function {}
-export class WGPURequestDeviceCallback extends c.Function {}
-export class WGPUBufferMapCallback2 extends c.Function {}
-export class WGPUCompilationInfoCallback2 extends c.Function {}
-export class WGPUCreateComputePipelineAsyncCallback2 extends c.Function {}
-export class WGPUCreateRenderPipelineAsyncCallback2 extends c.Function {}
-export class WGPUDeviceLostCallback2 extends c.Function {}
-export class WGPUPopErrorScopeCallback2 extends c.Function {}
-export class WGPUQueueWorkDoneCallback2 extends c.Function {}
-export class WGPURequestAdapterCallback2 extends c.Function {}
-export class WGPURequestDeviceCallback2 extends c.Function {}
-export class WGPUUncapturedErrorCallback extends c.Function {}
-export class WGPURenderPassDescriptorMaxDrawCount extends WGPURenderPassMaxDrawCount {}
-export class WGPUShaderModuleSPIRVDescriptor extends WGPUShaderSourceSPIRV {}
-export class WGPUShaderModuleWGSLDescriptor extends WGPUShaderSourceWGSL {}
-export class WGPUSurfaceDescriptorFromAndroidNativeWindow extends WGPUSurfaceSourceAndroidNativeWindow {}
-export class WGPUSurfaceDescriptorFromCanvasHTMLSelector extends WGPUSurfaceSourceCanvasHTMLSelector_Emscripten {}
-export class WGPUSurfaceDescriptorFromMetalLayer extends WGPUSurfaceSourceMetalLayer {}
-export class WGPUSurfaceDescriptorFromWaylandSurface extends WGPUSurfaceSourceWaylandSurface {}
-export class WGPUSurfaceDescriptorFromWindowsHWND extends WGPUSurfaceSourceWindowsHWND {}
-export class WGPUSurfaceDescriptorFromXcbWindow extends WGPUSurfaceSourceXCBWindow {}
-export class WGPUSurfaceDescriptorFromXlibWindow extends WGPUSurfaceSourceXlibWindow {}
-export class WGPUProcAdapterInfoFreeMembers extends c.Function {}
-export class WGPUProcAdapterPropertiesMemoryHeapsFreeMembers extends c.Function {}
-export class WGPUProcCreateInstance extends c.Function {}
-export class WGPUProcDrmFormatCapabilitiesFreeMembers extends c.Function {}
-export class WGPUProcGetInstanceFeatures extends c.Function {}
-export class WGPUProcGetProcAddress extends c.Function {}
-export class WGPUProcSharedBufferMemoryEndAccessStateFreeMembers extends c.Function {}
-export class WGPUProcSharedTextureMemoryEndAccessStateFreeMembers extends c.Function {}
-export class WGPUProcSupportedFeaturesFreeMembers extends c.Function {}
-export class WGPUProcSurfaceCapabilitiesFreeMembers extends c.Function {}
-export class WGPUProcAdapterCreateDevice extends c.Function {}
-export class WGPUProcAdapterGetFeatures extends c.Function {}
-export class WGPUProcAdapterGetFormatCapabilities extends c.Function {}
-export class WGPUProcAdapterGetInfo extends c.Function {}
-export class WGPUProcAdapterGetInstance extends c.Function {}
-export class WGPUProcAdapterGetLimits extends c.Function {}
-export class WGPUProcAdapterHasFeature extends c.Function {}
-export class WGPUProcAdapterRequestDevice extends c.Function {}
-export class WGPUProcAdapterRequestDevice2 extends c.Function {}
-export class WGPUProcAdapterRequestDeviceF extends c.Function {}
-export class WGPUProcAdapterAddRef extends c.Function {}
-export class WGPUProcAdapterRelease extends c.Function {}
-export class WGPUProcBindGroupSetLabel extends c.Function {}
-export class WGPUProcBindGroupAddRef extends c.Function {}
-export class WGPUProcBindGroupRelease extends c.Function {}
-export class WGPUProcBindGroupLayoutSetLabel extends c.Function {}
-export class WGPUProcBindGroupLayoutAddRef extends c.Function {}
-export class WGPUProcBindGroupLayoutRelease extends c.Function {}
-export class WGPUProcBufferDestroy extends c.Function {}
-export class WGPUProcBufferGetConstMappedRange extends c.Function {}
-export class WGPUProcBufferGetMapState extends c.Function {}
-export class WGPUProcBufferGetMappedRange extends c.Function {}
-export class WGPUProcBufferGetSize extends c.Function {}
-export class WGPUProcBufferGetUsage extends c.Function {}
-export class WGPUProcBufferMapAsync extends c.Function {}
-export class WGPUProcBufferMapAsync2 extends c.Function {}
-export class WGPUProcBufferMapAsyncF extends c.Function {}
-export class WGPUProcBufferSetLabel extends c.Function {}
-export class WGPUProcBufferUnmap extends c.Function {}
-export class WGPUProcBufferAddRef extends c.Function {}
-export class WGPUProcBufferRelease extends c.Function {}
-export class WGPUProcCommandBufferSetLabel extends c.Function {}
-export class WGPUProcCommandBufferAddRef extends c.Function {}
-export class WGPUProcCommandBufferRelease extends c.Function {}
-export class WGPUProcCommandEncoderBeginComputePass extends c.Function {}
-export class WGPUProcCommandEncoderBeginRenderPass extends c.Function {}
-export class WGPUProcCommandEncoderClearBuffer extends c.Function {}
-export class WGPUProcCommandEncoderCopyBufferToBuffer extends c.Function {}
-export class WGPUProcCommandEncoderCopyBufferToTexture extends c.Function {}
-export class WGPUProcCommandEncoderCopyTextureToBuffer extends c.Function {}
-export class WGPUProcCommandEncoderCopyTextureToTexture extends c.Function {}
-export class WGPUProcCommandEncoderFinish extends c.Function {}
-export class WGPUProcCommandEncoderInjectValidationError extends c.Function {}
-export class WGPUProcCommandEncoderInsertDebugMarker extends c.Function {}
-export class WGPUProcCommandEncoderPopDebugGroup extends c.Function {}
-export class WGPUProcCommandEncoderPushDebugGroup extends c.Function {}
-export class WGPUProcCommandEncoderResolveQuerySet extends c.Function {}
-export class WGPUProcCommandEncoderSetLabel extends c.Function {}
-export class WGPUProcCommandEncoderWriteBuffer extends c.Function {}
-export class WGPUProcCommandEncoderWriteTimestamp extends c.Function {}
-export class WGPUProcCommandEncoderAddRef extends c.Function {}
-export class WGPUProcCommandEncoderRelease extends c.Function {}
-export class WGPUProcComputePassEncoderDispatchWorkgroups extends c.Function {}
-export class WGPUProcComputePassEncoderDispatchWorkgroupsIndirect extends c.Function {}
-export class WGPUProcComputePassEncoderEnd extends c.Function {}
-export class WGPUProcComputePassEncoderInsertDebugMarker extends c.Function {}
-export class WGPUProcComputePassEncoderPopDebugGroup extends c.Function {}
-export class WGPUProcComputePassEncoderPushDebugGroup extends c.Function {}
-export class WGPUProcComputePassEncoderSetBindGroup extends c.Function {}
-export class WGPUProcComputePassEncoderSetLabel extends c.Function {}
-export class WGPUProcComputePassEncoderSetPipeline extends c.Function {}
-export class WGPUProcComputePassEncoderWriteTimestamp extends c.Function {}
-export class WGPUProcComputePassEncoderAddRef extends c.Function {}
-export class WGPUProcComputePassEncoderRelease extends c.Function {}
-export class WGPUProcComputePipelineGetBindGroupLayout extends c.Function {}
-export class WGPUProcComputePipelineSetLabel extends c.Function {}
-export class WGPUProcComputePipelineAddRef extends c.Function {}
-export class WGPUProcComputePipelineRelease extends c.Function {}
-export class WGPUProcDeviceCreateBindGroup extends c.Function {}
-export class WGPUProcDeviceCreateBindGroupLayout extends c.Function {}
-export class WGPUProcDeviceCreateBuffer extends c.Function {}
-export class WGPUProcDeviceCreateCommandEncoder extends c.Function {}
-export class WGPUProcDeviceCreateComputePipeline extends c.Function {}
-export class WGPUProcDeviceCreateComputePipelineAsync extends c.Function {}
-export class WGPUProcDeviceCreateComputePipelineAsync2 extends c.Function {}
-export class WGPUProcDeviceCreateComputePipelineAsyncF extends c.Function {}
-export class WGPUProcDeviceCreateErrorBuffer extends c.Function {}
-export class WGPUProcDeviceCreateErrorExternalTexture extends c.Function {}
-export class WGPUProcDeviceCreateErrorShaderModule extends c.Function {}
-export class WGPUProcDeviceCreateErrorTexture extends c.Function {}
-export class WGPUProcDeviceCreateExternalTexture extends c.Function {}
-export class WGPUProcDeviceCreatePipelineLayout extends c.Function {}
-export class WGPUProcDeviceCreateQuerySet extends c.Function {}
-export class WGPUProcDeviceCreateRenderBundleEncoder extends c.Function {}
-export class WGPUProcDeviceCreateRenderPipeline extends c.Function {}
-export class WGPUProcDeviceCreateRenderPipelineAsync extends c.Function {}
-export class WGPUProcDeviceCreateRenderPipelineAsync2 extends c.Function {}
-export class WGPUProcDeviceCreateRenderPipelineAsyncF extends c.Function {}
-export class WGPUProcDeviceCreateSampler extends c.Function {}
-export class WGPUProcDeviceCreateShaderModule extends c.Function {}
-export class WGPUProcDeviceCreateTexture extends c.Function {}
-export class WGPUProcDeviceDestroy extends c.Function {}
-export class WGPUProcDeviceForceLoss extends c.Function {}
-export class WGPUProcDeviceGetAHardwareBufferProperties extends c.Function {}
-export class WGPUProcDeviceGetAdapter extends c.Function {}
-export class WGPUProcDeviceGetAdapterInfo extends c.Function {}
-export class WGPUProcDeviceGetFeatures extends c.Function {}
-export class WGPUProcDeviceGetLimits extends c.Function {}
-export class WGPUProcDeviceGetLostFuture extends c.Function {}
-export class WGPUProcDeviceGetQueue extends c.Function {}
-export class WGPUProcDeviceHasFeature extends c.Function {}
-export class WGPUProcDeviceImportSharedBufferMemory extends c.Function {}
-export class WGPUProcDeviceImportSharedFence extends c.Function {}
-export class WGPUProcDeviceImportSharedTextureMemory extends c.Function {}
-export class WGPUProcDeviceInjectError extends c.Function {}
-export class WGPUProcDevicePopErrorScope extends c.Function {}
-export class WGPUProcDevicePopErrorScope2 extends c.Function {}
-export class WGPUProcDevicePopErrorScopeF extends c.Function {}
-export class WGPUProcDevicePushErrorScope extends c.Function {}
-export class WGPUProcDeviceSetLabel extends c.Function {}
-export class WGPUProcDeviceSetLoggingCallback extends c.Function {}
-export class WGPUProcDeviceTick extends c.Function {}
-export class WGPUProcDeviceValidateTextureDescriptor extends c.Function {}
-export class WGPUProcDeviceAddRef extends c.Function {}
-export class WGPUProcDeviceRelease extends c.Function {}
-export class WGPUProcExternalTextureDestroy extends c.Function {}
-export class WGPUProcExternalTextureExpire extends c.Function {}
-export class WGPUProcExternalTextureRefresh extends c.Function {}
-export class WGPUProcExternalTextureSetLabel extends c.Function {}
-export class WGPUProcExternalTextureAddRef extends c.Function {}
-export class WGPUProcExternalTextureRelease extends c.Function {}
-export class WGPUProcInstanceCreateSurface extends c.Function {}
-export class WGPUProcInstanceEnumerateWGSLLanguageFeatures extends c.Function {}
-export class WGPUProcInstanceHasWGSLLanguageFeature extends c.Function {}
-export class WGPUProcInstanceProcessEvents extends c.Function {}
-export class WGPUProcInstanceRequestAdapter extends c.Function {}
-export class WGPUProcInstanceRequestAdapter2 extends c.Function {}
-export class WGPUProcInstanceRequestAdapterF extends c.Function {}
-export class WGPUProcInstanceWaitAny extends c.Function {}
-export class WGPUProcInstanceAddRef extends c.Function {}
-export class WGPUProcInstanceRelease extends c.Function {}
-export class WGPUProcPipelineLayoutSetLabel extends c.Function {}
-export class WGPUProcPipelineLayoutAddRef extends c.Function {}
-export class WGPUProcPipelineLayoutRelease extends c.Function {}
-export class WGPUProcQuerySetDestroy extends c.Function {}
-export class WGPUProcQuerySetGetCount extends c.Function {}
-export class WGPUProcQuerySetGetType extends c.Function {}
-export class WGPUProcQuerySetSetLabel extends c.Function {}
-export class WGPUProcQuerySetAddRef extends c.Function {}
-export class WGPUProcQuerySetRelease extends c.Function {}
-export class WGPUProcQueueCopyExternalTextureForBrowser extends c.Function {}
-export class WGPUProcQueueCopyTextureForBrowser extends c.Function {}
-export class WGPUProcQueueOnSubmittedWorkDone extends c.Function {}
-export class WGPUProcQueueOnSubmittedWorkDone2 extends c.Function {}
-export class WGPUProcQueueOnSubmittedWorkDoneF extends c.Function {}
-export class WGPUProcQueueSetLabel extends c.Function {}
-export class WGPUProcQueueSubmit extends c.Function {}
-export class WGPUProcQueueWriteBuffer extends c.Function {}
-export class WGPUProcQueueWriteTexture extends c.Function {}
-export class WGPUProcQueueAddRef extends c.Function {}
-export class WGPUProcQueueRelease extends c.Function {}
-export class WGPUProcRenderBundleSetLabel extends c.Function {}
-export class WGPUProcRenderBundleAddRef extends c.Function {}
-export class WGPUProcRenderBundleRelease extends c.Function {}
-export class WGPUProcRenderBundleEncoderDraw extends c.Function {}
-export class WGPUProcRenderBundleEncoderDrawIndexed extends c.Function {}
-export class WGPUProcRenderBundleEncoderDrawIndexedIndirect extends c.Function {}
-export class WGPUProcRenderBundleEncoderDrawIndirect extends c.Function {}
-export class WGPUProcRenderBundleEncoderFinish extends c.Function {}
-export class WGPUProcRenderBundleEncoderInsertDebugMarker extends c.Function {}
-export class WGPUProcRenderBundleEncoderPopDebugGroup extends c.Function {}
-export class WGPUProcRenderBundleEncoderPushDebugGroup extends c.Function {}
-export class WGPUProcRenderBundleEncoderSetBindGroup extends c.Function {}
-export class WGPUProcRenderBundleEncoderSetIndexBuffer extends c.Function {}
-export class WGPUProcRenderBundleEncoderSetLabel extends c.Function {}
-export class WGPUProcRenderBundleEncoderSetPipeline extends c.Function {}
-export class WGPUProcRenderBundleEncoderSetVertexBuffer extends c.Function {}
-export class WGPUProcRenderBundleEncoderAddRef extends c.Function {}
-export class WGPUProcRenderBundleEncoderRelease extends c.Function {}
-export class WGPUProcRenderPassEncoderBeginOcclusionQuery extends c.Function {}
-export class WGPUProcRenderPassEncoderDraw extends c.Function {}
-export class WGPUProcRenderPassEncoderDrawIndexed extends c.Function {}
-export class WGPUProcRenderPassEncoderDrawIndexedIndirect extends c.Function {}
-export class WGPUProcRenderPassEncoderDrawIndirect extends c.Function {}
-export class WGPUProcRenderPassEncoderEnd extends c.Function {}
-export class WGPUProcRenderPassEncoderEndOcclusionQuery extends c.Function {}
-export class WGPUProcRenderPassEncoderExecuteBundles extends c.Function {}
-export class WGPUProcRenderPassEncoderInsertDebugMarker extends c.Function {}
-export class WGPUProcRenderPassEncoderMultiDrawIndexedIndirect extends c.Function {}
-export class WGPUProcRenderPassEncoderMultiDrawIndirect extends c.Function {}
-export class WGPUProcRenderPassEncoderPixelLocalStorageBarrier extends c.Function {}
-export class WGPUProcRenderPassEncoderPopDebugGroup extends c.Function {}
-export class WGPUProcRenderPassEncoderPushDebugGroup extends c.Function {}
-export class WGPUProcRenderPassEncoderSetBindGroup extends c.Function {}
-export class WGPUProcRenderPassEncoderSetBlendConstant extends c.Function {}
-export class WGPUProcRenderPassEncoderSetIndexBuffer extends c.Function {}
-export class WGPUProcRenderPassEncoderSetLabel extends c.Function {}
-export class WGPUProcRenderPassEncoderSetPipeline extends c.Function {}
-export class WGPUProcRenderPassEncoderSetScissorRect extends c.Function {}
-export class WGPUProcRenderPassEncoderSetStencilReference extends c.Function {}
-export class WGPUProcRenderPassEncoderSetVertexBuffer extends c.Function {}
-export class WGPUProcRenderPassEncoderSetViewport extends c.Function {}
-export class WGPUProcRenderPassEncoderWriteTimestamp extends c.Function {}
-export class WGPUProcRenderPassEncoderAddRef extends c.Function {}
-export class WGPUProcRenderPassEncoderRelease extends c.Function {}
-export class WGPUProcRenderPipelineGetBindGroupLayout extends c.Function {}
-export class WGPUProcRenderPipelineSetLabel extends c.Function {}
-export class WGPUProcRenderPipelineAddRef extends c.Function {}
-export class WGPUProcRenderPipelineRelease extends c.Function {}
-export class WGPUProcSamplerSetLabel extends c.Function {}
-export class WGPUProcSamplerAddRef extends c.Function {}
-export class WGPUProcSamplerRelease extends c.Function {}
-export class WGPUProcShaderModuleGetCompilationInfo extends c.Function {}
-export class WGPUProcShaderModuleGetCompilationInfo2 extends c.Function {}
-export class WGPUProcShaderModuleGetCompilationInfoF extends c.Function {}
-export class WGPUProcShaderModuleSetLabel extends c.Function {}
-export class WGPUProcShaderModuleAddRef extends c.Function {}
-export class WGPUProcShaderModuleRelease extends c.Function {}
-export class WGPUProcSharedBufferMemoryBeginAccess extends c.Function {}
-export class WGPUProcSharedBufferMemoryCreateBuffer extends c.Function {}
-export class WGPUProcSharedBufferMemoryEndAccess extends c.Function {}
-export class WGPUProcSharedBufferMemoryGetProperties extends c.Function {}
-export class WGPUProcSharedBufferMemoryIsDeviceLost extends c.Function {}
-export class WGPUProcSharedBufferMemorySetLabel extends c.Function {}
-export class WGPUProcSharedBufferMemoryAddRef extends c.Function {}
-export class WGPUProcSharedBufferMemoryRelease extends c.Function {}
-export class WGPUProcSharedFenceExportInfo extends c.Function {}
-export class WGPUProcSharedFenceAddRef extends c.Function {}
-export class WGPUProcSharedFenceRelease extends c.Function {}
-export class WGPUProcSharedTextureMemoryBeginAccess extends c.Function {}
-export class WGPUProcSharedTextureMemoryCreateTexture extends c.Function {}
-export class WGPUProcSharedTextureMemoryEndAccess extends c.Function {}
-export class WGPUProcSharedTextureMemoryGetProperties extends c.Function {}
-export class WGPUProcSharedTextureMemoryIsDeviceLost extends c.Function {}
-export class WGPUProcSharedTextureMemorySetLabel extends c.Function {}
-export class WGPUProcSharedTextureMemoryAddRef extends c.Function {}
-export class WGPUProcSharedTextureMemoryRelease extends c.Function {}
-export class WGPUProcSurfaceConfigure extends c.Function {}
-export class WGPUProcSurfaceGetCapabilities extends c.Function {}
-export class WGPUProcSurfaceGetCurrentTexture extends c.Function {}
-export class WGPUProcSurfacePresent extends c.Function {}
-export class WGPUProcSurfaceSetLabel extends c.Function {}
-export class WGPUProcSurfaceUnconfigure extends c.Function {}
-export class WGPUProcSurfaceAddRef extends c.Function {}
-export class WGPUProcSurfaceRelease extends c.Function {}
-export class WGPUProcTextureCreateErrorView extends c.Function {}
-export class WGPUProcTextureCreateView extends c.Function {}
-export class WGPUProcTextureDestroy extends c.Function {}
-export class WGPUProcTextureGetDepthOrArrayLayers extends c.Function {}
-export class WGPUProcTextureGetDimension extends c.Function {}
-export class WGPUProcTextureGetFormat extends c.Function {}
-export class WGPUProcTextureGetHeight extends c.Function {}
-export class WGPUProcTextureGetMipLevelCount extends c.Function {}
-export class WGPUProcTextureGetSampleCount extends c.Function {}
-export class WGPUProcTextureGetUsage extends c.Function {}
-export class WGPUProcTextureGetWidth extends c.Function {}
-export class WGPUProcTextureSetLabel extends c.Function {}
-export class WGPUProcTextureAddRef extends c.Function {}
-export class WGPUProcTextureRelease extends c.Function {}
-export class WGPUProcTextureViewSetLabel extends c.Function {}
-export class WGPUProcTextureViewAddRef extends c.Function {}
-export class WGPUProcTextureViewRelease extends c.Function {}
+export class Flags extends c.U64 {}
+export class Bool extends c.U32 {}
+export class Adapter extends c.Pointer<AdapterImpl> {}
+export class BindGroup extends c.Pointer<BindGroupImpl> {}
+export class BindGroupLayout extends c.Pointer<BindGroupLayoutImpl> {}
+export class Buffer extends c.Pointer<BufferImpl> {}
+export class CommandBuffer extends c.Pointer<CommandBufferImpl> {}
+export class CommandEncoder extends c.Pointer<CommandEncoderImpl> {}
+export class ComputePassEncoder extends c.Pointer<ComputePassEncoderImpl> {}
+export class ComputePipeline extends c.Pointer<ComputePipelineImpl> {}
+export class Device extends c.Pointer<DeviceImpl> {}
+export class ExternalTexture extends c.Pointer<ExternalTextureImpl> {}
+export class Instance extends c.Pointer<InstanceImpl> {}
+export class PipelineLayout extends c.Pointer<PipelineLayoutImpl> {}
+export class QuerySet extends c.Pointer<QuerySetImpl> {}
+export class Queue extends c.Pointer<QueueImpl> {}
+export class RenderBundle extends c.Pointer<RenderBundleImpl> {}
+export class RenderBundleEncoder extends c.Pointer<RenderBundleEncoderImpl> {}
+export class RenderPassEncoder extends c.Pointer<RenderPassEncoderImpl> {}
+export class RenderPipeline extends c.Pointer<RenderPipelineImpl> {}
+export class Sampler extends c.Pointer<SamplerImpl> {}
+export class ShaderModule extends c.Pointer<ShaderModuleImpl> {}
+export class SharedBufferMemory extends c.Pointer<SharedBufferMemoryImpl> {}
+export class SharedFence extends c.Pointer<SharedFenceImpl> {}
+export class SharedTextureMemory extends c.Pointer<SharedTextureMemoryImpl> {}
+export class Surface extends c.Pointer<SurfaceImpl> {}
+export class Texture extends c.Pointer<TextureImpl> {}
+export class TextureView extends c.Pointer<TextureViewImpl> {}
+export class BufferUsage extends Flags {}
+export class ColorWriteMask extends Flags {}
+export class HeapProperty extends Flags {}
+export class MapMode extends Flags {}
+export class ShaderStage extends Flags {}
+export class TextureUsage extends Flags {}
+export class BufferMapCallback extends c.Function {}
+export class Callback extends c.Function {}
+export class CompilationInfoCallback extends c.Function {}
+export class CreateComputePipelineAsyncCallback extends c.Function {}
+export class CreateRenderPipelineAsyncCallback extends c.Function {}
+export class DawnLoadCacheDataFunction extends c.Function {}
+export class DawnStoreCacheDataFunction extends c.Function {}
+export class DeviceLostCallback extends c.Function {}
+export class DeviceLostCallbackNew extends c.Function {}
+export class ErrorCallback extends c.Function {}
+export class LoggingCallback extends c.Function {}
+export class PopErrorScopeCallback extends c.Function {}
+export class Proc extends c.Function {}
+export class QueueWorkDoneCallback extends c.Function {}
+export class RequestAdapterCallback extends c.Function {}
+export class RequestDeviceCallback extends c.Function {}
+export class BufferMapCallback2 extends c.Function {}
+export class CompilationInfoCallback2 extends c.Function {}
+export class CreateComputePipelineAsyncCallback2 extends c.Function {}
+export class CreateRenderPipelineAsyncCallback2 extends c.Function {}
+export class DeviceLostCallback2 extends c.Function {}
+export class PopErrorScopeCallback2 extends c.Function {}
+export class QueueWorkDoneCallback2 extends c.Function {}
+export class RequestAdapterCallback2 extends c.Function {}
+export class RequestDeviceCallback2 extends c.Function {}
+export class UncapturedErrorCallback extends c.Function {}
+export class RenderPassDescriptorMaxDrawCount extends RenderPassMaxDrawCount {}
+export class ShaderModuleSPIRVDescriptor extends ShaderSourceSPIRV {}
+export class ShaderModuleWGSLDescriptor extends ShaderSourceWGSL {}
+export class SurfaceDescriptorFromAndroidNativeWindow extends SurfaceSourceAndroidNativeWindow {}
+export class SurfaceDescriptorFromCanvasHTMLSelector extends SurfaceSourceCanvasHTMLSelector_Emscripten {}
+export class SurfaceDescriptorFromMetalLayer extends SurfaceSourceMetalLayer {}
+export class SurfaceDescriptorFromWaylandSurface extends SurfaceSourceWaylandSurface {}
+export class SurfaceDescriptorFromWindowsHWND extends SurfaceSourceWindowsHWND {}
+export class SurfaceDescriptorFromXcbWindow extends SurfaceSourceXCBWindow {}
+export class SurfaceDescriptorFromXlibWindow extends SurfaceSourceXlibWindow {}
+export class ProcAdapterInfoFreeMembers extends c.Function {}
+export class ProcAdapterPropertiesMemoryHeapsFreeMembers extends c.Function {}
+export class ProcCreateInstance extends c.Function {}
+export class ProcDrmFormatCapabilitiesFreeMembers extends c.Function {}
+export class ProcGetInstanceFeatures extends c.Function {}
+export class ProcGetProcAddress extends c.Function {}
+export class ProcSharedBufferMemoryEndAccessStateFreeMembers extends c.Function {}
+export class ProcSharedTextureMemoryEndAccessStateFreeMembers extends c.Function {}
+export class ProcSupportedFeaturesFreeMembers extends c.Function {}
+export class ProcSurfaceCapabilitiesFreeMembers extends c.Function {}
+export class ProcAdapterCreateDevice extends c.Function {}
+export class ProcAdapterGetFeatures extends c.Function {}
+export class ProcAdapterGetFormatCapabilities extends c.Function {}
+export class ProcAdapterGetInfo extends c.Function {}
+export class ProcAdapterGetInstance extends c.Function {}
+export class ProcAdapterGetLimits extends c.Function {}
+export class ProcAdapterHasFeature extends c.Function {}
+export class ProcAdapterRequestDevice extends c.Function {}
+export class ProcAdapterRequestDevice2 extends c.Function {}
+export class ProcAdapterRequestDeviceF extends c.Function {}
+export class ProcAdapterAddRef extends c.Function {}
+export class ProcAdapterRelease extends c.Function {}
+export class ProcBindGroupSetLabel extends c.Function {}
+export class ProcBindGroupAddRef extends c.Function {}
+export class ProcBindGroupRelease extends c.Function {}
+export class ProcBindGroupLayoutSetLabel extends c.Function {}
+export class ProcBindGroupLayoutAddRef extends c.Function {}
+export class ProcBindGroupLayoutRelease extends c.Function {}
+export class ProcBufferDestroy extends c.Function {}
+export class ProcBufferGetConstMappedRange extends c.Function {}
+export class ProcBufferGetMapState extends c.Function {}
+export class ProcBufferGetMappedRange extends c.Function {}
+export class ProcBufferGetSize extends c.Function {}
+export class ProcBufferGetUsage extends c.Function {}
+export class ProcBufferMapAsync extends c.Function {}
+export class ProcBufferMapAsync2 extends c.Function {}
+export class ProcBufferMapAsyncF extends c.Function {}
+export class ProcBufferSetLabel extends c.Function {}
+export class ProcBufferUnmap extends c.Function {}
+export class ProcBufferAddRef extends c.Function {}
+export class ProcBufferRelease extends c.Function {}
+export class ProcCommandBufferSetLabel extends c.Function {}
+export class ProcCommandBufferAddRef extends c.Function {}
+export class ProcCommandBufferRelease extends c.Function {}
+export class ProcCommandEncoderBeginComputePass extends c.Function {}
+export class ProcCommandEncoderBeginRenderPass extends c.Function {}
+export class ProcCommandEncoderClearBuffer extends c.Function {}
+export class ProcCommandEncoderCopyBufferToBuffer extends c.Function {}
+export class ProcCommandEncoderCopyBufferToTexture extends c.Function {}
+export class ProcCommandEncoderCopyTextureToBuffer extends c.Function {}
+export class ProcCommandEncoderCopyTextureToTexture extends c.Function {}
+export class ProcCommandEncoderFinish extends c.Function {}
+export class ProcCommandEncoderInjectValidationError extends c.Function {}
+export class ProcCommandEncoderInsertDebugMarker extends c.Function {}
+export class ProcCommandEncoderPopDebugGroup extends c.Function {}
+export class ProcCommandEncoderPushDebugGroup extends c.Function {}
+export class ProcCommandEncoderResolveQuerySet extends c.Function {}
+export class ProcCommandEncoderSetLabel extends c.Function {}
+export class ProcCommandEncoderWriteBuffer extends c.Function {}
+export class ProcCommandEncoderWriteTimestamp extends c.Function {}
+export class ProcCommandEncoderAddRef extends c.Function {}
+export class ProcCommandEncoderRelease extends c.Function {}
+export class ProcComputePassEncoderDispatchWorkgroups extends c.Function {}
+export class ProcComputePassEncoderDispatchWorkgroupsIndirect extends c.Function {}
+export class ProcComputePassEncoderEnd extends c.Function {}
+export class ProcComputePassEncoderInsertDebugMarker extends c.Function {}
+export class ProcComputePassEncoderPopDebugGroup extends c.Function {}
+export class ProcComputePassEncoderPushDebugGroup extends c.Function {}
+export class ProcComputePassEncoderSetBindGroup extends c.Function {}
+export class ProcComputePassEncoderSetLabel extends c.Function {}
+export class ProcComputePassEncoderSetPipeline extends c.Function {}
+export class ProcComputePassEncoderWriteTimestamp extends c.Function {}
+export class ProcComputePassEncoderAddRef extends c.Function {}
+export class ProcComputePassEncoderRelease extends c.Function {}
+export class ProcComputePipelineGetBindGroupLayout extends c.Function {}
+export class ProcComputePipelineSetLabel extends c.Function {}
+export class ProcComputePipelineAddRef extends c.Function {}
+export class ProcComputePipelineRelease extends c.Function {}
+export class ProcDeviceCreateBindGroup extends c.Function {}
+export class ProcDeviceCreateBindGroupLayout extends c.Function {}
+export class ProcDeviceCreateBuffer extends c.Function {}
+export class ProcDeviceCreateCommandEncoder extends c.Function {}
+export class ProcDeviceCreateComputePipeline extends c.Function {}
+export class ProcDeviceCreateComputePipelineAsync extends c.Function {}
+export class ProcDeviceCreateComputePipelineAsync2 extends c.Function {}
+export class ProcDeviceCreateComputePipelineAsyncF extends c.Function {}
+export class ProcDeviceCreateErrorBuffer extends c.Function {}
+export class ProcDeviceCreateErrorExternalTexture extends c.Function {}
+export class ProcDeviceCreateErrorShaderModule extends c.Function {}
+export class ProcDeviceCreateErrorTexture extends c.Function {}
+export class ProcDeviceCreateExternalTexture extends c.Function {}
+export class ProcDeviceCreatePipelineLayout extends c.Function {}
+export class ProcDeviceCreateQuerySet extends c.Function {}
+export class ProcDeviceCreateRenderBundleEncoder extends c.Function {}
+export class ProcDeviceCreateRenderPipeline extends c.Function {}
+export class ProcDeviceCreateRenderPipelineAsync extends c.Function {}
+export class ProcDeviceCreateRenderPipelineAsync2 extends c.Function {}
+export class ProcDeviceCreateRenderPipelineAsyncF extends c.Function {}
+export class ProcDeviceCreateSampler extends c.Function {}
+export class ProcDeviceCreateShaderModule extends c.Function {}
+export class ProcDeviceCreateTexture extends c.Function {}
+export class ProcDeviceDestroy extends c.Function {}
+export class ProcDeviceForceLoss extends c.Function {}
+export class ProcDeviceGetAHardwareBufferProperties extends c.Function {}
+export class ProcDeviceGetAdapter extends c.Function {}
+export class ProcDeviceGetAdapterInfo extends c.Function {}
+export class ProcDeviceGetFeatures extends c.Function {}
+export class ProcDeviceGetLimits extends c.Function {}
+export class ProcDeviceGetLostFuture extends c.Function {}
+export class ProcDeviceGetQueue extends c.Function {}
+export class ProcDeviceHasFeature extends c.Function {}
+export class ProcDeviceImportSharedBufferMemory extends c.Function {}
+export class ProcDeviceImportSharedFence extends c.Function {}
+export class ProcDeviceImportSharedTextureMemory extends c.Function {}
+export class ProcDeviceInjectError extends c.Function {}
+export class ProcDevicePopErrorScope extends c.Function {}
+export class ProcDevicePopErrorScope2 extends c.Function {}
+export class ProcDevicePopErrorScopeF extends c.Function {}
+export class ProcDevicePushErrorScope extends c.Function {}
+export class ProcDeviceSetLabel extends c.Function {}
+export class ProcDeviceSetLoggingCallback extends c.Function {}
+export class ProcDeviceTick extends c.Function {}
+export class ProcDeviceValidateTextureDescriptor extends c.Function {}
+export class ProcDeviceAddRef extends c.Function {}
+export class ProcDeviceRelease extends c.Function {}
+export class ProcExternalTextureDestroy extends c.Function {}
+export class ProcExternalTextureExpire extends c.Function {}
+export class ProcExternalTextureRefresh extends c.Function {}
+export class ProcExternalTextureSetLabel extends c.Function {}
+export class ProcExternalTextureAddRef extends c.Function {}
+export class ProcExternalTextureRelease extends c.Function {}
+export class ProcInstanceCreateSurface extends c.Function {}
+export class ProcInstanceEnumerateWGSLLanguageFeatures extends c.Function {}
+export class ProcInstanceHasWGSLLanguageFeature extends c.Function {}
+export class ProcInstanceProcessEvents extends c.Function {}
+export class ProcInstanceRequestAdapter extends c.Function {}
+export class ProcInstanceRequestAdapter2 extends c.Function {}
+export class ProcInstanceRequestAdapterF extends c.Function {}
+export class ProcInstanceWaitAny extends c.Function {}
+export class ProcInstanceAddRef extends c.Function {}
+export class ProcInstanceRelease extends c.Function {}
+export class ProcPipelineLayoutSetLabel extends c.Function {}
+export class ProcPipelineLayoutAddRef extends c.Function {}
+export class ProcPipelineLayoutRelease extends c.Function {}
+export class ProcQuerySetDestroy extends c.Function {}
+export class ProcQuerySetGetCount extends c.Function {}
+export class ProcQuerySetGetType extends c.Function {}
+export class ProcQuerySetSetLabel extends c.Function {}
+export class ProcQuerySetAddRef extends c.Function {}
+export class ProcQuerySetRelease extends c.Function {}
+export class ProcQueueCopyExternalTextureForBrowser extends c.Function {}
+export class ProcQueueCopyTextureForBrowser extends c.Function {}
+export class ProcQueueOnSubmittedWorkDone extends c.Function {}
+export class ProcQueueOnSubmittedWorkDone2 extends c.Function {}
+export class ProcQueueOnSubmittedWorkDoneF extends c.Function {}
+export class ProcQueueSetLabel extends c.Function {}
+export class ProcQueueSubmit extends c.Function {}
+export class ProcQueueWriteBuffer extends c.Function {}
+export class ProcQueueWriteTexture extends c.Function {}
+export class ProcQueueAddRef extends c.Function {}
+export class ProcQueueRelease extends c.Function {}
+export class ProcRenderBundleSetLabel extends c.Function {}
+export class ProcRenderBundleAddRef extends c.Function {}
+export class ProcRenderBundleRelease extends c.Function {}
+export class ProcRenderBundleEncoderDraw extends c.Function {}
+export class ProcRenderBundleEncoderDrawIndexed extends c.Function {}
+export class ProcRenderBundleEncoderDrawIndexedIndirect extends c.Function {}
+export class ProcRenderBundleEncoderDrawIndirect extends c.Function {}
+export class ProcRenderBundleEncoderFinish extends c.Function {}
+export class ProcRenderBundleEncoderInsertDebugMarker extends c.Function {}
+export class ProcRenderBundleEncoderPopDebugGroup extends c.Function {}
+export class ProcRenderBundleEncoderPushDebugGroup extends c.Function {}
+export class ProcRenderBundleEncoderSetBindGroup extends c.Function {}
+export class ProcRenderBundleEncoderSetIndexBuffer extends c.Function {}
+export class ProcRenderBundleEncoderSetLabel extends c.Function {}
+export class ProcRenderBundleEncoderSetPipeline extends c.Function {}
+export class ProcRenderBundleEncoderSetVertexBuffer extends c.Function {}
+export class ProcRenderBundleEncoderAddRef extends c.Function {}
+export class ProcRenderBundleEncoderRelease extends c.Function {}
+export class ProcRenderPassEncoderBeginOcclusionQuery extends c.Function {}
+export class ProcRenderPassEncoderDraw extends c.Function {}
+export class ProcRenderPassEncoderDrawIndexed extends c.Function {}
+export class ProcRenderPassEncoderDrawIndexedIndirect extends c.Function {}
+export class ProcRenderPassEncoderDrawIndirect extends c.Function {}
+export class ProcRenderPassEncoderEnd extends c.Function {}
+export class ProcRenderPassEncoderEndOcclusionQuery extends c.Function {}
+export class ProcRenderPassEncoderExecuteBundles extends c.Function {}
+export class ProcRenderPassEncoderInsertDebugMarker extends c.Function {}
+export class ProcRenderPassEncoderMultiDrawIndexedIndirect extends c.Function {}
+export class ProcRenderPassEncoderMultiDrawIndirect extends c.Function {}
+export class ProcRenderPassEncoderPixelLocalStorageBarrier extends c.Function {}
+export class ProcRenderPassEncoderPopDebugGroup extends c.Function {}
+export class ProcRenderPassEncoderPushDebugGroup extends c.Function {}
+export class ProcRenderPassEncoderSetBindGroup extends c.Function {}
+export class ProcRenderPassEncoderSetBlendConstant extends c.Function {}
+export class ProcRenderPassEncoderSetIndexBuffer extends c.Function {}
+export class ProcRenderPassEncoderSetLabel extends c.Function {}
+export class ProcRenderPassEncoderSetPipeline extends c.Function {}
+export class ProcRenderPassEncoderSetScissorRect extends c.Function {}
+export class ProcRenderPassEncoderSetStencilReference extends c.Function {}
+export class ProcRenderPassEncoderSetVertexBuffer extends c.Function {}
+export class ProcRenderPassEncoderSetViewport extends c.Function {}
+export class ProcRenderPassEncoderWriteTimestamp extends c.Function {}
+export class ProcRenderPassEncoderAddRef extends c.Function {}
+export class ProcRenderPassEncoderRelease extends c.Function {}
+export class ProcRenderPipelineGetBindGroupLayout extends c.Function {}
+export class ProcRenderPipelineSetLabel extends c.Function {}
+export class ProcRenderPipelineAddRef extends c.Function {}
+export class ProcRenderPipelineRelease extends c.Function {}
+export class ProcSamplerSetLabel extends c.Function {}
+export class ProcSamplerAddRef extends c.Function {}
+export class ProcSamplerRelease extends c.Function {}
+export class ProcShaderModuleGetCompilationInfo extends c.Function {}
+export class ProcShaderModuleGetCompilationInfo2 extends c.Function {}
+export class ProcShaderModuleGetCompilationInfoF extends c.Function {}
+export class ProcShaderModuleSetLabel extends c.Function {}
+export class ProcShaderModuleAddRef extends c.Function {}
+export class ProcShaderModuleRelease extends c.Function {}
+export class ProcSharedBufferMemoryBeginAccess extends c.Function {}
+export class ProcSharedBufferMemoryCreateBuffer extends c.Function {}
+export class ProcSharedBufferMemoryEndAccess extends c.Function {}
+export class ProcSharedBufferMemoryGetProperties extends c.Function {}
+export class ProcSharedBufferMemoryIsDeviceLost extends c.Function {}
+export class ProcSharedBufferMemorySetLabel extends c.Function {}
+export class ProcSharedBufferMemoryAddRef extends c.Function {}
+export class ProcSharedBufferMemoryRelease extends c.Function {}
+export class ProcSharedFenceExportInfo extends c.Function {}
+export class ProcSharedFenceAddRef extends c.Function {}
+export class ProcSharedFenceRelease extends c.Function {}
+export class ProcSharedTextureMemoryBeginAccess extends c.Function {}
+export class ProcSharedTextureMemoryCreateTexture extends c.Function {}
+export class ProcSharedTextureMemoryEndAccess extends c.Function {}
+export class ProcSharedTextureMemoryGetProperties extends c.Function {}
+export class ProcSharedTextureMemoryIsDeviceLost extends c.Function {}
+export class ProcSharedTextureMemorySetLabel extends c.Function {}
+export class ProcSharedTextureMemoryAddRef extends c.Function {}
+export class ProcSharedTextureMemoryRelease extends c.Function {}
+export class ProcSurfaceConfigure extends c.Function {}
+export class ProcSurfaceGetCapabilities extends c.Function {}
+export class ProcSurfaceGetCurrentTexture extends c.Function {}
+export class ProcSurfacePresent extends c.Function {}
+export class ProcSurfaceSetLabel extends c.Function {}
+export class ProcSurfaceUnconfigure extends c.Function {}
+export class ProcSurfaceAddRef extends c.Function {}
+export class ProcSurfaceRelease extends c.Function {}
+export class ProcTextureCreateErrorView extends c.Function {}
+export class ProcTextureCreateView extends c.Function {}
+export class ProcTextureDestroy extends c.Function {}
+export class ProcTextureGetDepthOrArrayLayers extends c.Function {}
+export class ProcTextureGetDimension extends c.Function {}
+export class ProcTextureGetFormat extends c.Function {}
+export class ProcTextureGetHeight extends c.Function {}
+export class ProcTextureGetMipLevelCount extends c.Function {}
+export class ProcTextureGetSampleCount extends c.Function {}
+export class ProcTextureGetUsage extends c.Function {}
+export class ProcTextureGetWidth extends c.Function {}
+export class ProcTextureSetLabel extends c.Function {}
+export class ProcTextureAddRef extends c.Function {}
+export class ProcTextureRelease extends c.Function {}
+export class ProcTextureViewSetLabel extends c.Function {}
+export class ProcTextureViewAddRef extends c.Function {}
+export class ProcTextureViewRelease extends c.Function {}
 
 // functions
-export const adapterInfoFreeMembers = (value: WGPUAdapterInfo): c.Void => new c.Void(lib.symbols.wgpuAdapterInfoFreeMembers(value.value))
-export const adapterPropertiesMemoryHeapsFreeMembers = (value: WGPUAdapterPropertiesMemoryHeaps): c.Void => new c.Void(lib.symbols.wgpuAdapterPropertiesMemoryHeapsFreeMembers(value.value))
-export const createInstance = (descriptor: c.Pointer<WGPUInstanceDescriptor>): WGPUInstance => new WGPUInstance(lib.symbols.wgpuCreateInstance(descriptor.value))
-export const drmFormatCapabilitiesFreeMembers = (value: WGPUDrmFormatCapabilities): c.Void => new c.Void(lib.symbols.wgpuDrmFormatCapabilitiesFreeMembers(value.value))
-export const getInstanceFeatures = (features: c.Pointer<WGPUInstanceFeatures>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuGetInstanceFeatures(features.value))
-export const getProcAddress = (procName: WGPUStringView): WGPUProc => new WGPUProc(lib.symbols.wgpuGetProcAddress(procName.value))
-export const sharedBufferMemoryEndAccessStateFreeMembers = (value: WGPUSharedBufferMemoryEndAccessState): c.Void => new c.Void(lib.symbols.wgpuSharedBufferMemoryEndAccessStateFreeMembers(value.value))
-export const sharedTextureMemoryEndAccessStateFreeMembers = (value: WGPUSharedTextureMemoryEndAccessState): c.Void => new c.Void(lib.symbols.wgpuSharedTextureMemoryEndAccessStateFreeMembers(value.value))
-export const supportedFeaturesFreeMembers = (value: WGPUSupportedFeatures): c.Void => new c.Void(lib.symbols.wgpuSupportedFeaturesFreeMembers(value.value))
-export const surfaceCapabilitiesFreeMembers = (value: WGPUSurfaceCapabilities): c.Void => new c.Void(lib.symbols.wgpuSurfaceCapabilitiesFreeMembers(value.value))
-export const adapterCreateDevice = (adapter: WGPUAdapter, descriptor: c.Pointer<WGPUDeviceDescriptor>): WGPUDevice => new WGPUDevice(lib.symbols.wgpuAdapterCreateDevice(adapter.value, descriptor.value))
-export const adapterGetFeatures = (adapter: WGPUAdapter, features: c.Pointer<WGPUSupportedFeatures>): c.Void => new c.Void(lib.symbols.wgpuAdapterGetFeatures(adapter.value, features.value))
-export const adapterGetFormatCapabilities = (adapter: WGPUAdapter, format: WGPUTextureFormat, capabilities: c.Pointer<WGPUFormatCapabilities>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuAdapterGetFormatCapabilities(adapter.value, format.value, capabilities.value))
-export const adapterGetInfo = (adapter: WGPUAdapter, info: c.Pointer<WGPUAdapterInfo>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuAdapterGetInfo(adapter.value, info.value))
-export const adapterGetInstance = (adapter: WGPUAdapter): WGPUInstance => new WGPUInstance(lib.symbols.wgpuAdapterGetInstance(adapter.value))
-export const adapterGetLimits = (adapter: WGPUAdapter, limits: c.Pointer<WGPUSupportedLimits>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuAdapterGetLimits(adapter.value, limits.value))
-export const adapterHasFeature = (adapter: WGPUAdapter, feature: WGPUFeatureName): WGPUBool => new WGPUBool(lib.symbols.wgpuAdapterHasFeature(adapter.value, feature.value))
-export const adapterRequestDevice = (adapter: WGPUAdapter, descriptor: c.Pointer<WGPUDeviceDescriptor>, callback: WGPURequestDeviceCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuAdapterRequestDevice(adapter.value, descriptor.value, callback.value, userdata.value))
-export const adapterRequestDevice2 = (adapter: WGPUAdapter, options: c.Pointer<WGPUDeviceDescriptor>, callbackInfo: WGPURequestDeviceCallbackInfo2): WGPUFuture => new WGPUFuture(lib.symbols.wgpuAdapterRequestDevice2(adapter.value, options.value, callbackInfo.value))
-export const adapterRequestDeviceF = (adapter: WGPUAdapter, options: c.Pointer<WGPUDeviceDescriptor>, callbackInfo: WGPURequestDeviceCallbackInfo): WGPUFuture => new WGPUFuture(lib.symbols.wgpuAdapterRequestDeviceF(adapter.value, options.value, callbackInfo.value))
-export const adapterAddRef = (adapter: WGPUAdapter): c.Void => new c.Void(lib.symbols.wgpuAdapterAddRef(adapter.value))
-export const adapterRelease = (adapter: WGPUAdapter): c.Void => new c.Void(lib.symbols.wgpuAdapterRelease(adapter.value))
-export const bindGroupSetLabel = (bindGroup: WGPUBindGroup, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuBindGroupSetLabel(bindGroup.value, label.value))
-export const bindGroupAddRef = (bindGroup: WGPUBindGroup): c.Void => new c.Void(lib.symbols.wgpuBindGroupAddRef(bindGroup.value))
-export const bindGroupRelease = (bindGroup: WGPUBindGroup): c.Void => new c.Void(lib.symbols.wgpuBindGroupRelease(bindGroup.value))
-export const bindGroupLayoutSetLabel = (bindGroupLayout: WGPUBindGroupLayout, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuBindGroupLayoutSetLabel(bindGroupLayout.value, label.value))
-export const bindGroupLayoutAddRef = (bindGroupLayout: WGPUBindGroupLayout): c.Void => new c.Void(lib.symbols.wgpuBindGroupLayoutAddRef(bindGroupLayout.value))
-export const bindGroupLayoutRelease = (bindGroupLayout: WGPUBindGroupLayout): c.Void => new c.Void(lib.symbols.wgpuBindGroupLayoutRelease(bindGroupLayout.value))
-export const bufferDestroy = (buffer: WGPUBuffer): c.Void => new c.Void(lib.symbols.wgpuBufferDestroy(buffer.value))
-export const bufferGetConstMappedRange = (buffer: WGPUBuffer, offset: c.Size, size: c.Size): c.Pointer<c.Void> => new c.Pointer<c.Void>(lib.symbols.wgpuBufferGetConstMappedRange(buffer.value, offset.value, size.value))
-export const bufferGetMapState = (buffer: WGPUBuffer): WGPUBufferMapState => new WGPUBufferMapState(lib.symbols.wgpuBufferGetMapState(buffer.value))
-export const bufferGetMappedRange = (buffer: WGPUBuffer, offset: c.Size, size: c.Size): c.Pointer<c.Void> => new c.Pointer<c.Void>(lib.symbols.wgpuBufferGetMappedRange(buffer.value, offset.value, size.value))
-export const bufferGetSize = (buffer: WGPUBuffer): c.U64 => new c.U64(lib.symbols.wgpuBufferGetSize(buffer.value))
-export const bufferGetUsage = (buffer: WGPUBuffer): WGPUBufferUsage => new WGPUBufferUsage(lib.symbols.wgpuBufferGetUsage(buffer.value))
-export const bufferMapAsync = (buffer: WGPUBuffer, mode: WGPUMapMode, offset: c.Size, size: c.Size, callback: WGPUBufferMapCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuBufferMapAsync(buffer.value, mode.value, offset.value, size.value, callback.value, userdata.value))
-export const bufferMapAsync2 = (buffer: WGPUBuffer, mode: WGPUMapMode, offset: c.Size, size: c.Size, callbackInfo: WGPUBufferMapCallbackInfo2): WGPUFuture => new WGPUFuture(lib.symbols.wgpuBufferMapAsync2(buffer.value, mode.value, offset.value, size.value, callbackInfo.value))
-export const bufferMapAsyncF = (buffer: WGPUBuffer, mode: WGPUMapMode, offset: c.Size, size: c.Size, callbackInfo: WGPUBufferMapCallbackInfo): WGPUFuture => new WGPUFuture(lib.symbols.wgpuBufferMapAsyncF(buffer.value, mode.value, offset.value, size.value, callbackInfo.value))
-export const bufferSetLabel = (buffer: WGPUBuffer, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuBufferSetLabel(buffer.value, label.value))
-export const bufferUnmap = (buffer: WGPUBuffer): c.Void => new c.Void(lib.symbols.wgpuBufferUnmap(buffer.value))
-export const bufferAddRef = (buffer: WGPUBuffer): c.Void => new c.Void(lib.symbols.wgpuBufferAddRef(buffer.value))
-export const bufferRelease = (buffer: WGPUBuffer): c.Void => new c.Void(lib.symbols.wgpuBufferRelease(buffer.value))
-export const commandBufferSetLabel = (commandBuffer: WGPUCommandBuffer, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuCommandBufferSetLabel(commandBuffer.value, label.value))
-export const commandBufferAddRef = (commandBuffer: WGPUCommandBuffer): c.Void => new c.Void(lib.symbols.wgpuCommandBufferAddRef(commandBuffer.value))
-export const commandBufferRelease = (commandBuffer: WGPUCommandBuffer): c.Void => new c.Void(lib.symbols.wgpuCommandBufferRelease(commandBuffer.value))
-export const commandEncoderBeginComputePass = (commandEncoder: WGPUCommandEncoder, descriptor: c.Pointer<WGPUComputePassDescriptor>): WGPUComputePassEncoder => new WGPUComputePassEncoder(lib.symbols.wgpuCommandEncoderBeginComputePass(commandEncoder.value, descriptor.value))
-export const commandEncoderBeginRenderPass = (commandEncoder: WGPUCommandEncoder, descriptor: c.Pointer<WGPURenderPassDescriptor>): WGPURenderPassEncoder => new WGPURenderPassEncoder(lib.symbols.wgpuCommandEncoderBeginRenderPass(commandEncoder.value, descriptor.value))
-export const commandEncoderClearBuffer = (commandEncoder: WGPUCommandEncoder, buffer: WGPUBuffer, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderClearBuffer(commandEncoder.value, buffer.value, offset.value, size.value))
-export const commandEncoderCopyBufferToBuffer = (commandEncoder: WGPUCommandEncoder, source: WGPUBuffer, sourceOffset: c.U64, destination: WGPUBuffer, destinationOffset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderCopyBufferToBuffer(commandEncoder.value, source.value, sourceOffset.value, destination.value, destinationOffset.value, size.value))
-export const commandEncoderCopyBufferToTexture = (commandEncoder: WGPUCommandEncoder, source: c.Pointer<WGPUImageCopyBuffer>, destination: c.Pointer<WGPUImageCopyTexture>, copySize: c.Pointer<WGPUExtent3D>): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderCopyBufferToTexture(commandEncoder.value, source.value, destination.value, copySize.value))
-export const commandEncoderCopyTextureToBuffer = (commandEncoder: WGPUCommandEncoder, source: c.Pointer<WGPUImageCopyTexture>, destination: c.Pointer<WGPUImageCopyBuffer>, copySize: c.Pointer<WGPUExtent3D>): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderCopyTextureToBuffer(commandEncoder.value, source.value, destination.value, copySize.value))
-export const commandEncoderCopyTextureToTexture = (commandEncoder: WGPUCommandEncoder, source: c.Pointer<WGPUImageCopyTexture>, destination: c.Pointer<WGPUImageCopyTexture>, copySize: c.Pointer<WGPUExtent3D>): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderCopyTextureToTexture(commandEncoder.value, source.value, destination.value, copySize.value))
-export const commandEncoderFinish = (commandEncoder: WGPUCommandEncoder, descriptor: c.Pointer<WGPUCommandBufferDescriptor>): WGPUCommandBuffer => new WGPUCommandBuffer(lib.symbols.wgpuCommandEncoderFinish(commandEncoder.value, descriptor.value))
-export const commandEncoderInjectValidationError = (commandEncoder: WGPUCommandEncoder, message: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderInjectValidationError(commandEncoder.value, message.value))
-export const commandEncoderInsertDebugMarker = (commandEncoder: WGPUCommandEncoder, markerLabel: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderInsertDebugMarker(commandEncoder.value, markerLabel.value))
-export const commandEncoderPopDebugGroup = (commandEncoder: WGPUCommandEncoder): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderPopDebugGroup(commandEncoder.value))
-export const commandEncoderPushDebugGroup = (commandEncoder: WGPUCommandEncoder, groupLabel: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderPushDebugGroup(commandEncoder.value, groupLabel.value))
-export const commandEncoderResolveQuerySet = (commandEncoder: WGPUCommandEncoder, querySet: WGPUQuerySet, firstQuery: c.U32, queryCount: c.U32, destination: WGPUBuffer, destinationOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderResolveQuerySet(commandEncoder.value, querySet.value, firstQuery.value, queryCount.value, destination.value, destinationOffset.value))
-export const commandEncoderSetLabel = (commandEncoder: WGPUCommandEncoder, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderSetLabel(commandEncoder.value, label.value))
-export const commandEncoderWriteBuffer = (commandEncoder: WGPUCommandEncoder, buffer: WGPUBuffer, bufferOffset: c.U64, data: c.Pointer<c.U8>, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderWriteBuffer(commandEncoder.value, buffer.value, bufferOffset.value, data.value, size.value))
-export const commandEncoderWriteTimestamp = (commandEncoder: WGPUCommandEncoder, querySet: WGPUQuerySet, queryIndex: c.U32): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderWriteTimestamp(commandEncoder.value, querySet.value, queryIndex.value))
-export const commandEncoderAddRef = (commandEncoder: WGPUCommandEncoder): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderAddRef(commandEncoder.value))
-export const commandEncoderRelease = (commandEncoder: WGPUCommandEncoder): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderRelease(commandEncoder.value))
-export const computePassEncoderDispatchWorkgroups = (computePassEncoder: WGPUComputePassEncoder, workgroupCountX: c.U32, workgroupCountY: c.U32, workgroupCountZ: c.U32): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderDispatchWorkgroups(computePassEncoder.value, workgroupCountX.value, workgroupCountY.value, workgroupCountZ.value))
-export const computePassEncoderDispatchWorkgroupsIndirect = (computePassEncoder: WGPUComputePassEncoder, indirectBuffer: WGPUBuffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderDispatchWorkgroupsIndirect(computePassEncoder.value, indirectBuffer.value, indirectOffset.value))
-export const computePassEncoderEnd = (computePassEncoder: WGPUComputePassEncoder): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderEnd(computePassEncoder.value))
-export const computePassEncoderInsertDebugMarker = (computePassEncoder: WGPUComputePassEncoder, markerLabel: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderInsertDebugMarker(computePassEncoder.value, markerLabel.value))
-export const computePassEncoderPopDebugGroup = (computePassEncoder: WGPUComputePassEncoder): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderPopDebugGroup(computePassEncoder.value))
-export const computePassEncoderPushDebugGroup = (computePassEncoder: WGPUComputePassEncoder, groupLabel: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderPushDebugGroup(computePassEncoder.value, groupLabel.value))
-export const computePassEncoderSetBindGroup = (computePassEncoder: WGPUComputePassEncoder, groupIndex: c.U32, group: WGPUBindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderSetBindGroup(computePassEncoder.value, groupIndex.value, group.value, dynamicOffsetCount.value, dynamicOffsets.value))
-export const computePassEncoderSetLabel = (computePassEncoder: WGPUComputePassEncoder, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderSetLabel(computePassEncoder.value, label.value))
-export const computePassEncoderSetPipeline = (computePassEncoder: WGPUComputePassEncoder, pipeline: WGPUComputePipeline): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderSetPipeline(computePassEncoder.value, pipeline.value))
-export const computePassEncoderWriteTimestamp = (computePassEncoder: WGPUComputePassEncoder, querySet: WGPUQuerySet, queryIndex: c.U32): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderWriteTimestamp(computePassEncoder.value, querySet.value, queryIndex.value))
-export const computePassEncoderAddRef = (computePassEncoder: WGPUComputePassEncoder): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderAddRef(computePassEncoder.value))
-export const computePassEncoderRelease = (computePassEncoder: WGPUComputePassEncoder): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderRelease(computePassEncoder.value))
-export const computePipelineGetBindGroupLayout = (computePipeline: WGPUComputePipeline, groupIndex: c.U32): WGPUBindGroupLayout => new WGPUBindGroupLayout(lib.symbols.wgpuComputePipelineGetBindGroupLayout(computePipeline.value, groupIndex.value))
-export const computePipelineSetLabel = (computePipeline: WGPUComputePipeline, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuComputePipelineSetLabel(computePipeline.value, label.value))
-export const computePipelineAddRef = (computePipeline: WGPUComputePipeline): c.Void => new c.Void(lib.symbols.wgpuComputePipelineAddRef(computePipeline.value))
-export const computePipelineRelease = (computePipeline: WGPUComputePipeline): c.Void => new c.Void(lib.symbols.wgpuComputePipelineRelease(computePipeline.value))
-export const deviceCreateBindGroup = (device: WGPUDevice, descriptor: c.Pointer<WGPUBindGroupDescriptor>): WGPUBindGroup => new WGPUBindGroup(lib.symbols.wgpuDeviceCreateBindGroup(device.value, descriptor.value))
-export const deviceCreateBindGroupLayout = (device: WGPUDevice, descriptor: c.Pointer<WGPUBindGroupLayoutDescriptor>): WGPUBindGroupLayout => new WGPUBindGroupLayout(lib.symbols.wgpuDeviceCreateBindGroupLayout(device.value, descriptor.value))
-export const deviceCreateBuffer = (device: WGPUDevice, descriptor: c.Pointer<WGPUBufferDescriptor>): WGPUBuffer => new WGPUBuffer(lib.symbols.wgpuDeviceCreateBuffer(device.value, descriptor.value))
-export const deviceCreateCommandEncoder = (device: WGPUDevice, descriptor: c.Pointer<WGPUCommandEncoderDescriptor>): WGPUCommandEncoder => new WGPUCommandEncoder(lib.symbols.wgpuDeviceCreateCommandEncoder(device.value, descriptor.value))
-export const deviceCreateComputePipeline = (device: WGPUDevice, descriptor: c.Pointer<WGPUComputePipelineDescriptor>): WGPUComputePipeline => new WGPUComputePipeline(lib.symbols.wgpuDeviceCreateComputePipeline(device.value, descriptor.value))
-export const deviceCreateComputePipelineAsync = (device: WGPUDevice, descriptor: c.Pointer<WGPUComputePipelineDescriptor>, callback: WGPUCreateComputePipelineAsyncCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuDeviceCreateComputePipelineAsync(device.value, descriptor.value, callback.value, userdata.value))
-export const deviceCreateComputePipelineAsync2 = (device: WGPUDevice, descriptor: c.Pointer<WGPUComputePipelineDescriptor>, callbackInfo: WGPUCreateComputePipelineAsyncCallbackInfo2): WGPUFuture => new WGPUFuture(lib.symbols.wgpuDeviceCreateComputePipelineAsync2(device.value, descriptor.value, callbackInfo.value))
-export const deviceCreateComputePipelineAsyncF = (device: WGPUDevice, descriptor: c.Pointer<WGPUComputePipelineDescriptor>, callbackInfo: WGPUCreateComputePipelineAsyncCallbackInfo): WGPUFuture => new WGPUFuture(lib.symbols.wgpuDeviceCreateComputePipelineAsyncF(device.value, descriptor.value, callbackInfo.value))
-export const deviceCreateErrorBuffer = (device: WGPUDevice, descriptor: c.Pointer<WGPUBufferDescriptor>): WGPUBuffer => new WGPUBuffer(lib.symbols.wgpuDeviceCreateErrorBuffer(device.value, descriptor.value))
-export const deviceCreateErrorExternalTexture = (device: WGPUDevice): WGPUExternalTexture => new WGPUExternalTexture(lib.symbols.wgpuDeviceCreateErrorExternalTexture(device.value))
-export const deviceCreateErrorShaderModule = (device: WGPUDevice, descriptor: c.Pointer<WGPUShaderModuleDescriptor>, errorMessage: WGPUStringView): WGPUShaderModule => new WGPUShaderModule(lib.symbols.wgpuDeviceCreateErrorShaderModule(device.value, descriptor.value, errorMessage.value))
-export const deviceCreateErrorTexture = (device: WGPUDevice, descriptor: c.Pointer<WGPUTextureDescriptor>): WGPUTexture => new WGPUTexture(lib.symbols.wgpuDeviceCreateErrorTexture(device.value, descriptor.value))
-export const deviceCreateExternalTexture = (device: WGPUDevice, externalTextureDescriptor: c.Pointer<WGPUExternalTextureDescriptor>): WGPUExternalTexture => new WGPUExternalTexture(lib.symbols.wgpuDeviceCreateExternalTexture(device.value, externalTextureDescriptor.value))
-export const deviceCreatePipelineLayout = (device: WGPUDevice, descriptor: c.Pointer<WGPUPipelineLayoutDescriptor>): WGPUPipelineLayout => new WGPUPipelineLayout(lib.symbols.wgpuDeviceCreatePipelineLayout(device.value, descriptor.value))
-export const deviceCreateQuerySet = (device: WGPUDevice, descriptor: c.Pointer<WGPUQuerySetDescriptor>): WGPUQuerySet => new WGPUQuerySet(lib.symbols.wgpuDeviceCreateQuerySet(device.value, descriptor.value))
-export const deviceCreateRenderBundleEncoder = (device: WGPUDevice, descriptor: c.Pointer<WGPURenderBundleEncoderDescriptor>): WGPURenderBundleEncoder => new WGPURenderBundleEncoder(lib.symbols.wgpuDeviceCreateRenderBundleEncoder(device.value, descriptor.value))
-export const deviceCreateRenderPipeline = (device: WGPUDevice, descriptor: c.Pointer<WGPURenderPipelineDescriptor>): WGPURenderPipeline => new WGPURenderPipeline(lib.symbols.wgpuDeviceCreateRenderPipeline(device.value, descriptor.value))
-export const deviceCreateRenderPipelineAsync = (device: WGPUDevice, descriptor: c.Pointer<WGPURenderPipelineDescriptor>, callback: WGPUCreateRenderPipelineAsyncCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuDeviceCreateRenderPipelineAsync(device.value, descriptor.value, callback.value, userdata.value))
-export const deviceCreateRenderPipelineAsync2 = (device: WGPUDevice, descriptor: c.Pointer<WGPURenderPipelineDescriptor>, callbackInfo: WGPUCreateRenderPipelineAsyncCallbackInfo2): WGPUFuture => new WGPUFuture(lib.symbols.wgpuDeviceCreateRenderPipelineAsync2(device.value, descriptor.value, callbackInfo.value))
-export const deviceCreateRenderPipelineAsyncF = (device: WGPUDevice, descriptor: c.Pointer<WGPURenderPipelineDescriptor>, callbackInfo: WGPUCreateRenderPipelineAsyncCallbackInfo): WGPUFuture => new WGPUFuture(lib.symbols.wgpuDeviceCreateRenderPipelineAsyncF(device.value, descriptor.value, callbackInfo.value))
-export const deviceCreateSampler = (device: WGPUDevice, descriptor: c.Pointer<WGPUSamplerDescriptor>): WGPUSampler => new WGPUSampler(lib.symbols.wgpuDeviceCreateSampler(device.value, descriptor.value))
-export const deviceCreateShaderModule = (device: WGPUDevice, descriptor: c.Pointer<WGPUShaderModuleDescriptor>): WGPUShaderModule => new WGPUShaderModule(lib.symbols.wgpuDeviceCreateShaderModule(device.value, descriptor.value))
-export const deviceCreateTexture = (device: WGPUDevice, descriptor: c.Pointer<WGPUTextureDescriptor>): WGPUTexture => new WGPUTexture(lib.symbols.wgpuDeviceCreateTexture(device.value, descriptor.value))
-export const deviceDestroy = (device: WGPUDevice): c.Void => new c.Void(lib.symbols.wgpuDeviceDestroy(device.value))
-export const deviceForceLoss = (device: WGPUDevice, type: WGPUDeviceLostReason, message: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuDeviceForceLoss(device.value, type.value, message.value))
-export const deviceGetAHardwareBufferProperties = (device: WGPUDevice, handle: c.Pointer<c.Void>, properties: c.Pointer<WGPUAHardwareBufferProperties>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuDeviceGetAHardwareBufferProperties(device.value, handle.value, properties.value))
-export const deviceGetAdapter = (device: WGPUDevice): WGPUAdapter => new WGPUAdapter(lib.symbols.wgpuDeviceGetAdapter(device.value))
-export const deviceGetAdapterInfo = (device: WGPUDevice, adapterInfo: c.Pointer<WGPUAdapterInfo>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuDeviceGetAdapterInfo(device.value, adapterInfo.value))
-export const deviceGetFeatures = (device: WGPUDevice, features: c.Pointer<WGPUSupportedFeatures>): c.Void => new c.Void(lib.symbols.wgpuDeviceGetFeatures(device.value, features.value))
-export const deviceGetLimits = (device: WGPUDevice, limits: c.Pointer<WGPUSupportedLimits>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuDeviceGetLimits(device.value, limits.value))
-export const deviceGetLostFuture = (device: WGPUDevice): WGPUFuture => new WGPUFuture(lib.symbols.wgpuDeviceGetLostFuture(device.value))
-export const deviceGetQueue = (device: WGPUDevice): WGPUQueue => new WGPUQueue(lib.symbols.wgpuDeviceGetQueue(device.value))
-export const deviceHasFeature = (device: WGPUDevice, feature: WGPUFeatureName): WGPUBool => new WGPUBool(lib.symbols.wgpuDeviceHasFeature(device.value, feature.value))
-export const deviceImportSharedBufferMemory = (device: WGPUDevice, descriptor: c.Pointer<WGPUSharedBufferMemoryDescriptor>): WGPUSharedBufferMemory => new WGPUSharedBufferMemory(lib.symbols.wgpuDeviceImportSharedBufferMemory(device.value, descriptor.value))
-export const deviceImportSharedFence = (device: WGPUDevice, descriptor: c.Pointer<WGPUSharedFenceDescriptor>): WGPUSharedFence => new WGPUSharedFence(lib.symbols.wgpuDeviceImportSharedFence(device.value, descriptor.value))
-export const deviceImportSharedTextureMemory = (device: WGPUDevice, descriptor: c.Pointer<WGPUSharedTextureMemoryDescriptor>): WGPUSharedTextureMemory => new WGPUSharedTextureMemory(lib.symbols.wgpuDeviceImportSharedTextureMemory(device.value, descriptor.value))
-export const deviceInjectError = (device: WGPUDevice, type: WGPUErrorType, message: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuDeviceInjectError(device.value, type.value, message.value))
-export const devicePopErrorScope = (device: WGPUDevice, oldCallback: WGPUErrorCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuDevicePopErrorScope(device.value, oldCallback.value, userdata.value))
-export const devicePopErrorScope2 = (device: WGPUDevice, callbackInfo: WGPUPopErrorScopeCallbackInfo2): WGPUFuture => new WGPUFuture(lib.symbols.wgpuDevicePopErrorScope2(device.value, callbackInfo.value))
-export const devicePopErrorScopeF = (device: WGPUDevice, callbackInfo: WGPUPopErrorScopeCallbackInfo): WGPUFuture => new WGPUFuture(lib.symbols.wgpuDevicePopErrorScopeF(device.value, callbackInfo.value))
-export const devicePushErrorScope = (device: WGPUDevice, filter: WGPUErrorFilter): c.Void => new c.Void(lib.symbols.wgpuDevicePushErrorScope(device.value, filter.value))
-export const deviceSetLabel = (device: WGPUDevice, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuDeviceSetLabel(device.value, label.value))
-export const deviceSetLoggingCallback = (device: WGPUDevice, callback: WGPULoggingCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuDeviceSetLoggingCallback(device.value, callback.value, userdata.value))
-export const deviceTick = (device: WGPUDevice): c.Void => new c.Void(lib.symbols.wgpuDeviceTick(device.value))
-export const deviceValidateTextureDescriptor = (device: WGPUDevice, descriptor: c.Pointer<WGPUTextureDescriptor>): c.Void => new c.Void(lib.symbols.wgpuDeviceValidateTextureDescriptor(device.value, descriptor.value))
-export const deviceAddRef = (device: WGPUDevice): c.Void => new c.Void(lib.symbols.wgpuDeviceAddRef(device.value))
-export const deviceRelease = (device: WGPUDevice): c.Void => new c.Void(lib.symbols.wgpuDeviceRelease(device.value))
-export const externalTextureDestroy = (externalTexture: WGPUExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureDestroy(externalTexture.value))
-export const externalTextureExpire = (externalTexture: WGPUExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureExpire(externalTexture.value))
-export const externalTextureRefresh = (externalTexture: WGPUExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureRefresh(externalTexture.value))
-export const externalTextureSetLabel = (externalTexture: WGPUExternalTexture, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuExternalTextureSetLabel(externalTexture.value, label.value))
-export const externalTextureAddRef = (externalTexture: WGPUExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureAddRef(externalTexture.value))
-export const externalTextureRelease = (externalTexture: WGPUExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureRelease(externalTexture.value))
-export const instanceCreateSurface = (instance: WGPUInstance, descriptor: c.Pointer<WGPUSurfaceDescriptor>): WGPUSurface => new WGPUSurface(lib.symbols.wgpuInstanceCreateSurface(instance.value, descriptor.value))
-export const instanceEnumerateWGSLLanguageFeatures = (instance: WGPUInstance, features: c.Pointer<WGPUWGSLFeatureName>): c.Size => new c.Size(lib.symbols.wgpuInstanceEnumerateWGSLLanguageFeatures(instance.value, features.value))
-export const instanceHasWGSLLanguageFeature = (instance: WGPUInstance, feature: WGPUWGSLFeatureName): WGPUBool => new WGPUBool(lib.symbols.wgpuInstanceHasWGSLLanguageFeature(instance.value, feature.value))
-export const instanceProcessEvents = (instance: WGPUInstance): c.Void => new c.Void(lib.symbols.wgpuInstanceProcessEvents(instance.value))
-export const instanceRequestAdapter = (instance: WGPUInstance, options: c.Pointer<WGPURequestAdapterOptions>, callback: WGPURequestAdapterCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuInstanceRequestAdapter(instance.value, options.value, callback.value, userdata.value))
-export const instanceRequestAdapter2 = (instance: WGPUInstance, options: c.Pointer<WGPURequestAdapterOptions>, callbackInfo: WGPURequestAdapterCallbackInfo2): WGPUFuture => new WGPUFuture(lib.symbols.wgpuInstanceRequestAdapter2(instance.value, options.value, callbackInfo.value))
-export const instanceRequestAdapterF = (instance: WGPUInstance, options: c.Pointer<WGPURequestAdapterOptions>, callbackInfo: WGPURequestAdapterCallbackInfo): WGPUFuture => new WGPUFuture(lib.symbols.wgpuInstanceRequestAdapterF(instance.value, options.value, callbackInfo.value))
-export const instanceWaitAny = (instance: WGPUInstance, futureCount: c.Size, futures: c.Pointer<WGPUFutureWaitInfo>, timeoutNS: c.U64): WGPUWaitStatus => new WGPUWaitStatus(lib.symbols.wgpuInstanceWaitAny(instance.value, futureCount.value, futures.value, timeoutNS.value))
-export const instanceAddRef = (instance: WGPUInstance): c.Void => new c.Void(lib.symbols.wgpuInstanceAddRef(instance.value))
-export const instanceRelease = (instance: WGPUInstance): c.Void => new c.Void(lib.symbols.wgpuInstanceRelease(instance.value))
-export const pipelineLayoutSetLabel = (pipelineLayout: WGPUPipelineLayout, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuPipelineLayoutSetLabel(pipelineLayout.value, label.value))
-export const pipelineLayoutAddRef = (pipelineLayout: WGPUPipelineLayout): c.Void => new c.Void(lib.symbols.wgpuPipelineLayoutAddRef(pipelineLayout.value))
-export const pipelineLayoutRelease = (pipelineLayout: WGPUPipelineLayout): c.Void => new c.Void(lib.symbols.wgpuPipelineLayoutRelease(pipelineLayout.value))
-export const querySetDestroy = (querySet: WGPUQuerySet): c.Void => new c.Void(lib.symbols.wgpuQuerySetDestroy(querySet.value))
-export const querySetGetCount = (querySet: WGPUQuerySet): c.U32 => new c.U32(lib.symbols.wgpuQuerySetGetCount(querySet.value))
-export const querySetGetType = (querySet: WGPUQuerySet): WGPUQueryType => new WGPUQueryType(lib.symbols.wgpuQuerySetGetType(querySet.value))
-export const querySetSetLabel = (querySet: WGPUQuerySet, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuQuerySetSetLabel(querySet.value, label.value))
-export const querySetAddRef = (querySet: WGPUQuerySet): c.Void => new c.Void(lib.symbols.wgpuQuerySetAddRef(querySet.value))
-export const querySetRelease = (querySet: WGPUQuerySet): c.Void => new c.Void(lib.symbols.wgpuQuerySetRelease(querySet.value))
-export const queueCopyExternalTextureForBrowser = (queue: WGPUQueue, source: c.Pointer<WGPUImageCopyExternalTexture>, destination: c.Pointer<WGPUImageCopyTexture>, copySize: c.Pointer<WGPUExtent3D>, options: c.Pointer<WGPUCopyTextureForBrowserOptions>): c.Void => new c.Void(lib.symbols.wgpuQueueCopyExternalTextureForBrowser(queue.value, source.value, destination.value, copySize.value, options.value))
-export const queueCopyTextureForBrowser = (queue: WGPUQueue, source: c.Pointer<WGPUImageCopyTexture>, destination: c.Pointer<WGPUImageCopyTexture>, copySize: c.Pointer<WGPUExtent3D>, options: c.Pointer<WGPUCopyTextureForBrowserOptions>): c.Void => new c.Void(lib.symbols.wgpuQueueCopyTextureForBrowser(queue.value, source.value, destination.value, copySize.value, options.value))
-export const queueOnSubmittedWorkDone = (queue: WGPUQueue, callback: WGPUQueueWorkDoneCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuQueueOnSubmittedWorkDone(queue.value, callback.value, userdata.value))
-export const queueOnSubmittedWorkDone2 = (queue: WGPUQueue, callbackInfo: WGPUQueueWorkDoneCallbackInfo2): WGPUFuture => new WGPUFuture(lib.symbols.wgpuQueueOnSubmittedWorkDone2(queue.value, callbackInfo.value))
-export const queueOnSubmittedWorkDoneF = (queue: WGPUQueue, callbackInfo: WGPUQueueWorkDoneCallbackInfo): WGPUFuture => new WGPUFuture(lib.symbols.wgpuQueueOnSubmittedWorkDoneF(queue.value, callbackInfo.value))
-export const queueSetLabel = (queue: WGPUQueue, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuQueueSetLabel(queue.value, label.value))
-export const queueSubmit = (queue: WGPUQueue, commandCount: c.Size, commands: c.Pointer<WGPUCommandBuffer>): c.Void => new c.Void(lib.symbols.wgpuQueueSubmit(queue.value, commandCount.value, commands.value))
-export const queueWriteBuffer = (queue: WGPUQueue, buffer: WGPUBuffer, bufferOffset: c.U64, data: c.Pointer<c.Void>, size: c.Size): c.Void => new c.Void(lib.symbols.wgpuQueueWriteBuffer(queue.value, buffer.value, bufferOffset.value, data.value, size.value))
-export const queueWriteTexture = (queue: WGPUQueue, destination: c.Pointer<WGPUImageCopyTexture>, data: c.Pointer<c.Void>, dataSize: c.Size, dataLayout: c.Pointer<WGPUTextureDataLayout>, writeSize: c.Pointer<WGPUExtent3D>): c.Void => new c.Void(lib.symbols.wgpuQueueWriteTexture(queue.value, destination.value, data.value, dataSize.value, dataLayout.value, writeSize.value))
-export const queueAddRef = (queue: WGPUQueue): c.Void => new c.Void(lib.symbols.wgpuQueueAddRef(queue.value))
-export const queueRelease = (queue: WGPUQueue): c.Void => new c.Void(lib.symbols.wgpuQueueRelease(queue.value))
-export const renderBundleSetLabel = (renderBundle: WGPURenderBundle, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuRenderBundleSetLabel(renderBundle.value, label.value))
-export const renderBundleAddRef = (renderBundle: WGPURenderBundle): c.Void => new c.Void(lib.symbols.wgpuRenderBundleAddRef(renderBundle.value))
-export const renderBundleRelease = (renderBundle: WGPURenderBundle): c.Void => new c.Void(lib.symbols.wgpuRenderBundleRelease(renderBundle.value))
-export const renderBundleEncoderDraw = (renderBundleEncoder: WGPURenderBundleEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderDraw(renderBundleEncoder.value, vertexCount.value, instanceCount.value, firstVertex.value, firstInstance.value))
-export const renderBundleEncoderDrawIndexed = (renderBundleEncoder: WGPURenderBundleEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderDrawIndexed(renderBundleEncoder.value, indexCount.value, instanceCount.value, firstIndex.value, baseVertex.value, firstInstance.value))
-export const renderBundleEncoderDrawIndexedIndirect = (renderBundleEncoder: WGPURenderBundleEncoder, indirectBuffer: WGPUBuffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderDrawIndexedIndirect(renderBundleEncoder.value, indirectBuffer.value, indirectOffset.value))
-export const renderBundleEncoderDrawIndirect = (renderBundleEncoder: WGPURenderBundleEncoder, indirectBuffer: WGPUBuffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderDrawIndirect(renderBundleEncoder.value, indirectBuffer.value, indirectOffset.value))
-export const renderBundleEncoderFinish = (renderBundleEncoder: WGPURenderBundleEncoder, descriptor: c.Pointer<WGPURenderBundleDescriptor>): WGPURenderBundle => new WGPURenderBundle(lib.symbols.wgpuRenderBundleEncoderFinish(renderBundleEncoder.value, descriptor.value))
-export const renderBundleEncoderInsertDebugMarker = (renderBundleEncoder: WGPURenderBundleEncoder, markerLabel: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderInsertDebugMarker(renderBundleEncoder.value, markerLabel.value))
-export const renderBundleEncoderPopDebugGroup = (renderBundleEncoder: WGPURenderBundleEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderPopDebugGroup(renderBundleEncoder.value))
-export const renderBundleEncoderPushDebugGroup = (renderBundleEncoder: WGPURenderBundleEncoder, groupLabel: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderPushDebugGroup(renderBundleEncoder.value, groupLabel.value))
-export const renderBundleEncoderSetBindGroup = (renderBundleEncoder: WGPURenderBundleEncoder, groupIndex: c.U32, group: WGPUBindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetBindGroup(renderBundleEncoder.value, groupIndex.value, group.value, dynamicOffsetCount.value, dynamicOffsets.value))
-export const renderBundleEncoderSetIndexBuffer = (renderBundleEncoder: WGPURenderBundleEncoder, buffer: WGPUBuffer, format: WGPUIndexFormat, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetIndexBuffer(renderBundleEncoder.value, buffer.value, format.value, offset.value, size.value))
-export const renderBundleEncoderSetLabel = (renderBundleEncoder: WGPURenderBundleEncoder, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetLabel(renderBundleEncoder.value, label.value))
-export const renderBundleEncoderSetPipeline = (renderBundleEncoder: WGPURenderBundleEncoder, pipeline: WGPURenderPipeline): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetPipeline(renderBundleEncoder.value, pipeline.value))
-export const renderBundleEncoderSetVertexBuffer = (renderBundleEncoder: WGPURenderBundleEncoder, slot: c.U32, buffer: WGPUBuffer, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetVertexBuffer(renderBundleEncoder.value, slot.value, buffer.value, offset.value, size.value))
-export const renderBundleEncoderAddRef = (renderBundleEncoder: WGPURenderBundleEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderAddRef(renderBundleEncoder.value))
-export const renderBundleEncoderRelease = (renderBundleEncoder: WGPURenderBundleEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderRelease(renderBundleEncoder.value))
-export const renderPassEncoderBeginOcclusionQuery = (renderPassEncoder: WGPURenderPassEncoder, queryIndex: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderBeginOcclusionQuery(renderPassEncoder.value, queryIndex.value))
-export const renderPassEncoderDraw = (renderPassEncoder: WGPURenderPassEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderDraw(renderPassEncoder.value, vertexCount.value, instanceCount.value, firstVertex.value, firstInstance.value))
-export const renderPassEncoderDrawIndexed = (renderPassEncoder: WGPURenderPassEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderDrawIndexed(renderPassEncoder.value, indexCount.value, instanceCount.value, firstIndex.value, baseVertex.value, firstInstance.value))
-export const renderPassEncoderDrawIndexedIndirect = (renderPassEncoder: WGPURenderPassEncoder, indirectBuffer: WGPUBuffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderDrawIndexedIndirect(renderPassEncoder.value, indirectBuffer.value, indirectOffset.value))
-export const renderPassEncoderDrawIndirect = (renderPassEncoder: WGPURenderPassEncoder, indirectBuffer: WGPUBuffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderDrawIndirect(renderPassEncoder.value, indirectBuffer.value, indirectOffset.value))
-export const renderPassEncoderEnd = (renderPassEncoder: WGPURenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderEnd(renderPassEncoder.value))
-export const renderPassEncoderEndOcclusionQuery = (renderPassEncoder: WGPURenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderEndOcclusionQuery(renderPassEncoder.value))
-export const renderPassEncoderExecuteBundles = (renderPassEncoder: WGPURenderPassEncoder, bundleCount: c.Size, bundles: c.Pointer<WGPURenderBundle>): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderExecuteBundles(renderPassEncoder.value, bundleCount.value, bundles.value))
-export const renderPassEncoderInsertDebugMarker = (renderPassEncoder: WGPURenderPassEncoder, markerLabel: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderInsertDebugMarker(renderPassEncoder.value, markerLabel.value))
-export const renderPassEncoderMultiDrawIndexedIndirect = (renderPassEncoder: WGPURenderPassEncoder, indirectBuffer: WGPUBuffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: WGPUBuffer, drawCountBufferOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderMultiDrawIndexedIndirect(renderPassEncoder.value, indirectBuffer.value, indirectOffset.value, maxDrawCount.value, drawCountBuffer.value, drawCountBufferOffset.value))
-export const renderPassEncoderMultiDrawIndirect = (renderPassEncoder: WGPURenderPassEncoder, indirectBuffer: WGPUBuffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: WGPUBuffer, drawCountBufferOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderMultiDrawIndirect(renderPassEncoder.value, indirectBuffer.value, indirectOffset.value, maxDrawCount.value, drawCountBuffer.value, drawCountBufferOffset.value))
-export const renderPassEncoderPixelLocalStorageBarrier = (renderPassEncoder: WGPURenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderPixelLocalStorageBarrier(renderPassEncoder.value))
-export const renderPassEncoderPopDebugGroup = (renderPassEncoder: WGPURenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderPopDebugGroup(renderPassEncoder.value))
-export const renderPassEncoderPushDebugGroup = (renderPassEncoder: WGPURenderPassEncoder, groupLabel: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderPushDebugGroup(renderPassEncoder.value, groupLabel.value))
-export const renderPassEncoderSetBindGroup = (renderPassEncoder: WGPURenderPassEncoder, groupIndex: c.U32, group: WGPUBindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetBindGroup(renderPassEncoder.value, groupIndex.value, group.value, dynamicOffsetCount.value, dynamicOffsets.value))
-export const renderPassEncoderSetBlendConstant = (renderPassEncoder: WGPURenderPassEncoder, color: c.Pointer<WGPUColor>): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetBlendConstant(renderPassEncoder.value, color.value))
-export const renderPassEncoderSetIndexBuffer = (renderPassEncoder: WGPURenderPassEncoder, buffer: WGPUBuffer, format: WGPUIndexFormat, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetIndexBuffer(renderPassEncoder.value, buffer.value, format.value, offset.value, size.value))
-export const renderPassEncoderSetLabel = (renderPassEncoder: WGPURenderPassEncoder, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetLabel(renderPassEncoder.value, label.value))
-export const renderPassEncoderSetPipeline = (renderPassEncoder: WGPURenderPassEncoder, pipeline: WGPURenderPipeline): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetPipeline(renderPassEncoder.value, pipeline.value))
-export const renderPassEncoderSetScissorRect = (renderPassEncoder: WGPURenderPassEncoder, x: c.U32, y: c.U32, width: c.U32, height: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetScissorRect(renderPassEncoder.value, x.value, y.value, width.value, height.value))
-export const renderPassEncoderSetStencilReference = (renderPassEncoder: WGPURenderPassEncoder, reference: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetStencilReference(renderPassEncoder.value, reference.value))
-export const renderPassEncoderSetVertexBuffer = (renderPassEncoder: WGPURenderPassEncoder, slot: c.U32, buffer: WGPUBuffer, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder.value, slot.value, buffer.value, offset.value, size.value))
-export const renderPassEncoderSetViewport = (renderPassEncoder: WGPURenderPassEncoder, x: c.F32, y: c.F32, width: c.F32, height: c.F32, minDepth: c.F32, maxDepth: c.F32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetViewport(renderPassEncoder.value, x.value, y.value, width.value, height.value, minDepth.value, maxDepth.value))
-export const renderPassEncoderWriteTimestamp = (renderPassEncoder: WGPURenderPassEncoder, querySet: WGPUQuerySet, queryIndex: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderWriteTimestamp(renderPassEncoder.value, querySet.value, queryIndex.value))
-export const renderPassEncoderAddRef = (renderPassEncoder: WGPURenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderAddRef(renderPassEncoder.value))
-export const renderPassEncoderRelease = (renderPassEncoder: WGPURenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderRelease(renderPassEncoder.value))
-export const renderPipelineGetBindGroupLayout = (renderPipeline: WGPURenderPipeline, groupIndex: c.U32): WGPUBindGroupLayout => new WGPUBindGroupLayout(lib.symbols.wgpuRenderPipelineGetBindGroupLayout(renderPipeline.value, groupIndex.value))
-export const renderPipelineSetLabel = (renderPipeline: WGPURenderPipeline, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuRenderPipelineSetLabel(renderPipeline.value, label.value))
-export const renderPipelineAddRef = (renderPipeline: WGPURenderPipeline): c.Void => new c.Void(lib.symbols.wgpuRenderPipelineAddRef(renderPipeline.value))
-export const renderPipelineRelease = (renderPipeline: WGPURenderPipeline): c.Void => new c.Void(lib.symbols.wgpuRenderPipelineRelease(renderPipeline.value))
-export const samplerSetLabel = (sampler: WGPUSampler, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuSamplerSetLabel(sampler.value, label.value))
-export const samplerAddRef = (sampler: WGPUSampler): c.Void => new c.Void(lib.symbols.wgpuSamplerAddRef(sampler.value))
-export const samplerRelease = (sampler: WGPUSampler): c.Void => new c.Void(lib.symbols.wgpuSamplerRelease(sampler.value))
-export const shaderModuleGetCompilationInfo = (shaderModule: WGPUShaderModule, callback: WGPUCompilationInfoCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuShaderModuleGetCompilationInfo(shaderModule.value, callback.value, userdata.value))
-export const shaderModuleGetCompilationInfo2 = (shaderModule: WGPUShaderModule, callbackInfo: WGPUCompilationInfoCallbackInfo2): WGPUFuture => new WGPUFuture(lib.symbols.wgpuShaderModuleGetCompilationInfo2(shaderModule.value, callbackInfo.value))
-export const shaderModuleGetCompilationInfoF = (shaderModule: WGPUShaderModule, callbackInfo: WGPUCompilationInfoCallbackInfo): WGPUFuture => new WGPUFuture(lib.symbols.wgpuShaderModuleGetCompilationInfoF(shaderModule.value, callbackInfo.value))
-export const shaderModuleSetLabel = (shaderModule: WGPUShaderModule, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuShaderModuleSetLabel(shaderModule.value, label.value))
-export const shaderModuleAddRef = (shaderModule: WGPUShaderModule): c.Void => new c.Void(lib.symbols.wgpuShaderModuleAddRef(shaderModule.value))
-export const shaderModuleRelease = (shaderModule: WGPUShaderModule): c.Void => new c.Void(lib.symbols.wgpuShaderModuleRelease(shaderModule.value))
-export const sharedBufferMemoryBeginAccess = (sharedBufferMemory: WGPUSharedBufferMemory, buffer: WGPUBuffer, descriptor: c.Pointer<WGPUSharedBufferMemoryBeginAccessDescriptor>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuSharedBufferMemoryBeginAccess(sharedBufferMemory.value, buffer.value, descriptor.value))
-export const sharedBufferMemoryCreateBuffer = (sharedBufferMemory: WGPUSharedBufferMemory, descriptor: c.Pointer<WGPUBufferDescriptor>): WGPUBuffer => new WGPUBuffer(lib.symbols.wgpuSharedBufferMemoryCreateBuffer(sharedBufferMemory.value, descriptor.value))
-export const sharedBufferMemoryEndAccess = (sharedBufferMemory: WGPUSharedBufferMemory, buffer: WGPUBuffer, descriptor: c.Pointer<WGPUSharedBufferMemoryEndAccessState>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuSharedBufferMemoryEndAccess(sharedBufferMemory.value, buffer.value, descriptor.value))
-export const sharedBufferMemoryGetProperties = (sharedBufferMemory: WGPUSharedBufferMemory, properties: c.Pointer<WGPUSharedBufferMemoryProperties>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuSharedBufferMemoryGetProperties(sharedBufferMemory.value, properties.value))
-export const sharedBufferMemoryIsDeviceLost = (sharedBufferMemory: WGPUSharedBufferMemory): WGPUBool => new WGPUBool(lib.symbols.wgpuSharedBufferMemoryIsDeviceLost(sharedBufferMemory.value))
-export const sharedBufferMemorySetLabel = (sharedBufferMemory: WGPUSharedBufferMemory, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuSharedBufferMemorySetLabel(sharedBufferMemory.value, label.value))
-export const sharedBufferMemoryAddRef = (sharedBufferMemory: WGPUSharedBufferMemory): c.Void => new c.Void(lib.symbols.wgpuSharedBufferMemoryAddRef(sharedBufferMemory.value))
-export const sharedBufferMemoryRelease = (sharedBufferMemory: WGPUSharedBufferMemory): c.Void => new c.Void(lib.symbols.wgpuSharedBufferMemoryRelease(sharedBufferMemory.value))
-export const sharedFenceExportInfo = (sharedFence: WGPUSharedFence, info: c.Pointer<WGPUSharedFenceExportInfo>): c.Void => new c.Void(lib.symbols.wgpuSharedFenceExportInfo(sharedFence.value, info.value))
-export const sharedFenceAddRef = (sharedFence: WGPUSharedFence): c.Void => new c.Void(lib.symbols.wgpuSharedFenceAddRef(sharedFence.value))
-export const sharedFenceRelease = (sharedFence: WGPUSharedFence): c.Void => new c.Void(lib.symbols.wgpuSharedFenceRelease(sharedFence.value))
-export const sharedTextureMemoryBeginAccess = (sharedTextureMemory: WGPUSharedTextureMemory, texture: WGPUTexture, descriptor: c.Pointer<WGPUSharedTextureMemoryBeginAccessDescriptor>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuSharedTextureMemoryBeginAccess(sharedTextureMemory.value, texture.value, descriptor.value))
-export const sharedTextureMemoryCreateTexture = (sharedTextureMemory: WGPUSharedTextureMemory, descriptor: c.Pointer<WGPUTextureDescriptor>): WGPUTexture => new WGPUTexture(lib.symbols.wgpuSharedTextureMemoryCreateTexture(sharedTextureMemory.value, descriptor.value))
-export const sharedTextureMemoryEndAccess = (sharedTextureMemory: WGPUSharedTextureMemory, texture: WGPUTexture, descriptor: c.Pointer<WGPUSharedTextureMemoryEndAccessState>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuSharedTextureMemoryEndAccess(sharedTextureMemory.value, texture.value, descriptor.value))
-export const sharedTextureMemoryGetProperties = (sharedTextureMemory: WGPUSharedTextureMemory, properties: c.Pointer<WGPUSharedTextureMemoryProperties>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuSharedTextureMemoryGetProperties(sharedTextureMemory.value, properties.value))
-export const sharedTextureMemoryIsDeviceLost = (sharedTextureMemory: WGPUSharedTextureMemory): WGPUBool => new WGPUBool(lib.symbols.wgpuSharedTextureMemoryIsDeviceLost(sharedTextureMemory.value))
-export const sharedTextureMemorySetLabel = (sharedTextureMemory: WGPUSharedTextureMemory, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuSharedTextureMemorySetLabel(sharedTextureMemory.value, label.value))
-export const sharedTextureMemoryAddRef = (sharedTextureMemory: WGPUSharedTextureMemory): c.Void => new c.Void(lib.symbols.wgpuSharedTextureMemoryAddRef(sharedTextureMemory.value))
-export const sharedTextureMemoryRelease = (sharedTextureMemory: WGPUSharedTextureMemory): c.Void => new c.Void(lib.symbols.wgpuSharedTextureMemoryRelease(sharedTextureMemory.value))
-export const surfaceConfigure = (surface: WGPUSurface, config: c.Pointer<WGPUSurfaceConfiguration>): c.Void => new c.Void(lib.symbols.wgpuSurfaceConfigure(surface.value, config.value))
-export const surfaceGetCapabilities = (surface: WGPUSurface, adapter: WGPUAdapter, capabilities: c.Pointer<WGPUSurfaceCapabilities>): WGPUStatus => new WGPUStatus(lib.symbols.wgpuSurfaceGetCapabilities(surface.value, adapter.value, capabilities.value))
-export const surfaceGetCurrentTexture = (surface: WGPUSurface, surfaceTexture: c.Pointer<WGPUSurfaceTexture>): c.Void => new c.Void(lib.symbols.wgpuSurfaceGetCurrentTexture(surface.value, surfaceTexture.value))
-export const surfacePresent = (surface: WGPUSurface): c.Void => new c.Void(lib.symbols.wgpuSurfacePresent(surface.value))
-export const surfaceSetLabel = (surface: WGPUSurface, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuSurfaceSetLabel(surface.value, label.value))
-export const surfaceUnconfigure = (surface: WGPUSurface): c.Void => new c.Void(lib.symbols.wgpuSurfaceUnconfigure(surface.value))
-export const surfaceAddRef = (surface: WGPUSurface): c.Void => new c.Void(lib.symbols.wgpuSurfaceAddRef(surface.value))
-export const surfaceRelease = (surface: WGPUSurface): c.Void => new c.Void(lib.symbols.wgpuSurfaceRelease(surface.value))
-export const textureCreateErrorView = (texture: WGPUTexture, descriptor: c.Pointer<WGPUTextureViewDescriptor>): WGPUTextureView => new WGPUTextureView(lib.symbols.wgpuTextureCreateErrorView(texture.value, descriptor.value))
-export const textureCreateView = (texture: WGPUTexture, descriptor: c.Pointer<WGPUTextureViewDescriptor>): WGPUTextureView => new WGPUTextureView(lib.symbols.wgpuTextureCreateView(texture.value, descriptor.value))
-export const textureDestroy = (texture: WGPUTexture): c.Void => new c.Void(lib.symbols.wgpuTextureDestroy(texture.value))
-export const textureGetDepthOrArrayLayers = (texture: WGPUTexture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetDepthOrArrayLayers(texture.value))
-export const textureGetDimension = (texture: WGPUTexture): WGPUTextureDimension => new WGPUTextureDimension(lib.symbols.wgpuTextureGetDimension(texture.value))
-export const textureGetFormat = (texture: WGPUTexture): WGPUTextureFormat => new WGPUTextureFormat(lib.symbols.wgpuTextureGetFormat(texture.value))
-export const textureGetHeight = (texture: WGPUTexture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetHeight(texture.value))
-export const textureGetMipLevelCount = (texture: WGPUTexture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetMipLevelCount(texture.value))
-export const textureGetSampleCount = (texture: WGPUTexture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetSampleCount(texture.value))
-export const textureGetUsage = (texture: WGPUTexture): WGPUTextureUsage => new WGPUTextureUsage(lib.symbols.wgpuTextureGetUsage(texture.value))
-export const textureGetWidth = (texture: WGPUTexture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetWidth(texture.value))
-export const textureSetLabel = (texture: WGPUTexture, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuTextureSetLabel(texture.value, label.value))
-export const textureAddRef = (texture: WGPUTexture): c.Void => new c.Void(lib.symbols.wgpuTextureAddRef(texture.value))
-export const textureRelease = (texture: WGPUTexture): c.Void => new c.Void(lib.symbols.wgpuTextureRelease(texture.value))
-export const textureViewSetLabel = (textureView: WGPUTextureView, label: WGPUStringView): c.Void => new c.Void(lib.symbols.wgpuTextureViewSetLabel(textureView.value, label.value))
-export const textureViewAddRef = (textureView: WGPUTextureView): c.Void => new c.Void(lib.symbols.wgpuTextureViewAddRef(textureView.value))
-export const textureViewRelease = (textureView: WGPUTextureView): c.Void => new c.Void(lib.symbols.wgpuTextureViewRelease(textureView.value))
+export const adapterInfoFreeMembers = (value: AdapterInfo): c.Void => new c.Void(lib.symbols.wgpuAdapterInfoFreeMembers(value.value))
+export const adapterPropertiesMemoryHeapsFreeMembers = (value: AdapterPropertiesMemoryHeaps): c.Void => new c.Void(lib.symbols.wgpuAdapterPropertiesMemoryHeapsFreeMembers(value.value))
+export const createInstance = (descriptor: c.Pointer<InstanceDescriptor>): Instance => new Instance(lib.symbols.wgpuCreateInstance(descriptor.value))
+export const drmFormatCapabilitiesFreeMembers = (value: DrmFormatCapabilities): c.Void => new c.Void(lib.symbols.wgpuDrmFormatCapabilitiesFreeMembers(value.value))
+export const getInstanceFeatures = (features: c.Pointer<InstanceFeatures>): Status => new Status(lib.symbols.wgpuGetInstanceFeatures(features.value))
+export const getProcAddress = (procName: StringView): Proc => new Proc(lib.symbols.wgpuGetProcAddress(procName.value))
+export const sharedBufferMemoryEndAccessStateFreeMembers = (value: SharedBufferMemoryEndAccessState): c.Void => new c.Void(lib.symbols.wgpuSharedBufferMemoryEndAccessStateFreeMembers(value.value))
+export const sharedTextureMemoryEndAccessStateFreeMembers = (value: SharedTextureMemoryEndAccessState): c.Void => new c.Void(lib.symbols.wgpuSharedTextureMemoryEndAccessStateFreeMembers(value.value))
+export const supportedFeaturesFreeMembers = (value: SupportedFeatures): c.Void => new c.Void(lib.symbols.wgpuSupportedFeaturesFreeMembers(value.value))
+export const surfaceCapabilitiesFreeMembers = (value: SurfaceCapabilities): c.Void => new c.Void(lib.symbols.wgpuSurfaceCapabilitiesFreeMembers(value.value))
+export const adapterCreateDevice = (adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>): Device => new Device(lib.symbols.wgpuAdapterCreateDevice(adapter.value, descriptor.value))
+export const adapterGetFeatures = (adapter: Adapter, features: c.Pointer<SupportedFeatures>): c.Void => new c.Void(lib.symbols.wgpuAdapterGetFeatures(adapter.value, features.value))
+export const adapterGetFormatCapabilities = (adapter: Adapter, format: TextureFormat, capabilities: c.Pointer<FormatCapabilities>): Status => new Status(lib.symbols.wgpuAdapterGetFormatCapabilities(adapter.value, format.value, capabilities.value))
+export const adapterGetInfo = (adapter: Adapter, info: c.Pointer<AdapterInfo>): Status => new Status(lib.symbols.wgpuAdapterGetInfo(adapter.value, info.value))
+export const adapterGetInstance = (adapter: Adapter): Instance => new Instance(lib.symbols.wgpuAdapterGetInstance(adapter.value))
+export const adapterGetLimits = (adapter: Adapter, limits: c.Pointer<SupportedLimits>): Status => new Status(lib.symbols.wgpuAdapterGetLimits(adapter.value, limits.value))
+export const adapterHasFeature = (adapter: Adapter, feature: FeatureName): Bool => new Bool(lib.symbols.wgpuAdapterHasFeature(adapter.value, feature.value))
+export const adapterRequestDevice = (adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>, callback: RequestDeviceCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuAdapterRequestDevice(adapter.value, descriptor.value, callback.value, userdata.value))
+export const adapterRequestDevice2 = (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo2): Future => new Future(lib.symbols.wgpuAdapterRequestDevice2(adapter.value, options.value, callbackInfo.value))
+export const adapterRequestDeviceF = (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo): Future => new Future(lib.symbols.wgpuAdapterRequestDeviceF(adapter.value, options.value, callbackInfo.value))
+export const adapterAddRef = (adapter: Adapter): c.Void => new c.Void(lib.symbols.wgpuAdapterAddRef(adapter.value))
+export const adapterRelease = (adapter: Adapter): c.Void => new c.Void(lib.symbols.wgpuAdapterRelease(adapter.value))
+export const bindGroupSetLabel = (bindGroup: BindGroup, label: StringView): c.Void => new c.Void(lib.symbols.wgpuBindGroupSetLabel(bindGroup.value, label.value))
+export const bindGroupAddRef = (bindGroup: BindGroup): c.Void => new c.Void(lib.symbols.wgpuBindGroupAddRef(bindGroup.value))
+export const bindGroupRelease = (bindGroup: BindGroup): c.Void => new c.Void(lib.symbols.wgpuBindGroupRelease(bindGroup.value))
+export const bindGroupLayoutSetLabel = (bindGroupLayout: BindGroupLayout, label: StringView): c.Void => new c.Void(lib.symbols.wgpuBindGroupLayoutSetLabel(bindGroupLayout.value, label.value))
+export const bindGroupLayoutAddRef = (bindGroupLayout: BindGroupLayout): c.Void => new c.Void(lib.symbols.wgpuBindGroupLayoutAddRef(bindGroupLayout.value))
+export const bindGroupLayoutRelease = (bindGroupLayout: BindGroupLayout): c.Void => new c.Void(lib.symbols.wgpuBindGroupLayoutRelease(bindGroupLayout.value))
+export const bufferDestroy = (buffer: Buffer): c.Void => new c.Void(lib.symbols.wgpuBufferDestroy(buffer.value))
+export const bufferGetConstMappedRange = (buffer: Buffer, offset: c.Size, size: c.Size): c.Pointer<c.Void> => new c.Pointer<c.Void>(lib.symbols.wgpuBufferGetConstMappedRange(buffer.value, offset.value, size.value))
+export const bufferGetMapState = (buffer: Buffer): BufferMapState => new BufferMapState(lib.symbols.wgpuBufferGetMapState(buffer.value))
+export const bufferGetMappedRange = (buffer: Buffer, offset: c.Size, size: c.Size): c.Pointer<c.Void> => new c.Pointer<c.Void>(lib.symbols.wgpuBufferGetMappedRange(buffer.value, offset.value, size.value))
+export const bufferGetSize = (buffer: Buffer): c.U64 => new c.U64(lib.symbols.wgpuBufferGetSize(buffer.value))
+export const bufferGetUsage = (buffer: Buffer): BufferUsage => new BufferUsage(lib.symbols.wgpuBufferGetUsage(buffer.value))
+export const bufferMapAsync = (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callback: BufferMapCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuBufferMapAsync(buffer.value, mode.value, offset.value, size.value, callback.value, userdata.value))
+export const bufferMapAsync2 = (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callbackInfo: BufferMapCallbackInfo2): Future => new Future(lib.symbols.wgpuBufferMapAsync2(buffer.value, mode.value, offset.value, size.value, callbackInfo.value))
+export const bufferMapAsyncF = (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callbackInfo: BufferMapCallbackInfo): Future => new Future(lib.symbols.wgpuBufferMapAsyncF(buffer.value, mode.value, offset.value, size.value, callbackInfo.value))
+export const bufferSetLabel = (buffer: Buffer, label: StringView): c.Void => new c.Void(lib.symbols.wgpuBufferSetLabel(buffer.value, label.value))
+export const bufferUnmap = (buffer: Buffer): c.Void => new c.Void(lib.symbols.wgpuBufferUnmap(buffer.value))
+export const bufferAddRef = (buffer: Buffer): c.Void => new c.Void(lib.symbols.wgpuBufferAddRef(buffer.value))
+export const bufferRelease = (buffer: Buffer): c.Void => new c.Void(lib.symbols.wgpuBufferRelease(buffer.value))
+export const commandBufferSetLabel = (commandBuffer: CommandBuffer, label: StringView): c.Void => new c.Void(lib.symbols.wgpuCommandBufferSetLabel(commandBuffer.value, label.value))
+export const commandBufferAddRef = (commandBuffer: CommandBuffer): c.Void => new c.Void(lib.symbols.wgpuCommandBufferAddRef(commandBuffer.value))
+export const commandBufferRelease = (commandBuffer: CommandBuffer): c.Void => new c.Void(lib.symbols.wgpuCommandBufferRelease(commandBuffer.value))
+export const commandEncoderBeginComputePass = (commandEncoder: CommandEncoder, descriptor: c.Pointer<ComputePassDescriptor>): ComputePassEncoder => new ComputePassEncoder(lib.symbols.wgpuCommandEncoderBeginComputePass(commandEncoder.value, descriptor.value))
+export const commandEncoderBeginRenderPass = (commandEncoder: CommandEncoder, descriptor: c.Pointer<RenderPassDescriptor>): RenderPassEncoder => new RenderPassEncoder(lib.symbols.wgpuCommandEncoderBeginRenderPass(commandEncoder.value, descriptor.value))
+export const commandEncoderClearBuffer = (commandEncoder: CommandEncoder, buffer: Buffer, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderClearBuffer(commandEncoder.value, buffer.value, offset.value, size.value))
+export const commandEncoderCopyBufferToBuffer = (commandEncoder: CommandEncoder, source: Buffer, sourceOffset: c.U64, destination: Buffer, destinationOffset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderCopyBufferToBuffer(commandEncoder.value, source.value, sourceOffset.value, destination.value, destinationOffset.value, size.value))
+export const commandEncoderCopyBufferToTexture = (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyBuffer>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderCopyBufferToTexture(commandEncoder.value, source.value, destination.value, copySize.value))
+export const commandEncoderCopyTextureToBuffer = (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyBuffer>, copySize: c.Pointer<Extent3D>): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderCopyTextureToBuffer(commandEncoder.value, source.value, destination.value, copySize.value))
+export const commandEncoderCopyTextureToTexture = (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderCopyTextureToTexture(commandEncoder.value, source.value, destination.value, copySize.value))
+export const commandEncoderFinish = (commandEncoder: CommandEncoder, descriptor: c.Pointer<CommandBufferDescriptor>): CommandBuffer => new CommandBuffer(lib.symbols.wgpuCommandEncoderFinish(commandEncoder.value, descriptor.value))
+export const commandEncoderInjectValidationError = (commandEncoder: CommandEncoder, message: StringView): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderInjectValidationError(commandEncoder.value, message.value))
+export const commandEncoderInsertDebugMarker = (commandEncoder: CommandEncoder, markerLabel: StringView): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderInsertDebugMarker(commandEncoder.value, markerLabel.value))
+export const commandEncoderPopDebugGroup = (commandEncoder: CommandEncoder): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderPopDebugGroup(commandEncoder.value))
+export const commandEncoderPushDebugGroup = (commandEncoder: CommandEncoder, groupLabel: StringView): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderPushDebugGroup(commandEncoder.value, groupLabel.value))
+export const commandEncoderResolveQuerySet = (commandEncoder: CommandEncoder, querySet: QuerySet, firstQuery: c.U32, queryCount: c.U32, destination: Buffer, destinationOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderResolveQuerySet(commandEncoder.value, querySet.value, firstQuery.value, queryCount.value, destination.value, destinationOffset.value))
+export const commandEncoderSetLabel = (commandEncoder: CommandEncoder, label: StringView): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderSetLabel(commandEncoder.value, label.value))
+export const commandEncoderWriteBuffer = (commandEncoder: CommandEncoder, buffer: Buffer, bufferOffset: c.U64, data: c.Pointer<c.U8>, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderWriteBuffer(commandEncoder.value, buffer.value, bufferOffset.value, data.value, size.value))
+export const commandEncoderWriteTimestamp = (commandEncoder: CommandEncoder, querySet: QuerySet, queryIndex: c.U32): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderWriteTimestamp(commandEncoder.value, querySet.value, queryIndex.value))
+export const commandEncoderAddRef = (commandEncoder: CommandEncoder): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderAddRef(commandEncoder.value))
+export const commandEncoderRelease = (commandEncoder: CommandEncoder): c.Void => new c.Void(lib.symbols.wgpuCommandEncoderRelease(commandEncoder.value))
+export const computePassEncoderDispatchWorkgroups = (computePassEncoder: ComputePassEncoder, workgroupCountX: c.U32, workgroupCountY: c.U32, workgroupCountZ: c.U32): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderDispatchWorkgroups(computePassEncoder.value, workgroupCountX.value, workgroupCountY.value, workgroupCountZ.value))
+export const computePassEncoderDispatchWorkgroupsIndirect = (computePassEncoder: ComputePassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderDispatchWorkgroupsIndirect(computePassEncoder.value, indirectBuffer.value, indirectOffset.value))
+export const computePassEncoderEnd = (computePassEncoder: ComputePassEncoder): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderEnd(computePassEncoder.value))
+export const computePassEncoderInsertDebugMarker = (computePassEncoder: ComputePassEncoder, markerLabel: StringView): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderInsertDebugMarker(computePassEncoder.value, markerLabel.value))
+export const computePassEncoderPopDebugGroup = (computePassEncoder: ComputePassEncoder): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderPopDebugGroup(computePassEncoder.value))
+export const computePassEncoderPushDebugGroup = (computePassEncoder: ComputePassEncoder, groupLabel: StringView): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderPushDebugGroup(computePassEncoder.value, groupLabel.value))
+export const computePassEncoderSetBindGroup = (computePassEncoder: ComputePassEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderSetBindGroup(computePassEncoder.value, groupIndex.value, group.value, dynamicOffsetCount.value, dynamicOffsets.value))
+export const computePassEncoderSetLabel = (computePassEncoder: ComputePassEncoder, label: StringView): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderSetLabel(computePassEncoder.value, label.value))
+export const computePassEncoderSetPipeline = (computePassEncoder: ComputePassEncoder, pipeline: ComputePipeline): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderSetPipeline(computePassEncoder.value, pipeline.value))
+export const computePassEncoderWriteTimestamp = (computePassEncoder: ComputePassEncoder, querySet: QuerySet, queryIndex: c.U32): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderWriteTimestamp(computePassEncoder.value, querySet.value, queryIndex.value))
+export const computePassEncoderAddRef = (computePassEncoder: ComputePassEncoder): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderAddRef(computePassEncoder.value))
+export const computePassEncoderRelease = (computePassEncoder: ComputePassEncoder): c.Void => new c.Void(lib.symbols.wgpuComputePassEncoderRelease(computePassEncoder.value))
+export const computePipelineGetBindGroupLayout = (computePipeline: ComputePipeline, groupIndex: c.U32): BindGroupLayout => new BindGroupLayout(lib.symbols.wgpuComputePipelineGetBindGroupLayout(computePipeline.value, groupIndex.value))
+export const computePipelineSetLabel = (computePipeline: ComputePipeline, label: StringView): c.Void => new c.Void(lib.symbols.wgpuComputePipelineSetLabel(computePipeline.value, label.value))
+export const computePipelineAddRef = (computePipeline: ComputePipeline): c.Void => new c.Void(lib.symbols.wgpuComputePipelineAddRef(computePipeline.value))
+export const computePipelineRelease = (computePipeline: ComputePipeline): c.Void => new c.Void(lib.symbols.wgpuComputePipelineRelease(computePipeline.value))
+export const deviceCreateBindGroup = (device: Device, descriptor: c.Pointer<BindGroupDescriptor>): BindGroup => new BindGroup(lib.symbols.wgpuDeviceCreateBindGroup(device.value, descriptor.value))
+export const deviceCreateBindGroupLayout = (device: Device, descriptor: c.Pointer<BindGroupLayoutDescriptor>): BindGroupLayout => new BindGroupLayout(lib.symbols.wgpuDeviceCreateBindGroupLayout(device.value, descriptor.value))
+export const deviceCreateBuffer = (device: Device, descriptor: c.Pointer<BufferDescriptor>): Buffer => new Buffer(lib.symbols.wgpuDeviceCreateBuffer(device.value, descriptor.value))
+export const deviceCreateCommandEncoder = (device: Device, descriptor: c.Pointer<CommandEncoderDescriptor>): CommandEncoder => new CommandEncoder(lib.symbols.wgpuDeviceCreateCommandEncoder(device.value, descriptor.value))
+export const deviceCreateComputePipeline = (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>): ComputePipeline => new ComputePipeline(lib.symbols.wgpuDeviceCreateComputePipeline(device.value, descriptor.value))
+export const deviceCreateComputePipelineAsync = (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callback: CreateComputePipelineAsyncCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuDeviceCreateComputePipelineAsync(device.value, descriptor.value, callback.value, userdata.value))
+export const deviceCreateComputePipelineAsync2 = (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callbackInfo: CreateComputePipelineAsyncCallbackInfo2): Future => new Future(lib.symbols.wgpuDeviceCreateComputePipelineAsync2(device.value, descriptor.value, callbackInfo.value))
+export const deviceCreateComputePipelineAsyncF = (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callbackInfo: CreateComputePipelineAsyncCallbackInfo): Future => new Future(lib.symbols.wgpuDeviceCreateComputePipelineAsyncF(device.value, descriptor.value, callbackInfo.value))
+export const deviceCreateErrorBuffer = (device: Device, descriptor: c.Pointer<BufferDescriptor>): Buffer => new Buffer(lib.symbols.wgpuDeviceCreateErrorBuffer(device.value, descriptor.value))
+export const deviceCreateErrorExternalTexture = (device: Device): ExternalTexture => new ExternalTexture(lib.symbols.wgpuDeviceCreateErrorExternalTexture(device.value))
+export const deviceCreateErrorShaderModule = (device: Device, descriptor: c.Pointer<ShaderModuleDescriptor>, errorMessage: StringView): ShaderModule => new ShaderModule(lib.symbols.wgpuDeviceCreateErrorShaderModule(device.value, descriptor.value, errorMessage.value))
+export const deviceCreateErrorTexture = (device: Device, descriptor: c.Pointer<TextureDescriptor>): Texture => new Texture(lib.symbols.wgpuDeviceCreateErrorTexture(device.value, descriptor.value))
+export const deviceCreateExternalTexture = (device: Device, externalTextureDescriptor: c.Pointer<ExternalTextureDescriptor>): ExternalTexture => new ExternalTexture(lib.symbols.wgpuDeviceCreateExternalTexture(device.value, externalTextureDescriptor.value))
+export const deviceCreatePipelineLayout = (device: Device, descriptor: c.Pointer<PipelineLayoutDescriptor>): PipelineLayout => new PipelineLayout(lib.symbols.wgpuDeviceCreatePipelineLayout(device.value, descriptor.value))
+export const deviceCreateQuerySet = (device: Device, descriptor: c.Pointer<QuerySetDescriptor>): QuerySet => new QuerySet(lib.symbols.wgpuDeviceCreateQuerySet(device.value, descriptor.value))
+export const deviceCreateRenderBundleEncoder = (device: Device, descriptor: c.Pointer<RenderBundleEncoderDescriptor>): RenderBundleEncoder => new RenderBundleEncoder(lib.symbols.wgpuDeviceCreateRenderBundleEncoder(device.value, descriptor.value))
+export const deviceCreateRenderPipeline = (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>): RenderPipeline => new RenderPipeline(lib.symbols.wgpuDeviceCreateRenderPipeline(device.value, descriptor.value))
+export const deviceCreateRenderPipelineAsync = (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callback: CreateRenderPipelineAsyncCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuDeviceCreateRenderPipelineAsync(device.value, descriptor.value, callback.value, userdata.value))
+export const deviceCreateRenderPipelineAsync2 = (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callbackInfo: CreateRenderPipelineAsyncCallbackInfo2): Future => new Future(lib.symbols.wgpuDeviceCreateRenderPipelineAsync2(device.value, descriptor.value, callbackInfo.value))
+export const deviceCreateRenderPipelineAsyncF = (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callbackInfo: CreateRenderPipelineAsyncCallbackInfo): Future => new Future(lib.symbols.wgpuDeviceCreateRenderPipelineAsyncF(device.value, descriptor.value, callbackInfo.value))
+export const deviceCreateSampler = (device: Device, descriptor: c.Pointer<SamplerDescriptor>): Sampler => new Sampler(lib.symbols.wgpuDeviceCreateSampler(device.value, descriptor.value))
+export const deviceCreateShaderModule = (device: Device, descriptor: c.Pointer<ShaderModuleDescriptor>): ShaderModule => new ShaderModule(lib.symbols.wgpuDeviceCreateShaderModule(device.value, descriptor.value))
+export const deviceCreateTexture = (device: Device, descriptor: c.Pointer<TextureDescriptor>): Texture => new Texture(lib.symbols.wgpuDeviceCreateTexture(device.value, descriptor.value))
+export const deviceDestroy = (device: Device): c.Void => new c.Void(lib.symbols.wgpuDeviceDestroy(device.value))
+export const deviceForceLoss = (device: Device, type: DeviceLostReason, message: StringView): c.Void => new c.Void(lib.symbols.wgpuDeviceForceLoss(device.value, type.value, message.value))
+export const deviceGetAHardwareBufferProperties = (device: Device, handle: c.Pointer<c.Void>, properties: c.Pointer<AHardwareBufferProperties>): Status => new Status(lib.symbols.wgpuDeviceGetAHardwareBufferProperties(device.value, handle.value, properties.value))
+export const deviceGetAdapter = (device: Device): Adapter => new Adapter(lib.symbols.wgpuDeviceGetAdapter(device.value))
+export const deviceGetAdapterInfo = (device: Device, adapterInfo: c.Pointer<AdapterInfo>): Status => new Status(lib.symbols.wgpuDeviceGetAdapterInfo(device.value, adapterInfo.value))
+export const deviceGetFeatures = (device: Device, features: c.Pointer<SupportedFeatures>): c.Void => new c.Void(lib.symbols.wgpuDeviceGetFeatures(device.value, features.value))
+export const deviceGetLimits = (device: Device, limits: c.Pointer<SupportedLimits>): Status => new Status(lib.symbols.wgpuDeviceGetLimits(device.value, limits.value))
+export const deviceGetLostFuture = (device: Device): Future => new Future(lib.symbols.wgpuDeviceGetLostFuture(device.value))
+export const deviceGetQueue = (device: Device): Queue => new Queue(lib.symbols.wgpuDeviceGetQueue(device.value))
+export const deviceHasFeature = (device: Device, feature: FeatureName): Bool => new Bool(lib.symbols.wgpuDeviceHasFeature(device.value, feature.value))
+export const deviceImportSharedBufferMemory = (device: Device, descriptor: c.Pointer<SharedBufferMemoryDescriptor>): SharedBufferMemory => new SharedBufferMemory(lib.symbols.wgpuDeviceImportSharedBufferMemory(device.value, descriptor.value))
+export const deviceImportSharedFence = (device: Device, descriptor: c.Pointer<SharedFenceDescriptor>): SharedFence => new SharedFence(lib.symbols.wgpuDeviceImportSharedFence(device.value, descriptor.value))
+export const deviceImportSharedTextureMemory = (device: Device, descriptor: c.Pointer<SharedTextureMemoryDescriptor>): SharedTextureMemory => new SharedTextureMemory(lib.symbols.wgpuDeviceImportSharedTextureMemory(device.value, descriptor.value))
+export const deviceInjectError = (device: Device, type: ErrorType, message: StringView): c.Void => new c.Void(lib.symbols.wgpuDeviceInjectError(device.value, type.value, message.value))
+export const devicePopErrorScope = (device: Device, oldCallback: ErrorCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuDevicePopErrorScope(device.value, oldCallback.value, userdata.value))
+export const devicePopErrorScope2 = (device: Device, callbackInfo: PopErrorScopeCallbackInfo2): Future => new Future(lib.symbols.wgpuDevicePopErrorScope2(device.value, callbackInfo.value))
+export const devicePopErrorScopeF = (device: Device, callbackInfo: PopErrorScopeCallbackInfo): Future => new Future(lib.symbols.wgpuDevicePopErrorScopeF(device.value, callbackInfo.value))
+export const devicePushErrorScope = (device: Device, filter: ErrorFilter): c.Void => new c.Void(lib.symbols.wgpuDevicePushErrorScope(device.value, filter.value))
+export const deviceSetLabel = (device: Device, label: StringView): c.Void => new c.Void(lib.symbols.wgpuDeviceSetLabel(device.value, label.value))
+export const deviceSetLoggingCallback = (device: Device, callback: LoggingCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuDeviceSetLoggingCallback(device.value, callback.value, userdata.value))
+export const deviceTick = (device: Device): c.Void => new c.Void(lib.symbols.wgpuDeviceTick(device.value))
+export const deviceValidateTextureDescriptor = (device: Device, descriptor: c.Pointer<TextureDescriptor>): c.Void => new c.Void(lib.symbols.wgpuDeviceValidateTextureDescriptor(device.value, descriptor.value))
+export const deviceAddRef = (device: Device): c.Void => new c.Void(lib.symbols.wgpuDeviceAddRef(device.value))
+export const deviceRelease = (device: Device): c.Void => new c.Void(lib.symbols.wgpuDeviceRelease(device.value))
+export const externalTextureDestroy = (externalTexture: ExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureDestroy(externalTexture.value))
+export const externalTextureExpire = (externalTexture: ExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureExpire(externalTexture.value))
+export const externalTextureRefresh = (externalTexture: ExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureRefresh(externalTexture.value))
+export const externalTextureSetLabel = (externalTexture: ExternalTexture, label: StringView): c.Void => new c.Void(lib.symbols.wgpuExternalTextureSetLabel(externalTexture.value, label.value))
+export const externalTextureAddRef = (externalTexture: ExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureAddRef(externalTexture.value))
+export const externalTextureRelease = (externalTexture: ExternalTexture): c.Void => new c.Void(lib.symbols.wgpuExternalTextureRelease(externalTexture.value))
+export const instanceCreateSurface = (instance: Instance, descriptor: c.Pointer<SurfaceDescriptor>): Surface => new Surface(lib.symbols.wgpuInstanceCreateSurface(instance.value, descriptor.value))
+export const instanceEnumerateWGSLLanguageFeatures = (instance: Instance, features: c.Pointer<WGSLFeatureName>): c.Size => new c.Size(lib.symbols.wgpuInstanceEnumerateWGSLLanguageFeatures(instance.value, features.value))
+export const instanceHasWGSLLanguageFeature = (instance: Instance, feature: WGSLFeatureName): Bool => new Bool(lib.symbols.wgpuInstanceHasWGSLLanguageFeature(instance.value, feature.value))
+export const instanceProcessEvents = (instance: Instance): c.Void => new c.Void(lib.symbols.wgpuInstanceProcessEvents(instance.value))
+export const instanceRequestAdapter = (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callback: RequestAdapterCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuInstanceRequestAdapter(instance.value, options.value, callback.value, userdata.value))
+export const instanceRequestAdapter2 = (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo2): Future => new Future(lib.symbols.wgpuInstanceRequestAdapter2(instance.value, options.value, callbackInfo.value))
+export const instanceRequestAdapterF = (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo): Future => new Future(lib.symbols.wgpuInstanceRequestAdapterF(instance.value, options.value, callbackInfo.value))
+export const instanceWaitAny = (instance: Instance, futureCount: c.Size, futures: c.Pointer<FutureWaitInfo>, timeoutNS: c.U64): WaitStatus => new WaitStatus(lib.symbols.wgpuInstanceWaitAny(instance.value, futureCount.value, futures.value, timeoutNS.value))
+export const instanceAddRef = (instance: Instance): c.Void => new c.Void(lib.symbols.wgpuInstanceAddRef(instance.value))
+export const instanceRelease = (instance: Instance): c.Void => new c.Void(lib.symbols.wgpuInstanceRelease(instance.value))
+export const pipelineLayoutSetLabel = (pipelineLayout: PipelineLayout, label: StringView): c.Void => new c.Void(lib.symbols.wgpuPipelineLayoutSetLabel(pipelineLayout.value, label.value))
+export const pipelineLayoutAddRef = (pipelineLayout: PipelineLayout): c.Void => new c.Void(lib.symbols.wgpuPipelineLayoutAddRef(pipelineLayout.value))
+export const pipelineLayoutRelease = (pipelineLayout: PipelineLayout): c.Void => new c.Void(lib.symbols.wgpuPipelineLayoutRelease(pipelineLayout.value))
+export const querySetDestroy = (querySet: QuerySet): c.Void => new c.Void(lib.symbols.wgpuQuerySetDestroy(querySet.value))
+export const querySetGetCount = (querySet: QuerySet): c.U32 => new c.U32(lib.symbols.wgpuQuerySetGetCount(querySet.value))
+export const querySetGetType = (querySet: QuerySet): QueryType => new QueryType(lib.symbols.wgpuQuerySetGetType(querySet.value))
+export const querySetSetLabel = (querySet: QuerySet, label: StringView): c.Void => new c.Void(lib.symbols.wgpuQuerySetSetLabel(querySet.value, label.value))
+export const querySetAddRef = (querySet: QuerySet): c.Void => new c.Void(lib.symbols.wgpuQuerySetAddRef(querySet.value))
+export const querySetRelease = (querySet: QuerySet): c.Void => new c.Void(lib.symbols.wgpuQuerySetRelease(querySet.value))
+export const queueCopyExternalTextureForBrowser = (queue: Queue, source: c.Pointer<ImageCopyExternalTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>, options: c.Pointer<CopyTextureForBrowserOptions>): c.Void => new c.Void(lib.symbols.wgpuQueueCopyExternalTextureForBrowser(queue.value, source.value, destination.value, copySize.value, options.value))
+export const queueCopyTextureForBrowser = (queue: Queue, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>, options: c.Pointer<CopyTextureForBrowserOptions>): c.Void => new c.Void(lib.symbols.wgpuQueueCopyTextureForBrowser(queue.value, source.value, destination.value, copySize.value, options.value))
+export const queueOnSubmittedWorkDone = (queue: Queue, callback: QueueWorkDoneCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuQueueOnSubmittedWorkDone(queue.value, callback.value, userdata.value))
+export const queueOnSubmittedWorkDone2 = (queue: Queue, callbackInfo: QueueWorkDoneCallbackInfo2): Future => new Future(lib.symbols.wgpuQueueOnSubmittedWorkDone2(queue.value, callbackInfo.value))
+export const queueOnSubmittedWorkDoneF = (queue: Queue, callbackInfo: QueueWorkDoneCallbackInfo): Future => new Future(lib.symbols.wgpuQueueOnSubmittedWorkDoneF(queue.value, callbackInfo.value))
+export const queueSetLabel = (queue: Queue, label: StringView): c.Void => new c.Void(lib.symbols.wgpuQueueSetLabel(queue.value, label.value))
+export const queueSubmit = (queue: Queue, commandCount: c.Size, commands: c.Pointer<CommandBuffer>): c.Void => new c.Void(lib.symbols.wgpuQueueSubmit(queue.value, commandCount.value, commands.value))
+export const queueWriteBuffer = (queue: Queue, buffer: Buffer, bufferOffset: c.U64, data: c.Pointer<c.Void>, size: c.Size): c.Void => new c.Void(lib.symbols.wgpuQueueWriteBuffer(queue.value, buffer.value, bufferOffset.value, data.value, size.value))
+export const queueWriteTexture = (queue: Queue, destination: c.Pointer<ImageCopyTexture>, data: c.Pointer<c.Void>, dataSize: c.Size, dataLayout: c.Pointer<TextureDataLayout>, writeSize: c.Pointer<Extent3D>): c.Void => new c.Void(lib.symbols.wgpuQueueWriteTexture(queue.value, destination.value, data.value, dataSize.value, dataLayout.value, writeSize.value))
+export const queueAddRef = (queue: Queue): c.Void => new c.Void(lib.symbols.wgpuQueueAddRef(queue.value))
+export const queueRelease = (queue: Queue): c.Void => new c.Void(lib.symbols.wgpuQueueRelease(queue.value))
+export const renderBundleSetLabel = (renderBundle: RenderBundle, label: StringView): c.Void => new c.Void(lib.symbols.wgpuRenderBundleSetLabel(renderBundle.value, label.value))
+export const renderBundleAddRef = (renderBundle: RenderBundle): c.Void => new c.Void(lib.symbols.wgpuRenderBundleAddRef(renderBundle.value))
+export const renderBundleRelease = (renderBundle: RenderBundle): c.Void => new c.Void(lib.symbols.wgpuRenderBundleRelease(renderBundle.value))
+export const renderBundleEncoderDraw = (renderBundleEncoder: RenderBundleEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderDraw(renderBundleEncoder.value, vertexCount.value, instanceCount.value, firstVertex.value, firstInstance.value))
+export const renderBundleEncoderDrawIndexed = (renderBundleEncoder: RenderBundleEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderDrawIndexed(renderBundleEncoder.value, indexCount.value, instanceCount.value, firstIndex.value, baseVertex.value, firstInstance.value))
+export const renderBundleEncoderDrawIndexedIndirect = (renderBundleEncoder: RenderBundleEncoder, indirectBuffer: Buffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderDrawIndexedIndirect(renderBundleEncoder.value, indirectBuffer.value, indirectOffset.value))
+export const renderBundleEncoderDrawIndirect = (renderBundleEncoder: RenderBundleEncoder, indirectBuffer: Buffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderDrawIndirect(renderBundleEncoder.value, indirectBuffer.value, indirectOffset.value))
+export const renderBundleEncoderFinish = (renderBundleEncoder: RenderBundleEncoder, descriptor: c.Pointer<RenderBundleDescriptor>): RenderBundle => new RenderBundle(lib.symbols.wgpuRenderBundleEncoderFinish(renderBundleEncoder.value, descriptor.value))
+export const renderBundleEncoderInsertDebugMarker = (renderBundleEncoder: RenderBundleEncoder, markerLabel: StringView): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderInsertDebugMarker(renderBundleEncoder.value, markerLabel.value))
+export const renderBundleEncoderPopDebugGroup = (renderBundleEncoder: RenderBundleEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderPopDebugGroup(renderBundleEncoder.value))
+export const renderBundleEncoderPushDebugGroup = (renderBundleEncoder: RenderBundleEncoder, groupLabel: StringView): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderPushDebugGroup(renderBundleEncoder.value, groupLabel.value))
+export const renderBundleEncoderSetBindGroup = (renderBundleEncoder: RenderBundleEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetBindGroup(renderBundleEncoder.value, groupIndex.value, group.value, dynamicOffsetCount.value, dynamicOffsets.value))
+export const renderBundleEncoderSetIndexBuffer = (renderBundleEncoder: RenderBundleEncoder, buffer: Buffer, format: IndexFormat, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetIndexBuffer(renderBundleEncoder.value, buffer.value, format.value, offset.value, size.value))
+export const renderBundleEncoderSetLabel = (renderBundleEncoder: RenderBundleEncoder, label: StringView): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetLabel(renderBundleEncoder.value, label.value))
+export const renderBundleEncoderSetPipeline = (renderBundleEncoder: RenderBundleEncoder, pipeline: RenderPipeline): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetPipeline(renderBundleEncoder.value, pipeline.value))
+export const renderBundleEncoderSetVertexBuffer = (renderBundleEncoder: RenderBundleEncoder, slot: c.U32, buffer: Buffer, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderSetVertexBuffer(renderBundleEncoder.value, slot.value, buffer.value, offset.value, size.value))
+export const renderBundleEncoderAddRef = (renderBundleEncoder: RenderBundleEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderAddRef(renderBundleEncoder.value))
+export const renderBundleEncoderRelease = (renderBundleEncoder: RenderBundleEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderBundleEncoderRelease(renderBundleEncoder.value))
+export const renderPassEncoderBeginOcclusionQuery = (renderPassEncoder: RenderPassEncoder, queryIndex: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderBeginOcclusionQuery(renderPassEncoder.value, queryIndex.value))
+export const renderPassEncoderDraw = (renderPassEncoder: RenderPassEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderDraw(renderPassEncoder.value, vertexCount.value, instanceCount.value, firstVertex.value, firstInstance.value))
+export const renderPassEncoderDrawIndexed = (renderPassEncoder: RenderPassEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderDrawIndexed(renderPassEncoder.value, indexCount.value, instanceCount.value, firstIndex.value, baseVertex.value, firstInstance.value))
+export const renderPassEncoderDrawIndexedIndirect = (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderDrawIndexedIndirect(renderPassEncoder.value, indirectBuffer.value, indirectOffset.value))
+export const renderPassEncoderDrawIndirect = (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderDrawIndirect(renderPassEncoder.value, indirectBuffer.value, indirectOffset.value))
+export const renderPassEncoderEnd = (renderPassEncoder: RenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderEnd(renderPassEncoder.value))
+export const renderPassEncoderEndOcclusionQuery = (renderPassEncoder: RenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderEndOcclusionQuery(renderPassEncoder.value))
+export const renderPassEncoderExecuteBundles = (renderPassEncoder: RenderPassEncoder, bundleCount: c.Size, bundles: c.Pointer<RenderBundle>): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderExecuteBundles(renderPassEncoder.value, bundleCount.value, bundles.value))
+export const renderPassEncoderInsertDebugMarker = (renderPassEncoder: RenderPassEncoder, markerLabel: StringView): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderInsertDebugMarker(renderPassEncoder.value, markerLabel.value))
+export const renderPassEncoderMultiDrawIndexedIndirect = (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: Buffer, drawCountBufferOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderMultiDrawIndexedIndirect(renderPassEncoder.value, indirectBuffer.value, indirectOffset.value, maxDrawCount.value, drawCountBuffer.value, drawCountBufferOffset.value))
+export const renderPassEncoderMultiDrawIndirect = (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: Buffer, drawCountBufferOffset: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderMultiDrawIndirect(renderPassEncoder.value, indirectBuffer.value, indirectOffset.value, maxDrawCount.value, drawCountBuffer.value, drawCountBufferOffset.value))
+export const renderPassEncoderPixelLocalStorageBarrier = (renderPassEncoder: RenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderPixelLocalStorageBarrier(renderPassEncoder.value))
+export const renderPassEncoderPopDebugGroup = (renderPassEncoder: RenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderPopDebugGroup(renderPassEncoder.value))
+export const renderPassEncoderPushDebugGroup = (renderPassEncoder: RenderPassEncoder, groupLabel: StringView): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderPushDebugGroup(renderPassEncoder.value, groupLabel.value))
+export const renderPassEncoderSetBindGroup = (renderPassEncoder: RenderPassEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetBindGroup(renderPassEncoder.value, groupIndex.value, group.value, dynamicOffsetCount.value, dynamicOffsets.value))
+export const renderPassEncoderSetBlendConstant = (renderPassEncoder: RenderPassEncoder, color: c.Pointer<Color>): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetBlendConstant(renderPassEncoder.value, color.value))
+export const renderPassEncoderSetIndexBuffer = (renderPassEncoder: RenderPassEncoder, buffer: Buffer, format: IndexFormat, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetIndexBuffer(renderPassEncoder.value, buffer.value, format.value, offset.value, size.value))
+export const renderPassEncoderSetLabel = (renderPassEncoder: RenderPassEncoder, label: StringView): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetLabel(renderPassEncoder.value, label.value))
+export const renderPassEncoderSetPipeline = (renderPassEncoder: RenderPassEncoder, pipeline: RenderPipeline): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetPipeline(renderPassEncoder.value, pipeline.value))
+export const renderPassEncoderSetScissorRect = (renderPassEncoder: RenderPassEncoder, x: c.U32, y: c.U32, width: c.U32, height: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetScissorRect(renderPassEncoder.value, x.value, y.value, width.value, height.value))
+export const renderPassEncoderSetStencilReference = (renderPassEncoder: RenderPassEncoder, reference: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetStencilReference(renderPassEncoder.value, reference.value))
+export const renderPassEncoderSetVertexBuffer = (renderPassEncoder: RenderPassEncoder, slot: c.U32, buffer: Buffer, offset: c.U64, size: c.U64): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder.value, slot.value, buffer.value, offset.value, size.value))
+export const renderPassEncoderSetViewport = (renderPassEncoder: RenderPassEncoder, x: c.F32, y: c.F32, width: c.F32, height: c.F32, minDepth: c.F32, maxDepth: c.F32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderSetViewport(renderPassEncoder.value, x.value, y.value, width.value, height.value, minDepth.value, maxDepth.value))
+export const renderPassEncoderWriteTimestamp = (renderPassEncoder: RenderPassEncoder, querySet: QuerySet, queryIndex: c.U32): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderWriteTimestamp(renderPassEncoder.value, querySet.value, queryIndex.value))
+export const renderPassEncoderAddRef = (renderPassEncoder: RenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderAddRef(renderPassEncoder.value))
+export const renderPassEncoderRelease = (renderPassEncoder: RenderPassEncoder): c.Void => new c.Void(lib.symbols.wgpuRenderPassEncoderRelease(renderPassEncoder.value))
+export const renderPipelineGetBindGroupLayout = (renderPipeline: RenderPipeline, groupIndex: c.U32): BindGroupLayout => new BindGroupLayout(lib.symbols.wgpuRenderPipelineGetBindGroupLayout(renderPipeline.value, groupIndex.value))
+export const renderPipelineSetLabel = (renderPipeline: RenderPipeline, label: StringView): c.Void => new c.Void(lib.symbols.wgpuRenderPipelineSetLabel(renderPipeline.value, label.value))
+export const renderPipelineAddRef = (renderPipeline: RenderPipeline): c.Void => new c.Void(lib.symbols.wgpuRenderPipelineAddRef(renderPipeline.value))
+export const renderPipelineRelease = (renderPipeline: RenderPipeline): c.Void => new c.Void(lib.symbols.wgpuRenderPipelineRelease(renderPipeline.value))
+export const samplerSetLabel = (sampler: Sampler, label: StringView): c.Void => new c.Void(lib.symbols.wgpuSamplerSetLabel(sampler.value, label.value))
+export const samplerAddRef = (sampler: Sampler): c.Void => new c.Void(lib.symbols.wgpuSamplerAddRef(sampler.value))
+export const samplerRelease = (sampler: Sampler): c.Void => new c.Void(lib.symbols.wgpuSamplerRelease(sampler.value))
+export const shaderModuleGetCompilationInfo = (shaderModule: ShaderModule, callback: CompilationInfoCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void(lib.symbols.wgpuShaderModuleGetCompilationInfo(shaderModule.value, callback.value, userdata.value))
+export const shaderModuleGetCompilationInfo2 = (shaderModule: ShaderModule, callbackInfo: CompilationInfoCallbackInfo2): Future => new Future(lib.symbols.wgpuShaderModuleGetCompilationInfo2(shaderModule.value, callbackInfo.value))
+export const shaderModuleGetCompilationInfoF = (shaderModule: ShaderModule, callbackInfo: CompilationInfoCallbackInfo): Future => new Future(lib.symbols.wgpuShaderModuleGetCompilationInfoF(shaderModule.value, callbackInfo.value))
+export const shaderModuleSetLabel = (shaderModule: ShaderModule, label: StringView): c.Void => new c.Void(lib.symbols.wgpuShaderModuleSetLabel(shaderModule.value, label.value))
+export const shaderModuleAddRef = (shaderModule: ShaderModule): c.Void => new c.Void(lib.symbols.wgpuShaderModuleAddRef(shaderModule.value))
+export const shaderModuleRelease = (shaderModule: ShaderModule): c.Void => new c.Void(lib.symbols.wgpuShaderModuleRelease(shaderModule.value))
+export const sharedBufferMemoryBeginAccess = (sharedBufferMemory: SharedBufferMemory, buffer: Buffer, descriptor: c.Pointer<SharedBufferMemoryBeginAccessDescriptor>): Status => new Status(lib.symbols.wgpuSharedBufferMemoryBeginAccess(sharedBufferMemory.value, buffer.value, descriptor.value))
+export const sharedBufferMemoryCreateBuffer = (sharedBufferMemory: SharedBufferMemory, descriptor: c.Pointer<BufferDescriptor>): Buffer => new Buffer(lib.symbols.wgpuSharedBufferMemoryCreateBuffer(sharedBufferMemory.value, descriptor.value))
+export const sharedBufferMemoryEndAccess = (sharedBufferMemory: SharedBufferMemory, buffer: Buffer, descriptor: c.Pointer<SharedBufferMemoryEndAccessState>): Status => new Status(lib.symbols.wgpuSharedBufferMemoryEndAccess(sharedBufferMemory.value, buffer.value, descriptor.value))
+export const sharedBufferMemoryGetProperties = (sharedBufferMemory: SharedBufferMemory, properties: c.Pointer<SharedBufferMemoryProperties>): Status => new Status(lib.symbols.wgpuSharedBufferMemoryGetProperties(sharedBufferMemory.value, properties.value))
+export const sharedBufferMemoryIsDeviceLost = (sharedBufferMemory: SharedBufferMemory): Bool => new Bool(lib.symbols.wgpuSharedBufferMemoryIsDeviceLost(sharedBufferMemory.value))
+export const sharedBufferMemorySetLabel = (sharedBufferMemory: SharedBufferMemory, label: StringView): c.Void => new c.Void(lib.symbols.wgpuSharedBufferMemorySetLabel(sharedBufferMemory.value, label.value))
+export const sharedBufferMemoryAddRef = (sharedBufferMemory: SharedBufferMemory): c.Void => new c.Void(lib.symbols.wgpuSharedBufferMemoryAddRef(sharedBufferMemory.value))
+export const sharedBufferMemoryRelease = (sharedBufferMemory: SharedBufferMemory): c.Void => new c.Void(lib.symbols.wgpuSharedBufferMemoryRelease(sharedBufferMemory.value))
+export const sharedFenceExportInfo = (sharedFence: SharedFence, info: c.Pointer<SharedFenceExportInfo>): c.Void => new c.Void(lib.symbols.wgpuSharedFenceExportInfo(sharedFence.value, info.value))
+export const sharedFenceAddRef = (sharedFence: SharedFence): c.Void => new c.Void(lib.symbols.wgpuSharedFenceAddRef(sharedFence.value))
+export const sharedFenceRelease = (sharedFence: SharedFence): c.Void => new c.Void(lib.symbols.wgpuSharedFenceRelease(sharedFence.value))
+export const sharedTextureMemoryBeginAccess = (sharedTextureMemory: SharedTextureMemory, texture: Texture, descriptor: c.Pointer<SharedTextureMemoryBeginAccessDescriptor>): Status => new Status(lib.symbols.wgpuSharedTextureMemoryBeginAccess(sharedTextureMemory.value, texture.value, descriptor.value))
+export const sharedTextureMemoryCreateTexture = (sharedTextureMemory: SharedTextureMemory, descriptor: c.Pointer<TextureDescriptor>): Texture => new Texture(lib.symbols.wgpuSharedTextureMemoryCreateTexture(sharedTextureMemory.value, descriptor.value))
+export const sharedTextureMemoryEndAccess = (sharedTextureMemory: SharedTextureMemory, texture: Texture, descriptor: c.Pointer<SharedTextureMemoryEndAccessState>): Status => new Status(lib.symbols.wgpuSharedTextureMemoryEndAccess(sharedTextureMemory.value, texture.value, descriptor.value))
+export const sharedTextureMemoryGetProperties = (sharedTextureMemory: SharedTextureMemory, properties: c.Pointer<SharedTextureMemoryProperties>): Status => new Status(lib.symbols.wgpuSharedTextureMemoryGetProperties(sharedTextureMemory.value, properties.value))
+export const sharedTextureMemoryIsDeviceLost = (sharedTextureMemory: SharedTextureMemory): Bool => new Bool(lib.symbols.wgpuSharedTextureMemoryIsDeviceLost(sharedTextureMemory.value))
+export const sharedTextureMemorySetLabel = (sharedTextureMemory: SharedTextureMemory, label: StringView): c.Void => new c.Void(lib.symbols.wgpuSharedTextureMemorySetLabel(sharedTextureMemory.value, label.value))
+export const sharedTextureMemoryAddRef = (sharedTextureMemory: SharedTextureMemory): c.Void => new c.Void(lib.symbols.wgpuSharedTextureMemoryAddRef(sharedTextureMemory.value))
+export const sharedTextureMemoryRelease = (sharedTextureMemory: SharedTextureMemory): c.Void => new c.Void(lib.symbols.wgpuSharedTextureMemoryRelease(sharedTextureMemory.value))
+export const surfaceConfigure = (surface: Surface, config: c.Pointer<SurfaceConfiguration>): c.Void => new c.Void(lib.symbols.wgpuSurfaceConfigure(surface.value, config.value))
+export const surfaceGetCapabilities = (surface: Surface, adapter: Adapter, capabilities: c.Pointer<SurfaceCapabilities>): Status => new Status(lib.symbols.wgpuSurfaceGetCapabilities(surface.value, adapter.value, capabilities.value))
+export const surfaceGetCurrentTexture = (surface: Surface, surfaceTexture: c.Pointer<SurfaceTexture>): c.Void => new c.Void(lib.symbols.wgpuSurfaceGetCurrentTexture(surface.value, surfaceTexture.value))
+export const surfacePresent = (surface: Surface): c.Void => new c.Void(lib.symbols.wgpuSurfacePresent(surface.value))
+export const surfaceSetLabel = (surface: Surface, label: StringView): c.Void => new c.Void(lib.symbols.wgpuSurfaceSetLabel(surface.value, label.value))
+export const surfaceUnconfigure = (surface: Surface): c.Void => new c.Void(lib.symbols.wgpuSurfaceUnconfigure(surface.value))
+export const surfaceAddRef = (surface: Surface): c.Void => new c.Void(lib.symbols.wgpuSurfaceAddRef(surface.value))
+export const surfaceRelease = (surface: Surface): c.Void => new c.Void(lib.symbols.wgpuSurfaceRelease(surface.value))
+export const textureCreateErrorView = (texture: Texture, descriptor: c.Pointer<TextureViewDescriptor>): TextureView => new TextureView(lib.symbols.wgpuTextureCreateErrorView(texture.value, descriptor.value))
+export const textureCreateView = (texture: Texture, descriptor: c.Pointer<TextureViewDescriptor>): TextureView => new TextureView(lib.symbols.wgpuTextureCreateView(texture.value, descriptor.value))
+export const textureDestroy = (texture: Texture): c.Void => new c.Void(lib.symbols.wgpuTextureDestroy(texture.value))
+export const textureGetDepthOrArrayLayers = (texture: Texture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetDepthOrArrayLayers(texture.value))
+export const textureGetDimension = (texture: Texture): TextureDimension => new TextureDimension(lib.symbols.wgpuTextureGetDimension(texture.value))
+export const textureGetFormat = (texture: Texture): TextureFormat => new TextureFormat(lib.symbols.wgpuTextureGetFormat(texture.value))
+export const textureGetHeight = (texture: Texture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetHeight(texture.value))
+export const textureGetMipLevelCount = (texture: Texture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetMipLevelCount(texture.value))
+export const textureGetSampleCount = (texture: Texture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetSampleCount(texture.value))
+export const textureGetUsage = (texture: Texture): TextureUsage => new TextureUsage(lib.symbols.wgpuTextureGetUsage(texture.value))
+export const textureGetWidth = (texture: Texture): c.U32 => new c.U32(lib.symbols.wgpuTextureGetWidth(texture.value))
+export const textureSetLabel = (texture: Texture, label: StringView): c.Void => new c.Void(lib.symbols.wgpuTextureSetLabel(texture.value, label.value))
+export const textureAddRef = (texture: Texture): c.Void => new c.Void(lib.symbols.wgpuTextureAddRef(texture.value))
+export const textureRelease = (texture: Texture): c.Void => new c.Void(lib.symbols.wgpuTextureRelease(texture.value))
+export const textureViewSetLabel = (textureView: TextureView, label: StringView): c.Void => new c.Void(lib.symbols.wgpuTextureViewSetLabel(textureView.value, label.value))
+export const textureViewAddRef = (textureView: TextureView): c.Void => new c.Void(lib.symbols.wgpuTextureViewAddRef(textureView.value))
+export const textureViewRelease = (textureView: TextureView): c.Void => new c.Void(lib.symbols.wgpuTextureViewRelease(textureView.value))
