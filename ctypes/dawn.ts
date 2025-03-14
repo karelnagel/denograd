@@ -1,269 +1,271 @@
-import * as c from "./mod.ts"
+import * as c from './mod.ts'
 
-const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dylib',{
-  wgpuAdapterInfoFreeMembers: { parameters: ['buffer'], result: 'void'},
-  wgpuAdapterPropertiesMemoryHeapsFreeMembers: { parameters: ['buffer'], result: 'void'},
-  wgpuCreateInstance: { parameters: ['pointer'], result: 'buffer'},
-  wgpuDrmFormatCapabilitiesFreeMembers: { parameters: ['buffer'], result: 'void'},
-  wgpuGetInstanceFeatures: { parameters: ['pointer'], result: 'buffer'},
-  wgpuGetProcAddress: { parameters: ['buffer'], result: 'buffer'},
-  wgpuSharedBufferMemoryEndAccessStateFreeMembers: { parameters: ['buffer'], result: 'void'},
-  wgpuSharedTextureMemoryEndAccessStateFreeMembers: { parameters: ['buffer'], result: 'void'},
-  wgpuSupportedFeaturesFreeMembers: { parameters: ['buffer'], result: 'void'},
-  wgpuSurfaceCapabilitiesFreeMembers: { parameters: ['buffer'], result: 'void'},
-  wgpuAdapterCreateDevice: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuAdapterGetFeatures: { parameters: ['buffer', 'pointer'], result: 'void'},
-  wgpuAdapterGetFormatCapabilities: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer'},
-  wgpuAdapterGetInfo: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuAdapterGetInstance: { parameters: ['buffer'], result: 'buffer'},
-  wgpuAdapterGetLimits: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuAdapterHasFeature: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuAdapterRequestDevice: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void'},
-  wgpuAdapterRequestDevice2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuAdapterRequestDeviceF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuAdapterAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuAdapterRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuBindGroupSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuBindGroupAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuBindGroupRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuBindGroupLayoutSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuBindGroupLayoutAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuBindGroupLayoutRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuBufferDestroy: { parameters: ['buffer'], result: 'void'},
-  wgpuBufferGetConstMappedRange: { parameters: ['buffer', 'usize', 'usize'], result: 'pointer'},
-  wgpuBufferGetMapState: { parameters: ['buffer'], result: 'buffer'},
-  wgpuBufferGetMappedRange: { parameters: ['buffer', 'usize', 'usize'], result: 'pointer'},
-  wgpuBufferGetSize: { parameters: ['buffer'], result: 'u64'},
-  wgpuBufferGetUsage: { parameters: ['buffer'], result: 'buffer'},
-  wgpuBufferMapAsync: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer', 'pointer'], result: 'void'},
-  wgpuBufferMapAsync2: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer'], result: 'buffer'},
-  wgpuBufferMapAsyncF: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer'], result: 'buffer'},
-  wgpuBufferSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuBufferUnmap: { parameters: ['buffer'], result: 'void'},
-  wgpuBufferAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuBufferRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuCommandBufferSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuCommandBufferAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuCommandBufferRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuCommandEncoderBeginComputePass: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuCommandEncoderBeginRenderPass: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuCommandEncoderClearBuffer: { parameters: ['buffer', 'buffer', 'u64', 'u64'], result: 'void'},
-  wgpuCommandEncoderCopyBufferToBuffer: { parameters: ['buffer', 'buffer', 'u64', 'buffer', 'u64', 'u64'], result: 'void'},
-  wgpuCommandEncoderCopyBufferToTexture: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void'},
-  wgpuCommandEncoderCopyTextureToBuffer: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void'},
-  wgpuCommandEncoderCopyTextureToTexture: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void'},
-  wgpuCommandEncoderFinish: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuCommandEncoderInjectValidationError: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuCommandEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuCommandEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void'},
-  wgpuCommandEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuCommandEncoderResolveQuerySet: { parameters: ['buffer', 'buffer', 'u32', 'u32', 'buffer', 'u64'], result: 'void'},
-  wgpuCommandEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuCommandEncoderWriteBuffer: { parameters: ['buffer', 'buffer', 'u64', 'pointer', 'u64'], result: 'void'},
-  wgpuCommandEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void'},
-  wgpuCommandEncoderAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuCommandEncoderRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuComputePassEncoderDispatchWorkgroups: { parameters: ['buffer', 'u32', 'u32', 'u32'], result: 'void'},
-  wgpuComputePassEncoderDispatchWorkgroupsIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void'},
-  wgpuComputePassEncoderEnd: { parameters: ['buffer'], result: 'void'},
-  wgpuComputePassEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuComputePassEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void'},
-  wgpuComputePassEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuComputePassEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void'},
-  wgpuComputePassEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuComputePassEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuComputePassEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void'},
-  wgpuComputePassEncoderAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuComputePassEncoderRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuComputePipelineGetBindGroupLayout: { parameters: ['buffer', 'u32'], result: 'buffer'},
-  wgpuComputePipelineSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuComputePipelineAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuComputePipelineRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuDeviceCreateBindGroup: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateBindGroupLayout: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateCommandEncoder: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateComputePipeline: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateComputePipelineAsync: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void'},
-  wgpuDeviceCreateComputePipelineAsync2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuDeviceCreateComputePipelineAsyncF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuDeviceCreateErrorBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateErrorExternalTexture: { parameters: ['buffer'], result: 'buffer'},
-  wgpuDeviceCreateErrorShaderModule: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuDeviceCreateErrorTexture: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateExternalTexture: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreatePipelineLayout: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateQuerySet: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateRenderBundleEncoder: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateRenderPipeline: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateRenderPipelineAsync: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void'},
-  wgpuDeviceCreateRenderPipelineAsync2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuDeviceCreateRenderPipelineAsyncF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuDeviceCreateSampler: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateShaderModule: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceCreateTexture: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceDestroy: { parameters: ['buffer'], result: 'void'},
-  wgpuDeviceForceLoss: { parameters: ['buffer', 'buffer', 'buffer'], result: 'void'},
-  wgpuDeviceGetAHardwareBufferProperties: { parameters: ['buffer', 'pointer', 'pointer'], result: 'buffer'},
-  wgpuDeviceGetAdapter: { parameters: ['buffer'], result: 'buffer'},
-  wgpuDeviceGetAdapterInfo: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceGetFeatures: { parameters: ['buffer', 'pointer'], result: 'void'},
-  wgpuDeviceGetLimits: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceGetLostFuture: { parameters: ['buffer'], result: 'buffer'},
-  wgpuDeviceGetQueue: { parameters: ['buffer'], result: 'buffer'},
-  wgpuDeviceHasFeature: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuDeviceImportSharedBufferMemory: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceImportSharedFence: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceImportSharedTextureMemory: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuDeviceInjectError: { parameters: ['buffer', 'buffer', 'buffer'], result: 'void'},
-  wgpuDevicePopErrorScope: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void'},
-  wgpuDevicePopErrorScope2: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuDevicePopErrorScopeF: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuDevicePushErrorScope: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuDeviceSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuDeviceSetLoggingCallback: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void'},
-  wgpuDeviceTick: { parameters: ['buffer'], result: 'void'},
-  wgpuDeviceValidateTextureDescriptor: { parameters: ['buffer', 'pointer'], result: 'void'},
-  wgpuDeviceAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuDeviceRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuExternalTextureDestroy: { parameters: ['buffer'], result: 'void'},
-  wgpuExternalTextureExpire: { parameters: ['buffer'], result: 'void'},
-  wgpuExternalTextureRefresh: { parameters: ['buffer'], result: 'void'},
-  wgpuExternalTextureSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuExternalTextureAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuExternalTextureRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuInstanceCreateSurface: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuInstanceEnumerateWGSLLanguageFeatures: { parameters: ['buffer', 'pointer'], result: 'usize'},
-  wgpuInstanceHasWGSLLanguageFeature: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuInstanceProcessEvents: { parameters: ['buffer'], result: 'void'},
-  wgpuInstanceRequestAdapter: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void'},
-  wgpuInstanceRequestAdapter2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuInstanceRequestAdapterF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer'},
-  wgpuInstanceWaitAny: { parameters: ['buffer', 'usize', 'pointer', 'u64'], result: 'buffer'},
-  wgpuInstanceAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuInstanceRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuPipelineLayoutSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuPipelineLayoutAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuPipelineLayoutRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuQuerySetDestroy: { parameters: ['buffer'], result: 'void'},
-  wgpuQuerySetGetCount: { parameters: ['buffer'], result: 'u32'},
-  wgpuQuerySetGetType: { parameters: ['buffer'], result: 'buffer'},
-  wgpuQuerySetSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuQuerySetAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuQuerySetRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuQueueCopyExternalTextureForBrowser: { parameters: ['buffer', 'pointer', 'pointer', 'pointer', 'pointer'], result: 'void'},
-  wgpuQueueCopyTextureForBrowser: { parameters: ['buffer', 'pointer', 'pointer', 'pointer', 'pointer'], result: 'void'},
-  wgpuQueueOnSubmittedWorkDone: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void'},
-  wgpuQueueOnSubmittedWorkDone2: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuQueueOnSubmittedWorkDoneF: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuQueueSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuQueueSubmit: { parameters: ['buffer', 'usize', 'pointer'], result: 'void'},
-  wgpuQueueWriteBuffer: { parameters: ['buffer', 'buffer', 'u64', 'pointer', 'usize'], result: 'void'},
-  wgpuQueueWriteTexture: { parameters: ['buffer', 'pointer', 'pointer', 'usize', 'pointer', 'pointer'], result: 'void'},
-  wgpuQueueAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuQueueRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderBundleSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderBundleAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderBundleRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderBundleEncoderDraw: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void'},
-  wgpuRenderBundleEncoderDrawIndexed: { parameters: ['buffer', 'u32', 'u32', 'u32', 'i32', 'u32'], result: 'void'},
-  wgpuRenderBundleEncoderDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void'},
-  wgpuRenderBundleEncoderDrawIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void'},
-  wgpuRenderBundleEncoderFinish: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuRenderBundleEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderBundleEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderBundleEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderBundleEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void'},
-  wgpuRenderBundleEncoderSetIndexBuffer: { parameters: ['buffer', 'buffer', 'buffer', 'u64', 'u64'], result: 'void'},
-  wgpuRenderBundleEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderBundleEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderBundleEncoderSetVertexBuffer: { parameters: ['buffer', 'u32', 'buffer', 'u64', 'u64'], result: 'void'},
-  wgpuRenderBundleEncoderAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderBundleEncoderRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderPassEncoderBeginOcclusionQuery: { parameters: ['buffer', 'u32'], result: 'void'},
-  wgpuRenderPassEncoderDraw: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void'},
-  wgpuRenderPassEncoderDrawIndexed: { parameters: ['buffer', 'u32', 'u32', 'u32', 'i32', 'u32'], result: 'void'},
-  wgpuRenderPassEncoderDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void'},
-  wgpuRenderPassEncoderDrawIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void'},
-  wgpuRenderPassEncoderEnd: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderPassEncoderEndOcclusionQuery: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderPassEncoderExecuteBundles: { parameters: ['buffer', 'usize', 'pointer'], result: 'void'},
-  wgpuRenderPassEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderPassEncoderMultiDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64', 'u32', 'buffer', 'u64'], result: 'void'},
-  wgpuRenderPassEncoderMultiDrawIndirect: { parameters: ['buffer', 'buffer', 'u64', 'u32', 'buffer', 'u64'], result: 'void'},
-  wgpuRenderPassEncoderPixelLocalStorageBarrier: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderPassEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderPassEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderPassEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void'},
-  wgpuRenderPassEncoderSetBlendConstant: { parameters: ['buffer', 'pointer'], result: 'void'},
-  wgpuRenderPassEncoderSetIndexBuffer: { parameters: ['buffer', 'buffer', 'buffer', 'u64', 'u64'], result: 'void'},
-  wgpuRenderPassEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderPassEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderPassEncoderSetScissorRect: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void'},
-  wgpuRenderPassEncoderSetStencilReference: { parameters: ['buffer', 'u32'], result: 'void'},
-  wgpuRenderPassEncoderSetVertexBuffer: { parameters: ['buffer', 'u32', 'buffer', 'u64', 'u64'], result: 'void'},
-  wgpuRenderPassEncoderSetViewport: { parameters: ['buffer', 'f32', 'f32', 'f32', 'f32', 'f32', 'f32'], result: 'void'},
-  wgpuRenderPassEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void'},
-  wgpuRenderPassEncoderAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderPassEncoderRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderPipelineGetBindGroupLayout: { parameters: ['buffer', 'u32'], result: 'buffer'},
-  wgpuRenderPipelineSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuRenderPipelineAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuRenderPipelineRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuSamplerSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuSamplerAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuSamplerRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuShaderModuleGetCompilationInfo: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void'},
-  wgpuShaderModuleGetCompilationInfo2: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuShaderModuleGetCompilationInfoF: { parameters: ['buffer', 'buffer'], result: 'buffer'},
-  wgpuShaderModuleSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuShaderModuleAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuShaderModuleRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuSharedBufferMemoryBeginAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer'},
-  wgpuSharedBufferMemoryCreateBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuSharedBufferMemoryEndAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer'},
-  wgpuSharedBufferMemoryGetProperties: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuSharedBufferMemoryIsDeviceLost: { parameters: ['buffer'], result: 'buffer'},
-  wgpuSharedBufferMemorySetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuSharedBufferMemoryAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuSharedBufferMemoryRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuSharedFenceExportInfo: { parameters: ['buffer', 'pointer'], result: 'void'},
-  wgpuSharedFenceAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuSharedFenceRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuSharedTextureMemoryBeginAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer'},
-  wgpuSharedTextureMemoryCreateTexture: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuSharedTextureMemoryEndAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer'},
-  wgpuSharedTextureMemoryGetProperties: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuSharedTextureMemoryIsDeviceLost: { parameters: ['buffer'], result: 'buffer'},
-  wgpuSharedTextureMemorySetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuSharedTextureMemoryAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuSharedTextureMemoryRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuSurfaceConfigure: { parameters: ['buffer', 'pointer'], result: 'void'},
-  wgpuSurfaceGetCapabilities: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer'},
-  wgpuSurfaceGetCurrentTexture: { parameters: ['buffer', 'pointer'], result: 'void'},
-  wgpuSurfacePresent: { parameters: ['buffer'], result: 'void'},
-  wgpuSurfaceSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuSurfaceUnconfigure: { parameters: ['buffer'], result: 'void'},
-  wgpuSurfaceAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuSurfaceRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuTextureCreateErrorView: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuTextureCreateView: { parameters: ['buffer', 'pointer'], result: 'buffer'},
-  wgpuTextureDestroy: { parameters: ['buffer'], result: 'void'},
-  wgpuTextureGetDepthOrArrayLayers: { parameters: ['buffer'], result: 'u32'},
-  wgpuTextureGetDimension: { parameters: ['buffer'], result: 'buffer'},
-  wgpuTextureGetFormat: { parameters: ['buffer'], result: 'buffer'},
-  wgpuTextureGetHeight: { parameters: ['buffer'], result: 'u32'},
-  wgpuTextureGetMipLevelCount: { parameters: ['buffer'], result: 'u32'},
-  wgpuTextureGetSampleCount: { parameters: ['buffer'], result: 'u32'},
-  wgpuTextureGetUsage: { parameters: ['buffer'], result: 'buffer'},
-  wgpuTextureGetWidth: { parameters: ['buffer'], result: 'u32'},
-  wgpuTextureSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuTextureAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuTextureRelease: { parameters: ['buffer'], result: 'void'},
-  wgpuTextureViewSetLabel: { parameters: ['buffer', 'buffer'], result: 'void'},
-  wgpuTextureViewAddRef: { parameters: ['buffer'], result: 'void'},
-  wgpuTextureViewRelease: { parameters: ['buffer'], result: 'void'}
-})// consts
+const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dylib', {
+  wgpuAdapterInfoFreeMembers: { parameters: ['buffer'], result: 'void' },
+  wgpuAdapterPropertiesMemoryHeapsFreeMembers: { parameters: ['buffer'], result: 'void' },
+  wgpuCreateInstance: { parameters: ['pointer'], result: 'buffer' },
+  wgpuDrmFormatCapabilitiesFreeMembers: { parameters: ['buffer'], result: 'void' },
+  wgpuGetInstanceFeatures: { parameters: ['pointer'], result: 'buffer' },
+  wgpuGetProcAddress: { parameters: ['buffer'], result: 'buffer' },
+  wgpuSharedBufferMemoryEndAccessStateFreeMembers: { parameters: ['buffer'], result: 'void' },
+  wgpuSharedTextureMemoryEndAccessStateFreeMembers: { parameters: ['buffer'], result: 'void' },
+  wgpuSupportedFeaturesFreeMembers: { parameters: ['buffer'], result: 'void' },
+  wgpuSurfaceCapabilitiesFreeMembers: { parameters: ['buffer'], result: 'void' },
+  wgpuAdapterCreateDevice: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuAdapterGetFeatures: { parameters: ['buffer', 'pointer'], result: 'void' },
+  wgpuAdapterGetFormatCapabilities: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
+  wgpuAdapterGetInfo: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuAdapterGetInstance: { parameters: ['buffer'], result: 'buffer' },
+  wgpuAdapterGetLimits: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuAdapterHasFeature: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuAdapterRequestDevice: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void' },
+  wgpuAdapterRequestDevice2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuAdapterRequestDeviceF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuAdapterAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuAdapterRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuBindGroupSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuBindGroupAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuBindGroupRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuBindGroupLayoutSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuBindGroupLayoutAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuBindGroupLayoutRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuBufferDestroy: { parameters: ['buffer'], result: 'void' },
+  wgpuBufferGetConstMappedRange: { parameters: ['buffer', 'usize', 'usize'], result: 'pointer' },
+  wgpuBufferGetMapState: { parameters: ['buffer'], result: 'buffer' },
+  wgpuBufferGetMappedRange: { parameters: ['buffer', 'usize', 'usize'], result: 'pointer' },
+  wgpuBufferGetSize: { parameters: ['buffer'], result: 'u64' },
+  wgpuBufferGetUsage: { parameters: ['buffer'], result: 'buffer' },
+  wgpuBufferMapAsync: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer', 'pointer'], result: 'void' },
+  wgpuBufferMapAsync2: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer'], result: 'buffer' },
+  wgpuBufferMapAsyncF: { parameters: ['buffer', 'buffer', 'usize', 'usize', 'buffer'], result: 'buffer' },
+  wgpuBufferSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuBufferUnmap: { parameters: ['buffer'], result: 'void' },
+  wgpuBufferAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuBufferRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuCommandBufferSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuCommandBufferAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuCommandBufferRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuCommandEncoderBeginComputePass: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuCommandEncoderBeginRenderPass: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuCommandEncoderClearBuffer: { parameters: ['buffer', 'buffer', 'u64', 'u64'], result: 'void' },
+  wgpuCommandEncoderCopyBufferToBuffer: { parameters: ['buffer', 'buffer', 'u64', 'buffer', 'u64', 'u64'], result: 'void' },
+  wgpuCommandEncoderCopyBufferToTexture: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuCommandEncoderCopyTextureToBuffer: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuCommandEncoderCopyTextureToTexture: { parameters: ['buffer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuCommandEncoderFinish: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuCommandEncoderInjectValidationError: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuCommandEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuCommandEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void' },
+  wgpuCommandEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuCommandEncoderResolveQuerySet: { parameters: ['buffer', 'buffer', 'u32', 'u32', 'buffer', 'u64'], result: 'void' },
+  wgpuCommandEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuCommandEncoderWriteBuffer: { parameters: ['buffer', 'buffer', 'u64', 'pointer', 'u64'], result: 'void' },
+  wgpuCommandEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void' },
+  wgpuCommandEncoderAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuCommandEncoderRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuComputePassEncoderDispatchWorkgroups: { parameters: ['buffer', 'u32', 'u32', 'u32'], result: 'void' },
+  wgpuComputePassEncoderDispatchWorkgroupsIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
+  wgpuComputePassEncoderEnd: { parameters: ['buffer'], result: 'void' },
+  wgpuComputePassEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuComputePassEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void' },
+  wgpuComputePassEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuComputePassEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void' },
+  wgpuComputePassEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuComputePassEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuComputePassEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void' },
+  wgpuComputePassEncoderAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuComputePassEncoderRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuComputePipelineGetBindGroupLayout: { parameters: ['buffer', 'u32'], result: 'buffer' },
+  wgpuComputePipelineSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuComputePipelineAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuComputePipelineRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuDeviceCreateBindGroup: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateBindGroupLayout: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateCommandEncoder: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateComputePipeline: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateComputePipelineAsync: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void' },
+  wgpuDeviceCreateComputePipelineAsync2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateComputePipelineAsyncF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateErrorBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateErrorExternalTexture: { parameters: ['buffer'], result: 'buffer' },
+  wgpuDeviceCreateErrorShaderModule: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateErrorTexture: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateExternalTexture: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreatePipelineLayout: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateQuerySet: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateRenderBundleEncoder: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateRenderPipeline: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateRenderPipelineAsync: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void' },
+  wgpuDeviceCreateRenderPipelineAsync2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateRenderPipelineAsyncF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuDeviceCreateSampler: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateShaderModule: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceCreateTexture: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceDestroy: { parameters: ['buffer'], result: 'void' },
+  wgpuDeviceForceLoss: { parameters: ['buffer', 'buffer', 'buffer'], result: 'void' },
+  wgpuDeviceGetAHardwareBufferProperties: { parameters: ['buffer', 'pointer', 'pointer'], result: 'buffer' },
+  wgpuDeviceGetAdapter: { parameters: ['buffer'], result: 'buffer' },
+  wgpuDeviceGetAdapterInfo: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceGetFeatures: { parameters: ['buffer', 'pointer'], result: 'void' },
+  wgpuDeviceGetLimits: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceGetLostFuture: { parameters: ['buffer'], result: 'buffer' },
+  wgpuDeviceGetQueue: { parameters: ['buffer'], result: 'buffer' },
+  wgpuDeviceHasFeature: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuDeviceImportSharedBufferMemory: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceImportSharedFence: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceImportSharedTextureMemory: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuDeviceInjectError: { parameters: ['buffer', 'buffer', 'buffer'], result: 'void' },
+  wgpuDevicePopErrorScope: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void' },
+  wgpuDevicePopErrorScope2: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuDevicePopErrorScopeF: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuDevicePushErrorScope: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuDeviceSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuDeviceSetLoggingCallback: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void' },
+  wgpuDeviceTick: { parameters: ['buffer'], result: 'void' },
+  wgpuDeviceValidateTextureDescriptor: { parameters: ['buffer', 'pointer'], result: 'void' },
+  wgpuDeviceAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuDeviceRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuExternalTextureDestroy: { parameters: ['buffer'], result: 'void' },
+  wgpuExternalTextureExpire: { parameters: ['buffer'], result: 'void' },
+  wgpuExternalTextureRefresh: { parameters: ['buffer'], result: 'void' },
+  wgpuExternalTextureSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuExternalTextureAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuExternalTextureRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuInstanceCreateSurface: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuInstanceEnumerateWGSLLanguageFeatures: { parameters: ['buffer', 'pointer'], result: 'usize' },
+  wgpuInstanceHasWGSLLanguageFeature: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuInstanceProcessEvents: { parameters: ['buffer'], result: 'void' },
+  wgpuInstanceRequestAdapter: { parameters: ['buffer', 'pointer', 'buffer', 'pointer'], result: 'void' },
+  wgpuInstanceRequestAdapter2: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuInstanceRequestAdapterF: { parameters: ['buffer', 'pointer', 'buffer'], result: 'buffer' },
+  wgpuInstanceWaitAny: { parameters: ['buffer', 'usize', 'pointer', 'u64'], result: 'buffer' },
+  wgpuInstanceAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuInstanceRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuPipelineLayoutSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuPipelineLayoutAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuPipelineLayoutRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuQuerySetDestroy: { parameters: ['buffer'], result: 'void' },
+  wgpuQuerySetGetCount: { parameters: ['buffer'], result: 'u32' },
+  wgpuQuerySetGetType: { parameters: ['buffer'], result: 'buffer' },
+  wgpuQuerySetSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuQuerySetAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuQuerySetRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuQueueCopyExternalTextureForBrowser: { parameters: ['buffer', 'pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuQueueCopyTextureForBrowser: { parameters: ['buffer', 'pointer', 'pointer', 'pointer', 'pointer'], result: 'void' },
+  wgpuQueueOnSubmittedWorkDone: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void' },
+  wgpuQueueOnSubmittedWorkDone2: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuQueueOnSubmittedWorkDoneF: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuQueueSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuQueueSubmit: { parameters: ['buffer', 'usize', 'pointer'], result: 'void' },
+  wgpuQueueWriteBuffer: { parameters: ['buffer', 'buffer', 'u64', 'pointer', 'usize'], result: 'void' },
+  wgpuQueueWriteTexture: { parameters: ['buffer', 'pointer', 'pointer', 'usize', 'pointer', 'pointer'], result: 'void' },
+  wgpuQueueAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuQueueRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderBundleSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderBundleAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderBundleRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderBundleEncoderDraw: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
+  wgpuRenderBundleEncoderDrawIndexed: { parameters: ['buffer', 'u32', 'u32', 'u32', 'i32', 'u32'], result: 'void' },
+  wgpuRenderBundleEncoderDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
+  wgpuRenderBundleEncoderDrawIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
+  wgpuRenderBundleEncoderFinish: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuRenderBundleEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderBundleEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderBundleEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderBundleEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void' },
+  wgpuRenderBundleEncoderSetIndexBuffer: { parameters: ['buffer', 'buffer', 'buffer', 'u64', 'u64'], result: 'void' },
+  wgpuRenderBundleEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderBundleEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderBundleEncoderSetVertexBuffer: { parameters: ['buffer', 'u32', 'buffer', 'u64', 'u64'], result: 'void' },
+  wgpuRenderBundleEncoderAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderBundleEncoderRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderPassEncoderBeginOcclusionQuery: { parameters: ['buffer', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderDraw: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderDrawIndexed: { parameters: ['buffer', 'u32', 'u32', 'u32', 'i32', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderDrawIndirect: { parameters: ['buffer', 'buffer', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderEnd: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderPassEncoderEndOcclusionQuery: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderPassEncoderExecuteBundles: { parameters: ['buffer', 'usize', 'pointer'], result: 'void' },
+  wgpuRenderPassEncoderInsertDebugMarker: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderPassEncoderMultiDrawIndexedIndirect: { parameters: ['buffer', 'buffer', 'u64', 'u32', 'buffer', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderMultiDrawIndirect: { parameters: ['buffer', 'buffer', 'u64', 'u32', 'buffer', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderPixelLocalStorageBarrier: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderPassEncoderPopDebugGroup: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderPassEncoderPushDebugGroup: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderPassEncoderSetBindGroup: { parameters: ['buffer', 'u32', 'buffer', 'usize', 'pointer'], result: 'void' },
+  wgpuRenderPassEncoderSetBlendConstant: { parameters: ['buffer', 'pointer'], result: 'void' },
+  wgpuRenderPassEncoderSetIndexBuffer: { parameters: ['buffer', 'buffer', 'buffer', 'u64', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderPassEncoderSetPipeline: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderPassEncoderSetScissorRect: { parameters: ['buffer', 'u32', 'u32', 'u32', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderSetStencilReference: { parameters: ['buffer', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderSetVertexBuffer: { parameters: ['buffer', 'u32', 'buffer', 'u64', 'u64'], result: 'void' },
+  wgpuRenderPassEncoderSetViewport: { parameters: ['buffer', 'f32', 'f32', 'f32', 'f32', 'f32', 'f32'], result: 'void' },
+  wgpuRenderPassEncoderWriteTimestamp: { parameters: ['buffer', 'buffer', 'u32'], result: 'void' },
+  wgpuRenderPassEncoderAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderPassEncoderRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderPipelineGetBindGroupLayout: { parameters: ['buffer', 'u32'], result: 'buffer' },
+  wgpuRenderPipelineSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuRenderPipelineAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuRenderPipelineRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuSamplerSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuSamplerAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuSamplerRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuShaderModuleGetCompilationInfo: { parameters: ['buffer', 'buffer', 'pointer'], result: 'void' },
+  wgpuShaderModuleGetCompilationInfo2: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuShaderModuleGetCompilationInfoF: { parameters: ['buffer', 'buffer'], result: 'buffer' },
+  wgpuShaderModuleSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuShaderModuleAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuShaderModuleRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuSharedBufferMemoryBeginAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
+  wgpuSharedBufferMemoryCreateBuffer: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuSharedBufferMemoryEndAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
+  wgpuSharedBufferMemoryGetProperties: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuSharedBufferMemoryIsDeviceLost: { parameters: ['buffer'], result: 'buffer' },
+  wgpuSharedBufferMemorySetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuSharedBufferMemoryAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuSharedBufferMemoryRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuSharedFenceExportInfo: { parameters: ['buffer', 'pointer'], result: 'void' },
+  wgpuSharedFenceAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuSharedFenceRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuSharedTextureMemoryBeginAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
+  wgpuSharedTextureMemoryCreateTexture: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuSharedTextureMemoryEndAccess: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
+  wgpuSharedTextureMemoryGetProperties: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuSharedTextureMemoryIsDeviceLost: { parameters: ['buffer'], result: 'buffer' },
+  wgpuSharedTextureMemorySetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuSharedTextureMemoryAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuSharedTextureMemoryRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuSurfaceConfigure: { parameters: ['buffer', 'pointer'], result: 'void' },
+  wgpuSurfaceGetCapabilities: { parameters: ['buffer', 'buffer', 'pointer'], result: 'buffer' },
+  wgpuSurfaceGetCurrentTexture: { parameters: ['buffer', 'pointer'], result: 'void' },
+  wgpuSurfacePresent: { parameters: ['buffer'], result: 'void' },
+  wgpuSurfaceSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuSurfaceUnconfigure: { parameters: ['buffer'], result: 'void' },
+  wgpuSurfaceAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuSurfaceRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuTextureCreateErrorView: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuTextureCreateView: { parameters: ['buffer', 'pointer'], result: 'buffer' },
+  wgpuTextureDestroy: { parameters: ['buffer'], result: 'void' },
+  wgpuTextureGetDepthOrArrayLayers: { parameters: ['buffer'], result: 'u32' },
+  wgpuTextureGetDimension: { parameters: ['buffer'], result: 'buffer' },
+  wgpuTextureGetFormat: { parameters: ['buffer'], result: 'buffer' },
+  wgpuTextureGetHeight: { parameters: ['buffer'], result: 'u32' },
+  wgpuTextureGetMipLevelCount: { parameters: ['buffer'], result: 'u32' },
+  wgpuTextureGetSampleCount: { parameters: ['buffer'], result: 'u32' },
+  wgpuTextureGetUsage: { parameters: ['buffer'], result: 'buffer' },
+  wgpuTextureGetWidth: { parameters: ['buffer'], result: 'u32' },
+  wgpuTextureSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuTextureAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuTextureRelease: { parameters: ['buffer'], result: 'void' },
+  wgpuTextureViewSetLabel: { parameters: ['buffer', 'buffer'], result: 'void' },
+  wgpuTextureViewAddRef: { parameters: ['buffer'], result: 'void' },
+  wgpuTextureViewRelease: { parameters: ['buffer'], result: 'void' },
+})
+
+// consts
 export const WGPUBufferUsage_None = new c.I32(0)
 export const WGPUBufferUsage_MapRead = new c.I32(1)
 export const WGPUBufferUsage_MapWrite = new c.I32(2)
@@ -1016,205 +1018,205 @@ export class WGPUWaitStatus extends c.I32 {
 }
 
 // structs
-export class WGPUAdapterImpl extends c.Struct<[]>{}
-export class WGPUBindGroupImpl extends c.Struct<[]>{}
-export class WGPUBindGroupLayoutImpl extends c.Struct<[]>{}
-export class WGPUBufferImpl extends c.Struct<[]>{}
-export class WGPUCommandBufferImpl extends c.Struct<[]>{}
-export class WGPUCommandEncoderImpl extends c.Struct<[]>{}
-export class WGPUComputePassEncoderImpl extends c.Struct<[]>{}
-export class WGPUComputePipelineImpl extends c.Struct<[]>{}
-export class WGPUDeviceImpl extends c.Struct<[]>{}
-export class WGPUExternalTextureImpl extends c.Struct<[]>{}
-export class WGPUInstanceImpl extends c.Struct<[]>{}
-export class WGPUPipelineLayoutImpl extends c.Struct<[]>{}
-export class WGPUQuerySetImpl extends c.Struct<[]>{}
-export class WGPUQueueImpl extends c.Struct<[]>{}
-export class WGPURenderBundleImpl extends c.Struct<[]>{}
-export class WGPURenderBundleEncoderImpl extends c.Struct<[]>{}
-export class WGPURenderPassEncoderImpl extends c.Struct<[]>{}
-export class WGPURenderPipelineImpl extends c.Struct<[]>{}
-export class WGPUSamplerImpl extends c.Struct<[]>{}
-export class WGPUShaderModuleImpl extends c.Struct<[]>{}
-export class WGPUSharedBufferMemoryImpl extends c.Struct<[]>{}
-export class WGPUSharedFenceImpl extends c.Struct<[]>{}
-export class WGPUSharedTextureMemoryImpl extends c.Struct<[]>{}
-export class WGPUSurfaceImpl extends c.Struct<[]>{}
-export class WGPUTextureImpl extends c.Struct<[]>{}
-export class WGPUTextureViewImpl extends c.Struct<[]>{}
-export class WGPUINTERNAL__HAVE_EMDAWNWEBGPU_HEADER extends c.Struct<[unused: WGPUBool]>{}
-export class WGPUAdapterPropertiesD3D extends c.Struct<[chain: WGPUChainedStructOut, shaderModel: c.U32]>{}
-export class WGPUAdapterPropertiesSubgroups extends c.Struct<[chain: WGPUChainedStructOut, subgroupMinSize: c.U32, subgroupMaxSize: c.U32]>{}
-export class WGPUAdapterPropertiesVk extends c.Struct<[chain: WGPUChainedStructOut, driverVersion: c.U32]>{}
-export class WGPUBindGroupEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, binding: c.U32, buffer: WGPUBuffer, offset: c.U64, size: c.U64, sampler: WGPUSampler, textureView: WGPUTextureView]>{}
-export class WGPUBlendComponent extends c.Struct<[operation: WGPUBlendOperation, srcFactor: WGPUBlendFactor, dstFactor: WGPUBlendFactor]>{}
-export class WGPUBufferBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, type: WGPUBufferBindingType, hasDynamicOffset: WGPUBool, minBindingSize: c.U64]>{}
-export class WGPUBufferHostMappedPointer extends c.Struct<[chain: WGPUChainedStruct, pointer: c.Pointer<c.Void>, disposeCallback: WGPUCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPUBufferMapCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUBufferMapCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPUColor extends c.Struct<[r: c.F64, g: c.F64, b: c.F64, a: c.F64]>{}
-export class WGPUColorTargetStateExpandResolveTextureDawn extends c.Struct<[chain: WGPUChainedStruct, enabled: WGPUBool]>{}
-export class WGPUCompilationInfoCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCompilationInfoCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPUComputePassTimestampWrites extends c.Struct<[querySet: WGPUQuerySet, beginningOfPassWriteIndex: c.U32, endOfPassWriteIndex: c.U32]>{}
-export class WGPUCopyTextureForBrowserOptions extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, flipY: WGPUBool, needsColorSpaceConversion: WGPUBool, srcAlphaMode: WGPUAlphaMode, srcTransferFunctionParameters: c.Pointer<c.F32>, conversionMatrix: c.Pointer<c.F32>, dstTransferFunctionParameters: c.Pointer<c.F32>, dstAlphaMode: WGPUAlphaMode, internalUsage: WGPUBool]>{}
-export class WGPUCreateComputePipelineAsyncCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateComputePipelineAsyncCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPUCreateRenderPipelineAsyncCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateRenderPipelineAsyncCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPUDawnWGSLBlocklist extends c.Struct<[chain: WGPUChainedStruct, blocklistedFeatureCount: c.Size, blocklistedFeatures: c.Pointer<c.Pointer<c.U8>>]>{}
-export class WGPUDawnAdapterPropertiesPowerPreference extends c.Struct<[chain: WGPUChainedStructOut, powerPreference: WGPUPowerPreference]>{}
-export class WGPUDawnBufferDescriptorErrorInfoFromWireClient extends c.Struct<[chain: WGPUChainedStruct, outOfMemory: WGPUBool]>{}
-export class WGPUDawnEncoderInternalUsageDescriptor extends c.Struct<[chain: WGPUChainedStruct, useInternalUsages: WGPUBool]>{}
-export class WGPUDawnExperimentalImmediateDataLimits extends c.Struct<[chain: WGPUChainedStructOut, maxImmediateDataRangeByteSize: c.U32]>{}
-export class WGPUDawnExperimentalSubgroupLimits extends c.Struct<[chain: WGPUChainedStructOut, minSubgroupSize: c.U32, maxSubgroupSize: c.U32]>{}
-export class WGPUDawnRenderPassColorAttachmentRenderToSingleSampled extends c.Struct<[chain: WGPUChainedStruct, implicitSampleCount: c.U32]>{}
-export class WGPUDawnShaderModuleSPIRVOptionsDescriptor extends c.Struct<[chain: WGPUChainedStruct, allowNonUniformDerivatives: WGPUBool]>{}
-export class WGPUDawnTexelCopyBufferRowAlignmentLimits extends c.Struct<[chain: WGPUChainedStructOut, minTexelCopyBufferRowAlignment: c.U32]>{}
-export class WGPUDawnTextureInternalUsageDescriptor extends c.Struct<[chain: WGPUChainedStruct, internalUsage: WGPUTextureUsage]>{}
-export class WGPUDawnTogglesDescriptor extends c.Struct<[chain: WGPUChainedStruct, enabledToggleCount: c.Size, enabledToggles: c.Pointer<c.Pointer<c.U8>>, disabledToggleCount: c.Size, disabledToggles: c.Pointer<c.Pointer<c.U8>>]>{}
-export class WGPUDawnWireWGSLControl extends c.Struct<[chain: WGPUChainedStruct, enableExperimental: WGPUBool, enableUnsafe: WGPUBool, enableTesting: WGPUBool]>{}
-export class WGPUDeviceLostCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUDeviceLostCallbackNew, userdata: c.Pointer<c.Void>]>{}
-export class WGPUDrmFormatProperties extends c.Struct<[modifier: c.U64, modifierPlaneCount: c.U32]>{}
-export class WGPUExtent2D extends c.Struct<[width: c.U32, height: c.U32]>{}
-export class WGPUExtent3D extends c.Struct<[width: c.U32, height: c.U32, depthOrArrayLayers: c.U32]>{}
-export class WGPUExternalTextureBindingEntry extends c.Struct<[chain: WGPUChainedStruct, externalTexture: WGPUExternalTexture]>{}
-export class WGPUExternalTextureBindingLayout extends c.Struct<[chain: WGPUChainedStruct]>{}
-export class WGPUFormatCapabilities extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>]>{}
-export class WGPUFuture extends c.Struct<[id: c.U64]>{}
-export class WGPUInstanceFeatures extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, timedWaitAnyEnable: WGPUBool, timedWaitAnyMaxCount: c.Size]>{}
-export class WGPULimits extends c.Struct<[maxTextureDimension1D: c.U32, maxTextureDimension2D: c.U32, maxTextureDimension3D: c.U32, maxTextureArrayLayers: c.U32, maxBindGroups: c.U32, maxBindGroupsPlusVertexBuffers: c.U32, maxBindingsPerBindGroup: c.U32, maxDynamicUniformBuffersPerPipelineLayout: c.U32, maxDynamicStorageBuffersPerPipelineLayout: c.U32, maxSampledTexturesPerShaderStage: c.U32, maxSamplersPerShaderStage: c.U32, maxStorageBuffersPerShaderStage: c.U32, maxStorageTexturesPerShaderStage: c.U32, maxUniformBuffersPerShaderStage: c.U32, maxUniformBufferBindingSize: c.U64, maxStorageBufferBindingSize: c.U64, minUniformBufferOffsetAlignment: c.U32, minStorageBufferOffsetAlignment: c.U32, maxVertexBuffers: c.U32, maxBufferSize: c.U64, maxVertexAttributes: c.U32, maxVertexBufferArrayStride: c.U32, maxInterStageShaderComponents: c.U32, maxInterStageShaderVariables: c.U32, maxColorAttachments: c.U32, maxColorAttachmentBytesPerSample: c.U32, maxComputeWorkgroupStorageSize: c.U32, maxComputeInvocationsPerWorkgroup: c.U32, maxComputeWorkgroupSizeX: c.U32, maxComputeWorkgroupSizeY: c.U32, maxComputeWorkgroupSizeZ: c.U32, maxComputeWorkgroupsPerDimension: c.U32, maxStorageBuffersInVertexStage: c.U32, maxStorageTexturesInVertexStage: c.U32, maxStorageBuffersInFragmentStage: c.U32, maxStorageTexturesInFragmentStage: c.U32]>{}
-export class WGPUMemoryHeapInfo extends c.Struct<[properties: WGPUHeapProperty, size: c.U64]>{}
-export class WGPUMultisampleState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, count: c.U32, mask: c.U32, alphaToCoverageEnabled: WGPUBool]>{}
-export class WGPUOrigin2D extends c.Struct<[x: c.U32, y: c.U32]>{}
-export class WGPUOrigin3D extends c.Struct<[x: c.U32, y: c.U32, z: c.U32]>{}
-export class WGPUPipelineLayoutStorageAttachment extends c.Struct<[offset: c.U64, format: WGPUTextureFormat]>{}
-export class WGPUPopErrorScopeCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUPopErrorScopeCallback, oldCallback: WGPUErrorCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPUPrimitiveState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, topology: WGPUPrimitiveTopology, stripIndexFormat: WGPUIndexFormat, frontFace: WGPUFrontFace, cullMode: WGPUCullMode, unclippedDepth: WGPUBool]>{}
-export class WGPUQueueWorkDoneCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUQueueWorkDoneCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPURenderPassDepthStencilAttachment extends c.Struct<[view: WGPUTextureView, depthLoadOp: WGPULoadOp, depthStoreOp: WGPUStoreOp, depthClearValue: c.F32, depthReadOnly: WGPUBool, stencilLoadOp: WGPULoadOp, stencilStoreOp: WGPUStoreOp, stencilClearValue: c.U32, stencilReadOnly: WGPUBool]>{}
-export class WGPURenderPassDescriptorExpandResolveRect extends c.Struct<[chain: WGPUChainedStruct, x: c.U32, y: c.U32, width: c.U32, height: c.U32]>{}
-export class WGPURenderPassMaxDrawCount extends c.Struct<[chain: WGPUChainedStruct, maxDrawCount: c.U64]>{}
-export class WGPURenderPassTimestampWrites extends c.Struct<[querySet: WGPUQuerySet, beginningOfPassWriteIndex: c.U32, endOfPassWriteIndex: c.U32]>{}
-export class WGPURequestAdapterCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestAdapterCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPURequestAdapterOptions extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, compatibleSurface: WGPUSurface, featureLevel: WGPUFeatureLevel, powerPreference: WGPUPowerPreference, backendType: WGPUBackendType, forceFallbackAdapter: WGPUBool, compatibilityMode: WGPUBool]>{}
-export class WGPURequestDeviceCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestDeviceCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPUSamplerBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, type: WGPUSamplerBindingType]>{}
-export class WGPUShaderModuleCompilationOptions extends c.Struct<[chain: WGPUChainedStruct, strictMath: WGPUBool]>{}
-export class WGPUShaderSourceSPIRV extends c.Struct<[chain: WGPUChainedStruct, codeSize: c.U32, code: c.Pointer<c.U32>]>{}
-export class WGPUSharedBufferMemoryBeginAccessDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]>{}
-export class WGPUSharedBufferMemoryEndAccessState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]>{}
-export class WGPUSharedBufferMemoryProperties extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usage: WGPUBufferUsage, size: c.U64]>{}
-export class WGPUSharedFenceDXGISharedHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>]>{}
-export class WGPUSharedFenceDXGISharedHandleExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.Pointer<c.Void>]>{}
-export class WGPUSharedFenceMTLSharedEventDescriptor extends c.Struct<[chain: WGPUChainedStruct, sharedEvent: c.Pointer<c.Void>]>{}
-export class WGPUSharedFenceMTLSharedEventExportInfo extends c.Struct<[chain: WGPUChainedStructOut, sharedEvent: c.Pointer<c.Void>]>{}
-export class WGPUSharedFenceExportInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, type: WGPUSharedFenceType]>{}
-export class WGPUSharedFenceSyncFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.I32]>{}
-export class WGPUSharedFenceSyncFDExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.I32]>{}
-export class WGPUSharedFenceVkSemaphoreOpaqueFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.I32]>{}
-export class WGPUSharedFenceVkSemaphoreOpaqueFDExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.I32]>{}
-export class WGPUSharedFenceVkSemaphoreZirconHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.U32]>{}
-export class WGPUSharedFenceVkSemaphoreZirconHandleExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.U32]>{}
-export class WGPUSharedTextureMemoryD3DSwapchainBeginState extends c.Struct<[chain: WGPUChainedStruct, isSwapchain: WGPUBool]>{}
-export class WGPUSharedTextureMemoryDXGISharedHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>, useKeyedMutex: WGPUBool]>{}
-export class WGPUSharedTextureMemoryEGLImageDescriptor extends c.Struct<[chain: WGPUChainedStruct, image: c.Pointer<c.Void>]>{}
-export class WGPUSharedTextureMemoryIOSurfaceDescriptor extends c.Struct<[chain: WGPUChainedStruct, ioSurface: c.Pointer<c.Void>]>{}
-export class WGPUSharedTextureMemoryAHardwareBufferDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>, useExternalFormat: WGPUBool]>{}
-export class WGPUSharedTextureMemoryBeginAccessDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, concurrentRead: WGPUBool, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]>{}
-export class WGPUSharedTextureMemoryDmaBufPlane extends c.Struct<[fd: c.I32, offset: c.U64, stride: c.U32]>{}
-export class WGPUSharedTextureMemoryEndAccessState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]>{}
-export class WGPUSharedTextureMemoryOpaqueFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, vkImageCreateInfo: c.Pointer<c.Void>, memoryFD: c.I32, memoryTypeIndex: c.U32, allocationSize: c.U64, dedicatedAllocation: WGPUBool]>{}
-export class WGPUSharedTextureMemoryVkDedicatedAllocationDescriptor extends c.Struct<[chain: WGPUChainedStruct, dedicatedAllocation: WGPUBool]>{}
-export class WGPUSharedTextureMemoryVkImageLayoutBeginState extends c.Struct<[chain: WGPUChainedStruct, oldLayout: c.I32, newLayout: c.I32]>{}
-export class WGPUSharedTextureMemoryVkImageLayoutEndState extends c.Struct<[chain: WGPUChainedStructOut, oldLayout: c.I32, newLayout: c.I32]>{}
-export class WGPUSharedTextureMemoryZirconHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, memoryFD: c.U32, allocationSize: c.U64]>{}
-export class WGPUStaticSamplerBindingLayout extends c.Struct<[chain: WGPUChainedStruct, sampler: WGPUSampler, sampledTextureBinding: c.U32]>{}
-export class WGPUStencilFaceState extends c.Struct<[compare: WGPUCompareFunction, failOp: WGPUStencilOperation, depthFailOp: WGPUStencilOperation, passOp: WGPUStencilOperation]>{}
-export class WGPUStorageTextureBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, access: WGPUStorageTextureAccess, format: WGPUTextureFormat, viewDimension: WGPUTextureViewDimension]>{}
-export class WGPUStringView extends c.Struct<[data: c.Pointer<c.U8>, length: c.Size]>{}
-export class WGPUSupportedFeatures extends c.Struct<[featureCount: c.Size, features: c.Pointer<WGPUFeatureName>]>{}
-export class WGPUSurfaceCapabilities extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usages: WGPUTextureUsage, formatCount: c.Size, formats: c.Pointer<WGPUTextureFormat>, presentModeCount: c.Size, presentModes: c.Pointer<WGPUPresentMode>, alphaModeCount: c.Size, alphaModes: c.Pointer<WGPUCompositeAlphaMode>]>{}
-export class WGPUSurfaceConfiguration extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, device: WGPUDevice, format: WGPUTextureFormat, usage: WGPUTextureUsage, viewFormatCount: c.Size, viewFormats: c.Pointer<WGPUTextureFormat>, alphaMode: WGPUCompositeAlphaMode, width: c.U32, height: c.U32, presentMode: WGPUPresentMode]>{}
-export class WGPUSurfaceDescriptorFromWindowsCoreWindow extends c.Struct<[chain: WGPUChainedStruct, coreWindow: c.Pointer<c.Void>]>{}
-export class WGPUSurfaceDescriptorFromWindowsSwapChainPanel extends c.Struct<[chain: WGPUChainedStruct, swapChainPanel: c.Pointer<c.Void>]>{}
-export class WGPUSurfaceSourceXCBWindow extends c.Struct<[chain: WGPUChainedStruct, connection: c.Pointer<c.Void>, window: c.U32]>{}
-export class WGPUSurfaceSourceAndroidNativeWindow extends c.Struct<[chain: WGPUChainedStruct, window: c.Pointer<c.Void>]>{}
-export class WGPUSurfaceSourceMetalLayer extends c.Struct<[chain: WGPUChainedStruct, layer: c.Pointer<c.Void>]>{}
-export class WGPUSurfaceSourceWaylandSurface extends c.Struct<[chain: WGPUChainedStruct, display: c.Pointer<c.Void>, surface: c.Pointer<c.Void>]>{}
-export class WGPUSurfaceSourceWindowsHWND extends c.Struct<[chain: WGPUChainedStruct, hinstance: c.Pointer<c.Void>, hwnd: c.Pointer<c.Void>]>{}
-export class WGPUSurfaceSourceXlibWindow extends c.Struct<[chain: WGPUChainedStruct, display: c.Pointer<c.Void>, window: c.U64]>{}
-export class WGPUSurfaceTexture extends c.Struct<[texture: WGPUTexture, suboptimal: WGPUBool, status: WGPUSurfaceGetCurrentTextureStatus]>{}
-export class WGPUTextureBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, sampleType: WGPUTextureSampleType, viewDimension: WGPUTextureViewDimension, multisampled: WGPUBool]>{}
-export class WGPUTextureBindingViewDimensionDescriptor extends c.Struct<[chain: WGPUChainedStruct, textureBindingViewDimension: WGPUTextureViewDimension]>{}
-export class WGPUTextureDataLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, offset: c.U64, bytesPerRow: c.U32, rowsPerImage: c.U32]>{}
-export class WGPUUncapturedErrorCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, callback: WGPUErrorCallback, userdata: c.Pointer<c.Void>]>{}
-export class WGPUVertexAttribute extends c.Struct<[format: WGPUVertexFormat, offset: c.U64, shaderLocation: c.U32]>{}
-export class WGPUYCbCrVkDescriptor extends c.Struct<[chain: WGPUChainedStruct, vkFormat: c.U32, vkYCbCrModel: c.U32, vkYCbCrRange: c.U32, vkComponentSwizzleRed: c.U32, vkComponentSwizzleGreen: c.U32, vkComponentSwizzleBlue: c.U32, vkComponentSwizzleAlpha: c.U32, vkXChromaOffset: c.U32, vkYChromaOffset: c.U32, vkChromaFilter: WGPUFilterMode, forceExplicitReconstruction: WGPUBool, externalFormat: c.U64]>{}
-export class WGPUAHardwareBufferProperties extends c.Struct<[yCbCrInfo: WGPUYCbCrVkDescriptor]>{}
-export class WGPUAdapterInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, vendor: WGPUStringView, architecture: WGPUStringView, device: WGPUStringView, description: WGPUStringView, backendType: WGPUBackendType, adapterType: WGPUAdapterType, vendorID: c.U32, deviceID: c.U32, compatibilityMode: WGPUBool]>{}
-export class WGPUAdapterPropertiesMemoryHeaps extends c.Struct<[chain: WGPUChainedStructOut, heapCount: c.Size, heapInfo: c.Pointer<WGPUMemoryHeapInfo>]>{}
-export class WGPUBindGroupDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUBindGroupLayout, entryCount: c.Size, entries: c.Pointer<WGPUBindGroupEntry>]>{}
-export class WGPUBindGroupLayoutEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, binding: c.U32, visibility: WGPUShaderStage, buffer: WGPUBufferBindingLayout, sampler: WGPUSamplerBindingLayout, texture: WGPUTextureBindingLayout, storageTexture: WGPUStorageTextureBindingLayout]>{}
-export class WGPUBlendState extends c.Struct<[color: WGPUBlendComponent, alpha: WGPUBlendComponent]>{}
-export class WGPUBufferDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, usage: WGPUBufferUsage, size: c.U64, mappedAtCreation: WGPUBool]>{}
-export class WGPUCommandBufferDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPUCommandEncoderDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPUCompilationMessage extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, message: WGPUStringView, type: WGPUCompilationMessageType, lineNum: c.U64, linePos: c.U64, offset: c.U64, length: c.U64, utf16LinePos: c.U64, utf16Offset: c.U64, utf16Length: c.U64]>{}
-export class WGPUComputePassDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, timestampWrites: c.Pointer<WGPUComputePassTimestampWrites>]>{}
-export class WGPUConstantEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, key: WGPUStringView, value: c.F64]>{}
-export class WGPUDawnCacheDeviceDescriptor extends c.Struct<[chain: WGPUChainedStruct, isolationKey: WGPUStringView, loadDataFunction: WGPUDawnLoadCacheDataFunction, storeDataFunction: WGPUDawnStoreCacheDataFunction, functionUserdata: c.Pointer<c.Void>]>{}
-export class WGPUDepthStencilState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, format: WGPUTextureFormat, depthWriteEnabled: WGPUOptionalBool, depthCompare: WGPUCompareFunction, stencilFront: WGPUStencilFaceState, stencilBack: WGPUStencilFaceState, stencilReadMask: c.U32, stencilWriteMask: c.U32, depthBias: c.I32, depthBiasSlopeScale: c.F32, depthBiasClamp: c.F32]>{}
-export class WGPUDrmFormatCapabilities extends c.Struct<[chain: WGPUChainedStructOut, propertiesCount: c.Size, properties: c.Pointer<WGPUDrmFormatProperties>]>{}
-export class WGPUExternalTextureDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, plane0: WGPUTextureView, plane1: WGPUTextureView, cropOrigin: WGPUOrigin2D, cropSize: WGPUExtent2D, apparentSize: WGPUExtent2D, doYuvToRgbConversionOnly: WGPUBool, yuvToRgbConversionMatrix: c.Pointer<c.F32>, srcTransferFunctionParameters: c.Pointer<c.F32>, dstTransferFunctionParameters: c.Pointer<c.F32>, gamutConversionMatrix: c.Pointer<c.F32>, mirrored: WGPUBool, rotation: WGPUExternalTextureRotation]>{}
-export class WGPUFutureWaitInfo extends c.Struct<[future: WGPUFuture, completed: WGPUBool]>{}
-export class WGPUImageCopyBuffer extends c.Struct<[layout: WGPUTextureDataLayout, buffer: WGPUBuffer]>{}
-export class WGPUImageCopyExternalTexture extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, externalTexture: WGPUExternalTexture, origin: WGPUOrigin3D, naturalSize: WGPUExtent2D]>{}
-export class WGPUImageCopyTexture extends c.Struct<[texture: WGPUTexture, mipLevel: c.U32, origin: WGPUOrigin3D, aspect: WGPUTextureAspect]>{}
-export class WGPUInstanceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, features: WGPUInstanceFeatures]>{}
-export class WGPUPipelineLayoutDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, bindGroupLayoutCount: c.Size, bindGroupLayouts: c.Pointer<WGPUBindGroupLayout>, immediateDataRangeByteSize: c.U32]>{}
-export class WGPUPipelineLayoutPixelLocalStorage extends c.Struct<[chain: WGPUChainedStruct, totalPixelLocalStorageSize: c.U64, storageAttachmentCount: c.Size, storageAttachments: c.Pointer<WGPUPipelineLayoutStorageAttachment>]>{}
-export class WGPUQuerySetDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, type: WGPUQueryType, count: c.U32]>{}
-export class WGPUQueueDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPURenderBundleDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPURenderBundleEncoderDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, colorFormatCount: c.Size, colorFormats: c.Pointer<WGPUTextureFormat>, depthStencilFormat: WGPUTextureFormat, sampleCount: c.U32, depthReadOnly: WGPUBool, stencilReadOnly: WGPUBool]>{}
-export class WGPURenderPassColorAttachment extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, view: WGPUTextureView, depthSlice: c.U32, resolveTarget: WGPUTextureView, loadOp: WGPULoadOp, storeOp: WGPUStoreOp, clearValue: WGPUColor]>{}
-export class WGPURenderPassStorageAttachment extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, offset: c.U64, storage: WGPUTextureView, loadOp: WGPULoadOp, storeOp: WGPUStoreOp, clearValue: WGPUColor]>{}
-export class WGPURequiredLimits extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, limits: WGPULimits]>{}
-export class WGPUSamplerDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, addressModeU: WGPUAddressMode, addressModeV: WGPUAddressMode, addressModeW: WGPUAddressMode, magFilter: WGPUFilterMode, minFilter: WGPUFilterMode, mipmapFilter: WGPUMipmapFilterMode, lodMinClamp: c.F32, lodMaxClamp: c.F32, compare: WGPUCompareFunction, maxAnisotropy: c.U16]>{}
-export class WGPUShaderModuleDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPUShaderSourceWGSL extends c.Struct<[chain: WGPUChainedStruct, code: WGPUStringView]>{}
-export class WGPUSharedBufferMemoryDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPUSharedFenceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPUSharedTextureMemoryAHardwareBufferProperties extends c.Struct<[chain: WGPUChainedStructOut, yCbCrInfo: WGPUYCbCrVkDescriptor]>{}
-export class WGPUSharedTextureMemoryDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPUSharedTextureMemoryDmaBufDescriptor extends c.Struct<[chain: WGPUChainedStruct, size: WGPUExtent3D, drmFormat: c.U32, drmModifier: c.U64, planeCount: c.Size, planes: c.Pointer<WGPUSharedTextureMemoryDmaBufPlane>]>{}
-export class WGPUSharedTextureMemoryProperties extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usage: WGPUTextureUsage, size: WGPUExtent3D, format: WGPUTextureFormat]>{}
-export class WGPUSupportedLimits extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, limits: WGPULimits]>{}
-export class WGPUSurfaceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]>{}
-export class WGPUSurfaceSourceCanvasHTMLSelector_Emscripten extends c.Struct<[chain: WGPUChainedStruct, selector: WGPUStringView]>{}
-export class WGPUTextureDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, usage: WGPUTextureUsage, dimension: WGPUTextureDimension, size: WGPUExtent3D, format: WGPUTextureFormat, mipLevelCount: c.U32, sampleCount: c.U32, viewFormatCount: c.Size, viewFormats: c.Pointer<WGPUTextureFormat>]>{}
-export class WGPUTextureViewDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, format: WGPUTextureFormat, dimension: WGPUTextureViewDimension, baseMipLevel: c.U32, mipLevelCount: c.U32, baseArrayLayer: c.U32, arrayLayerCount: c.U32, aspect: WGPUTextureAspect, usage: WGPUTextureUsage]>{}
-export class WGPUVertexBufferLayout extends c.Struct<[arrayStride: c.U64, stepMode: WGPUVertexStepMode, attributeCount: c.Size, attributes: c.Pointer<WGPUVertexAttribute>]>{}
-export class WGPUBindGroupLayoutDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, entryCount: c.Size, entries: c.Pointer<WGPUBindGroupLayoutEntry>]>{}
-export class WGPUColorTargetState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, format: WGPUTextureFormat, blend: c.Pointer<WGPUBlendState>, writeMask: WGPUColorWriteMask]>{}
-export class WGPUCompilationInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, messageCount: c.Size, messages: c.Pointer<WGPUCompilationMessage>]>{}
-export class WGPUComputeState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>]>{}
-export class WGPUDeviceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, requiredFeatureCount: c.Size, requiredFeatures: c.Pointer<WGPUFeatureName>, requiredLimits: c.Pointer<WGPURequiredLimits>, defaultQueue: WGPUQueueDescriptor, deviceLostCallbackInfo2: WGPUDeviceLostCallbackInfo2, uncapturedErrorCallbackInfo2: WGPUUncapturedErrorCallbackInfo2]>{}
-export class WGPURenderPassDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, colorAttachmentCount: c.Size, colorAttachments: c.Pointer<WGPURenderPassColorAttachment>, depthStencilAttachment: c.Pointer<WGPURenderPassDepthStencilAttachment>, occlusionQuerySet: WGPUQuerySet, timestampWrites: c.Pointer<WGPURenderPassTimestampWrites>]>{}
-export class WGPURenderPassPixelLocalStorage extends c.Struct<[chain: WGPUChainedStruct, totalPixelLocalStorageSize: c.U64, storageAttachmentCount: c.Size, storageAttachments: c.Pointer<WGPURenderPassStorageAttachment>]>{}
-export class WGPUVertexState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>, bufferCount: c.Size, buffers: c.Pointer<WGPUVertexBufferLayout>]>{}
-export class WGPUComputePipelineDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUPipelineLayout, compute: WGPUComputeState]>{}
-export class WGPUFragmentState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>, targetCount: c.Size, targets: c.Pointer<WGPUColorTargetState>]>{}
-export class WGPURenderPipelineDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUPipelineLayout, vertex: WGPUVertexState, primitive: WGPUPrimitiveState, depthStencil: c.Pointer<WGPUDepthStencilState>, multisample: WGPUMultisampleState, fragment: c.Pointer<WGPUFragmentState>]>{}
-export class WGPUChainedStruct extends c.Struct<[next: c.Pointer<WGPUChainedStruct>, sType: WGPUSType]>{}
-export class WGPUChainedStructOut extends c.Struct<[next: c.Pointer<WGPUChainedStructOut>, sType: WGPUSType]>{}
-export class WGPUBufferMapCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUBufferMapCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPUCompilationInfoCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCompilationInfoCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPUCreateComputePipelineAsyncCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateComputePipelineAsyncCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPUCreateRenderPipelineAsyncCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateRenderPipelineAsyncCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPUDeviceLostCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUDeviceLostCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPUPopErrorScopeCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUPopErrorScopeCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPUQueueWorkDoneCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUQueueWorkDoneCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPURequestAdapterCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestAdapterCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPURequestDeviceCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestDeviceCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
-export class WGPUUncapturedErrorCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, callback: WGPUUncapturedErrorCallback, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]>{}
+export class WGPUAdapterImpl extends c.Struct<[]> {}
+export class WGPUBindGroupImpl extends c.Struct<[]> {}
+export class WGPUBindGroupLayoutImpl extends c.Struct<[]> {}
+export class WGPUBufferImpl extends c.Struct<[]> {}
+export class WGPUCommandBufferImpl extends c.Struct<[]> {}
+export class WGPUCommandEncoderImpl extends c.Struct<[]> {}
+export class WGPUComputePassEncoderImpl extends c.Struct<[]> {}
+export class WGPUComputePipelineImpl extends c.Struct<[]> {}
+export class WGPUDeviceImpl extends c.Struct<[]> {}
+export class WGPUExternalTextureImpl extends c.Struct<[]> {}
+export class WGPUInstanceImpl extends c.Struct<[]> {}
+export class WGPUPipelineLayoutImpl extends c.Struct<[]> {}
+export class WGPUQuerySetImpl extends c.Struct<[]> {}
+export class WGPUQueueImpl extends c.Struct<[]> {}
+export class WGPURenderBundleImpl extends c.Struct<[]> {}
+export class WGPURenderBundleEncoderImpl extends c.Struct<[]> {}
+export class WGPURenderPassEncoderImpl extends c.Struct<[]> {}
+export class WGPURenderPipelineImpl extends c.Struct<[]> {}
+export class WGPUSamplerImpl extends c.Struct<[]> {}
+export class WGPUShaderModuleImpl extends c.Struct<[]> {}
+export class WGPUSharedBufferMemoryImpl extends c.Struct<[]> {}
+export class WGPUSharedFenceImpl extends c.Struct<[]> {}
+export class WGPUSharedTextureMemoryImpl extends c.Struct<[]> {}
+export class WGPUSurfaceImpl extends c.Struct<[]> {}
+export class WGPUTextureImpl extends c.Struct<[]> {}
+export class WGPUTextureViewImpl extends c.Struct<[]> {}
+export class WGPUINTERNAL__HAVE_EMDAWNWEBGPU_HEADER extends c.Struct<[unused: WGPUBool]> {}
+export class WGPUAdapterPropertiesD3D extends c.Struct<[chain: WGPUChainedStructOut, shaderModel: c.U32]> {}
+export class WGPUAdapterPropertiesSubgroups extends c.Struct<[chain: WGPUChainedStructOut, subgroupMinSize: c.U32, subgroupMaxSize: c.U32]> {}
+export class WGPUAdapterPropertiesVk extends c.Struct<[chain: WGPUChainedStructOut, driverVersion: c.U32]> {}
+export class WGPUBindGroupEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, binding: c.U32, buffer: WGPUBuffer, offset: c.U64, size: c.U64, sampler: WGPUSampler, textureView: WGPUTextureView]> {}
+export class WGPUBlendComponent extends c.Struct<[operation: WGPUBlendOperation, srcFactor: WGPUBlendFactor, dstFactor: WGPUBlendFactor]> {}
+export class WGPUBufferBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, type: WGPUBufferBindingType, hasDynamicOffset: WGPUBool, minBindingSize: c.U64]> {}
+export class WGPUBufferHostMappedPointer extends c.Struct<[chain: WGPUChainedStruct, pointer: c.Pointer<c.Void>, disposeCallback: WGPUCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPUBufferMapCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUBufferMapCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPUColor extends c.Struct<[r: c.F64, g: c.F64, b: c.F64, a: c.F64]> {}
+export class WGPUColorTargetStateExpandResolveTextureDawn extends c.Struct<[chain: WGPUChainedStruct, enabled: WGPUBool]> {}
+export class WGPUCompilationInfoCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCompilationInfoCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPUComputePassTimestampWrites extends c.Struct<[querySet: WGPUQuerySet, beginningOfPassWriteIndex: c.U32, endOfPassWriteIndex: c.U32]> {}
+export class WGPUCopyTextureForBrowserOptions extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, flipY: WGPUBool, needsColorSpaceConversion: WGPUBool, srcAlphaMode: WGPUAlphaMode, srcTransferFunctionParameters: c.Pointer<c.F32>, conversionMatrix: c.Pointer<c.F32>, dstTransferFunctionParameters: c.Pointer<c.F32>, dstAlphaMode: WGPUAlphaMode, internalUsage: WGPUBool]> {}
+export class WGPUCreateComputePipelineAsyncCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateComputePipelineAsyncCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPUCreateRenderPipelineAsyncCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateRenderPipelineAsyncCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPUDawnWGSLBlocklist extends c.Struct<[chain: WGPUChainedStruct, blocklistedFeatureCount: c.Size, blocklistedFeatures: c.Pointer<c.Pointer<c.U8>>]> {}
+export class WGPUDawnAdapterPropertiesPowerPreference extends c.Struct<[chain: WGPUChainedStructOut, powerPreference: WGPUPowerPreference]> {}
+export class WGPUDawnBufferDescriptorErrorInfoFromWireClient extends c.Struct<[chain: WGPUChainedStruct, outOfMemory: WGPUBool]> {}
+export class WGPUDawnEncoderInternalUsageDescriptor extends c.Struct<[chain: WGPUChainedStruct, useInternalUsages: WGPUBool]> {}
+export class WGPUDawnExperimentalImmediateDataLimits extends c.Struct<[chain: WGPUChainedStructOut, maxImmediateDataRangeByteSize: c.U32]> {}
+export class WGPUDawnExperimentalSubgroupLimits extends c.Struct<[chain: WGPUChainedStructOut, minSubgroupSize: c.U32, maxSubgroupSize: c.U32]> {}
+export class WGPUDawnRenderPassColorAttachmentRenderToSingleSampled extends c.Struct<[chain: WGPUChainedStruct, implicitSampleCount: c.U32]> {}
+export class WGPUDawnShaderModuleSPIRVOptionsDescriptor extends c.Struct<[chain: WGPUChainedStruct, allowNonUniformDerivatives: WGPUBool]> {}
+export class WGPUDawnTexelCopyBufferRowAlignmentLimits extends c.Struct<[chain: WGPUChainedStructOut, minTexelCopyBufferRowAlignment: c.U32]> {}
+export class WGPUDawnTextureInternalUsageDescriptor extends c.Struct<[chain: WGPUChainedStruct, internalUsage: WGPUTextureUsage]> {}
+export class WGPUDawnTogglesDescriptor extends c.Struct<[chain: WGPUChainedStruct, enabledToggleCount: c.Size, enabledToggles: c.Pointer<c.Pointer<c.U8>>, disabledToggleCount: c.Size, disabledToggles: c.Pointer<c.Pointer<c.U8>>]> {}
+export class WGPUDawnWireWGSLControl extends c.Struct<[chain: WGPUChainedStruct, enableExperimental: WGPUBool, enableUnsafe: WGPUBool, enableTesting: WGPUBool]> {}
+export class WGPUDeviceLostCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUDeviceLostCallbackNew, userdata: c.Pointer<c.Void>]> {}
+export class WGPUDrmFormatProperties extends c.Struct<[modifier: c.U64, modifierPlaneCount: c.U32]> {}
+export class WGPUExtent2D extends c.Struct<[width: c.U32, height: c.U32]> {}
+export class WGPUExtent3D extends c.Struct<[width: c.U32, height: c.U32, depthOrArrayLayers: c.U32]> {}
+export class WGPUExternalTextureBindingEntry extends c.Struct<[chain: WGPUChainedStruct, externalTexture: WGPUExternalTexture]> {}
+export class WGPUExternalTextureBindingLayout extends c.Struct<[chain: WGPUChainedStruct]> {}
+export class WGPUFormatCapabilities extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>]> {}
+export class WGPUFuture extends c.Struct<[id: c.U64]> {}
+export class WGPUInstanceFeatures extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, timedWaitAnyEnable: WGPUBool, timedWaitAnyMaxCount: c.Size]> {}
+export class WGPULimits extends c.Struct<[maxTextureDimension1D: c.U32, maxTextureDimension2D: c.U32, maxTextureDimension3D: c.U32, maxTextureArrayLayers: c.U32, maxBindGroups: c.U32, maxBindGroupsPlusVertexBuffers: c.U32, maxBindingsPerBindGroup: c.U32, maxDynamicUniformBuffersPerPipelineLayout: c.U32, maxDynamicStorageBuffersPerPipelineLayout: c.U32, maxSampledTexturesPerShaderStage: c.U32, maxSamplersPerShaderStage: c.U32, maxStorageBuffersPerShaderStage: c.U32, maxStorageTexturesPerShaderStage: c.U32, maxUniformBuffersPerShaderStage: c.U32, maxUniformBufferBindingSize: c.U64, maxStorageBufferBindingSize: c.U64, minUniformBufferOffsetAlignment: c.U32, minStorageBufferOffsetAlignment: c.U32, maxVertexBuffers: c.U32, maxBufferSize: c.U64, maxVertexAttributes: c.U32, maxVertexBufferArrayStride: c.U32, maxInterStageShaderComponents: c.U32, maxInterStageShaderVariables: c.U32, maxColorAttachments: c.U32, maxColorAttachmentBytesPerSample: c.U32, maxComputeWorkgroupStorageSize: c.U32, maxComputeInvocationsPerWorkgroup: c.U32, maxComputeWorkgroupSizeX: c.U32, maxComputeWorkgroupSizeY: c.U32, maxComputeWorkgroupSizeZ: c.U32, maxComputeWorkgroupsPerDimension: c.U32, maxStorageBuffersInVertexStage: c.U32, maxStorageTexturesInVertexStage: c.U32, maxStorageBuffersInFragmentStage: c.U32, maxStorageTexturesInFragmentStage: c.U32]> {}
+export class WGPUMemoryHeapInfo extends c.Struct<[properties: WGPUHeapProperty, size: c.U64]> {}
+export class WGPUMultisampleState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, count: c.U32, mask: c.U32, alphaToCoverageEnabled: WGPUBool]> {}
+export class WGPUOrigin2D extends c.Struct<[x: c.U32, y: c.U32]> {}
+export class WGPUOrigin3D extends c.Struct<[x: c.U32, y: c.U32, z: c.U32]> {}
+export class WGPUPipelineLayoutStorageAttachment extends c.Struct<[offset: c.U64, format: WGPUTextureFormat]> {}
+export class WGPUPopErrorScopeCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUPopErrorScopeCallback, oldCallback: WGPUErrorCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPUPrimitiveState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, topology: WGPUPrimitiveTopology, stripIndexFormat: WGPUIndexFormat, frontFace: WGPUFrontFace, cullMode: WGPUCullMode, unclippedDepth: WGPUBool]> {}
+export class WGPUQueueWorkDoneCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUQueueWorkDoneCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPURenderPassDepthStencilAttachment extends c.Struct<[view: WGPUTextureView, depthLoadOp: WGPULoadOp, depthStoreOp: WGPUStoreOp, depthClearValue: c.F32, depthReadOnly: WGPUBool, stencilLoadOp: WGPULoadOp, stencilStoreOp: WGPUStoreOp, stencilClearValue: c.U32, stencilReadOnly: WGPUBool]> {}
+export class WGPURenderPassDescriptorExpandResolveRect extends c.Struct<[chain: WGPUChainedStruct, x: c.U32, y: c.U32, width: c.U32, height: c.U32]> {}
+export class WGPURenderPassMaxDrawCount extends c.Struct<[chain: WGPUChainedStruct, maxDrawCount: c.U64]> {}
+export class WGPURenderPassTimestampWrites extends c.Struct<[querySet: WGPUQuerySet, beginningOfPassWriteIndex: c.U32, endOfPassWriteIndex: c.U32]> {}
+export class WGPURequestAdapterCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestAdapterCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPURequestAdapterOptions extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, compatibleSurface: WGPUSurface, featureLevel: WGPUFeatureLevel, powerPreference: WGPUPowerPreference, backendType: WGPUBackendType, forceFallbackAdapter: WGPUBool, compatibilityMode: WGPUBool]> {}
+export class WGPURequestDeviceCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestDeviceCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPUSamplerBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, type: WGPUSamplerBindingType]> {}
+export class WGPUShaderModuleCompilationOptions extends c.Struct<[chain: WGPUChainedStruct, strictMath: WGPUBool]> {}
+export class WGPUShaderSourceSPIRV extends c.Struct<[chain: WGPUChainedStruct, codeSize: c.U32, code: c.Pointer<c.U32>]> {}
+export class WGPUSharedBufferMemoryBeginAccessDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]> {}
+export class WGPUSharedBufferMemoryEndAccessState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]> {}
+export class WGPUSharedBufferMemoryProperties extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usage: WGPUBufferUsage, size: c.U64]> {}
+export class WGPUSharedFenceDXGISharedHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>]> {}
+export class WGPUSharedFenceDXGISharedHandleExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.Pointer<c.Void>]> {}
+export class WGPUSharedFenceMTLSharedEventDescriptor extends c.Struct<[chain: WGPUChainedStruct, sharedEvent: c.Pointer<c.Void>]> {}
+export class WGPUSharedFenceMTLSharedEventExportInfo extends c.Struct<[chain: WGPUChainedStructOut, sharedEvent: c.Pointer<c.Void>]> {}
+export class WGPUSharedFenceExportInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, type: WGPUSharedFenceType]> {}
+export class WGPUSharedFenceSyncFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.I32]> {}
+export class WGPUSharedFenceSyncFDExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.I32]> {}
+export class WGPUSharedFenceVkSemaphoreOpaqueFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.I32]> {}
+export class WGPUSharedFenceVkSemaphoreOpaqueFDExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.I32]> {}
+export class WGPUSharedFenceVkSemaphoreZirconHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.U32]> {}
+export class WGPUSharedFenceVkSemaphoreZirconHandleExportInfo extends c.Struct<[chain: WGPUChainedStructOut, handle: c.U32]> {}
+export class WGPUSharedTextureMemoryD3DSwapchainBeginState extends c.Struct<[chain: WGPUChainedStruct, isSwapchain: WGPUBool]> {}
+export class WGPUSharedTextureMemoryDXGISharedHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>, useKeyedMutex: WGPUBool]> {}
+export class WGPUSharedTextureMemoryEGLImageDescriptor extends c.Struct<[chain: WGPUChainedStruct, image: c.Pointer<c.Void>]> {}
+export class WGPUSharedTextureMemoryIOSurfaceDescriptor extends c.Struct<[chain: WGPUChainedStruct, ioSurface: c.Pointer<c.Void>]> {}
+export class WGPUSharedTextureMemoryAHardwareBufferDescriptor extends c.Struct<[chain: WGPUChainedStruct, handle: c.Pointer<c.Void>, useExternalFormat: WGPUBool]> {}
+export class WGPUSharedTextureMemoryBeginAccessDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, concurrentRead: WGPUBool, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]> {}
+export class WGPUSharedTextureMemoryDmaBufPlane extends c.Struct<[fd: c.I32, offset: c.U64, stride: c.U32]> {}
+export class WGPUSharedTextureMemoryEndAccessState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, initialized: WGPUBool, fenceCount: c.Size, fences: c.Pointer<WGPUSharedFence>, signaledValues: c.Pointer<c.U64>]> {}
+export class WGPUSharedTextureMemoryOpaqueFDDescriptor extends c.Struct<[chain: WGPUChainedStruct, vkImageCreateInfo: c.Pointer<c.Void>, memoryFD: c.I32, memoryTypeIndex: c.U32, allocationSize: c.U64, dedicatedAllocation: WGPUBool]> {}
+export class WGPUSharedTextureMemoryVkDedicatedAllocationDescriptor extends c.Struct<[chain: WGPUChainedStruct, dedicatedAllocation: WGPUBool]> {}
+export class WGPUSharedTextureMemoryVkImageLayoutBeginState extends c.Struct<[chain: WGPUChainedStruct, oldLayout: c.I32, newLayout: c.I32]> {}
+export class WGPUSharedTextureMemoryVkImageLayoutEndState extends c.Struct<[chain: WGPUChainedStructOut, oldLayout: c.I32, newLayout: c.I32]> {}
+export class WGPUSharedTextureMemoryZirconHandleDescriptor extends c.Struct<[chain: WGPUChainedStruct, memoryFD: c.U32, allocationSize: c.U64]> {}
+export class WGPUStaticSamplerBindingLayout extends c.Struct<[chain: WGPUChainedStruct, sampler: WGPUSampler, sampledTextureBinding: c.U32]> {}
+export class WGPUStencilFaceState extends c.Struct<[compare: WGPUCompareFunction, failOp: WGPUStencilOperation, depthFailOp: WGPUStencilOperation, passOp: WGPUStencilOperation]> {}
+export class WGPUStorageTextureBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, access: WGPUStorageTextureAccess, format: WGPUTextureFormat, viewDimension: WGPUTextureViewDimension]> {}
+export class WGPUStringView extends c.Struct<[data: c.Pointer<c.U8>, length: c.Size]> {}
+export class WGPUSupportedFeatures extends c.Struct<[featureCount: c.Size, features: c.Pointer<WGPUFeatureName>]> {}
+export class WGPUSurfaceCapabilities extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usages: WGPUTextureUsage, formatCount: c.Size, formats: c.Pointer<WGPUTextureFormat>, presentModeCount: c.Size, presentModes: c.Pointer<WGPUPresentMode>, alphaModeCount: c.Size, alphaModes: c.Pointer<WGPUCompositeAlphaMode>]> {}
+export class WGPUSurfaceConfiguration extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, device: WGPUDevice, format: WGPUTextureFormat, usage: WGPUTextureUsage, viewFormatCount: c.Size, viewFormats: c.Pointer<WGPUTextureFormat>, alphaMode: WGPUCompositeAlphaMode, width: c.U32, height: c.U32, presentMode: WGPUPresentMode]> {}
+export class WGPUSurfaceDescriptorFromWindowsCoreWindow extends c.Struct<[chain: WGPUChainedStruct, coreWindow: c.Pointer<c.Void>]> {}
+export class WGPUSurfaceDescriptorFromWindowsSwapChainPanel extends c.Struct<[chain: WGPUChainedStruct, swapChainPanel: c.Pointer<c.Void>]> {}
+export class WGPUSurfaceSourceXCBWindow extends c.Struct<[chain: WGPUChainedStruct, connection: c.Pointer<c.Void>, window: c.U32]> {}
+export class WGPUSurfaceSourceAndroidNativeWindow extends c.Struct<[chain: WGPUChainedStruct, window: c.Pointer<c.Void>]> {}
+export class WGPUSurfaceSourceMetalLayer extends c.Struct<[chain: WGPUChainedStruct, layer: c.Pointer<c.Void>]> {}
+export class WGPUSurfaceSourceWaylandSurface extends c.Struct<[chain: WGPUChainedStruct, display: c.Pointer<c.Void>, surface: c.Pointer<c.Void>]> {}
+export class WGPUSurfaceSourceWindowsHWND extends c.Struct<[chain: WGPUChainedStruct, hinstance: c.Pointer<c.Void>, hwnd: c.Pointer<c.Void>]> {}
+export class WGPUSurfaceSourceXlibWindow extends c.Struct<[chain: WGPUChainedStruct, display: c.Pointer<c.Void>, window: c.U64]> {}
+export class WGPUSurfaceTexture extends c.Struct<[texture: WGPUTexture, suboptimal: WGPUBool, status: WGPUSurfaceGetCurrentTextureStatus]> {}
+export class WGPUTextureBindingLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, sampleType: WGPUTextureSampleType, viewDimension: WGPUTextureViewDimension, multisampled: WGPUBool]> {}
+export class WGPUTextureBindingViewDimensionDescriptor extends c.Struct<[chain: WGPUChainedStruct, textureBindingViewDimension: WGPUTextureViewDimension]> {}
+export class WGPUTextureDataLayout extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, offset: c.U64, bytesPerRow: c.U32, rowsPerImage: c.U32]> {}
+export class WGPUUncapturedErrorCallbackInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, callback: WGPUErrorCallback, userdata: c.Pointer<c.Void>]> {}
+export class WGPUVertexAttribute extends c.Struct<[format: WGPUVertexFormat, offset: c.U64, shaderLocation: c.U32]> {}
+export class WGPUYCbCrVkDescriptor extends c.Struct<[chain: WGPUChainedStruct, vkFormat: c.U32, vkYCbCrModel: c.U32, vkYCbCrRange: c.U32, vkComponentSwizzleRed: c.U32, vkComponentSwizzleGreen: c.U32, vkComponentSwizzleBlue: c.U32, vkComponentSwizzleAlpha: c.U32, vkXChromaOffset: c.U32, vkYChromaOffset: c.U32, vkChromaFilter: WGPUFilterMode, forceExplicitReconstruction: WGPUBool, externalFormat: c.U64]> {}
+export class WGPUAHardwareBufferProperties extends c.Struct<[yCbCrInfo: WGPUYCbCrVkDescriptor]> {}
+export class WGPUAdapterInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, vendor: WGPUStringView, architecture: WGPUStringView, device: WGPUStringView, description: WGPUStringView, backendType: WGPUBackendType, adapterType: WGPUAdapterType, vendorID: c.U32, deviceID: c.U32, compatibilityMode: WGPUBool]> {}
+export class WGPUAdapterPropertiesMemoryHeaps extends c.Struct<[chain: WGPUChainedStructOut, heapCount: c.Size, heapInfo: c.Pointer<WGPUMemoryHeapInfo>]> {}
+export class WGPUBindGroupDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUBindGroupLayout, entryCount: c.Size, entries: c.Pointer<WGPUBindGroupEntry>]> {}
+export class WGPUBindGroupLayoutEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, binding: c.U32, visibility: WGPUShaderStage, buffer: WGPUBufferBindingLayout, sampler: WGPUSamplerBindingLayout, texture: WGPUTextureBindingLayout, storageTexture: WGPUStorageTextureBindingLayout]> {}
+export class WGPUBlendState extends c.Struct<[color: WGPUBlendComponent, alpha: WGPUBlendComponent]> {}
+export class WGPUBufferDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, usage: WGPUBufferUsage, size: c.U64, mappedAtCreation: WGPUBool]> {}
+export class WGPUCommandBufferDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPUCommandEncoderDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPUCompilationMessage extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, message: WGPUStringView, type: WGPUCompilationMessageType, lineNum: c.U64, linePos: c.U64, offset: c.U64, length: c.U64, utf16LinePos: c.U64, utf16Offset: c.U64, utf16Length: c.U64]> {}
+export class WGPUComputePassDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, timestampWrites: c.Pointer<WGPUComputePassTimestampWrites>]> {}
+export class WGPUConstantEntry extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, key: WGPUStringView, value: c.F64]> {}
+export class WGPUDawnCacheDeviceDescriptor extends c.Struct<[chain: WGPUChainedStruct, isolationKey: WGPUStringView, loadDataFunction: WGPUDawnLoadCacheDataFunction, storeDataFunction: WGPUDawnStoreCacheDataFunction, functionUserdata: c.Pointer<c.Void>]> {}
+export class WGPUDepthStencilState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, format: WGPUTextureFormat, depthWriteEnabled: WGPUOptionalBool, depthCompare: WGPUCompareFunction, stencilFront: WGPUStencilFaceState, stencilBack: WGPUStencilFaceState, stencilReadMask: c.U32, stencilWriteMask: c.U32, depthBias: c.I32, depthBiasSlopeScale: c.F32, depthBiasClamp: c.F32]> {}
+export class WGPUDrmFormatCapabilities extends c.Struct<[chain: WGPUChainedStructOut, propertiesCount: c.Size, properties: c.Pointer<WGPUDrmFormatProperties>]> {}
+export class WGPUExternalTextureDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, plane0: WGPUTextureView, plane1: WGPUTextureView, cropOrigin: WGPUOrigin2D, cropSize: WGPUExtent2D, apparentSize: WGPUExtent2D, doYuvToRgbConversionOnly: WGPUBool, yuvToRgbConversionMatrix: c.Pointer<c.F32>, srcTransferFunctionParameters: c.Pointer<c.F32>, dstTransferFunctionParameters: c.Pointer<c.F32>, gamutConversionMatrix: c.Pointer<c.F32>, mirrored: WGPUBool, rotation: WGPUExternalTextureRotation]> {}
+export class WGPUFutureWaitInfo extends c.Struct<[future: WGPUFuture, completed: WGPUBool]> {}
+export class WGPUImageCopyBuffer extends c.Struct<[layout: WGPUTextureDataLayout, buffer: WGPUBuffer]> {}
+export class WGPUImageCopyExternalTexture extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, externalTexture: WGPUExternalTexture, origin: WGPUOrigin3D, naturalSize: WGPUExtent2D]> {}
+export class WGPUImageCopyTexture extends c.Struct<[texture: WGPUTexture, mipLevel: c.U32, origin: WGPUOrigin3D, aspect: WGPUTextureAspect]> {}
+export class WGPUInstanceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, features: WGPUInstanceFeatures]> {}
+export class WGPUPipelineLayoutDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, bindGroupLayoutCount: c.Size, bindGroupLayouts: c.Pointer<WGPUBindGroupLayout>, immediateDataRangeByteSize: c.U32]> {}
+export class WGPUPipelineLayoutPixelLocalStorage extends c.Struct<[chain: WGPUChainedStruct, totalPixelLocalStorageSize: c.U64, storageAttachmentCount: c.Size, storageAttachments: c.Pointer<WGPUPipelineLayoutStorageAttachment>]> {}
+export class WGPUQuerySetDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, type: WGPUQueryType, count: c.U32]> {}
+export class WGPUQueueDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPURenderBundleDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPURenderBundleEncoderDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, colorFormatCount: c.Size, colorFormats: c.Pointer<WGPUTextureFormat>, depthStencilFormat: WGPUTextureFormat, sampleCount: c.U32, depthReadOnly: WGPUBool, stencilReadOnly: WGPUBool]> {}
+export class WGPURenderPassColorAttachment extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, view: WGPUTextureView, depthSlice: c.U32, resolveTarget: WGPUTextureView, loadOp: WGPULoadOp, storeOp: WGPUStoreOp, clearValue: WGPUColor]> {}
+export class WGPURenderPassStorageAttachment extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, offset: c.U64, storage: WGPUTextureView, loadOp: WGPULoadOp, storeOp: WGPUStoreOp, clearValue: WGPUColor]> {}
+export class WGPURequiredLimits extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, limits: WGPULimits]> {}
+export class WGPUSamplerDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, addressModeU: WGPUAddressMode, addressModeV: WGPUAddressMode, addressModeW: WGPUAddressMode, magFilter: WGPUFilterMode, minFilter: WGPUFilterMode, mipmapFilter: WGPUMipmapFilterMode, lodMinClamp: c.F32, lodMaxClamp: c.F32, compare: WGPUCompareFunction, maxAnisotropy: c.U16]> {}
+export class WGPUShaderModuleDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPUShaderSourceWGSL extends c.Struct<[chain: WGPUChainedStruct, code: WGPUStringView]> {}
+export class WGPUSharedBufferMemoryDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPUSharedFenceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPUSharedTextureMemoryAHardwareBufferProperties extends c.Struct<[chain: WGPUChainedStructOut, yCbCrInfo: WGPUYCbCrVkDescriptor]> {}
+export class WGPUSharedTextureMemoryDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPUSharedTextureMemoryDmaBufDescriptor extends c.Struct<[chain: WGPUChainedStruct, size: WGPUExtent3D, drmFormat: c.U32, drmModifier: c.U64, planeCount: c.Size, planes: c.Pointer<WGPUSharedTextureMemoryDmaBufPlane>]> {}
+export class WGPUSharedTextureMemoryProperties extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, usage: WGPUTextureUsage, size: WGPUExtent3D, format: WGPUTextureFormat]> {}
+export class WGPUSupportedLimits extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStructOut>, limits: WGPULimits]> {}
+export class WGPUSurfaceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView]> {}
+export class WGPUSurfaceSourceCanvasHTMLSelector_Emscripten extends c.Struct<[chain: WGPUChainedStruct, selector: WGPUStringView]> {}
+export class WGPUTextureDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, usage: WGPUTextureUsage, dimension: WGPUTextureDimension, size: WGPUExtent3D, format: WGPUTextureFormat, mipLevelCount: c.U32, sampleCount: c.U32, viewFormatCount: c.Size, viewFormats: c.Pointer<WGPUTextureFormat>]> {}
+export class WGPUTextureViewDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, format: WGPUTextureFormat, dimension: WGPUTextureViewDimension, baseMipLevel: c.U32, mipLevelCount: c.U32, baseArrayLayer: c.U32, arrayLayerCount: c.U32, aspect: WGPUTextureAspect, usage: WGPUTextureUsage]> {}
+export class WGPUVertexBufferLayout extends c.Struct<[arrayStride: c.U64, stepMode: WGPUVertexStepMode, attributeCount: c.Size, attributes: c.Pointer<WGPUVertexAttribute>]> {}
+export class WGPUBindGroupLayoutDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, entryCount: c.Size, entries: c.Pointer<WGPUBindGroupLayoutEntry>]> {}
+export class WGPUColorTargetState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, format: WGPUTextureFormat, blend: c.Pointer<WGPUBlendState>, writeMask: WGPUColorWriteMask]> {}
+export class WGPUCompilationInfo extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, messageCount: c.Size, messages: c.Pointer<WGPUCompilationMessage>]> {}
+export class WGPUComputeState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>]> {}
+export class WGPUDeviceDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, requiredFeatureCount: c.Size, requiredFeatures: c.Pointer<WGPUFeatureName>, requiredLimits: c.Pointer<WGPURequiredLimits>, defaultQueue: WGPUQueueDescriptor, deviceLostCallbackInfo2: WGPUDeviceLostCallbackInfo2, uncapturedErrorCallbackInfo2: WGPUUncapturedErrorCallbackInfo2]> {}
+export class WGPURenderPassDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, colorAttachmentCount: c.Size, colorAttachments: c.Pointer<WGPURenderPassColorAttachment>, depthStencilAttachment: c.Pointer<WGPURenderPassDepthStencilAttachment>, occlusionQuerySet: WGPUQuerySet, timestampWrites: c.Pointer<WGPURenderPassTimestampWrites>]> {}
+export class WGPURenderPassPixelLocalStorage extends c.Struct<[chain: WGPUChainedStruct, totalPixelLocalStorageSize: c.U64, storageAttachmentCount: c.Size, storageAttachments: c.Pointer<WGPURenderPassStorageAttachment>]> {}
+export class WGPUVertexState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>, bufferCount: c.Size, buffers: c.Pointer<WGPUVertexBufferLayout>]> {}
+export class WGPUComputePipelineDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUPipelineLayout, compute: WGPUComputeState]> {}
+export class WGPUFragmentState extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, module: WGPUShaderModule, entryPoint: WGPUStringView, constantCount: c.Size, constants: c.Pointer<WGPUConstantEntry>, targetCount: c.Size, targets: c.Pointer<WGPUColorTargetState>]> {}
+export class WGPURenderPipelineDescriptor extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, label: WGPUStringView, layout: WGPUPipelineLayout, vertex: WGPUVertexState, primitive: WGPUPrimitiveState, depthStencil: c.Pointer<WGPUDepthStencilState>, multisample: WGPUMultisampleState, fragment: c.Pointer<WGPUFragmentState>]> {}
+export class WGPUChainedStruct extends c.Struct<[next: c.Pointer<WGPUChainedStruct>, sType: WGPUSType]> {}
+export class WGPUChainedStructOut extends c.Struct<[next: c.Pointer<WGPUChainedStructOut>, sType: WGPUSType]> {}
+export class WGPUBufferMapCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUBufferMapCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPUCompilationInfoCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCompilationInfoCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPUCreateComputePipelineAsyncCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateComputePipelineAsyncCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPUCreateRenderPipelineAsyncCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUCreateRenderPipelineAsyncCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPUDeviceLostCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUDeviceLostCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPUPopErrorScopeCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUPopErrorScopeCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPUQueueWorkDoneCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPUQueueWorkDoneCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPURequestAdapterCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestAdapterCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPURequestDeviceCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, mode: WGPUCallbackMode, callback: WGPURequestDeviceCallback2, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
+export class WGPUUncapturedErrorCallbackInfo2 extends c.Struct<[nextInChain: c.Pointer<WGPUChainedStruct>, callback: WGPUUncapturedErrorCallback, userdata1: c.Pointer<c.Void>, userdata2: c.Pointer<c.Void>]> {}
 
 // types
 export class WGPUFlags extends c.U64 {}
