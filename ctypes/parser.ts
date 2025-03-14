@@ -1,5 +1,29 @@
 import data from './webgpu.json' with { type: 'json' }
 
+let content = `import * as c from './mod.ts'\n\n`
+
+const libTypeMap = {
+  ':void': 'void',
+  ':pointer': 'pointer',
+  'size_t': 'usize',
+  'uint8_t': 'u8',
+  'uint32_t': 'u32',
+  'uint64_t': 'u64',
+  'int32_t': 'i32',
+  'int64_t': 'i64',
+  ':float': 'f32',
+  ':double': 'f64',
+}
+const getLibType = (type: Type): string => {
+  if (type.tag in libTypeMap) return `'${libTypeMap[type.tag as keyof typeof libTypeMap]}'`
+  console.log(type)
+  if (type.tag.startsWith('WGPU')) return `'buffer'`
+  throw new Error('invalid')
+}
+content += `const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dylib', {
+  ${data.filter((x) => x.tag === 'function').map((x) => `${x.name}: { parameters: [${x.parameters.map((x: any) => getLibType(x.type)).join(', ')}], result: ${getLibType(x['return-type'])} },`).join('\n  ')}
+})\n\n`
+
 const consts: string[] = []
 for (const line of data) {
   if (line.tag !== 'const') continue
@@ -41,7 +65,7 @@ const getType = (type: Type): string => {
 const structs: Record<string, string> = {}
 for (const line of data) {
   if (line.tag !== 'struct') continue
-  structs[line.name] = `export class ${line.name} extends c.Struct<[${line.fields.map((x: any) => `${x.name}: ${getType(x.type)}`).join(', ')}]>{}`
+  structs[line.name] = `export class ${line.name} extends c.Struct<[${line.fields.map((x: any) => `${x.name}: ${getType(x.type)}`).join(', ')}]> {}`
 }
 
 const types: string[] = []
@@ -58,30 +82,6 @@ for (const line of data) {
   const ret = line['return-type']
   functions.push(`export const ${replaceName(line.name)} = (${line.parameters.map((x: any) => `${x.name}: ${getType(x.type)}`).join(', ')}): ${getType(ret)} => new ${getType(ret)}(lib.symbols.${line.name}(${line.parameters.map((x: any) => `${x.name}.value`).join(', ')}))`)
 }
-
-let content = `import * as c from "./mod.ts"\n\n`
-
-const libTypeMap = {
-  ':void': 'void',
-  ':pointer': 'pointer',
-  'size_t': 'usize',
-  'uint8_t': 'u8',
-  'uint32_t': 'u32',
-  'uint64_t': 'u64',
-  'int32_t': 'i32',
-  'int64_t': 'i64',
-  ':float': 'f32',
-  ':double': 'f64',
-}
-const getLibType = (type: Type): string => {
-  if (type.tag in libTypeMap) return `'${libTypeMap[type.tag as keyof typeof libTypeMap]}'`
-  console.log(type)
-  if (type.tag.startsWith('WGPU')) return `'buffer'`
-  throw new Error('invalid')
-}
-content += `const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dylib',{
-  ${data.filter((x) => x.tag === 'function').map((x) => `${x.name}: { parameters: [${x.parameters.map((x: any) => getLibType(x.type)).join(', ')}], result: ${getLibType(x['return-type'])}}`).join(',\n  ')}
-})`
 
 content += Object.entries({ consts, enums, structs: Object.values(structs), types, functions })
   .map(([k, v]) => `// ${k}\n${v.join('\n')}`).join('\n\n')

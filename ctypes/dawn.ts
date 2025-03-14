@@ -5,7 +5,7 @@ const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dyli
   wgpuAdapterPropertiesMemoryHeapsFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuCreateInstance: { parameters: ['pointer'], result: 'buffer' },
   wgpuDrmFormatCapabilitiesFreeMembers: { parameters: ['buffer'], result: 'void' },
-  wgpuGetInstanceFeatures: { parameters: ['pointer'], result: 'buffer' },
+  wgpuGetInstanceFeatures: { parameters: ['pointer'], result: 'i32' },
   wgpuGetProcAddress: { parameters: ['buffer'], result: 'buffer' },
   wgpuSharedBufferMemoryEndAccessStateFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuSharedTextureMemoryEndAccessStateFreeMembers: { parameters: ['buffer'], result: 'void' },
