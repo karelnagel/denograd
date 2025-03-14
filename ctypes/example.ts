@@ -4,19 +4,10 @@ export class WGPUSType extends c.Enum<c.U64> {
   static ShaderSourceSPIRV = new WGPUSType(new c.U64(1n))
   static ShaderSourceWGSL = new WGPUSType(new c.U64(2n))
 }
-
-export class WGPUStatus extends c.Type<number> {
+export class WGPUStatus extends c.I32 {
   static Success = new WGPUStatus(0x00000001)
   static Error = new WGPUStatus(0x00000002)
   static Force32 = new WGPUStatus(0x7FFFFFFF)
-  get buffer() {
-    return new c.U32(this.value).buffer
-  }
-  override fromBuffer(buf: ArrayBuffer): this {
-    const res = new c.U32(this.value).fromBuffer(buf)
-    this._value = res._value
-    return this
-  }
 }
 
 export class WGPUChainedStruct extends c.Struct<[next: c.Pointer<WGPUChainedStruct>, sType: WGPUSType]> {}

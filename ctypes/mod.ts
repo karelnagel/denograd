@@ -1,4 +1,4 @@
-type DenoFnType = Deno.ToNativeParameterTypes<[Deno.NativeType]>[number]
+type DenoFnType = Deno.ToNativeParameterTypes<[Deno.NativeType]>[number] | void
 
 export abstract class Type<T extends DenoFnType> {
   constructor(public _value: T) {}
@@ -53,6 +53,7 @@ export class U64 extends Type<bigint> {
     return this
   }
 }
+export class Size extends U64 {}
 
 // INTS
 export class I8 extends Type<number> {
@@ -127,7 +128,7 @@ export abstract class Enum<T extends Type<any>, K extends DenoFnType = T['value'
 }
 
 // POINTER
-export class Pointer<T extends Type<any>> extends Type<Deno.PointerValue> {
+export class Pointer<T extends Type<any> | null> extends Type<Deno.PointerValue> {
   constructor(value: Deno.PointerValue) {
     super(value)
   }
@@ -142,8 +143,9 @@ export class Pointer<T extends Type<any>> extends Type<Deno.PointerValue> {
     throw new Error("Can't call .ptr() on pointer")
   }
   load(type: T): T {
+    if (type === null) return null as T
     const buf = type.buffer
-    return type.fromBuffer(Deno.UnsafePointerView.getArrayBuffer(this.value as any, buf.byteLength, 0))
+    return type.fromBuffer(Deno.UnsafePointerView.getArrayBuffer(this.value as any, buf.byteLength, 0)) as T
   }
 }
 
@@ -187,6 +189,26 @@ export abstract class Struct<T extends Type<any>[]> extends Type<BufferSource> {
       offset = alignedOffset + size
     }
 
+    return this
+  }
+}
+
+// FUNCTION
+export class Function extends Type<Deno.PointerValue> {
+  get buffer(): ArrayBuffer {
+    return new Float32Array([]).buffer
+  }
+  override fromBuffer(buf: ArrayBuffer) {
+    // this._value = new Float32Array(buf)[0]
+    return this
+  }
+}
+
+export class Void extends Type<void> {
+  get buffer(): ArrayBuffer {
+    return new Uint8Array().buffer
+  }
+  override fromBuffer(buf: ArrayBuffer) {
     return this
   }
 }
