@@ -65,10 +65,9 @@ const typeMap = {
   ':void': 'c.Void',
 }
 const getType = (type: Type): string => {
-  if (type.tag === ':pointer' && type.type) return `c.Pointer<${getType(type.type)}>`
+  if (type.tag === ':pointer') return type.type ? `c.Pointer<${getType(type.type)}>` : `c.Pointer<any>`
   else if (type.tag in typeMap) return typeMap[type.tag as keyof typeof typeMap]
   else if ([':struct', 'struct'].includes(type.tag) && type.name) return rename(type.name)
-  else if (type.tag === ':function-pointer') return `c.Function`
   if (type.tag === 'struct') console.log(type)
   if (type.tag.startsWith('WGPU')) return rename(type.tag)
   throw new Error(`Invalid type ${JSON.stringify(type)}`)
@@ -86,15 +85,49 @@ for (const line of data) {
   constructor(buffer?: ArrayBuffer, offset?: number) {
     super(buffer, offset, ${byteLength}, ${alignment})
   }
-  ${[fields,_valueFn,newFn].filter(Boolean).join("\n  ")}
+  ${[fields, _valueFn, newFn].filter(Boolean).join('\n  ')}
 }`
 }
 
 const types: string[] = []
 for (const line of data) {
   if (line.tag !== 'typedef' || !line.name?.startsWith('WGPU')) continue
-  if ([':struct', ':enum'].includes(line.type.tag)) continue
+  if ([':struct', ':enum', ':function-pointer'].includes(line.type.tag)) continue
   types.push(`export class ${rename(line.name)} extends ${getType(line.type)} {}`)
+}
+
+const callbacks: string[] = []
+const header = await Deno.readTextFile('ctypes/webgpu.h')
+const getCallbackParameters = (fnName: string): { name: string; type: Type }[] => {
+  const txt = header.split(`(*${fnName})(`)[1].split(`) WGPU_FUNCTION_ATTRIBUTE;`)[0]
+  const out: { name: string; type: Type }[] = []
+  for (let arg of txt.split(', ').map((x) => x.trim())) {
+    const splits = arg.split(' ')
+    if (splits.length === 1) continue
+
+    const name = splits.at(-1)!
+    const typeStr = splits.slice(0, -1).join(' ').replace('WGPU_NULLABLE ', '').replace('struct ', '')
+    let type: Type
+    if (!typeStr || typeStr.includes('void')) type = { tag: ':pointer' }
+    else if (typeStr.endsWith('const *')) type = { tag: ':pointer', type: { tag: typeStr.replace('const *', '').trim() } }
+    else if (typeStr.endsWith(' *')) type = { tag: ':pointer', type: { tag: typeStr.replace(' *', '').trim() } }
+    else if (['float'].includes(typeStr)) type = { tag: `:${typeStr}` }
+    else type = { tag: typeStr }
+    out.push({ name, type })
+  }
+  return out
+}
+for (const line of data) {
+  if (line.tag !== 'typedef' || line.type.tag !== ':function-pointer') continue
+  const parameters = getCallbackParameters(line.name)
+  const types = parameters.map((x) => `${x.name}: ${getType(x.type)}`).join(', ')
+  callbacks.push(`export class ${rename(line.name)} extends c.Function<[${types}]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, [${parameters.map((x) => getLibType(x.type)).join(', ')}])
+  }
+  protected override _fn = (fn: (${types}) => void) => (${parameters.map((x) => `${x.name}: any`).join(', ')}) => void fn(${parameters.map((x) => `new ${getType(x.type)}().setNative(${x.name})`).join(', ')})
+  static new = (fn: (${types}) => void) => new ${rename(line.name)}().set(fn)
+}`)
 }
 
 const functions: string[] = []
@@ -104,7 +137,7 @@ for (const line of data) {
   functions.push(`export const ${rename(line.name)} = (${line.parameters.map((x: any) => `${x.name}: ${getType(x.type)}`).join(', ')}): ${getType(ret)} => new ${getType(ret)}().setNative(lib.symbols.${line.name}(${line.parameters.map((x: any) => `${x.name}.native`).join(', ')}))`)
 }
 
-content += Object.entries({ consts, enums, structs: Object.values(structs), types, functions })
+content += Object.entries({ consts, enums, structs: Object.values(structs), types, callbacks, functions })
   .map(([k, v]) => `// ${k}\n${v.join('\n')}`).join('\n\n')
 content += '\n'
 

@@ -3118,32 +3118,6 @@ export class HeapProperty extends Flags {}
 export class MapMode extends Flags {}
 export class ShaderStage extends Flags {}
 export class TextureUsage extends Flags {}
-export class BufferMapCallback extends c.Function {}
-export class Callback extends c.Function {}
-export class CompilationInfoCallback extends c.Function {}
-export class CreateComputePipelineAsyncCallback extends c.Function {}
-export class CreateRenderPipelineAsyncCallback extends c.Function {}
-export class DawnLoadCacheDataFunction extends c.Function {}
-export class DawnStoreCacheDataFunction extends c.Function {}
-export class DeviceLostCallback extends c.Function {}
-export class DeviceLostCallbackNew extends c.Function {}
-export class ErrorCallback extends c.Function {}
-export class LoggingCallback extends c.Function {}
-export class PopErrorScopeCallback extends c.Function {}
-export class Proc extends c.Function {}
-export class QueueWorkDoneCallback extends c.Function {}
-export class RequestAdapterCallback extends c.Function {}
-export class RequestDeviceCallback extends c.Function {}
-export class BufferMapCallback2 extends c.Function {}
-export class CompilationInfoCallback2 extends c.Function {}
-export class CreateComputePipelineAsyncCallback2 extends c.Function {}
-export class CreateRenderPipelineAsyncCallback2 extends c.Function {}
-export class DeviceLostCallback2 extends c.Function {}
-export class PopErrorScopeCallback2 extends c.Function {}
-export class QueueWorkDoneCallback2 extends c.Function {}
-export class RequestAdapterCallback2 extends c.Function {}
-export class RequestDeviceCallback2 extends c.Function {}
-export class UncapturedErrorCallback extends c.Function {}
 export class RenderPassDescriptorMaxDrawCount extends RenderPassMaxDrawCount {}
 export class ShaderModuleSPIRVDescriptor extends ShaderSourceSPIRV {}
 export class ShaderModuleWGSLDescriptor extends ShaderSourceWGSL {}
@@ -3154,268 +3128,2024 @@ export class SurfaceDescriptorFromWaylandSurface extends SurfaceSourceWaylandSur
 export class SurfaceDescriptorFromWindowsHWND extends SurfaceSourceWindowsHWND {}
 export class SurfaceDescriptorFromXcbWindow extends SurfaceSourceXCBWindow {}
 export class SurfaceDescriptorFromXlibWindow extends SurfaceSourceXlibWindow {}
-export class ProcAdapterInfoFreeMembers extends c.Function {}
-export class ProcAdapterPropertiesMemoryHeapsFreeMembers extends c.Function {}
-export class ProcCreateInstance extends c.Function {}
-export class ProcDrmFormatCapabilitiesFreeMembers extends c.Function {}
-export class ProcGetInstanceFeatures extends c.Function {}
-export class ProcGetProcAddress extends c.Function {}
-export class ProcSharedBufferMemoryEndAccessStateFreeMembers extends c.Function {}
-export class ProcSharedTextureMemoryEndAccessStateFreeMembers extends c.Function {}
-export class ProcSupportedFeaturesFreeMembers extends c.Function {}
-export class ProcSurfaceCapabilitiesFreeMembers extends c.Function {}
-export class ProcAdapterCreateDevice extends c.Function {}
-export class ProcAdapterGetFeatures extends c.Function {}
-export class ProcAdapterGetFormatCapabilities extends c.Function {}
-export class ProcAdapterGetInfo extends c.Function {}
-export class ProcAdapterGetInstance extends c.Function {}
-export class ProcAdapterGetLimits extends c.Function {}
-export class ProcAdapterHasFeature extends c.Function {}
-export class ProcAdapterRequestDevice extends c.Function {}
-export class ProcAdapterRequestDevice2 extends c.Function {}
-export class ProcAdapterRequestDeviceF extends c.Function {}
-export class ProcAdapterAddRef extends c.Function {}
-export class ProcAdapterRelease extends c.Function {}
-export class ProcBindGroupSetLabel extends c.Function {}
-export class ProcBindGroupAddRef extends c.Function {}
-export class ProcBindGroupRelease extends c.Function {}
-export class ProcBindGroupLayoutSetLabel extends c.Function {}
-export class ProcBindGroupLayoutAddRef extends c.Function {}
-export class ProcBindGroupLayoutRelease extends c.Function {}
-export class ProcBufferDestroy extends c.Function {}
-export class ProcBufferGetConstMappedRange extends c.Function {}
-export class ProcBufferGetMapState extends c.Function {}
-export class ProcBufferGetMappedRange extends c.Function {}
-export class ProcBufferGetSize extends c.Function {}
-export class ProcBufferGetUsage extends c.Function {}
-export class ProcBufferMapAsync extends c.Function {}
-export class ProcBufferMapAsync2 extends c.Function {}
-export class ProcBufferMapAsyncF extends c.Function {}
-export class ProcBufferSetLabel extends c.Function {}
-export class ProcBufferUnmap extends c.Function {}
-export class ProcBufferAddRef extends c.Function {}
-export class ProcBufferRelease extends c.Function {}
-export class ProcCommandBufferSetLabel extends c.Function {}
-export class ProcCommandBufferAddRef extends c.Function {}
-export class ProcCommandBufferRelease extends c.Function {}
-export class ProcCommandEncoderBeginComputePass extends c.Function {}
-export class ProcCommandEncoderBeginRenderPass extends c.Function {}
-export class ProcCommandEncoderClearBuffer extends c.Function {}
-export class ProcCommandEncoderCopyBufferToBuffer extends c.Function {}
-export class ProcCommandEncoderCopyBufferToTexture extends c.Function {}
-export class ProcCommandEncoderCopyTextureToBuffer extends c.Function {}
-export class ProcCommandEncoderCopyTextureToTexture extends c.Function {}
-export class ProcCommandEncoderFinish extends c.Function {}
-export class ProcCommandEncoderInjectValidationError extends c.Function {}
-export class ProcCommandEncoderInsertDebugMarker extends c.Function {}
-export class ProcCommandEncoderPopDebugGroup extends c.Function {}
-export class ProcCommandEncoderPushDebugGroup extends c.Function {}
-export class ProcCommandEncoderResolveQuerySet extends c.Function {}
-export class ProcCommandEncoderSetLabel extends c.Function {}
-export class ProcCommandEncoderWriteBuffer extends c.Function {}
-export class ProcCommandEncoderWriteTimestamp extends c.Function {}
-export class ProcCommandEncoderAddRef extends c.Function {}
-export class ProcCommandEncoderRelease extends c.Function {}
-export class ProcComputePassEncoderDispatchWorkgroups extends c.Function {}
-export class ProcComputePassEncoderDispatchWorkgroupsIndirect extends c.Function {}
-export class ProcComputePassEncoderEnd extends c.Function {}
-export class ProcComputePassEncoderInsertDebugMarker extends c.Function {}
-export class ProcComputePassEncoderPopDebugGroup extends c.Function {}
-export class ProcComputePassEncoderPushDebugGroup extends c.Function {}
-export class ProcComputePassEncoderSetBindGroup extends c.Function {}
-export class ProcComputePassEncoderSetLabel extends c.Function {}
-export class ProcComputePassEncoderSetPipeline extends c.Function {}
-export class ProcComputePassEncoderWriteTimestamp extends c.Function {}
-export class ProcComputePassEncoderAddRef extends c.Function {}
-export class ProcComputePassEncoderRelease extends c.Function {}
-export class ProcComputePipelineGetBindGroupLayout extends c.Function {}
-export class ProcComputePipelineSetLabel extends c.Function {}
-export class ProcComputePipelineAddRef extends c.Function {}
-export class ProcComputePipelineRelease extends c.Function {}
-export class ProcDeviceCreateBindGroup extends c.Function {}
-export class ProcDeviceCreateBindGroupLayout extends c.Function {}
-export class ProcDeviceCreateBuffer extends c.Function {}
-export class ProcDeviceCreateCommandEncoder extends c.Function {}
-export class ProcDeviceCreateComputePipeline extends c.Function {}
-export class ProcDeviceCreateComputePipelineAsync extends c.Function {}
-export class ProcDeviceCreateComputePipelineAsync2 extends c.Function {}
-export class ProcDeviceCreateComputePipelineAsyncF extends c.Function {}
-export class ProcDeviceCreateErrorBuffer extends c.Function {}
-export class ProcDeviceCreateErrorExternalTexture extends c.Function {}
-export class ProcDeviceCreateErrorShaderModule extends c.Function {}
-export class ProcDeviceCreateErrorTexture extends c.Function {}
-export class ProcDeviceCreateExternalTexture extends c.Function {}
-export class ProcDeviceCreatePipelineLayout extends c.Function {}
-export class ProcDeviceCreateQuerySet extends c.Function {}
-export class ProcDeviceCreateRenderBundleEncoder extends c.Function {}
-export class ProcDeviceCreateRenderPipeline extends c.Function {}
-export class ProcDeviceCreateRenderPipelineAsync extends c.Function {}
-export class ProcDeviceCreateRenderPipelineAsync2 extends c.Function {}
-export class ProcDeviceCreateRenderPipelineAsyncF extends c.Function {}
-export class ProcDeviceCreateSampler extends c.Function {}
-export class ProcDeviceCreateShaderModule extends c.Function {}
-export class ProcDeviceCreateTexture extends c.Function {}
-export class ProcDeviceDestroy extends c.Function {}
-export class ProcDeviceForceLoss extends c.Function {}
-export class ProcDeviceGetAHardwareBufferProperties extends c.Function {}
-export class ProcDeviceGetAdapter extends c.Function {}
-export class ProcDeviceGetAdapterInfo extends c.Function {}
-export class ProcDeviceGetFeatures extends c.Function {}
-export class ProcDeviceGetLimits extends c.Function {}
-export class ProcDeviceGetLostFuture extends c.Function {}
-export class ProcDeviceGetQueue extends c.Function {}
-export class ProcDeviceHasFeature extends c.Function {}
-export class ProcDeviceImportSharedBufferMemory extends c.Function {}
-export class ProcDeviceImportSharedFence extends c.Function {}
-export class ProcDeviceImportSharedTextureMemory extends c.Function {}
-export class ProcDeviceInjectError extends c.Function {}
-export class ProcDevicePopErrorScope extends c.Function {}
-export class ProcDevicePopErrorScope2 extends c.Function {}
-export class ProcDevicePopErrorScopeF extends c.Function {}
-export class ProcDevicePushErrorScope extends c.Function {}
-export class ProcDeviceSetLabel extends c.Function {}
-export class ProcDeviceSetLoggingCallback extends c.Function {}
-export class ProcDeviceTick extends c.Function {}
-export class ProcDeviceValidateTextureDescriptor extends c.Function {}
-export class ProcDeviceAddRef extends c.Function {}
-export class ProcDeviceRelease extends c.Function {}
-export class ProcExternalTextureDestroy extends c.Function {}
-export class ProcExternalTextureExpire extends c.Function {}
-export class ProcExternalTextureRefresh extends c.Function {}
-export class ProcExternalTextureSetLabel extends c.Function {}
-export class ProcExternalTextureAddRef extends c.Function {}
-export class ProcExternalTextureRelease extends c.Function {}
-export class ProcInstanceCreateSurface extends c.Function {}
-export class ProcInstanceEnumerateWGSLLanguageFeatures extends c.Function {}
-export class ProcInstanceHasWGSLLanguageFeature extends c.Function {}
-export class ProcInstanceProcessEvents extends c.Function {}
-export class ProcInstanceRequestAdapter extends c.Function {}
-export class ProcInstanceRequestAdapter2 extends c.Function {}
-export class ProcInstanceRequestAdapterF extends c.Function {}
-export class ProcInstanceWaitAny extends c.Function {}
-export class ProcInstanceAddRef extends c.Function {}
-export class ProcInstanceRelease extends c.Function {}
-export class ProcPipelineLayoutSetLabel extends c.Function {}
-export class ProcPipelineLayoutAddRef extends c.Function {}
-export class ProcPipelineLayoutRelease extends c.Function {}
-export class ProcQuerySetDestroy extends c.Function {}
-export class ProcQuerySetGetCount extends c.Function {}
-export class ProcQuerySetGetType extends c.Function {}
-export class ProcQuerySetSetLabel extends c.Function {}
-export class ProcQuerySetAddRef extends c.Function {}
-export class ProcQuerySetRelease extends c.Function {}
-export class ProcQueueCopyExternalTextureForBrowser extends c.Function {}
-export class ProcQueueCopyTextureForBrowser extends c.Function {}
-export class ProcQueueOnSubmittedWorkDone extends c.Function {}
-export class ProcQueueOnSubmittedWorkDone2 extends c.Function {}
-export class ProcQueueOnSubmittedWorkDoneF extends c.Function {}
-export class ProcQueueSetLabel extends c.Function {}
-export class ProcQueueSubmit extends c.Function {}
-export class ProcQueueWriteBuffer extends c.Function {}
-export class ProcQueueWriteTexture extends c.Function {}
-export class ProcQueueAddRef extends c.Function {}
-export class ProcQueueRelease extends c.Function {}
-export class ProcRenderBundleSetLabel extends c.Function {}
-export class ProcRenderBundleAddRef extends c.Function {}
-export class ProcRenderBundleRelease extends c.Function {}
-export class ProcRenderBundleEncoderDraw extends c.Function {}
-export class ProcRenderBundleEncoderDrawIndexed extends c.Function {}
-export class ProcRenderBundleEncoderDrawIndexedIndirect extends c.Function {}
-export class ProcRenderBundleEncoderDrawIndirect extends c.Function {}
-export class ProcRenderBundleEncoderFinish extends c.Function {}
-export class ProcRenderBundleEncoderInsertDebugMarker extends c.Function {}
-export class ProcRenderBundleEncoderPopDebugGroup extends c.Function {}
-export class ProcRenderBundleEncoderPushDebugGroup extends c.Function {}
-export class ProcRenderBundleEncoderSetBindGroup extends c.Function {}
-export class ProcRenderBundleEncoderSetIndexBuffer extends c.Function {}
-export class ProcRenderBundleEncoderSetLabel extends c.Function {}
-export class ProcRenderBundleEncoderSetPipeline extends c.Function {}
-export class ProcRenderBundleEncoderSetVertexBuffer extends c.Function {}
-export class ProcRenderBundleEncoderAddRef extends c.Function {}
-export class ProcRenderBundleEncoderRelease extends c.Function {}
-export class ProcRenderPassEncoderBeginOcclusionQuery extends c.Function {}
-export class ProcRenderPassEncoderDraw extends c.Function {}
-export class ProcRenderPassEncoderDrawIndexed extends c.Function {}
-export class ProcRenderPassEncoderDrawIndexedIndirect extends c.Function {}
-export class ProcRenderPassEncoderDrawIndirect extends c.Function {}
-export class ProcRenderPassEncoderEnd extends c.Function {}
-export class ProcRenderPassEncoderEndOcclusionQuery extends c.Function {}
-export class ProcRenderPassEncoderExecuteBundles extends c.Function {}
-export class ProcRenderPassEncoderInsertDebugMarker extends c.Function {}
-export class ProcRenderPassEncoderMultiDrawIndexedIndirect extends c.Function {}
-export class ProcRenderPassEncoderMultiDrawIndirect extends c.Function {}
-export class ProcRenderPassEncoderPixelLocalStorageBarrier extends c.Function {}
-export class ProcRenderPassEncoderPopDebugGroup extends c.Function {}
-export class ProcRenderPassEncoderPushDebugGroup extends c.Function {}
-export class ProcRenderPassEncoderSetBindGroup extends c.Function {}
-export class ProcRenderPassEncoderSetBlendConstant extends c.Function {}
-export class ProcRenderPassEncoderSetIndexBuffer extends c.Function {}
-export class ProcRenderPassEncoderSetLabel extends c.Function {}
-export class ProcRenderPassEncoderSetPipeline extends c.Function {}
-export class ProcRenderPassEncoderSetScissorRect extends c.Function {}
-export class ProcRenderPassEncoderSetStencilReference extends c.Function {}
-export class ProcRenderPassEncoderSetVertexBuffer extends c.Function {}
-export class ProcRenderPassEncoderSetViewport extends c.Function {}
-export class ProcRenderPassEncoderWriteTimestamp extends c.Function {}
-export class ProcRenderPassEncoderAddRef extends c.Function {}
-export class ProcRenderPassEncoderRelease extends c.Function {}
-export class ProcRenderPipelineGetBindGroupLayout extends c.Function {}
-export class ProcRenderPipelineSetLabel extends c.Function {}
-export class ProcRenderPipelineAddRef extends c.Function {}
-export class ProcRenderPipelineRelease extends c.Function {}
-export class ProcSamplerSetLabel extends c.Function {}
-export class ProcSamplerAddRef extends c.Function {}
-export class ProcSamplerRelease extends c.Function {}
-export class ProcShaderModuleGetCompilationInfo extends c.Function {}
-export class ProcShaderModuleGetCompilationInfo2 extends c.Function {}
-export class ProcShaderModuleGetCompilationInfoF extends c.Function {}
-export class ProcShaderModuleSetLabel extends c.Function {}
-export class ProcShaderModuleAddRef extends c.Function {}
-export class ProcShaderModuleRelease extends c.Function {}
-export class ProcSharedBufferMemoryBeginAccess extends c.Function {}
-export class ProcSharedBufferMemoryCreateBuffer extends c.Function {}
-export class ProcSharedBufferMemoryEndAccess extends c.Function {}
-export class ProcSharedBufferMemoryGetProperties extends c.Function {}
-export class ProcSharedBufferMemoryIsDeviceLost extends c.Function {}
-export class ProcSharedBufferMemorySetLabel extends c.Function {}
-export class ProcSharedBufferMemoryAddRef extends c.Function {}
-export class ProcSharedBufferMemoryRelease extends c.Function {}
-export class ProcSharedFenceExportInfo extends c.Function {}
-export class ProcSharedFenceAddRef extends c.Function {}
-export class ProcSharedFenceRelease extends c.Function {}
-export class ProcSharedTextureMemoryBeginAccess extends c.Function {}
-export class ProcSharedTextureMemoryCreateTexture extends c.Function {}
-export class ProcSharedTextureMemoryEndAccess extends c.Function {}
-export class ProcSharedTextureMemoryGetProperties extends c.Function {}
-export class ProcSharedTextureMemoryIsDeviceLost extends c.Function {}
-export class ProcSharedTextureMemorySetLabel extends c.Function {}
-export class ProcSharedTextureMemoryAddRef extends c.Function {}
-export class ProcSharedTextureMemoryRelease extends c.Function {}
-export class ProcSurfaceConfigure extends c.Function {}
-export class ProcSurfaceGetCapabilities extends c.Function {}
-export class ProcSurfaceGetCurrentTexture extends c.Function {}
-export class ProcSurfacePresent extends c.Function {}
-export class ProcSurfaceSetLabel extends c.Function {}
-export class ProcSurfaceUnconfigure extends c.Function {}
-export class ProcSurfaceAddRef extends c.Function {}
-export class ProcSurfaceRelease extends c.Function {}
-export class ProcTextureCreateErrorView extends c.Function {}
-export class ProcTextureCreateView extends c.Function {}
-export class ProcTextureDestroy extends c.Function {}
-export class ProcTextureGetDepthOrArrayLayers extends c.Function {}
-export class ProcTextureGetDimension extends c.Function {}
-export class ProcTextureGetFormat extends c.Function {}
-export class ProcTextureGetHeight extends c.Function {}
-export class ProcTextureGetMipLevelCount extends c.Function {}
-export class ProcTextureGetSampleCount extends c.Function {}
-export class ProcTextureGetUsage extends c.Function {}
-export class ProcTextureGetWidth extends c.Function {}
-export class ProcTextureSetLabel extends c.Function {}
-export class ProcTextureAddRef extends c.Function {}
-export class ProcTextureRelease extends c.Function {}
-export class ProcTextureViewSetLabel extends c.Function {}
-export class ProcTextureViewAddRef extends c.Function {}
-export class ProcTextureViewRelease extends c.Function {}
+
+// callbacks
+export class BufferMapCallback extends c.Function<[status: BufferMapAsyncStatus, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer'])
+  }
+  protected override _fn = (fn: (status: BufferMapAsyncStatus, userdata: c.Pointer<any>) => void) => (status: any, userdata: any) => void fn(new BufferMapAsyncStatus().setNative(status), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (status: BufferMapAsyncStatus, userdata: c.Pointer<any>) => void) => new BufferMapCallback().set(fn)
+}
+export class Callback extends c.Function<[userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (userdata: c.Pointer<any>) => void) => (userdata: any) => void fn(new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (userdata: c.Pointer<any>) => void) => new Callback().set(fn)
+}
+export class CompilationInfoCallback extends c.Function<[status: CompilationInfoRequestStatus, compilationInfo: c.Pointer<CompilationInfo>, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: CompilationInfoRequestStatus, compilationInfo: c.Pointer<CompilationInfo>, userdata: c.Pointer<any>) => void) => (status: any, compilationInfo: any, userdata: any) => void fn(new CompilationInfoRequestStatus().setNative(status), new c.Pointer<CompilationInfo>().setNative(compilationInfo), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (status: CompilationInfoRequestStatus, compilationInfo: c.Pointer<CompilationInfo>, userdata: c.Pointer<any>) => void) => new CompilationInfoCallback().set(fn)
+}
+export class CreateComputePipelineAsyncCallback extends c.Function<[status: CreatePipelineAsyncStatus, pipeline: ComputePipeline, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: CreatePipelineAsyncStatus, pipeline: ComputePipeline, message: StringView, userdata: c.Pointer<any>) => void) => (status: any, pipeline: any, message: any, userdata: any) => void fn(new CreatePipelineAsyncStatus().setNative(status), new ComputePipeline().setNative(pipeline), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (status: CreatePipelineAsyncStatus, pipeline: ComputePipeline, message: StringView, userdata: c.Pointer<any>) => void) => new CreateComputePipelineAsyncCallback().set(fn)
+}
+export class CreateRenderPipelineAsyncCallback extends c.Function<[status: CreatePipelineAsyncStatus, pipeline: RenderPipeline, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: CreatePipelineAsyncStatus, pipeline: RenderPipeline, message: StringView, userdata: c.Pointer<any>) => void) => (status: any, pipeline: any, message: any, userdata: any) => void fn(new CreatePipelineAsyncStatus().setNative(status), new RenderPipeline().setNative(pipeline), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (status: CreatePipelineAsyncStatus, pipeline: RenderPipeline, message: StringView, userdata: c.Pointer<any>) => void) => new CreateRenderPipelineAsyncCallback().set(fn)
+}
+export class DawnLoadCacheDataFunction extends c.Function<[key: c.Pointer<any>, keySize: c.Size, value: c.Pointer<any>, valueSize: c.Size, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'usize', 'pointer', 'usize', 'pointer'])
+  }
+  protected override _fn = (fn: (key: c.Pointer<any>, keySize: c.Size, value: c.Pointer<any>, valueSize: c.Size, userdata: c.Pointer<any>) => void) => (key: any, keySize: any, value: any, valueSize: any, userdata: any) => void fn(new c.Pointer<any>().setNative(key), new c.Size().setNative(keySize), new c.Pointer<any>().setNative(value), new c.Size().setNative(valueSize), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (key: c.Pointer<any>, keySize: c.Size, value: c.Pointer<any>, valueSize: c.Size, userdata: c.Pointer<any>) => void) => new DawnLoadCacheDataFunction().set(fn)
+}
+export class DawnStoreCacheDataFunction extends c.Function<[key: c.Pointer<any>, keySize: c.Size, value: c.Pointer<any>, valueSize: c.Size, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'usize', 'pointer', 'usize', 'pointer'])
+  }
+  protected override _fn = (fn: (key: c.Pointer<any>, keySize: c.Size, value: c.Pointer<any>, valueSize: c.Size, userdata: c.Pointer<any>) => void) => (key: any, keySize: any, value: any, valueSize: any, userdata: any) => void fn(new c.Pointer<any>().setNative(key), new c.Size().setNative(keySize), new c.Pointer<any>().setNative(value), new c.Size().setNative(valueSize), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (key: c.Pointer<any>, keySize: c.Size, value: c.Pointer<any>, valueSize: c.Size, userdata: c.Pointer<any>) => void) => new DawnStoreCacheDataFunction().set(fn)
+}
+export class DeviceLostCallback extends c.Function<[reason: DeviceLostReason, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (reason: DeviceLostReason, message: StringView, userdata: c.Pointer<any>) => void) => (reason: any, message: any, userdata: any) => void fn(new DeviceLostReason().setNative(reason), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (reason: DeviceLostReason, message: StringView, userdata: c.Pointer<any>) => void) => new DeviceLostCallback().set(fn)
+}
+export class DeviceLostCallbackNew extends c.Function<[device: c.Pointer<Device>, reason: DeviceLostReason, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: c.Pointer<Device>, reason: DeviceLostReason, message: StringView, userdata: c.Pointer<any>) => void) => (device: any, reason: any, message: any, userdata: any) => void fn(new c.Pointer<Device>().setNative(device), new DeviceLostReason().setNative(reason), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (device: c.Pointer<Device>, reason: DeviceLostReason, message: StringView, userdata: c.Pointer<any>) => void) => new DeviceLostCallbackNew().set(fn)
+}
+export class ErrorCallback extends c.Function<[type: ErrorType, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (type: ErrorType, message: StringView, userdata: c.Pointer<any>) => void) => (type: any, message: any, userdata: any) => void fn(new ErrorType().setNative(type), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (type: ErrorType, message: StringView, userdata: c.Pointer<any>) => void) => new ErrorCallback().set(fn)
+}
+export class LoggingCallback extends c.Function<[type: LoggingType, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (type: LoggingType, message: StringView, userdata: c.Pointer<any>) => void) => (type: any, message: any, userdata: any) => void fn(new LoggingType().setNative(type), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (type: LoggingType, message: StringView, userdata: c.Pointer<any>) => void) => new LoggingCallback().set(fn)
+}
+export class PopErrorScopeCallback extends c.Function<[status: PopErrorScopeStatus, type: ErrorType, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'u32', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: PopErrorScopeStatus, type: ErrorType, message: StringView, userdata: c.Pointer<any>) => void) => (status: any, type: any, message: any, userdata: any) => void fn(new PopErrorScopeStatus().setNative(status), new ErrorType().setNative(type), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (status: PopErrorScopeStatus, type: ErrorType, message: StringView, userdata: c.Pointer<any>) => void) => new PopErrorScopeCallback().set(fn)
+}
+export class Proc extends c.Function<[]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, [])
+  }
+  protected override _fn = (fn: () => void) => () => void fn()
+  static new = (fn: () => void) => new Proc().set(fn)
+}
+export class QueueWorkDoneCallback extends c.Function<[status: QueueWorkDoneStatus, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer'])
+  }
+  protected override _fn = (fn: (status: QueueWorkDoneStatus, userdata: c.Pointer<any>) => void) => (status: any, userdata: any) => void fn(new QueueWorkDoneStatus().setNative(status), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (status: QueueWorkDoneStatus, userdata: c.Pointer<any>) => void) => new QueueWorkDoneCallback().set(fn)
+}
+export class RequestAdapterCallback extends c.Function<[status: RequestAdapterStatus, adapter: Adapter, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: RequestAdapterStatus, adapter: Adapter, message: StringView, userdata: c.Pointer<any>) => void) => (status: any, adapter: any, message: any, userdata: any) => void fn(new RequestAdapterStatus().setNative(status), new Adapter().setNative(adapter), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (status: RequestAdapterStatus, adapter: Adapter, message: StringView, userdata: c.Pointer<any>) => void) => new RequestAdapterCallback().set(fn)
+}
+export class RequestDeviceCallback extends c.Function<[status: RequestDeviceStatus, device: Device, message: StringView, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'buffer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: RequestDeviceStatus, device: Device, message: StringView, userdata: c.Pointer<any>) => void) => (status: any, device: any, message: any, userdata: any) => void fn(new RequestDeviceStatus().setNative(status), new Device().setNative(device), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (status: RequestDeviceStatus, device: Device, message: StringView, userdata: c.Pointer<any>) => void) => new RequestDeviceCallback().set(fn)
+}
+export class BufferMapCallback2 extends c.Function<[status: MapAsyncStatus, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'buffer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: MapAsyncStatus, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (status: any, message: any, userdata1: any, userdata2: any) => void fn(new MapAsyncStatus().setNative(status), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (status: MapAsyncStatus, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new BufferMapCallback2().set(fn)
+}
+export class CompilationInfoCallback2 extends c.Function<[status: CompilationInfoRequestStatus, compilationInfo: c.Pointer<CompilationInfo>, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: CompilationInfoRequestStatus, compilationInfo: c.Pointer<CompilationInfo>, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (status: any, compilationInfo: any, userdata1: any, userdata2: any) => void fn(new CompilationInfoRequestStatus().setNative(status), new c.Pointer<CompilationInfo>().setNative(compilationInfo), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (status: CompilationInfoRequestStatus, compilationInfo: c.Pointer<CompilationInfo>, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new CompilationInfoCallback2().set(fn)
+}
+export class CreateComputePipelineAsyncCallback2 extends c.Function<[status: CreatePipelineAsyncStatus, pipeline: ComputePipeline, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'buffer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: CreatePipelineAsyncStatus, pipeline: ComputePipeline, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (status: any, pipeline: any, message: any, userdata1: any, userdata2: any) => void fn(new CreatePipelineAsyncStatus().setNative(status), new ComputePipeline().setNative(pipeline), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (status: CreatePipelineAsyncStatus, pipeline: ComputePipeline, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new CreateComputePipelineAsyncCallback2().set(fn)
+}
+export class CreateRenderPipelineAsyncCallback2 extends c.Function<[status: CreatePipelineAsyncStatus, pipeline: RenderPipeline, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'buffer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: CreatePipelineAsyncStatus, pipeline: RenderPipeline, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (status: any, pipeline: any, message: any, userdata1: any, userdata2: any) => void fn(new CreatePipelineAsyncStatus().setNative(status), new RenderPipeline().setNative(pipeline), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (status: CreatePipelineAsyncStatus, pipeline: RenderPipeline, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new CreateRenderPipelineAsyncCallback2().set(fn)
+}
+export class DeviceLostCallback2 extends c.Function<[device: c.Pointer<Device>, reason: DeviceLostReason, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'buffer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: c.Pointer<Device>, reason: DeviceLostReason, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (device: any, reason: any, message: any, userdata1: any, userdata2: any) => void fn(new c.Pointer<Device>().setNative(device), new DeviceLostReason().setNative(reason), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (device: c.Pointer<Device>, reason: DeviceLostReason, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new DeviceLostCallback2().set(fn)
+}
+export class PopErrorScopeCallback2 extends c.Function<[status: PopErrorScopeStatus, type: ErrorType, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'u32', 'buffer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: PopErrorScopeStatus, type: ErrorType, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (status: any, type: any, message: any, userdata1: any, userdata2: any) => void fn(new PopErrorScopeStatus().setNative(status), new ErrorType().setNative(type), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (status: PopErrorScopeStatus, type: ErrorType, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new PopErrorScopeCallback2().set(fn)
+}
+export class QueueWorkDoneCallback2 extends c.Function<[status: QueueWorkDoneStatus, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: QueueWorkDoneStatus, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (status: any, userdata1: any, userdata2: any) => void fn(new QueueWorkDoneStatus().setNative(status), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (status: QueueWorkDoneStatus, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new QueueWorkDoneCallback2().set(fn)
+}
+export class RequestAdapterCallback2 extends c.Function<[status: RequestAdapterStatus, adapter: Adapter, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'buffer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: RequestAdapterStatus, adapter: Adapter, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (status: any, adapter: any, message: any, userdata1: any, userdata2: any) => void fn(new RequestAdapterStatus().setNative(status), new Adapter().setNative(adapter), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (status: RequestAdapterStatus, adapter: Adapter, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new RequestAdapterCallback2().set(fn)
+}
+export class RequestDeviceCallback2 extends c.Function<[status: RequestDeviceStatus, device: Device, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['u32', 'pointer', 'buffer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (status: RequestDeviceStatus, device: Device, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (status: any, device: any, message: any, userdata1: any, userdata2: any) => void fn(new RequestDeviceStatus().setNative(status), new Device().setNative(device), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (status: RequestDeviceStatus, device: Device, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new RequestDeviceCallback2().set(fn)
+}
+export class UncapturedErrorCallback extends c.Function<[device: c.Pointer<Device>, type: ErrorType, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'buffer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: c.Pointer<Device>, type: ErrorType, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => (device: any, type: any, message: any, userdata1: any, userdata2: any) => void fn(new c.Pointer<Device>().setNative(device), new ErrorType().setNative(type), new StringView().setNative(message), new c.Pointer<any>().setNative(userdata1), new c.Pointer<any>().setNative(userdata2))
+  static new = (fn: (device: c.Pointer<Device>, type: ErrorType, message: StringView, userdata1: c.Pointer<any>, userdata2: c.Pointer<any>) => void) => new UncapturedErrorCallback().set(fn)
+}
+export class ProcAdapterInfoFreeMembers extends c.Function<[value: AdapterInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['buffer'])
+  }
+  protected override _fn = (fn: (value: AdapterInfo) => void) => (value: any) => void fn(new AdapterInfo().setNative(value))
+  static new = (fn: (value: AdapterInfo) => void) => new ProcAdapterInfoFreeMembers().set(fn)
+}
+export class ProcAdapterPropertiesMemoryHeapsFreeMembers extends c.Function<[value: AdapterPropertiesMemoryHeaps]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['buffer'])
+  }
+  protected override _fn = (fn: (value: AdapterPropertiesMemoryHeaps) => void) => (value: any) => void fn(new AdapterPropertiesMemoryHeaps().setNative(value))
+  static new = (fn: (value: AdapterPropertiesMemoryHeaps) => void) => new ProcAdapterPropertiesMemoryHeapsFreeMembers().set(fn)
+}
+export class ProcCreateInstance extends c.Function<[descriptor: c.Pointer<InstanceDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (descriptor: c.Pointer<InstanceDescriptor>) => void) => (descriptor: any) => void fn(new c.Pointer<InstanceDescriptor>().setNative(descriptor))
+  static new = (fn: (descriptor: c.Pointer<InstanceDescriptor>) => void) => new ProcCreateInstance().set(fn)
+}
+export class ProcDrmFormatCapabilitiesFreeMembers extends c.Function<[value: DrmFormatCapabilities]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['buffer'])
+  }
+  protected override _fn = (fn: (value: DrmFormatCapabilities) => void) => (value: any) => void fn(new DrmFormatCapabilities().setNative(value))
+  static new = (fn: (value: DrmFormatCapabilities) => void) => new ProcDrmFormatCapabilitiesFreeMembers().set(fn)
+}
+export class ProcGetInstanceFeatures extends c.Function<[features: c.Pointer<InstanceFeatures>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (features: c.Pointer<InstanceFeatures>) => void) => (features: any) => void fn(new c.Pointer<InstanceFeatures>().setNative(features))
+  static new = (fn: (features: c.Pointer<InstanceFeatures>) => void) => new ProcGetInstanceFeatures().set(fn)
+}
+export class ProcGetProcAddress extends c.Function<[procName: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['buffer'])
+  }
+  protected override _fn = (fn: (procName: StringView) => void) => (procName: any) => void fn(new StringView().setNative(procName))
+  static new = (fn: (procName: StringView) => void) => new ProcGetProcAddress().set(fn)
+}
+export class ProcSharedBufferMemoryEndAccessStateFreeMembers extends c.Function<[value: SharedBufferMemoryEndAccessState]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['buffer'])
+  }
+  protected override _fn = (fn: (value: SharedBufferMemoryEndAccessState) => void) => (value: any) => void fn(new SharedBufferMemoryEndAccessState().setNative(value))
+  static new = (fn: (value: SharedBufferMemoryEndAccessState) => void) => new ProcSharedBufferMemoryEndAccessStateFreeMembers().set(fn)
+}
+export class ProcSharedTextureMemoryEndAccessStateFreeMembers extends c.Function<[value: SharedTextureMemoryEndAccessState]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['buffer'])
+  }
+  protected override _fn = (fn: (value: SharedTextureMemoryEndAccessState) => void) => (value: any) => void fn(new SharedTextureMemoryEndAccessState().setNative(value))
+  static new = (fn: (value: SharedTextureMemoryEndAccessState) => void) => new ProcSharedTextureMemoryEndAccessStateFreeMembers().set(fn)
+}
+export class ProcSupportedFeaturesFreeMembers extends c.Function<[value: SupportedFeatures]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['buffer'])
+  }
+  protected override _fn = (fn: (value: SupportedFeatures) => void) => (value: any) => void fn(new SupportedFeatures().setNative(value))
+  static new = (fn: (value: SupportedFeatures) => void) => new ProcSupportedFeaturesFreeMembers().set(fn)
+}
+export class ProcSurfaceCapabilitiesFreeMembers extends c.Function<[value: SurfaceCapabilities]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['buffer'])
+  }
+  protected override _fn = (fn: (value: SurfaceCapabilities) => void) => (value: any) => void fn(new SurfaceCapabilities().setNative(value))
+  static new = (fn: (value: SurfaceCapabilities) => void) => new ProcSurfaceCapabilitiesFreeMembers().set(fn)
+}
+export class ProcAdapterCreateDevice extends c.Function<[adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>) => void) => (adapter: any, descriptor: any) => void fn(new Adapter().setNative(adapter), new c.Pointer<DeviceDescriptor>().setNative(descriptor))
+  static new = (fn: (adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>) => void) => new ProcAdapterCreateDevice().set(fn)
+}
+export class ProcAdapterGetFeatures extends c.Function<[adapter: Adapter, features: c.Pointer<SupportedFeatures>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, features: c.Pointer<SupportedFeatures>) => void) => (adapter: any, features: any) => void fn(new Adapter().setNative(adapter), new c.Pointer<SupportedFeatures>().setNative(features))
+  static new = (fn: (adapter: Adapter, features: c.Pointer<SupportedFeatures>) => void) => new ProcAdapterGetFeatures().set(fn)
+}
+export class ProcAdapterGetFormatCapabilities extends c.Function<[adapter: Adapter, format: TextureFormat, capabilities: c.Pointer<FormatCapabilities>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, format: TextureFormat, capabilities: c.Pointer<FormatCapabilities>) => void) => (adapter: any, format: any, capabilities: any) => void fn(new Adapter().setNative(adapter), new TextureFormat().setNative(format), new c.Pointer<FormatCapabilities>().setNative(capabilities))
+  static new = (fn: (adapter: Adapter, format: TextureFormat, capabilities: c.Pointer<FormatCapabilities>) => void) => new ProcAdapterGetFormatCapabilities().set(fn)
+}
+export class ProcAdapterGetInfo extends c.Function<[adapter: Adapter, info: c.Pointer<AdapterInfo>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, info: c.Pointer<AdapterInfo>) => void) => (adapter: any, info: any) => void fn(new Adapter().setNative(adapter), new c.Pointer<AdapterInfo>().setNative(info))
+  static new = (fn: (adapter: Adapter, info: c.Pointer<AdapterInfo>) => void) => new ProcAdapterGetInfo().set(fn)
+}
+export class ProcAdapterGetInstance extends c.Function<[adapter: Adapter]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter) => void) => (adapter: any) => void fn(new Adapter().setNative(adapter))
+  static new = (fn: (adapter: Adapter) => void) => new ProcAdapterGetInstance().set(fn)
+}
+export class ProcAdapterGetLimits extends c.Function<[adapter: Adapter, limits: c.Pointer<SupportedLimits>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, limits: c.Pointer<SupportedLimits>) => void) => (adapter: any, limits: any) => void fn(new Adapter().setNative(adapter), new c.Pointer<SupportedLimits>().setNative(limits))
+  static new = (fn: (adapter: Adapter, limits: c.Pointer<SupportedLimits>) => void) => new ProcAdapterGetLimits().set(fn)
+}
+export class ProcAdapterHasFeature extends c.Function<[adapter: Adapter, feature: FeatureName]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, feature: FeatureName) => void) => (adapter: any, feature: any) => void fn(new Adapter().setNative(adapter), new FeatureName().setNative(feature))
+  static new = (fn: (adapter: Adapter, feature: FeatureName) => void) => new ProcAdapterHasFeature().set(fn)
+}
+export class ProcAdapterRequestDevice extends c.Function<[adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>, callback: RequestDeviceCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>, callback: RequestDeviceCallback, userdata: c.Pointer<any>) => void) => (adapter: any, descriptor: any, callback: any, userdata: any) => void fn(new Adapter().setNative(adapter), new c.Pointer<DeviceDescriptor>().setNative(descriptor), new RequestDeviceCallback().setNative(callback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>, callback: RequestDeviceCallback, userdata: c.Pointer<any>) => void) => new ProcAdapterRequestDevice().set(fn)
+}
+export class ProcAdapterRequestDevice2 extends c.Function<[adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo2]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo2) => void) => (adapter: any, options: any, callbackInfo: any) => void fn(new Adapter().setNative(adapter), new c.Pointer<DeviceDescriptor>().setNative(options), new RequestDeviceCallbackInfo2().setNative(callbackInfo))
+  static new = (fn: (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo2) => void) => new ProcAdapterRequestDevice2().set(fn)
+}
+export class ProcAdapterRequestDeviceF extends c.Function<[adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo) => void) => (adapter: any, options: any, callbackInfo: any) => void fn(new Adapter().setNative(adapter), new c.Pointer<DeviceDescriptor>().setNative(options), new RequestDeviceCallbackInfo().setNative(callbackInfo))
+  static new = (fn: (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo) => void) => new ProcAdapterRequestDeviceF().set(fn)
+}
+export class ProcAdapterAddRef extends c.Function<[adapter: Adapter]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter) => void) => (adapter: any) => void fn(new Adapter().setNative(adapter))
+  static new = (fn: (adapter: Adapter) => void) => new ProcAdapterAddRef().set(fn)
+}
+export class ProcAdapterRelease extends c.Function<[adapter: Adapter]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (adapter: Adapter) => void) => (adapter: any) => void fn(new Adapter().setNative(adapter))
+  static new = (fn: (adapter: Adapter) => void) => new ProcAdapterRelease().set(fn)
+}
+export class ProcBindGroupSetLabel extends c.Function<[bindGroup: BindGroup, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (bindGroup: BindGroup, label: StringView) => void) => (bindGroup: any, label: any) => void fn(new BindGroup().setNative(bindGroup), new StringView().setNative(label))
+  static new = (fn: (bindGroup: BindGroup, label: StringView) => void) => new ProcBindGroupSetLabel().set(fn)
+}
+export class ProcBindGroupAddRef extends c.Function<[bindGroup: BindGroup]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (bindGroup: BindGroup) => void) => (bindGroup: any) => void fn(new BindGroup().setNative(bindGroup))
+  static new = (fn: (bindGroup: BindGroup) => void) => new ProcBindGroupAddRef().set(fn)
+}
+export class ProcBindGroupRelease extends c.Function<[bindGroup: BindGroup]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (bindGroup: BindGroup) => void) => (bindGroup: any) => void fn(new BindGroup().setNative(bindGroup))
+  static new = (fn: (bindGroup: BindGroup) => void) => new ProcBindGroupRelease().set(fn)
+}
+export class ProcBindGroupLayoutSetLabel extends c.Function<[bindGroupLayout: BindGroupLayout, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (bindGroupLayout: BindGroupLayout, label: StringView) => void) => (bindGroupLayout: any, label: any) => void fn(new BindGroupLayout().setNative(bindGroupLayout), new StringView().setNative(label))
+  static new = (fn: (bindGroupLayout: BindGroupLayout, label: StringView) => void) => new ProcBindGroupLayoutSetLabel().set(fn)
+}
+export class ProcBindGroupLayoutAddRef extends c.Function<[bindGroupLayout: BindGroupLayout]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (bindGroupLayout: BindGroupLayout) => void) => (bindGroupLayout: any) => void fn(new BindGroupLayout().setNative(bindGroupLayout))
+  static new = (fn: (bindGroupLayout: BindGroupLayout) => void) => new ProcBindGroupLayoutAddRef().set(fn)
+}
+export class ProcBindGroupLayoutRelease extends c.Function<[bindGroupLayout: BindGroupLayout]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (bindGroupLayout: BindGroupLayout) => void) => (bindGroupLayout: any) => void fn(new BindGroupLayout().setNative(bindGroupLayout))
+  static new = (fn: (bindGroupLayout: BindGroupLayout) => void) => new ProcBindGroupLayoutRelease().set(fn)
+}
+export class ProcBufferDestroy extends c.Function<[buffer: Buffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer) => void) => (buffer: any) => void fn(new Buffer().setNative(buffer))
+  static new = (fn: (buffer: Buffer) => void) => new ProcBufferDestroy().set(fn)
+}
+export class ProcBufferGetConstMappedRange extends c.Function<[buffer: Buffer, offset: c.Size, size: c.Size]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'usize', 'usize'])
+  }
+  protected override _fn = (fn: (buffer: Buffer, offset: c.Size, size: c.Size) => void) => (buffer: any, offset: any, size: any) => void fn(new Buffer().setNative(buffer), new c.Size().setNative(offset), new c.Size().setNative(size))
+  static new = (fn: (buffer: Buffer, offset: c.Size, size: c.Size) => void) => new ProcBufferGetConstMappedRange().set(fn)
+}
+export class ProcBufferGetMapState extends c.Function<[buffer: Buffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer) => void) => (buffer: any) => void fn(new Buffer().setNative(buffer))
+  static new = (fn: (buffer: Buffer) => void) => new ProcBufferGetMapState().set(fn)
+}
+export class ProcBufferGetMappedRange extends c.Function<[buffer: Buffer, offset: c.Size, size: c.Size]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'usize', 'usize'])
+  }
+  protected override _fn = (fn: (buffer: Buffer, offset: c.Size, size: c.Size) => void) => (buffer: any, offset: any, size: any) => void fn(new Buffer().setNative(buffer), new c.Size().setNative(offset), new c.Size().setNative(size))
+  static new = (fn: (buffer: Buffer, offset: c.Size, size: c.Size) => void) => new ProcBufferGetMappedRange().set(fn)
+}
+export class ProcBufferGetSize extends c.Function<[buffer: Buffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer) => void) => (buffer: any) => void fn(new Buffer().setNative(buffer))
+  static new = (fn: (buffer: Buffer) => void) => new ProcBufferGetSize().set(fn)
+}
+export class ProcBufferGetUsage extends c.Function<[buffer: Buffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer) => void) => (buffer: any) => void fn(new Buffer().setNative(buffer))
+  static new = (fn: (buffer: Buffer) => void) => new ProcBufferGetUsage().set(fn)
+}
+export class ProcBufferMapAsync extends c.Function<[buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callback: BufferMapCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u64', 'usize', 'usize', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callback: BufferMapCallback, userdata: c.Pointer<any>) => void) => (buffer: any, mode: any, offset: any, size: any, callback: any, userdata: any) => void fn(new Buffer().setNative(buffer), new MapMode().setNative(mode), new c.Size().setNative(offset), new c.Size().setNative(size), new BufferMapCallback().setNative(callback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callback: BufferMapCallback, userdata: c.Pointer<any>) => void) => new ProcBufferMapAsync().set(fn)
+}
+export class ProcBufferMapAsync2 extends c.Function<[buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callbackInfo: BufferMapCallbackInfo2]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u64', 'usize', 'usize', 'buffer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callbackInfo: BufferMapCallbackInfo2) => void) => (buffer: any, mode: any, offset: any, size: any, callbackInfo: any) => void fn(new Buffer().setNative(buffer), new MapMode().setNative(mode), new c.Size().setNative(offset), new c.Size().setNative(size), new BufferMapCallbackInfo2().setNative(callbackInfo))
+  static new = (fn: (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callbackInfo: BufferMapCallbackInfo2) => void) => new ProcBufferMapAsync2().set(fn)
+}
+export class ProcBufferMapAsyncF extends c.Function<[buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callbackInfo: BufferMapCallbackInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u64', 'usize', 'usize', 'buffer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callbackInfo: BufferMapCallbackInfo) => void) => (buffer: any, mode: any, offset: any, size: any, callbackInfo: any) => void fn(new Buffer().setNative(buffer), new MapMode().setNative(mode), new c.Size().setNative(offset), new c.Size().setNative(size), new BufferMapCallbackInfo().setNative(callbackInfo))
+  static new = (fn: (buffer: Buffer, mode: MapMode, offset: c.Size, size: c.Size, callbackInfo: BufferMapCallbackInfo) => void) => new ProcBufferMapAsyncF().set(fn)
+}
+export class ProcBufferSetLabel extends c.Function<[buffer: Buffer, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer, label: StringView) => void) => (buffer: any, label: any) => void fn(new Buffer().setNative(buffer), new StringView().setNative(label))
+  static new = (fn: (buffer: Buffer, label: StringView) => void) => new ProcBufferSetLabel().set(fn)
+}
+export class ProcBufferUnmap extends c.Function<[buffer: Buffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer) => void) => (buffer: any) => void fn(new Buffer().setNative(buffer))
+  static new = (fn: (buffer: Buffer) => void) => new ProcBufferUnmap().set(fn)
+}
+export class ProcBufferAddRef extends c.Function<[buffer: Buffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer) => void) => (buffer: any) => void fn(new Buffer().setNative(buffer))
+  static new = (fn: (buffer: Buffer) => void) => new ProcBufferAddRef().set(fn)
+}
+export class ProcBufferRelease extends c.Function<[buffer: Buffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (buffer: Buffer) => void) => (buffer: any) => void fn(new Buffer().setNative(buffer))
+  static new = (fn: (buffer: Buffer) => void) => new ProcBufferRelease().set(fn)
+}
+export class ProcCommandBufferSetLabel extends c.Function<[commandBuffer: CommandBuffer, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (commandBuffer: CommandBuffer, label: StringView) => void) => (commandBuffer: any, label: any) => void fn(new CommandBuffer().setNative(commandBuffer), new StringView().setNative(label))
+  static new = (fn: (commandBuffer: CommandBuffer, label: StringView) => void) => new ProcCommandBufferSetLabel().set(fn)
+}
+export class ProcCommandBufferAddRef extends c.Function<[commandBuffer: CommandBuffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (commandBuffer: CommandBuffer) => void) => (commandBuffer: any) => void fn(new CommandBuffer().setNative(commandBuffer))
+  static new = (fn: (commandBuffer: CommandBuffer) => void) => new ProcCommandBufferAddRef().set(fn)
+}
+export class ProcCommandBufferRelease extends c.Function<[commandBuffer: CommandBuffer]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (commandBuffer: CommandBuffer) => void) => (commandBuffer: any) => void fn(new CommandBuffer().setNative(commandBuffer))
+  static new = (fn: (commandBuffer: CommandBuffer) => void) => new ProcCommandBufferRelease().set(fn)
+}
+export class ProcCommandEncoderBeginComputePass extends c.Function<[commandEncoder: CommandEncoder, descriptor: c.Pointer<ComputePassDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, descriptor: c.Pointer<ComputePassDescriptor>) => void) => (commandEncoder: any, descriptor: any) => void fn(new CommandEncoder().setNative(commandEncoder), new c.Pointer<ComputePassDescriptor>().setNative(descriptor))
+  static new = (fn: (commandEncoder: CommandEncoder, descriptor: c.Pointer<ComputePassDescriptor>) => void) => new ProcCommandEncoderBeginComputePass().set(fn)
+}
+export class ProcCommandEncoderBeginRenderPass extends c.Function<[commandEncoder: CommandEncoder, descriptor: c.Pointer<RenderPassDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, descriptor: c.Pointer<RenderPassDescriptor>) => void) => (commandEncoder: any, descriptor: any) => void fn(new CommandEncoder().setNative(commandEncoder), new c.Pointer<RenderPassDescriptor>().setNative(descriptor))
+  static new = (fn: (commandEncoder: CommandEncoder, descriptor: c.Pointer<RenderPassDescriptor>) => void) => new ProcCommandEncoderBeginRenderPass().set(fn)
+}
+export class ProcCommandEncoderClearBuffer extends c.Function<[commandEncoder: CommandEncoder, buffer: Buffer, offset: c.U64, size: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64', 'u64'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, buffer: Buffer, offset: c.U64, size: c.U64) => void) => (commandEncoder: any, buffer: any, offset: any, size: any) => void fn(new CommandEncoder().setNative(commandEncoder), new Buffer().setNative(buffer), new c.U64().setNative(offset), new c.U64().setNative(size))
+  static new = (fn: (commandEncoder: CommandEncoder, buffer: Buffer, offset: c.U64, size: c.U64) => void) => new ProcCommandEncoderClearBuffer().set(fn)
+}
+export class ProcCommandEncoderCopyBufferToBuffer extends c.Function<[commandEncoder: CommandEncoder, source: Buffer, sourceOffset: c.U64, destination: Buffer, destinationOffset: c.U64, size: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64', 'pointer', 'u64', 'u64'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, source: Buffer, sourceOffset: c.U64, destination: Buffer, destinationOffset: c.U64, size: c.U64) => void) => (commandEncoder: any, source: any, sourceOffset: any, destination: any, destinationOffset: any, size: any) => void fn(new CommandEncoder().setNative(commandEncoder), new Buffer().setNative(source), new c.U64().setNative(sourceOffset), new Buffer().setNative(destination), new c.U64().setNative(destinationOffset), new c.U64().setNative(size))
+  static new = (fn: (commandEncoder: CommandEncoder, source: Buffer, sourceOffset: c.U64, destination: Buffer, destinationOffset: c.U64, size: c.U64) => void) => new ProcCommandEncoderCopyBufferToBuffer().set(fn)
+}
+export class ProcCommandEncoderCopyBufferToTexture extends c.Function<[commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyBuffer>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyBuffer>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>) => void) => (commandEncoder: any, source: any, destination: any, copySize: any) => void fn(new CommandEncoder().setNative(commandEncoder), new c.Pointer<ImageCopyBuffer>().setNative(source), new c.Pointer<ImageCopyTexture>().setNative(destination), new c.Pointer<Extent3D>().setNative(copySize))
+  static new = (fn: (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyBuffer>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>) => void) => new ProcCommandEncoderCopyBufferToTexture().set(fn)
+}
+export class ProcCommandEncoderCopyTextureToBuffer extends c.Function<[commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyBuffer>, copySize: c.Pointer<Extent3D>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyBuffer>, copySize: c.Pointer<Extent3D>) => void) => (commandEncoder: any, source: any, destination: any, copySize: any) => void fn(new CommandEncoder().setNative(commandEncoder), new c.Pointer<ImageCopyTexture>().setNative(source), new c.Pointer<ImageCopyBuffer>().setNative(destination), new c.Pointer<Extent3D>().setNative(copySize))
+  static new = (fn: (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyBuffer>, copySize: c.Pointer<Extent3D>) => void) => new ProcCommandEncoderCopyTextureToBuffer().set(fn)
+}
+export class ProcCommandEncoderCopyTextureToTexture extends c.Function<[commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>) => void) => (commandEncoder: any, source: any, destination: any, copySize: any) => void fn(new CommandEncoder().setNative(commandEncoder), new c.Pointer<ImageCopyTexture>().setNative(source), new c.Pointer<ImageCopyTexture>().setNative(destination), new c.Pointer<Extent3D>().setNative(copySize))
+  static new = (fn: (commandEncoder: CommandEncoder, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>) => void) => new ProcCommandEncoderCopyTextureToTexture().set(fn)
+}
+export class ProcCommandEncoderFinish extends c.Function<[commandEncoder: CommandEncoder, descriptor: c.Pointer<CommandBufferDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, descriptor: c.Pointer<CommandBufferDescriptor>) => void) => (commandEncoder: any, descriptor: any) => void fn(new CommandEncoder().setNative(commandEncoder), new c.Pointer<CommandBufferDescriptor>().setNative(descriptor))
+  static new = (fn: (commandEncoder: CommandEncoder, descriptor: c.Pointer<CommandBufferDescriptor>) => void) => new ProcCommandEncoderFinish().set(fn)
+}
+export class ProcCommandEncoderInjectValidationError extends c.Function<[commandEncoder: CommandEncoder, message: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, message: StringView) => void) => (commandEncoder: any, message: any) => void fn(new CommandEncoder().setNative(commandEncoder), new StringView().setNative(message))
+  static new = (fn: (commandEncoder: CommandEncoder, message: StringView) => void) => new ProcCommandEncoderInjectValidationError().set(fn)
+}
+export class ProcCommandEncoderInsertDebugMarker extends c.Function<[commandEncoder: CommandEncoder, markerLabel: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, markerLabel: StringView) => void) => (commandEncoder: any, markerLabel: any) => void fn(new CommandEncoder().setNative(commandEncoder), new StringView().setNative(markerLabel))
+  static new = (fn: (commandEncoder: CommandEncoder, markerLabel: StringView) => void) => new ProcCommandEncoderInsertDebugMarker().set(fn)
+}
+export class ProcCommandEncoderPopDebugGroup extends c.Function<[commandEncoder: CommandEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder) => void) => (commandEncoder: any) => void fn(new CommandEncoder().setNative(commandEncoder))
+  static new = (fn: (commandEncoder: CommandEncoder) => void) => new ProcCommandEncoderPopDebugGroup().set(fn)
+}
+export class ProcCommandEncoderPushDebugGroup extends c.Function<[commandEncoder: CommandEncoder, groupLabel: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, groupLabel: StringView) => void) => (commandEncoder: any, groupLabel: any) => void fn(new CommandEncoder().setNative(commandEncoder), new StringView().setNative(groupLabel))
+  static new = (fn: (commandEncoder: CommandEncoder, groupLabel: StringView) => void) => new ProcCommandEncoderPushDebugGroup().set(fn)
+}
+export class ProcCommandEncoderResolveQuerySet extends c.Function<[commandEncoder: CommandEncoder, querySet: QuerySet, firstQuery: c.U32, queryCount: c.U32, destination: Buffer, destinationOffset: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u32', 'u32', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, querySet: QuerySet, firstQuery: c.U32, queryCount: c.U32, destination: Buffer, destinationOffset: c.U64) => void) => (commandEncoder: any, querySet: any, firstQuery: any, queryCount: any, destination: any, destinationOffset: any) => void fn(new CommandEncoder().setNative(commandEncoder), new QuerySet().setNative(querySet), new c.U32().setNative(firstQuery), new c.U32().setNative(queryCount), new Buffer().setNative(destination), new c.U64().setNative(destinationOffset))
+  static new = (fn: (commandEncoder: CommandEncoder, querySet: QuerySet, firstQuery: c.U32, queryCount: c.U32, destination: Buffer, destinationOffset: c.U64) => void) => new ProcCommandEncoderResolveQuerySet().set(fn)
+}
+export class ProcCommandEncoderSetLabel extends c.Function<[commandEncoder: CommandEncoder, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, label: StringView) => void) => (commandEncoder: any, label: any) => void fn(new CommandEncoder().setNative(commandEncoder), new StringView().setNative(label))
+  static new = (fn: (commandEncoder: CommandEncoder, label: StringView) => void) => new ProcCommandEncoderSetLabel().set(fn)
+}
+export class ProcCommandEncoderWriteBuffer extends c.Function<[commandEncoder: CommandEncoder, buffer: Buffer, bufferOffset: c.U64, data: c.Pointer<c.U8>, size: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, buffer: Buffer, bufferOffset: c.U64, data: c.Pointer<c.U8>, size: c.U64) => void) => (commandEncoder: any, buffer: any, bufferOffset: any, data: any, size: any) => void fn(new CommandEncoder().setNative(commandEncoder), new Buffer().setNative(buffer), new c.U64().setNative(bufferOffset), new c.Pointer<c.U8>().setNative(data), new c.U64().setNative(size))
+  static new = (fn: (commandEncoder: CommandEncoder, buffer: Buffer, bufferOffset: c.U64, data: c.Pointer<c.U8>, size: c.U64) => void) => new ProcCommandEncoderWriteBuffer().set(fn)
+}
+export class ProcCommandEncoderWriteTimestamp extends c.Function<[commandEncoder: CommandEncoder, querySet: QuerySet, queryIndex: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u32'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder, querySet: QuerySet, queryIndex: c.U32) => void) => (commandEncoder: any, querySet: any, queryIndex: any) => void fn(new CommandEncoder().setNative(commandEncoder), new QuerySet().setNative(querySet), new c.U32().setNative(queryIndex))
+  static new = (fn: (commandEncoder: CommandEncoder, querySet: QuerySet, queryIndex: c.U32) => void) => new ProcCommandEncoderWriteTimestamp().set(fn)
+}
+export class ProcCommandEncoderAddRef extends c.Function<[commandEncoder: CommandEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder) => void) => (commandEncoder: any) => void fn(new CommandEncoder().setNative(commandEncoder))
+  static new = (fn: (commandEncoder: CommandEncoder) => void) => new ProcCommandEncoderAddRef().set(fn)
+}
+export class ProcCommandEncoderRelease extends c.Function<[commandEncoder: CommandEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (commandEncoder: CommandEncoder) => void) => (commandEncoder: any) => void fn(new CommandEncoder().setNative(commandEncoder))
+  static new = (fn: (commandEncoder: CommandEncoder) => void) => new ProcCommandEncoderRelease().set(fn)
+}
+export class ProcComputePassEncoderDispatchWorkgroups extends c.Function<[computePassEncoder: ComputePassEncoder, workgroupCountX: c.U32, workgroupCountY: c.U32, workgroupCountZ: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'u32', 'u32'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder, workgroupCountX: c.U32, workgroupCountY: c.U32, workgroupCountZ: c.U32) => void) => (computePassEncoder: any, workgroupCountX: any, workgroupCountY: any, workgroupCountZ: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder), new c.U32().setNative(workgroupCountX), new c.U32().setNative(workgroupCountY), new c.U32().setNative(workgroupCountZ))
+  static new = (fn: (computePassEncoder: ComputePassEncoder, workgroupCountX: c.U32, workgroupCountY: c.U32, workgroupCountZ: c.U32) => void) => new ProcComputePassEncoderDispatchWorkgroups().set(fn)
+}
+export class ProcComputePassEncoderDispatchWorkgroupsIndirect extends c.Function<[computePassEncoder: ComputePassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => (computePassEncoder: any, indirectBuffer: any, indirectOffset: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder), new Buffer().setNative(indirectBuffer), new c.U64().setNative(indirectOffset))
+  static new = (fn: (computePassEncoder: ComputePassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => new ProcComputePassEncoderDispatchWorkgroupsIndirect().set(fn)
+}
+export class ProcComputePassEncoderEnd extends c.Function<[computePassEncoder: ComputePassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder) => void) => (computePassEncoder: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder))
+  static new = (fn: (computePassEncoder: ComputePassEncoder) => void) => new ProcComputePassEncoderEnd().set(fn)
+}
+export class ProcComputePassEncoderInsertDebugMarker extends c.Function<[computePassEncoder: ComputePassEncoder, markerLabel: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder, markerLabel: StringView) => void) => (computePassEncoder: any, markerLabel: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder), new StringView().setNative(markerLabel))
+  static new = (fn: (computePassEncoder: ComputePassEncoder, markerLabel: StringView) => void) => new ProcComputePassEncoderInsertDebugMarker().set(fn)
+}
+export class ProcComputePassEncoderPopDebugGroup extends c.Function<[computePassEncoder: ComputePassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder) => void) => (computePassEncoder: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder))
+  static new = (fn: (computePassEncoder: ComputePassEncoder) => void) => new ProcComputePassEncoderPopDebugGroup().set(fn)
+}
+export class ProcComputePassEncoderPushDebugGroup extends c.Function<[computePassEncoder: ComputePassEncoder, groupLabel: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder, groupLabel: StringView) => void) => (computePassEncoder: any, groupLabel: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder), new StringView().setNative(groupLabel))
+  static new = (fn: (computePassEncoder: ComputePassEncoder, groupLabel: StringView) => void) => new ProcComputePassEncoderPushDebugGroup().set(fn)
+}
+export class ProcComputePassEncoderSetBindGroup extends c.Function<[computePassEncoder: ComputePassEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'pointer', 'usize', 'pointer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>) => void) => (computePassEncoder: any, groupIndex: any, group: any, dynamicOffsetCount: any, dynamicOffsets: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder), new c.U32().setNative(groupIndex), new BindGroup().setNative(group), new c.Size().setNative(dynamicOffsetCount), new c.Pointer<c.U32>().setNative(dynamicOffsets))
+  static new = (fn: (computePassEncoder: ComputePassEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>) => void) => new ProcComputePassEncoderSetBindGroup().set(fn)
+}
+export class ProcComputePassEncoderSetLabel extends c.Function<[computePassEncoder: ComputePassEncoder, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder, label: StringView) => void) => (computePassEncoder: any, label: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder), new StringView().setNative(label))
+  static new = (fn: (computePassEncoder: ComputePassEncoder, label: StringView) => void) => new ProcComputePassEncoderSetLabel().set(fn)
+}
+export class ProcComputePassEncoderSetPipeline extends c.Function<[computePassEncoder: ComputePassEncoder, pipeline: ComputePipeline]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder, pipeline: ComputePipeline) => void) => (computePassEncoder: any, pipeline: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder), new ComputePipeline().setNative(pipeline))
+  static new = (fn: (computePassEncoder: ComputePassEncoder, pipeline: ComputePipeline) => void) => new ProcComputePassEncoderSetPipeline().set(fn)
+}
+export class ProcComputePassEncoderWriteTimestamp extends c.Function<[computePassEncoder: ComputePassEncoder, querySet: QuerySet, queryIndex: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u32'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder, querySet: QuerySet, queryIndex: c.U32) => void) => (computePassEncoder: any, querySet: any, queryIndex: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder), new QuerySet().setNative(querySet), new c.U32().setNative(queryIndex))
+  static new = (fn: (computePassEncoder: ComputePassEncoder, querySet: QuerySet, queryIndex: c.U32) => void) => new ProcComputePassEncoderWriteTimestamp().set(fn)
+}
+export class ProcComputePassEncoderAddRef extends c.Function<[computePassEncoder: ComputePassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder) => void) => (computePassEncoder: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder))
+  static new = (fn: (computePassEncoder: ComputePassEncoder) => void) => new ProcComputePassEncoderAddRef().set(fn)
+}
+export class ProcComputePassEncoderRelease extends c.Function<[computePassEncoder: ComputePassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (computePassEncoder: ComputePassEncoder) => void) => (computePassEncoder: any) => void fn(new ComputePassEncoder().setNative(computePassEncoder))
+  static new = (fn: (computePassEncoder: ComputePassEncoder) => void) => new ProcComputePassEncoderRelease().set(fn)
+}
+export class ProcComputePipelineGetBindGroupLayout extends c.Function<[computePipeline: ComputePipeline, groupIndex: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32'])
+  }
+  protected override _fn = (fn: (computePipeline: ComputePipeline, groupIndex: c.U32) => void) => (computePipeline: any, groupIndex: any) => void fn(new ComputePipeline().setNative(computePipeline), new c.U32().setNative(groupIndex))
+  static new = (fn: (computePipeline: ComputePipeline, groupIndex: c.U32) => void) => new ProcComputePipelineGetBindGroupLayout().set(fn)
+}
+export class ProcComputePipelineSetLabel extends c.Function<[computePipeline: ComputePipeline, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (computePipeline: ComputePipeline, label: StringView) => void) => (computePipeline: any, label: any) => void fn(new ComputePipeline().setNative(computePipeline), new StringView().setNative(label))
+  static new = (fn: (computePipeline: ComputePipeline, label: StringView) => void) => new ProcComputePipelineSetLabel().set(fn)
+}
+export class ProcComputePipelineAddRef extends c.Function<[computePipeline: ComputePipeline]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (computePipeline: ComputePipeline) => void) => (computePipeline: any) => void fn(new ComputePipeline().setNative(computePipeline))
+  static new = (fn: (computePipeline: ComputePipeline) => void) => new ProcComputePipelineAddRef().set(fn)
+}
+export class ProcComputePipelineRelease extends c.Function<[computePipeline: ComputePipeline]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (computePipeline: ComputePipeline) => void) => (computePipeline: any) => void fn(new ComputePipeline().setNative(computePipeline))
+  static new = (fn: (computePipeline: ComputePipeline) => void) => new ProcComputePipelineRelease().set(fn)
+}
+export class ProcDeviceCreateBindGroup extends c.Function<[device: Device, descriptor: c.Pointer<BindGroupDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<BindGroupDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<BindGroupDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<BindGroupDescriptor>) => void) => new ProcDeviceCreateBindGroup().set(fn)
+}
+export class ProcDeviceCreateBindGroupLayout extends c.Function<[device: Device, descriptor: c.Pointer<BindGroupLayoutDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<BindGroupLayoutDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<BindGroupLayoutDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<BindGroupLayoutDescriptor>) => void) => new ProcDeviceCreateBindGroupLayout().set(fn)
+}
+export class ProcDeviceCreateBuffer extends c.Function<[device: Device, descriptor: c.Pointer<BufferDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<BufferDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<BufferDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<BufferDescriptor>) => void) => new ProcDeviceCreateBuffer().set(fn)
+}
+export class ProcDeviceCreateCommandEncoder extends c.Function<[device: Device, descriptor: c.Pointer<CommandEncoderDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<CommandEncoderDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<CommandEncoderDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<CommandEncoderDescriptor>) => void) => new ProcDeviceCreateCommandEncoder().set(fn)
+}
+export class ProcDeviceCreateComputePipeline extends c.Function<[device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<ComputePipelineDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>) => void) => new ProcDeviceCreateComputePipeline().set(fn)
+}
+export class ProcDeviceCreateComputePipelineAsync extends c.Function<[device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callback: CreateComputePipelineAsyncCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callback: CreateComputePipelineAsyncCallback, userdata: c.Pointer<any>) => void) => (device: any, descriptor: any, callback: any, userdata: any) => void fn(new Device().setNative(device), new c.Pointer<ComputePipelineDescriptor>().setNative(descriptor), new CreateComputePipelineAsyncCallback().setNative(callback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callback: CreateComputePipelineAsyncCallback, userdata: c.Pointer<any>) => void) => new ProcDeviceCreateComputePipelineAsync().set(fn)
+}
+export class ProcDeviceCreateComputePipelineAsync2 extends c.Function<[device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callbackInfo: CreateComputePipelineAsyncCallbackInfo2]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callbackInfo: CreateComputePipelineAsyncCallbackInfo2) => void) => (device: any, descriptor: any, callbackInfo: any) => void fn(new Device().setNative(device), new c.Pointer<ComputePipelineDescriptor>().setNative(descriptor), new CreateComputePipelineAsyncCallbackInfo2().setNative(callbackInfo))
+  static new = (fn: (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callbackInfo: CreateComputePipelineAsyncCallbackInfo2) => void) => new ProcDeviceCreateComputePipelineAsync2().set(fn)
+}
+export class ProcDeviceCreateComputePipelineAsyncF extends c.Function<[device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callbackInfo: CreateComputePipelineAsyncCallbackInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callbackInfo: CreateComputePipelineAsyncCallbackInfo) => void) => (device: any, descriptor: any, callbackInfo: any) => void fn(new Device().setNative(device), new c.Pointer<ComputePipelineDescriptor>().setNative(descriptor), new CreateComputePipelineAsyncCallbackInfo().setNative(callbackInfo))
+  static new = (fn: (device: Device, descriptor: c.Pointer<ComputePipelineDescriptor>, callbackInfo: CreateComputePipelineAsyncCallbackInfo) => void) => new ProcDeviceCreateComputePipelineAsyncF().set(fn)
+}
+export class ProcDeviceCreateErrorBuffer extends c.Function<[device: Device, descriptor: c.Pointer<BufferDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<BufferDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<BufferDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<BufferDescriptor>) => void) => new ProcDeviceCreateErrorBuffer().set(fn)
+}
+export class ProcDeviceCreateErrorExternalTexture extends c.Function<[device: Device]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (device: Device) => void) => (device: any) => void fn(new Device().setNative(device))
+  static new = (fn: (device: Device) => void) => new ProcDeviceCreateErrorExternalTexture().set(fn)
+}
+export class ProcDeviceCreateErrorShaderModule extends c.Function<[device: Device, descriptor: c.Pointer<ShaderModuleDescriptor>, errorMessage: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<ShaderModuleDescriptor>, errorMessage: StringView) => void) => (device: any, descriptor: any, errorMessage: any) => void fn(new Device().setNative(device), new c.Pointer<ShaderModuleDescriptor>().setNative(descriptor), new StringView().setNative(errorMessage))
+  static new = (fn: (device: Device, descriptor: c.Pointer<ShaderModuleDescriptor>, errorMessage: StringView) => void) => new ProcDeviceCreateErrorShaderModule().set(fn)
+}
+export class ProcDeviceCreateErrorTexture extends c.Function<[device: Device, descriptor: c.Pointer<TextureDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<TextureDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<TextureDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<TextureDescriptor>) => void) => new ProcDeviceCreateErrorTexture().set(fn)
+}
+export class ProcDeviceCreateExternalTexture extends c.Function<[device: Device, externalTextureDescriptor: c.Pointer<ExternalTextureDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, externalTextureDescriptor: c.Pointer<ExternalTextureDescriptor>) => void) => (device: any, externalTextureDescriptor: any) => void fn(new Device().setNative(device), new c.Pointer<ExternalTextureDescriptor>().setNative(externalTextureDescriptor))
+  static new = (fn: (device: Device, externalTextureDescriptor: c.Pointer<ExternalTextureDescriptor>) => void) => new ProcDeviceCreateExternalTexture().set(fn)
+}
+export class ProcDeviceCreatePipelineLayout extends c.Function<[device: Device, descriptor: c.Pointer<PipelineLayoutDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<PipelineLayoutDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<PipelineLayoutDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<PipelineLayoutDescriptor>) => void) => new ProcDeviceCreatePipelineLayout().set(fn)
+}
+export class ProcDeviceCreateQuerySet extends c.Function<[device: Device, descriptor: c.Pointer<QuerySetDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<QuerySetDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<QuerySetDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<QuerySetDescriptor>) => void) => new ProcDeviceCreateQuerySet().set(fn)
+}
+export class ProcDeviceCreateRenderBundleEncoder extends c.Function<[device: Device, descriptor: c.Pointer<RenderBundleEncoderDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<RenderBundleEncoderDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<RenderBundleEncoderDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<RenderBundleEncoderDescriptor>) => void) => new ProcDeviceCreateRenderBundleEncoder().set(fn)
+}
+export class ProcDeviceCreateRenderPipeline extends c.Function<[device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<RenderPipelineDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>) => void) => new ProcDeviceCreateRenderPipeline().set(fn)
+}
+export class ProcDeviceCreateRenderPipelineAsync extends c.Function<[device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callback: CreateRenderPipelineAsyncCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callback: CreateRenderPipelineAsyncCallback, userdata: c.Pointer<any>) => void) => (device: any, descriptor: any, callback: any, userdata: any) => void fn(new Device().setNative(device), new c.Pointer<RenderPipelineDescriptor>().setNative(descriptor), new CreateRenderPipelineAsyncCallback().setNative(callback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callback: CreateRenderPipelineAsyncCallback, userdata: c.Pointer<any>) => void) => new ProcDeviceCreateRenderPipelineAsync().set(fn)
+}
+export class ProcDeviceCreateRenderPipelineAsync2 extends c.Function<[device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callbackInfo: CreateRenderPipelineAsyncCallbackInfo2]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callbackInfo: CreateRenderPipelineAsyncCallbackInfo2) => void) => (device: any, descriptor: any, callbackInfo: any) => void fn(new Device().setNative(device), new c.Pointer<RenderPipelineDescriptor>().setNative(descriptor), new CreateRenderPipelineAsyncCallbackInfo2().setNative(callbackInfo))
+  static new = (fn: (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callbackInfo: CreateRenderPipelineAsyncCallbackInfo2) => void) => new ProcDeviceCreateRenderPipelineAsync2().set(fn)
+}
+export class ProcDeviceCreateRenderPipelineAsyncF extends c.Function<[device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callbackInfo: CreateRenderPipelineAsyncCallbackInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callbackInfo: CreateRenderPipelineAsyncCallbackInfo) => void) => (device: any, descriptor: any, callbackInfo: any) => void fn(new Device().setNative(device), new c.Pointer<RenderPipelineDescriptor>().setNative(descriptor), new CreateRenderPipelineAsyncCallbackInfo().setNative(callbackInfo))
+  static new = (fn: (device: Device, descriptor: c.Pointer<RenderPipelineDescriptor>, callbackInfo: CreateRenderPipelineAsyncCallbackInfo) => void) => new ProcDeviceCreateRenderPipelineAsyncF().set(fn)
+}
+export class ProcDeviceCreateSampler extends c.Function<[device: Device, descriptor: c.Pointer<SamplerDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<SamplerDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<SamplerDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<SamplerDescriptor>) => void) => new ProcDeviceCreateSampler().set(fn)
+}
+export class ProcDeviceCreateShaderModule extends c.Function<[device: Device, descriptor: c.Pointer<ShaderModuleDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<ShaderModuleDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<ShaderModuleDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<ShaderModuleDescriptor>) => void) => new ProcDeviceCreateShaderModule().set(fn)
+}
+export class ProcDeviceCreateTexture extends c.Function<[device: Device, descriptor: c.Pointer<TextureDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<TextureDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<TextureDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<TextureDescriptor>) => void) => new ProcDeviceCreateTexture().set(fn)
+}
+export class ProcDeviceDestroy extends c.Function<[device: Device]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (device: Device) => void) => (device: any) => void fn(new Device().setNative(device))
+  static new = (fn: (device: Device) => void) => new ProcDeviceDestroy().set(fn)
+}
+export class ProcDeviceForceLoss extends c.Function<[device: Device, type: DeviceLostReason, message: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, type: DeviceLostReason, message: StringView) => void) => (device: any, type: any, message: any) => void fn(new Device().setNative(device), new DeviceLostReason().setNative(type), new StringView().setNative(message))
+  static new = (fn: (device: Device, type: DeviceLostReason, message: StringView) => void) => new ProcDeviceForceLoss().set(fn)
+}
+export class ProcDeviceGetAHardwareBufferProperties extends c.Function<[device: Device, handle: c.Pointer<any>, properties: c.Pointer<AHardwareBufferProperties>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, handle: c.Pointer<any>, properties: c.Pointer<AHardwareBufferProperties>) => void) => (device: any, handle: any, properties: any) => void fn(new Device().setNative(device), new c.Pointer<any>().setNative(handle), new c.Pointer<AHardwareBufferProperties>().setNative(properties))
+  static new = (fn: (device: Device, handle: c.Pointer<any>, properties: c.Pointer<AHardwareBufferProperties>) => void) => new ProcDeviceGetAHardwareBufferProperties().set(fn)
+}
+export class ProcDeviceGetAdapter extends c.Function<[device: Device]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (device: Device) => void) => (device: any) => void fn(new Device().setNative(device))
+  static new = (fn: (device: Device) => void) => new ProcDeviceGetAdapter().set(fn)
+}
+export class ProcDeviceGetAdapterInfo extends c.Function<[device: Device, adapterInfo: c.Pointer<AdapterInfo>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, adapterInfo: c.Pointer<AdapterInfo>) => void) => (device: any, adapterInfo: any) => void fn(new Device().setNative(device), new c.Pointer<AdapterInfo>().setNative(adapterInfo))
+  static new = (fn: (device: Device, adapterInfo: c.Pointer<AdapterInfo>) => void) => new ProcDeviceGetAdapterInfo().set(fn)
+}
+export class ProcDeviceGetFeatures extends c.Function<[device: Device, features: c.Pointer<SupportedFeatures>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, features: c.Pointer<SupportedFeatures>) => void) => (device: any, features: any) => void fn(new Device().setNative(device), new c.Pointer<SupportedFeatures>().setNative(features))
+  static new = (fn: (device: Device, features: c.Pointer<SupportedFeatures>) => void) => new ProcDeviceGetFeatures().set(fn)
+}
+export class ProcDeviceGetLimits extends c.Function<[device: Device, limits: c.Pointer<SupportedLimits>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, limits: c.Pointer<SupportedLimits>) => void) => (device: any, limits: any) => void fn(new Device().setNative(device), new c.Pointer<SupportedLimits>().setNative(limits))
+  static new = (fn: (device: Device, limits: c.Pointer<SupportedLimits>) => void) => new ProcDeviceGetLimits().set(fn)
+}
+export class ProcDeviceGetLostFuture extends c.Function<[device: Device]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (device: Device) => void) => (device: any) => void fn(new Device().setNative(device))
+  static new = (fn: (device: Device) => void) => new ProcDeviceGetLostFuture().set(fn)
+}
+export class ProcDeviceGetQueue extends c.Function<[device: Device]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (device: Device) => void) => (device: any) => void fn(new Device().setNative(device))
+  static new = (fn: (device: Device) => void) => new ProcDeviceGetQueue().set(fn)
+}
+export class ProcDeviceHasFeature extends c.Function<[device: Device, feature: FeatureName]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32'])
+  }
+  protected override _fn = (fn: (device: Device, feature: FeatureName) => void) => (device: any, feature: any) => void fn(new Device().setNative(device), new FeatureName().setNative(feature))
+  static new = (fn: (device: Device, feature: FeatureName) => void) => new ProcDeviceHasFeature().set(fn)
+}
+export class ProcDeviceImportSharedBufferMemory extends c.Function<[device: Device, descriptor: c.Pointer<SharedBufferMemoryDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<SharedBufferMemoryDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<SharedBufferMemoryDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<SharedBufferMemoryDescriptor>) => void) => new ProcDeviceImportSharedBufferMemory().set(fn)
+}
+export class ProcDeviceImportSharedFence extends c.Function<[device: Device, descriptor: c.Pointer<SharedFenceDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<SharedFenceDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<SharedFenceDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<SharedFenceDescriptor>) => void) => new ProcDeviceImportSharedFence().set(fn)
+}
+export class ProcDeviceImportSharedTextureMemory extends c.Function<[device: Device, descriptor: c.Pointer<SharedTextureMemoryDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<SharedTextureMemoryDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<SharedTextureMemoryDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<SharedTextureMemoryDescriptor>) => void) => new ProcDeviceImportSharedTextureMemory().set(fn)
+}
+export class ProcDeviceInjectError extends c.Function<[device: Device, type: ErrorType, message: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, type: ErrorType, message: StringView) => void) => (device: any, type: any, message: any) => void fn(new Device().setNative(device), new ErrorType().setNative(type), new StringView().setNative(message))
+  static new = (fn: (device: Device, type: ErrorType, message: StringView) => void) => new ProcDeviceInjectError().set(fn)
+}
+export class ProcDevicePopErrorScope extends c.Function<[device: Device, oldCallback: ErrorCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, oldCallback: ErrorCallback, userdata: c.Pointer<any>) => void) => (device: any, oldCallback: any, userdata: any) => void fn(new Device().setNative(device), new ErrorCallback().setNative(oldCallback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (device: Device, oldCallback: ErrorCallback, userdata: c.Pointer<any>) => void) => new ProcDevicePopErrorScope().set(fn)
+}
+export class ProcDevicePopErrorScope2 extends c.Function<[device: Device, callbackInfo: PopErrorScopeCallbackInfo2]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, callbackInfo: PopErrorScopeCallbackInfo2) => void) => (device: any, callbackInfo: any) => void fn(new Device().setNative(device), new PopErrorScopeCallbackInfo2().setNative(callbackInfo))
+  static new = (fn: (device: Device, callbackInfo: PopErrorScopeCallbackInfo2) => void) => new ProcDevicePopErrorScope2().set(fn)
+}
+export class ProcDevicePopErrorScopeF extends c.Function<[device: Device, callbackInfo: PopErrorScopeCallbackInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, callbackInfo: PopErrorScopeCallbackInfo) => void) => (device: any, callbackInfo: any) => void fn(new Device().setNative(device), new PopErrorScopeCallbackInfo().setNative(callbackInfo))
+  static new = (fn: (device: Device, callbackInfo: PopErrorScopeCallbackInfo) => void) => new ProcDevicePopErrorScopeF().set(fn)
+}
+export class ProcDevicePushErrorScope extends c.Function<[device: Device, filter: ErrorFilter]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32'])
+  }
+  protected override _fn = (fn: (device: Device, filter: ErrorFilter) => void) => (device: any, filter: any) => void fn(new Device().setNative(device), new ErrorFilter().setNative(filter))
+  static new = (fn: (device: Device, filter: ErrorFilter) => void) => new ProcDevicePushErrorScope().set(fn)
+}
+export class ProcDeviceSetLabel extends c.Function<[device: Device, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (device: Device, label: StringView) => void) => (device: any, label: any) => void fn(new Device().setNative(device), new StringView().setNative(label))
+  static new = (fn: (device: Device, label: StringView) => void) => new ProcDeviceSetLabel().set(fn)
+}
+export class ProcDeviceSetLoggingCallback extends c.Function<[device: Device, callback: LoggingCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, callback: LoggingCallback, userdata: c.Pointer<any>) => void) => (device: any, callback: any, userdata: any) => void fn(new Device().setNative(device), new LoggingCallback().setNative(callback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (device: Device, callback: LoggingCallback, userdata: c.Pointer<any>) => void) => new ProcDeviceSetLoggingCallback().set(fn)
+}
+export class ProcDeviceTick extends c.Function<[device: Device]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (device: Device) => void) => (device: any) => void fn(new Device().setNative(device))
+  static new = (fn: (device: Device) => void) => new ProcDeviceTick().set(fn)
+}
+export class ProcDeviceValidateTextureDescriptor extends c.Function<[device: Device, descriptor: c.Pointer<TextureDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (device: Device, descriptor: c.Pointer<TextureDescriptor>) => void) => (device: any, descriptor: any) => void fn(new Device().setNative(device), new c.Pointer<TextureDescriptor>().setNative(descriptor))
+  static new = (fn: (device: Device, descriptor: c.Pointer<TextureDescriptor>) => void) => new ProcDeviceValidateTextureDescriptor().set(fn)
+}
+export class ProcDeviceAddRef extends c.Function<[device: Device]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (device: Device) => void) => (device: any) => void fn(new Device().setNative(device))
+  static new = (fn: (device: Device) => void) => new ProcDeviceAddRef().set(fn)
+}
+export class ProcDeviceRelease extends c.Function<[device: Device]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (device: Device) => void) => (device: any) => void fn(new Device().setNative(device))
+  static new = (fn: (device: Device) => void) => new ProcDeviceRelease().set(fn)
+}
+export class ProcExternalTextureDestroy extends c.Function<[externalTexture: ExternalTexture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (externalTexture: ExternalTexture) => void) => (externalTexture: any) => void fn(new ExternalTexture().setNative(externalTexture))
+  static new = (fn: (externalTexture: ExternalTexture) => void) => new ProcExternalTextureDestroy().set(fn)
+}
+export class ProcExternalTextureExpire extends c.Function<[externalTexture: ExternalTexture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (externalTexture: ExternalTexture) => void) => (externalTexture: any) => void fn(new ExternalTexture().setNative(externalTexture))
+  static new = (fn: (externalTexture: ExternalTexture) => void) => new ProcExternalTextureExpire().set(fn)
+}
+export class ProcExternalTextureRefresh extends c.Function<[externalTexture: ExternalTexture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (externalTexture: ExternalTexture) => void) => (externalTexture: any) => void fn(new ExternalTexture().setNative(externalTexture))
+  static new = (fn: (externalTexture: ExternalTexture) => void) => new ProcExternalTextureRefresh().set(fn)
+}
+export class ProcExternalTextureSetLabel extends c.Function<[externalTexture: ExternalTexture, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (externalTexture: ExternalTexture, label: StringView) => void) => (externalTexture: any, label: any) => void fn(new ExternalTexture().setNative(externalTexture), new StringView().setNative(label))
+  static new = (fn: (externalTexture: ExternalTexture, label: StringView) => void) => new ProcExternalTextureSetLabel().set(fn)
+}
+export class ProcExternalTextureAddRef extends c.Function<[externalTexture: ExternalTexture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (externalTexture: ExternalTexture) => void) => (externalTexture: any) => void fn(new ExternalTexture().setNative(externalTexture))
+  static new = (fn: (externalTexture: ExternalTexture) => void) => new ProcExternalTextureAddRef().set(fn)
+}
+export class ProcExternalTextureRelease extends c.Function<[externalTexture: ExternalTexture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (externalTexture: ExternalTexture) => void) => (externalTexture: any) => void fn(new ExternalTexture().setNative(externalTexture))
+  static new = (fn: (externalTexture: ExternalTexture) => void) => new ProcExternalTextureRelease().set(fn)
+}
+export class ProcInstanceCreateSurface extends c.Function<[instance: Instance, descriptor: c.Pointer<SurfaceDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (instance: Instance, descriptor: c.Pointer<SurfaceDescriptor>) => void) => (instance: any, descriptor: any) => void fn(new Instance().setNative(instance), new c.Pointer<SurfaceDescriptor>().setNative(descriptor))
+  static new = (fn: (instance: Instance, descriptor: c.Pointer<SurfaceDescriptor>) => void) => new ProcInstanceCreateSurface().set(fn)
+}
+export class ProcInstanceEnumerateWGSLLanguageFeatures extends c.Function<[instance: Instance, features: c.Pointer<WGSLFeatureName>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (instance: Instance, features: c.Pointer<WGSLFeatureName>) => void) => (instance: any, features: any) => void fn(new Instance().setNative(instance), new c.Pointer<WGSLFeatureName>().setNative(features))
+  static new = (fn: (instance: Instance, features: c.Pointer<WGSLFeatureName>) => void) => new ProcInstanceEnumerateWGSLLanguageFeatures().set(fn)
+}
+export class ProcInstanceHasWGSLLanguageFeature extends c.Function<[instance: Instance, feature: WGSLFeatureName]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32'])
+  }
+  protected override _fn = (fn: (instance: Instance, feature: WGSLFeatureName) => void) => (instance: any, feature: any) => void fn(new Instance().setNative(instance), new WGSLFeatureName().setNative(feature))
+  static new = (fn: (instance: Instance, feature: WGSLFeatureName) => void) => new ProcInstanceHasWGSLLanguageFeature().set(fn)
+}
+export class ProcInstanceProcessEvents extends c.Function<[instance: Instance]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (instance: Instance) => void) => (instance: any) => void fn(new Instance().setNative(instance))
+  static new = (fn: (instance: Instance) => void) => new ProcInstanceProcessEvents().set(fn)
+}
+export class ProcInstanceRequestAdapter extends c.Function<[instance: Instance, options: c.Pointer<RequestAdapterOptions>, callback: RequestAdapterCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callback: RequestAdapterCallback, userdata: c.Pointer<any>) => void) => (instance: any, options: any, callback: any, userdata: any) => void fn(new Instance().setNative(instance), new c.Pointer<RequestAdapterOptions>().setNative(options), new RequestAdapterCallback().setNative(callback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callback: RequestAdapterCallback, userdata: c.Pointer<any>) => void) => new ProcInstanceRequestAdapter().set(fn)
+}
+export class ProcInstanceRequestAdapter2 extends c.Function<[instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo2]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo2) => void) => (instance: any, options: any, callbackInfo: any) => void fn(new Instance().setNative(instance), new c.Pointer<RequestAdapterOptions>().setNative(options), new RequestAdapterCallbackInfo2().setNative(callbackInfo))
+  static new = (fn: (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo2) => void) => new ProcInstanceRequestAdapter2().set(fn)
+}
+export class ProcInstanceRequestAdapterF extends c.Function<[instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo) => void) => (instance: any, options: any, callbackInfo: any) => void fn(new Instance().setNative(instance), new c.Pointer<RequestAdapterOptions>().setNative(options), new RequestAdapterCallbackInfo().setNative(callbackInfo))
+  static new = (fn: (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo) => void) => new ProcInstanceRequestAdapterF().set(fn)
+}
+export class ProcInstanceWaitAny extends c.Function<[instance: Instance, futureCount: c.Size, futures: c.Pointer<FutureWaitInfo>, timeoutNS: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'usize', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (instance: Instance, futureCount: c.Size, futures: c.Pointer<FutureWaitInfo>, timeoutNS: c.U64) => void) => (instance: any, futureCount: any, futures: any, timeoutNS: any) => void fn(new Instance().setNative(instance), new c.Size().setNative(futureCount), new c.Pointer<FutureWaitInfo>().setNative(futures), new c.U64().setNative(timeoutNS))
+  static new = (fn: (instance: Instance, futureCount: c.Size, futures: c.Pointer<FutureWaitInfo>, timeoutNS: c.U64) => void) => new ProcInstanceWaitAny().set(fn)
+}
+export class ProcInstanceAddRef extends c.Function<[instance: Instance]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (instance: Instance) => void) => (instance: any) => void fn(new Instance().setNative(instance))
+  static new = (fn: (instance: Instance) => void) => new ProcInstanceAddRef().set(fn)
+}
+export class ProcInstanceRelease extends c.Function<[instance: Instance]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (instance: Instance) => void) => (instance: any) => void fn(new Instance().setNative(instance))
+  static new = (fn: (instance: Instance) => void) => new ProcInstanceRelease().set(fn)
+}
+export class ProcPipelineLayoutSetLabel extends c.Function<[pipelineLayout: PipelineLayout, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (pipelineLayout: PipelineLayout, label: StringView) => void) => (pipelineLayout: any, label: any) => void fn(new PipelineLayout().setNative(pipelineLayout), new StringView().setNative(label))
+  static new = (fn: (pipelineLayout: PipelineLayout, label: StringView) => void) => new ProcPipelineLayoutSetLabel().set(fn)
+}
+export class ProcPipelineLayoutAddRef extends c.Function<[pipelineLayout: PipelineLayout]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (pipelineLayout: PipelineLayout) => void) => (pipelineLayout: any) => void fn(new PipelineLayout().setNative(pipelineLayout))
+  static new = (fn: (pipelineLayout: PipelineLayout) => void) => new ProcPipelineLayoutAddRef().set(fn)
+}
+export class ProcPipelineLayoutRelease extends c.Function<[pipelineLayout: PipelineLayout]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (pipelineLayout: PipelineLayout) => void) => (pipelineLayout: any) => void fn(new PipelineLayout().setNative(pipelineLayout))
+  static new = (fn: (pipelineLayout: PipelineLayout) => void) => new ProcPipelineLayoutRelease().set(fn)
+}
+export class ProcQuerySetDestroy extends c.Function<[querySet: QuerySet]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (querySet: QuerySet) => void) => (querySet: any) => void fn(new QuerySet().setNative(querySet))
+  static new = (fn: (querySet: QuerySet) => void) => new ProcQuerySetDestroy().set(fn)
+}
+export class ProcQuerySetGetCount extends c.Function<[querySet: QuerySet]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (querySet: QuerySet) => void) => (querySet: any) => void fn(new QuerySet().setNative(querySet))
+  static new = (fn: (querySet: QuerySet) => void) => new ProcQuerySetGetCount().set(fn)
+}
+export class ProcQuerySetGetType extends c.Function<[querySet: QuerySet]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (querySet: QuerySet) => void) => (querySet: any) => void fn(new QuerySet().setNative(querySet))
+  static new = (fn: (querySet: QuerySet) => void) => new ProcQuerySetGetType().set(fn)
+}
+export class ProcQuerySetSetLabel extends c.Function<[querySet: QuerySet, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (querySet: QuerySet, label: StringView) => void) => (querySet: any, label: any) => void fn(new QuerySet().setNative(querySet), new StringView().setNative(label))
+  static new = (fn: (querySet: QuerySet, label: StringView) => void) => new ProcQuerySetSetLabel().set(fn)
+}
+export class ProcQuerySetAddRef extends c.Function<[querySet: QuerySet]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (querySet: QuerySet) => void) => (querySet: any) => void fn(new QuerySet().setNative(querySet))
+  static new = (fn: (querySet: QuerySet) => void) => new ProcQuerySetAddRef().set(fn)
+}
+export class ProcQuerySetRelease extends c.Function<[querySet: QuerySet]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (querySet: QuerySet) => void) => (querySet: any) => void fn(new QuerySet().setNative(querySet))
+  static new = (fn: (querySet: QuerySet) => void) => new ProcQuerySetRelease().set(fn)
+}
+export class ProcQueueCopyExternalTextureForBrowser extends c.Function<[queue: Queue, source: c.Pointer<ImageCopyExternalTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>, options: c.Pointer<CopyTextureForBrowserOptions>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (queue: Queue, source: c.Pointer<ImageCopyExternalTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>, options: c.Pointer<CopyTextureForBrowserOptions>) => void) => (queue: any, source: any, destination: any, copySize: any, options: any) => void fn(new Queue().setNative(queue), new c.Pointer<ImageCopyExternalTexture>().setNative(source), new c.Pointer<ImageCopyTexture>().setNative(destination), new c.Pointer<Extent3D>().setNative(copySize), new c.Pointer<CopyTextureForBrowserOptions>().setNative(options))
+  static new = (fn: (queue: Queue, source: c.Pointer<ImageCopyExternalTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>, options: c.Pointer<CopyTextureForBrowserOptions>) => void) => new ProcQueueCopyExternalTextureForBrowser().set(fn)
+}
+export class ProcQueueCopyTextureForBrowser extends c.Function<[queue: Queue, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>, options: c.Pointer<CopyTextureForBrowserOptions>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (queue: Queue, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>, options: c.Pointer<CopyTextureForBrowserOptions>) => void) => (queue: any, source: any, destination: any, copySize: any, options: any) => void fn(new Queue().setNative(queue), new c.Pointer<ImageCopyTexture>().setNative(source), new c.Pointer<ImageCopyTexture>().setNative(destination), new c.Pointer<Extent3D>().setNative(copySize), new c.Pointer<CopyTextureForBrowserOptions>().setNative(options))
+  static new = (fn: (queue: Queue, source: c.Pointer<ImageCopyTexture>, destination: c.Pointer<ImageCopyTexture>, copySize: c.Pointer<Extent3D>, options: c.Pointer<CopyTextureForBrowserOptions>) => void) => new ProcQueueCopyTextureForBrowser().set(fn)
+}
+export class ProcQueueOnSubmittedWorkDone extends c.Function<[queue: Queue, callback: QueueWorkDoneCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (queue: Queue, callback: QueueWorkDoneCallback, userdata: c.Pointer<any>) => void) => (queue: any, callback: any, userdata: any) => void fn(new Queue().setNative(queue), new QueueWorkDoneCallback().setNative(callback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (queue: Queue, callback: QueueWorkDoneCallback, userdata: c.Pointer<any>) => void) => new ProcQueueOnSubmittedWorkDone().set(fn)
+}
+export class ProcQueueOnSubmittedWorkDone2 extends c.Function<[queue: Queue, callbackInfo: QueueWorkDoneCallbackInfo2]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (queue: Queue, callbackInfo: QueueWorkDoneCallbackInfo2) => void) => (queue: any, callbackInfo: any) => void fn(new Queue().setNative(queue), new QueueWorkDoneCallbackInfo2().setNative(callbackInfo))
+  static new = (fn: (queue: Queue, callbackInfo: QueueWorkDoneCallbackInfo2) => void) => new ProcQueueOnSubmittedWorkDone2().set(fn)
+}
+export class ProcQueueOnSubmittedWorkDoneF extends c.Function<[queue: Queue, callbackInfo: QueueWorkDoneCallbackInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (queue: Queue, callbackInfo: QueueWorkDoneCallbackInfo) => void) => (queue: any, callbackInfo: any) => void fn(new Queue().setNative(queue), new QueueWorkDoneCallbackInfo().setNative(callbackInfo))
+  static new = (fn: (queue: Queue, callbackInfo: QueueWorkDoneCallbackInfo) => void) => new ProcQueueOnSubmittedWorkDoneF().set(fn)
+}
+export class ProcQueueSetLabel extends c.Function<[queue: Queue, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (queue: Queue, label: StringView) => void) => (queue: any, label: any) => void fn(new Queue().setNative(queue), new StringView().setNative(label))
+  static new = (fn: (queue: Queue, label: StringView) => void) => new ProcQueueSetLabel().set(fn)
+}
+export class ProcQueueSubmit extends c.Function<[queue: Queue, commandCount: c.Size, commands: c.Pointer<CommandBuffer>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'usize', 'pointer'])
+  }
+  protected override _fn = (fn: (queue: Queue, commandCount: c.Size, commands: c.Pointer<CommandBuffer>) => void) => (queue: any, commandCount: any, commands: any) => void fn(new Queue().setNative(queue), new c.Size().setNative(commandCount), new c.Pointer<CommandBuffer>().setNative(commands))
+  static new = (fn: (queue: Queue, commandCount: c.Size, commands: c.Pointer<CommandBuffer>) => void) => new ProcQueueSubmit().set(fn)
+}
+export class ProcQueueWriteBuffer extends c.Function<[queue: Queue, buffer: Buffer, bufferOffset: c.U64, data: c.Pointer<any>, size: c.Size]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64', 'pointer', 'usize'])
+  }
+  protected override _fn = (fn: (queue: Queue, buffer: Buffer, bufferOffset: c.U64, data: c.Pointer<any>, size: c.Size) => void) => (queue: any, buffer: any, bufferOffset: any, data: any, size: any) => void fn(new Queue().setNative(queue), new Buffer().setNative(buffer), new c.U64().setNative(bufferOffset), new c.Pointer<any>().setNative(data), new c.Size().setNative(size))
+  static new = (fn: (queue: Queue, buffer: Buffer, bufferOffset: c.U64, data: c.Pointer<any>, size: c.Size) => void) => new ProcQueueWriteBuffer().set(fn)
+}
+export class ProcQueueWriteTexture extends c.Function<[queue: Queue, destination: c.Pointer<ImageCopyTexture>, data: c.Pointer<any>, dataSize: c.Size, dataLayout: c.Pointer<TextureDataLayout>, writeSize: c.Pointer<Extent3D>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer', 'usize', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (queue: Queue, destination: c.Pointer<ImageCopyTexture>, data: c.Pointer<any>, dataSize: c.Size, dataLayout: c.Pointer<TextureDataLayout>, writeSize: c.Pointer<Extent3D>) => void) => (queue: any, destination: any, data: any, dataSize: any, dataLayout: any, writeSize: any) => void fn(new Queue().setNative(queue), new c.Pointer<ImageCopyTexture>().setNative(destination), new c.Pointer<any>().setNative(data), new c.Size().setNative(dataSize), new c.Pointer<TextureDataLayout>().setNative(dataLayout), new c.Pointer<Extent3D>().setNative(writeSize))
+  static new = (fn: (queue: Queue, destination: c.Pointer<ImageCopyTexture>, data: c.Pointer<any>, dataSize: c.Size, dataLayout: c.Pointer<TextureDataLayout>, writeSize: c.Pointer<Extent3D>) => void) => new ProcQueueWriteTexture().set(fn)
+}
+export class ProcQueueAddRef extends c.Function<[queue: Queue]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (queue: Queue) => void) => (queue: any) => void fn(new Queue().setNative(queue))
+  static new = (fn: (queue: Queue) => void) => new ProcQueueAddRef().set(fn)
+}
+export class ProcQueueRelease extends c.Function<[queue: Queue]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (queue: Queue) => void) => (queue: any) => void fn(new Queue().setNative(queue))
+  static new = (fn: (queue: Queue) => void) => new ProcQueueRelease().set(fn)
+}
+export class ProcRenderBundleSetLabel extends c.Function<[renderBundle: RenderBundle, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (renderBundle: RenderBundle, label: StringView) => void) => (renderBundle: any, label: any) => void fn(new RenderBundle().setNative(renderBundle), new StringView().setNative(label))
+  static new = (fn: (renderBundle: RenderBundle, label: StringView) => void) => new ProcRenderBundleSetLabel().set(fn)
+}
+export class ProcRenderBundleAddRef extends c.Function<[renderBundle: RenderBundle]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderBundle: RenderBundle) => void) => (renderBundle: any) => void fn(new RenderBundle().setNative(renderBundle))
+  static new = (fn: (renderBundle: RenderBundle) => void) => new ProcRenderBundleAddRef().set(fn)
+}
+export class ProcRenderBundleRelease extends c.Function<[renderBundle: RenderBundle]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderBundle: RenderBundle) => void) => (renderBundle: any) => void fn(new RenderBundle().setNative(renderBundle))
+  static new = (fn: (renderBundle: RenderBundle) => void) => new ProcRenderBundleRelease().set(fn)
+}
+export class ProcRenderBundleEncoderDraw extends c.Function<[renderBundleEncoder: RenderBundleEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'u32', 'u32', 'u32'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32) => void) => (renderBundleEncoder: any, vertexCount: any, instanceCount: any, firstVertex: any, firstInstance: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new c.U32().setNative(vertexCount), new c.U32().setNative(instanceCount), new c.U32().setNative(firstVertex), new c.U32().setNative(firstInstance))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32) => void) => new ProcRenderBundleEncoderDraw().set(fn)
+}
+export class ProcRenderBundleEncoderDrawIndexed extends c.Function<[renderBundleEncoder: RenderBundleEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'u32', 'u32', 'i32', 'u32'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32) => void) => (renderBundleEncoder: any, indexCount: any, instanceCount: any, firstIndex: any, baseVertex: any, firstInstance: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new c.U32().setNative(indexCount), new c.U32().setNative(instanceCount), new c.U32().setNative(firstIndex), new c.I32().setNative(baseVertex), new c.U32().setNative(firstInstance))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32) => void) => new ProcRenderBundleEncoderDrawIndexed().set(fn)
+}
+export class ProcRenderBundleEncoderDrawIndexedIndirect extends c.Function<[renderBundleEncoder: RenderBundleEncoder, indirectBuffer: Buffer, indirectOffset: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => (renderBundleEncoder: any, indirectBuffer: any, indirectOffset: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new Buffer().setNative(indirectBuffer), new c.U64().setNative(indirectOffset))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => new ProcRenderBundleEncoderDrawIndexedIndirect().set(fn)
+}
+export class ProcRenderBundleEncoderDrawIndirect extends c.Function<[renderBundleEncoder: RenderBundleEncoder, indirectBuffer: Buffer, indirectOffset: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => (renderBundleEncoder: any, indirectBuffer: any, indirectOffset: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new Buffer().setNative(indirectBuffer), new c.U64().setNative(indirectOffset))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => new ProcRenderBundleEncoderDrawIndirect().set(fn)
+}
+export class ProcRenderBundleEncoderFinish extends c.Function<[renderBundleEncoder: RenderBundleEncoder, descriptor: c.Pointer<RenderBundleDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, descriptor: c.Pointer<RenderBundleDescriptor>) => void) => (renderBundleEncoder: any, descriptor: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new c.Pointer<RenderBundleDescriptor>().setNative(descriptor))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, descriptor: c.Pointer<RenderBundleDescriptor>) => void) => new ProcRenderBundleEncoderFinish().set(fn)
+}
+export class ProcRenderBundleEncoderInsertDebugMarker extends c.Function<[renderBundleEncoder: RenderBundleEncoder, markerLabel: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, markerLabel: StringView) => void) => (renderBundleEncoder: any, markerLabel: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new StringView().setNative(markerLabel))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, markerLabel: StringView) => void) => new ProcRenderBundleEncoderInsertDebugMarker().set(fn)
+}
+export class ProcRenderBundleEncoderPopDebugGroup extends c.Function<[renderBundleEncoder: RenderBundleEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder) => void) => (renderBundleEncoder: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder) => void) => new ProcRenderBundleEncoderPopDebugGroup().set(fn)
+}
+export class ProcRenderBundleEncoderPushDebugGroup extends c.Function<[renderBundleEncoder: RenderBundleEncoder, groupLabel: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, groupLabel: StringView) => void) => (renderBundleEncoder: any, groupLabel: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new StringView().setNative(groupLabel))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, groupLabel: StringView) => void) => new ProcRenderBundleEncoderPushDebugGroup().set(fn)
+}
+export class ProcRenderBundleEncoderSetBindGroup extends c.Function<[renderBundleEncoder: RenderBundleEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'pointer', 'usize', 'pointer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>) => void) => (renderBundleEncoder: any, groupIndex: any, group: any, dynamicOffsetCount: any, dynamicOffsets: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new c.U32().setNative(groupIndex), new BindGroup().setNative(group), new c.Size().setNative(dynamicOffsetCount), new c.Pointer<c.U32>().setNative(dynamicOffsets))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>) => void) => new ProcRenderBundleEncoderSetBindGroup().set(fn)
+}
+export class ProcRenderBundleEncoderSetIndexBuffer extends c.Function<[renderBundleEncoder: RenderBundleEncoder, buffer: Buffer, format: IndexFormat, offset: c.U64, size: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u32', 'u64', 'u64'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, buffer: Buffer, format: IndexFormat, offset: c.U64, size: c.U64) => void) => (renderBundleEncoder: any, buffer: any, format: any, offset: any, size: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new Buffer().setNative(buffer), new IndexFormat().setNative(format), new c.U64().setNative(offset), new c.U64().setNative(size))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, buffer: Buffer, format: IndexFormat, offset: c.U64, size: c.U64) => void) => new ProcRenderBundleEncoderSetIndexBuffer().set(fn)
+}
+export class ProcRenderBundleEncoderSetLabel extends c.Function<[renderBundleEncoder: RenderBundleEncoder, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, label: StringView) => void) => (renderBundleEncoder: any, label: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new StringView().setNative(label))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, label: StringView) => void) => new ProcRenderBundleEncoderSetLabel().set(fn)
+}
+export class ProcRenderBundleEncoderSetPipeline extends c.Function<[renderBundleEncoder: RenderBundleEncoder, pipeline: RenderPipeline]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, pipeline: RenderPipeline) => void) => (renderBundleEncoder: any, pipeline: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new RenderPipeline().setNative(pipeline))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, pipeline: RenderPipeline) => void) => new ProcRenderBundleEncoderSetPipeline().set(fn)
+}
+export class ProcRenderBundleEncoderSetVertexBuffer extends c.Function<[renderBundleEncoder: RenderBundleEncoder, slot: c.U32, buffer: Buffer, offset: c.U64, size: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'pointer', 'u64', 'u64'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder, slot: c.U32, buffer: Buffer, offset: c.U64, size: c.U64) => void) => (renderBundleEncoder: any, slot: any, buffer: any, offset: any, size: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder), new c.U32().setNative(slot), new Buffer().setNative(buffer), new c.U64().setNative(offset), new c.U64().setNative(size))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder, slot: c.U32, buffer: Buffer, offset: c.U64, size: c.U64) => void) => new ProcRenderBundleEncoderSetVertexBuffer().set(fn)
+}
+export class ProcRenderBundleEncoderAddRef extends c.Function<[renderBundleEncoder: RenderBundleEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder) => void) => (renderBundleEncoder: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder) => void) => new ProcRenderBundleEncoderAddRef().set(fn)
+}
+export class ProcRenderBundleEncoderRelease extends c.Function<[renderBundleEncoder: RenderBundleEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderBundleEncoder: RenderBundleEncoder) => void) => (renderBundleEncoder: any) => void fn(new RenderBundleEncoder().setNative(renderBundleEncoder))
+  static new = (fn: (renderBundleEncoder: RenderBundleEncoder) => void) => new ProcRenderBundleEncoderRelease().set(fn)
+}
+export class ProcRenderPassEncoderBeginOcclusionQuery extends c.Function<[renderPassEncoder: RenderPassEncoder, queryIndex: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, queryIndex: c.U32) => void) => (renderPassEncoder: any, queryIndex: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.U32().setNative(queryIndex))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, queryIndex: c.U32) => void) => new ProcRenderPassEncoderBeginOcclusionQuery().set(fn)
+}
+export class ProcRenderPassEncoderDraw extends c.Function<[renderPassEncoder: RenderPassEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'u32', 'u32', 'u32'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32) => void) => (renderPassEncoder: any, vertexCount: any, instanceCount: any, firstVertex: any, firstInstance: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.U32().setNative(vertexCount), new c.U32().setNative(instanceCount), new c.U32().setNative(firstVertex), new c.U32().setNative(firstInstance))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, vertexCount: c.U32, instanceCount: c.U32, firstVertex: c.U32, firstInstance: c.U32) => void) => new ProcRenderPassEncoderDraw().set(fn)
+}
+export class ProcRenderPassEncoderDrawIndexed extends c.Function<[renderPassEncoder: RenderPassEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'u32', 'u32', 'i32', 'u32'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32) => void) => (renderPassEncoder: any, indexCount: any, instanceCount: any, firstIndex: any, baseVertex: any, firstInstance: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.U32().setNative(indexCount), new c.U32().setNative(instanceCount), new c.U32().setNative(firstIndex), new c.I32().setNative(baseVertex), new c.U32().setNative(firstInstance))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, indexCount: c.U32, instanceCount: c.U32, firstIndex: c.U32, baseVertex: c.I32, firstInstance: c.U32) => void) => new ProcRenderPassEncoderDrawIndexed().set(fn)
+}
+export class ProcRenderPassEncoderDrawIndexedIndirect extends c.Function<[renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => (renderPassEncoder: any, indirectBuffer: any, indirectOffset: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new Buffer().setNative(indirectBuffer), new c.U64().setNative(indirectOffset))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => new ProcRenderPassEncoderDrawIndexedIndirect().set(fn)
+}
+export class ProcRenderPassEncoderDrawIndirect extends c.Function<[renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => (renderPassEncoder: any, indirectBuffer: any, indirectOffset: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new Buffer().setNative(indirectBuffer), new c.U64().setNative(indirectOffset))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64) => void) => new ProcRenderPassEncoderDrawIndirect().set(fn)
+}
+export class ProcRenderPassEncoderEnd extends c.Function<[renderPassEncoder: RenderPassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder) => void) => (renderPassEncoder: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder) => void) => new ProcRenderPassEncoderEnd().set(fn)
+}
+export class ProcRenderPassEncoderEndOcclusionQuery extends c.Function<[renderPassEncoder: RenderPassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder) => void) => (renderPassEncoder: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder) => void) => new ProcRenderPassEncoderEndOcclusionQuery().set(fn)
+}
+export class ProcRenderPassEncoderExecuteBundles extends c.Function<[renderPassEncoder: RenderPassEncoder, bundleCount: c.Size, bundles: c.Pointer<RenderBundle>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'usize', 'pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, bundleCount: c.Size, bundles: c.Pointer<RenderBundle>) => void) => (renderPassEncoder: any, bundleCount: any, bundles: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.Size().setNative(bundleCount), new c.Pointer<RenderBundle>().setNative(bundles))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, bundleCount: c.Size, bundles: c.Pointer<RenderBundle>) => void) => new ProcRenderPassEncoderExecuteBundles().set(fn)
+}
+export class ProcRenderPassEncoderInsertDebugMarker extends c.Function<[renderPassEncoder: RenderPassEncoder, markerLabel: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, markerLabel: StringView) => void) => (renderPassEncoder: any, markerLabel: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new StringView().setNative(markerLabel))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, markerLabel: StringView) => void) => new ProcRenderPassEncoderInsertDebugMarker().set(fn)
+}
+export class ProcRenderPassEncoderMultiDrawIndexedIndirect extends c.Function<[renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: Buffer, drawCountBufferOffset: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64', 'u32', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: Buffer, drawCountBufferOffset: c.U64) => void) => (renderPassEncoder: any, indirectBuffer: any, indirectOffset: any, maxDrawCount: any, drawCountBuffer: any, drawCountBufferOffset: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new Buffer().setNative(indirectBuffer), new c.U64().setNative(indirectOffset), new c.U32().setNative(maxDrawCount), new Buffer().setNative(drawCountBuffer), new c.U64().setNative(drawCountBufferOffset))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: Buffer, drawCountBufferOffset: c.U64) => void) => new ProcRenderPassEncoderMultiDrawIndexedIndirect().set(fn)
+}
+export class ProcRenderPassEncoderMultiDrawIndirect extends c.Function<[renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: Buffer, drawCountBufferOffset: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u64', 'u32', 'pointer', 'u64'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: Buffer, drawCountBufferOffset: c.U64) => void) => (renderPassEncoder: any, indirectBuffer: any, indirectOffset: any, maxDrawCount: any, drawCountBuffer: any, drawCountBufferOffset: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new Buffer().setNative(indirectBuffer), new c.U64().setNative(indirectOffset), new c.U32().setNative(maxDrawCount), new Buffer().setNative(drawCountBuffer), new c.U64().setNative(drawCountBufferOffset))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, indirectBuffer: Buffer, indirectOffset: c.U64, maxDrawCount: c.U32, drawCountBuffer: Buffer, drawCountBufferOffset: c.U64) => void) => new ProcRenderPassEncoderMultiDrawIndirect().set(fn)
+}
+export class ProcRenderPassEncoderPixelLocalStorageBarrier extends c.Function<[renderPassEncoder: RenderPassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder) => void) => (renderPassEncoder: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder) => void) => new ProcRenderPassEncoderPixelLocalStorageBarrier().set(fn)
+}
+export class ProcRenderPassEncoderPopDebugGroup extends c.Function<[renderPassEncoder: RenderPassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder) => void) => (renderPassEncoder: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder) => void) => new ProcRenderPassEncoderPopDebugGroup().set(fn)
+}
+export class ProcRenderPassEncoderPushDebugGroup extends c.Function<[renderPassEncoder: RenderPassEncoder, groupLabel: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, groupLabel: StringView) => void) => (renderPassEncoder: any, groupLabel: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new StringView().setNative(groupLabel))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, groupLabel: StringView) => void) => new ProcRenderPassEncoderPushDebugGroup().set(fn)
+}
+export class ProcRenderPassEncoderSetBindGroup extends c.Function<[renderPassEncoder: RenderPassEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'pointer', 'usize', 'pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>) => void) => (renderPassEncoder: any, groupIndex: any, group: any, dynamicOffsetCount: any, dynamicOffsets: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.U32().setNative(groupIndex), new BindGroup().setNative(group), new c.Size().setNative(dynamicOffsetCount), new c.Pointer<c.U32>().setNative(dynamicOffsets))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, groupIndex: c.U32, group: BindGroup, dynamicOffsetCount: c.Size, dynamicOffsets: c.Pointer<c.U32>) => void) => new ProcRenderPassEncoderSetBindGroup().set(fn)
+}
+export class ProcRenderPassEncoderSetBlendConstant extends c.Function<[renderPassEncoder: RenderPassEncoder, color: c.Pointer<Color>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, color: c.Pointer<Color>) => void) => (renderPassEncoder: any, color: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.Pointer<Color>().setNative(color))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, color: c.Pointer<Color>) => void) => new ProcRenderPassEncoderSetBlendConstant().set(fn)
+}
+export class ProcRenderPassEncoderSetIndexBuffer extends c.Function<[renderPassEncoder: RenderPassEncoder, buffer: Buffer, format: IndexFormat, offset: c.U64, size: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u32', 'u64', 'u64'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, buffer: Buffer, format: IndexFormat, offset: c.U64, size: c.U64) => void) => (renderPassEncoder: any, buffer: any, format: any, offset: any, size: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new Buffer().setNative(buffer), new IndexFormat().setNative(format), new c.U64().setNative(offset), new c.U64().setNative(size))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, buffer: Buffer, format: IndexFormat, offset: c.U64, size: c.U64) => void) => new ProcRenderPassEncoderSetIndexBuffer().set(fn)
+}
+export class ProcRenderPassEncoderSetLabel extends c.Function<[renderPassEncoder: RenderPassEncoder, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, label: StringView) => void) => (renderPassEncoder: any, label: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new StringView().setNative(label))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, label: StringView) => void) => new ProcRenderPassEncoderSetLabel().set(fn)
+}
+export class ProcRenderPassEncoderSetPipeline extends c.Function<[renderPassEncoder: RenderPassEncoder, pipeline: RenderPipeline]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, pipeline: RenderPipeline) => void) => (renderPassEncoder: any, pipeline: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new RenderPipeline().setNative(pipeline))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, pipeline: RenderPipeline) => void) => new ProcRenderPassEncoderSetPipeline().set(fn)
+}
+export class ProcRenderPassEncoderSetScissorRect extends c.Function<[renderPassEncoder: RenderPassEncoder, x: c.U32, y: c.U32, width: c.U32, height: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'u32', 'u32', 'u32'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, x: c.U32, y: c.U32, width: c.U32, height: c.U32) => void) => (renderPassEncoder: any, x: any, y: any, width: any, height: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.U32().setNative(x), new c.U32().setNative(y), new c.U32().setNative(width), new c.U32().setNative(height))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, x: c.U32, y: c.U32, width: c.U32, height: c.U32) => void) => new ProcRenderPassEncoderSetScissorRect().set(fn)
+}
+export class ProcRenderPassEncoderSetStencilReference extends c.Function<[renderPassEncoder: RenderPassEncoder, reference: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, reference: c.U32) => void) => (renderPassEncoder: any, reference: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.U32().setNative(reference))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, reference: c.U32) => void) => new ProcRenderPassEncoderSetStencilReference().set(fn)
+}
+export class ProcRenderPassEncoderSetVertexBuffer extends c.Function<[renderPassEncoder: RenderPassEncoder, slot: c.U32, buffer: Buffer, offset: c.U64, size: c.U64]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32', 'pointer', 'u64', 'u64'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, slot: c.U32, buffer: Buffer, offset: c.U64, size: c.U64) => void) => (renderPassEncoder: any, slot: any, buffer: any, offset: any, size: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.U32().setNative(slot), new Buffer().setNative(buffer), new c.U64().setNative(offset), new c.U64().setNative(size))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, slot: c.U32, buffer: Buffer, offset: c.U64, size: c.U64) => void) => new ProcRenderPassEncoderSetVertexBuffer().set(fn)
+}
+export class ProcRenderPassEncoderSetViewport extends c.Function<[renderPassEncoder: RenderPassEncoder, x: c.F32, y: c.F32, width: c.F32, height: c.F32, minDepth: c.F32, maxDepth: c.F32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'f32', 'f32', 'f32', 'f32', 'f32', 'f32'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, x: c.F32, y: c.F32, width: c.F32, height: c.F32, minDepth: c.F32, maxDepth: c.F32) => void) => (renderPassEncoder: any, x: any, y: any, width: any, height: any, minDepth: any, maxDepth: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new c.F32().setNative(x), new c.F32().setNative(y), new c.F32().setNative(width), new c.F32().setNative(height), new c.F32().setNative(minDepth), new c.F32().setNative(maxDepth))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, x: c.F32, y: c.F32, width: c.F32, height: c.F32, minDepth: c.F32, maxDepth: c.F32) => void) => new ProcRenderPassEncoderSetViewport().set(fn)
+}
+export class ProcRenderPassEncoderWriteTimestamp extends c.Function<[renderPassEncoder: RenderPassEncoder, querySet: QuerySet, queryIndex: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'u32'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder, querySet: QuerySet, queryIndex: c.U32) => void) => (renderPassEncoder: any, querySet: any, queryIndex: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder), new QuerySet().setNative(querySet), new c.U32().setNative(queryIndex))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder, querySet: QuerySet, queryIndex: c.U32) => void) => new ProcRenderPassEncoderWriteTimestamp().set(fn)
+}
+export class ProcRenderPassEncoderAddRef extends c.Function<[renderPassEncoder: RenderPassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder) => void) => (renderPassEncoder: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder) => void) => new ProcRenderPassEncoderAddRef().set(fn)
+}
+export class ProcRenderPassEncoderRelease extends c.Function<[renderPassEncoder: RenderPassEncoder]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderPassEncoder: RenderPassEncoder) => void) => (renderPassEncoder: any) => void fn(new RenderPassEncoder().setNative(renderPassEncoder))
+  static new = (fn: (renderPassEncoder: RenderPassEncoder) => void) => new ProcRenderPassEncoderRelease().set(fn)
+}
+export class ProcRenderPipelineGetBindGroupLayout extends c.Function<[renderPipeline: RenderPipeline, groupIndex: c.U32]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'u32'])
+  }
+  protected override _fn = (fn: (renderPipeline: RenderPipeline, groupIndex: c.U32) => void) => (renderPipeline: any, groupIndex: any) => void fn(new RenderPipeline().setNative(renderPipeline), new c.U32().setNative(groupIndex))
+  static new = (fn: (renderPipeline: RenderPipeline, groupIndex: c.U32) => void) => new ProcRenderPipelineGetBindGroupLayout().set(fn)
+}
+export class ProcRenderPipelineSetLabel extends c.Function<[renderPipeline: RenderPipeline, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (renderPipeline: RenderPipeline, label: StringView) => void) => (renderPipeline: any, label: any) => void fn(new RenderPipeline().setNative(renderPipeline), new StringView().setNative(label))
+  static new = (fn: (renderPipeline: RenderPipeline, label: StringView) => void) => new ProcRenderPipelineSetLabel().set(fn)
+}
+export class ProcRenderPipelineAddRef extends c.Function<[renderPipeline: RenderPipeline]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderPipeline: RenderPipeline) => void) => (renderPipeline: any) => void fn(new RenderPipeline().setNative(renderPipeline))
+  static new = (fn: (renderPipeline: RenderPipeline) => void) => new ProcRenderPipelineAddRef().set(fn)
+}
+export class ProcRenderPipelineRelease extends c.Function<[renderPipeline: RenderPipeline]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (renderPipeline: RenderPipeline) => void) => (renderPipeline: any) => void fn(new RenderPipeline().setNative(renderPipeline))
+  static new = (fn: (renderPipeline: RenderPipeline) => void) => new ProcRenderPipelineRelease().set(fn)
+}
+export class ProcSamplerSetLabel extends c.Function<[sampler: Sampler, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (sampler: Sampler, label: StringView) => void) => (sampler: any, label: any) => void fn(new Sampler().setNative(sampler), new StringView().setNative(label))
+  static new = (fn: (sampler: Sampler, label: StringView) => void) => new ProcSamplerSetLabel().set(fn)
+}
+export class ProcSamplerAddRef extends c.Function<[sampler: Sampler]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sampler: Sampler) => void) => (sampler: any) => void fn(new Sampler().setNative(sampler))
+  static new = (fn: (sampler: Sampler) => void) => new ProcSamplerAddRef().set(fn)
+}
+export class ProcSamplerRelease extends c.Function<[sampler: Sampler]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sampler: Sampler) => void) => (sampler: any) => void fn(new Sampler().setNative(sampler))
+  static new = (fn: (sampler: Sampler) => void) => new ProcSamplerRelease().set(fn)
+}
+export class ProcShaderModuleGetCompilationInfo extends c.Function<[shaderModule: ShaderModule, callback: CompilationInfoCallback, userdata: c.Pointer<any>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'function', 'pointer'])
+  }
+  protected override _fn = (fn: (shaderModule: ShaderModule, callback: CompilationInfoCallback, userdata: c.Pointer<any>) => void) => (shaderModule: any, callback: any, userdata: any) => void fn(new ShaderModule().setNative(shaderModule), new CompilationInfoCallback().setNative(callback), new c.Pointer<any>().setNative(userdata))
+  static new = (fn: (shaderModule: ShaderModule, callback: CompilationInfoCallback, userdata: c.Pointer<any>) => void) => new ProcShaderModuleGetCompilationInfo().set(fn)
+}
+export class ProcShaderModuleGetCompilationInfo2 extends c.Function<[shaderModule: ShaderModule, callbackInfo: CompilationInfoCallbackInfo2]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (shaderModule: ShaderModule, callbackInfo: CompilationInfoCallbackInfo2) => void) => (shaderModule: any, callbackInfo: any) => void fn(new ShaderModule().setNative(shaderModule), new CompilationInfoCallbackInfo2().setNative(callbackInfo))
+  static new = (fn: (shaderModule: ShaderModule, callbackInfo: CompilationInfoCallbackInfo2) => void) => new ProcShaderModuleGetCompilationInfo2().set(fn)
+}
+export class ProcShaderModuleGetCompilationInfoF extends c.Function<[shaderModule: ShaderModule, callbackInfo: CompilationInfoCallbackInfo]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (shaderModule: ShaderModule, callbackInfo: CompilationInfoCallbackInfo) => void) => (shaderModule: any, callbackInfo: any) => void fn(new ShaderModule().setNative(shaderModule), new CompilationInfoCallbackInfo().setNative(callbackInfo))
+  static new = (fn: (shaderModule: ShaderModule, callbackInfo: CompilationInfoCallbackInfo) => void) => new ProcShaderModuleGetCompilationInfoF().set(fn)
+}
+export class ProcShaderModuleSetLabel extends c.Function<[shaderModule: ShaderModule, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (shaderModule: ShaderModule, label: StringView) => void) => (shaderModule: any, label: any) => void fn(new ShaderModule().setNative(shaderModule), new StringView().setNative(label))
+  static new = (fn: (shaderModule: ShaderModule, label: StringView) => void) => new ProcShaderModuleSetLabel().set(fn)
+}
+export class ProcShaderModuleAddRef extends c.Function<[shaderModule: ShaderModule]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (shaderModule: ShaderModule) => void) => (shaderModule: any) => void fn(new ShaderModule().setNative(shaderModule))
+  static new = (fn: (shaderModule: ShaderModule) => void) => new ProcShaderModuleAddRef().set(fn)
+}
+export class ProcShaderModuleRelease extends c.Function<[shaderModule: ShaderModule]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (shaderModule: ShaderModule) => void) => (shaderModule: any) => void fn(new ShaderModule().setNative(shaderModule))
+  static new = (fn: (shaderModule: ShaderModule) => void) => new ProcShaderModuleRelease().set(fn)
+}
+export class ProcSharedBufferMemoryBeginAccess extends c.Function<[sharedBufferMemory: SharedBufferMemory, buffer: Buffer, descriptor: c.Pointer<SharedBufferMemoryBeginAccessDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedBufferMemory: SharedBufferMemory, buffer: Buffer, descriptor: c.Pointer<SharedBufferMemoryBeginAccessDescriptor>) => void) => (sharedBufferMemory: any, buffer: any, descriptor: any) => void fn(new SharedBufferMemory().setNative(sharedBufferMemory), new Buffer().setNative(buffer), new c.Pointer<SharedBufferMemoryBeginAccessDescriptor>().setNative(descriptor))
+  static new = (fn: (sharedBufferMemory: SharedBufferMemory, buffer: Buffer, descriptor: c.Pointer<SharedBufferMemoryBeginAccessDescriptor>) => void) => new ProcSharedBufferMemoryBeginAccess().set(fn)
+}
+export class ProcSharedBufferMemoryCreateBuffer extends c.Function<[sharedBufferMemory: SharedBufferMemory, descriptor: c.Pointer<BufferDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedBufferMemory: SharedBufferMemory, descriptor: c.Pointer<BufferDescriptor>) => void) => (sharedBufferMemory: any, descriptor: any) => void fn(new SharedBufferMemory().setNative(sharedBufferMemory), new c.Pointer<BufferDescriptor>().setNative(descriptor))
+  static new = (fn: (sharedBufferMemory: SharedBufferMemory, descriptor: c.Pointer<BufferDescriptor>) => void) => new ProcSharedBufferMemoryCreateBuffer().set(fn)
+}
+export class ProcSharedBufferMemoryEndAccess extends c.Function<[sharedBufferMemory: SharedBufferMemory, buffer: Buffer, descriptor: c.Pointer<SharedBufferMemoryEndAccessState>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedBufferMemory: SharedBufferMemory, buffer: Buffer, descriptor: c.Pointer<SharedBufferMemoryEndAccessState>) => void) => (sharedBufferMemory: any, buffer: any, descriptor: any) => void fn(new SharedBufferMemory().setNative(sharedBufferMemory), new Buffer().setNative(buffer), new c.Pointer<SharedBufferMemoryEndAccessState>().setNative(descriptor))
+  static new = (fn: (sharedBufferMemory: SharedBufferMemory, buffer: Buffer, descriptor: c.Pointer<SharedBufferMemoryEndAccessState>) => void) => new ProcSharedBufferMemoryEndAccess().set(fn)
+}
+export class ProcSharedBufferMemoryGetProperties extends c.Function<[sharedBufferMemory: SharedBufferMemory, properties: c.Pointer<SharedBufferMemoryProperties>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedBufferMemory: SharedBufferMemory, properties: c.Pointer<SharedBufferMemoryProperties>) => void) => (sharedBufferMemory: any, properties: any) => void fn(new SharedBufferMemory().setNative(sharedBufferMemory), new c.Pointer<SharedBufferMemoryProperties>().setNative(properties))
+  static new = (fn: (sharedBufferMemory: SharedBufferMemory, properties: c.Pointer<SharedBufferMemoryProperties>) => void) => new ProcSharedBufferMemoryGetProperties().set(fn)
+}
+export class ProcSharedBufferMemoryIsDeviceLost extends c.Function<[sharedBufferMemory: SharedBufferMemory]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sharedBufferMemory: SharedBufferMemory) => void) => (sharedBufferMemory: any) => void fn(new SharedBufferMemory().setNative(sharedBufferMemory))
+  static new = (fn: (sharedBufferMemory: SharedBufferMemory) => void) => new ProcSharedBufferMemoryIsDeviceLost().set(fn)
+}
+export class ProcSharedBufferMemorySetLabel extends c.Function<[sharedBufferMemory: SharedBufferMemory, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (sharedBufferMemory: SharedBufferMemory, label: StringView) => void) => (sharedBufferMemory: any, label: any) => void fn(new SharedBufferMemory().setNative(sharedBufferMemory), new StringView().setNative(label))
+  static new = (fn: (sharedBufferMemory: SharedBufferMemory, label: StringView) => void) => new ProcSharedBufferMemorySetLabel().set(fn)
+}
+export class ProcSharedBufferMemoryAddRef extends c.Function<[sharedBufferMemory: SharedBufferMemory]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sharedBufferMemory: SharedBufferMemory) => void) => (sharedBufferMemory: any) => void fn(new SharedBufferMemory().setNative(sharedBufferMemory))
+  static new = (fn: (sharedBufferMemory: SharedBufferMemory) => void) => new ProcSharedBufferMemoryAddRef().set(fn)
+}
+export class ProcSharedBufferMemoryRelease extends c.Function<[sharedBufferMemory: SharedBufferMemory]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sharedBufferMemory: SharedBufferMemory) => void) => (sharedBufferMemory: any) => void fn(new SharedBufferMemory().setNative(sharedBufferMemory))
+  static new = (fn: (sharedBufferMemory: SharedBufferMemory) => void) => new ProcSharedBufferMemoryRelease().set(fn)
+}
+export class ProcSharedFenceExportInfo extends c.Function<[sharedFence: SharedFence, info: c.Pointer<SharedFenceExportInfo>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedFence: SharedFence, info: c.Pointer<SharedFenceExportInfo>) => void) => (sharedFence: any, info: any) => void fn(new SharedFence().setNative(sharedFence), new c.Pointer<SharedFenceExportInfo>().setNative(info))
+  static new = (fn: (sharedFence: SharedFence, info: c.Pointer<SharedFenceExportInfo>) => void) => new ProcSharedFenceExportInfo().set(fn)
+}
+export class ProcSharedFenceAddRef extends c.Function<[sharedFence: SharedFence]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sharedFence: SharedFence) => void) => (sharedFence: any) => void fn(new SharedFence().setNative(sharedFence))
+  static new = (fn: (sharedFence: SharedFence) => void) => new ProcSharedFenceAddRef().set(fn)
+}
+export class ProcSharedFenceRelease extends c.Function<[sharedFence: SharedFence]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sharedFence: SharedFence) => void) => (sharedFence: any) => void fn(new SharedFence().setNative(sharedFence))
+  static new = (fn: (sharedFence: SharedFence) => void) => new ProcSharedFenceRelease().set(fn)
+}
+export class ProcSharedTextureMemoryBeginAccess extends c.Function<[sharedTextureMemory: SharedTextureMemory, texture: Texture, descriptor: c.Pointer<SharedTextureMemoryBeginAccessDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedTextureMemory: SharedTextureMemory, texture: Texture, descriptor: c.Pointer<SharedTextureMemoryBeginAccessDescriptor>) => void) => (sharedTextureMemory: any, texture: any, descriptor: any) => void fn(new SharedTextureMemory().setNative(sharedTextureMemory), new Texture().setNative(texture), new c.Pointer<SharedTextureMemoryBeginAccessDescriptor>().setNative(descriptor))
+  static new = (fn: (sharedTextureMemory: SharedTextureMemory, texture: Texture, descriptor: c.Pointer<SharedTextureMemoryBeginAccessDescriptor>) => void) => new ProcSharedTextureMemoryBeginAccess().set(fn)
+}
+export class ProcSharedTextureMemoryCreateTexture extends c.Function<[sharedTextureMemory: SharedTextureMemory, descriptor: c.Pointer<TextureDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedTextureMemory: SharedTextureMemory, descriptor: c.Pointer<TextureDescriptor>) => void) => (sharedTextureMemory: any, descriptor: any) => void fn(new SharedTextureMemory().setNative(sharedTextureMemory), new c.Pointer<TextureDescriptor>().setNative(descriptor))
+  static new = (fn: (sharedTextureMemory: SharedTextureMemory, descriptor: c.Pointer<TextureDescriptor>) => void) => new ProcSharedTextureMemoryCreateTexture().set(fn)
+}
+export class ProcSharedTextureMemoryEndAccess extends c.Function<[sharedTextureMemory: SharedTextureMemory, texture: Texture, descriptor: c.Pointer<SharedTextureMemoryEndAccessState>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedTextureMemory: SharedTextureMemory, texture: Texture, descriptor: c.Pointer<SharedTextureMemoryEndAccessState>) => void) => (sharedTextureMemory: any, texture: any, descriptor: any) => void fn(new SharedTextureMemory().setNative(sharedTextureMemory), new Texture().setNative(texture), new c.Pointer<SharedTextureMemoryEndAccessState>().setNative(descriptor))
+  static new = (fn: (sharedTextureMemory: SharedTextureMemory, texture: Texture, descriptor: c.Pointer<SharedTextureMemoryEndAccessState>) => void) => new ProcSharedTextureMemoryEndAccess().set(fn)
+}
+export class ProcSharedTextureMemoryGetProperties extends c.Function<[sharedTextureMemory: SharedTextureMemory, properties: c.Pointer<SharedTextureMemoryProperties>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (sharedTextureMemory: SharedTextureMemory, properties: c.Pointer<SharedTextureMemoryProperties>) => void) => (sharedTextureMemory: any, properties: any) => void fn(new SharedTextureMemory().setNative(sharedTextureMemory), new c.Pointer<SharedTextureMemoryProperties>().setNative(properties))
+  static new = (fn: (sharedTextureMemory: SharedTextureMemory, properties: c.Pointer<SharedTextureMemoryProperties>) => void) => new ProcSharedTextureMemoryGetProperties().set(fn)
+}
+export class ProcSharedTextureMemoryIsDeviceLost extends c.Function<[sharedTextureMemory: SharedTextureMemory]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sharedTextureMemory: SharedTextureMemory) => void) => (sharedTextureMemory: any) => void fn(new SharedTextureMemory().setNative(sharedTextureMemory))
+  static new = (fn: (sharedTextureMemory: SharedTextureMemory) => void) => new ProcSharedTextureMemoryIsDeviceLost().set(fn)
+}
+export class ProcSharedTextureMemorySetLabel extends c.Function<[sharedTextureMemory: SharedTextureMemory, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (sharedTextureMemory: SharedTextureMemory, label: StringView) => void) => (sharedTextureMemory: any, label: any) => void fn(new SharedTextureMemory().setNative(sharedTextureMemory), new StringView().setNative(label))
+  static new = (fn: (sharedTextureMemory: SharedTextureMemory, label: StringView) => void) => new ProcSharedTextureMemorySetLabel().set(fn)
+}
+export class ProcSharedTextureMemoryAddRef extends c.Function<[sharedTextureMemory: SharedTextureMemory]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sharedTextureMemory: SharedTextureMemory) => void) => (sharedTextureMemory: any) => void fn(new SharedTextureMemory().setNative(sharedTextureMemory))
+  static new = (fn: (sharedTextureMemory: SharedTextureMemory) => void) => new ProcSharedTextureMemoryAddRef().set(fn)
+}
+export class ProcSharedTextureMemoryRelease extends c.Function<[sharedTextureMemory: SharedTextureMemory]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (sharedTextureMemory: SharedTextureMemory) => void) => (sharedTextureMemory: any) => void fn(new SharedTextureMemory().setNative(sharedTextureMemory))
+  static new = (fn: (sharedTextureMemory: SharedTextureMemory) => void) => new ProcSharedTextureMemoryRelease().set(fn)
+}
+export class ProcSurfaceConfigure extends c.Function<[surface: Surface, config: c.Pointer<SurfaceConfiguration>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (surface: Surface, config: c.Pointer<SurfaceConfiguration>) => void) => (surface: any, config: any) => void fn(new Surface().setNative(surface), new c.Pointer<SurfaceConfiguration>().setNative(config))
+  static new = (fn: (surface: Surface, config: c.Pointer<SurfaceConfiguration>) => void) => new ProcSurfaceConfigure().set(fn)
+}
+export class ProcSurfaceGetCapabilities extends c.Function<[surface: Surface, adapter: Adapter, capabilities: c.Pointer<SurfaceCapabilities>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (surface: Surface, adapter: Adapter, capabilities: c.Pointer<SurfaceCapabilities>) => void) => (surface: any, adapter: any, capabilities: any) => void fn(new Surface().setNative(surface), new Adapter().setNative(adapter), new c.Pointer<SurfaceCapabilities>().setNative(capabilities))
+  static new = (fn: (surface: Surface, adapter: Adapter, capabilities: c.Pointer<SurfaceCapabilities>) => void) => new ProcSurfaceGetCapabilities().set(fn)
+}
+export class ProcSurfaceGetCurrentTexture extends c.Function<[surface: Surface, surfaceTexture: c.Pointer<SurfaceTexture>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (surface: Surface, surfaceTexture: c.Pointer<SurfaceTexture>) => void) => (surface: any, surfaceTexture: any) => void fn(new Surface().setNative(surface), new c.Pointer<SurfaceTexture>().setNative(surfaceTexture))
+  static new = (fn: (surface: Surface, surfaceTexture: c.Pointer<SurfaceTexture>) => void) => new ProcSurfaceGetCurrentTexture().set(fn)
+}
+export class ProcSurfacePresent extends c.Function<[surface: Surface]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (surface: Surface) => void) => (surface: any) => void fn(new Surface().setNative(surface))
+  static new = (fn: (surface: Surface) => void) => new ProcSurfacePresent().set(fn)
+}
+export class ProcSurfaceSetLabel extends c.Function<[surface: Surface, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (surface: Surface, label: StringView) => void) => (surface: any, label: any) => void fn(new Surface().setNative(surface), new StringView().setNative(label))
+  static new = (fn: (surface: Surface, label: StringView) => void) => new ProcSurfaceSetLabel().set(fn)
+}
+export class ProcSurfaceUnconfigure extends c.Function<[surface: Surface]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (surface: Surface) => void) => (surface: any) => void fn(new Surface().setNative(surface))
+  static new = (fn: (surface: Surface) => void) => new ProcSurfaceUnconfigure().set(fn)
+}
+export class ProcSurfaceAddRef extends c.Function<[surface: Surface]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (surface: Surface) => void) => (surface: any) => void fn(new Surface().setNative(surface))
+  static new = (fn: (surface: Surface) => void) => new ProcSurfaceAddRef().set(fn)
+}
+export class ProcSurfaceRelease extends c.Function<[surface: Surface]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (surface: Surface) => void) => (surface: any) => void fn(new Surface().setNative(surface))
+  static new = (fn: (surface: Surface) => void) => new ProcSurfaceRelease().set(fn)
+}
+export class ProcTextureCreateErrorView extends c.Function<[texture: Texture, descriptor: c.Pointer<TextureViewDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture, descriptor: c.Pointer<TextureViewDescriptor>) => void) => (texture: any, descriptor: any) => void fn(new Texture().setNative(texture), new c.Pointer<TextureViewDescriptor>().setNative(descriptor))
+  static new = (fn: (texture: Texture, descriptor: c.Pointer<TextureViewDescriptor>) => void) => new ProcTextureCreateErrorView().set(fn)
+}
+export class ProcTextureCreateView extends c.Function<[texture: Texture, descriptor: c.Pointer<TextureViewDescriptor>]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture, descriptor: c.Pointer<TextureViewDescriptor>) => void) => (texture: any, descriptor: any) => void fn(new Texture().setNative(texture), new c.Pointer<TextureViewDescriptor>().setNative(descriptor))
+  static new = (fn: (texture: Texture, descriptor: c.Pointer<TextureViewDescriptor>) => void) => new ProcTextureCreateView().set(fn)
+}
+export class ProcTextureDestroy extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureDestroy().set(fn)
+}
+export class ProcTextureGetDepthOrArrayLayers extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureGetDepthOrArrayLayers().set(fn)
+}
+export class ProcTextureGetDimension extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureGetDimension().set(fn)
+}
+export class ProcTextureGetFormat extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureGetFormat().set(fn)
+}
+export class ProcTextureGetHeight extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureGetHeight().set(fn)
+}
+export class ProcTextureGetMipLevelCount extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureGetMipLevelCount().set(fn)
+}
+export class ProcTextureGetSampleCount extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureGetSampleCount().set(fn)
+}
+export class ProcTextureGetUsage extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureGetUsage().set(fn)
+}
+export class ProcTextureGetWidth extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureGetWidth().set(fn)
+}
+export class ProcTextureSetLabel extends c.Function<[texture: Texture, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (texture: Texture, label: StringView) => void) => (texture: any, label: any) => void fn(new Texture().setNative(texture), new StringView().setNative(label))
+  static new = (fn: (texture: Texture, label: StringView) => void) => new ProcTextureSetLabel().set(fn)
+}
+export class ProcTextureAddRef extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureAddRef().set(fn)
+}
+export class ProcTextureRelease extends c.Function<[texture: Texture]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (texture: Texture) => void) => (texture: any) => void fn(new Texture().setNative(texture))
+  static new = (fn: (texture: Texture) => void) => new ProcTextureRelease().set(fn)
+}
+export class ProcTextureViewSetLabel extends c.Function<[textureView: TextureView, label: StringView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'buffer'])
+  }
+  protected override _fn = (fn: (textureView: TextureView, label: StringView) => void) => (textureView: any, label: any) => void fn(new TextureView().setNative(textureView), new StringView().setNative(label))
+  static new = (fn: (textureView: TextureView, label: StringView) => void) => new ProcTextureViewSetLabel().set(fn)
+}
+export class ProcTextureViewAddRef extends c.Function<[textureView: TextureView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (textureView: TextureView) => void) => (textureView: any) => void fn(new TextureView().setNative(textureView))
+  static new = (fn: (textureView: TextureView) => void) => new ProcTextureViewAddRef().set(fn)
+}
+export class ProcTextureViewRelease extends c.Function<[textureView: TextureView]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer'])
+  }
+  protected override _fn = (fn: (textureView: TextureView) => void) => (textureView: any) => void fn(new TextureView().setNative(textureView))
+  static new = (fn: (textureView: TextureView) => void) => new ProcTextureViewRelease().set(fn)
+}
 
 // functions
 export const adapterInfoFreeMembers = (value: AdapterInfo): c.Void => new c.Void().setNative(lib.symbols.wgpuAdapterInfoFreeMembers(value.native))

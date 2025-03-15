@@ -167,7 +167,7 @@ export class Struct<Value extends Record<string, Type<any>>> extends Type<ArrayB
 }
 
 // POINTER
-export class Pointer<Value extends Type<any, any>> extends Type<Deno.PointerValue, bigint> {
+export class Pointer<_Value extends Type<any, any>> extends Type<Deno.PointerValue, bigint> {
   constructor(buffer?: ArrayBuffer, offset?: number) {
     super(buffer, offset, 8, 8)
   }
@@ -199,5 +199,36 @@ export class Void extends Type<void, bigint> {
 }
 
 // FUNCTION
-export class Function extends Type<Deno.PointerValue, () => void> {
+export class Function<Args extends Type<any>[]> extends Type<Deno.PointerValue, bigint, Deno.PointerValue, (...a: Args) => void> {
+  fn?: Deno.UnsafeCallback
+  constructor(buffer: ArrayBuffer | undefined, offset: undefined | number, public args: Deno.NativeType[]) {
+    super(buffer, offset, 8, 8)
+  }
+  protected override _value(): bigint {
+    return new BigUint64Array(this.buffer, this.offset)[0]
+  }
+  protected _fn = (fn: (...a: any[]) => void): (...a: any[]) => void => {
+    throw new Error('Override this')
+  }
+  protected override _set(val: (...a: Args) => void) {
+    this.fn = new Deno.UnsafeCallback({ parameters: this.args, result: 'void' }, this._fn(val))
+    new BigUint64Array(this.buffer, this.offset).set([Deno.UnsafePointer.value(this.fn.pointer)])
+  }
+  protected override _native = () => {
+    this.fn?.ref()
+    return Deno.UnsafePointer.create(this.value)
+  }
+  protected override _setNative = (val: Deno.PointerValue) => {
+    throw new Error("Can't set native function")
+  }
+}
+
+export class RequestAdapterCallback23 extends Function<[a: I32, b: I16, c: I8]> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ['pointer', 'i32'])
+  }
+  protected override _fn = (fn: (a: I32, b: I16, c: I8) => void): (...a: any[]) => void => {
+    return (a, b, c) => void fn(new I32().setNative(a), new I16().setNative(b), new I8().setNative(c))
+  }
+  static new = (fn: (a: I32, b: I16, c: I8) => void) => new RequestAdapterCallback23().set(fn)
 }
