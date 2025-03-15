@@ -35,7 +35,8 @@
         "prefer-const",
         "require-await",
         "no-slow-types",
-        "ban-ts-comment"
+        "ban-ts-comment",
+        "ban-types"
       ],
       "include": [
         "verbatim-module-syntax",

@@ -1,6 +1,6 @@
 import data from './webgpu.json' with { type: 'json' }
 
-let content = `import * as c from './mod.ts'\n\n`
+let content = `import * as c from './mod.ts'\nexport * from './mod.ts'\n\n`
 
 const libTypeMap = {
   ':void': 'void',
@@ -38,14 +38,14 @@ const rename = (name: string) => {
 const consts: string[] = []
 for (const line of data) {
   if (line.tag !== 'const') continue
-  consts.push(`export const ${rename(line.name)} = new c.U32(${line.value})`)
+  consts.push(`export const ${rename(line.name)} = c.U32.new(${line.value})`)
 }
 
 const enums: string[] = []
 for (const line of data) {
   if (line.tag !== 'enum') continue
   enums.push(`export class ${rename(line.name)} extends c.U32 {
-  ${line.fields.map((x: any) => `static '${x.name.replace(`${line.name}_`, '')}' = new ${rename(line.name)}(${x.value})`).join('\n  ')}
+  ${line.fields.map((x: any) => `static '${x.name.replace(`${line.name}_`, '')}' = ${rename(line.name)}.new(${x.value})`).join('\n  ')}
 }`)
 }
 
@@ -76,7 +76,18 @@ const getType = (type: Type): string => {
 const structs: Record<string, string> = {}
 for (const line of data) {
   if (line.tag !== 'struct') continue
-  structs[line.name] = `export class ${rename(line.name)} extends c.Struct<[${line.fields.map((x: any) => `${x.name}: ${getType(x.type)}`).join(', ')}]> {}`
+  const byteLength = line['bit-size'] / 8
+  const alignment = line['bit-alignment'] / 8
+  const type = line.fields.length ? `{ ${line.fields.map((x: any) => `${x.name}: ${getType(x.type)}`).join('; ')} }` : `{}`
+  const fields = line.fields.map((x: any) => `get $${rename(x.name)}(){ return new ${getType(x.type)}(this.buffer, this.offset + ${x['bit-offset'] / 8}) }`).join('\n  ')
+  const _valueFn = !line.fields.length ? undefined : `protected override _value = () => ({${line.fields.map((x: any) => `${rename(x.name)}: this.$${rename(x.name)}`).join(', ')}})`
+  const newFn = `static new = (val: Partial<${type}>) => new ${rename(line.name)}().set(val)`
+  structs[line.name] = `export class ${rename(line.name)} extends c.Struct<${type}> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, ${byteLength}, ${alignment})
+  }
+  ${[fields,_valueFn,newFn].filter(Boolean).join("\n  ")}
+}`
 }
 
 const types: string[] = []
@@ -90,7 +101,7 @@ const functions: string[] = []
 for (const line of data) {
   if (line.tag !== 'function') continue
   const ret = line['return-type']
-  functions.push(`export const ${rename(line.name)} = (${line.parameters.map((x: any) => `${x.name}: ${getType(x.type)}`).join(', ')}): ${getType(ret)} => new ${getType(ret)}(lib.symbols.${line.name}(${line.parameters.map((x: any) => `${x.name}.value`).join(', ')}))`)
+  functions.push(`export const ${rename(line.name)} = (${line.parameters.map((x: any) => `${x.name}: ${getType(x.type)}`).join(', ')}): ${getType(ret)} => new ${getType(ret)}().setNative(lib.symbols.${line.name}(${line.parameters.map((x: any) => `${x.name}.native`).join(', ')}))`)
 }
 
 content += Object.entries({ consts, enums, structs: Object.values(structs), types, functions })

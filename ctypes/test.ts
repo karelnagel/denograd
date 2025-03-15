@@ -28,6 +28,14 @@ Deno.test('Base types', () => {
   test(c.U16, (val) => new Uint16Array([val]))
   test(c.U32, (val) => new Uint32Array([val]))
   test(c.U64, (val) => new BigUint64Array([BigInt(val)]))
+
+  test(c.I8, (val) => new Int8Array([val]))
+  test(c.I16, (val) => new Int16Array([val]))
+  test(c.I32, (val) => new Int32Array([val]))
+  test(c.I64, (val) => new BigInt64Array([BigInt(val)]))
+
+  test(c.F32, (val) => new Float32Array([val]))
+  test(c.F64, (val) => new Float64Array([val]))
 })
 
 Deno.test('Structs', async () => {
@@ -41,15 +49,13 @@ Deno.test('Structs', async () => {
     constructor(buffer?: ArrayBuffer, offset?: number) {
       super(buffer, offset, 32, 8)
     }
-    protected override _value() {
-      return {
-        val1: new c.U8(this.buffer, this.offset + 0),
-        val2: new c.U32(this.buffer, this.offset + 4),
-        val3: new c.U16(this.buffer, this.offset + 8),
-        val4: new c.U64(this.buffer, this.offset + 16),
-        val5: new c.U8(this.buffer, this.offset + 24),
-      }
-    }
+    protected override _value = () => ({
+      val1: new c.U8(this.buffer, this.offset + 0),
+      val2: new c.U32(this.buffer, this.offset + 4),
+      val3: new c.U16(this.buffer, this.offset + 8),
+      val4: new c.U64(this.buffer, this.offset + 16),
+      val5: new c.U8(this.buffer, this.offset + 24),
+    })
   }
   // empty init
   let s1 = new Struct()
@@ -63,7 +69,7 @@ Deno.test('Structs', async () => {
   expect(s1.bytes[4]).toBe(10)
 
   // use set
-  s1.set({ val3: c.u16(3), val5: c.u8(99) })
+  s1.set({ val3: c.U16.new(3), val5: c.U8.new(99) })
   expect(s1.value.val3.value).toBe(3)
   expect(s1.value.val5.value).toBe(99)
   expect(s1.bytes[4]).toBe(10) // didn't change
@@ -84,7 +90,7 @@ Deno.test('Structs', async () => {
   expect(s2.value.val5.value).toBe(99)
 
   // setting won't change the old struct
-  s2.set({ val1: c.u8(88) })
+  s2.set({ val1: c.U8.new(88) })
   expect(s1.value.val1.value).toBe(0)
 
   // loading from pointer
@@ -95,12 +101,12 @@ Deno.test('Structs', async () => {
   expect(s3.value.val5.value).toBe(99)
 
   // set will change the old struct
-  s3.set({ val1: c.u8(33) })
+  s3.set({ val1: c.U8.new(33) })
   expect(s1.value.val1.value).toBe(33)
 
   // loading from null pointer
   const s4 = new Struct()
-  s4.loadFromPtr(c.ptr())
+  s4.loadFromPtr(c.Pointer.new())
   expect(s4.value.val2.value).toBe(0)
   expect(s4.value.val3.value).toBe(0)
   expect(s4.value.val5.value).toBe(0)
@@ -128,7 +134,7 @@ Deno.test('Structs', async () => {
   expect(m1.bytes).toEqual(new Uint8Array(80))
 
   // set
-  m1.set({ val2: new Struct().set({ val2: c.u32(3) }) })
+  m1.set({ val2: new Struct().set({ val2: c.U32.new(3) }) })
   expect(m1.value.val2.value.val2.value).toBe(3)
 
   // child set
@@ -139,8 +145,7 @@ Deno.test('Structs', async () => {
   m1.value.val4.replaceWithPtr(m1.value.val2.ptr())
   expect(m1.value.val4.bytes).toEqual(new Uint8Array(32))
 
-  // loadFromPtr will change the value 
+  // loadFromPtr will change the value
   m1.value.val4.loadFromPtr(m1.value.val2.ptr())
   expect(m1.value.val4.bytes).toEqual(m1.value.val2.bytes)
-
 })
