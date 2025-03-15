@@ -5167,7 +5167,10 @@ export const adapterGetLimits = (adapter: Adapter, limits: c.Pointer<SupportedLi
 export const adapterHasFeature = (adapter: Adapter, feature: FeatureName): Bool => new Bool().setNative(lib.symbols.wgpuAdapterHasFeature(adapter.native, feature.native))
 export const adapterRequestDevice = (adapter: Adapter, descriptor: c.Pointer<DeviceDescriptor>, callback: RequestDeviceCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void().setNative(lib.symbols.wgpuAdapterRequestDevice(adapter.native, descriptor.native, callback.native, userdata.native))
 export const adapterRequestDevice2 = (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo2): Future => new Future().setNative(lib.symbols.wgpuAdapterRequestDevice2(adapter.native, options.native, callbackInfo.native))
-export const adapterRequestDeviceF = (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo): Future => new Future().setNative(lib.symbols.wgpuAdapterRequestDeviceF(adapter.native, options.native, callbackInfo.native))
+export const adapterRequestDeviceF = (adapter: Adapter, options: c.Pointer<DeviceDescriptor>, callbackInfo: RequestDeviceCallbackInfo): Future => {
+  const res = lib.symbols.wgpuAdapterRequestDeviceF(adapter.native, options.native, callbackInfo.native)
+  return new Future().set({id:c.U64.new(Deno.UnsafePointer.value(res))})
+}
 export const adapterAddRef = (adapter: Adapter): c.Void => new c.Void().setNative(lib.symbols.wgpuAdapterAddRef(adapter.native))
 export const adapterRelease = (adapter: Adapter): c.Void => new c.Void().setNative(lib.symbols.wgpuAdapterRelease(adapter.native))
 export const bindGroupSetLabel = (bindGroup: BindGroup, label: StringView): c.Void => new c.Void().setNative(lib.symbols.wgpuBindGroupSetLabel(bindGroup.native, label.native))
@@ -5285,7 +5288,10 @@ export const instanceHasWGSLLanguageFeature = (instance: Instance, feature: WGSL
 export const instanceProcessEvents = (instance: Instance): c.Void => new c.Void().setNative(lib.symbols.wgpuInstanceProcessEvents(instance.native))
 export const instanceRequestAdapter = (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callback: RequestAdapterCallback, userdata: c.Pointer<c.Void>): c.Void => new c.Void().setNative(lib.symbols.wgpuInstanceRequestAdapter(instance.native, options.native, callback.native, userdata.native))
 export const instanceRequestAdapter2 = (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo2): Future => new Future().setNative(lib.symbols.wgpuInstanceRequestAdapter2(instance.native, options.native, callbackInfo.native))
-export const instanceRequestAdapterF = (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo): Future => new Future().setNative(lib.symbols.wgpuInstanceRequestAdapterF(instance.native, options.native, callbackInfo.native))
+export const instanceRequestAdapterF = (instance: Instance, options: c.Pointer<RequestAdapterOptions>, callbackInfo: RequestAdapterCallbackInfo): Future => {
+  const res = (lib.symbols.wgpuInstanceRequestAdapterF(instance.native, options.native, callbackInfo.native))
+  return new Future().set({id:c.U64.new(Deno.UnsafePointer.value(res))})
+}
 export const instanceWaitAny = (instance: Instance, futureCount: c.Size, futures: c.Pointer<FutureWaitInfo>, timeoutNS: c.U64): WaitStatus => new WaitStatus().setNative(lib.symbols.wgpuInstanceWaitAny(instance.native, futureCount.native, futures.native, timeoutNS.native))
 export const instanceAddRef = (instance: Instance): c.Void => new c.Void().setNative(lib.symbols.wgpuInstanceAddRef(instance.native))
 export const instanceRelease = (instance: Instance): c.Void => new c.Void().setNative(lib.symbols.wgpuInstanceRelease(instance.native))

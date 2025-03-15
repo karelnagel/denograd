@@ -222,13 +222,3 @@ export class Function<Args extends Type<any>[]> extends Type<Deno.PointerValue, 
     throw new Error("Can't set native function")
   }
 }
-
-export class RequestAdapterCallback23 extends Function<[a: I32, b: I16, c: I8]> {
-  constructor(buffer?: ArrayBuffer, offset?: number) {
-    super(buffer, offset, ['pointer', 'i32'])
-  }
-  protected override _fn = (fn: (a: I32, b: I16, c: I8) => void): (...a: any[]) => void => {
-    return (a, b, c) => void fn(new I32().setNative(a), new I16().setNative(b), new I8().setNative(c))
-  }
-  static new = (fn: (a: I32, b: I16, c: I8) => void) => new RequestAdapterCallback23().set(fn)
-}
