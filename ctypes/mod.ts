@@ -1,217 +1,112 @@
-type DenoFnType = Deno.ToNativeParameterTypes<[Deno.NativeType]>[number] | void
+export type DenoFnType = Deno.ToNativeParameterTypes<[Deno.NativeType]>[number] | void
 
-export abstract class Type<T extends DenoFnType> {
-  constructor(public _value: T) {}
-  abstract get buffer(): ArrayBuffer
-  abstract fromBuffer(buf: ArrayBuffer): typeof this
+export class Type<NativeValue extends DenoFnType, Value = NativeValue, SetValue = Value> {
+  buffer: ArrayBuffer
+  constructor(
+    buffer?: ArrayBuffer,
+    public offset: number = 0,
+    public byteLength: number = 0,
+    public alignment: number = 0,
+  ) {
+    this.buffer = buffer ?? new ArrayBuffer(this.byteLength)
+  }
+  get bytes() {
+    return new Uint8Array(this.buffer, this.offset, this.byteLength)
+  }
+  protected _value(): Value {
+    throw new Error()
+  }
   get value() {
-    return this._value
+    return this._value()
   }
-  get alignment() {
-    return this.buffer.byteLength
+  protected _set(val: SetValue): void {
+    throw new Error()
   }
-  ptr() {
-    const buf = this.buffer
-    return new Pointer<typeof this>(Deno.UnsafePointer.of(buf))
+  set(val: SetValue) {
+    this._set(val)
+    return this
+  }
+  protected _native = (): NativeValue => this._value() as any
+  get native(): NativeValue {
+    return this._native()
+  }
+  protected _setNative = (val: NativeValue) => this._set(val as any)
+  setNative(val: NativeValue) {
+    this._setNative(val)
+    return this
+  }
+  ptr(): Pointer<typeof this> {
+    return new Pointer().setNative(Deno.UnsafePointer.offset(Deno.UnsafePointer.of(this.buffer) as any, this.offset))
+  }
+  /** Doesn't change the underlying buffer */
+  loadFromPtr(ptr: Pointer<typeof this>, offset = 0): typeof this {
+    if (ptr.value) Deno.UnsafePointerView.copyInto(ptr.native as any, new Uint8Array(this.buffer, this.offset, this.byteLength), offset)
+    return this
+  }
+  /** Changes the buffer to the pointed buffer */
+  replaceWithPtr(ptr: Pointer<typeof this>, offset = 0): typeof this {
+    if (ptr.value) this.buffer = Deno.UnsafePointerView.getArrayBuffer(ptr.native as any, this.byteLength, offset)
+    return this
   }
 }
-
 // UINTS
 export class U8 extends Type<number> {
-  get buffer(): ArrayBuffer {
-    return new Uint8Array([this.value]).buffer
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, 1, 1)
   }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new Uint8Array(buf)[0]
-    return this
-  }
+  protected override _value = () => new Uint8Array(this.buffer, this.offset)[0]
+  protected override _set = (val: number) => new Uint8Array(this.buffer, this.offset).set([val])
 }
+export const u8 = (val: number) => new U8().set(val)
+
 export class U16 extends Type<number> {
-  get buffer(): ArrayBuffer {
-    return new Uint16Array([this.value]).buffer
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, 2, 2)
   }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new Uint16Array(buf)[0]
-    return this
-  }
+  protected override _value = () => new Uint16Array(this.buffer, this.offset)[0]
+  protected override _set = (val: number) => new Uint16Array(this.buffer, this.offset).set([val])
 }
+export const u16 = (val: number) => new U16().set(val)
+
 export class U32 extends Type<number> {
-  get buffer(): ArrayBuffer {
-    return new Uint32Array([this.value]).buffer
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, 4, 4)
   }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new Uint32Array(buf)[0]
-    return this
-  }
+  protected override _value = () => new Uint32Array(this.buffer, this.offset)[0]
+  protected override _set = (val: number) => new Uint32Array(this.buffer, this.offset).set([val])
 }
+export const u32 = (val: number) => new U32().set(val)
+
 export class U64 extends Type<bigint> {
-  get buffer(): ArrayBuffer {
-    return new BigUint64Array([this.value]).buffer
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, 8, 8)
   }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new BigUint64Array(buf)[0]
-    return this
-  }
+  protected override _value = () => new BigUint64Array(this.buffer, this.offset)[0]
+  protected override _set = (val: bigint) => new BigUint64Array(this.buffer, this.offset).set([val])
 }
-export class Size extends U64 {}
+export const u64 = (val: bigint) => new U64().set(val)
 
-// INTS
-export class I8 extends Type<number> {
-  get buffer(): ArrayBuffer {
-    return new Int8Array([this.value]).buffer
-  }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new Int8Array(buf)[0]
-    return this
-  }
-}
-export class I16 extends Type<number> {
-  get buffer(): ArrayBuffer {
-    return new Int16Array([this.value]).buffer
-  }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new Int16Array(buf)[0]
-    return this
-  }
-}
-export class I32 extends Type<number> {
-  get buffer(): ArrayBuffer {
-    return new Int32Array([this.value]).buffer
-  }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new Int32Array(buf)[0]
-    return this
-  }
-}
-export class I64 extends Type<bigint> {
-  get buffer(): ArrayBuffer {
-    return new BigInt64Array([this.value]).buffer
-  }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new BigInt64Array(buf)[0]
-    return this
-  }
-}
-
-// FLOATS
-export class F32 extends Type<number> {
-  get buffer(): ArrayBuffer {
-    return new Float32Array([this.value]).buffer
-  }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new Float32Array(buf)[0]
-    return this
-  }
-}
-export class F64 extends Type<number> {
-  get buffer(): ArrayBuffer {
-    return new Float64Array([this.value]).buffer
-  }
-  override fromBuffer(buf: ArrayBuffer) {
-    this._value = new Float64Array(buf)[0]
-    return this
-  }
-}
-
-// ENUM
-export abstract class Enum<T extends Type<any>, K extends DenoFnType = T['value']> extends Type<K> {
-  constructor(public item: T) {
-    super(item.value)
-  }
-  get buffer(): ArrayBuffer {
-    return this.item.buffer
-  }
-  override fromBuffer(buf: ArrayBuffer): this {
-    this.item.fromBuffer(buf)
-    return this
-  }
-}
-
-// POINTER
-export class Pointer<T extends Type<any> | null> extends Type<Deno.PointerValue> {
-  constructor(value: Deno.PointerValue) {
-    super(value)
-  }
-  get buffer(): ArrayBuffer {
-    return new BigUint64Array([Deno.UnsafePointer.value(this._value)]).buffer
-  }
-  fromBuffer(buf: ArrayBuffer) {
-    this._value = Deno.UnsafePointer.create(new BigUint64Array(buf)[0])
-    return this
-  }
-  override ptr(): any {
-    throw new Error("Can't call .ptr() on pointer")
-  }
-  load(type: T): T {
-    if (type === null) return null as T
-    const buf = type.buffer
-    return type.fromBuffer(Deno.UnsafePointerView.getArrayBuffer(this.value as any, buf.byteLength, 0)) as T
-  }
-}
-
-// STRUCT
-const getOffset = (offset: number, alignment: number) => Math.ceil(offset / alignment) * alignment
-
-export abstract class Struct<T extends Type<any>[]> extends Type<BufferSource> {
-  items: T
-  constructor(...items: T)
-  constructor(pointer: Deno.PointerValue)
-  constructor(...items: T | [Deno.PointerValue]) {
-    if (!(items[0] instanceof Type)) throw new Error(`Not Type ${items[0]}`)
-    super(new Uint8Array())
-    this.items = items as T
-  }
-  override get value() {
-    return this.buffer
-  }
-  override get alignment(): number {
-    return Math.max(...this.items.map((x) => x.alignment))
-  }
-  get buffer(): ArrayBuffer {
-    let offsets: number[] = [], offset = 0
-
-    for (const item of this.items) {
-      const alignedOffset = getOffset(offset, item.alignment)
-      offsets.push(alignedOffset)
-      offset = alignedOffset + item.buffer.byteLength
+export class Struct<Value extends Record<string, Type<any>>> extends Type<ArrayBuffer, Value, Partial<Value>> {
+  protected override _set(val: Partial<Value>) {
+    for (const [k, v] of Object.entries(val)) {
+      this.value[k].set(v.value)
     }
-
-    const result = new Uint8Array(getOffset(offset, this.alignment))
-    for (const [i, item] of this.items.entries()) result.set(new Uint8Array(item.buffer), offsets[i])
-
-    return result.buffer
   }
-
-  override fromBuffer(buf: ArrayBuffer): this {
-    let offset = 0
-
-    for (const item of this.items) {
-      const alignedOffset = getOffset(offset, item.alignment)
-      const size = item.buffer.byteLength
-      item.fromBuffer(buf.slice(alignedOffset, alignedOffset + size))
-      offset = alignedOffset + size
-    }
-
-    return this
-  }
+  protected override _native = () => this.buffer
+  protected override _setNative = (val: ArrayBuffer) => this.buffer = val
 }
-
-// FUNCTION
-export class Function extends Type<Deno.PointerValue> {
-  get buffer(): ArrayBuffer {
-    return new Float32Array([]).buffer
+export class Pointer<Value extends Type<any, any>> extends Type<Deno.PointerValue, bigint> {
+  constructor(buffer?: ArrayBuffer, offset?: number) {
+    super(buffer, offset, 8, 8)
   }
-  override fromBuffer(buf: ArrayBuffer) {
-    // this._value = new Float32Array(buf)[0]
-    return this
+  protected override _value(): bigint {
+    return new BigUint64Array(this.buffer, this.offset)[0]
   }
+  protected override _set(val: bigint) {
+    new BigUint64Array(this.buffer, this.offset, this.byteLength).set([val])
+  }
+  protected override _native = () => Deno.UnsafePointer.create(this.value)
+  protected override _setNative = (val: Deno.PointerValue) => this.buffer = new BigUint64Array([Deno.UnsafePointer.value(val)]).buffer
 }
-
-export class Void extends Type<void> {
-  get buffer(): ArrayBuffer {
-    return new Uint8Array().buffer
-  }
-  override fromBuffer(buf: ArrayBuffer) {
-    return this
-  }
-}
+export const ptr = <T extends Type<any>>(type?: T) => type ? type.ptr() : new Pointer()
+export class Void extends Pointer<any> {}
