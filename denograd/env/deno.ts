@@ -10,12 +10,13 @@ import { WEBGPU } from '../runtime/ops_webgpu.ts'
 import { CLANG } from '../runtime/ops_clang_deno.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { string_to_bytes } from '../helpers.ts'
+import { DAWN } from '../runtime/ops_dawn.ts'
 
 export class DenoEnv extends WebEnv {
   override NAME = 'deno'
   override CPU_DEVICE = 'CLANG'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, WEBGPU, WASM, JS, DISK, CLOUD }
+  override DEVICES = { CLANG, WEBGPU, DAWN, WASM, JS, DISK, CLOUD }
   override readFile = Deno.readFile
   override writeFile = Deno.writeFile
   override remove = Deno.remove
