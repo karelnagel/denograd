@@ -100,9 +100,11 @@ export class WebEnv {
       request.onerror = () => reject(request.error)
     })
   }
-  fetchSave = async (url: string, path: string, dir: string, onProgress?: TqdmOnProgress) => {
-    path = `${dir}/${path}`
-    await this.mkdir(dir)
+  fetchSave = async (url: string, path: string, dir?: string, onProgress?: TqdmOnProgress) => {
+    if (dir){
+      path = `${dir}/${path}`
+      await this.mkdir(dir)
+    }
     if (await this.stat(path).then((x) => x.isFile).catch(() => false)) {
       console.log(`File ${path} already exists, skipping`)
       return path

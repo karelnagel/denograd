@@ -11,7 +11,8 @@
   "workspace": [
     "./denograd",
     "./website",
-    "./cli"
+    "./cli",
+    "./dawn"
   ],
   "nodeModulesDir": "auto",
   "fmt": {
@@ -33,7 +34,9 @@
         "no-unused-vars",
         "prefer-const",
         "require-await",
-        "no-slow-types"
+        "no-slow-types",
+        "ban-ts-comment",
+        "ban-types"
       ],
       "include": [
         "verbatim-module-syntax",
