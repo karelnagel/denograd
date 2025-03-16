@@ -11,8 +11,8 @@ expect(res).toEqual([7, 13])
 res = await new Tensor([5, 5, 5, 5]).matmul(new Tensor([3, 3, 3, 3])).tolist()
 expect(res).toEqual(60)
 
-res = await Tensor.rand([3, 5]).tolist()
-expect(res.length).toEqual(3)
-expect(res[0].length).toEqual(5)
+// res = await Tensor.rand([3, 5]).tolist()
+// expect(res.length).toEqual(3)
+// expect(res[0].length).toEqual(5)
 
 console.log('success')

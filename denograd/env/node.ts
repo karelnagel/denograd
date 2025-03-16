@@ -1,23 +1,21 @@
 import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
-import { DatabaseSync } from 'node:sqlite'
+import type { DatabaseSync } from 'node:sqlite'
 import { WebEnv } from './index.ts'
 import { JS } from '../runtime/ops_js.ts'
-import { WASM } from '../runtime/ops_wasm.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { random_id, string_to_bytes } from '../helpers.ts'
-import { DAWN } from '../runtime/ops_dawn.ts'
 import fs from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import path from 'node:path'
 
 export class NodeEnv extends WebEnv {
   override NAME = 'node'
-  override CPU_DEVICE = 'CLANG'
+  override CPU_DEVICE = 'JS'
   override PLATFORM = process.platform
-  override DEVICES = { DAWN, WASM, JS, CLOUD }
-  override readFile = async (path:string)=>new Uint8Array((await fs.readFile(path)))
+  override DEVICES = { JS, CLOUD }
+  override readFile = async (path: string) => new Uint8Array(await fs.readFile(path))
   override writeFile = fs.writeFile
   override remove = fs.unlink
   override realPath = (...paths: string[]) => paths[0].startsWith('/') ? path.resolve(process.cwd(), ...paths) : path.resolve(...paths)
@@ -35,11 +33,12 @@ export class NodeEnv extends WebEnv {
   private db?: DatabaseSync
   private tables: string[] = []
   private db_name = (table: string) => `${table}_${this.DB_VERSION}`
-  private get_db = async () => {
+  private get_db = async ():Promise<DatabaseSync> => {
     if (this.db) return this.db
     await this.mkdir(this.CACHE_DIR)
+    const DatabaseSync:any = import('node:sqlite').then((x) => DatabaseSync)
     this.db = new DatabaseSync(this.CACHE_DB)
-    return this.db
+    return this.db as any
   }
   override disk_get = async (table: string, key: string) => {
     const db = await this.get_db()
