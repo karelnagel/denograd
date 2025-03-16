@@ -250,10 +250,10 @@ class WebGPUProgram extends Program {
 
     if (wait) {
       const timestamps = new BigUint64Array(read_buffer(WEBGPU.device, query_buf!).buffer)
-      const time = (timestamps[1] - timestamps[0]) / BigInt(1e9)
+      const time = Number(timestamps[1] - timestamps[0]) / 1e9
       c.bufferDestroy(query_buf!)
       c.querySetDestroy(query_set!)
-      return Number(time)
+      return time
     }
   }
 }
@@ -338,11 +338,13 @@ export class WEBGPU extends Compiled {
     console.log(`Device: ${WEBGPU.device}`)
   }
   override synchronize = () => {
-    // result: List[Any] = []
-    // def cb(status, u1, u2): result[:] = [status]
-    // cb_info = create_cb_info(webgpu.WGPUQueueWorkDoneCallbackInfo2, webgpu.WGPUQueueWorkDoneCallback2, cb)
-    // wgpu_wait(webgpu.wgpuQueueOnSubmittedWorkDone2(webgpu.wgpuDeviceGetQueue(this.runtime.args[0][0]), cb_info))
-    // if result[0] != webgpu.WGPUQueueWorkDoneStatus_Success: raise RuntimeError(webgpu.WGPUQueueWorkDoneStatus__enumvalues[result[0]])
-    throw new Error()
+    let result: undefined | c.QueueWorkDoneStatus
+    const cb_info = new c.QueueWorkDoneCallbackInfo2()
+    cb_info.$mode.set(c.CallbackMode.WaitAnyOnly.value)
+    cb_info.$callback.set((status, u1, u2) => {
+      result = status
+    })
+    wgpu_wait(c.queueOnSubmittedWorkDone2(c.deviceGetQueue(WEBGPU.device), cb_info))
+    if (result?.value !== c.QueueWorkDoneStatus.Success.value) throw new Error(`${result}`)
   }
 }
