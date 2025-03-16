@@ -222,3 +222,15 @@ export class Function<Args extends Type<any>[]> extends Type<Deno.PointerValue, 
     throw new Error("Can't set native function")
   }
 }
+
+// ARRAY
+export const createArray = <T extends Type<any>>(items: T[]): T => {
+  const len = items.reduce((acc, x) => acc + x.byteLength, 0)
+  const arr = new Type(new ArrayBuffer(len), 0, len, len)
+  let offset = 0
+  for (const item of items) {
+    arr.bytes.set(item.bytes, offset)
+    offset += item.byteLength
+  }
+  return arr as T
+}
