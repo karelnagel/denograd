@@ -34,11 +34,11 @@ const rename = (name: string) => {
   if (name.startsWith('wgpu')) return name[4].toLowerCase() + name.slice(5)
   return name
 }
-// TODO: all enums are consts are handled as uint32
+// all consts are handled as U64, while enums as U32
 const consts: string[] = []
 for (const line of data) {
   if (line.tag !== 'const') continue
-  consts.push(`export const ${rename(line.name)} = c.U32.new(${line.value})`)
+  consts.push(`export const ${rename(line.name)} = c.U64.new(${line.value}n)`)
 }
 
 const enums: string[] = []

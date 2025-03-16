@@ -52,17 +52,17 @@ const read_buffer = async (dev: c.Device, buf: c.Buffer) => {
   const size = c.bufferGetSize(buf)
   const desc = c.BufferDescriptor.new({
     size: c.U64.new(size.value),
-    usage: c.BufferUsage.new(BigInt(c.BufferUsage_CopyDst.value) | BigInt(c.BufferUsage_MapRead.value)),
+    usage: c.BufferUsage.new(c.BufferUsage_CopyDst.value | c.BufferUsage_MapRead.value),
     mappedAtCreation: c.Bool.new(0),
   })
   const tmp_buffer = c.deviceCreateBuffer(dev, desc.ptr())
   copy_buffer_to_buffer(dev, buf, 0, tmp_buffer, 0, size)
 
-  const [status, msg] = await _run(c.BufferMapCallbackInfo2, (cb) => c.bufferMapAsync2(tmp_buffer, c.MapMode.new(BigInt(c.MapMode_Read.value)), c.Size.new(0n), size, cb))
+  const [status, msg] = await _run(c.BufferMapCallbackInfo2, (cb) => c.bufferMapAsync2(tmp_buffer, c.MapMode.new(c.MapMode_Read.value), c.Size.new(0n), size, cb))
   if (status.value !== c.BufferMapAsyncStatus.Success.value) throw new Error(`Async failed: ${from_wgpu_str(msg)}`)
 
   const void_ptr = c.bufferGetConstMappedRange(tmp_buffer, c.Size.new(0n), size)
-  const buf_copy = new c.Type(new ArrayBuffer(Number(size.value)),0,Number(size.value)).replaceWithPtr(void_ptr)
+  const buf_copy = new c.Type(new ArrayBuffer(Number(size.value)), 0, Number(size.value)).replaceWithPtr(void_ptr)
   c.bufferUnmap(tmp_buffer)
   c.bufferDestroy(tmp_buffer)
   return buf_copy.bytes
@@ -74,7 +74,7 @@ const pop_error = async (device: c.Device) => {
 }
 
 const create_uniform = (wgpu_device: c.Device, val: number) => {
-  const desc = c.BufferDescriptor.new({ size: c.U64.new(4n), usage: c.BufferUsage.new(BigInt(c.BufferUsage_Uniform.value) | BigInt(c.BufferUsage_CopyDst.value)) })
+  const desc = c.BufferDescriptor.new({ size: c.U64.new(4n), usage: c.BufferUsage.new(c.BufferUsage_Uniform.value | c.BufferUsage_CopyDst.value) })
   const buf = c.deviceCreateBuffer(wgpu_device, desc.ptr())
   const bytes = new Uint8Array(4)
   if (isInt(val)) new DataView(bytes.buffer).setInt32(0, val, true)
@@ -124,14 +124,14 @@ class WebGPUProgram extends Program {
     // Creating bind group layout
     let binding_layouts = [c.BindGroupLayoutEntry.new({
       binding: c.U32.new(0),
-      visibility: c.ShaderStage.new(BigInt(c.ShaderStage_Compute.value)),
+      visibility: c.ShaderStage.new(c.ShaderStage_Compute.value),
       buffer: c.BufferBindingLayout.new({ type: c.BufferBindingType.Uniform }),
     })]
     for (const i of range(tmp_bufs.length + vals.length)) {
       binding_layouts.push(
         c.BindGroupLayoutEntry.new({
           binding: c.U32.new(i + 1),
-          visibility: c.ShaderStage.new(BigInt(c.ShaderStage_Compute.value)),
+          visibility: c.ShaderStage.new(c.ShaderStage_Compute.value),
           buffer: c.BufferBindingLayout.new({ type: i >= tmp_bufs.length ? c.BufferBindingType.Uniform : c.BufferBindingType.Storage }),
         }),
       )
@@ -198,7 +198,7 @@ class WebGPUProgram extends Program {
         DAWN.device,
         c.BufferDescriptor.new({
           size: c.U64.new(16n),
-          usage: c.BufferUsage.new(BigInt(c.BufferUsage_QueryResolve.value) | BigInt(c.BufferUsage_CopySrc.value)),
+          usage: c.BufferUsage.new(c.BufferUsage_QueryResolve.value | c.BufferUsage_CopySrc.value),
         }).ptr(),
       )
       comp_pass_desc.$timestampWrites.set(
@@ -241,7 +241,7 @@ class WebGpuAllocator extends Allocator<c.Buffer> {
     // WebGPU buffers have to be 4-byte aligned
     const desc = c.BufferDescriptor.new({
       size: c.U64.new(BigInt(round_up(size, 4))),
-      usage: c.BufferUsage.new(BigInt(c.BufferUsage_Storage.value) | BigInt(c.BufferUsage_CopyDst.value) | BigInt(c.BufferUsage_CopySrc.value)),
+      usage: c.BufferUsage.new(c.BufferUsage_Storage.value | c.BufferUsage_CopyDst.value | c.BufferUsage_CopySrc.value),
     })
     return c.deviceCreateBuffer(DAWN.device, desc.ptr())
   }
