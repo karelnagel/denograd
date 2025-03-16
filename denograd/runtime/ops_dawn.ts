@@ -10,7 +10,8 @@ desc.$features.$timedWaitAnyEnable.set(1)
 
 const instance = c.createInstance(desc.ptr())
 if (!instance.value) throw new Error(`Failed creating instance!`)
-const wgpu_wait = (future: c.Future) => {
+
+const _wait = (future: c.Future) => {
   const res = c.instanceWaitAny(instance, c.Size.new(1n), c.FutureWaitInfo.new({ future }).ptr(), c.U64.new(2n ** 64n - 1n))
   if (res.value !== c.WaitStatus.Success.value) throw new Error('Future failed')
 }
@@ -19,28 +20,24 @@ const from_wgpu_str = (_str: c.StringView): string => {
   const buf = Deno.UnsafePointerView.getArrayBuffer(_str.$data.native as Deno.PointerObject, Number(_str.$length.value))
   return new TextDecoder().decode(buf)
 }
-const to_str = (str: string) => {
+const to_wgpu_str = (str: string) => {
   const data = new TextEncoder().encode(str)
-  return new c.Type(data.buffer as ArrayBuffer, 0, data.length, 8)
+  const _str = new c.Type(data.buffer as ArrayBuffer, 0, data.length, 8)
+  return c.StringView.new({ data: _str.ptr(), length: c.Size.new(BigInt(_str.byteLength)) })
 }
 
 const write_buffer = (device: c.Device, buf: c.Buffer, offset: number, src: Uint8Array) => {
-  c.queueWriteBuffer(c.deviceGetQueue(device), buf, c.U64.new(BigInt(offset)), new c.Pointer().set(Deno.UnsafePointer.value(Deno.UnsafePointer.of(src))), c.Size.new(BigInt(src.length)))
+  c.queueWriteBuffer(c.deviceGetQueue(device), buf, c.U64.new(BigInt(offset)), new c.Pointer().setNative(Deno.UnsafePointer.of(src)), c.Size.new(BigInt(src.length)))
 }
 
-const map_buffer = (buf: c.Buffer, size: c.U64) => {
-  let result: any[] | undefined
-
-  const cb_info = new c.BufferMapCallbackInfo2()
-  cb_info.$mode.set(c.CallbackMode.WaitAnyOnly.value)
-  cb_info.$callback.set((status, msg, u1, u2) => {
-    result = [status, from_wgpu_str(msg)]
+type CallBack = typeof c.BufferMapCallbackInfo2 | typeof c.PopErrorScopeCallbackInfo | typeof c.CreateComputePipelineAsyncCallbackInfo2 | typeof c.RequestAdapterCallbackInfo | typeof c.RequestDeviceCallbackInfo | typeof c.QueueWorkDoneCallbackInfo2
+const _run = async <T extends CallBack>(cb_class: T, async_fn: (cb: InstanceType<T>) => c.Future): Promise<Parameters<Parameters<InstanceType<T>['$callback']['set']>[0]>> => {
+  return await new Promise((resolve) => {
+    const cb = new cb_class()
+    cb.$mode.set(c.CallbackMode.WaitAnyOnly.value)
+    cb.$callback.set((...args) => resolve(args as any))
+    _wait(async_fn(cb as any))
   })
-  wgpu_wait(c.bufferMapAsync2(buf, c.MapMode.new(BigInt(c.MapMode_Read.value)), c.Size.new(0n), size, cb_info))
-
-  if (!result || result[0].value !== c.BufferMapAsyncStatus.Success.value) {
-    throw new Error(`Failed to map buffer: ${result![0]} ${result![1]}`)
-  }
 }
 
 const copy_buffer_to_buffer = (dev: c.Device, src: c.Buffer, src_offset: number, dst: c.Buffer, dst_offset: number, size: c.U64) => {
@@ -51,7 +48,7 @@ const copy_buffer_to_buffer = (dev: c.Device, src: c.Buffer, src_offset: number,
   c.commandBufferRelease(cb)
   c.commandEncoderRelease(encoder)
 }
-const read_buffer = (dev: c.Device, buf: c.Buffer) => {
+const read_buffer = async (dev: c.Device, buf: c.Buffer) => {
   const size = c.bufferGetSize(buf)
   const desc = c.BufferDescriptor.new({
     size: c.U64.new(size.value),
@@ -60,25 +57,22 @@ const read_buffer = (dev: c.Device, buf: c.Buffer) => {
   })
   const tmp_buffer = c.deviceCreateBuffer(dev, desc.ptr())
   copy_buffer_to_buffer(dev, buf, 0, tmp_buffer, 0, size)
-  map_buffer(tmp_buffer, size)
+
+  const [status, msg] = await _run(c.BufferMapCallbackInfo2, (cb) => c.bufferMapAsync2(tmp_buffer, c.MapMode.new(BigInt(c.MapMode_Read.value)), c.Size.new(0n), size, cb))
+  if (status.value !== c.BufferMapAsyncStatus.Success.value) throw new Error(`Async failed: ${from_wgpu_str(msg)}`)
+
   const void_ptr = c.bufferGetConstMappedRange(tmp_buffer, c.Size.new(0n), size)
-  const buf_copy = new Uint8Array(Deno.UnsafePointerView.getArrayBuffer(void_ptr.native as Deno.PointerObject, Number(size.value)))
+  const buf_copy = new c.Type(new ArrayBuffer(Number(size.value)),0,Number(size.value)).replaceWithPtr(void_ptr)
   c.bufferUnmap(tmp_buffer)
   c.bufferDestroy(tmp_buffer)
-  return buf_copy
+  return buf_copy.bytes
 }
 
-const pop_error = (device: c.Device) => {
-  let result = ''
-
-  const cb_info = new c.PopErrorScopeCallbackInfo()
-  cb_info.$mode.set(c.CallbackMode.WaitAnyOnly.value)
-  cb_info.$callback.set((status, err_type, msg, i2) => {
-    result = from_wgpu_str(msg)
-  })
-  wgpu_wait(c.devicePopErrorScopeF(device, cb_info))
-  return result
+const pop_error = async (device: c.Device) => {
+  const [_, __, msg] = await _run(c.PopErrorScopeCallbackInfo, (cb) => c.devicePopErrorScopeF(device, cb))
+  return from_wgpu_str(msg)
 }
+
 const create_uniform = (wgpu_device: c.Device, val: number) => {
   const desc = c.BufferDescriptor.new({ size: c.U64.new(4n), usage: c.BufferUsage.new(BigInt(c.BufferUsage_Uniform.value) | BigInt(c.BufferUsage_CopyDst.value)) })
   const buf = c.deviceCreateBuffer(wgpu_device, desc.ptr())
@@ -90,14 +84,13 @@ const create_uniform = (wgpu_device: c.Device, val: number) => {
 }
 class WebGPUProgram extends Program {
   prg!: c.ShaderModule
-  static override init = (name: string, lib: Uint8Array) => {
+  static override init = async (name: string, lib: Uint8Array) => {
     const res = new WebGPUProgram(name, lib)
     const code = bytes_to_string(res.lib)
 
     // Creating shader module
-    const str = to_str(code)
     const shader = c.ShaderModuleWGSLDescriptor.new({
-      code: c.StringView.new({ data: str.ptr(), length: c.Size.new(BigInt(str.byteLength)) }),
+      code: to_wgpu_str(code),
       chain: c.ChainedStruct.new({ sType: c.SType.ShaderSourceWGSL }),
     })
     const module = new c.ShaderModuleDescriptor()
@@ -105,7 +98,7 @@ class WebGPUProgram extends Program {
     // Check compiler error
     c.devicePushErrorScope(DAWN.device, c.ErrorFilter.Validation)
     const shader_module = c.deviceCreateShaderModule(DAWN.device, module.ptr())
-    const err = pop_error(DAWN.device)
+    const err = await pop_error(DAWN.device)
     if (err) throw new Error(`Shader compilation failed: ${err}`)
     res.prg = shader_module
     return res
@@ -114,7 +107,7 @@ class WebGPUProgram extends Program {
     let tmp_bufs = [...bufs]
     let buf_patch = false
 
-    //   # WebGPU does not allow using the same buffer for input and output
+    // WebGPU does not allow using the same buffer for input and output
     for (const i of range(1, bufs.length)) {
       if (bufs[i].value === bufs[0].value) {
         tmp_bufs[0] = c.deviceCreateBuffer(
@@ -144,28 +137,26 @@ class WebGPUProgram extends Program {
       )
     }
 
-    const bl_arr = c.createArray(binding_layouts)
     c.devicePushErrorScope(DAWN.device, c.ErrorFilter.Validation)
     const bind_group_layouts = [c.deviceCreateBindGroupLayout(
       DAWN.device,
       c.BindGroupLayoutDescriptor.new({
         entryCount: c.Size.new(BigInt(binding_layouts.length)),
-        entries: bl_arr.ptr(),
+        entries: c.createArray(binding_layouts).ptr(),
       }).ptr(),
     )]
-    const bg_layout_err = pop_error(DAWN.device)
+    const bg_layout_err = await pop_error(DAWN.device)
     if (bg_layout_err) throw new Error(`Error creating bind group layout: ${bg_layout_err}`)
 
     // Creating pipeline layout
-    const bindGroupLayouts = c.createArray(bind_group_layouts)
     const pipeline_layout_desc = c.PipelineLayoutDescriptor.new({
       bindGroupLayoutCount: c.Size.new(BigInt(bind_group_layouts.length)),
-      bindGroupLayouts: bindGroupLayouts.ptr(),
+      bindGroupLayouts: c.createArray(bind_group_layouts).ptr(),
     })
 
     c.devicePushErrorScope(DAWN.device, c.ErrorFilter.Validation)
     const pipeline_layout = c.deviceCreatePipelineLayout(DAWN.device, pipeline_layout_desc.ptr())
-    const pipe_err = pop_error(DAWN.device)
+    const pipe_err = await pop_error(DAWN.device)
     if (pipe_err) throw new Error(`Error creating pipeline layout: ${pipe_err}`)
 
     // Creating bind group
@@ -174,41 +165,29 @@ class WebGPUProgram extends Program {
       bindings.push(
         c.BindGroupEntry.new({
           binding: c.U32.new(i + 1),
-          buffer: i >= tmp_bufs.length ? create_uniform(DAWN.device, x as number) : x as c.Buffer,
+          buffer: typeof x === 'number' ? create_uniform(DAWN.device, x) : x,
           offset: c.U64.new(0n),
-          size: i >= tmp_bufs.length ? c.U64.new(4n) : c.bufferGetSize(x as c.Buffer),
+          size: typeof x === 'number' ? c.U64.new(4n) : c.bufferGetSize(x),
         }),
       )
     }
 
-    const bg_arr = c.createArray(bindings)
-    const bind_group_desc = c.BindGroupDescriptor.new({ layout: bind_group_layouts[0], entryCount: c.Size.new(BigInt(bindings.length)), entries: bg_arr.ptr() })
+    const bind_group_desc = c.BindGroupDescriptor.new({ layout: bind_group_layouts[0], entryCount: c.Size.new(BigInt(bindings.length)), entries: c.createArray(bindings).ptr() })
     c.devicePushErrorScope(DAWN.device, c.ErrorFilter.Validation)
     const bind_group = c.deviceCreateBindGroup(DAWN.device, bind_group_desc.ptr())
 
-    const bind_err = pop_error(DAWN.device)
+    const bind_err = await pop_error(DAWN.device)
     if (bind_err) throw new Error(`Error creating bind group: ${bind_err}`)
 
     // Creating compute pipeline
-    const str = to_str(this.name)
     const compute_desc = c.ComputePipelineDescriptor.new({
       layout: pipeline_layout,
-      compute: c.ComputeState.new({ module: this.prg, entryPoint: c.StringView.new({ data: str.ptr(), length: c.Size.new(BigInt(str.byteLength)) }) }),
-    })
-    let pipeline_result: [c.CreatePipelineAsyncStatus, c.ComputePipeline, string] | undefined
-
-    // def cb(status, compute_pipeline_impl, msg, u1, u2): pipeline_result[:] = status, compute_pipeline_impl, from_wgpu_str(msg)
-    const cb_info = new c.CreateComputePipelineAsyncCallbackInfo2()
-    cb_info.$mode.set(c.CallbackMode.WaitAnyOnly.value)
-    cb_info.$callback.set((status, compute_pipline_impl, msg, u1, u2) => {
-      pipeline_result = [status, compute_pipline_impl, from_wgpu_str(msg)]
+      compute: c.ComputeState.new({ module: this.prg, entryPoint: to_wgpu_str(this.name) }),
     })
     c.devicePushErrorScope(DAWN.device, c.ErrorFilter.Validation)
-    wgpu_wait(c.deviceCreateComputePipelineAsync2(DAWN.device, compute_desc.ptr(), cb_info))
+    const [status, compute_pipeline, msg] = await _run(c.CreateComputePipelineAsyncCallbackInfo2, (cb) => c.deviceCreateComputePipelineAsync2(DAWN.device, compute_desc.ptr(), cb))
+    if (status.value !== c.CreatePipelineAsyncStatus.Success.value) throw new Error(`${status}: ${from_wgpu_str(msg)}, ${await pop_error(DAWN.device)}`)
 
-    if (!pipeline_result || pipeline_result[0].value !== c.CreatePipelineAsyncStatus.Success.value) {
-      throw new Error(`${pipeline_result![0]}: ${pipeline_result![2]}, ${pop_error(DAWN.device)}`)
-    }
     const command_encoder = c.deviceCreateCommandEncoder(DAWN.device, new c.CommandEncoderDescriptor().ptr())
     const comp_pass_desc = new c.ComputePassDescriptor()
 
@@ -232,7 +211,7 @@ class WebGPUProgram extends Program {
     }
     // Begin compute pass
     const compute_pass = c.commandEncoderBeginComputePass(command_encoder, comp_pass_desc.ptr())
-    c.computePassEncoderSetPipeline(compute_pass, pipeline_result[1])
+    c.computePassEncoderSetPipeline(compute_pass, compute_pipeline)
     c.computePassEncoderSetBindGroup(compute_pass, c.U32.new(0), bind_group, c.Size.new(0n), new c.Pointer())
     c.computePassEncoderDispatchWorkgroups(compute_pass, c.U32.new(global_size[0]), c.U32.new(global_size[1]), c.U32.new(global_size[2]))
     c.computePassEncoderEnd(compute_pass)
@@ -248,7 +227,7 @@ class WebGPUProgram extends Program {
     }
 
     if (wait) {
-      const timestamps = new BigUint64Array(read_buffer(DAWN.device, query_buf!).buffer)
+      const timestamps = new BigUint64Array((await read_buffer(DAWN.device, query_buf!)).buffer)
       const time = Number(timestamps[1] - timestamps[0]) / 1e9
       c.bufferDestroy(query_buf!)
       c.querySetDestroy(query_set!)
@@ -274,7 +253,7 @@ class WebGpuAllocator extends Allocator<c.Buffer> {
     } else write_buffer(DAWN.device, dest, 0, src.bytes)
   }
   _copyout = async (dest: MemoryView, src: c.Buffer) => {
-    const buffer_data = read_buffer(DAWN.device, src)
+    const buffer_data = await read_buffer(DAWN.device, src)
     dest.set(buffer_data.slice(0, dest.byteLength))
   }
   _free = (opaque: c.Buffer, options?: BufferSpec) => {
@@ -289,61 +268,31 @@ export class DAWN extends Compiled {
   }
   override init = async () => {
     if (DAWN.device) return
-    let adapter_result: [c.RequestAdapterStatus, c.Adapter, string] | undefined
-
-    const cb_info = new c.RequestAdapterCallbackInfo()
-    cb_info.$mode.set(c.CallbackMode.WaitAnyOnly.value)
-    cb_info.$callback.set((status, adapter, msg) => {
-      adapter_result = [status, adapter, from_wgpu_str(msg)]
-    })
-    wgpu_wait(c.instanceRequestAdapterF(instance, c.RequestAdapterOptions.new({ powerPreference: c.PowerPreference.HighPerformance }).ptr(), cb_info))
-
-    if (!adapter_result || adapter_result![0].value !== c.RequestAdapterStatus.Success.value) {
-      throw new Error(`Error requesting adapter: [${adapter_result![0].value}] ${adapter_result![2]}`)
-    }
-    console.log(`Adapter: ${adapter_result[1]}`)
+    const [status, adapter, msg] = await _run(c.RequestAdapterCallbackInfo, (cb) => c.instanceRequestAdapterF(instance, c.RequestAdapterOptions.new({ powerPreference: c.PowerPreference.HighPerformance }).ptr(), cb))
+    if (status.value !== c.RequestAdapterStatus.Success.value) throw new Error(`Error requesting adapter: ${status} ${from_wgpu_str(msg)}`)
 
     const supported_features = new c.SupportedFeatures()
-    c.adapterGetFeatures(adapter_result![1], supported_features.ptr())
+    c.adapterGetFeatures(adapter, supported_features.ptr())
     const supported: c.FeatureName[] = []
     for (let i = 0n; i < supported_features.$featureCount.value; i++) {
       supported.push(new c.FeatureName().loadFromPtr(c.Pointer.new(supported_features.$features.value + i)))
     }
     const features = [c.FeatureName.TimestampQuery, c.FeatureName.ShaderF16].filter((feat) => supported.some((s) => s.value === feat.value))
-
-    // TODO: do array correcly
-    const featArr = c.createArray(features)
-    const dev_desc = c.DeviceDescriptor.new({ requiredFeatureCount: c.Size.new(BigInt(features.length)), requiredFeatures: featArr.ptr() })
+    const dev_desc = c.DeviceDescriptor.new({ requiredFeatureCount: c.Size.new(BigInt(features.length)), requiredFeatures: c.createArray(features).ptr() })
 
     const supported_limits = new c.SupportedLimits()
-    c.adapterGetLimits(adapter_result![1], supported_limits.ptr())
+    c.adapterGetLimits(adapter, supported_limits.ptr())
     const limits = c.RequiredLimits.new({ limits: supported_limits.$limits })
     dev_desc.$requiredLimits.set(limits.ptr().value)
 
     // Requesting a device
-    let device_result: [c.RequestDeviceStatus, c.Device, string] | undefined
+    const [dev_status, device, dev_msg] = await _run(c.RequestDeviceCallbackInfo, (cb) => c.adapterRequestDeviceF(adapter, dev_desc.ptr(), cb))
+    if (dev_status.value !== c.RequestDeviceStatus.Success.value) throw new Error(`Failed to request device: ${dev_status}] ${from_wgpu_str(dev_msg)}`)
 
-    const cb_info2 = new c.RequestDeviceCallbackInfo()
-    cb_info2.$mode.set(c.CallbackMode.WaitAnyOnly.value)
-    cb_info2.$callback.set((status, device_impl, msg, _) => {
-      device_result = [status, device_impl, from_wgpu_str(msg)]
-    })
-    wgpu_wait(c.adapterRequestDeviceF(adapter_result![1], dev_desc.ptr(), cb_info2))
-
-    if (!device_result || device_result[0].value !== c.RequestDeviceStatus.Success.value) {
-      throw new Error(`Failed to request device: [${device_result![0].value}] ${device_result![2]}`)
-    }
-    DAWN.device = device_result[1]
-    console.log(`Device: ${DAWN.device}`)
+    DAWN.device = device
   }
-  override synchronize = () => {
-    let result: undefined | c.QueueWorkDoneStatus
-    const cb_info = new c.QueueWorkDoneCallbackInfo2()
-    cb_info.$mode.set(c.CallbackMode.WaitAnyOnly.value)
-    cb_info.$callback.set((status, u1, u2) => {
-      result = status
-    })
-    wgpu_wait(c.queueOnSubmittedWorkDone2(c.deviceGetQueue(DAWN.device), cb_info))
-    if (result?.value !== c.QueueWorkDoneStatus.Success.value) throw new Error(`${result}`)
+  override synchronize = async () => {
+    const [status] = await _run(c.QueueWorkDoneCallbackInfo2, (cb) => c.queueOnSubmittedWorkDone2(c.deviceGetQueue(DAWN.device), cb))
+    if (status.value !== c.QueueWorkDoneStatus.Success.value) throw new Error(`Failed to synchronize: ${status}`)
   }
 }
