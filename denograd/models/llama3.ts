@@ -213,12 +213,13 @@ export class Llama3 implements Llama3Constructor {
 
   load = async ({ onProgress, system }: Llama3Load) => {
     const model_path = await this._download(undefined, onProgress)
-    const scale_dtype = dtypes.float16
+    const noF16Support = env.NAME === 'deno' && Device.DEFAULT === 'WEBGPU'
+    const scale_dtype = noF16Support ? dtypes.float32 : dtypes.float16
     // load weights
     let weights: Record<string, Tensor>
 
     // Deno WEBGPU doesn't support f16 yet, so we load weights in CLANG
-    await withEnvAsync({ BEAM: 0, DEVICE: Device.DEFAULT }, async () => {
+    await withEnvAsync({ BEAM: 0, DEVICE: noF16Support ? 'CLANG' : Device.DEFAULT }, async () => {
       weights = await this._load(model_path, onProgress)
       if ('model.embed_tokens.weight' in weights) {
         weights = convert_from_huggingface(weights, this.model, MODEL_PARAMS[this.size].args.n_heads, MODEL_PARAMS[this.size].args.n_kv_heads)
