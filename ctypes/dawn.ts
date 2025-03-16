@@ -2093,6 +2093,16 @@ export class StringView extends c.Struct<{ data: c.Pointer<c.U8>; length: c.Size
   get $length(){ return new c.Size(this.buffer, this.offset + 8) }
   protected override _value = () => ({data: this.$data, length: this.$length})
   static new = (val: Partial<{ data: c.Pointer<c.U8>; length: c.Size }>) => new StringView().set(val)
+  protected override _setNative= (val: ArrayBuffer | Deno.PointerValue) =>{
+    if (val instanceof ArrayBuffer) this.buffer = val
+    else if (!val) return 
+    else {
+      const string = Deno.UnsafePointerView.getCString(val as Deno.PointerObject)
+      const buf = new TextEncoder().encode(string + '\0')
+      const str = new c.Type(buf.buffer as ArrayBuffer, 0, buf.length, 8)
+      this.set({ data: str.ptr(), length: c.Size.new(BigInt(str.byteLength)) })
+    }
+  }
 }
 export class SupportedFeatures extends c.Struct<{ featureCount: c.Size; features: c.Pointer<FeatureName> }> {
   constructor(buffer?: ArrayBuffer, offset?: number) {

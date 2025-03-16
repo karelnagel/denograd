@@ -15,13 +15,16 @@ const wgpu_wait = (future: c.Future) => {
   if (res.value !== c.WaitStatus.Success.value) throw new Error('Future failed')
 }
 const from_wgpu_str = (_str: c.StringView): string => {
-  return _str.$data.value ? Deno.UnsafePointerView.getCString(_str.$data.native as Deno.PointerObject) : ''
+  if (_str.$length.value <= 1) return ''
+  const buf = Deno.UnsafePointerView.getArrayBuffer(_str.$data.native as Deno.PointerObject, Number(_str.$length.value))
+  console.log(buf)
+  return new TextDecoder().decode(buf)
 }
-const to_wgpu_str = (str: string): c.StringView => {
-  const data = new TextEncoder().encode(str + '\0')
-  const pointer = Deno.UnsafePointer.of(data)
-  return c.StringView.new({ data: new c.Pointer().setNative(pointer), length: c.Size.new(BigInt(str.length)) })
+const to_str = (str: string) => {
+  const data = new TextEncoder().encode(str)
+  return new c.Type(data.buffer as ArrayBuffer, 0, data.length, 8)
 }
+
 const write_buffer = (device: c.Device, buf: c.Buffer, offset: number, src: Uint8Array) => {
   c.queueWriteBuffer(c.deviceGetQueue(device), buf, c.U64.new(BigInt(offset)), new c.Pointer().set(Deno.UnsafePointer.value(Deno.UnsafePointer.of(src))), c.Size.new(BigInt(src.length)))
 }
@@ -67,15 +70,16 @@ const read_buffer = (dev: c.Device, buf: c.Buffer) => {
 }
 
 const pop_error = (device: c.Device) => {
-  let result: [string] | undefined
+  let result = ''
 
   const cb_info = new c.PopErrorScopeCallbackInfo()
   cb_info.$mode.set(c.CallbackMode.WaitAnyOnly.value)
   cb_info.$callback.set((status, err_type, msg, i2) => {
-    result = [from_wgpu_str(msg)]
+    console.log(status, err_type, msg, i2)
+    result = from_wgpu_str(msg)
   })
   wgpu_wait(c.devicePopErrorScopeF(device, cb_info))
-  return result?.length ? result[0] : ''
+  return result
 }
 const create_uniform = (wgpu_device: c.Device, val: number) => {
   const desc = c.BufferDescriptor.new({ size: c.U64.new(4n), usage: c.BufferUsage.new(BigInt(c.BufferUsage_Uniform.value) | BigInt(c.BufferUsage_CopyDst.value)) })
@@ -88,28 +92,24 @@ const create_uniform = (wgpu_device: c.Device, val: number) => {
 }
 class WebGPUProgram extends Program {
   prg!: c.ShaderModule
-  code!: string
-  bind_group_layout?: GPUBindGroupLayout
-  compute_pipeline?: GPUComputePipeline
   static override init = (name: string, lib: Uint8Array) => {
     const res = new WebGPUProgram(name, lib)
-    res.code = bytes_to_string(res.lib)
+    const code = bytes_to_string(res.lib)
 
     // Creating shader module
+    const str = to_str(code)
     const shader = c.ShaderModuleWGSLDescriptor.new({
-      code: to_wgpu_str(res.code),
+      code: c.StringView.new({ data: str.ptr(), length: c.Size.new(BigInt(str.byteLength)) }),
       chain: c.ChainedStruct.new({ sType: c.SType.ShaderSourceWGSL }),
     })
     const module = new c.ShaderModuleDescriptor()
     module.$nextInChain.set(shader.ptr().value)
-
     // Check compiler error
     c.devicePushErrorScope(WEBGPU.device, c.ErrorFilter.Validation)
     const shader_module = c.deviceCreateShaderModule(WEBGPU.device, module.ptr())
-
     const err = pop_error(WEBGPU.device)
     if (err) throw new Error(`Shader compilation failed: ${err}`)
-
+      console.log(shader_module)
     res.prg = shader_module
     return res
   }
@@ -194,9 +194,10 @@ class WebGPUProgram extends Program {
     if (bind_err) throw new Error(`Error creating bind group: ${bind_err}`)
 
     // Creating compute pipeline
+    const str = to_str(this.name)
     const compute_desc = c.ComputePipelineDescriptor.new({
       layout: pipeline_layout,
-      compute: c.ComputeState.new({ module: this.prg, entryPoint: to_wgpu_str(self.name) }),
+      compute: c.ComputeState.new({ module: this.prg, entryPoint: c.StringView.new({ data: str.ptr(), length: c.Size.new(BigInt(str.byteLength)) }) }),
     })
     let pipeline_result: [c.CreatePipelineAsyncStatus, c.ComputePipeline, string] | undefined
 
@@ -343,7 +344,7 @@ export class WEBGPU extends Compiled {
     // result: List[Any] = []
     // def cb(status, u1, u2): result[:] = [status]
     // cb_info = create_cb_info(webgpu.WGPUQueueWorkDoneCallbackInfo2, webgpu.WGPUQueueWorkDoneCallback2, cb)
-    // wgpu_wait(webgpu.wgpuQueueOnSubmittedWorkDone2(webgpu.wgpuDeviceGetQueue(self.runtime.args[0][0]), cb_info))
+    // wgpu_wait(webgpu.wgpuQueueOnSubmittedWorkDone2(webgpu.wgpuDeviceGetQueue(this.runtime.args[0][0]), cb_info))
     // if result[0] != webgpu.WGPUQueueWorkDoneStatus_Success: raise RuntimeError(webgpu.WGPUQueueWorkDoneStatus__enumvalues[result[0]])
     throw new Error()
   }
