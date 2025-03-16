@@ -45,7 +45,7 @@ export class ClangProgram extends Program {
     console.log(this.lib)
     this.fxn = dlopen(this.file, {
       [this.name]: {
-        parameters: [...bufs.map(() => FFIType.ptr), ...vals.map(() => FFIType.i32)],
+        args: [...bufs.map(() => FFIType.ptr), ...vals.map(() => FFIType.i32)],
         returns: FFIType.void,
       },
     })
