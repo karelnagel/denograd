@@ -1,5 +1,5 @@
-import * as c from './mod.ts'
-export * from './mod.ts'
+import * as c from './ctypes.ts'
+export * from './ctypes.ts'
 
 const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dylib', {
   wgpuAdapterInfoFreeMembers: { parameters: ['buffer'], result: 'void' },

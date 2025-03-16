@@ -1,6 +1,6 @@
 import data from './webgpu.json' with { type: 'json' }
 
-let content = `import * as c from './mod.ts'\nexport * from './mod.ts'\n\n`
+let content = `import * as c from './ctypes.ts'\nexport * from './ctypes.ts'\n\n`
 
 const libTypeMap = {
   ':void': 'void',
@@ -97,7 +97,7 @@ for (const line of data) {
 }
 
 const callbacks: string[] = []
-const header = await Deno.readTextFile('ctypes/webgpu.h')
+const header = await Deno.readTextFile('dawn/webgpu.h')
 const getCallbackParameters = (fnName: string): { name: string; type: Type }[] => {
   const txt = header.split(`(*${fnName})(`)[1].split(`) WGPU_FUNCTION_ATTRIBUTE;`)[0]
   const out: { name: string; type: Type }[] = []
@@ -141,4 +141,4 @@ content += Object.entries({ consts, enums, structs: Object.values(structs), type
   .map(([k, v]) => `// ${k}\n${v.join('\n')}`).join('\n\n')
 content += '\n'
 
-Deno.writeTextFile('ctypes/dawn.ts', content)
+Deno.writeTextFile('dawn/bindings.ts', content)

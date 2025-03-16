@@ -3,7 +3,7 @@ import { bytes_to_string, isInt, range, round_up } from '../helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import type { MemoryView } from '../memoryview.ts'
-import * as c from '../../ctypes/dawn.ts'
+import * as c from '../../dawn/bindings.ts'
 
 const desc = new c.InstanceDescriptor()
 desc.$features.$timedWaitAnyEnable.set(1)

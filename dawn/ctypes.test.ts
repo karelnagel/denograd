@@ -1,4 +1,4 @@
-import * as c from './mod.ts'
+import * as c from './ctypes.ts'
 import { expect } from 'expect'
 
 const check = (ctype: c.Type<any>, val: any, buffer: ArrayBuffer) => {

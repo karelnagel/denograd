@@ -12,7 +12,7 @@
     "./denograd",
     "./website",
     "./cli",
-    "./ctypes"
+    "./dawn"
   ],
   "nodeModulesDir": "auto",
   "fmt": {
