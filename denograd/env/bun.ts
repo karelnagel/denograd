@@ -9,11 +9,12 @@ import { CLANG } from '../runtime/ops_clang_bun.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
+import { DAWN } from '../runtime/ops_dawn.ts'
 
 export class BunEnv extends WebEnv {
   override NAME = 'bun'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, WASM, JS, CLOUD }
+  override DEVICES = { CLANG, WASM, JS, CLOUD, DAWN }
 
   override readFile = async (path: string) => new Uint8Array(await Bun.file(path).arrayBuffer())
   override writeFile = async (path: string, data: Uint8Array) => void Bun.write(path, data)
@@ -32,7 +33,7 @@ export class BunEnv extends WebEnv {
   }
   override homedir = os.homedir
   override mkdir = async (path: string) => void await mkdir(path, { recursive: true })
-  override args = () => Bun.argv
+  override args = () => Bun.argv.slice(2)
 
   override gunzip = async (res: Response) => Bun.gunzipSync(new Uint8Array(await res.arrayBuffer())).buffer as ArrayBuffer
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
