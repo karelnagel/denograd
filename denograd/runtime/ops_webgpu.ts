@@ -48,7 +48,7 @@ const copy_buffer_to_buffer = (dev: c.Device, src: c.Buffer, src_offset: number,
   const encoder = c.deviceCreateCommandEncoder(dev, new c.CommandEncoderDescriptor().ptr())
   c.commandEncoderCopyBufferToBuffer(encoder, src, c.U64.new(BigInt(src_offset)), dst, c.U64.new(BigInt(dst_offset)), size)
   const cb = c.commandEncoderFinish(encoder, new c.CommandBufferDescriptor().ptr())
-  c.queueSubmit(c.deviceGetQueue(dev), c.Size.new(BigInt(1)), cb)
+  c.queueSubmit(c.deviceGetQueue(dev), c.Size.new(1n), cb.ptr())
   c.commandBufferRelease(cb)
   c.commandEncoderRelease(encoder)
 }
@@ -75,7 +75,6 @@ const pop_error = (device: c.Device) => {
   const cb_info = new c.PopErrorScopeCallbackInfo()
   cb_info.$mode.set(c.CallbackMode.WaitAnyOnly.value)
   cb_info.$callback.set((status, err_type, msg, i2) => {
-    console.log(status, err_type, msg, i2)
     result = from_wgpu_str(msg)
   })
   wgpu_wait(c.devicePopErrorScopeF(device, cb_info))
@@ -109,7 +108,6 @@ class WebGPUProgram extends Program {
     const shader_module = c.deviceCreateShaderModule(WEBGPU.device, module.ptr())
     const err = pop_error(WEBGPU.device)
     if (err) throw new Error(`Shader compilation failed: ${err}`)
-      console.log(shader_module)
     res.prg = shader_module
     return res
   }
@@ -168,7 +166,6 @@ class WebGPUProgram extends Program {
 
     c.devicePushErrorScope(WEBGPU.device, c.ErrorFilter.Validation)
     const pipeline_layout = c.deviceCreatePipelineLayout(WEBGPU.device, pipeline_layout_desc.ptr())
-
     const pipe_err = pop_error(WEBGPU.device)
     if (pipe_err) throw new Error(`Error creating pipeline layout: ${pipe_err}`)
 
@@ -248,8 +245,8 @@ class WebGPUProgram extends Program {
 
     if (buf_patch) {
       copy_buffer_to_buffer(WEBGPU.device, tmp_bufs[0], 0, bufs[0], 0, c.bufferGetSize(bufs[0]))
+      c.bufferDestroy(tmp_bufs[0])
     }
-    c.bufferDestroy(tmp_bufs[0])
 
     if (wait) {
       const timestamps = new BigUint64Array(read_buffer(WEBGPU.device, query_buf!).buffer)
