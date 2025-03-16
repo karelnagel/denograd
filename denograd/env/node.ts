@@ -1,7 +1,6 @@
 import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
-import type { DatabaseSync } from 'node:sqlite'
 import { WebEnv } from './index.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
@@ -9,6 +8,7 @@ import { random_id, string_to_bytes } from '../helpers.ts'
 import fs from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import path from 'node:path'
+import type { DatabaseSync } from 'node:sqlite'
 
 export class NodeEnv extends WebEnv {
   override NAME = 'node'
@@ -33,12 +33,12 @@ export class NodeEnv extends WebEnv {
   private db?: DatabaseSync
   private tables: string[] = []
   private db_name = (table: string) => `${table}_${this.DB_VERSION}`
-  private get_db = async ():Promise<DatabaseSync> => {
+  private get_db = async (): Promise<DatabaseSync> => {
     if (this.db) return this.db
     await this.mkdir(this.CACHE_DIR)
-    const DatabaseSync:any = import('node:sqlite').then((x) => DatabaseSync)
+    const { DatabaseSync } = await import('node:sqlite')
     this.db = new DatabaseSync(this.CACHE_DB)
-    return this.db as any
+    return this.db
   }
   override disk_get = async (table: string, key: string) => {
     const db = await this.get_db()
