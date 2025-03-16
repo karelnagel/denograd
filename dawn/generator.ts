@@ -25,7 +25,9 @@ const getLibType = (type: Type): string => {
   return getLibType(lines[0].type)
 }
 
-content += `const lib = Deno.dlopen('/opt/homebrew/Cellar/dawn/0.1.6/lib/libwebgpu_dawn.dylib', {
+content += `let lib!: ReturnType<typeof _init>
+export const init = (path: string)=> lib = _init(path)
+const _init = (path: string)=> Deno.dlopen(path, {
   ${data.filter((x) => x.tag === 'function').map((x) => `${x.name}: { parameters: [${x.parameters.map((x: any) => getLibType(x.type)).join(', ')}], result: ${getLibType(x['return-type'])} },`).join('\n  ')}
 })\n\n`
 

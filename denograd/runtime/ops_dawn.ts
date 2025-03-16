@@ -4,15 +4,10 @@ import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCa
 import { WGSLRenderer } from '../renderer/wgsl.ts'
 import type { MemoryView } from '../memoryview.ts'
 import * as c from '../../dawn/bindings.ts'
-
-const desc = new c.InstanceDescriptor()
-desc.$features.$timedWaitAnyEnable.set(1)
-
-const instance = c.createInstance(desc.ptr())
-if (!instance.value) throw new Error(`Failed creating instance!`)
+import { env } from '../env/index.ts'
 
 const _wait = (future: c.Future) => {
-  const res = c.instanceWaitAny(instance, c.Size.new(1n), c.FutureWaitInfo.new({ future }).ptr(), c.U64.new(2n ** 64n - 1n))
+  const res = c.instanceWaitAny(DAWN.instance, c.Size.new(1n), c.FutureWaitInfo.new({ future }).ptr(), c.U64.new(2n ** 64n - 1n))
   if (res.value !== c.WaitStatus.Success.value) throw new Error('Future failed')
 }
 const from_wgpu_str = (_str: c.StringView): string => {
@@ -263,12 +258,29 @@ class WebGpuAllocator extends Allocator<c.Buffer> {
 
 export class DAWN extends Compiled {
   static device: c.Device
+  static instance: c.Instance
   constructor(device: string) {
     super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
   override init = async () => {
     if (DAWN.device) return
-    const [status, adapter, msg] = await _run(c.RequestAdapterCallbackInfo, (cb) => c.instanceRequestAdapterF(instance, c.RequestAdapterOptions.new({ powerPreference: c.PowerPreference.HighPerformance }).ptr(), cb))
+    const FILE = env.OSX ? 'libwebgpu_dawn.dylib' : 'libwebgpu_dawn.so'
+    const URL = `https://github.com/wpmed92/pydawn/releases/download/v0.1.6/${FILE}`
+    const PATH = `${env.CACHE_DIR}/${FILE}`
+    
+    if (!await Deno.stat(PATH).catch(() => undefined)) {
+      console.log(`Downloading ${FILE} to ${PATH}`)
+      await env.fetchSave(URL, FILE, PATH)
+    }
+    c.init(PATH)
+
+    const desc = new c.InstanceDescriptor()
+    desc.$features.$timedWaitAnyEnable.set(1)
+
+    DAWN.instance = c.createInstance(desc.ptr())
+    if (!DAWN.instance.value) throw new Error(`Failed creating instance!`)
+
+    const [status, adapter, msg] = await _run(c.RequestAdapterCallbackInfo, (cb) => c.instanceRequestAdapterF(DAWN.instance, c.RequestAdapterOptions.new({ powerPreference: c.PowerPreference.HighPerformance }).ptr(), cb))
     if (status.value !== c.RequestAdapterStatus.Success.value) throw new Error(`Error requesting adapter: ${status} ${from_wgpu_str(msg)}`)
 
     const supported_features = new c.SupportedFeatures()

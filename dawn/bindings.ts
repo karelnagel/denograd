@@ -1,19 +1,9 @@
 import * as c from './ctypes.ts'
 export * from './ctypes.ts'
-import os from "node:os"
-import process from "node:process";
 
-const FILE = process.platform==="darwin" ? 'libwebgpu_dawn.dylib' : 'libwebgpu_dawn.so'
-const URL = `https://github.com/wpmed92/pydawn/releases/download/v0.1.6/${FILE}`
-const PATH = `${os.homedir()}/.cache/${FILE}`
-
-if (!await Deno.stat(PATH).catch(() => undefined)) {
-  console.log(`Downloading ${FILE} to ${PATH}`)
-  const res = await fetch(URL).then((x) => x.arrayBuffer())
-  await Deno.writeFile(PATH, new Uint8Array(res))
-}
-
-const lib = Deno.dlopen(PATH, {
+let lib!: ReturnType<typeof _init>
+export const init = (path: string)=> lib = _init(path)
+const _init = (path: string)=> Deno.dlopen(path, {
   wgpuAdapterInfoFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuAdapterPropertiesMemoryHeapsFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuCreateInstance: { parameters: ['pointer'], result: 'pointer' },
