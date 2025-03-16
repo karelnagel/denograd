@@ -1,4 +1,4 @@
-import { expect } from 'expect/expect'
+import { expect } from '@std/expect'
 import { MNIST } from '../denograd/models/mnist.ts'
 import { mnist } from '../denograd/nn/datasets.ts'
 import { Tensor } from '../denograd/tensor.ts'

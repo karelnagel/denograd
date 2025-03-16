@@ -1,5 +1,5 @@
 import * as c from './ctypes.ts'
-import { expect } from 'expect'
+import { expect } from '@std/expect'
 
 const check = (ctype: c.Type<any>, val: any, buffer: ArrayBuffer) => {
   expect(new Uint8Array(ctype.buffer)).toEqual(new Uint8Array(buffer))

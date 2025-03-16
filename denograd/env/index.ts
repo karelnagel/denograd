@@ -1,9 +1,12 @@
 // deno-lint-ignore-file no-process-global
+import type { Stats as NodeStats } from 'node:fs'
 import { memsize_to_str } from '../helpers.ts'
 import type { Compiled } from '../runtime/allocator.ts'
 import { Sha256 } from '../sha256.js'
 import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
-export type Stat = { size: number; isFile: boolean }
+
+export type Stats = Pick<NodeStats, 'isFile' | 'size'>
+
 // deno-fmt-ignore
 export class WebEnv {
   NAME = 'web'
@@ -40,13 +43,13 @@ export class WebEnv {
       request.onerror = () => reject(request.error)
     })
   }
-  realPath = async (path: string): Promise<string> =>path
-  stat = async (path: string): Promise<Stat> => {
+  realPath =  (...paths: string[]): string =>paths.join("/")
+  stat = async (path: string): Promise<Stats> => {
     const res = await this.disk_get("fs", path)
     if (!res || !(res instanceof Uint8Array)) throw new Error(`No entry for ${path}`)
-    return { isFile:!!res, size:res.length }
+    return { isFile: ()=>!!res, size:res.length }
   }
-  statSync = (path: string): Stat => this.notImplemented()
+  statSync = (path: string): Stats => this.notImplemented()
   tempFile = async (): Promise<string> => `/tmp/${(Math.random() * 100000000).toFixed(0)}`
   writeStdout = (p:string) => console.log(p+'\u200B')
   homedir = () => '/home'
@@ -102,10 +105,10 @@ export class WebEnv {
   }
   fetchSave = async (url: string, path: string, dir?: string, onProgress?: TqdmOnProgress) => {
     if (dir){
-      path = `${dir}/${path}`
+      path = this.realPath(dir,path)
       await this.mkdir(dir)
-    }
-    if (await this.stat(path).then((x) => x.isFile).catch(() => false)) {
+    } else path = this.realPath(path)
+    if (await this.stat(path).then((x) => x.isFile()).catch(() => undefined)) {
       console.log(`File ${path} already exists, skipping`)
       return path
     }

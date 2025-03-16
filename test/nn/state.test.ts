@@ -1,4 +1,4 @@
-import { expect } from 'expect/expect'
+import { expect } from '@std/expect'
 import { Tensor } from '../../denograd/tensor.ts'
 import { get_parameters, get_state_dict, gguf_load, safe_load } from '../../denograd/nn/state.ts'
 import { zip } from '../../denograd/helpers.ts'
