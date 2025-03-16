@@ -663,8 +663,7 @@ export class Kernel {
   // **** kernel outputs ****
 
   static kernel_cnt = new DefaultMap<string, number>(undefined, () => 0)
-  @cache
-  get name(): string {
+  private _name = cache((): string => {
     // kernel name (before late upcast)
     const kernel_type = this.reduceop !== undefined ? 'r' : ([...this.ast.toposort].every((x) => x.op === Ops.SINK || GroupOp.Buffer.includes(x.op)) ? 'C' : 'E')
     const suffix = zip(this.full_shape, this.colors()).map(([x, c]) => colored(isinstance(x, UOp) ? x.render() : x.toString(), c)).join(colored('_', 'BLACK'))
@@ -675,9 +674,11 @@ export class Kernel {
     Kernel.kernel_cnt.set(function_name, Kernel.kernel_cnt.get(function_name) + 1)
     const num = Kernel.kernel_cnt.get(function_name) > 1 ? `n${Kernel.kernel_cnt.get(function_name) - 1}` : ''
     return name + colored(num, 'BLACK')
+  })
+  get name() {
+    return this._name()
   }
-  @cache
-  fixup_ast(op: UOp): UOp {
+  fixup_ast = cache((op: UOp): UOp => {
     let ret = op.replace({ src: op.src.map((x) => this.fixup_ast(x)) })
     if (GroupOp.Buffer.includes(op.op) && this.bufs.includes(op)) {
       const st_uop = this.sts[this.bufs.indexOf(op)].to_uop()
@@ -714,7 +715,7 @@ export class Kernel {
       }
     }
     return ret
-  }
+  })
   get_optimized_ast = (): UOp => {
     return graph_rewrite(this.fixup_ast(this.ast), view_left)
   }

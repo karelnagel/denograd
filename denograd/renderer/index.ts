@@ -114,9 +114,9 @@ export class ProgramSpec {
       this._ran_post_init = true
     }
   }
-  @cache
+  private _estimates = cache(() => replace(this.uops === undefined ? new Estimates() : Estimates.from_uops(this.uops, true), { mem: this.mem_estimate }))
   get estimates() {
-    return replace(this.uops === undefined ? new Estimates() : Estimates.from_uops(this.uops, true), { mem: this.mem_estimate })
+    return this._estimates()
   }
 
   // KAREL: TODO: for some reason gives invalid out

@@ -23,11 +23,10 @@ export class _Device {
     env.set('DEVICE', dev)
     return dev
   }
-  @cache
-  _canonicalize(device: string): string {
+  private _canonicalize = cache((device: string): string => {
     const d = device.split(':', 1)[0].toUpperCase()
     return d + device.slice(d.length).replace(':0', '')
-  }
+  })
   // NOTE: you can't cache canonicalize in case Device.DEFAULT changes
   canonicalize = (device?: string) => device !== undefined ? this._canonicalize(device) : Device.DEFAULT
   get(device: string): Compiled {

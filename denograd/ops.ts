@@ -293,14 +293,13 @@ export class UOp extends MathTrait<UOp> {
     }
     return _toposort(this, new Set())
   }
-  @cache
+  private _tuplize = cache(() => [this.op.value, this.arg, this.dtype, this.src.map((x) => x.tuplize)])
   get tuplize(): any[] {
-    return [this.op.value, this.arg, this.dtype, this.src.map((x) => x.tuplize)]
+    return this._tuplize()
   }
 
   // *** uop shape stuff ***
-  @cache
-  get st(): undefined | ShapeTracker {
+  private _st = cache((): undefined | ShapeTracker => {
     if (this.op === Ops.MULTI) {
       return ShapeTracker.from_shape(this.real_lbs[0].shape.map((s, a) => a === this.axis ? sum(this.real_lbs.map((y) => y.shape[a])) : s))
     }
@@ -320,12 +319,18 @@ export class UOp extends MathTrait<UOp> {
     else if ([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op)) shape = src_sts[0].reduce(this.axis_arg)
     else shape = src_sts[0].shape
     return ShapeTracker.from_shape(shape)
+  })
+  get st() {
+    return this._st()
   }
-  @cache
-  get full_shape(): sint[] {
+
+  private _full_shape = cache((): sint[] => {
     if (this.op === Ops.VIEW) return this.shape
     //  TODO: this should check if st is None, it cannot because local reduce has implicit movement ops
     return zip(...this.src.filter((x) => ![Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.CONST].includes(x.op)).map((x) => x.full_shape)).map((x) => smax(...x))
+  })
+  get full_shape() {
+    return this._full_shape()
   }
   get shape() {
     return this.st!.shape
@@ -343,7 +348,7 @@ export class UOp extends MathTrait<UOp> {
   _eval = <T extends new (...args: any[]) => void>(dtypes: DType[], expectedType: T): InstanceType<T> => {
     if (!dtypes.includes(this.dtype)) throw new Error(`eval with wrong dtype ${this}`)
     const simpleThis = this.simplify()
-    const [vmin, vmax] = simpleThis._min_max
+    const [vmin, vmax] = simpleThis.min_max
     if (is_eq(vmin, vmax)) throw new Error(`eval failed to be a single number, range is ${vmin} to ${vmax} in ${simpleThis.render()}`)
     // if ((vmin instanceof expectedType)) throw new Error(`vmin is wrong dtype ${typeof vmin} != ${expectedType}`)
     return vmin as InstanceType<T>
@@ -378,7 +383,7 @@ export class UOp extends MathTrait<UOp> {
   index = (idx: UOp, valid?: UOp) => new UOp(Ops.INDEX, this.dtype, valid !== undefined ? [this, idx, valid] : [this, idx])
   override const_like = (b: ConstLike<UOp>) => {
     // constants can optionally have a DEVICE source
-    if (this._device === undefined) return UOp.const(this.dtype, b)
+    if (this._device() === undefined) return UOp.const(this.dtype, b)
     if (Array.isArray(this.device)) return UOp.multi(this.device.map((d) => UOp.metaop(Ops.CONST, this.shape, this.dtype, d, b)), undefined)
     return UOp.metaop(Ops.CONST, this.shape, this.dtype, this.device, b)
   }
@@ -431,7 +436,7 @@ export class UOp extends MathTrait<UOp> {
 
     // TODO: can we split symbolic shape if the reduce axis is not symbolic?
     // TODO: this shouldn't be here, it belongs in scheduler! that's why it broke multi
-    if (!env.SPLIT_REDUCEOP || Array.isArray(this._device) || !all_int(this.shape) || this.shape.includes(0) || (idiv(prod(this.shape), prod(new_shape)) as number) < env.get_num('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
+    if (!env.SPLIT_REDUCEOP || Array.isArray(this._device()) || !all_int(this.shape) || this.shape.includes(0) || (idiv(prod(this.shape), prod(new_shape)) as number) < env.get_num('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
       return this._reduce_op(op, axis)
     }
 
@@ -558,14 +563,13 @@ export class UOp extends MathTrait<UOp> {
   static buffer_num = counter(0)
   static new_buffer = (device: string, size: number, dtype: DType) => new UOp(Ops.BUFFER, dtype, [new UOp(Ops.DEVICE, undefined, undefined, device)], [UOp.buffer_num.next().value, size])
   get device(): string | string[] {
-    return this._device!
+    return this._device()!
   }
-  @cache
-  get _device(): string | string[] | undefined {
+  private _device = cache((): string | string[] | undefined => {
     if (this.op === Ops.DEVICE) return this.arg
     if (this.op === Ops.MULTI) return this.src.map((x) => x.device as string)
-    return this.src.filter((x) => x._device !== undefined)[0]?._device
-  }
+    return this.src.filter((x) => x._device() !== undefined)[0]?._device()
+  })
   get buf_uop(): UOp {
     if (this.op === Ops.BUFFER) return this
     if (![...GroupOp.Buffer, Ops.ASSIGN, Ops.VIEW].includes(this.base.op)) throw new Error(`buf_uop called on ${this.op}`)
@@ -635,16 +639,15 @@ export class UOp extends MathTrait<UOp> {
     return undefined // generic None if we aren't sure
   }
   get vmin() {
-    return this._min_max[0]
+    return this.min_max[0]
   }
   get vmax() {
-    return this._min_max[1]
+    return this.min_max[1]
   }
   // Actually can return boolean as well, but types don't like it
-  @cache
-  get _min_max(): [number | bigint, number | bigint] {
+  private _min_max = cache((): [number | bigint, number | bigint] => {
     if (GroupOp.Binary.includes(this.op) && !dtypes.is_float(this.dtype)) {
-      const [s0_vmin, s0_vmax] = this.src[0]._min_max, [s1_vmin, s1_vmax] = this.src[1]._min_max
+      const [s0_vmin, s0_vmax] = this.src[0].min_max, [s1_vmin, s1_vmax] = this.src[1].min_max
       if (this.op === Ops.ADD) return [add(s0_vmin, s1_vmin), add(s0_vmax, s1_vmax)]
       if (this.op === Ops.MUL) {
         const vals = [mul(s0_vmin, s1_vmin), mul(s0_vmin, s1_vmax), mul(s0_vmax, s1_vmin), mul(s0_vmax, s1_vmax)]
@@ -675,23 +678,25 @@ export class UOp extends MathTrait<UOp> {
     // NOTE: returned UOp is assumed to be CONST
     if (this.op === Ops.DEFINE_VAR && this.arg) return [this.arg[1], this.arg[2]]
     if (this.op === Ops.RANGE) return [this.src[0].vmin, (this.src[1].sub(1)).vmax]
-    if (this.op === Ops.BIND) return this.src[0]._min_max // ignore the bound value
+    if (this.op === Ops.BIND) return this.src[0].min_max // ignore the bound value
     if ([Ops.UNROLL, Ops.VECTORIZE].includes(this.op)) return [min(this.src.map((x) => x.vmin)), max(this.src.map((x) => x.vmax))]
     // TODO: UOps.SPECIAL is UOps.DEFINE_VAR
     if (this.op === Ops.SPECIAL) return [0, typeof this.arg[1] === 'number' ? (this.arg[1] - 1) : this.arg[1].vmax]
     if (this.op === Ops.CONST) return [this.arg, this.arg]
     if (this.op === Ops.VCONST) return [min(this.arg), max(this.arg)]
     return [constToNumeric(dtypes.min(this.dtype)), constToNumeric(dtypes.max(this.dtype))]
+  })
+  private get min_max() {
+    return this._min_max()
   }
-  @cache
-  get _sym_fxn(): [(m: Record<string, ConstType>) => number, string[]] {
+  private _sym_fxn = cache((): [(m: Record<string, ConstType>) => number, string[]] => {
     const sthis = this.simplify()
     const varnames: string[] = [...sthis.toposort].filter((x) => x.op === Ops.DEFINE_VAR).map((x) => x.arg[0])
     // TODO: sanitize varnames, or don't use naked eval while staying fast
     return [eval(`({${varnames.join(',')}})=>${sthis.render()}`), varnames]
-  }
+  })
   sym_infer = (varVals: Map<UOp, ConstType>) => {
-    const [fxn, varnames] = this._sym_fxn
+    const [fxn, varnames] = this._sym_fxn()
     const args = Object.fromEntries(varVals.entries().filter(([k, _]) => varnames.includes(k.arg[0])).map(([k, v]) => [k.arg[0] as string, v]))
     return fxn(args)
   }

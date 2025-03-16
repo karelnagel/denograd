@@ -754,17 +754,12 @@ export function slice<T>(arr: T[], { start, stop, step }: Slice = {}): T[] {
 
 // DECORATORS
 
-export function cache<This extends object, Args extends any[], Return>(
-  target: (this: This, ...args: Args) => Return,
-  ctx: ClassGetterDecoratorContext<This, Return> | ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
-) {
-  const instanceCaches = new WeakMap<This, Record<string, Return>>()
-  const staticCache: Record<string, Return> = {}
-  return function (this: This, ...args: Args): Return {
-    const key = get_key(String(ctx.name), args)
-    let cache = ctx.static ? staticCache : (instanceCaches.get(this) || instanceCaches.set(this, {}).get(this)!)
+export function cache<Args extends any[], Return>(fn: (...args: Args) => Return) {
+  const cache: Record<string, Return> = {}
+  return (...args: Args): Return => {
+    const key = get_key(args)
     if (key in cache) return cache[key]
-    const res = target.call(this, ...args)
+    const res = fn(...args)
     cache[key] = res
     return res
   }

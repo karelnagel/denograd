@@ -106,14 +106,12 @@ export class View {
     }
     return [iexpr, vexpr]
   }
-  @cache
-  size(): number {
+  size = cache((): number => {
     const ret = prod(this.shape.map((x) => x instanceof UOp ? x.vmax : x))
     if (typeof ret !== 'number') throw new Error(`${ret} is not int`)
     return ret
-  }
-  @cache
-  static create(shape: sint[], strides?: sint[], offset: sint = 0, mask?: [sint, sint][]) {
+  })
+  static create = cache((shape: sint[], strides?: sint[], offset: sint = 0, mask?: [sint, sint][]) => {
     // TODO: this resolve shouldn't be needed
     if (!shape.every((s) => resolve(ge(s, 0)))) throw new Error(`Trying to create View with negative dimension: shape=${shape}`)
     strides = strides?.length ? canonicalize_strides(shape, strides) : strides_for_shape(shape)
@@ -139,14 +137,12 @@ export class View {
     // """
     const contiguous = offset === 0 && mask === undefined && is_eq(strides, strides_for_shape(shape))
     return new View(shape, strides, offset, mask, contiguous)
-  }
-  @cache
-  vars(): Variable[] {
+  })
+  vars = cache((): Variable[] => {
     const flatten_mask = this.mask !== undefined ? this.mask.flatMap((m) => m.map((x) => x)) : []
     return [...new Set([...this.shape, ...this.strides, this.offset, ...flatten_mask].filter((x) => x instanceof UOp).reduce((acc, x) => [...acc, ...x.vars()], [] as UOp[]))]
-  }
-  @cache
-  unbind(): [View, Map<Variable, number>] {
+  })
+  unbind = cache((): [View, Map<Variable, number>] => {
     const var_unboundvar_val = this.vars().map((v) => [v, v.unbind()] as const)
     const unbound_vars = new Map(var_unboundvar_val.map(([v, [uv, _]]) => [v, uv]))
     const substitute = (x: sint) => typeof x === 'number' ? x : x.substitute(unbound_vars)
@@ -155,9 +151,8 @@ export class View {
     const new_offset = substitute(this.offset)
     const new_mask = this.mask !== undefined ? this.mask.map((x) => [substitute(x[0]), substitute(x[1])] as [sint, sint]) : undefined
     return [View.create(new_shape, new_strides, new_offset, new_mask), new Map(var_unboundvar_val.map((x) => x[1]))]
-  }
-  @cache
-  add(vm1: View): View | undefined {
+  })
+  add = cache((vm1: View): View | undefined => {
     const vm2 = this
     if (vm2.contiguous) return vm1
     if (vm1.contiguous && is_eq(vm1.shape, vm2.shape)) return vm2
@@ -235,18 +230,16 @@ export class View {
       if (bad) return undefined
     }
     return View.create(vm1.shape, strides, add(zip(origin, vm2.strides).reduce((acc, [o, s]) => add(acc, mul(o, s)), 0 as sint), vm2.offset))
-  }
-  @cache
-  invert(out_shape: sint[]): View | undefined {
+  })
+  invert = cache((out_shape: sint[]): View | undefined => {
     let ret = View.create(this.shape)
     if (this.mask?.length) ret = ret.shrink(this.mask)
     ret = ret.stride(this.strides.map((x) => lt(x, 0) ? -1 : 1)).permute(argsort(this.strides.map((x) => gt(x, 0) ? -x : x)))
     return is_eq(prod(ret.shape), prod(out_shape)) ? ret : undefined // don't support shrink, expand, or stride !== (-1, 1)
-  }
-  @cache
-  minify() {
+  })
+  minify = cache((): View => {
     return this.reshape(merge_dims(this.shape, this.strides, this.mask).map((x) => x[0])) || this
-  }
+  })
   __unsafe_resize(arg: [sint, sint][], mask?: [sint, sint][]): View {
     const offset = zip(this.strides, arg).reduce((acc, [s, x]) => add(acc, mul(s, x[0])), 0 as sint)
     if (this.mask?.length) {
@@ -257,8 +250,7 @@ export class View {
     }
     return View.create(arg.map(([x, y]) => sub(y, x)), this.strides, add(this.offset, offset), mask)
   }
-  @cache
-  pad(arg: [sint, sint][]): View {
+  pad = cache((arg: [sint, sint][]): View => {
     if (arg.length !== this.shape.length) throw new Error(`invalid pad ${list_str(arg)} for ${list_str(this.shape)}`)
     // NOTE: not checking for symbolic arg
     for (const [b, e] of arg) if (!((typeof b !== 'number' || typeof e !== 'number') || (b >= 0 && e >= 0))) throw new Error(`invalid pad ${list_str(arg)} for ${list_str(this.shape)}`)
@@ -268,16 +260,14 @@ export class View {
       return this.__unsafe_resize(zvarg, mask)
     }
     return this
-  }
-  @cache
-  shrink(arg: [sint, sint][]): View {
+  })
+  shrink = cache((arg: [sint, sint][]): View => {
     if (arg.length !== this.shape.length) throw new Error(`invalid shrink ${list_str(arg)} for ${list_str(this.shape)}`)
     // NOTE: not checking for symbolic arg
     for (const [s, [b, e]] of zip(this.shape, arg)) if ((isInt(b) && isInt(e) && isInt(s)) && !(0 <= b && b <= e && e <= s)) throw new Error(`invalid shrink ${list_str(arg)} for ${list_str(this.shape)}`)
     return this.__unsafe_resize(arg)
-  }
-  @cache
-  expand(new_shape: sint[]): View {
+  })
+  expand = cache((new_shape: sint[]): View => {
     if (new_shape.length !== this.shape.length) throw new Error(`expand arg new_shape=${list_str(new_shape)} must have same number of dimensions as shape self.shape=${list_str(this.shape)}`)
     if (this.shape.includes(0)) {
       if (!zip(this.shape, new_shape).every(([s, x]) => (s === x && x === 0) || (gt(s, 0) && mod(x, s) === 0))) throw new Error(`can't expand ${list_str(this.shape)} into ${list_str(new_shape)}`)
@@ -288,14 +278,12 @@ export class View {
     // TODO: this resolve may not be needed, but it's hard because vars need to be sorted
     const mask = this.mask?.length ? zip(this.mask, this.shape, new_shape).map(([m, s, ns]) => resolve(ne(s, ns), false) ? (!is_eq(m, [0, 1]) ? [0, 0] : [0, ns]) as [sint, sint] : m) : undefined
     return View.create(new_shape, this.strides, this.offset, mask)
-  }
-  @cache
-  permute(axis: number[]): View {
+  })
+  permute = cache((axis: number[]): View => {
     if (!is_eq(sorted(axis), range(this.shape.length))) throw new Error(`invalid permutation ${list_str(sorted(axis))} of len ${this.shape.length}`)
     return View.create(axis.map((a) => this.shape[a]), axis.map((a) => this.strides[a]), this.offset, this.mask !== undefined ? axis.map((a) => this.mask![a]) : undefined)
-  }
-  @cache
-  stride(multi: number[]): View {
+  })
+  stride = cache((multi: number[]): View => {
     // except for the negative case, you can build this from the others. invertible in the negative case
     if (!multi.every((x) => typeof x === 'number' && x !== 0)) throw new Error(`invalid stride ${multi} for ${this.shape}`)
     const strides = zip(this.strides, multi).map(([z, m]) => mul(z, m))
@@ -303,9 +291,8 @@ export class View {
     const offset = zip(this.shape, this.strides, multi).filter(([s, z, m]) => m < 0).reduce((acc, [s, z, m]) => add(acc, mul(sub(s, 1), z)), 0 as sint)
     const mask = this.mask !== undefined ? zip(this.mask, this.shape, multi).map(([[mx, my], s, m]) => [ceildiv(m > 0 ? mx : sub(s, my), Math.abs(m)), ceildiv(m > 0 ? my : sub(s, mx), Math.abs(m))] as [sint, sint]) : undefined
     return View.create(new_shape, strides, add(this.offset, offset), mask)
-  }
-  @cache
-  reshape(new_shape: sint[]): View | undefined {
+  })
+  reshape = cache((new_shape: sint[]): View | undefined => {
     if (is_eq(this.shape, new_shape)) return this
     if (new_shape.some((x) => x as number < 0)) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
     // check for the same size
@@ -355,5 +342,5 @@ export class View {
       return View.create(new_shape, new_strides, add(this.offset, extra_offset), new_mask)
     }
     return undefined
-  }
+  })
 }

@@ -54,18 +54,17 @@ export class ScheduleItem {
    * Read/write || write only buffers in the schedule.
    */
   get outputs(): Buffer[] {
-    return this.bufs.filter((b, i) => this.output_idxs.includes(i))
+    return this.bufs.filter((b, i) => this.output_idxs().includes(i))
   }
   /**
    * Read only buffers in the schedule.
    */
   get inputs(): Buffer[] {
-    return this.bufs.filter((b, i) => !this.output_idxs.includes(i))
+    return this.bufs.filter((b, i) => !this.output_idxs().includes(i))
   }
-  @cache
-  get output_idxs(): number[] {
+  output_idxs = cache((): number[] => {
     return this.ast.op === Ops.SINK ? this.ast.src.map((x) => x.src[0].arg) : [0]
-  }
+  })
   toString = () => `new ScheduleItem(${this.ast}, ${list_str(this.bufs)}, ${list_str(this.metadata)})`;
   [Symbol.for('nodejs.util.inspect.custom')](_depth: number, _options: any) {
     return this.toString()
