@@ -1,7 +1,7 @@
 {
-    "name": "@denograd/dawn",
-    "exports": {
-        ".": "./mod.ts",
-        "./bindings": "./bindings.ts"
-    }
+  "name": "@denograd/dawn",
+  "exports": {
+    ".": "./mod.ts",
+    "./bindings": "./bindings.ts"
+  }
 }

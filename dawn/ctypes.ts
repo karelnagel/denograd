@@ -4,7 +4,7 @@ export class Type<NativeValue extends DenoFnType, Value = NativeValue, SetNative
   buffer: ArrayBuffer
   constructor(
     buffer?: ArrayBuffer,
-    public offset: number =0,
+    public offset: number = 0,
     public byteLength: number = 0,
     public alignment: number = 0,
   ) {

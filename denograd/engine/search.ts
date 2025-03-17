@@ -1,4 +1,3 @@
-// deno-lint-ignore-file custom-lint-rules/no-floating-promises
 import { type Kernel, KernelOptError, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'

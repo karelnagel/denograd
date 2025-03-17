@@ -1,16 +1,14 @@
 <html>
-
-<body>
+  <body>
     <script type="module">
-        import { Llama3 } from "https://esm.sh/jsr/@denograd/denograd@0.0.5"
-        const onProgress = (p) => document.querySelector("#progress").textContent = JSON.stringify(p)
-        const model = await Llama3.load({ size: "1B", quantize:"float16", onProgress })
-        while (true) {
-            const res = await model.chat({ messages: [{ role: "user", content: prompt("Q:") }], onProgress })
-            alert(res.message.content)
-        }
+      import { Llama3 } from 'https://esm.sh/jsr/@denograd/denograd@0.0.5'
+      const onProgress = (p) => document.querySelector('#progress').textContent = JSON.stringify(p)
+      const model = await Llama3.load({ size: '1B', quantize: 'float16', onProgress })
+      while (true) {
+        const res = await model.chat({ messages: [{ role: 'user', content: prompt('Q:') }], onProgress })
+        alert(res.message.content)
+      }
     </script>
     <div id="progress">Loading...</div>
-</body>
-
+  </body>
 </html>
