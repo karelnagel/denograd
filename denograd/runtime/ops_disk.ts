@@ -2,7 +2,7 @@ import { Allocator, Compiled } from './allocator.ts'
 import { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
 import { NotImplemented } from '../helpers.ts'
-import fs from 'fs'
+import fs from 'node:fs'
 
 export class DISK extends Compiled {
   static _tried_io_uring_init = false
