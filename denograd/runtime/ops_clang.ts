@@ -41,7 +41,7 @@ export class ClangProgram extends Program {
     const vals = args.vals || []
     if (vals.some((x) => x === undefined)) throw new Error(`${vals}`)
     if (!this.fxn) {
-      this.fxn = env.dlopen(this.file, {
+      this.fxn = await env.dlopen(this.file, {
         [this.name]: {
           parameters: [...bufs.map(() => 'pointer' as const), ...vals.map(() => 'i32' as const)],
           result: 'void',
