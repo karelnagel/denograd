@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run -A
+#!/usr/bin/env -S deno run -A
 import { chromium } from 'npm:playwright'
 import esbuild from 'npm:esbuild'
 import process from "node:process"
