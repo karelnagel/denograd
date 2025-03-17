@@ -3,12 +3,11 @@ import { CLANG } from '../runtime/ops_clang_bun.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
-import { DAWN } from '../runtime/ops_dawn.ts'
 import { NodeEnv } from './node.ts'
 
 export class BunEnv extends NodeEnv {
   override NAME = 'bun'
-  override DEVICES = { CLANG, WASM, JS, CLOUD, DAWN }
+  override DEVICES = { CLANG, WASM, JS, CLOUD }
 
   override args = () => Bun.argv.slice(2)
 

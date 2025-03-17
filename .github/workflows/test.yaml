@@ -60,6 +60,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         if: matrix.env == 'node --experimental-transform-types'
+        with:
+          node-version: '22'
       
       - uses: oven-sh/setup-bun@v2
         if: matrix.env == 'bun -b'

@@ -112,7 +112,6 @@ export class WebEnv {
       await this.mkdir(dir)
     } else path = this.realPath(path)
     if (await this.stat(path).then((x) => x.isFile()).catch(() => undefined)) {
-      console.log(`File ${path} already exists, skipping`)
       return path
     }
     const res = await fetch(url)
