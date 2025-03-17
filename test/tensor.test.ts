@@ -2,9 +2,10 @@ import { Device } from '../denograd/device.ts'
 import { type DType, dtypes } from '../denograd/dtype.ts'
 import { Ops, type sint } from '../denograd/ops.ts'
 import { Tensor, type TensorOptions } from '../denograd/tensor.ts'
-import { compare, test, tryCatch } from './helpers.ts'
+import { compare, tryCatch } from './helpers.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'Tensor.numel',
   compare<[Tensor]>(
     () => [
@@ -16,7 +17,7 @@ test(
     'out(data[0].numel())',
   ),
 )
-test(
+describe(
   'Tensor.item',
   compare<[Tensor]>(
     () => [
@@ -29,7 +30,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.init',
   compare<[any, TensorOptions]>(
     [
@@ -56,7 +57,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.reshape',
   compare<[Tensor, number[]]>(
     [
@@ -70,7 +71,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor._broadcast_to',
   compare<[Tensor, number[]]>(
     () => [
@@ -82,7 +83,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.get.data',
   compare<[Tensor]>(
     () => [
@@ -121,11 +122,11 @@ test(
       '   t.reshape((5,2))[1:3].data(),',
       '])',
     ],
-    { ignore: (Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'WASM') ? [0] : undefined },
+    { skip: (Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'WASM') ? [0] : undefined },
   ),
 )
 
-test(
+describe(
   'Tensor.get.tolist',
   compare<[Tensor]>(
     [
@@ -168,7 +169,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.add',
   compare<[Tensor, Tensor | number]>(
     [
@@ -182,7 +183,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.mul',
   compare<[Tensor, Tensor | number]>(
     [
@@ -197,7 +198,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.div',
   compare<[Tensor, Tensor]>(
     () => [
@@ -209,7 +210,7 @@ test(
     'out(data[0] / data[1])',
   ),
 )
-test(
+describe(
   'Tensor.idiv',
   compare<[Tensor, Tensor]>(
     () => [
@@ -221,7 +222,7 @@ test(
     'out(data[0] // data[1])',
   ),
 )
-test(
+describe(
   'Tensor.cast',
   compare<[Tensor, DType]>(
     () => [
@@ -234,7 +235,7 @@ test(
     'out(data[0].cast(data[1]))',
   ),
 )
-test(
+describe(
   'Tensor.maximum',
   compare<[Tensor, Tensor]>(
     () => [
@@ -246,7 +247,7 @@ test(
     'out(data[0].maximum(data[1]))',
   ),
 )
-test(
+describe(
   'Tensor.minimum',
   compare<[Tensor, Tensor]>(
     () => [
@@ -259,8 +260,9 @@ test(
   ),
 )
 
-Deno.test.ignore(
+describe(
   'Tensor.matmul',
+  { todo: true },
   compare<[Tensor, Tensor]>(
     () => [
       [new Tensor([4, 4, 4, 2, 6.5]), new Tensor([4, 4, 3, 3, 3])],
@@ -340,19 +342,19 @@ const ops = (): [Tensor, keyof Tensor, boolean?][] => [
   // [new Tensor([-2.7, -1.5, -0.2, 0, 0.2, 1.5, 2.7]), 'softsign'],
 ]
 
-for (const [i, [tensor, op, ignore]] of ops().entries()) {
-  test(
+for (const [i, [tensor, op, skip]] of ops().entries()) {
+  describe(
     `Tensor.ops.${op}.${i}`,
+    { skip },
     compare(
       [[tensor, op]],
       (t: Tensor, op: keyof Tensor) => (t[op] as any)(),
       'out(getattr(data[0],data[1])())',
     ),
-    { ignore },
   )
 }
 
-test(
+describe(
   'Tensor._pool',
   compare<[Tensor, number[], (number | number[])?, (number | number[])?]>(
     () => [
@@ -388,7 +390,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.repeat',
   compare<[Tensor, sint[]]>(
     () => [
@@ -399,7 +401,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.reshape',
   compare<[Tensor, number[]]>(
     () => [
@@ -412,7 +414,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.shrink',
   compare<[Tensor, [sint, sint][]]>(
     () => [
@@ -426,7 +428,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.eq',
   compare<[Tensor, Tensor | number | boolean]>(
     () => [
@@ -451,11 +453,11 @@ test(
     (t1, t2) => t1.eq(t2),
     'out((data[0] == data[1]))',
     {
-      ignore: Device.DEFAULT === 'WEBGPU' ? [0, 1, 12] : undefined,
+      skip: Device.DEFAULT === 'WEBGPU' ? [0, 1, 12] : undefined,
     },
   ),
 )
-test(
+describe(
   'Tensor.full',
   compare(
     [
@@ -467,7 +469,7 @@ test(
     'out(tiny.Tensor.full(*data))',
   ),
 )
-test(
+describe(
   'Tensor.ones',
   compare(
     [
@@ -479,7 +481,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.zeros',
   compare(
     [
@@ -491,8 +493,9 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.rand',
+  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [
       [[1, 1, 4, 4]],
@@ -507,10 +510,9 @@ test(
       'out(tiny.Tensor.rand(*data))',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WASM' },
 )
 
-test(
+describe(
   'Tensor.arange',
   compare(
     [
@@ -529,7 +531,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor._cumalu',
   compare<[Tensor, number, Ops]>(
     [
@@ -549,7 +551,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor.transpose',
   compare<[Tensor, number, number]>(
     [
@@ -561,8 +563,9 @@ test(
   ),
 )
 
-test(
+describe(
   'Tensor._threefry_random_bits',
+  { skip: Device.DEFAULT === 'WEBGPU' },
   compare<[Tensor, Tensor, Tensor]>(
     [
       [new Tensor([347607321, 1735991813]), new Tensor([0, 1, 2, 3, 4, 5, 6, 7]), new Tensor([8, 9, 10, 11, 12, 13, 14, 15])],
@@ -570,13 +573,11 @@ test(
     Tensor._threefry_random_bits,
     'out(tiny.Tensor._threefry_random_bits(*data))',
   ),
-  {
-    ignore: Device.DEFAULT === 'WEBGPU', // WebGPU doesn't support long
-  },
 )
 
-test(
+describe(
   'webgpu_failing',
+  { skip: Device.DEFAULT === 'WEBGPU' },
   compare(
     [[]],
     async () => {
@@ -584,10 +585,9 @@ test(
     },
     'out(tiny.Tensor([True,True,False]).tolist())',
   ),
-  { ignore: Device.DEFAULT === 'WEBGPU' },
 )
 
-test(
+describe(
   'arange.sin',
   compare(
     [

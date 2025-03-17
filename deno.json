@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "test": "deno test -A --parallel",
+    "test": "deno -A npm:vitest run --testTimeout 0",
     "bench": "deno bench -A",
     "format": "deno fmt",
     "check": "deno check . ",
@@ -49,10 +49,7 @@
     }
   },
   "imports": {
-    "@std/expect": "jsr:@std/expect",
-    "@std/assert": "jsr:@std/assert",
-    "ffi-napi": "npm:ffi-napi",
-    "ref-napi": "npm:ref-napi",
+    "vitest": "npm:vitest",
     "ffi-rs": "npm:ffi-rs"
   },
   "exclude": [

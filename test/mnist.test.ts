@@ -1,10 +1,10 @@
-import { expect } from '@std/expect'
 import { MNIST } from '../denograd/models/mnist.ts'
 import { Adam, Device, get_parameters, mnist } from '../denograd/mod.ts'
 import { Tensor } from '../denograd/tensor.ts'
-import { asdict, compare, python, test } from './helpers.ts'
+import { asdict, compare, python } from './helpers.ts'
+import { describe, expect, test } from 'vitest'
 
-test(
+describe(
   'mnist.get',
   compare(
     [[]],
@@ -22,8 +22,9 @@ test(
   ),
 )
 
-test(
+describe(
   'mnist.call',
+  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [[]],
     async () => {
@@ -46,11 +47,11 @@ test(
       'out(model(x_train[samples]))',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WASM' },
 )
 
-test(
+describe(
   'mnist.call.ones',
+  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [[]],
     () => {
@@ -66,10 +67,10 @@ test(
       'out(model(tiny.Tensor.ones(1, 1, 28, 28)))',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WASM' },
 )
 test(
   'mnist.load',
+  { skip: Device.DEFAULT === 'WEBGPU' },
   async () => {
     Tensor.manual_seed(333)
     const model = new MNIST()
@@ -85,11 +86,11 @@ test(
     ])
     expect(await asdict(ts)).toEqual(await asdict(py))
   },
-  { ignore: Device.DEFAULT === 'WEBGPU' },
 )
 
-test(
+describe(
   'mnist.train',
+  { skip: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'WEBGPU' },
   compare(
     [[]],
     async () => {
@@ -126,5 +127,4 @@ test(
       'out(loss)',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'WEBGPU' },
 )

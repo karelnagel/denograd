@@ -1,10 +1,11 @@
 import { BatchNorm, Conv2d } from '../../denograd/nn/index.ts'
 import { Tensor } from '../../denograd/tensor.ts'
-import { compare, test } from '../helpers.ts'
+import { compare } from '../helpers.ts'
 import { Linear } from '../../denograd/nn/index.ts'
 import { Device } from '../../denograd/device.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'Conv2d.init',
   compare(
     [
@@ -33,8 +34,9 @@ test(
   ),
 )
 
-test(
+describe(
   'Conv2d.call',
+  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [
       [1, 1, 3, [1, 1, 4, 7]],
@@ -54,11 +56,11 @@ test(
       'out(conv(t))',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WASM' },
 )
 
-test(
+describe(
   'BatchNorm.init',
+  { skip: Device.DEFAULT === 'WEBGPU' },
   compare(
     [
       [1], // simplest case, 1 feature
@@ -77,10 +79,9 @@ test(
       'out([bn.weight, bn.bias, getattr(bn,"running_mean",None), getattr(bn,"running_var",None), bn.num_batches_tracked])',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WEBGPU' },
 )
 
-test(
+describe(
   'BatchNorm.call',
   compare(
     [
@@ -103,7 +104,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Linear.init',
   compare(
     [
@@ -126,8 +127,9 @@ test(
   ),
 )
 
-test(
+describe(
   'Linear.call',
+  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [
       [1, 1, [4, 1]], // shape: (4, 1) => 4 samples, each of size 1
@@ -147,5 +149,4 @@ test(
       'out(linear(t))',
     ],
   ),
-  { ignore: Device.DEFAULT === 'WASM' },
 )

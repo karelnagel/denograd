@@ -1,10 +1,11 @@
 import { Kernel } from '../../denograd/codegen/kernel.ts'
 import { get_kernel, get_runner } from '../../denograd/engine/realize.ts'
 import type { UOp } from '../../denograd/ops.ts'
-import { compare, test } from '../helpers.ts'
+import { compare } from '../helpers.ts'
 import { kernelInputs, pyKernel, tsKernel } from './kernel-inputs.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'realize.get_kernel',
   compare(
     kernelInputs,
@@ -15,7 +16,7 @@ test(
     ],
   ),
 )
-test(
+describe(
   'realize.get_optimized_ast',
   compare(
     kernelInputs,
@@ -25,7 +26,7 @@ test(
     ],
   ),
 )
-test(
+describe(
   'realize.linearize',
   compare(
     kernelInputs,
@@ -35,7 +36,7 @@ test(
     ],
   ),
 )
-test(
+describe(
   'realize.to_program',
   compare(
     kernelInputs,
@@ -48,7 +49,7 @@ test(
   ),
 )
 
-test(
+describe(
   'realize.get_runner',
   compare(
     () => kernelInputs().map(([r, ast]) => [r.device, ast] as [string, UOp]),
@@ -62,81 +63,5 @@ test(
       'out([runner.p])',
     ],
     {},
-  ),
-)
-
-// test(
-//   'CompiledRunner.init',
-//   compare(
-//     kernelInputs(),
-//     (renderer, ast) => {
-//       const kernel = get_kernel(renderer, ast)
-//       const program = kernel.to_program()
-//       const runner = new CompiledRunner(program)
-//       runner.call()
-//     },
-//     'out(tiny.engine.realize.CompiledRunner(*data))',
-//   ),
-// )
-// Deno.test.ignore(
-//   'CompiledRunner.call',
-//   compare(
-//     [],
-//     tryCatch((runner: CompiledRunner, rawbufs: Buffer[], var_vals: Map<Variable, number>, wait?: boolean) => runner.call(rawbufs, var_vals, wait)),
-//     'out(data[0](*data[1:]))',
-//   ),
-// )
-
-test(
-  'BufferCopy.copy',
-  compare(
-    [],
-    () => {},
-    'out(XXX)',
-  ),
-)
-
-test(
-  'BufferCopy.call',
-  compare(
-    [],
-    () => {},
-    'out(XXX)',
-  ),
-)
-
-test(
-  'ExecItem.run',
-  compare(
-    [],
-    () => {},
-    'out(XXX)',
-  ),
-)
-
-test(
-  'lower_schedule_item',
-  compare(
-    [],
-    () => {},
-    'out(XXX)',
-  ),
-)
-
-test(
-  'lower_schedule',
-  compare(
-    [],
-    () => {},
-    'out(XXX)',
-  ),
-)
-
-test(
-  'run_schedule',
-  compare(
-    [],
-    () => {},
-    'out(XXX)',
   ),
 )
