@@ -1,6 +1,6 @@
 import '../denograd/env/server.ts'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../denograd/dtype.ts'
-import { ArrayMap, bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
+import { ArrayMap, Enum, Metadata, random_id } from '../denograd/helpers.ts'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../denograd/ops.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
