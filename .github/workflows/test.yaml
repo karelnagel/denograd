@@ -66,6 +66,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         if: matrix.env == 'bun -b'
 
+      - run: deno -A npm:playwright install
+        if: matrix.env == './chrome'
+
       - name: Test
         run: ${{ matrix.env }} cli/devices.ts
 
