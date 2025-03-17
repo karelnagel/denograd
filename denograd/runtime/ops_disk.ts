@@ -2,6 +2,7 @@ import { Allocator, Compiled } from './allocator.ts'
 import { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
 import { NotImplemented } from '../helpers.ts'
+import fs from 'fs'
 
 export class DISK extends Compiled {
   static _tried_io_uring_init = false
@@ -25,12 +26,11 @@ export class DISK extends Compiled {
     if (env.PLATFORM !== 'win32' && this.filename.startsWith('shm:')) {
       throw new NotImplemented()
     } else {
-      const fo = Deno.openSync(this.filename, { read: true, write: true, create: true })
+      const fo = fs.openSync(this.filename, 'r+')
       this.mem = new Uint8Array(this.size)
-      const stat = fo.statSync()
-      if (stat.size === 0) fo.writeSync(this.mem)
-      else fo.readSync(this.mem)
-      fo.close()
+      const stat = fs.statSync(this.filename)
+      if (stat.size === 0) fs.writeSync(fo, this.mem)
+      else fs.readSync(fo, this.mem)
     }
   }
   _might_close = () => {
@@ -65,10 +65,9 @@ export class DiskAllocator extends Allocator<DiskBuffer> {
   }
   override _free = (opaque: any, options: any) => this.dev._might_close()
   write = (buf: MemoryView, offset: number) => {
-    const fo = Deno.openSync(this.dev.filename, { write: true, read: true })
-    fo.seekSync(offset, Deno.SeekMode.Start)
-    fo.writeSync(buf.bytes)
-    fo.close()
+    const fo = fs.openSync(this.dev.filename, 'r+')
+    fs.writeSync(fo, buf.bytes, 0, buf.byteLength, offset)
+    fs.closeSync(fo)
   }
   override _copyin = (dest: DiskBuffer, src: MemoryView) => {
     const buf = dest._buf()

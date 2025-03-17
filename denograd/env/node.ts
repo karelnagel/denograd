@@ -13,12 +13,13 @@ import { CLANG } from '../runtime/ops_clang.ts'
 import { exec } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import readline from 'node:readline'
+import { DISK } from '../runtime/ops_disk.ts'
 
 export class NodeEnv extends WebEnv {
   override NAME = 'node'
   override CPU_DEVICE = 'JS'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, JS, CLOUD }
+  override DEVICES = { CLANG, JS, CLOUD, DISK }
   override readFile = async (path: string) => new Uint8Array(await fs.readFile(path))
   override writeFile = fs.writeFile
   override remove = fs.unlink

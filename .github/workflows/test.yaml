@@ -32,14 +32,14 @@ jobs:
         if: matrix.runtime == 'WEBGPU'
         run: |
           sudo curl -L https://github.com/wpmed92/pydawn/releases/download/v0.1.6/libwebgpu_dawn.so -o /usr/local/lib/libwebgpu_dawn.so
-          sudo apt update -y || true
+          sudo apt update -y || true 
           sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
 
       - name: Run tests
         run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHE_DB=":memory:" deno task test
 
       - name: Train mnist
-        run: ${{ matrix.runtime }}=1 deno -A cli/mnist.ts --steps 10 --bs 2
+        run: DEVICE=${{ matrix.runtime }} deno -A cli/mnist.ts --steps 10 --bs 2
   envs:
     strategy:
       fail-fast: false

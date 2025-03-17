@@ -1,4 +1,4 @@
-import { mnist } from '../../denograd/nn/datasets.ts'
+import { mnist } from '../../denograd/mod.ts'
 import { expect, test } from 'vitest'
 
 test(
