@@ -28,7 +28,7 @@ if (args.query) {
   console.log(res.message.content)
 } else {
   while (true) {
-    const content = prompt('Q: ')!
+    const content =(await env.prompt('Q: '))!
     await model.chat({
       messages: [{ role: 'user', content }],
       onToken: (res) => {

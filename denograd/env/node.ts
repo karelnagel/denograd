@@ -11,26 +11,8 @@ import path from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { CLANG } from '../runtime/ops_clang.ts'
 import { exec } from 'node:child_process'
-
 import { Buffer } from 'node:buffer'
-
-const ffiType = (type: Deno.NativeType) => {
-  if (type === 'isize') return 'int64'
-  if (type === 'usize') return 'uint64'
-  if (typeof type === 'object' || type === 'buffer') return 'pointer'
-  const typeMap = {
-    'void': 'void',
-    'i8': 'int8',
-    'u8': 'uint8',
-    'i16': 'int16',
-    'u16': 'uint16',
-    'i32': 'int32',
-    'u32': 'uint32',
-    'f32': 'float',
-    'f64': 'double',
-  }
-  return typeMap[type as keyof typeof typeMap] || 'pointer'
-}
+import readline from 'node:readline'
 
 export class NodeEnv extends WebEnv {
   override NAME = 'node'
@@ -58,23 +40,41 @@ export class NodeEnv extends WebEnv {
       })
     })
   }
-  private _ref: any
   override dlopen: Dlopen = async (file, args) => {
-    const ffi = await import('ffi-napi')
-    this._ref = await import('ref-napi')
-    const symbols = Object.fromEntries(
-      Object.entries(args).map(([name, { parameters, result }]: any) => [
-        name,
-        [ffiType(result), parameters.map(ffiType)],
-      ]),
-    )
+    const { open, load, DataType, close } = await import('ffi-rs')
+    const library = random_id()
+    open({ path: file as string, library })
+
+    const ffiType = (type: Deno.NativeType) => {
+      if (type === 'pointer') return DataType.U8Array
+      if (type === 'i32') return DataType.I32
+      throw new Error(`Invalid type ${type}`)
+    }
     return {
-      symbols: ffi.Library(file, symbols),
-      close: () => {},
+      symbols: Object.fromEntries(
+        Object.entries(args).map(([name, args]: any) => [name, (...inputs: any[]) => {
+          load({
+            library,
+            funcName: name,
+            retType: DataType.Void,
+            paramsType: args.parameters.map((x: any) => ffiType(x)),
+            paramsValue: inputs,
+          })
+        }]),
+      ),
+      close: () => close(library),
     }
   }
-
-  override ptr = (buffer: ArrayBuffer) => this._ref.ref(Buffer.from(buffer))
+  override prompt = async (msg: string) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    return await new Promise<string>((resolve) =>
+      rl.question(msg, (answer) => {
+        resolve(answer)
+        rl.close()
+      })
+    )
+  }
+  override ptr = (buffer: ArrayBuffer) => Buffer.from(buffer)
 
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 

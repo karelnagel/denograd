@@ -21,6 +21,7 @@
     "npm:cloudflared@*": "0.7.0",
     "npm:esbuild@*": "0.25.0",
     "npm:ffi-napi@*": "4.0.3",
+    "npm:ffi-rs@*": "1.2.8",
     "npm:playwright@*": "1.51.0",
     "npm:react-dom@19": "19.0.0_react@19.0.0",
     "npm:react@19": "19.0.0",
@@ -722,6 +723,39 @@
     "@webgpu/types@0.1.54": {
       "integrity": "sha512-81oaalC8LFrXjhsczomEQ0u3jG+TqE6V9QHLA8GNZq/Rnot0KDugu3LhSYSlie8tSdooAN1Hov05asrUUp9qgg=="
     },
+    "@yuuang/ffi-rs-android-arm64@1.2.8": {
+      "integrity": "sha512-gQ39tvIT/HKEhEiHzEHPmVy05ihT9GngFaSkHPgAtdSOKLUif3XZGa+T1XSBI3PI0YGXnzfSrNPFJcseL6nkOQ=="
+    },
+    "@yuuang/ffi-rs-darwin-arm64@1.2.8": {
+      "integrity": "sha512-3LPZB0sKb6lpnPzqf21yuHagESenSoI+jqJ0NdAFkQlvqwJJ3nY2Xq3R3LwhAak5JGArYbUIjfIMjzlu+n8mOA=="
+    },
+    "@yuuang/ffi-rs-darwin-x64@1.2.8": {
+      "integrity": "sha512-aIpuTKIIT1YVVoUM6vT2LzLHFhNIbDeGo7+sDZPEGh6t04uDtHsqeaPWS3SmItTtLWgDXMKrJkzrZpTKa+08TA=="
+    },
+    "@yuuang/ffi-rs-linux-arm-gnueabihf@1.2.8": {
+      "integrity": "sha512-U2tEda5vjluve7AhUdW+tisJty0b8avTK+3Zl71p0R+mW42ODEu3zfj2fo9kqS90WnJeeUr1RL+DeEfjv+KNPg=="
+    },
+    "@yuuang/ffi-rs-linux-arm64-gnu@1.2.8": {
+      "integrity": "sha512-fmLBKZYdh8+QkIUBVY5rUcr28ZR2M2GxHHC8Nog3jSF69VlWc3rCxhmDmIQFH9ltasXxXkS289Yjz9fZDU/tYg=="
+    },
+    "@yuuang/ffi-rs-linux-arm64-musl@1.2.8": {
+      "integrity": "sha512-o79oM2ldgk42+VlXrCOTZWe7nFC9C5IvWLEsB1lApirMN04Fc20G5uez/ckJTJ8BuxncEjq66g6io5NaBs5ytA=="
+    },
+    "@yuuang/ffi-rs-linux-x64-gnu@1.2.8": {
+      "integrity": "sha512-JHDCoLyVx1yPm6tXhnqD0PpS+gnyGOpoDLEBzQ5Wdf17cvsKxhFyVxixvFD9A4SE6WtsuMWEHm8N+OP7mlwNMw=="
+    },
+    "@yuuang/ffi-rs-linux-x64-musl@1.2.8": {
+      "integrity": "sha512-Y1JVkoHuGqwBWZgOXArX+TmxshJ1csw0JSOo0pHIk/LylMwuGJD2z7gWUZ3baXh+gfemK8672tqEKNrkcV9mow=="
+    },
+    "@yuuang/ffi-rs-win32-arm64-msvc@1.2.8": {
+      "integrity": "sha512-Rf0uTFm5cYzJZjOdWNuR2AH+uUyCLEEPcZzeR7GbylMEVvUtpYWjp9c0E4ODlmCFILjcgjj2D32UuszEGubcjA=="
+    },
+    "@yuuang/ffi-rs-win32-ia32-msvc@1.2.8": {
+      "integrity": "sha512-vE3OmNIjZVqmnDbPB5ldZUoh6RJtptWwSjAFbbNp6zKaRDr9O8RBtR2NDg0v48CrcQbn4i2/I1vdFOlmlAUXog=="
+    },
+    "@yuuang/ffi-rs-win32-x64-msvc@1.2.8": {
+      "integrity": "sha512-/qhkMcgFE1pgqUoq9EayogoIPW85dG+xfxPPVkkTMGM7l2HLnoDj2E3WyJxoCE8c4JmCYVzABxvl8kRI652p9w=="
+    },
     "acorn@8.14.1": {
       "integrity": "sha512-OvQ/2pUDKmgfCg++xsTX1wGxfTaszcHVcTctW4UJB4hibJx2HXxxO5UmVgyjMa+ZDsiaf5wWLXYpRWMmBI0QHg=="
     },
@@ -1403,6 +1437,22 @@
         "node-gyp-build",
         "ref-napi",
         "ref-struct-di"
+      ]
+    },
+    "ffi-rs@1.2.8": {
+      "integrity": "sha512-qiYQ1oVDmo9NVHsTUADbJUrTba9hX9vJVW0ehVT4cCpu3+ikrq30M5yZ9or0RI5ime+cJ/psrcceiFnOkCSqTg==",
+      "dependencies": [
+        "@yuuang/ffi-rs-android-arm64",
+        "@yuuang/ffi-rs-darwin-arm64",
+        "@yuuang/ffi-rs-darwin-x64",
+        "@yuuang/ffi-rs-linux-arm-gnueabihf",
+        "@yuuang/ffi-rs-linux-arm64-gnu",
+        "@yuuang/ffi-rs-linux-arm64-musl",
+        "@yuuang/ffi-rs-linux-x64-gnu",
+        "@yuuang/ffi-rs-linux-x64-musl",
+        "@yuuang/ffi-rs-win32-arm64-msvc",
+        "@yuuang/ffi-rs-win32-ia32-msvc",
+        "@yuuang/ffi-rs-win32-x64-msvc"
       ]
     },
     "fill-range@7.1.1": {
@@ -3125,6 +3175,7 @@
       "npm:@types/react-dom@*",
       "npm:@types/react@*",
       "npm:ffi-napi@*",
+      "npm:ffi-rs@*",
       "npm:ref-napi@*"
     ],
     "members": {

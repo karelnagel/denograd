@@ -63,6 +63,7 @@ export class WebEnv {
  exec = (cmd:string): Promise<string> => this.notImplemented()
  dlopen: Dlopen = () => this.notImplemented()
  ptr = (buffer: ArrayBuffer): any => this.notImplemented()
+ prompt = async (msg:string, def?: string) => prompt(msg, def)
 
   //
   sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())
