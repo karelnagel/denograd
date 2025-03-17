@@ -74,7 +74,7 @@ export class NodeEnv extends WebEnv {
       })
     )
   }
-  override ptr = (buffer: ArrayBuffer) => Buffer.from(buffer)
+  override ptr = (buffer: ArrayBuffer): any => Buffer.from(buffer)
 
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 

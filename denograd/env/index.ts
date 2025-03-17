@@ -57,8 +57,8 @@ export class WebEnv {
   mkdir = async (path:string): Promise<void> => {}
   args = (): string[] => (window as any).args || []
   machine = () => "browser"
-  exit = (code: number) => {
-    if (code) throw new Error(`Exited with status code ${code}`)
+  exit = (code: number):never => {
+    throw new Error(`Exited with status code ${code}`)
   }
  exec = (cmd:string): Promise<string> => this.notImplemented()
  dlopen: Dlopen = () => this.notImplemented()

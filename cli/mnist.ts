@@ -1,13 +1,10 @@
-import z from 'zod'
 import { Adam, get_parameters, GlobalCounters, MNIST, mnist, Tensor, TinyJit, Tqdm } from '../denograd/mod.ts'
-import { parseArgs } from './zod-cli.ts'
+import { parseArgs, z } from './parse.ts'
 
-const args = parseArgs(
-  z.object({
-    steps: z.number().default(70).describe('Steps'),
-    bs: z.number().default(512).describe('Batch size'),
-  }).describe('Train MNIST model'),
-)
+const args = parseArgs({
+  steps: z.number().default(70).describe('Steps'),
+  bs: z.number().default(512).describe('Batch size'),
+})
 const [X_train, Y_train, X_test, Y_test] = await mnist(undefined)
 
 const model = new MNIST()
