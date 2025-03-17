@@ -50,7 +50,10 @@
   },
   "imports": {
     "@std/expect": "jsr:@std/expect",
-    "@std/assert": "jsr:@std/assert"
+    "@std/assert": "jsr:@std/assert",
+    "ffi-napi": "npm:ffi-napi",
+    "ref-napi": "npm:ref-napi",
+    "ffi-rs": "npm:ffi-rs"
   },
   "exclude": [
     "tinygrad*",

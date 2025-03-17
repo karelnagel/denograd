@@ -6,7 +6,7 @@ import { Sha256 } from '../sha256.js'
 import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 
 export type Stats = Pick<NodeStats, 'isFile' | 'size'>
-
+export type Dlopen = <const S extends Deno.ForeignLibraryInterface>(filename: string | URL, symbols: S) => Deno.DynamicLibrary<S> | Promise<Deno.DynamicLibrary<S>>
 // deno-fmt-ignore
 export class WebEnv {
   NAME = 'web'
@@ -57,9 +57,13 @@ export class WebEnv {
   mkdir = async (path:string): Promise<void> => {}
   args = (): string[] => (window as any).args || []
   machine = () => "browser"
-  exit = (code: number) => {
-    if (code) throw new Error(`Exited with status code ${code}`)
+  exit = (code: number):never => {
+    throw new Error(`Exited with status code ${code}`)
   }
+ exec = (cmd:string): Promise<string> => this.notImplemented()
+ dlopen: Dlopen = () => this.notImplemented()
+ ptr = (buffer: ArrayBuffer): any => this.notImplemented()
+ prompt = async (msg:string, def?: string) => prompt(msg, def)
 
   //
   sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())

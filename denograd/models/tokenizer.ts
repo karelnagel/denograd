@@ -1,10 +1,8 @@
-// deno-lint-ignore-file no-invalid-regexp
 import { env } from '../env/index.ts'
 import { bytes_to_string, range, string_to_bytes } from '../helpers.ts'
 
 export class Tokenizer {
-  pat = new RegExp("(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+", 'gu')
-
+  pat = new RegExp("'s|'t|'re|'ve|'m|'ll|'d|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+", "giu");
   special_tokens: Map<string, number>
   decode_map: Map<number, string>
 

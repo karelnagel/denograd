@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-process-global
 import { setRuntime } from './index.ts'
 import { setDevices } from '../device.ts'
 

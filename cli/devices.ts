@@ -16,7 +16,7 @@ for (const device in DEVICES) {
     res = `${colored('FAIL', 'red')} - ${e.message}`
     error = true
   }
-  result.push(`${device === Device.DEFAULT ? '*' : ' '} ${device.padEnd(10)}: ${res}`)
+  result.push(`${device === Device.DEFAULT ? '*' : ' '} ${device.padEnd(10)}: ${res.slice(0, 120)}`)
 }
 console.log(result.join('\n'))
 if (error) env.exit(1)

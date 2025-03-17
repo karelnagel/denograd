@@ -1,6 +1,5 @@
 {
   "imports": {
-    "@denograd/denograd": "../denograd",
-    "zod": "npm:zod@^3.24.2"
+    "@denograd/denograd": "../denograd"
   }
 }

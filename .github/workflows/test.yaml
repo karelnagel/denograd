@@ -62,6 +62,8 @@ jobs:
         if: matrix.env == 'node --experimental-transform-types'
         with:
           node-version: '22'
+      - run: npm i ffi-rs
+        if: matrix.env == 'node --experimental-transform-types'
       
       - uses: oven-sh/setup-bun@v2
         if: matrix.env == 'bun -b'

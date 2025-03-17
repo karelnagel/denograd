@@ -2,14 +2,13 @@ import type { BufferSpec, Program } from '../denograd/device.ts'
 import { ArrayMap, bytes_to_string, DefaultMap, Device, env, MemoryView, string_to_bytes } from '../denograd/mod.ts'
 import { BatchRequest, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramExec, ProgramFree } from '../denograd/runtime/ops_cloud.ts'
 import { bin, install, Tunnel } from 'npm:cloudflared'
-import { parseArgs } from './zod-cli.ts'
-import z from 'zod'
+import { parseArgs, z } from './parse.ts'
 
-const args = parseArgs(z.object({
+const args = parseArgs({
   port: z.number().default(8080).describe('Port'),
   hostname: z.string().default('0.0.0.0').describe('Hostname'),
   tunnel: z.boolean().optional().describe('Starts a publicly accessible Cloudflare tunnel'),
-}))
+})
 
 class CloudSession {
   programs = new ArrayMap<[string, string], Program>()
