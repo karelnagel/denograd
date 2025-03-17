@@ -57,6 +57,9 @@ export class WebEnv {
   mkdir = async (path:string): Promise<void> => {}
   args = (): string[] => (window as any).args || []
   machine = () => "browser"
+  exit = (code: number) => {
+    if (code) throw new Error(`Exited with status code ${code}`)
+  }
 
   //
   sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())

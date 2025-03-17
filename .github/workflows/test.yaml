@@ -40,3 +40,31 @@ jobs:
 
       - name: Train mnist
         run: ${{ matrix.runtime }}=1 deno -A cli/mnist.ts --steps 10 --bs 2
+  envs:
+    strategy:
+      fail-fast: false
+      matrix:
+        env: ["deno -A", "node --experimental-transform-types", "bun -b", "./chrome"]
+    name: Env (${{ matrix.env }})
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+      
+      - name: Install WebGPU deps
+        run: sudo apt update -y && sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
+
+      - uses: denoland/setup-deno@v2
+        if: matrix.env == 'deno -A' || matrix.env == './chrome'
+
+      - uses: actions/setup-node@v4
+        if: matrix.env == 'node --experimental-transform-type'
+      
+      - uses: oven-sh/setup-bun@v2
+        if: matrix.env == 'bun -b'
+
+      - name: Test
+        run: ${{ matrix.env }} cli/devices.ts
+
+

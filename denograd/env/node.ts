@@ -27,6 +27,7 @@ export class NodeEnv extends WebEnv {
   override mkdir = async (path: string) => void await fs.mkdir(path, { recursive: true })
   override args = () => process.argv.slice(2)
   override machine = () => os.machine()
+  override exit = (code: number) => process.exit(code)
 
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 
