@@ -1,5 +1,5 @@
 import { Compiled, Compiler, MallocAllocator, Program, type ProgramCallArgs } from './allocator.ts'
-import { bytes_to_string, cpu_objdump, perf } from '../helpers.ts'
+import { cpu_objdump, perf } from '../helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { env } from '../env/index.ts'
@@ -15,9 +15,8 @@ export class ClangCompiler extends Compiler {
     const bin = await env.tempFile()
     await env.writeTextFile(code, src)
 
-    const args = ['-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', code, '-o', bin]
-    const res = await new Deno.Command('clang', { args }).output()
-    if (!res.success) throw new Error(`Clang compiling failed, error: ${bytes_to_string(res.stderr)}`)
+    const args = ['clang', '-shared', ...this.args, '-O2', '-Wall', '-Werror', '-x', 'c', '-fPIC', '-ffreestanding', '-nostdlib', code, '-o', bin]
+    await env.exec(args.join(' '))
 
     const data = await env.readFile(bin)
     await env.remove(code)

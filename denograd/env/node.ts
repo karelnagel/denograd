@@ -9,12 +9,14 @@ import fs from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
+import { CLANG } from '../runtime/ops_clang_deno.ts'
+import { exec } from 'node:child_process'
 
 export class NodeEnv extends WebEnv {
   override NAME = 'node'
   override CPU_DEVICE = 'JS'
   override PLATFORM = process.platform
-  override DEVICES = { JS, CLOUD }
+  override DEVICES = { CLANG, JS, CLOUD }
   override readFile = async (path: string) => new Uint8Array(await fs.readFile(path))
   override writeFile = fs.writeFile
   override remove = fs.unlink
@@ -28,6 +30,14 @@ export class NodeEnv extends WebEnv {
   override args = () => process.argv.slice(2)
   override machine = () => os.machine()
   override exit = (code: number) => process.exit(code)
+  override exec = async (cmd: string) => {
+    return await new Promise<string>((resolve, reject) => {
+      exec(cmd, (error, stdout, stderr) => {
+        if (error) reject(stderr)
+          else resolve(stdout)
+      })
+    })
+  }
 
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 

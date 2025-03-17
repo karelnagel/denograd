@@ -60,6 +60,7 @@ export class WebEnv {
   exit = (code: number) => {
     if (code) throw new Error(`Exited with status code ${code}`)
   }
+ exec = (cmd:string): Promise<string> => this.notImplemented()
 
   //
   sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())
