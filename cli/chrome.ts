@@ -2,7 +2,7 @@
 import { chromium } from 'npm:playwright'
 import esbuild from 'npm:esbuild'
 import process from "node:process"
-import { string_to_bytes } from './denograd/helpers.ts'
+import { string_to_bytes } from '../denograd/helpers.ts'
 
 const FORWARD_ENVS = ["DEBUG", "D", "DEVICE", "JIT", "BEAM", "CACHELEVEL"]
 
