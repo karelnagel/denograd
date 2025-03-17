@@ -178,7 +178,7 @@ ${code}
   const file = `/tmp/tiny_${random_id()}.py`
   // console.log(file)
   await env.writeTextFile(file, code.trim())
-  const envs = ["PYTHONPATH='./test:./tinygrad'", Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => [k.replace('TINY_', ''), v])]
+  const envs = ["PYTHONPATH='./test:./tinygrad'", Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => `${k.replace('TINY_', '')}=${v}`)]
   const out = await env.exec(`${envs.join(' ')} python3 ${file}`)
   const [stdout, ts] = out.replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)

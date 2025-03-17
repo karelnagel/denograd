@@ -32,7 +32,8 @@ export class _Device {
   get(device: string): Compiled {
     if (this.opened.has(device)) return this.opened.get(device)!
     const ix = this.canonicalize(device)
-    const Device = DEVICES[ix.split(':')[0].toUpperCase()]!
+    const Device = DEVICES[ix.split(':')[0].toUpperCase()]
+    if (!Device)throw new Error(`No device for ${ix}`)
     if (env.DEBUG >= 1) console.log(`opened device ${ix}`)
     const dev = new Device(ix)
     this.opened.set(device, dev)
