@@ -61,6 +61,8 @@ export class WebEnv {
     if (code) throw new Error(`Exited with status code ${code}`)
   }
  exec = (cmd:string): Promise<string> => this.notImplemented()
+ dlopen: typeof Deno.dlopen = () => this.notImplemented()
+ ptr = (buffer: ArrayBuffer): any => this.notImplemented()
 
   //
   sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())

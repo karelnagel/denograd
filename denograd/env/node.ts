@@ -9,7 +9,7 @@ import fs from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
-import { CLANG } from '../runtime/ops_clang_deno.ts'
+import { CLANG } from '../runtime/ops_clang.ts'
 import { exec } from 'node:child_process'
 
 export class NodeEnv extends WebEnv {
@@ -34,7 +34,7 @@ export class NodeEnv extends WebEnv {
     return await new Promise<string>((resolve, reject) => {
       exec(cmd, (error, stdout, stderr) => {
         if (error) reject(stderr)
-          else resolve(stdout)
+        else resolve(stdout)
       })
     })
   }
