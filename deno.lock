@@ -20,9 +20,11 @@
     "npm:bun-types@1.2.4": "1.2.4",
     "npm:cloudflared@*": "0.7.0",
     "npm:esbuild@*": "0.25.0",
+    "npm:ffi-napi@*": "4.0.3",
     "npm:playwright@*": "1.51.0",
     "npm:react-dom@19": "19.0.0_react@19.0.0",
     "npm:react@19": "19.0.0",
+    "npm:ref-napi@*": "3.0.3",
     "npm:tailwindcss@3.4.16": "3.4.16_postcss@8.5.3",
     "npm:vite@^6.1.0": "6.2.0",
     "npm:zod@^3.24.2": "3.24.2"
@@ -129,7 +131,7 @@
       "integrity": "sha512-wxhSKRfKugLwLlr4OFfcqovk+LIFtKwLyGPqMsv+9/ibqqnW3Gv7tBhtKEb0gAyUAC4G9BTVQeQahqnQAhd6IQ==",
       "dependencies": [
         "ci-info",
-        "debug",
+        "debug@4.4.0",
         "dlv",
         "dset",
         "is-docker",
@@ -162,7 +164,7 @@
         "@babel/traverse",
         "@babel/types",
         "convert-source-map",
-        "debug",
+        "debug@4.4.0",
         "gensync",
         "json5",
         "semver@6.3.1"
@@ -259,7 +261,7 @@
         "@babel/parser",
         "@babel/template",
         "@babel/types",
-        "debug",
+        "debug@4.4.0",
         "globals"
       ]
     },
@@ -791,7 +793,7 @@
         "common-ancestor-path",
         "cookie",
         "cssesc",
-        "debug",
+        "debug@4.4.0",
         "deterministic-object-hash",
         "devalue",
         "diff",
@@ -1229,6 +1231,12 @@
         "d3-zoom"
       ]
     },
+    "debug@3.2.7": {
+      "integrity": "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==",
+      "dependencies": [
+        "ms"
+      ]
+    },
     "debug@4.4.0": {
       "integrity": "sha512-6WTZ/IxCY/T6BALoZHaE4ctp9xm+Z5kY/pzYaCHRFeyVhojxlrm+46y68HA6hr0TcwEssoxNiDEUJQjfPZ/RYA==",
       "dependencies": [
@@ -1386,6 +1394,17 @@
         "picomatch@4.0.2"
       ]
     },
+    "ffi-napi@4.0.3": {
+      "integrity": "sha512-PMdLCIvDY9mS32RxZ0XGb95sonPRal8aqRhLbeEtWKZTe2A87qRFG9HjOhvG8EX2UmQw5XNRMIOT+1MYlWmdeg==",
+      "dependencies": [
+        "debug@4.4.0",
+        "get-uv-event-loop-napi-h",
+        "node-addon-api",
+        "node-gyp-build",
+        "ref-napi",
+        "ref-struct-di"
+      ]
+    },
     "fill-range@7.1.1": {
       "integrity": "sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==",
       "dependencies": [
@@ -1436,6 +1455,15 @@
     },
     "get-east-asian-width@1.3.0": {
       "integrity": "sha512-vpeMIQKxczTD/0s2CdEWHcb0eeJe6TFjxb+J5xgX7hScxqrGuyjmv4c1D4A/gelKfyox0gJJwIHF+fLjeaM8kQ=="
+    },
+    "get-symbol-from-current-process-h@1.0.2": {
+      "integrity": "sha512-syloC6fsCt62ELLrr1VKBM1ggOpMdetX9hTrdW77UQdcApPHLmf7CI7OKcN1c9kYuNxKcDe4iJ4FY9sX3aw2xw=="
+    },
+    "get-uv-event-loop-napi-h@1.0.6": {
+      "integrity": "sha512-t5c9VNR84nRoF+eLiz6wFrEp1SE2Acg0wS+Ysa2zF0eROes+LzOfuTaVHxGy8AbS8rq7FHEJzjnCZo1BupwdJg==",
+      "dependencies": [
+        "get-symbol-from-current-process-h"
+      ]
     },
     "github-slugger@2.0.0": {
       "integrity": "sha512-IaOQ9puYtjrkq7Y0Ygl9KDZnrf/aiUJYUpVf89y8kyaxbRG7Y1SrX/jaumrv81vc61+kiMempujsM3Yw7w5qcw=="
@@ -2128,7 +2156,7 @@
       "integrity": "sha512-zpe98Q6kvavpCr1NPVSCMebCKfD7CA2NqZ+rykeNhONIJBpc1tFKt9hucLGwha3jNTNI8lHpctWJWoimVF4PfA==",
       "dependencies": [
         "@types/debug",
-        "debug",
+        "debug@4.4.0",
         "decode-named-character-reference",
         "devlop",
         "micromark-core-commonmark",
@@ -2188,8 +2216,14 @@
         "@types/nlcst"
       ]
     },
+    "node-addon-api@3.2.1": {
+      "integrity": "sha512-mmcei9JghVNDYydghQmeDX8KoAm0FAiYyIcUt/N4nhyAipB17pllZQDOJD2fotxABnt4Mdz+dKTO7eftLg4d0A=="
+    },
     "node-fetch-native@1.6.6": {
       "integrity": "sha512-8Mc2HhqPdlIfedsuZoc3yioPuzp6b+L5jRCRY1QzuWZh2EGJVQrGppC6V6cF0bLdbW0+O2YpqCA25aF/1lvipQ=="
+    },
+    "node-gyp-build@4.8.4": {
+      "integrity": "sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ=="
     },
     "node-mock-http@1.0.0": {
       "integrity": "sha512-0uGYQ1WQL1M5kKvGRXWQ3uZCHtLTO8hln3oBjIusM75WoesZ909uQJs/Hb946i2SS+Gsrhkaa6iAO17jRIv6DQ=="
@@ -2432,6 +2466,21 @@
     },
     "readdirp@4.1.2": {
       "integrity": "sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg=="
+    },
+    "ref-napi@3.0.3": {
+      "integrity": "sha512-LiMq/XDGcgodTYOMppikEtJelWsKQERbLQsYm0IOOnzhwE9xYZC7x8txNnFC9wJNOkPferQI4vD4ZkC0mDyrOA==",
+      "dependencies": [
+        "debug@4.4.0",
+        "get-symbol-from-current-process-h",
+        "node-addon-api",
+        "node-gyp-build"
+      ]
+    },
+    "ref-struct-di@1.1.1": {
+      "integrity": "sha512-2Xyn/0Qgz89VT+++WP0sTosdm9oeowLP23wRJYhG4BFdMUrLj3jhwHZNEytYNYgtPKLNTP3KJX4HEgBvM1/Y2g==",
+      "dependencies": [
+        "debug@3.2.7"
+      ]
     },
     "regex-recursion@5.1.1": {
       "integrity": "sha512-ae7SBCbzVNrIjgSbh7wMznPcQel1DNlDtzensnFxpiNpXt1U2ju/bHugH422r+4LAVS1FpW1YCwilmnNsjum9w==",
@@ -3074,7 +3123,9 @@
       "jsr:@std/assert@*",
       "jsr:@std/expect@*",
       "npm:@types/react-dom@*",
-      "npm:@types/react@*"
+      "npm:@types/react@*",
+      "npm:ffi-napi@*",
+      "npm:ref-napi@*"
     ],
     "members": {
       "cli": {
