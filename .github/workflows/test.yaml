@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: ["deno -A", "node --experimental-transform-types", "bun -b", "./chrome"]
+        env: ["deno -A", "node --experimental-transform-types", "bun -b", "./cli/chrome.ts"]
     name: Env (${{ matrix.env }})
     runs-on: ubuntu-22.04
     steps:
@@ -56,7 +56,7 @@ jobs:
         run: sudo apt update -y && sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
 
       - uses: denoland/setup-deno@v2
-        if: matrix.env == 'deno -A' || matrix.env == './chrome'
+        if: matrix.env == 'deno -A' || matrix.env == './cli/chrome.ts'
 
       - uses: actions/setup-node@v4
         if: matrix.env == 'node --experimental-transform-types'
@@ -69,7 +69,7 @@ jobs:
         if: matrix.env == 'bun -b'
 
       - run: deno -A npm:playwright install
-        if: matrix.env == './chrome'
+        if: matrix.env == './cli/chrome.ts'
 
       - name: Test
         run: ${{ matrix.env }} cli/devices.ts
