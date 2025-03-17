@@ -14,3 +14,4 @@ denograd.mjs
 package-lock.json
 weights/
 .playwright
+.vscode

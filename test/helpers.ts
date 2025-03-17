@@ -191,7 +191,7 @@ ${code}
   // console.log(file)
   await Deno.writeTextFile(file, code.trim())
   const envs = Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => [k.replace('TINY_', ''), v])
-  const out = await new Deno.Command(`python3`, { args: [file], clearEnv: true, env: { PATH: process.env.PATH, 'PYTHONPATH': '.:./tinygrad', ...Object.fromEntries(envs) } }).output()
+  const out = await new Deno.Command(`python3`, { args: [file], clearEnv: true, env: { PATH: process.env.PATH, 'PYTHONPATH': './test:./tinygrad', ...Object.fromEntries(envs) } }).output()
   if (!out.success) throw new Error(bytes_to_string(out.stderr))
   const [stdout, ts] = bytes_to_string(out.stdout).replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)

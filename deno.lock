@@ -8,10 +8,12 @@
     "npm:@astrojs/react@^4.2.0": "4.2.1_@types+react@19.0.10_@types+react-dom@19.0.4__@types+react@19.0.10_react@19.0.0_react-dom@19.0.0__react@19.0.0_vite@6.2.2",
     "npm:@astrojs/tailwind@6": "6.0.0_astro@5.5.2__vite@6.2.2__zod@3.24.2_tailwindcss@3.4.16__postcss@8.5.3_postcss@8.5.3",
     "npm:@observablehq/plot@~0.6.16": "0.6.17",
+    "npm:@types/node@*": "22.12.0",
     "npm:@types/react-dom@*": "19.0.4_@types+react@19.0.10",
     "npm:@types/react-dom@^19.0.3": "19.0.4_@types+react@19.0.10",
     "npm:@types/react@*": "19.0.10",
     "npm:@types/react@^19.0.8": "19.0.10",
+    "npm:@webgpu/types@0.1.54": "0.1.54",
     "npm:astro@^5.2.5": "5.5.2_vite@6.2.2_zod@3.24.2",
     "npm:bun-types@1.2.4": "1.2.4",
     "npm:ffi-napi@*": "4.0.3",
@@ -702,6 +704,9 @@
         "react-refresh",
         "vite"
       ]
+    },
+    "@webgpu/types@0.1.54": {
+      "integrity": "sha512-81oaalC8LFrXjhsczomEQ0u3jG+TqE6V9QHLA8GNZq/Rnot0KDugu3LhSYSlie8tSdooAN1Hov05asrUUp9qgg=="
     },
     "@yuuang/ffi-rs-android-arm64@1.2.8": {
       "integrity": "sha512-gQ39tvIT/HKEhEiHzEHPmVy05ihT9GngFaSkHPgAtdSOKLUif3XZGa+T1XSBI3PI0YGXnzfSrNPFJcseL6nkOQ=="
