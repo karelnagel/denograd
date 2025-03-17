@@ -5,13 +5,12 @@ import { WASM } from '../runtime/ops_wasm.ts'
 import { WEBGPU } from '../runtime/ops_webgpu.ts'
 import { CLANG } from '../runtime/ops_clang_deno.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
-import { DAWN } from '../runtime/ops_dawn.ts'
 import { NodeEnv } from './node.ts'
 
 export class DenoEnv extends NodeEnv {
   override NAME = 'deno'
   override CPU_DEVICE = 'CLANG'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, WEBGPU, DAWN, WASM, JS, DISK, CLOUD }
+  override DEVICES = { CLANG, WEBGPU, WASM, JS, DISK, CLOUD }
 
 }
