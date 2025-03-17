@@ -19,6 +19,7 @@ import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
 import { WGSLRenderer } from '../denograd/renderer/wgsl.ts'
 import { expect, test } from 'vitest'
+import { env } from '../denograd/env/index.ts'
 
 export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined
@@ -176,11 +177,10 @@ ${code}
 `
   const file = `/tmp/tiny_${random_id()}.py`
   // console.log(file)
-  await Deno.writeTextFile(file, code.trim())
-  const envs = Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => [k.replace('TINY_', ''), v])
-  const out = await new Deno.Command(`python3`, { args: [file], clearEnv: true, env: { PATH: process.env.PATH, 'PYTHONPATH': './test:./tinygrad', ...Object.fromEntries(envs) } }).output()
-  if (!out.success) throw new Error(bytes_to_string(out.stderr))
-  const [stdout, ts] = bytes_to_string(out.stdout).replace('>>>>>', '').trim().split('<<<<<')
+  await env.writeTextFile(file, code.trim())
+  const envs = ["PYTHONPATH='./test:./tinygrad'", Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => [k.replace('TINY_', ''), v])]
+  const out = await env.exec(`${envs.join(' ')} python3 ${file}`)
+  const [stdout, ts] = out.replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
   try {
     const classes = { dtypes, Ops, OptOps, Tensor, CompiledRunner, Estimates, Runner, ExecItem, ScheduleItem, ScheduleContext, ScheduleItemContext, Buffer, _Device, BufferSpec, _MallocAllocator, LRUAllocator, Allocator, Compiler, IndexContext, Kernel, BasicBlock, Opt, ClangRenderer, WGSLRenderer, PythonRenderer, TensorCore, ProgramSpec, View, ShapeTracker, ImageDType, PtrDType, DType, UPat, UOp, KernelInfo, Metadata, Uint8Array, MemoryView }
