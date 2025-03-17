@@ -59,7 +59,7 @@ jobs:
         if: matrix.env == 'deno -A' || matrix.env == './chrome'
 
       - uses: actions/setup-node@v4
-        if: matrix.env == 'node --experimental-transform-type'
+        if: matrix.env == 'node --experimental-transform-types'
       
       - uses: oven-sh/setup-bun@v2
         if: matrix.env == 'bun -b'
