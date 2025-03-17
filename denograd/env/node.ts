@@ -1,7 +1,7 @@
 import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
-import { WebEnv } from './index.ts'
+import { type Dlopen, WebEnv } from './index.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { random_id, string_to_bytes } from '../helpers.ts'
@@ -11,8 +11,7 @@ import path from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { CLANG } from '../runtime/ops_clang.ts'
 import { exec } from 'node:child_process'
-import ffi from 'ffi-napi'
-import ref from 'ref-napi'
+
 import { Buffer } from 'node:buffer'
 
 const ffiType = (type: Deno.NativeType) => {
@@ -59,7 +58,10 @@ export class NodeEnv extends WebEnv {
       })
     })
   }
-  override dlopen: typeof Deno.dlopen = (file, args) => {
+  private _ref: any
+  override dlopen: Dlopen = async (file, args) => {
+    const ffi = await import('ffi-napi')
+    this._ref = await import('ref-napi')
     const symbols = Object.fromEntries(
       Object.entries(args).map(([name, { parameters, result }]: any) => [
         name,
@@ -72,7 +74,7 @@ export class NodeEnv extends WebEnv {
     }
   }
 
-  override ptr = (buffer: ArrayBuffer) => ref.ref(Buffer.from(buffer))
+  override ptr = (buffer: ArrayBuffer) => this._ref.ref(Buffer.from(buffer))
 
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 
