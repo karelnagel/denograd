@@ -1,7 +1,7 @@
-import { expect } from '@std/expect'
 import { _get_recursive_parents, DType, dtypes, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../denograd/dtype.ts'
-import { compare, test, tryCatch } from './helpers.ts'
+import { compare, tryCatch } from './helpers.ts'
 import { PtrDType } from '../denograd/dtype.ts'
+import { describe, expect, test } from 'vitest'
 
 // test(
 //   'DType.init',
@@ -15,7 +15,7 @@ import { PtrDType } from '../denograd/dtype.ts'
 //     'out(tiny.dtype.DType(*data))',
 //   ),
 // )
-test(
+describe(
   'DType.vec',
   compare(
     [
@@ -28,7 +28,7 @@ test(
     'out(data[0].vec(data[1]))',
   ),
 )
-test(
+describe(
   'DType.ptr',
   compare(
     [
@@ -42,7 +42,7 @@ test(
   ),
 )
 
-test(
+describe(
   'dtypes.finfo',
   compare(
     [
@@ -56,10 +56,10 @@ test(
     ],
     tryCatch(dtypes.finfo),
     'out(trycatch(lambda: tiny.dtype.dtypes.finfo(*data)))',
-    { ignore: [5, 6] },
+    { skip: [5, 6] },
   ),
 )
-test(
+describe(
   'dtypes.min',
   compare(
     [
@@ -74,7 +74,7 @@ test(
     'out(tiny.dtype.dtypes.min(*data))',
   ),
 )
-test(
+describe(
   'dtypes.max',
   compare(
     [
@@ -90,7 +90,7 @@ test(
   ),
 )
 
-test(
+describe(
   'fromJS',
   compare(
     [
@@ -108,7 +108,7 @@ test(
   ),
 )
 
-test(
+describe(
   'asConst',
   compare(
     [
@@ -124,9 +124,9 @@ test(
     'out(trycatch(lambda:tiny.dtype.dtypes.as_const(*data)))',
   ),
 )
-test('promoLattice', compare([[]], () => [...promoLattice.entries()], 'out([[key,tiny.dtype.promo_lattice[key]] for key in tiny.dtype.promo_lattice])'))
+describe('promoLattice', compare([[]], () => [...promoLattice.entries()], 'out([[key,tiny.dtype.promo_lattice[key]] for key in tiny.dtype.promo_lattice])'))
 
-test(
+describe(
   '_getRecursiveParents',
   compare(
     [['float64'], ['float32'], ['float16'], ['half'], ['bool'], ['int'], ['uint']] as const,
@@ -135,7 +135,7 @@ test(
   ),
 )
 
-test(
+describe(
   'least_upper_dtype',
   compare(
     [
@@ -159,7 +159,7 @@ test(
   ),
 )
 
-test(
+describe(
   'sumAccDType',
   compare(
     [
@@ -175,7 +175,7 @@ test(
   ),
 )
 
-test(
+describe(
   'truncate',
   compare(
     [
@@ -195,7 +195,7 @@ test(
     ],
     (d: DType, x: any) => truncate.get(d)!(x),
     'out(tiny.dtype.truncate[data[0]](data[1]))',
-    { ignore: [8, 12] },
+    { skip: [8, 12] },
   ),
 )
 

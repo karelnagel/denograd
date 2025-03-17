@@ -1,11 +1,12 @@
 import { _choices_from_args, _expand_arg_to_idx, _swizzle_args, create_gate, delete_redundant_gates, devectorize, do_contract, do_expand, fix_unfoldable_image_load, fold_expanded, full_graph_rewrite, loop_collapse, move_mask, no_vectorized_acc, no_vectorized_alu, no_vectorized_load_store, reduce_collapse, simplify_valid_load, sym, threefry2x32 } from '../../denograd/ops.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
-import { compare, test, tryCatch } from '../helpers.ts'
+import { compare, tryCatch } from '../helpers.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 import { WGSLRenderer } from '../../denograd/renderer/wgsl.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'fold_expanded',
   compare(
     [
@@ -28,7 +29,7 @@ test(
   ),
 )
 
-test(
+describe(
   'fix_unfoldable_image_load',
   compare(
     [
@@ -52,7 +53,7 @@ test(
   ),
 )
 
-test(
+describe(
   'simplify_valid_load',
   compare(
     [
@@ -65,7 +66,7 @@ test(
   ),
 )
 
-test(
+describe(
   'threefry2x32',
   compare(
     [
@@ -78,7 +79,7 @@ test(
   ),
 )
 
-test(
+describe(
   'loop_collapse',
   compare(
     [
@@ -112,7 +113,7 @@ test(
   ),
 )
 
-test(
+describe(
   '_expand_arg_to_idx',
   compare(
     [
@@ -153,7 +154,7 @@ test(
   ),
 )
 
-test(
+describe(
   '_choices_from_args',
   compare(
     [
@@ -184,7 +185,7 @@ test(
   ),
 )
 
-test(
+describe(
   '_swizzle_args',
   compare(
     [
@@ -218,7 +219,7 @@ test(
   ),
 )
 
-test(
+describe(
   'do_expand',
   compare(
     [
@@ -268,7 +269,7 @@ test(
   ),
 )
 
-test(
+describe(
   'do_contract',
   compare(
     [
@@ -297,7 +298,7 @@ test(
   ),
 )
 
-test(
+describe(
   'no_vectorized_alu',
   compare(
     [
@@ -333,7 +334,7 @@ test(
   ),
 )
 
-test(
+describe(
   'create_gate',
   compare(
     [
@@ -366,7 +367,7 @@ test(
   ),
 )
 
-test(
+describe(
   'no_vectorized_load_store',
   compare(
     [
@@ -406,7 +407,7 @@ test(
   ),
 )
 
-test(
+describe(
   'delete_redundant_gates',
   compare(
     [
@@ -449,7 +450,7 @@ test(
   ),
 )
 
-test(
+describe(
   'move_mask',
   compare(
     [
@@ -491,7 +492,7 @@ test(
     'out(tiny.codegen.rewriter.move_mask(*data))',
   ),
 )
-test(
+describe(
   'full_graph_rewrite',
   compare(
     [
@@ -510,7 +511,7 @@ test(
   ),
 )
 
-test(
+describe(
   'reduce_collapse',
   compare(
     [
@@ -521,7 +522,7 @@ test(
   ),
 )
 
-test(
+describe(
   'no_vectorized_acc',
   compare(
     [
@@ -532,7 +533,7 @@ test(
   ),
 )
 
-test(
+describe(
   'sym+devectorize',
   compare(
     [

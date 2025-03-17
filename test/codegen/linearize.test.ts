@@ -1,17 +1,10 @@
-import { append_to_block, BasicBlock, block_merge, block_reorder, disp, linearize_uop } from '../../denograd/codegen/linearize.ts'
-import { compare, test, tryCatch } from '../helpers.ts'
+import { append_to_block, BasicBlock, block_merge, block_reorder, linearize_uop } from '../../denograd/codegen/linearize.ts'
+import { compare, tryCatch } from '../helpers.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
+import { describe as describe } from 'vitest'
 
-test(
-  'disp',
-  compare(
-    [],
-    disp,
-    'out(tiny.codegen.linearize.disp(*data))',
-  ),
-)
-test(
+describe(
   'append_to_block',
   compare(
     [
@@ -26,7 +19,7 @@ test(
     'out(tiny.codegen.linearize.append_to_block(*data))',
   ),
 )
-test(
+describe(
   'block_merge',
   compare(
     [
@@ -41,7 +34,7 @@ test(
     'out(tiny.codegen.linearize.block_merge(*data))',
   ),
 )
-test(
+describe(
   'block_reorder',
   compare(
     [
@@ -60,7 +53,7 @@ test(
     'out(tiny.codegen.linearize.block_reorder(*data))',
   ),
 )
-test(
+describe(
   'linearize_uop',
   compare(
     [

@@ -1,14 +1,15 @@
 import { _assert_valid_uop, Kernel, Opt, OptOps, verify_ast } from '../../denograd/codegen/kernel.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
-import { compare, test, tryCatch } from '../helpers.ts'
+import { compare, tryCatch } from '../helpers.ts'
 import type { Renderer } from '../../denograd/renderer/index.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 import { kernelInputs, pyKernel, tsKernel } from '../engine/kernel-inputs.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'Opt.real_axis',
   compare(
     [
@@ -25,7 +26,7 @@ test(
 )
 
 const kernels = () => kernelInputs().map(([opts, ast]) => [new Kernel(ast, opts)] as [Kernel])
-test(
+describe(
   'Kernel.init',
   compare(
     () => kernelInputs().map((x) => x.toReversed() as [UOp, Renderer]),
@@ -36,7 +37,7 @@ test(
     ],
   ),
 )
-test(
+describe(
   'Kernel.membufs',
   compare(
     kernels,
@@ -44,7 +45,7 @@ test(
     'out(data[0].membufs)',
   ),
 )
-test(
+describe(
   'Kernel.float4_axis',
   compare(
     () => kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
@@ -52,7 +53,7 @@ test(
     'out(data[0].float4_axis(data[1]))',
   ),
 )
-test(
+describe(
   'Kernel.upcasted_axis',
   compare(
     () => kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
@@ -60,7 +61,7 @@ test(
     'out(data[0].upcasted_axis(data[1]))',
   ),
 )
-test(
+describe(
   'Kernel.first_reduce',
   compare(
     kernels,
@@ -68,7 +69,7 @@ test(
     'out(data[0].first_reduce)',
   ),
 )
-test(
+describe(
   'Kernel.colors',
   compare(
     kernels,
@@ -76,8 +77,9 @@ test(
     'out(data[0].colors())',
   ),
 )
-Deno.test.ignore(
+describe(
   'Kernel.colored_shape',
+  { todo: true },
   compare(
     kernels,
     (k: Kernel) => k.colored_shape(),
@@ -85,7 +87,7 @@ Deno.test.ignore(
   ),
 )
 
-test(
+describe(
   'Kernel.shift_to',
   compare(
     [
@@ -109,7 +111,7 @@ test(
     ],
   ),
 )
-test(
+describe(
   'Kernel.apply_opt',
   compare(
     [
@@ -131,7 +133,7 @@ test(
     ],
   ),
 )
-test(
+describe(
   'Kernel.required_optimizations',
   compare(
     kernels,
@@ -140,7 +142,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Kernel.name',
   compare(
     kernels,
@@ -152,7 +154,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Kernel.get_optimized_ast',
   compare(
     kernels,
@@ -161,7 +163,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Kernel.linearize',
   compare(
     kernels,
@@ -173,7 +175,7 @@ test(
   ),
 )
 
-test(
+describe(
   'Kernel.to_program',
   compare(
     kernels,
@@ -183,12 +185,12 @@ test(
     },
     'out(data[0].to_program())',
     {
-      ignore: [7], // possibly bug in tinygrad(fails in python not in TS)
+      skip: [7], // possibly bug in tinygrad(fails in python not in TS)
     },
   ),
 )
 
-test(
+describe(
   '_assert_valid_uop',
   compare(
     [
@@ -204,7 +206,7 @@ test(
   ),
 )
 
-test(
+describe(
   'verify_ast',
   compare(
     [

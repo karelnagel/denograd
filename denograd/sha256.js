@@ -1,4 +1,3 @@
-// deno-lint-ignore-file custom-lint-rules/no-null
 /**
  * [js-sha256]{@link https://github.com/emn178/js-sha256}
  *

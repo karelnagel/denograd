@@ -1,10 +1,10 @@
-import { expect } from '@std/expect'
 import { Tensor } from '../../denograd/tensor.ts'
 import { get_parameters, get_state_dict, gguf_load, safe_load } from '../../denograd/nn/state.ts'
 import { zip } from '../../denograd/helpers.ts'
 import { safe_save } from '../../denograd/nn/state.ts'
-import { python, test } from '../helpers.ts'
+import { python } from '../helpers.ts'
 import { MNIST } from '../../denograd/models/mnist.ts'
+import { expect, test } from 'vitest'
 
 test('get_state_dict', () => {
   const model = new MNIST()
@@ -28,7 +28,7 @@ test('get_parameters', () => {
   }
 })
 
-test('safe_save', async () => {
+test('safe_save', { skip: true }, async () => {
   const dict = {
     idk: new Tensor([2, 3, 4, 4]),
     idk33: new Tensor([2, 3, 4, 4, 4, 4]),
@@ -46,7 +46,7 @@ test('safe_save', async () => {
     expect(entry[0]).toBe(expected[0])
     expect(await entry[1].tolist()).toEqual(await expected[1].tolist())
   }
-}, { ignore: true })
+})
 
 test('safe_load', async () => {
   const path = '/tmp/safe_load_test.safetensor'
@@ -70,7 +70,7 @@ test('safe_load', async () => {
   }
 })
 
-test('gguf_load', async () => {
+test('gguf_load', { skip: true }, async () => {
   const path = 'weights/llama3-1b-instruct/Llama-3.2-1B-Instruct-Q6_K.gguf'
   const [py1, py2] = await python([
     'from tinygrad.nn.state import gguf_load',
@@ -81,4 +81,4 @@ test('gguf_load', async () => {
   const [ts1, ts2] = await gguf_load(data)
   expect(Object.keys(ts1)).toEqual(py1)
   expect(Object.keys(ts2)).toEqual(py2)
-}, { ignore: true })
+})

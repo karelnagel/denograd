@@ -1,8 +1,6 @@
-// deno-lint-ignore-file custom-lint-rules/no-null
 import '../denograd/env/server.ts'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../denograd/dtype.ts'
-import { ArrayMap, bytes_to_string, Enum, Metadata, random_id } from '../denograd/helpers.ts'
-import { expect } from '@std/expect'
+import { ArrayMap, Enum, Metadata, random_id } from '../denograd/helpers.ts'
 import process from 'node:process'
 import { KernelInfo, Ops, UOp, UPat } from '../denograd/ops.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
@@ -20,8 +18,8 @@ import { PythonRenderer } from '../denograd/runtime/ops_js.ts'
 import { MemoryView } from '../denograd/memoryview.ts'
 import { Tensor } from '../denograd/tensor.ts'
 import { WGSLRenderer } from '../denograd/renderer/wgsl.ts'
-
-export const test = (name: string, fn: (t: Deno.TestContext) => void | Promise<void>, opts: { ignore?: boolean } = {}) => Deno.test({ name, fn, sanitizeResources: false, ...opts })
+import { expect, test } from 'vitest'
+import { env } from '../denograd/env/index.ts'
 
 export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined
@@ -155,16 +153,6 @@ const pyStr = async (o: any, useList = false): Promise<string> => {
   if (o?.constructor?.name === 'Object') return `{${(await Promise.all(Object.entries(o).map(async (entry) => await t`${entry[0]}:${entry[1]}`))).join(',')}}`
   throw new Error(`Invalid value: ${o.constructor.name} ${JSON.stringify(o)}`)
 }
-export const py_bench = async (b: Deno.BenchContext, code: string | string[]) => {
-  if (Array.isArray(code)) code = code.join('\n')
-  const file = `/tmp/tiny_${random_id()}.py`
-  await Deno.writeTextFile(file, code)
-  b.start()
-  const out = await new Deno.Command(`python3`, { env: { PYTHONPATH: './tinygrad' }, args: [file] }).output()
-  if (out.stdout.length) console.log(bytes_to_string(out.stdout))
-  if (!out.success) throw new Error(bytes_to_string(out.stderr))
-  b.end()
-}
 
 export const python = async <T = any>(code: string | string[], data?: any): Promise<T> => {
   if (Array.isArray(code)) code = code.join('\n')
@@ -189,16 +177,15 @@ ${code}
 `
   const file = `/tmp/tiny_${random_id()}.py`
   // console.log(file)
-  await Deno.writeTextFile(file, code.trim())
-  const envs = Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => [k.replace('TINY_', ''), v])
-  const out = await new Deno.Command(`python3`, { args: [file], clearEnv: true, env: { PATH: process.env.PATH, 'PYTHONPATH': './test:./tinygrad', ...Object.fromEntries(envs) } }).output()
-  if (!out.success) throw new Error(bytes_to_string(out.stderr))
-  const [stdout, ts] = bytes_to_string(out.stdout).replace('>>>>>', '').trim().split('<<<<<')
+  await env.writeTextFile(file, code.trim())
+  const envs = ["PYTHONPATH='./test:./tinygrad'", Object.entries(process.env).filter(([k, v]) => k.startsWith('TINY_')).map(([k, v]) => `${k.replace('TINY_', '')}=${v}`)]
+  const out = await env.exec(`${envs.join(' ')} python3 ${file}`)
+  const [stdout, ts] = out.replace('>>>>>', '').trim().split('<<<<<')
   if (stdout) console.log(stdout)
   try {
-    return eval(ts)
+    const classes = { dtypes, Ops, OptOps, Tensor, CompiledRunner, Estimates, Runner, ExecItem, ScheduleItem, ScheduleContext, ScheduleItemContext, Buffer, _Device, BufferSpec, _MallocAllocator, LRUAllocator, Allocator, Compiler, IndexContext, Kernel, BasicBlock, Opt, ClangRenderer, WGSLRenderer, PythonRenderer, TensorCore, ProgramSpec, View, ShapeTracker, ImageDType, PtrDType, DType, UPat, UOp, KernelInfo, Metadata, Uint8Array, MemoryView }
+    return new Function(`{${Object.keys(classes)}}`, `return ${ts}`)(classes)
   } catch (e) {
-    Deno.writeTextFileSync(`invalidcode-${random_id()}.ts`, ts)
     throw new Error(`eval failed, code:"${ts}" error: ${e}`)
   }
 }
@@ -226,29 +213,25 @@ function calculateSimilarity(str1: string, str2: string): number {
 }
 
 export const compare = <T extends any[] = any[]>(inputs: T[] | (() => T[]), fn: (...args: T) => any, code: string | string[], options: {
-  ignore?: number[]
+  skip?: number[]
   ignoreKeys?: string[]
   stringSimilarity?: number
 } = {}) => {
-  return async (t: Deno.TestContext) => {
+  return async () => {
     if (typeof inputs === 'function') inputs = inputs()
     for (const [i, input] of inputs.entries()) {
-      await t.step({
-        name: i.toString(),
-        ignore: options.ignore?.includes(i),
-        fn: async () => {
-          const py = await python(code, input)
-          const ts = await fn(...input)
+      test(i.toString(), { skip: options.skip?.includes(i) }, async () => {
+        const py = await python(code, input)
+        const ts = await fn(...input)
 
-          if (typeof ts === 'string' && typeof py === 'string') {
-            const similarity = calculateSimilarity(ts, py)
-            if (similarity < (options?.stringSimilarity || 1)) {
-              expect(`${ts}\n\nsimilarity:${similarity}`).toEqual(`${py}\n\nsimilarity:${similarity}`)
-            }
-          } else {
-            expect(removeKeys(await asdict(ts), options.ignoreKeys)).toEqual(removeKeys(await asdict(py), options.ignoreKeys))
+        if (typeof ts === 'string' && typeof py === 'string') {
+          const similarity = calculateSimilarity(ts, py)
+          if (similarity < (options?.stringSimilarity || 1)) {
+            expect(`${ts}\n\nsimilarity:${similarity}`).toEqual(`${py}\n\nsimilarity:${similarity}`)
           }
-        },
+        } else {
+          expect(removeKeys(await asdict(ts), options.ignoreKeys)).toEqual(removeKeys(await asdict(py), options.ignoreKeys))
+        }
       })
     }
   }

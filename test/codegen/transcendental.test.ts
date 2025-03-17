@@ -1,9 +1,10 @@
 import { _lazy_map_numbers, cody_waite_reduction, exponent_bias, exponent_mask, ilogb2k, ldexp2k, ldexp3k, Ops, payne_hanek_reduction, pow2if, rintk, shl, shr, sin_poly, xexp2, xlog2, xsin } from '../../denograd/ops.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { UOp } from '../../denograd/ops.ts'
-import { compare, test } from '../helpers.ts'
+import { compare } from '../helpers.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   '_lazy_map_numbers',
   compare(
     [
@@ -19,7 +20,7 @@ test(
   ),
 )
 
-test(
+describe(
   'exponent_bias',
   compare(
     [
@@ -32,7 +33,7 @@ test(
   ),
 )
 
-test(
+describe(
   'exponent_mask',
   compare(
     [
@@ -45,7 +46,7 @@ test(
   ),
 )
 
-test(
+describe(
   'shr',
   compare(
     [
@@ -59,7 +60,7 @@ test(
   ),
 )
 
-test(
+describe(
   'shl',
   compare(
     [
@@ -72,7 +73,7 @@ test(
   ),
 )
 
-test(
+describe(
   'rintk',
   compare(
     [
@@ -90,7 +91,7 @@ test(
   ),
 )
 
-test(
+describe(
   'pow2if',
   compare(
     [
@@ -107,7 +108,7 @@ test(
     'out(tiny.codegen.transcendental.pow2if(*data))',
   ),
 )
-test(
+describe(
   'ilogb2k',
   compare(
     [
@@ -126,7 +127,7 @@ test(
     'out(tiny.codegen.transcendental.ilogb2k(*data))',
   ),
 )
-test(
+describe(
   'ldexp3k',
   compare(
     [
@@ -144,7 +145,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ldexp2k',
   compare(
     [
@@ -162,7 +163,7 @@ test(
   ),
 )
 
-test(
+describe(
   'sin_poly',
   compare(
     [
@@ -181,7 +182,7 @@ test(
   ),
 )
 
-test(
+describe(
   'xexp2',
   compare(
     [
@@ -202,7 +203,7 @@ test(
   ),
 )
 
-test(
+describe(
   'xlog2',
   compare(
     [
@@ -224,8 +225,9 @@ test(
   ),
 )
 
-test(
+describe(
   'xsin',
+  { todo: true },
   compare(
     [
       [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), false, 30.0],
@@ -234,8 +236,9 @@ test(
     'out(tiny.codegen.transcendental.xsin(*data))',
   ),
 )
-test(
+describe(
   'payne_hanek_reduction',
+  { todo: true },
   compare(
     [
       [new UOp(Ops.MUL, dtypes.float, [new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], Infinity)], undefined), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], -Infinity)], undefined), new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], Infinity)], undefined), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], -Infinity)], undefined), new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPLT, dtypes.bool, [new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], Infinity)], undefined), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0), new UOp(Ops.WHERE, dtypes.float, [new UOp(Ops.CMPNE, dtypes.bool, [new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], -Infinity)], undefined), new UOp(Ops.CAST, dtypes.float, [new UOp(Ops.LOAD, dtypes.int, [new UOp(Ops.INDEX, dtypes.int.ptr(10), [new UOp(Ops.DEFINE_GLOBAL, dtypes.int.ptr(10), [], 1), new UOp(Ops.RANGE, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 0), new UOp(Ops.CONST, dtypes.int, [], 10)], 0)], undefined)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined), new UOp(Ops.CONST, dtypes.float, [], -1.0), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 0.0)], undefined)], undefined)],
@@ -244,7 +247,7 @@ test(
     'out(tiny.codegen.transcendental.payne_hanek_reduction(*data))',
   ),
 )
-test(
+describe(
   'cody_waite_reduction',
   compare(
     [

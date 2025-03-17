@@ -1,6 +1,5 @@
-import { expect } from '@std/expect'
 import { _substitute, merge_views, Ops, type PatternMatcher, renderer, spec, symbolic_flat, view_left } from '../denograd/ops.ts'
-import { python, test } from './helpers.ts'
+import { python } from './helpers.ts'
 import { base_rewrite, ClangRenderer, extra_pm } from '../denograd/renderer/cstyle.ts'
 import { entries } from '../denograd/helpers.ts'
 import { symbolic_simple } from '../denograd/ops.ts'
@@ -12,6 +11,7 @@ import { break_sched, create_ctx, do_realize, multioutput, remove_movement_ops, 
 import { pm_gradient } from '../denograd/gradient.ts'
 import { si_lowerer } from '../denograd/engine/realize.ts'
 import { wgsl_matcher, WGSLRenderer } from '../denograd/renderer/wgsl.ts'
+import { expect, test } from 'vitest'
 
 const ALL_PATTERN_MATCHERS: Record<string, PatternMatcher<any, any>> = {
   'tiny.gradient.pm_gradient': pm_gradient,

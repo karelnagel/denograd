@@ -36,22 +36,22 @@ jobs:
           sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
 
       - name: Run tests
-        run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHE_DB=":memory:" deno test -A --no-check --parallel
+        run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHE_DB=":memory:" deno task test
 
       - name: Train mnist
-        run: ${{ matrix.runtime }}=1 deno -A cli/mnist.ts --steps 10 --bs 2
+        run: DEVICE=${{ matrix.runtime }} deno -A cli/mnist.ts --steps 10 --bs 2
   envs:
     strategy:
       fail-fast: false
       matrix:
-        env: ["deno -A", "node --experimental-transform-types", "bun -b", "./cli/chrome.ts"]
+        env: ['deno -A', 'node --experimental-transform-types', 'bun -b', './cli/chrome.ts']
     name: Env (${{ matrix.env }})
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
-      
+
       - name: Install WebGPU deps
         run: sudo apt update -y && sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
 
@@ -64,7 +64,7 @@ jobs:
           node-version: '22'
       - run: npm i ffi-rs
         if: matrix.env == 'node --experimental-transform-types'
-      
+
       - uses: oven-sh/setup-bun@v2
         if: matrix.env == 'bun -b'
 
@@ -73,5 +73,3 @@ jobs:
 
       - name: Test
         run: ${{ matrix.env }} cli/devices.ts
-
-

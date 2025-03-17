@@ -1,13 +1,13 @@
-// deno-fmt-ignore-file
 import { get_index, IndexContext, lower_load_store, lower_reduce_axis, rewrite_shapetracker_with_index } from '../../denograd/codegen/lowerer.ts'
 import { dtypes } from '../../denograd/dtype.ts'
 import { KernelInfo, Ops, UOp } from '../../denograd/ops.ts'
 import { ClangRenderer } from '../../denograd/renderer/cstyle.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
-import { compare, test } from '../helpers.ts'
+import { compare } from '../helpers.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'get_index',
   compare(
     [
@@ -26,7 +26,7 @@ test(
   ),
 )
 
-test(
+describe(
   'lower_reduce_axis',
   compare(
     [
@@ -48,7 +48,7 @@ test(
   ),
 )
 
-test(
+describe(
   'lower_load_store',
   compare(
     [
@@ -67,7 +67,7 @@ test(
   ),
 )
 
-test(
+describe(
   'rewrite_shapetracker_with_index',
   compare(
     [

@@ -1,5 +1,5 @@
 import process from 'node:process'
-import { DISK } from '../runtime/ops_disk_deno.ts'
+import { DISK } from '../runtime/ops_disk.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
 import { WEBGPU } from '../runtime/ops_webgpu.ts'

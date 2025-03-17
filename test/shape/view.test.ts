@@ -1,9 +1,10 @@
 import { Ops, type sint, UOp } from '../../denograd/ops.ts'
-import { compare, test, tryCatch } from '../helpers.ts'
+import { compare, tryCatch } from '../helpers.ts'
 import { _reshape_mask, canonicalize_strides, strides_for_shape, View } from '../../denograd/shape/view.ts'
 import { dtypes } from '../../denograd/dtype.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'canonicalize_strides',
   compare(
     [
@@ -16,7 +17,7 @@ test(
   ),
 )
 
-test(
+describe(
   'strides_for_shape',
   compare(
     [
@@ -30,7 +31,7 @@ test(
   ),
 )
 
-test(
+describe(
   '_reshape_mask',
   compare(
     [
@@ -47,7 +48,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.create',
   compare(
     [
@@ -78,7 +79,7 @@ const view2 = View.create([UOp.int(4), UOp.int(6)], [UOp.int(6), UOp.int(1)], UO
 const view3 = View.create([4, 4], [-4, -1], 0, undefined)
 const view4 = View.create([0, 3, 2], [6, -2, 1], 0, [[1, 3], [0, 4]])
 
-test(
+describe(
   'View.to_indexed_uops',
   compare(
     [
@@ -96,7 +97,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.size',
   compare(
     [
@@ -110,7 +111,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.vars',
   compare(
     [
@@ -124,7 +125,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.add',
   compare(
     [
@@ -141,7 +142,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.invert',
   compare(
     [
@@ -158,7 +159,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.minify',
   compare(
     [
@@ -172,7 +173,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.pad',
   compare(
     [
@@ -191,7 +192,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.shrink',
   compare(
     [
@@ -208,7 +209,7 @@ test(
     'out(trycatch(lambda:data[0].shrink(data[1])))',
   ),
 )
-test(
+describe(
   'View.expand',
   compare(
     [
@@ -227,7 +228,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.permute',
   compare(
     [
@@ -245,7 +246,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.stride',
   compare(
     [
@@ -261,7 +262,7 @@ test(
   ),
 )
 
-test(
+describe(
   'View.reshape',
   compare(
     [

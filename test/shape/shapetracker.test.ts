@@ -1,9 +1,10 @@
 import { type sint, UOp } from '../../denograd/ops.ts'
 import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
 import { View } from '../../denograd/shape/view.ts'
-import { compare, test, tryCatch } from '../helpers.ts'
+import { compare, tryCatch } from '../helpers.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'ShapeTracker.from_shape',
   compare(
     [
@@ -23,7 +24,7 @@ const st2 = ShapeTracker.from_shape([4, UOp.int(55)])
 const st3 = ShapeTracker.from_shape([UOp.float(8), UOp.int(110), UOp.int(33)])
 
 // GETTERS
-test(
+describe(
   'ShapeTracker.contiguous',
   compare(
     [[st1], [st1], [st2]],
@@ -31,7 +32,7 @@ test(
     'out(trycatch(lambda: data[0].contiguous))',
   ),
 )
-test(
+describe(
   'ShapeTracker.consecutive',
   compare(
     [[st1], [st1], [st2]],
@@ -39,7 +40,7 @@ test(
     'out(trycatch(lambda: data[0].consecutive))',
   ),
 )
-test(
+describe(
   'ShapeTracker.shape',
   compare(
     [[st1], [st1], [st2]],
@@ -47,7 +48,7 @@ test(
     'out(trycatch(lambda: data[0].shape))',
   ),
 )
-test(
+describe(
   'ShapeTracker.size',
   compare(
     [[st1], [st1], [st2]],
@@ -55,7 +56,7 @@ test(
     'out(trycatch(lambda: data[0].size))',
   ),
 )
-test(
+describe(
   'ShapeTracker.var_vals',
   compare(
     [[st1], [st1], [st2]],
@@ -64,7 +65,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.add',
   compare(
     [
@@ -76,7 +77,7 @@ test(
     'out(trycatch(lambda: data[0] + data[1] ))',
   ),
 )
-test(
+describe(
   'ShapeTracker.reduce',
   compare(
     [
@@ -92,7 +93,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.to_uop',
   compare(
     [
@@ -104,7 +105,7 @@ test(
     'out(trycatch(lambda: data[0].to_uop()))',
   ),
 )
-test(
+describe(
   'ShapeTracker.to_indexed_uops',
   compare(
     [
@@ -117,7 +118,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.real_size',
   compare(
     [
@@ -130,7 +131,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.vars',
   compare(
     [
@@ -143,7 +144,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.real_strides',
   compare(
     [
@@ -156,7 +157,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.unit_stride_axes',
   compare(
     [
@@ -169,7 +170,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.axis_is_masked',
   compare(
     [
@@ -182,7 +183,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.simplify',
   compare(
     [
@@ -203,7 +204,7 @@ test(
   ),
 )
 
-test(
+describe(
   'ShapeTracker.reshape',
   compare(
     [

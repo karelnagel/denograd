@@ -1,9 +1,10 @@
-import { can_pad, div_and_mod_folding, exec_alu, Ops, resolve, smax, smin, UOp, UPat } from '../denograd/ops.ts'
-import { compare, test, tryCatch } from './helpers.ts'
+import { can_pad, exec_alu, Ops, resolve, smax, smin, UOp, UPat } from '../denograd/ops.ts'
+import { compare, tryCatch } from './helpers.ts'
 import { dtypes } from '../denograd/dtype.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'can_pad',
   compare(
     [
@@ -17,7 +18,7 @@ test(
     'out(tiny.ops.can_pad(data[0],{},set()))',
   ),
 )
-test(
+describe(
   'resolve',
   compare(
     [
@@ -33,7 +34,7 @@ test(
     'out(trycatch(lambda: tiny.ops.resolve(*data)))',
   ),
 )
-test(
+describe(
   'UOp.st',
   compare(
     [
@@ -48,7 +49,7 @@ test(
     'out(data[0].simplify())',
   ),
 )
-test(
+describe(
   'UOp.const_like',
   compare(
     [
@@ -58,7 +59,7 @@ test(
     'out(data[0].const_like(data[1]))',
   ),
 )
-test(
+describe(
   'uop.parents',
   compare(
     [
@@ -69,7 +70,7 @@ test(
     'out(list(data[0].toposort.keys()))',
   ),
 )
-test(
+describe(
   'upat.match',
   compare(
     [
@@ -98,7 +99,7 @@ test(
     'out(data[0].match(data[1],{}))',
   ),
 )
-test(
+describe(
   'uop.simplify2',
   compare(
     [[]],
@@ -109,7 +110,7 @@ from tinygrad.dtype import dtypes
 out(UOp.const(dtypes.int,3).add(UOp.const(dtypes.float,4.6).idiv(UOp.const(dtypes.float,55))).mul(UOp.const(dtypes.bool,True)))`,
   ),
 )
-test(
+describe(
   'uop.simplify',
   compare(
     [
@@ -135,7 +136,7 @@ test(
     'out(data[0].simplify())',
   ),
 )
-test(
+describe(
   'uop.ssimplify',
   compare(
     [
@@ -161,7 +162,7 @@ test(
     'out(data[0].ssimplify())',
   ),
 )
-test(
+describe(
   'uop.sym_infer',
   compare(
     [
@@ -188,7 +189,7 @@ test(
     'out(trycatch(lambda:data[0].sym_infer({})))',
   ),
 )
-test(
+describe(
   'uop.render',
   compare(
     [
@@ -212,11 +213,11 @@ test(
     ],
     tryCatch((x: UOp) => [x.render(true), x.render(false)]),
     'out([data[0].render(True).lower(),data[0].render(False).lower()])',
-    { ignore: [6, 14] }, // ignoring these because python and TS code for UOps is different, so tests fail, but they are correct
+    { skip: [6, 14] }, // ignoring these because python and TS code for UOps is different, so tests fail, but they are correct
   ),
 )
 
-test(
+describe(
   'smax',
   compare(
     [
@@ -232,7 +233,7 @@ test(
   ),
 )
 
-test(
+describe(
   'smin',
   compare(
     [
@@ -248,7 +249,7 @@ test(
   ),
 )
 
-test(
+describe(
   'UOp.st',
   compare(
     [
@@ -265,7 +266,7 @@ test(
   ),
 )
 
-test(
+describe(
   'UOp.full_shape',
   compare(
     [
@@ -276,7 +277,7 @@ test(
   ),
 )
 
-test(
+describe(
   'st_arg',
   compare(
     [
@@ -290,18 +291,7 @@ test(
   ),
 )
 
-test(
-  'div_and_mod_folding',
-  compare(
-    [
-      // TODO add tests
-    ],
-    div_and_mod_folding,
-    'out(tiny.ops.div_and_mod_folding(*data))',
-  ),
-)
-
-test(
+describe(
   'exec_alu',
   compare(
     [

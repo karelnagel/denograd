@@ -6,9 +6,10 @@ import { KernelInfo, Ops, spec, UOp, UPat } from '../denograd/ops.ts'
 import { ClangRenderer } from '../denograd/renderer/cstyle.ts'
 import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
 import { View } from '../denograd/shape/view.ts'
-import { compare, test } from './helpers.ts'
+import { compare } from './helpers.ts'
+import { describe } from 'vitest'
 
-test(
+describe(
   'serialize',
   compare(
     [

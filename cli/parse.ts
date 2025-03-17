@@ -106,5 +106,5 @@ export const parseArgs = <T extends Schema>(schema: T): ParsedSchema<T> => {
   const res = parse(obj, schema)
   if (res.success) return res.data
   console.log(res.errors.map((x) => colored(`Error with '${x.path.join('.')}': ${x.message}`, 'red')).join('\n') + '\n\n' + help(schema))
-return   env.exit(1) as any
+  return env.exit(1) as any
 }

@@ -353,9 +353,9 @@ export class UOp extends MathTrait<UOp> {
     // if ((vmin instanceof expectedType)) throw new Error(`vmin is wrong dtype ${typeof vmin} != ${expectedType}`)
     return vmin as InstanceType<T>
   }
-  __bool__ = () => this._eval([dtypes.bool], Boolean)
-  __int__ = () => this._eval(dtypes.ints, Number)
-  __float__ = () => this._eval(dtypes.floats, Number)
+  bool = () => this._eval([dtypes.bool], Boolean)
+  int = () => this._eval(dtypes.ints, Number)
+  float = () => this._eval(dtypes.floats, Number)
   substitute = (dvars: Map<UOp, UOp>) => {
     return graph_rewrite(this, _substitute, dvars, true)
   }
@@ -693,7 +693,8 @@ export class UOp extends MathTrait<UOp> {
     const sthis = this.simplify()
     const varnames: string[] = [...sthis.toposort].filter((x) => x.op === Ops.DEFINE_VAR).map((x) => x.arg[0])
     // TODO: sanitize varnames, or don't use naked eval while staying fast
-    return [eval(`({${varnames.join(',')}})=>${sthis.render()}`), varnames]
+    const classes = { UOp, dtypes, ShapeTracker, Ops }
+    return [new Function(`{${Object.keys(classes)}}`, `return ({${varnames.join(',')}})=>${sthis.render()}`)(classes), varnames]
   })
   sym_infer = (varVals: Map<UOp, ConstType>) => {
     const [fxn, varnames] = this._sym_fxn()

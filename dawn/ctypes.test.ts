@@ -1,5 +1,5 @@
 import * as c from './ctypes.ts'
-import { expect } from '@std/expect'
+import { expect, test } from 'vitest'
 
 const check = (ctype: c.Type<any>, val: any, buffer: ArrayBuffer) => {
   expect(new Uint8Array(ctype.buffer)).toEqual(new Uint8Array(buffer))
@@ -7,7 +7,7 @@ const check = (ctype: c.Type<any>, val: any, buffer: ArrayBuffer) => {
   expect(ctype.native).toEqual(val)
 }
 
-Deno.test('Base types', () => {
+test('Base types', () => {
   const test = <T extends c.DenoFnType>(type: typeof c.Type<T>, res: (val: number) => any) => {
     // initialize empty type
     let ctype = new type()
@@ -38,7 +38,7 @@ Deno.test('Base types', () => {
   test(c.F64, (val) => new Float64Array([val]))
 })
 
-Deno.test('Structs', async () => {
+test('Structs', async () => {
   class Struct extends c.Struct<{
     val1: c.U8 // 0
     val2: c.U32 // 4 - 7
