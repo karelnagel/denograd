@@ -1,4 +1,4 @@
-import { expect } from 'expect/expect'
+import { expect } from '@std/expect'
 import { _substitute, merge_views, Ops, type PatternMatcher, renderer, spec, symbolic_flat, view_left } from '../denograd/ops.ts'
 import { python, test } from './helpers.ts'
 import { base_rewrite, ClangRenderer, extra_pm } from '../denograd/renderer/cstyle.ts'

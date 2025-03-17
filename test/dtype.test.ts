@@ -1,4 +1,4 @@
-import { expect } from 'expect/expect'
+import { expect } from '@std/expect'
 import { _get_recursive_parents, DType, dtypes, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../denograd/dtype.ts'
 import { compare, test, tryCatch } from './helpers.ts'
 import { PtrDType } from '../denograd/dtype.ts'

@@ -29,12 +29,11 @@ export class DType {
   get vcount() {
     return this.count
   }
-  @cache
-  vec(sz: number) {
+  vec = cache((sz: number): DType => {
     if (this.count !== 1) throw new Error(`can't vectorize ${this} with size ${sz}`)
     if (sz === 1 || this === dtypes.void) return this // void doesn't vectorize, and sz=1 is scalar
     return new DType(this.priority, this.itemsize * sz, `${INVERSE_DTYPES_DICT[this.name]}${sz}`, undefined, sz, this)
-  }
+  })
   ptr = (size = -1, local = false) => new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, undefined, this, local, 1, size)
   scalar = () => this._scalar || this
 }
@@ -58,12 +57,11 @@ export class PtrDType extends DType {
   override get base() {
     return this._base
   }
-  @cache
-  override vec(sz: number): PtrDType {
+  override vec = cache((sz: number): PtrDType => {
     if (this.v !== 1) throw new Error(`can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
     return new PtrDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz)
-  }
+  })
   override ptr = (size = -1, local = false): PtrDType => {
     throw new Error("can't make a pointer from a pointer")
   }
@@ -93,32 +91,27 @@ export class ImageDType extends PtrDType {
     if (local) throw new Error("images can't be local")
     return this
   }
-  @cache
-  override vec(sz: number): ImageDType {
+  override vec = cache((sz: number): ImageDType => {
     if (this.v !== 1) throw new Error(`can't vectorize ptr ${this} with size ${sz}`)
     if (sz === 1) return this
     return new ImageDType(this.priority, this.itemsize, this.name, this.fmt, this.count, this, this.base, this.local, sz, this.size, this.shape)
-  }
+  })
   override toString = () => `dtypes.${this.name}((${this.shape.join(', ')}))${this.v !== 1 ? `.vec(${this.v})` : ''}`
 }
 
 export class dtypes {
-  @cache
-  static is_float(x: DType) {
+  static is_float = cache((x: DType) => {
     return dtypes.floats.includes(x.scalar()) || x instanceof ImageDType
-  }
-  @cache
-  static is_int(x: DType) {
+  })
+  static is_int = cache((x: DType) => {
     return dtypes.ints.includes(x.scalar())
-  }
-  @cache
-  static is_big_int(x: DType) {
+  })
+  static is_big_int = cache((x: DType) => {
     return dtypes.bigints.includes(x.scalar())
-  }
-  @cache
-  static is_unsigned(x: DType) {
+  })
+  static is_unsigned = cache((x: DType) => {
     return dtypes.uints.includes(x.scalar())
-  }
+  })
   static from_js = (x: number | boolean | bigint | (number | bigint | boolean)[]): DType => {
     if (typeof x === 'number') return Number.isInteger(x) ? dtypes.default_int : dtypes.default_float
     if (typeof x === 'bigint') return dtypes.int64
@@ -146,18 +139,16 @@ export class dtypes {
     else if (Number.isNaN(val)) return true //python bool(math.nan) returns True
     else return Boolean(val)
   }
-  @cache
-  static min(dtype: DType) {
+  static min = cache((dtype: DType) => {
     if (dtypes.is_big_int(dtype)) return dtypes.is_unsigned(dtype) ? 0n : (-2n) ** (BigInt(dtype.itemsize) * 8n - 1n)
     if (dtypes.is_int(dtype)) return dtypes.is_unsigned(dtype) ? 0 : (-2) ** (dtype.itemsize * 8 - 1)
     return dtypes.is_float(dtype) ? -Infinity : false
-  }
-  @cache
-  static max(dtype: DType) {
+  })
+  static max = cache((dtype: DType) => {
     if (dtypes.is_big_int(dtype)) return 2n ** (BigInt(dtype.itemsize) * 8n) - 1n + BigInt(dtypes.min(dtype))
     if (dtypes.is_int(dtype)) return 2 ** (dtype.itemsize * 8) - 1 + Number(dtypes.min(dtype))
     return dtypes.is_float(dtype) ? Infinity : true
-  }
+  })
   /**
    * @returns [exponent, mantissa]
    */

@@ -1,4 +1,4 @@
-#!/usr/bin/env deno run -A
+#!/usr/bin/env -S deno run -A
 import { chromium } from 'npm:playwright'
 import esbuild from 'npm:esbuild'
 import process from "node:process"
@@ -15,7 +15,7 @@ const build = await esbuild.build({
   write: false,
   logLevel: 'error',
   target: ['chrome100'],
-  external: ['./denograd/env/deno.ts', './denograd/env/bun.ts'],
+  external: ['./denograd/env/deno.ts', './denograd/env/bun.ts', './denograd/env/node.ts'],
   define: {
     'window.args': JSON.stringify(args),
     "process": JSON.stringify({ env: Object.fromEntries(FORWARD_ENVS.map(k => [k, process.env[k]])) }),

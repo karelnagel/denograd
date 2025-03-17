@@ -1,4 +1,4 @@
-import { expect } from 'expect'
+import { expect } from '@std/expect'
 import { mnist } from '../../denograd/nn/datasets.ts'
 import { test } from '../helpers.ts'
 

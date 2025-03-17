@@ -42,7 +42,6 @@ export class ClangProgram extends Program {
 
   override call = async (bufs: MemoryView[], args: ProgramCallArgs, wait = false) => {
     const vals = args.vals || []
-    console.log(this.lib)
     this.fxn = dlopen(this.file, {
       [this.name]: {
         args: [...bufs.map(() => FFIType.ptr), ...vals.map(() => FFIType.i32)],

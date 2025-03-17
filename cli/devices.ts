@@ -1,17 +1,22 @@
 import { DEVICES } from '../denograd/device.ts'
-import { colored, Device, is_eq, Tensor } from '../denograd/mod.ts'
+import { colored, Device, env, is_eq, Tensor } from '../denograd/mod.ts'
 
+let result: string[] = [], error = false
 for (const device in DEVICES) {
-  if (device === 'DISK') continue
-  let result
+  if (['DISK', 'CLOUD'].includes(device)) continue
+  let res
   try {
     await new DEVICES[device](device).init()
     const test = await new Tensor([1, 2, 3], { device }).mul(2).tolist()
     if (!is_eq(test, [2, 4, 6])) throw new Error(`got ${test} instead of [2, 4, 6]`)
-    result = colored('PASS', 'green')
+    res = colored('PASS', 'green')
   } catch (e: any) {
-    console.log(e)
-    result = `${colored('FAIL', 'red')} - ${e.message}`
+    console.error(`${device} error:`)
+    console.error(e)
+    res = `${colored('FAIL', 'red')} - ${e.message}`
+    error = true
   }
-  console.log(`${device === Device.DEFAULT ? '*' : ' '} ${device.padEnd(10)}: ${result}`)
+  result.push(`${device === Device.DEFAULT ? '*' : ' '} ${device.padEnd(10)}: ${res}`)
 }
+console.log(result.join('\n'))
+if (error) env.exit(1)
