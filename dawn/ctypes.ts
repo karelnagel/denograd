@@ -205,7 +205,6 @@ export class Void extends Type<void, bigint> {
 
 // FUNCTION
 export class Function<Args extends Type<any>[]> extends Type<Deno.PointerValue, bigint, Deno.PointerValue, (...a: Args) => void> {
-  fn?: Deno.UnsafeCallback
   constructor(buffer: ArrayBuffer | undefined, offset: undefined | number, public args: Deno.NativeType[]) {
     super(buffer, offset, 8, 8)
   }
@@ -216,11 +215,10 @@ export class Function<Args extends Type<any>[]> extends Type<Deno.PointerValue, 
     throw new Error('Override this')
   }
   protected override _set(val: (...a: Args) => void) {
-    this.fn = new Deno.UnsafeCallback({ parameters: this.args, result: 'void' }, this._fn(val))
-    new BigUint64Array(this.buffer, this.offset).set([env.ptrToU64(this.fn.pointer)])
+    const fn = env.callback({ parameters: this.args, result: 'void' }, this._fn(val))
+    new BigUint64Array(this.buffer, this.offset).set([env.ptrToU64(fn)])
   }
   protected override _native = () => {
-    this.fn?.ref()
     return env.u64ToPtr(this.value)
   }
   protected override _setNative = (val: Deno.PointerValue) => {

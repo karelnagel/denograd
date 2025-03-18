@@ -12,7 +12,7 @@ const _wait = (future: c.Future) => {
 }
 const from_wgpu_str = (_str: c.StringView): string => {
   if (_str.$length.value <= 1) return ''
-  const buf = Deno.UnsafePointerView.getArrayBuffer(_str.$data.native as Deno.PointerObject, Number(_str.$length.value))
+  const buf = env.getArrayBuffer(_str.$data.native, Number(_str.$length.value))
   return new TextDecoder().decode(buf)
 }
 const to_wgpu_str = (str: string) => {
@@ -22,7 +22,7 @@ const to_wgpu_str = (str: string) => {
 }
 
 const write_buffer = (device: c.Device, buf: c.Buffer, offset: number, src: Uint8Array) => {
-  c.queueWriteBuffer(c.deviceGetQueue(device), buf, c.U64.new(BigInt(offset)), new c.Pointer().setNative(Deno.UnsafePointer.of(src)), c.Size.new(BigInt(src.length)))
+  c.queueWriteBuffer(c.deviceGetQueue(device), buf, c.U64.new(BigInt(offset)), new c.Pointer().setNative(env.ptr(src.buffer as ArrayBuffer)), c.Size.new(BigInt(src.length)))
 }
 
 type CallBack = typeof c.BufferMapCallbackInfo2 | typeof c.PopErrorScopeCallbackInfo | typeof c.CreateComputePipelineAsyncCallbackInfo2 | typeof c.RequestAdapterCallbackInfo | typeof c.RequestDeviceCallbackInfo | typeof c.QueueWorkDoneCallbackInfo2

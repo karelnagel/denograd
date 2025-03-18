@@ -7,6 +7,7 @@ import { CLANG } from '../runtime/ops_clang.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { NodeEnv } from './node.ts'
 import { DAWN } from '../runtime/ops_dawn.ts'
+import type { FFICallback } from './index.ts'
 
 export class DenoEnv extends NodeEnv {
   override NAME = 'deno'
@@ -19,4 +20,5 @@ export class DenoEnv extends NodeEnv {
   override u64ToPtr = (u64: any) => Deno.UnsafePointer.create(u64)
   override getCString = (ptr: any) => Deno.UnsafePointerView.getCString(ptr)
   override getArrayBuffer = (ptr: any, byteLength: number, offset?: number) => Deno.UnsafePointerView.getArrayBuffer(ptr, byteLength, offset)
+  override callback: FFICallback = (x, cb) => new Deno.UnsafeCallback(x, cb).pointer
 }
