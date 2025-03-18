@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [CLANG, WEBGPU, WASM]
+        runtime: [CLANG, WEBGPU, WASM, DAWN]
 
     name: Test (${{ matrix.runtime }})
     runs-on: ubuntu-22.04
@@ -36,7 +36,7 @@ jobs:
           sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
 
       - name: Run tests
-        run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime }}=1 CACHE_DB=":memory:" deno task test
+        run: DEVICE=${{ matrix.runtime }} TINY_${{ matrix.runtime == 'WASM' && 'CLANG' || matrix.runtime == 'DAWN' && 'WEBGPU' || matrix.runtime }}=1 CACHE_DB=":memory:" deno task test
 
       - name: Train mnist
         run: DEVICE=${{ matrix.runtime }} deno -A cli/mnist.ts --steps 10 --bs 2

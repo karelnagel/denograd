@@ -6,6 +6,7 @@ import { CLOUD } from '../runtime/ops_cloud.ts'
 import { NodeEnv } from './node.ts'
 import { dlopen, FFIType, ptr } from 'bun:ffi'
 import { DISK } from '../runtime/ops_disk.ts'
+import { DAWN } from '../runtime/ops_dawn.ts'
 
 const ffiType = (type: Deno.NativeResultType): FFIType => {
   if (type === 'isize') return FFIType.i64
@@ -16,7 +17,7 @@ const ffiType = (type: Deno.NativeResultType): FFIType => {
 
 export class BunEnv extends NodeEnv {
   override NAME = 'bun'
-  override DEVICES = { CLANG, WASM, JS, CLOUD, DISK }
+  override DEVICES = { CLANG, DAWN, WASM, JS, CLOUD, DISK }
   override args = () => Bun.argv.slice(2)
   override dlopen: typeof Deno.dlopen = (file, args) => {
     return dlopen(

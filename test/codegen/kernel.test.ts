@@ -79,11 +79,11 @@ describe(
 )
 describe(
   'Kernel.colored_shape',
-  { todo: true },
   compare(
     kernels,
     (k: Kernel) => k.colored_shape(),
     'out(data[0].colored_shape())',
+    { skip: true },
   ),
 )
 
@@ -184,9 +184,7 @@ describe(
       return k.to_program()
     },
     'out(data[0].to_program())',
-    {
-      skip: [7], // possibly bug in tinygrad(fails in python not in TS)
-    },
+    { skip: [7] },
   ),
 )
 

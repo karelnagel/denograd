@@ -24,7 +24,6 @@ describe(
 
 describe(
   'mnist.call',
-  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [[]],
     async () => {
@@ -46,12 +45,12 @@ describe(
       'model = Model()',
       'out(model(x_train[samples]))',
     ],
+    { skip: Device.DEFAULT === 'WASM' },
   ),
 )
 
 describe(
   'mnist.call.ones',
-  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [[]],
     () => {
@@ -66,6 +65,7 @@ describe(
       'model = Model()',
       'out(model(tiny.Tensor.ones(1, 1, 28, 28)))',
     ],
+    { skip: Device.DEFAULT === 'WASM' },
   ),
 )
 test(
@@ -90,7 +90,6 @@ test(
 
 describe(
   'mnist.train',
-  { skip: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'WEBGPU' },
   compare(
     [[]],
     async () => {
@@ -126,5 +125,6 @@ describe(
 
       'out(loss)',
     ],
+    { skip: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'DAWN' },
   ),
 )

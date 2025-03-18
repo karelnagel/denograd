@@ -14,12 +14,13 @@ import { exec } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import readline from 'node:readline'
 import { DISK } from '../runtime/ops_disk.ts'
+import { DAWN } from '../runtime/ops_dawn.ts'
 
 export class NodeEnv extends WebEnv {
   override NAME = 'node'
   override CPU_DEVICE = 'JS'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, JS, CLOUD, DISK }
+  override DEVICES = { CLANG, DAWN, JS, CLOUD, DISK }
   override readFile = async (path: string) => new Uint8Array(await fs.readFile(path))
   override writeFile = fs.writeFile
   override remove = fs.unlink

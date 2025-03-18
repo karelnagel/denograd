@@ -262,13 +262,13 @@ describe(
 
 describe(
   'Tensor.matmul',
-  { todo: true },
   compare<[Tensor, Tensor]>(
     () => [
       [new Tensor([4, 4, 4, 2, 6.5]), new Tensor([4, 4, 3, 3, 3])],
     ],
     (t1: Tensor, t2: Tensor) => t1.matmul(t2),
     'out(data[0] @ data[1])',
+    { skip: true },
   ),
 )
 
@@ -452,9 +452,7 @@ describe(
     ],
     (t1, t2) => t1.eq(t2),
     'out((data[0] == data[1]))',
-    {
-      skip: Device.DEFAULT === 'WEBGPU' ? [0, 1, 12] : undefined,
-    },
+    { skip: Device.DEFAULT === 'WEBGPU' ? [0, 1, 12] : undefined },
   ),
 )
 describe(
@@ -495,7 +493,6 @@ describe(
 
 describe(
   'Tensor.rand',
-  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [
       [[1, 1, 4, 4]],
@@ -509,7 +506,8 @@ describe(
       'tiny.Tensor.manual_seed(3)',
       'out(tiny.Tensor.rand(*data))',
     ],
-  ),
+  { skip: Device.DEFAULT === 'WASM' },
+),
 )
 
 describe(
@@ -565,26 +563,26 @@ describe(
 
 describe(
   'Tensor._threefry_random_bits',
-  { skip: Device.DEFAULT === 'WEBGPU' },
   compare<[Tensor, Tensor, Tensor]>(
     [
       [new Tensor([347607321, 1735991813]), new Tensor([0, 1, 2, 3, 4, 5, 6, 7]), new Tensor([8, 9, 10, 11, 12, 13, 14, 15])],
     ],
     Tensor._threefry_random_bits,
     'out(tiny.Tensor._threefry_random_bits(*data))',
-  ),
+  { skip: Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'DAWN' },
+),
 )
 
 describe(
   'webgpu_failing',
-  { skip: Device.DEFAULT === 'WEBGPU' },
   compare(
     [[]],
     async () => {
       return await new Tensor([true, true, false]).tolist()
     },
     'out(tiny.Tensor([True,True,False]).tolist())',
-  ),
+  { skip: Device.DEFAULT === 'WEBGPU' },
+),
 )
 
 describe(
