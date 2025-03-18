@@ -2,7 +2,7 @@ import * as c from './ctypes.ts'
 export * from './ctypes.ts'
 import { env } from "../denograd/env/index.ts"
 
-let lib!: ReturnType<typeof _init>
+let lib!: Awaited<ReturnType<typeof _init>>
 export const init = async (path: string)=> lib = await  _init(path)
 const _init = async (path: string)=> await env.dlopen(path, {
   wgpuAdapterInfoFreeMembers: { parameters: ['buffer'], result: 'void' },

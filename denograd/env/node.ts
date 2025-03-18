@@ -1,7 +1,7 @@
 import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
-import { type Dlopen, WebEnv } from './index.ts'
+import { type Dlopen, type FFICallback, WebEnv } from './index.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { random_id, string_to_bytes } from '../helpers.ts'
@@ -11,16 +11,14 @@ import path from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { CLANG } from '../runtime/ops_clang.ts'
 import { exec } from 'node:child_process'
-import { Buffer } from 'node:buffer'
 import readline from 'node:readline'
 import { DISK } from '../runtime/ops_disk.ts'
-import { DAWN } from '../runtime/ops_dawn.ts'
 
 export class NodeEnv extends WebEnv {
   override NAME = 'node'
   override CPU_DEVICE = 'JS'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, DAWN, JS, CLOUD, DISK }
+  override DEVICES = { CLANG, JS, CLOUD, DISK }
   override readFile = async (path: string) => new Uint8Array(await fs.readFile(path))
   override writeFile = fs.writeFile
   override remove = fs.unlink
@@ -67,6 +65,13 @@ export class NodeEnv extends WebEnv {
       close: () => close(library),
     }
   }
+  override ptr = (buffer: ArrayBuffer): any => new Uint8Array(buffer)
+  override ptrToU64 = (ptr: any): bigint => this.notImplemented()
+  override u64ToPtr = (u64: bigint): any => this.notImplemented()
+  override getCString = (ptr: any): string => this.notImplemented()
+  override getArrayBuffer = (ptr: any, byteLength: number, offset?: number): ArrayBuffer => this.notImplemented()
+  override callback: FFICallback = () => this.notImplemented()
+
   override prompt = async (msg: string) => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
     return await new Promise<string>((resolve) =>
@@ -76,7 +81,6 @@ export class NodeEnv extends WebEnv {
       })
     )
   }
-  override ptr = (buffer: ArrayBuffer): any => Buffer.from(buffer)
 
   override sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest() as Uint8Array
 
