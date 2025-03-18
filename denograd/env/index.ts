@@ -7,6 +7,7 @@ import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 
 export type Stats = Pick<NodeStats, 'isFile' | 'size'>
 export type Dlopen = <const S extends Deno.ForeignLibraryInterface>(filename: string | URL, symbols: S) => Deno.DynamicLibrary<S> | Promise<Deno.DynamicLibrary<S>>
+export type FFICallback = (x: { parameters: Deno.NativeType[]; result: Deno.NativeResultType }, cb: (...a: any[]) => any) => any
 // deno-fmt-ignore
 export class WebEnv {
   NAME = 'web'
@@ -60,10 +61,16 @@ export class WebEnv {
   exit = (code: number):never => {
     throw new Error(`Exited with status code ${code}`)
   }
- exec = (cmd:string): Promise<string> => this.notImplemented()
- dlopen: Dlopen = () => this.notImplemented()
- ptr = (buffer: ArrayBuffer): any => this.notImplemented()
- prompt = async (msg:string, def?: string) => prompt(msg, def)
+  exec = (cmd:string): Promise<string> => this.notImplemented()
+  dlopen: Dlopen = () => this.notImplemented()
+  ptr = (buffer: ArrayBuffer, offset?:number): any => this.notImplemented()
+  ptrToU64 = (ptr:any): bigint => this.notImplemented()
+  u64ToPtr = (u64:bigint):any =>this.notImplemented()
+  getCString = (ptr:any):string => this.notImplemented()
+  getArrayBuffer = (ptr: any, byteLength: number, offset?: number):ArrayBuffer => this.notImplemented()
+  callback: FFICallback = (x, cb): any => this.notImplemented()
+
+  prompt = async (msg:string, def?: string) => prompt(msg, def)
 
   //
   sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())

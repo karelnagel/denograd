@@ -213,14 +213,14 @@ function calculateSimilarity(str1: string, str2: string): number {
 }
 
 export const compare = <T extends any[] = any[]>(inputs: T[] | (() => T[]), fn: (...args: T) => any, code: string | string[], options: {
-  skip?: number[]
+  skip?: number[] | boolean
   ignoreKeys?: string[]
   stringSimilarity?: number
 } = {}) => {
-  return async () => {
+  return () => {
     if (typeof inputs === 'function') inputs = inputs()
     for (const [i, input] of inputs.entries()) {
-      test(i.toString(), { skip: options.skip?.includes(i) }, async () => {
+      test(i.toString(), { skip: typeof options.skip === 'boolean' ? options.skip : options.skip?.includes(i) || undefined }, async () => {
         const py = await python(code, input)
         const ts = await fn(...input)
 

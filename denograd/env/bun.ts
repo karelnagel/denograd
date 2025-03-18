@@ -4,32 +4,40 @@ import { JS } from '../runtime/ops_js.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { NodeEnv } from './node.ts'
-import { dlopen, FFIType, ptr } from 'bun:ffi'
+import { CString, dlopen, type FFITypeOrString, JSCallback, ptr, toArrayBuffer } from 'bun:ffi'
 import { DISK } from '../runtime/ops_disk.ts'
+import { DAWN } from '../runtime/ops_dawn.ts'
+import type { Dlopen, FFICallback } from './index.ts'
 
-const ffiType = (type: Deno.NativeResultType): FFIType => {
-  if (type === 'isize') return FFIType.i64
-  if (type === 'usize') return FFIType.u64
-  if (typeof type === 'object') return FFIType.buffer
-  return FFIType[type]
+const ffiType = (type: Deno.NativeResultType): FFITypeOrString => {
+  if (type === 'isize') return 'i64'
+  if (type === 'usize') return 'u64'
+  if (typeof type === 'object') return 'pointer'
+  if (type === 'buffer') return 'pointer'
+  return type
 }
 
 export class BunEnv extends NodeEnv {
   override NAME = 'bun'
-  override DEVICES = { CLANG, WASM, JS, CLOUD, DISK }
+  override DEVICES = { CLANG, DAWN, WASM, JS, CLOUD, DISK }
   override args = () => Bun.argv.slice(2)
-  override dlopen: typeof Deno.dlopen = (file, args) => {
+  override dlopen: Dlopen = (file, args) => {
     return dlopen(
       file,
       Object.fromEntries(
         Object.entries(args).map(([name, args]: any) => [
           name,
-          { args: args.parameters.map((x: any) => ffiType(x)), result: ffiType(args.result) },
+          { args: args.parameters.map((x: any) => ffiType(x)), returns: ffiType(args.result) },
         ]),
       ),
     ) as any
   }
   override ptr = (buffer: ArrayBuffer) => ptr(buffer)
+  override ptrToU64 = (ptr: any) => ptr === null ? 0n : BigInt(ptr)
+  override u64ToPtr = (u64: any) => Number(u64)
+  override getCString = (ptr: any) => new CString(ptr).toString()
+  override getArrayBuffer = (ptr: any, byteLength: number, offset: number = 0) => toArrayBuffer(ptr, offset, byteLength)
+  override callback: FFICallback = (x, cb) => new JSCallback(cb, { args: x.parameters.map(ffiType), returns: ffiType(x.result) }).ptr
 
   override gunzip = async (res: Response) => Bun.gunzipSync(new Uint8Array(await res.arrayBuffer())).buffer as ArrayBuffer
 

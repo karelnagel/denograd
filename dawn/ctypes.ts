@@ -1,3 +1,5 @@
+import { env } from '../denograd/env/index.ts'
+
 export type DenoFnType = Deno.ToNativeParameterTypes<[Deno.NativeType]>[number] | void
 
 export class Type<NativeValue extends DenoFnType, Value = NativeValue, SetNativeValue = NativeValue, SetValue = Value> {
@@ -36,16 +38,19 @@ export class Type<NativeValue extends DenoFnType, Value = NativeValue, SetNative
     return this
   }
   ptr(): Pointer<typeof this> {
-    return new Pointer().setNative(Deno.UnsafePointer.offset(Deno.UnsafePointer.of(this.buffer) as any, this.offset))
+    return new Pointer().setNative(env.ptr(this.buffer, this.offset))
   }
   /** Doesn't change the underlying buffer */
   loadFromPtr(ptr: Pointer<typeof this>, offset = 0): typeof this {
-    if (ptr.value) Deno.UnsafePointerView.copyInto(ptr.native as any, new Uint8Array(this.buffer, this.offset, this.byteLength), offset)
+    if (ptr.value) {
+      const buffer = env.getArrayBuffer(ptr.native, this.byteLength, offset)
+      new Uint8Array(this.buffer, this.offset, this.byteLength).set(new Uint8Array(buffer))
+    }
     return this
   }
   /** Changes the buffer to the pointed buffer */
   replaceWithPtr(ptr: Pointer<typeof this>, offset = 0): typeof this {
-    if (ptr.value) this.buffer = Deno.UnsafePointerView.getArrayBuffer(ptr.native as any, this.byteLength, offset)
+    if (ptr.value) this.buffer = env.getArrayBuffer(ptr.native, this.byteLength, offset)
     return this
   }
   toString = () => {
@@ -177,8 +182,8 @@ export class Pointer<_Value extends Type<any, any>> extends Type<Deno.PointerVal
   protected override _set(val: bigint) {
     new BigUint64Array(this.buffer, this.offset).set([val])
   }
-  protected override _native = () => Deno.UnsafePointer.create(this.value)
-  protected override _setNative = (val: Deno.PointerValue) => this.buffer = new BigUint64Array([Deno.UnsafePointer.value(val)]).buffer
+  protected override _native = () => env.u64ToPtr(this.value)
+  protected override _setNative = (val: Deno.PointerValue) => this.buffer = new BigUint64Array([env.ptrToU64(val)]).buffer
   static new = (val: bigint = 0n) => new Pointer().set(val)
 }
 
@@ -200,7 +205,6 @@ export class Void extends Type<void, bigint> {
 
 // FUNCTION
 export class Function<Args extends Type<any>[]> extends Type<Deno.PointerValue, bigint, Deno.PointerValue, (...a: Args) => void> {
-  fn?: Deno.UnsafeCallback
   constructor(buffer: ArrayBuffer | undefined, offset: undefined | number, public args: Deno.NativeType[]) {
     super(buffer, offset, 8, 8)
   }
@@ -211,12 +215,11 @@ export class Function<Args extends Type<any>[]> extends Type<Deno.PointerValue, 
     throw new Error('Override this')
   }
   protected override _set(val: (...a: Args) => void) {
-    this.fn = new Deno.UnsafeCallback({ parameters: this.args, result: 'void' }, this._fn(val))
-    new BigUint64Array(this.buffer, this.offset).set([Deno.UnsafePointer.value(this.fn.pointer)])
+    const fn = env.callback({ parameters: this.args, result: 'void' }, this._fn(val))
+    new BigUint64Array(this.buffer, this.offset).set([env.ptrToU64(fn)])
   }
   protected override _native = () => {
-    this.fn?.ref()
-    return Deno.UnsafePointer.create(this.value)
+    return env.u64ToPtr(this.value)
   }
   protected override _setNative = (val: Deno.PointerValue) => {
     throw new Error("Can't set native function")

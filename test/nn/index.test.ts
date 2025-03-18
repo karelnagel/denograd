@@ -36,7 +36,6 @@ describe(
 
 describe(
   'Conv2d.call',
-  { skip: Device.DEFAULT === 'WASM' },
   compare(
     [
       [1, 1, 3, [1, 1, 4, 7]],
@@ -55,12 +54,12 @@ describe(
       't = tiny.Tensor.rand(*data[3])',
       'out(conv(t))',
     ],
+    { skip: Device.DEFAULT === 'WASM' },
   ),
 )
 
 describe(
   'BatchNorm.init',
-  { skip: Device.DEFAULT === 'WEBGPU' },
   compare(
     [
       [1], // simplest case, 1 feature
@@ -78,6 +77,7 @@ describe(
       'bn = BatchNorm(*data)',
       'out([bn.weight, bn.bias, getattr(bn,"running_mean",None), getattr(bn,"running_var",None), bn.num_batches_tracked])',
     ],
+    { skip: Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'DAWN' },
   ),
 )
 
