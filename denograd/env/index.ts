@@ -62,7 +62,13 @@ export class WebEnv {
   }
  exec = (cmd:string): Promise<string> => this.notImplemented()
  dlopen: Dlopen = () => this.notImplemented()
- ptr = (buffer: ArrayBuffer): any => this.notImplemented()
+ ptr = (buffer: ArrayBuffer, offset?:number): any => this.notImplemented()
+ ptrToU64 = (ptr:any): bigint => this.notImplemented()
+ u64ToPtr = (u64:bigint):any =>this.notImplemented()
+ getCString = (ptr:any):string => this.notImplemented()
+ getArrayBuffer = (ptr: any, byteLength: number, offset?: number):ArrayBuffer => this.notImplemented()
+
+
  prompt = async (msg:string, def?: string) => prompt(msg, def)
 
   //

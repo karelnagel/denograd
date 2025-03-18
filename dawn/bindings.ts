@@ -1,9 +1,10 @@
 import * as c from './ctypes.ts'
 export * from './ctypes.ts'
+import { env } from "../denograd/env/index.ts"
 
 let lib!: ReturnType<typeof _init>
-export const init = (path: string)=> lib = _init(path)
-const _init = (path: string)=> Deno.dlopen(path, {
+export const init = async (path: string)=> lib = await  _init(path)
+const _init = async (path: string)=> await env.dlopen(path, {
   wgpuAdapterInfoFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuAdapterPropertiesMemoryHeapsFreeMembers: { parameters: ['buffer'], result: 'void' },
   wgpuCreateInstance: { parameters: ['pointer'], result: 'pointer' },
@@ -1537,7 +1538,7 @@ export class Future extends c.Struct<{ id: c.U64 }> {
   static new = (val: Partial<{ id: c.U64 }>) => new Future().set(val)
   override _setNative=(val: ArrayBuffer | Deno.PointerValue<unknown>) =>{
     if (val instanceof ArrayBuffer) this.buffer = val
-   else this.set({id:c.U64.new(Deno.UnsafePointer.value(val as Deno.PointerObject))})
+   else this.set({id:c.U64.new(env.ptrToU64(val))})
   }
 }
 export class InstanceFeatures extends c.Struct<{ nextInChain: c.Pointer<ChainedStruct>; timedWaitAnyEnable: Bool; timedWaitAnyMaxCount: c.Size }> {
@@ -2099,7 +2100,7 @@ export class StringView extends c.Struct<{ data: c.Pointer<c.U8>; length: c.Size
     if (val instanceof ArrayBuffer) this.buffer = val
     else if (!val) return 
     else {
-      const string = Deno.UnsafePointerView.getCString(val as Deno.PointerObject)
+      const string = env.getCString(val)
       const buf = new TextEncoder().encode(string + '\0')
       const str = new c.Type(buf.buffer as ArrayBuffer, 0, buf.length, 8)
       this.set({ data: str.ptr(), length: c.Size.new(BigInt(str.byteLength)) })

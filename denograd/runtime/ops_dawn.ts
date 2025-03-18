@@ -269,7 +269,7 @@ export class DAWN extends Compiled {
     const PATH = `${env.CACHE_DIR}/${FILE}`
 
     await env.fetchSave(URL, PATH)
-    c.init(PATH)
+    await c.init(PATH)
 
     const desc = new c.InstanceDescriptor()
     desc.$features.$timedWaitAnyEnable.set(1)
