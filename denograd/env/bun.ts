@@ -36,7 +36,7 @@ export class BunEnv extends NodeEnv {
   override ptrToU64 = (ptr: any) => ptr === null ? 0n : BigInt(ptr)
   override u64ToPtr = (u64: any) => Number(u64)
   override getCString = (ptr: any) => new CString(ptr).toString()
-  override getArrayBuffer = (ptr: any, byteLength: number, offset?: number) => toArrayBuffer(ptr, offset, byteLength)
+  override getArrayBuffer = (ptr: any, byteLength: number, offset: number = 0) => toArrayBuffer(ptr, offset, byteLength)
   override callback: FFICallback = (x, cb) => new JSCallback(cb, { args: x.parameters.map(ffiType), returns: ffiType(x.result) }).ptr
 
   override gunzip = async (res: Response) => Bun.gunzipSync(new Uint8Array(await res.arrayBuffer())).buffer as ArrayBuffer
