@@ -4,10 +4,10 @@ import { JS } from '../runtime/ops_js.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { NodeEnv } from './node.ts'
-import { dlopen, FFIType, ptr } from 'bun:ffi'
+import { CString, dlopen, FFIType, JSCallback, ptr, toArrayBuffer } from 'bun:ffi'
 import { DISK } from '../runtime/ops_disk.ts'
 import { DAWN } from '../runtime/ops_dawn.ts'
-import type { Dlopen } from './index.ts'
+import type { Dlopen, FFICallback } from './index.ts'
 
 const ffiType = (type: Deno.NativeResultType): FFIType => {
   if (type === 'isize') return FFIType.i64
@@ -32,6 +32,11 @@ export class BunEnv extends NodeEnv {
     ) as any
   }
   override ptr = (buffer: ArrayBuffer) => ptr(buffer)
+  override ptrToU64 = (ptr: any) => BigInt(ptr)
+  override u64ToPtr = (u64: any) => Number(u64)
+  override getCString = (ptr: any) => new CString(ptr).toString()
+  override getArrayBuffer = (ptr: any, byteLength: number, offset?: number) => toArrayBuffer(ptr, offset, byteLength)
+  override callback: FFICallback = (x, cb) => new JSCallback(cb, { args: x.parameters.map(ffiType), returns: ffiType(x.result) }).ptr
 
   override gunzip = async (res: Response) => Bun.gunzipSync(new Uint8Array(await res.arrayBuffer())).buffer as ArrayBuffer
 
