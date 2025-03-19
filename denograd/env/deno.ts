@@ -13,7 +13,7 @@ export class DenoEnv extends NodeEnv {
   override NAME = 'deno'
   override CPU_DEVICE = 'CLANG'
   override PLATFORM = process.platform
-  override DEVICES = { CLANG, DAWN, WEBGPU, WASM, JS, DISK, CLOUD }
+  override DEVICES = { CLANG, WEBGPU: DAWN, WGPU: WEBGPU, WASM, JS, DISK, CLOUD }
   override dlopen = Deno.dlopen
   override ptr = (buffer: ArrayBuffer, offset?: number) => offset ? Deno.UnsafePointer.offset(Deno.UnsafePointer.of(buffer) as any, offset) : Deno.UnsafePointer.of(buffer)
   override ptrToU64 = (ptr: any) => Deno.UnsafePointer.value(ptr)

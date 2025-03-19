@@ -260,9 +260,7 @@ export class DAWN extends Compiled {
   static device: c.Device
   static instance: c.Instance
   constructor(device: string) {
-    const wgsl = new WGSLRenderer()
-    wgsl.device = 'DAWN'
-    super(device, new WebGpuAllocator(), wgsl, new Compiler(), WebGPUProgram)
+    super(device, new WebGpuAllocator(), new WGSLRenderer(), new Compiler(), WebGPUProgram)
   }
   override init = async () => {
     if (DAWN.device) return

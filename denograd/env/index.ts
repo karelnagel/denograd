@@ -34,7 +34,6 @@ export class WebEnv {
 
   private _cache = async () => await caches.open("denograd")
   readFile = async (path: string): Promise<Uint8Array> => {
-    console.log(path)
     const cache = await this._cache()
     const res = await cache.match(path)
     return new Uint8Array(await res!.arrayBuffer())
