@@ -22,7 +22,7 @@ const model = await Llama3.load({
 
 if (args.query) {
   const res = await model.chat({ messages: [{ role: 'user', content: args.query }] })
-  console.log(res.message.content)
+  console.log(`${res.message.content} (${res.usage.tokens_per_second.toFixed(1)} tokens/s)`)
 } else {
   while (true) {
     const content = (await env.prompt('Q: '))!

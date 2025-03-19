@@ -139,13 +139,19 @@ export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, K
 }
 
 export const BEAM_DEBUG = env.get_num('BEAM_DEBUG')
+
+let beams: Record<string, string> = {}
+export const export_beam = () => btoa(Object.entries(beams).map(([k, v]) => `${k}:${JSON.parse(v).join('|')}`).join('\n'))
+export const import_beam = (data: string) => beams = Object.fromEntries(atob(data).split('\n').map((x) => x.split(':')).map(([k, v]) => [k, JSON.stringify(v.split('|').filter(Boolean).map((x) => x.split(',').map(Number)))]))
+
 export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = env.get('IGNORE_BEAM_CACHE')): Promise<Kernel> => {
-  const key = JSON.stringify({ 'ast': lin.ast.key, 'amt': amt, 'allow_test_size': allow_test_size, 'device': lin.opts.device, 'suffix': lin.opts.suffix })
+  const key = get_key(lin.ast.key, amt, allow_test_size, lin.opts.device, lin.opts.suffix)
   if (!disable_cache && env.CACHELEVEL >= 1) {
-    const val = await env.disk_get('beam_search', key)
+    const val = beams[key] ?? await env.disk_get('beam_search', key)
     if (val !== undefined) {
+      beams[key] = val
       const ret = lin.copy()
-      const opts = JSON.parse(val).map((o: any) => new Opt(OptOps.values().find((x) => x.name === o.op)!, o.axis, o.amt))
+      const opts = JSON.parse(val).map(([op, axis, amt]: number[]) => new Opt(OptOps.values().find((x) => x.value === op)!, axis, amt))
       if (BEAM_DEBUG) console.log(`BEAM_CACHE: opts=${opts}`)
       for (const o of opts.slice(lin.applied_opts.length)) ret.apply_opt(o)
       return ret
@@ -201,7 +207,11 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
     throw e
   }
 
-  if (env.CACHELEVEL >= 1) env.disk_put('beam_search', key, JSON.stringify(beam[0][0].applied_opts.map((x) => ({ op: x.op.name, axis: x.axis, amt: x.amt }))))
+  if (env.CACHELEVEL >= 1) {
+    const data = JSON.stringify(beam[0][0].applied_opts.map((x) => [x.op.value, x.axis ?? -1, x.amt ?? -1]))
+    beams[key] = data
+    await env.disk_put('beam_search', key, data)
+  }
   if (BEAM_DEBUG) console.log(`BEAM_SEARCH: final tm=${(beam[0][1] * 1e6).toFixed(2)} us, applied_opts=${beam[0][0].applied_opts}`)
   return beam[0][0]
 }

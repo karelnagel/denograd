@@ -70,10 +70,12 @@ export const parse = <T extends Schema>(value: any, schema: T): { success: true;
   for (const [k, v] of Object.entries(schema)) {
     try {
       data[k] = v.parse(value[k])
+      delete value[k]
     } catch (e) {
       if (e instanceof Error) errors.push({ path: [k], message: e.message })
     }
   }
+  if (Object.keys(value).length) errors.push({ message: `Unknown args: ${Object.keys(value)}`, path: [] })
   if (errors.length) return { success: false, errors }
   return { success: true, data }
 }

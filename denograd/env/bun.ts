@@ -19,7 +19,7 @@ const ffiType = (type: Deno.NativeResultType): FFITypeOrString => {
 
 export class BunEnv extends NodeEnv {
   override NAME = 'bun'
-  override DEVICES = { CLANG, DAWN, WASM, JS, CLOUD, DISK }
+  override DEVICES = { CLANG, WEBGPU: DAWN, WASM, JS, CLOUD, DISK }
   override args = () => Bun.argv.slice(2)
   override dlopen: Dlopen = (file, args) => {
     return dlopen(

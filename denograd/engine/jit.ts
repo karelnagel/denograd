@@ -269,8 +269,6 @@ export class TinyJit<Args extends any[], Return extends any> {
     return this.captured !== undefined ? this.captured._input_replace : new ArrayMap()
   }
 
-  // get = (obj, objtype) => () => this.call(obj) // add support for instance methods
-
   call = async (...args: Args): Promise<Return> => {
     const [input_buffers, var_vals, names, st_vars_dtype_device] = await _prepare_jit_inputs(...args)
     let ret: Return

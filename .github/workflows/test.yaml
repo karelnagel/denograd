@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [CLANG, WEBGPU, WASM, DAWN]
+        runtime: [CLANG, WEBGPU, WASM, WGPU]
 
     name: Test (${{ matrix.runtime }})
     runs-on: ubuntu-22.04

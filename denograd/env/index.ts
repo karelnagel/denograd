@@ -28,103 +28,38 @@ export class WebEnv {
     throw new Error(`This feature is not available in ${this.NAME} environment`)
   }
 
-  // files
-  readFile = async (path: string): Promise<Uint8Array> => await this.disk_get("fs", path)
+  // FS
   readTextFile = async (path: string): Promise<string> => new TextDecoder().decode(await this.readFile(path))
-  writeFile = async (path: string, data: Uint8Array): Promise<void> => await this.disk_put("fs", path, data)
   writeTextFile = async (path: string, data: string) => await this.writeFile(path, new TextEncoder().encode(data))
-  remove = async (path: string): Promise<void> => {
-    const db = await this._open_db()
-    const transaction = db.transaction(['denograd'], 'readwrite')
-    const store = transaction.objectStore('denograd')
-    const request = store.delete(`fs_${path}`)
 
-    await new Promise<void>((resolve, reject) => {
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
+  private _cache = async () => await caches.open("denograd")
+  readFile = async (path: string): Promise<Uint8Array> => {
+    const cache = await this._cache()
+    const res = await cache.match(path)
+    return new Uint8Array(await res!.arrayBuffer())
   }
-  realPath =  (...paths: string[]): string =>paths.join("/")
+  writeFile = async (path: string, data: Uint8Array): Promise<void> => {
+    const cache = await this._cache()
+    await cache.put(path, new Response(data))
+  }
+  remove = async (path: string): Promise<void> => {
+    const cache = await this._cache()
+    await cache.delete(path)
+  }
+  realPath =  (...paths: string[]): string =>paths.filter(Boolean).join("/")
   stat = async (path: string): Promise<Stats> => {
-    const res = await this.disk_get("fs", path)
-    if (!res || !(res instanceof Uint8Array)) throw new Error(`No entry for ${path}`)
+    const res = await this.readFile(path)
     return { isFile: ()=>!!res, size:res.length }
   }
   statSync = (path: string): Stats => this.notImplemented()
   tempFile = async (): Promise<string> => `/tmp/${(Math.random() * 100000000).toFixed(0)}`
-  writeStdout = (p:string) => console.log(p+'\u200B')
-  homedir = () => '/home'
-  gunzip = async (res:Response):Promise<ArrayBuffer> => await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
   mkdir = async (path:string): Promise<void> => {}
-  args = (): string[] => (window as any).args || []
-  machine = () => "browser"
-  exit = (code: number):never => {
-    throw new Error(`Exited with status code ${code}`)
-  }
-  exec = (cmd:string): Promise<string> => this.notImplemented()
-  dlopen: Dlopen = () => this.notImplemented()
-  ptr = (buffer: ArrayBuffer, offset?:number): any => this.notImplemented()
-  ptrToU64 = (ptr:any): bigint => this.notImplemented()
-  u64ToPtr = (u64:bigint):any =>this.notImplemented()
-  getCString = (ptr:any):string => this.notImplemented()
-  getArrayBuffer = (ptr: any, byteLength: number, offset?: number):ArrayBuffer => this.notImplemented()
-  callback: FFICallback = (x, cb): any => this.notImplemented()
-
-  prompt = async (msg:string, def?: string) => prompt(msg, def)
-
-  //
-  sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())
-
-  // storage
-  private _db: IDBDatabase | undefined = undefined
-  private _open_db = async (): Promise<IDBDatabase> => {
-    if (this._db) return this._db
-    this._db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open('denograd', this.DB_VERSION)
-      req.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result
-        db.createObjectStore('denograd', { keyPath: 'key' })
-      }
-      req.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result)
-      req.onerror = () => reject(req.error)
-    })
-    return this._db
-  }
-
-  disk_get = async (table: string, key: string): Promise<any | undefined> => {
-    const db = await this._open_db()
-    const transaction = db.transaction(['denograd'], 'readonly')
-    const store = transaction.objectStore('denograd')
-    const request = store.get(`${table}_${key}`)
-
-    return await new Promise<any | undefined>((resolve, reject) => {
-      request.onsuccess = () => {
-        const data = request.result
-        resolve(data ? data.value : undefined)
-      }
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  disk_put = async (table: string, key: string, value: string | Uint8Array) => {
-    const db = await this._open_db()
-    const transaction = db.transaction(['denograd'], 'readwrite')
-    const store = transaction.objectStore('denograd')
-    const request = store.put({ key: `${table}_${key}`, value })
-
-    await new Promise<void>((resolve, reject) => {
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
   fetchSave = async (url: string, path: string, dir?: string, onProgress?: TqdmOnProgress) => {
-    if (dir){
-      path = this.realPath(dir,path)
-      await this.mkdir(dir)
-    } else path = this.realPath(path)
-    if (await this.stat(path).then((x) => x.isFile()).catch(() => undefined)) {
-      return path
-    }
+    path = this.realPath(dir || "", path)
+    const cache = await this._cache()
+    const cached  = await cache.match(path)
+    if (cached) return path
+
     const res = await fetch(url)
     if (!res.ok) throw new Error(`Error ${res.status}`)
     const reader = res.body?.getReader()
@@ -142,9 +77,74 @@ export class WebEnv {
       }
     }
     this.writeStdout("\n")
-    await this.writeFile(path, new Uint8Array(data))
+    await this.writeFile(path, data)
     return path
   }
+
+  // SYSTEM
+  writeStdout = (p:string) => console.log(p+'\u200B')
+  homedir = () => '/home'
+  gunzip = async (res:Response):Promise<ArrayBuffer> => await new Response(res.body!.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+  args = (): string[] => (window as any).args || []
+  machine = () => "browser"
+  exit = (code: number):never => {
+    throw new Error(`Exited with status code ${code}`)
+  }
+  exec = (cmd:string): Promise<string> => this.notImplemented()
+  prompt = async (msg:string, def?: string) => prompt(msg, def)
+  sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(new Sha256().update(data)!.arrayBuffer())
+
+  // FFI
+  dlopen: Dlopen = () => this.notImplemented()
+  ptr = (buffer: ArrayBuffer, offset?:number): any => this.notImplemented()
+  ptrToU64 = (ptr:any): bigint => this.notImplemented()
+  u64ToPtr = (u64:bigint):any =>this.notImplemented()
+  getCString = (ptr:any):string => this.notImplemented()
+  getArrayBuffer = (ptr: any, byteLength: number, offset?: number):ArrayBuffer => this.notImplemented()
+  callback: FFICallback = (x, cb): any => this.notImplemented()
+
+  // STORAGE
+  private _db: IDBDatabase | undefined = undefined
+  private _open_db = async (): Promise<IDBDatabase> => {
+    if (this._db) return this._db
+    this._db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('denograd', this.DB_VERSION)
+      req.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+        db.createObjectStore('denograd', { keyPath: 'key' })
+      }
+      req.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result)
+      req.onerror = () => reject(req.error)
+    })
+    return this._db
+  }
+  disk_get = async (table: string, key: string): Promise<any | undefined> => {
+    const db = await this._open_db()
+    const transaction = db.transaction(['denograd'], 'readonly')
+    const store = transaction.objectStore('denograd')
+    const request = store.get(`${table}_${key}`)
+
+    return await new Promise<any | undefined>((resolve, reject) => {
+      request.onsuccess = () => {
+        const data = request.result
+        resolve(data ? data.value : undefined)
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+  disk_put = async (table: string, key: string, value: string | Uint8Array) => {
+    const db = await this._open_db()
+    const transaction = db.transaction(['denograd'], 'readwrite')
+    const store = transaction.objectStore('denograd')
+    const request = store.put({ key: `${table}_${key}`, value })
+
+    await new Promise<void>((resolve, reject) => {
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+  }
+ 
+  // ENVS
   get DEVICE() { return this.get('DEVICE') || this.get("D") }
   set DEVICE(val) { this._env.DEVICE = val! }
   get OSX(){ return this.PLATFORM === 'darwin'}

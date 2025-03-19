@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { type Dlopen, type FFICallback, WebEnv } from './index.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
-import { random_id, string_to_bytes } from '../helpers.ts'
+import { memsize_to_str, random_id, string_to_bytes } from '../helpers.ts'
 import fs from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import path from 'node:path'
@@ -13,6 +13,7 @@ import { CLANG } from '../runtime/ops_clang.ts'
 import { exec } from 'node:child_process'
 import readline from 'node:readline'
 import { DISK } from '../runtime/ops_disk.ts'
+import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 
 export class NodeEnv extends WebEnv {
   override NAME = 'node'
@@ -117,5 +118,34 @@ export class NodeEnv extends WebEnv {
     } catch (e) {
       console.error(e)
     }
+  }
+  // TODO: stream to fs
+  override fetchSave = async (url: string, path: string, dir?: string, onProgress?: TqdmOnProgress) => {
+    if (dir) {
+      path = this.realPath(dir, path)
+      await this.mkdir(dir)
+    } else path = this.realPath(path)
+    if (await this.stat(path).then((x) => x.isFile()).catch(() => undefined)) {
+      return path
+    }
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    const reader = res.body?.getReader()
+    if (!reader) throw new Error('Response body not readable!')
+    let size = Number(res.headers.get('content-length')), i = 0
+    const data = new Uint8Array(size)
+    const t = new Tqdm(size, { onProgress, label: `Downloading ${path}`, format: memsize_to_str })
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        data.set(value, i)
+        i += value.length
+        t.render(i)
+      }
+    }
+    this.writeStdout('\n')
+    await this.writeFile(path, new Uint8Array(data))
+    return path
   }
 }
