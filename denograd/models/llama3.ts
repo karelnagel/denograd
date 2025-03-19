@@ -212,6 +212,7 @@ export class Llama3 implements Llama3Constructor {
   }
 
   load = async ({ onProgress, system }: Llama3Load) => {
+    const st = performance.now()
     const model_path = await this._download(undefined, onProgress)
     const noF16Support = env.NAME === 'deno' && Device.DEFAULT === 'WEBGPU'
     const scale_dtype = noF16Support ? dtypes.float32 : dtypes.float16
@@ -255,6 +256,7 @@ export class Llama3 implements Llama3Constructor {
     })
     this.tokenizer = await Tokenizer.init(`${model_path.split('/').slice(0, -1).join('/')}/tokenizer.model`)
     await this._system(system, onProgress)
+    console.log(`Loading took ${Math.round(performance.now() - st) / 1000}s`)
     return this
   }
   static load = async ({ onProgress, system, ...args }: Llama3StaticLoad) => {
