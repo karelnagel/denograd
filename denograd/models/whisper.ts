@@ -236,7 +236,7 @@ const get_encoding = async (encoding_name: string) => {
   const url = `https://raw.githubusercontent.com/openai/whisper/main/whisper/assets/${encoding_name}.tiktoken`
   const path = await env.fetchSave(url, get_key(url), env.CACHE_DIR)
   const data = await env.readTextFile(path)
-  const ranks = Object.fromEntries(data.split('\n').filter(Boolean).map((line) => line.split(' ')).map(([token, rank]) => [btoa(token), Number(rank)]))
+  const ranks = new Map(data.split('\n').filter(Boolean).map((line) => line.split(' ')).map(([token, rank]) => [btoa(token), Number(rank)]))
   let n_vocab = Object.keys(ranks).length
   const specials = [
     '<|endoftext|>',
@@ -250,7 +250,7 @@ const get_encoding = async (encoding_name: string) => {
     '<|notimestamps|>',
     ...range(1501).map((i) => `<|${(i * 0.02).toFixed(2)}|>`),
   ]
-  const special_tokens = Object.fromEntries(zip(specials, range(n_vocab)))
+  const special_tokens = new Map(zip(specials, range(n_vocab)))
   n_vocab += specials.length
   const pat = /'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+/gu
   return new Tokenizer(pat, ranks, special_tokens)
