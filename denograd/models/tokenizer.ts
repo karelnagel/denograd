@@ -2,15 +2,11 @@ import { env } from '../env/index.ts'
 import { bytes_to_string, range, string_to_bytes } from '../helpers.ts'
 
 export class Tokenizer {
-  pat = new RegExp("'s|'t|'re|'ve|'m|'ll|'d|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+", 'giu')
-  special_tokens: Map<string, number>
-  decode_map: Map<number, string>
+  decode_map: Record<number, string>
 
-  static init = async (path: string) => {
-    const ranks = new Map((await env.readTextFile(path)).split('\n').filter(Boolean).map((x) => x.split(' ')).map(([k, v]) => [atob(k), Number(v)]))
-    return new Tokenizer(ranks)
-  }
-  constructor(public mergeable_ranks: Map<string, number>) {
+  static llama = async (path: string) => {
+    const data = await env.readTextFile(path)
+    const ranks = data.split('\n').filter(Boolean).map((x) => x.split(' ')).map(([k, v]) => [atob(k), Number(v)])
     const specialTokensList = [
       '<|begin_of_text|>',
       '<|end_of_text|>',
@@ -24,20 +20,30 @@ export class Tokenizer {
       '<|eot_id|>',
       ...range(5, 256 - 5).map((_, i) => `<|reserved_special_token_${i}|>`),
     ]
-    this.special_tokens = new Map(specialTokensList.map((token, i) => [token, this.mergeable_ranks.size + i]))
-    this.decode_map = new Map(Array.from(this.mergeable_ranks.entries()).map(([token, id]) => [id, token]))
+    return new Tokenizer(
+      new RegExp("'s|'t|'re|'ve|'m|'ll|'d|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+", 'giu'),
+      Object.fromEntries(ranks),
+      Object.fromEntries(specialTokensList.map((token, i) => [token, ranks.length + i])),
+    )
+  }
+  constructor(
+    public pat: RegExp,
+    public mergeable_ranks: Record<string, number>,
+    public special_tokens: Record<string, number>,
+  ) {
+    this.decode_map = Object.fromEntries(Object.entries(this.mergeable_ranks).map(([token, id]) => [id, token]))
   }
 
   get bos_id(): number {
-    return this.special_tokens.get('<|begin_of_text|>')!
+    return this.special_tokens['<|begin_of_text|>']
   }
 
   get stop_tokens() {
-    return [this.special_tokens.get('<|end_of_text|>')!, this.special_tokens.get('<|eot_id|>')!]
+    return [this.special_tokens['<|end_of_text|>'], this.special_tokens['<|eot_id|>']]
   }
 
   decode(toks: number[]): string {
-    const byteArrays = toks.filter((t) => t < this.mergeable_ranks.size).map((t) => Uint8Array.from(this.decode_map.get(t)!, (c) => c.charCodeAt(0)))
+    const byteArrays = toks.filter((t) => t < this.mergeable_ranks.size).map((t) => Uint8Array.from(this.decode_map[t], (c) => c.charCodeAt(0)))
 
     let allBytes = new Uint8Array()
     for (const curr of byteArrays) {
@@ -55,7 +61,7 @@ export class Tokenizer {
 
     const tokens: number[] = []
     for (const piece of pieces) {
-      if (allowSpecial && this.special_tokens.has(piece)) tokens.push(this.special_tokens.get(piece)!)
+      if (allowSpecial && this.special_tokens[piece]) tokens.push(this.special_tokens[piece])
       else tokens.push(...this.bpe_encode(string_to_bytes(piece)))
     }
 
@@ -71,7 +77,7 @@ export class Tokenizer {
 
       for (let i = 0; i < tokens.length - 1; i++) {
         const pair = tokens[i] + tokens[i + 1]
-        const rank = this.mergeable_ranks.get(pair)
+        const rank = this.mergeable_ranks[pair]
         if (rank !== undefined && rank < minRank) {
           minRank = rank
           mergePair = [tokens[i], tokens[i + 1]]
@@ -98,12 +104,12 @@ export class Tokenizer {
       tokens = newTokens
     }
 
-    return tokens.map((token) => this.mergeable_ranks.get(token)!)
+    return tokens.map((token) => this.mergeable_ranks[token])
   }
   encode_role = (role: string) => {
-    return [this.special_tokens.get('<|start_header_id|>')!, ...this.encode(role), this.special_tokens.get('<|end_header_id|>')!, ...this.encode('\n\n')]
+    return [this.special_tokens['<|start_header_id|>'], ...this.encode(role), this.special_tokens['<|end_header_id|>'], ...this.encode('\n\n')]
   }
   encode_message = (role: string, content: string) => {
-    return [...this.encode_role(role), ...this.encode(content.trim()), this.special_tokens.get('<|eot_id|>')!]
+    return [...this.encode_role(role), ...this.encode(content.trim()), this.special_tokens['<|eot_id|>']]
   }
 }

@@ -396,6 +396,7 @@ const sliceGetIndices = (index: Slice, size: number): [number, number, number] =
 }
 export type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | Slice | (number | boolean | UOp | Tensor | undefined | '...' | Slice)[]
 export type Layer = ((x: Tensor) => Tensor) | { call: (x: Tensor) => Tensor }
+export type LayerAsync = ((x: Tensor) => Tensor) | { call: (x: Tensor) => Tensor } | ((x: Tensor) => Promise<Tensor>) | { call: (x: Tensor) => Promise<Tensor> }
 /**
  * A `Tensor` === a multi-dimensional matrix containing elements of a single data type.
  *
@@ -3356,6 +3357,7 @@ export class Tensor extends MathTrait<Tensor> {
   gelu = () => {
     return this.mul(0.5, true).mul(((this.add(this.pow(3).mul(0.044715, true))).mul(Math.sqrt(2 / Math.PI), true)).tanh()).add(1, true)
   }
+  static gelu = (x: Tensor) => x.gelu()
 
   /**
    * Applies the Sigmoid GELU approximation element-wise.
@@ -3797,6 +3799,13 @@ export class Tensor extends MathTrait<Tensor> {
    */
   sequential = (ll: Layer[]) => {
     return ll.reduce((acc, f) => typeof f === 'function' ? f(acc) : f.call(acc), this as Tensor)
+  }
+  sequentialAsync = async (ll: LayerAsync[]) => {
+    let x: Tensor = this
+    for (const f of ll) {
+      x = typeof f === 'function' ? await f(x) : await f.call(x)
+    }
+    return x
   }
   /**
    * Applies Layer Normalization over a mini-batch of inputs.
