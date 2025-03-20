@@ -1,7 +1,7 @@
 import { Conv1d, type Conv2d, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, safe_load, sub, Tensor, TinyJit } from '../mod.ts'
 import wav from 'npm:node-wav'
 import { type sint, UOp, type Variable } from '../ops.ts'
-import { add, mod, range, zip } from '../helpers.ts'
+import { add, range } from '../helpers.ts'
 import { ArrayMap } from '../web.ts'
 import { dtypes } from '../dtype.ts'
 import { Tokenizer } from './tokenizer.ts'
@@ -186,37 +186,36 @@ const padWaveforms = (waveforms: Float32Array[], batchSize: number) => {
  * param truncate: If true, truncates (or pads) audio to exactly 30s for a single encoder pass
  * return: mel spectrogram of the given waveforms
  */
-const prep_audio = (waveforms: Float32Array[], batch_size: number, truncate = false): Tensor => {
-  const pad_or_trim = (arr: Float32Array, target_len: number): Float32Array => {
-    const curr_len = arr.length
-    if (curr_len === target_len) return arr
-    else if (curr_len < target_len) {
-      const res = new Float32Array(target_len)
-      res.set(arr)
-      return res
-    } else return arr.slice(0, target_len)
-  }
+// const prep_audio = (waveforms: Float32Array[], batch_size: number, truncate = false): Tensor => {
+//   const pad_or_trim = (arr: Float32Array, target_len: number): Float32Array => {
+//     const curr_len = arr.length
+//     if (curr_len === target_len) return arr
+//     else if (curr_len < target_len) {
+//       const res = new Float32Array(target_len)
+//       res.set(arr)
+//       return res
+//     } else return arr.slice(0, target_len)
+//   }
 
-  let max_len = truncate ? SAMPLES_PER_SEGMENT : Math.max(...waveforms.map((wav) => wav.length))
-  const r = mod(max_len, SAMPLES_PER_SEGMENT)
-  if (r > 0) max_len += SAMPLES_PER_SEGMENT - r
-  waveforms = waveforms.map((w) => pad_or_trim(w, max_len))
-  if (waveforms[0].length > batch_size) throw new Error()
-  if (waveforms[0].length < batch_size) {
-    // we could have a symbolic batch_size dim instead of manually padding here if conv/layernorm supported symbolic shapes
-    waveforms = padWaveforms(waveforms, batch_size)
-  }
-  return waveforms
-  // stft = librosa.stft(waveforms, n_fft=N_FFT, hop_length=HOP_LENGTH, window='hann', dtype=np.csingle)
-  // magnitudes = np.absolute(stft[..., :-1]) ** 2
-  // mel_spec = librosa.filters.mel(sr=RATE, n_fft=N_FFT, n_mels=N_MELS) @ magnitudes
+//   let max_len = truncate ? SAMPLES_PER_SEGMENT : Math.max(...waveforms.map((wav) => wav.length))
+//   const r = mod(max_len, SAMPLES_PER_SEGMENT)
+//   if (r > 0) max_len += SAMPLES_PER_SEGMENT - r
+//   waveforms = waveforms.map((w) => pad_or_trim(w, max_len))
+//   if (waveforms[0].length > batch_size) throw new Error()
+//   if (waveforms[0].length < batch_size) {
+//     // we could have a symbolic batch_size dim instead of manually padding here if conv/layernorm supported symbolic shapes
+//     waveforms = padWaveforms(waveforms, batch_size)
+//   }
+// stft = librosa.stft(waveforms, n_fft=N_FFT, hop_length=HOP_LENGTH, window='hann', dtype=np.csingle)
+// magnitudes = np.absolute(stft[..., :-1]) ** 2
+// mel_spec = librosa.filters.mel(sr=RATE, n_fft=N_FFT, n_mels=N_MELS) @ magnitudes
 
-  //   log_spec = np.log10(np.clip(mel_spec, 1e-10, None))
-  //   log_spec = np.maximum(log_spec, log_spec.max((1,2), keepdims=True) - 8.0)
-  //   log_spec = (log_spec + 4.0) / 4.0
+//   log_spec = np.log10(np.clip(mel_spec, 1e-10, None))
+//   log_spec = np.maximum(log_spec, log_spec.max((1,2), keepdims=True) - 8.0)
+//   log_spec = (log_spec + 4.0) / 4.0
 
-  //   return log_spec
-}
+//   return log_spec
+// }
 
 // deno-fmt-ignore
 const LANGUAGES = {
@@ -282,7 +281,7 @@ const DIMS = {
 }
 type Dims = typeof DIMS
 type Model = keyof typeof MODEL_URLS
-const init_whisper = async (model_name: Model, batch_size = 1) => {
+const init_whisper = async (model_name: Model, batch_size = 1): Promise<[Whisper, Tokenizer]> => {
   if (!MODEL_URLS[model_name]) throw new Error()
 
   const filename = await env.fetchSave(MODEL_URLS[model_name], model_name, env.CACHE_DIR)
@@ -306,19 +305,18 @@ const transcribe_file = async (model: any, enc: Tokenizer, filename: string) => 
 const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Float32Array[], truncate = false) => {
   //   const log_spec = prep_audio(waveforms, model.batch_size, truncate)
   const data = await env.readFile('log_spec.bin')
-  const log_spec = new Tensor(data).bitcast(dtypes.float32).reshape([1, 80, 3000]).realize()
+  const log_spec = await new Tensor(data).bitcast(dtypes.float32).reshape([1, 80, 3000]).realize()
 
   const nsample = model.decoder.max_tokens_to_sample
-  console.log(nsample)
 
   const inferloop = async (ctx: Tensor, encoded_audio: any) => {
     let pos = 0, next_tokens = ctx
     for (const i of range((nsample - start_tokens.length) * 2)) {
       next_tokens = (await model.decoder.call(new Tensor(next_tokens), pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1])
-      next_tokens.set([ctx.get({}, -1).eq(eot)], eot)
+      await next_tokens.set([ctx.get({}, -1).eq(eot)], new Tensor([eot]))
       ctx = Tensor.cat([ctx, next_tokens], 1)
       pos = ctx.shape[-1] - 1
-      if ((next_tokens.eq(eot)).all()) break
+      if (await next_tokens.eq(eot).all().item()) break
     }
     return ctx
   }
@@ -333,22 +331,23 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
   start_tokens.push(enc.special_tokens['<|notimestamps|>'])
   const eot = enc.special_tokens['<|endoftext|>']
 
-  let ctx = np.tile(start_tokens, (model.batch_size, 1))
+  let ctx = new Tensor(start_tokens).reshape([1, -1]).expand([model.batch_size, start_tokens.length])
   let transcriptions = waveforms.map(() => [])
 
   for (const curr_frame of range(0, log_spec.shape.at(-1), FRAMES_PER_SEGMENT)) {
-    const encoded_audio = model.encoder.encode.call(new Tensor(log_spec.get({}, {}, { start: curr_frame, stop: curr_frame + FRAMES_PER_SEGMENT })))
+    const encoded_audio = await model.encoder.encode.call(await log_spec.get({}, {}, { start: curr_frame, stop: curr_frame + FRAMES_PER_SEGMENT }).realize())
+    console.log(await encoded_audio.tolist())
+    throw new Error('here')
+    // if (ctx.every((c) => c.length === ctx[0].length)) ctx = await inferloop(ctx, encoded_audio)
+    // else ctx = await Promise.all(ctx.entries().map(async ([i, c]) => await inferloop((np.array(range(model.batch_size).map(() => c)), encoded_audio))[i]))
 
-    if (ctx.every((c) => c.length === ctx[0].length)) ctx = inferloop(np.array(ctx), encoded_audio)
-    else ctx = await Promise.all(ctx.entries().map(async ([i, c]) => await inferloop((np.array(range(model.batch_size).map(() => c)), encoded_audio))[i]))
-
-    for (const [i, [res, arr]] of zip(transcriptions, ctx).entries()) {
-      const eoti = np.where(arr.eq(eot))[0]
-      if (curr_frame * HOP_LENGTH <= waveforms[i].length) res.push(arr.slice(np.where(arr.eq(start_tokens.at(-1)))[0][0] + 1, eoti.lengt ? eoti[0] : undefined))
-    }
-    ctx = ctx.map((cs) => [enc._special_tokens['<|startofprev|>'], ...gettexttoks(cs), ...start_tokens])
+    // for (const [i, [res, arr]] of zip(transcriptions, ctx).entries()) {
+    //   const eoti = np.where(arr.eq(eot))[0]
+    //   if (curr_frame * HOP_LENGTH <= waveforms[i].length) res.push(arr.slice(np.where(arr.eq(start_tokens.at(-1)))[0][0] + 1, eoti.lengt ? eoti[0] : undefined))
+    // }
+    // ctx = ctx.map((cs) => [enc._special_tokens['<|startofprev|>'], ...gettexttoks(cs), ...start_tokens])
   }
-  transcriptions = transcriptions.map((tokens) => enc.decode(tokens).strip())
+  //   transcriptions = transcriptions.map((tokens) => enc.decode(tokens).strip())
   return transcriptions.length > 1 ? transcriptions : transcriptions[0]
 }
 

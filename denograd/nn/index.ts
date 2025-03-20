@@ -158,7 +158,7 @@ export const BatchNorm3d = BatchNorm
  * ```
  */
 export const Conv1d = (in_channels: number, out_channels: number, kernel_size: number, stride = 1, padding: number | string = 0, dilation = 1, groups = 1, bias = true): Conv2d => {
-  return new Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+  return new Conv2d(in_channels, out_channels, [kernel_size], stride, padding, dilation, groups, bias)
 }
 
 /**
