@@ -236,8 +236,8 @@ const get_encoding = async (encoding_name: string) => {
   const url = `https://raw.githubusercontent.com/openai/whisper/main/whisper/assets/${encoding_name}.tiktoken`
   const path = await env.fetchSave(url, get_key(url), env.CACHE_DIR)
   const data = await env.readTextFile(path)
-  const ranks = new Map(data.split('\n').filter(Boolean).map((line) => line.split(' ')).map(([token, rank]) => [btoa(token), Number(rank)]))
-  let n_vocab = Object.keys(ranks).length
+  const ranks = data.split('\n').filter(Boolean).map((line) => line.split(' ')).map(([token, rank]) => [btoa(token), Number(rank)])
+  let n_vocab = ranks.length
   const specials = [
     '<|endoftext|>',
     '<|startoftranscript|>',
@@ -250,14 +250,13 @@ const get_encoding = async (encoding_name: string) => {
     '<|notimestamps|>',
     ...range(1501).map((i) => `<|${(i * 0.02).toFixed(2)}|>`),
   ]
-  const special_tokens = new Map(zip(specials, range(n_vocab)))
   n_vocab += specials.length
   const pat = /'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+/gu
-  return new Tokenizer(pat, ranks, special_tokens)
+  return new Tokenizer(pat, Object.fromEntries(ranks), Object.fromEntries(specials.map((x, i) => [x, ranks.length + i])))
 }
 
 const MODEL_URLS = {
-  'tiny.en': 'https://huggingface.co/openai/whisper-tiny/resolve/main/model.safetensors?download=true',
+  'tiny.en': 'https://huggingface.co/openai/whisper-tiny.en/resolve/main/model.safetensors?download=true',
   'tiny': 'https://huggingface.co/openai/whisper-tiny/resolve/main/model.safetensors?download=true',
   'base.en': 'https://openaipublic.azureedge.net/main/whisper/models/25a8566e1d0c1e2231d1c762132cd20e0f96a85d16145c3a00adf5d1ac670ead/base.en.pt',
   'base': 'https://openaipublic.azureedge.net/main/whisper/models/ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e/base.pt',
@@ -271,7 +270,7 @@ const MODEL_URLS = {
 }
 const DIMS = {
   'n_mels': 80,
-  'n_vocab': 51865,
+  'n_vocab': 51864,
   'n_audio_ctx': 1500,
   'n_audio_state': 384,
   'n_audio_head': 6,
@@ -290,23 +289,27 @@ const init_whisper = async (model_name: Model, batch_size = 1) => {
   const state = await safe_load(filename)
   const model = await Whisper.init(DIMS, batch_size)
   load_state_dict(model, state, false)
-  const enc = get_encoding(model.is_multilingual ? 'multilingual' : 'gpt2')
+  const enc = await get_encoding(model.is_multilingual ? 'multilingual' : 'gpt2')
   return [model, enc]
 }
-const transcribe_file = async (model: any, enc: any, filename: string) => {
+const transcribe_file = async (model: any, enc: Tokenizer, filename: string) => {
   if (filename.startsWith('http')) filename = await env.fetchSave(filename, get_key(filename), env.CACHE_DIR)
   const data = await env.readFile(filename)
   const res = wav.decode(data)
   if (res.sampleRate !== RATE) throw new Error()
-  return await transcribe_waveform(model, enc, [res.channelData])
+  return await transcribe_waveform(model, enc, res.channelData)
 }
 /**
  * Expects an array of shape (N,S) where N is the number waveforms to transcribe in parallel and S is number of 16000Hz samples
  * Returns the transcribed text if a single waveform is provided, or an array of transcriptions if multiple are provided
  */
-const transcribe_waveform = async (model: Whisper, enc: any, waveforms: Float32Array[], truncate = false) => {
-  const log_spec = prep_audio(waveforms, model.batch_size, truncate)
+const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Float32Array[], truncate = false) => {
+  //   const log_spec = prep_audio(waveforms, model.batch_size, truncate)
+  const data = await env.readFile('log_spec.bin')
+  const log_spec = new Tensor(data).bitcast(dtypes.float32).reshape([1, 80, 3000]).realize()
+
   const nsample = model.decoder.max_tokens_to_sample
+  console.log(nsample)
 
   const inferloop = async (ctx: Tensor, encoded_audio: any) => {
     let pos = 0, next_tokens = ctx
@@ -319,17 +322,16 @@ const transcribe_waveform = async (model: Whisper, enc: any, waveforms: Float32A
     }
     return ctx
   }
-  const gettexttoks = (line: number[]) => line.filter((tok) => tok < eot || tok > enc._special_tokens['<|notimestamps|>']).slice(-nsample + start_tokens.length)
-  let start_tokens = [enc._special_tokens['<|startoftranscript|>']]
+  const gettexttoks = (line: number[]) => line.filter((tok) => tok < eot || tok > enc.special_tokens['<|notimestamps|>']).slice(-nsample + start_tokens.length)
+  let start_tokens = [enc.special_tokens['<|startoftranscript|>']]
   if (model.is_multilingual) {
     // TODO detect language
-    const language_token = enc._special_tokens['<|startoftranscript|>'] + 1 + Object.keys(LANGUAGES).indexOf('en')
+    const language_token = enc.special_tokens['<|startoftranscript|>'] + 1 + Object.keys(LANGUAGES).indexOf('en')
     start_tokens.push(language_token)
-    start_tokens.push(enc._special_tokens['<|transcribe|>'])
+    start_tokens.push(enc.special_tokens['<|transcribe|>'])
   }
-  start_tokens.push(enc._special_tokens['<|notimestamps|>'])
-
-  const eot = enc._special_tokens['<|endoftext|>']
+  start_tokens.push(enc.special_tokens['<|notimestamps|>'])
+  const eot = enc.special_tokens['<|endoftext|>']
 
   let ctx = np.tile(start_tokens, (model.batch_size, 1))
   let transcriptions = waveforms.map(() => [])
@@ -351,7 +353,7 @@ const transcribe_waveform = async (model: Whisper, enc: any, waveforms: Float32A
 }
 
 if (import.meta.main) {
-  const [model, enc] = await init_whisper('tiny', 1)
+  const [model, enc] = await init_whisper('tiny.en', 1)
   const file = 'https://huggingface.co/datasets/FL33TW00D-HF/ratchet-util/resolve/0c9601ad0d235e2e193b016b151aec991f497bf7/jfk.wav?download=true'
   console.log(await transcribe_file(model, enc, file))
 }
