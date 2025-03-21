@@ -50,7 +50,7 @@ export class MultiHeadAttention {
     let q = this.query.call(x)
     const n_ctx = q.shape[1]
     if (q.shape.at(-1) !== k.shape.at(-1) || k.shape.at(-1) !== v.shape.at(-1)) throw new Error()
-    const head_dim = idiv(q.shape[-1], this.n_head)
+    const head_dim = idiv(q.shape.at(-1)!, this.n_head)
     q = q.reshape([...q.shape.slice(0, 2), this.n_head, head_dim]).permute(0, 2, 1, 3)
     k = k.reshape([...k.shape.slice(0, 2), this.n_head, head_dim]).permute(0, 2, 1, 3)
     v = v.reshape([...v.shape.slice(0, 2), this.n_head, head_dim]).permute(0, 2, 1, 3)
@@ -312,10 +312,10 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
   const inferloop = async (ctx: Tensor, encoded_audio: any) => {
     let pos = 0, next_tokens = ctx
     for (const i of range((nsample - start_tokens.length) * 2)) {
-      next_tokens = (await model.decoder.call(new Tensor(next_tokens), pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1])
-      await next_tokens.set([ctx.get({}, -1).eq(eot)], new Tensor([eot]))
+      next_tokens = (await model.decoder.call(next_tokens, pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1])
+      await next_tokens.set([ctx.get({}, -1).eq(eot).cast(dtypes.int32)], eot)
       ctx = Tensor.cat([ctx, next_tokens], 1)
-      pos = ctx.shape[-1] - 1
+      pos = ctx.shape.at(-1)! - 1
       if (await next_tokens.eq(eot).all().item()) break
     }
     return ctx
@@ -332,14 +332,17 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
   const eot = enc.special_tokens['<|endoftext|>']
 
   let ctx = new Tensor(start_tokens).reshape([1, -1]).expand([model.batch_size, start_tokens.length])
-  let transcriptions = waveforms.map(() => [])
+  let transcriptions: any[] = waveforms.map(() => [])
 
   for (const curr_frame of range(0, log_spec.shape.at(-1), FRAMES_PER_SEGMENT)) {
     const encoded_audio = await model.encoder.encode.call(await log_spec.get({}, {}, { start: curr_frame, stop: curr_frame + FRAMES_PER_SEGMENT }).realize())
-    console.log(await encoded_audio.tolist())
-    throw new Error('here')
-    // if (ctx.every((c) => c.length === ctx[0].length)) ctx = await inferloop(ctx, encoded_audio)
-    // else ctx = await Promise.all(ctx.entries().map(async ([i, c]) => await inferloop((np.array(range(model.batch_size).map(() => c)), encoded_audio))[i]))
+    const _ctx: number[][] = await ctx.tolist()
+    if (_ctx.every((c) => c.length === _ctx[0].length)) ctx = await inferloop(ctx, encoded_audio)
+    else {
+      const res = await Promise.all(_ctx.map(async (c, i) => await (await inferloop(new Tensor(range(model.batch_size).map(() => c)), encoded_audio)).get(i).tolist()))
+      ctx = new Tensor(res)
+    }
+    throw new Error()
 
     // for (const [i, [res, arr]] of zip(transcriptions, ctx).entries()) {
     //   const eoti = np.where(arr.eq(eot))[0]
@@ -347,7 +350,7 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
     // }
     // ctx = ctx.map((cs) => [enc._special_tokens['<|startofprev|>'], ...gettexttoks(cs), ...start_tokens])
   }
-  //   transcriptions = transcriptions.map((tokens) => enc.decode(tokens).strip())
+  transcriptions = transcriptions.map((tokens) => enc.decode(tokens).trim())
   return transcriptions.length > 1 ? transcriptions : transcriptions[0]
 }
 

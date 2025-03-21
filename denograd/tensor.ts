@@ -563,7 +563,7 @@ export class Tensor extends MathTrait<Tensor> {
     uop_realized((realized.lazydata as UOp).base)!.copyin(await x._data())
     return this
   }
-  assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
+  assign = (x: Tensor | number[]|number | string | Uint8Array): Tensor => {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     //   // TODO: this is a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) throw new Error("Use async assign_disk instead, until disk get's good assign")
@@ -1437,11 +1437,11 @@ export class Tensor extends MathTrait<Tensor> {
       let [boundary, stride] = [[0, size] as [number, number], 1] // defaults
       if (Array.isArray(index) || index instanceof Tensor) {
         if (!isinstance(index, Tensor)) index = new Tensor(index, { device: this.device, requires_grad: false })
-        if (!dtypes.is_int(index.dtype)) throw new Error(`index dtype ${index.dtype} !== supported`)
+        if (!dtypes.is_int(index.dtype)) throw new Error(`index dtype ${index.dtype} is not supported`)
         index = (index.to(this.device).lt(0)).where(size, 0).add(index) // treat negative index values
       } else if (typeof index === 'number' || index instanceof UOp) { // sint
         if (index instanceof UOp) throw new Error('KAREL: UOp not supported yet')
-        if (index >= size || index < -size) throw new Error(`index=${index} === out of bounds with size=${size}`)
+        if (index >= size || index < -size) throw new Error(`index=${index} is out of bounds with size=${size}`)
         boundary = index >= 0 ? [index, add(index, 1)] : [add(index, size), add(index, size) + 1]
       } else if (index === undefined) {
         // do nothing
@@ -1560,14 +1560,14 @@ export class Tensor extends MathTrait<Tensor> {
    */
   get = (...indices: TensorIndice[]) => this._getitem(indices)
 
-  set = async (indices: TensorIndice[], v: Tensor | number[]) => {
+  set = async (indices: TensorIndice[], v: Tensor | number) => {
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
       this._getitem(indices).assign(v)
       return
     }
     // NOTE: check that setitem target is valid first
     if (!this.lazydata.st!.contiguous) throw new Error('setitem target needs to be contiguous')
-    if (!(v instanceof Tensor || isConst(v))) throw new Error(`can't set a ${v.constructor.name} to a Tensor`)
+    if (!(v instanceof Tensor || isConst(v))) throw new Error(`can't set a ${v} to a Tensor`)
     if (!(v instanceof Tensor)) v = new Tensor(v, { device: this.device, dtype: this.dtype })
     if (this.requires_grad || v.requires_grad) throw new Error('setitem with requires_grad is not supported')
 
