@@ -158,7 +158,7 @@ export const BatchNorm3d = BatchNorm
  * ```
  */
 export const Conv1d = (in_channels: number, out_channels: number, kernel_size: number, stride = 1, padding: number | string = 0, dilation = 1, groups = 1, bias = true): Conv2d => {
-  return new Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+  return new Conv2d(in_channels, out_channels, [kernel_size], stride, padding, dilation, groups, bias)
 }
 
 /**
@@ -366,8 +366,8 @@ export class LayerNorm {
     this.weight = elementwise_affine ? Tensor.ones(this.normalized_shape) : undefined
     this.bias = elementwise_affine ? Tensor.zeros(this.normalized_shape) : undefined
   }
-  call(x: Tensor): Tensor {
-    if (!is_eq(this.normalized_shape, x.shape.slice(this.normalized_shape.length))) throw new Error(`last dimensions of ${x.shape} must match ${this.normalized_shape}`)
+  call = (x: Tensor): Tensor => {
+    if (!is_eq(this.normalized_shape, x.shape.slice(-this.normalized_shape.length))) throw new Error(`last dimensions of ${x.shape} must match ${this.normalized_shape}`)
     x = x.layernorm(this.axis, this.eps)
     if (!this.elementwise_affine) return x
     return x.mul(this.weight!).add(this.bias!)

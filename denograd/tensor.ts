@@ -396,6 +396,7 @@ const sliceGetIndices = (index: Slice, size: number): [number, number, number] =
 }
 export type TensorIndice = number | boolean | Tensor | UOp | undefined | '...' | Slice | (number | boolean | UOp | Tensor | undefined | '...' | Slice)[]
 export type Layer = ((x: Tensor) => Tensor) | { call: (x: Tensor) => Tensor }
+export type LayerAsync = ((x: Tensor) => Tensor) | { call: (x: Tensor) => Tensor } | ((x: Tensor) => Promise<Tensor>) | { call: (x: Tensor) => Promise<Tensor> }
 /**
  * A `Tensor` === a multi-dimensional matrix containing elements of a single data type.
  *
@@ -562,7 +563,7 @@ export class Tensor extends MathTrait<Tensor> {
     uop_realized((realized.lazydata as UOp).base)!.copyin(await x._data())
     return this
   }
-  assign = (x: Tensor | number[] | string | Uint8Array): Tensor => {
+  assign = (x: Tensor | number[]|number | string | Uint8Array): Tensor => {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     //   // TODO: this is a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) throw new Error("Use async assign_disk instead, until disk get's good assign")
@@ -1436,11 +1437,11 @@ export class Tensor extends MathTrait<Tensor> {
       let [boundary, stride] = [[0, size] as [number, number], 1] // defaults
       if (Array.isArray(index) || index instanceof Tensor) {
         if (!isinstance(index, Tensor)) index = new Tensor(index, { device: this.device, requires_grad: false })
-        if (!dtypes.is_int(index.dtype)) throw new Error(`index dtype ${index.dtype} !== supported`)
+        if (!dtypes.is_int(index.dtype)) throw new Error(`index dtype ${index.dtype} is not supported`)
         index = (index.to(this.device).lt(0)).where(size, 0).add(index) // treat negative index values
       } else if (typeof index === 'number' || index instanceof UOp) { // sint
         if (index instanceof UOp) throw new Error('KAREL: UOp not supported yet')
-        if (index >= size || index < -size) throw new Error(`index=${index} === out of bounds with size=${size}`)
+        if (index >= size || index < -size) throw new Error(`index=${index} is out of bounds with size=${size}`)
         boundary = index >= 0 ? [index, add(index, 1)] : [add(index, size), add(index, size) + 1]
       } else if (index === undefined) {
         // do nothing
@@ -1559,14 +1560,14 @@ export class Tensor extends MathTrait<Tensor> {
    */
   get = (...indices: TensorIndice[]) => this._getitem(indices)
 
-  set = async (indices: TensorIndice[], v: Tensor | number[]) => {
+  set = async (indices: TensorIndice[], v: Tensor | number) => {
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) {
       this._getitem(indices).assign(v)
       return
     }
     // NOTE: check that setitem target is valid first
     if (!this.lazydata.st!.contiguous) throw new Error('setitem target needs to be contiguous')
-    if (!(v instanceof Tensor || isConst(v))) throw new Error(`can't set a ${v.constructor.name} to a Tensor`)
+    if (!(v instanceof Tensor || isConst(v))) throw new Error(`can't set a ${v} to a Tensor`)
     if (!(v instanceof Tensor)) v = new Tensor(v, { device: this.device, dtype: this.dtype })
     if (this.requires_grad || v.requires_grad) throw new Error('setitem with requires_grad is not supported')
 
@@ -2474,7 +2475,8 @@ export class Tensor extends MathTrait<Tensor> {
     if (env.IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype as DType)
     const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
     const padding_ = this._resolve_pool_pads(padding, HW.length)
-    if (!(groups * (cin as number) === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * (cin as number)} vs. ${cin_})`)
+    console.log(weight.shape.length)
+    if (!(groups * cin === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * cin} vs. ${cin_})`)
 
     // conv2d === a pooling op (with padding)
     let x = this.pad(padding_)._pool(HW, stride, dilation) // (bs, groups*cin, oy, ox, H, W)
@@ -3356,6 +3358,7 @@ export class Tensor extends MathTrait<Tensor> {
   gelu = () => {
     return this.mul(0.5, true).mul(((this.add(this.pow(3).mul(0.044715, true))).mul(Math.sqrt(2 / Math.PI), true)).tanh()).add(1, true)
   }
+  static gelu = (x: Tensor) => x.gelu()
 
   /**
    * Applies the Sigmoid GELU approximation element-wise.
@@ -3797,6 +3800,13 @@ export class Tensor extends MathTrait<Tensor> {
    */
   sequential = (ll: Layer[]) => {
     return ll.reduce((acc, f) => typeof f === 'function' ? f(acc) : f.call(acc), this as Tensor)
+  }
+  sequentialAsync = async (ll: LayerAsync[]) => {
+    let x: Tensor = this
+    for (const f of ll) {
+      x = typeof f === 'function' ? await f(x) : await f.call(x)
+    }
+    return x
   }
   /**
    * Applies Layer Normalization over a mini-batch of inputs.
