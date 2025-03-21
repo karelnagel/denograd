@@ -2475,7 +2475,6 @@ export class Tensor extends MathTrait<Tensor> {
     if (env.IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype as DType)
     const [[bs, cin_], [cout, cin], HW] = [this.shape.slice(0, 2), weight.shape.slice(0, 2), weight.shape.slice(2)]
     const padding_ = this._resolve_pool_pads(padding, HW.length)
-    console.log(weight.shape.length)
     if (!(groups * cin === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * cin} vs. ${cin_})`)
 
     // conv2d === a pooling op (with padding)
