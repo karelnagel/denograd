@@ -269,7 +269,7 @@ const get_encoding = async (is_multilingual: boolean) => {
   const url = `https://raw.githubusercontent.com/openai/whisper/main/whisper/assets/${is_multilingual ? 'multilingual' : 'gpt2'}.tiktoken`
   const path = await env.fetchSave(url, get_key(url), env.CACHE_DIR)
   const data = await env.readTextFile(path)
-  const ranks = data.split('\n').filter((line) => line && line !== ('= 50256')).map((line) => line.split(' ')).map(([token, rank]) => [atob(token), Number(rank)])
+  const ranks = data.split('\n').filter((line) => line).map((line) => line.split(' ')).map(([token, rank]) => [token === '=' ? '<THIS_IS_EXTRA_TOKEN_FOR_MULTILANG_MODELS>' : atob(token), Number(rank)])
   let n_vocab = ranks.length
   const specials = [
     '<|endoftext|>',
