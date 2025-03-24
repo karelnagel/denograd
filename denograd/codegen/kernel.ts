@@ -429,8 +429,8 @@ export class Kernel {
     let amt: number
     if (opt.op === OptOps.SWAP) amt = opt.amt! // amt===an axis in the SWAPs
     else if (opt.amt !== undefined) {
-      amt = opt.amt !== 0 ? opt.amt : num(this.full_shape[axis])
-      check(isinstance(amt, Number) && amt !== 1, `shift/padto of amt=${amt}, 1 or symbolic amount is meaningless`)
+      amt = opt.amt !== 0 ? opt.amt : this.full_shape[axis] as number
+      check(typeof amt === 'number' && amt !== 1, `shift/padto of amt=${amt}, 1 or symbolic amount is meaningless`)
       if (opt.op !== OptOps.PADTO) check(mod(this.full_shape[axis], amt) === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}, ${opt}`)
     } else amt = -1
 

@@ -183,7 +183,7 @@ const padWaveforms = (waveforms: Float32Array[], batchSize: number) => {
  */
 export const prep_audio = async (waveforms: Float32Array[], batch_size: number, truncate = false) => {
   const data = await env.readFile('log_spec.bin')
-  return await new Tensor(data).bitcast(dtypes.float32).reshape([1, 80, 3000]).realize()
+  return new Tensor(data).bitcast(dtypes.float32).reshape([1, 80, 3000])
 
   //   const pad_or_trim = (arr: Float32Array, target_len: number): Float32Array => {
   //     const curr_len = arr.length
@@ -346,7 +346,7 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
     let pos = 0, next_tokens = ctx
     for (const i of range((nsample - start_tokens.length) * 2)) {
       next_tokens = (await model.decoder.call(next_tokens, pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1])
-      next_tokens = (ctx.get({}, -1).eq(eot)).reshape([-1, 1]).where(next_tokens.full_like(eot), next_tokens)
+      next_tokens = ctx.get({}, -1).eq(eot).reshape([-1, 1]).where(next_tokens.full_like(eot), next_tokens)
       ctx = Tensor.cat([ctx, next_tokens], 1)
       pos = ctx.shape_num.at(-1)! - 1
       if (await (next_tokens.eq(eot)).all().item()) break
@@ -369,11 +369,11 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
   let transcriptions: number[][] = waveforms.map(() => [])
 
   for (const curr_frame of range(0, log_spec.shape_num.at(-1), FRAMES_PER_SEGMENT)) {
-    const encoded_audio = await model.encoder.encode.call(await log_spec.get({}, {}, { start: curr_frame, stop: curr_frame + FRAMES_PER_SEGMENT }).realize())
+    const encoded_audio = await model.encoder.encode.call(log_spec.get({}, {}, { start: curr_frame, stop: curr_frame + FRAMES_PER_SEGMENT }))
 
     if ((await ctx.tolist<number[][]>()).every((c) => c.length === ctx.get(0).length)) ctx = await inferloop(ctx, encoded_audio)
     else {
-      throw new Error()
+      throw new Error('Not tested')
       // ctx = await Promise.all((await ctx.tolist()).map(async (c, i) => (await inferloop(new Tensor(range(model.batch_size).map(() => c)), encoded_audio)).get(i)))
     }
 
