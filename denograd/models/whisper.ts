@@ -1,4 +1,4 @@
-import { add, ArrayMap, Conv1d, type Conv2d, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable } from '../mod.ts'
+import { add, ArrayMap, Conv1d, type Conv2d, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, zip } from '../mod.ts'
 import wav from 'node-wav'
 
 export class MultiHeadAttention {
@@ -31,19 +31,20 @@ export class MultiHeadAttention {
     } else {
       k = this.key.call(x), v = this.value.call(x)
       if (this.kv_caching === 'self') {
+        if (len === undefined || this.max_self_attn_cache_len === undefined) throw new Error()
         if (!this.cache_k) {
-          this.cache_k = Tensor.zeros([x.shape[0], this.max_self_attn_cache_len!, x.shape[2]])
-          this.cache_v = Tensor.zeros([x.shape[0], this.max_self_attn_cache_len!, x.shape[2]])
+          this.cache_k = Tensor.zeros([x.shape[0], this.max_self_attn_cache_len, x.shape[2]])
+          this.cache_v = Tensor.zeros([x.shape[0], this.max_self_attn_cache_len, x.shape[2]])
         }
-        k = this.cache_k.shrink([undefined, [0, len!], undefined]).cat([k], 1)
-        v = this.cache_v!.shrink([undefined, [0, len!], undefined]).cat([v], 1)
-        const padding = sub(sub(this.max_self_attn_cache_len!, len!), x.shape[1])
+        k = this.cache_k.shrink([undefined, [0, len], undefined]).cat([k], 1)
+        v = this.cache_v!.shrink([undefined, [0, len], undefined]).cat([v], 1)
+        const padding = sub(sub(this.max_self_attn_cache_len, len), x.shape[1])
         await this.cache_k.assign(k.pad([undefined, [0, padding], undefined]).contiguous()).realize()
         await this.cache_v!.assign(v.pad([undefined, [0, padding], undefined]).contiguous()).realize()
       }
     }
     let q = this.query.call(x)
-    const n_ctx = q.shape[1]
+    const n_ctx = q.shape_num[1]
     if (q.shape.at(-1) !== k.shape.at(-1) || k.shape.at(-1) !== v.shape.at(-1)) throw new Error()
     const head_dim = idiv(q.shape.at(-1)!, this.n_head)
     q = q.reshape([...q.shape.slice(0, 2), this.n_head, head_dim]).permute(0, 2, 1, 3)
@@ -97,7 +98,7 @@ export class AudioEncoder {
     x = this.conv1.call(x).gelu()
     x = this.conv2.call(x).gelu()
     x = x.permute(0, 2, 1)
-    x = x.add(this.positional_embedding.get({ stop: x.shape[1] }))
+    x = x.add(this.positional_embedding.get({ stop: x.shape_num[1] }))
     x = await x.sequentialAsync(this.blocks)
     x = this.ln_post.call(x)
     return await x.realize()
@@ -124,18 +125,17 @@ class TextDecoder {
     ret.mask = await Tensor.full([n_text_ctx, n_text_ctx], -Infinity).triu(1).realize()
     return ret
   }
-  call = async (x: Tensor, pos: sint, encoded_audio: Tensor) => {
-    pos = pos ? UOp.variable('self_attn_cache_len', 1, this.max_self_attn_cache_len).bind(pos as number) : 0
-    let jit = this.getjitted.get(x.shape)
+  call = async (x: Tensor, pos: number, encoded_audio: Tensor) => {
+    let jit = this.getjitted.get(x.shape_num)
     if (!jit) {
       jit = new TinyJit(this.forward)
-      this.getjitted.set(x.shape, jit)
+      this.getjitted.set(x.shape_num, jit)
     }
-    return jit.call(x, pos, encoded_audio)
+    return jit.call(x, pos ? UOp.variable('self_attn_cache_len', 1, this.max_self_attn_cache_len).bind(pos) : 0, encoded_audio)
   }
   forward = async (x: Tensor, pos: Variable | number, encoded_audio: Tensor) => {
-    const seqlen = x.shape.at(-1)
-    x = this.token_embedding.call(x).add(this.positional_embedding.shrink([[pos, add(pos, seqlen as number)], undefined, undefined]))
+    const seqlen = x.shape.at(-1)!
+    x = this.token_embedding.call(x).add(this.positional_embedding.shrink([[pos, add(pos, seqlen)], undefined, undefined]))
     for (const block of this.blocks) x = await block.call(x, encoded_audio, this.mask, pos)
     return await this.output_tok(x)
   }
@@ -340,20 +340,20 @@ const transcribe_file = async (model: any, enc: Tokenizer, filename: string) => 
  */
 const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Float32Array[], truncate = false) => {
   const log_spec = await prep_audio(waveforms, model.batch_size, truncate)
-
   const nsample = model.decoder.max_tokens_to_sample
 
   const inferloop = async (ctx: Tensor, encoded_audio: Tensor) => {
     let pos = 0, next_tokens = ctx
     for (const i of range((nsample - start_tokens.length) * 2)) {
-      next_tokens = await (await model.decoder.call(next_tokens, pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1]).realize()
-      await next_tokens.set([ctx.get({}, -1).eq(eot).cast(dtypes.int32)], eot)
+      next_tokens = (await model.decoder.call(next_tokens, pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1])
+      next_tokens = (ctx.get({}, -1).eq(eot)).reshape([-1, 1]).where(next_tokens.full_like(eot), next_tokens)
       ctx = Tensor.cat([ctx, next_tokens], 1)
-      pos = ctx.shape.at(-1)! - 1
-      if (await next_tokens.eq(eot).all().item()) break
+      pos = ctx.shape_num.at(-1)! - 1
+      if (await (next_tokens.eq(eot)).all().item()) break
     }
     return ctx
   }
+
   const gettexttoks = (line: number[]) => line.filter((tok) => tok < eot || tok > enc.special_tokens['<|notimestamps|>']).slice(-nsample + start_tokens.length)
   let start_tokens = [enc.special_tokens['<|startoftranscript|>']]
   if (model.is_multilingual) {
@@ -366,27 +366,27 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
   const eot = enc.special_tokens['<|endoftext|>']
 
   let ctx = new Tensor(start_tokens).reshape([1, -1]).expand([model.batch_size, start_tokens.length])
-  let transcriptions: any[] = waveforms.map(() => [])
+  let transcriptions: number[][] = waveforms.map(() => [])
 
-  for (const curr_frame of range(0, log_spec.shape.at(-1), FRAMES_PER_SEGMENT)) {
+  for (const curr_frame of range(0, log_spec.shape_num.at(-1), FRAMES_PER_SEGMENT)) {
     const encoded_audio = await model.encoder.encode.call(await log_spec.get({}, {}, { start: curr_frame, stop: curr_frame + FRAMES_PER_SEGMENT }).realize())
-    const _ctx: number[][] = await ctx.tolist()
-    if (_ctx.every((c) => c.length === _ctx[0].length)) {
-      ctx = await inferloop(ctx, encoded_audio)
-    } else {
-      const res = await Promise.all(_ctx.map(async (c, i) => await (await inferloop(new Tensor(range(model.batch_size).map(() => c)), encoded_audio)).get(i).tolist()))
-      ctx = new Tensor(res)
-    }
-    throw new Error()
 
-    // for (const [i, [res, arr]] of zip(transcriptions, ctx).entries()) {
-    //   const eoti = np.where(arr.eq(eot))[0]
-    //   if (curr_frame * HOP_LENGTH <= waveforms[i].length) res.push(arr.slice(np.where(arr.eq(start_tokens.at(-1)))[0][0] + 1, eoti.lengt ? eoti[0] : undefined))
-    // }
-    // ctx = ctx.map((cs) => [enc._special_tokens['<|startofprev|>'], ...gettexttoks(cs), ...start_tokens])
+    if ((await ctx.tolist<number[][]>()).every((c) => c.length === ctx.get(0).length)) ctx = await inferloop(ctx, encoded_audio)
+    else {
+      throw new Error()
+      // ctx = await Promise.all((await ctx.tolist()).map(async (c, i) => (await inferloop(new Tensor(range(model.batch_size).map(() => c)), encoded_audio)).get(i)))
+    }
+
+    for (const [i, [res, arr]] of zip(transcriptions, await ctx.tolist<number[][]>()).entries()) {
+      if (curr_frame * HOP_LENGTH <= waveforms[i].length) {
+        const start = arr.indexOf(start_tokens.at(-1)!) + 1
+        res.push(...arr.slice(start, arr.indexOf(eot, start)))
+      }
+    }
+    ctx = new Tensor((await ctx.tolist<number[][]>()).map((cs) => [enc.special_tokens['<|startofprev|>'], ...gettexttoks(cs), ...start_tokens]))
   }
-  transcriptions = transcriptions.map((tokens) => enc.decode(tokens).trim())
-  return transcriptions.length > 1 ? transcriptions : transcriptions[0]
+  const out = transcriptions.map((tokens) => enc.decode(tokens).trim())
+  return out.length > 1 ? out : out[0]
 }
 
 if (import.meta.main) {

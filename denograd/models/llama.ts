@@ -33,7 +33,7 @@ export const apply_rotary_emb = (xq: Tensor, xk: Tensor, freqs_cis: Tensor): [Te
 }
 
 export const repeat_kv = (x: Tensor, n_rep: number): Tensor => {
-  const [bs, seqlen, n_kv_heads, head_dim] = x.shape
+  const [bs, seqlen, n_kv_heads, head_dim] = x.shape_num
   if (n_rep === 1) return x
   // NOTE: this is different from x.repeat((1, 1, n_rep, 1))
   return x.repeat([1, 1, 1, n_rep]).reshape([bs, seqlen, n_kv_heads * n_rep, head_dim])
@@ -64,7 +64,7 @@ export class Attention {
     if (env.get('WQKV')) {
       if (this.wqkv === undefined) this.wqkv = Tensor.cat([this.wq.weight, this.wk.weight, this.wv.weight])
       const xqkv = x.matmul(this.wqkv.T)
-      ;[xq, xk, xv] = xqkv.split([this.wq.weight.shape[0], this.wk.weight.shape[0], this.wv.weight.shape[0]], 2)
+      ;[xq, xk, xv] = xqkv.split([this.wq.weight.shape_num[0], this.wk.weight.shape_num[0], this.wv.weight.shape_num[0]], 2)
     } else {
       xq = this.wq.call(x), xk = this.wk.call(x), xv = this.wv.call(x)
     }
@@ -200,7 +200,7 @@ export class Transformer {
     this.forward_jit = jit ? new TinyJit(this.forward) : undefined
   }
   forward = async (tokens: Tensor, start_pos: number | Variable, temperature: number, top_k: number, top_p: number, alpha_f: number, alpha_p: number) => {
-    const [_bsz, seqlen] = tokens.shape
+    const [_bsz, seqlen] = tokens.shape_num
     let h = this.tok_embeddings.call(tokens)
 
     this.freqs_cis = await this.freqs_cis.cast(h.dtype).realize()
