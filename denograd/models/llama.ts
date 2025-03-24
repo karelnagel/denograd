@@ -2,7 +2,7 @@ import { Device } from '../device.ts'
 import { dtypes } from '../dtype.ts'
 import { TinyJit } from '../engine/jit.ts'
 import { env } from '../env/index.ts'
-import { add, assert, idiv, is_eq, range } from '../helpers.ts'
+import { add, assert, idiv, is_eq, mul, num, range } from '../helpers.ts'
 import { Embedding, Linear, RMSNorm } from '../nn/index.ts'
 import { UOp, type Variable } from '../ops.ts'
 import { Tensor } from '../tensor.ts'
@@ -33,10 +33,10 @@ export const apply_rotary_emb = (xq: Tensor, xk: Tensor, freqs_cis: Tensor): [Te
 }
 
 export const repeat_kv = (x: Tensor, n_rep: number): Tensor => {
-  const [bs, seqlen, n_kv_heads, head_dim] = x.shape_num
+  const [bs, seqlen, n_kv_heads, head_dim] = x.shape
   if (n_rep === 1) return x
   // NOTE: this is different from x.repeat((1, 1, n_rep, 1))
-  return x.repeat([1, 1, 1, n_rep]).reshape([bs, seqlen, n_kv_heads * n_rep, head_dim])
+  return x.repeat([1, 1, 1, n_rep]).reshape([bs, seqlen, mul(n_kv_heads, n_rep), head_dim])
 }
 export class Attention {
   n_kv_heads: number
@@ -69,7 +69,7 @@ export class Attention {
       xq = this.wq.call(x), xk = this.wk.call(x), xv = this.wv.call(x)
     }
 
-    xq = xq.reshape([xq.shape[0], xq.shape[1] as number, this.n_heads, this.head_dim])
+    xq = xq.reshape([xq.shape[0], xq.shape[1], this.n_heads, this.head_dim])
     xk = xk.reshape([xk.shape[0], xk.shape[1], this.n_kv_heads, this.head_dim])
     xv = xv.reshape([xv.shape[0], xv.shape[1], this.n_kv_heads, this.head_dim])
     ;[xq, xk] = apply_rotary_emb(xq, xk, freqs_cis)
@@ -132,7 +132,7 @@ let alpha_counter: Tensor | undefined = undefined
 export const sample = (logits: Tensor, temp: number, k: number, p: number, af: number, ap: number) => {
   if (logits.ndim !== 1) throw new Error('only works on 1d tensors')
   if (p < 0 || p > 1) throw new Error('p must be between 0 and 1')
-  if (k < 0 || k > (logits.numel() as number)) throw new Error('k must be between 0 and numel')
+  if (k < 0 || k > num(logits.numel())) throw new Error('k must be between 0 and numel')
 
   // if temperature is very low just use argmax
   if (temp < 1e-6) return logits.argmax()
@@ -153,8 +153,8 @@ export const sample = (logits: Tensor, temp: number, k: number, p: number, af: n
   // softmax
   let t = logits.div(temp).softmax()
 
-  const counter = Tensor.arange(t.numel() as number, undefined, undefined, { device: logits.device }).contiguous()
-  const counter2 = Tensor.arange(t.numel() as number - 1, -1, -1, { device: logits.device }).contiguous()
+  const counter = Tensor.arange(num(t.numel()), undefined, undefined, { device: logits.device }).contiguous()
+  const counter2 = Tensor.arange(num(t.numel()) - 1, -1, -1, { device: logits.device }).contiguous()
   // top k
   let output, output_indices, output_token
   if (k) {
@@ -162,7 +162,7 @@ export const sample = (logits: Tensor, temp: number, k: number, p: number, af: n
     output_indices = Tensor.zeros([k], { device: logits.device, dtype: dtypes.int32 }).contiguous()
     for (const i of range(k)) {
       const t_max = t.max()
-      const t_argmax = t.eq(t_max).mul(counter2).max().sub(t.numel() as number, true).sub(1).cast(dtypes.default_int)
+      const t_argmax = t.eq(t_max).mul(counter2).max().sub(num(t.numel()), true).sub(1).cast(dtypes.default_int)
       output = output.add(t_max.unsqueeze(0).pad([i, k - i - 1]))
       output_indices = output_indices.add(t_argmax.unsqueeze(0).pad([[i, k - i - 1]]))
       t = counter.eq(t_argmax).where(0, t)
@@ -206,7 +206,7 @@ export class Transformer {
     this.freqs_cis = await this.freqs_cis.cast(h.dtype).realize()
     const freqs_cis = this.freqs_cis.shrink([undefined, [start_pos, add(start_pos, seqlen)], undefined, undefined, undefined])
 
-    const mask = seqlen > 1 ? await Tensor.full([1, 1, seqlen, add(start_pos, seqlen)], -Infinity, { dtype: h.dtype, device: h.device }).triu((start_pos as number) + 1).realize() : undefined
+    const mask = seqlen > 1 ? await Tensor.full([1, 1, seqlen, add(start_pos, seqlen)], -Infinity, { dtype: h.dtype, device: h.device }).triu(num(start_pos) + 1).realize() : undefined
     for (const layer of this.layers) h = await layer.call(h, start_pos, freqs_cis, mask)
     const logits = this.output.call(this.norm.call(h)).float().get({}, -1, {})
 

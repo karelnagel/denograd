@@ -1,6 +1,6 @@
 import { is_dtype_supported } from '../device.ts'
 import { dtypes } from '../dtype.ts'
-import { flatten, is_eq, make_tuple, range, zip } from '../helpers.ts'
+import { flatten, is_eq, make_tuple, num, range, zip } from '../helpers.ts'
 import { div, idiv, mul, prod, sub } from '../helpers.ts'
 import type { sint } from '../ops.ts'
 import { type Layer, Tensor } from '../tensor.ts'
@@ -133,7 +133,7 @@ export class BatchNorm {
     // NOTE: wow, this === done all throughout training in most PyTorch models
     if (this.track_running_stats && Tensor.training) {
       this.running_mean!.assign(this.running_mean!.mul(1 - this.momentum, true).add(batch_mean.detach().mul(this.momentum, true)))
-      this.running_var!.assign(this.running_var!.mul(1 - this.momentum, true).add(batch_var.detach().mul(div(mul(this.momentum, x.numel()), sub(x.numel(), x.shape[1])) as number, true)))
+      this.running_var!.assign(this.running_var!.mul(1 - this.momentum, true).add(batch_var.detach().mul(num(div(mul(this.momentum, x.numel()), sub(x.numel(), x.shape[1]))), true)))
       this.num_batches_tracked = this.num_batches_tracked.add(1)
     }
     return x.batchnorm(this.weight, this.bias, batch_mean, batch_var.add(this.eps).rsqrt())

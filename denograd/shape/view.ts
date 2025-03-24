@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { dtypes } from '../dtype.ts'
-import { all_int, argsort, assert, cache, cache_fn, flatten, get_key, is_eq, isInt, list_str, next, range, sorted, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, argsort, assert, cache, cache_fn, flatten, get_key, is_eq, isInt, list_str, next, num, range, sorted, WeakValueMap, zip } from '../helpers.ts'
 import { resolve, type sint, sint_to_uop, smax, smin, sym_infer, UOp, type Variable } from '../ops.ts'
 import { add, and, ceildiv, ge, gt, idiv, le, lt, mod, mul, ne, neg, prod, sub, sum } from '../helpers.ts'
 
@@ -60,7 +60,7 @@ export const _reshape_mask = cache_fn((_mask: undefined | [sint, sint][], old_sh
     } else {
       const next_mask = next(r_masks, [0, 1])
       // combine if the mask can unfold continuously
-      if (!is_eq(mask, [0, old_dim]) && l !== r && (next_mask[1] as number) - (next_mask[0] as number) !== 1) return undefined
+      if (!is_eq(mask, [0, old_dim]) && l !== r && num(next_mask[1]) - num(next_mask[0]) !== 1) return undefined
       mask = [add(mul(next_mask[0], old_dim), l), add(mul(sub(next_mask[1], 1), old_dim), r)], old_dim = mul(old_dim, next(r_shape, 1))
     }
   }
@@ -219,8 +219,8 @@ export class View {
           continue
         }
         const [d1, s1] = term[0]
-        newb[d1] = Math.max(newb[d1], ceildiv((s1 as number) > 0 ? b - o : e - o - 1, s1) as number)
-        newe[d1] = Math.min(newe[d1], idiv((s1 as number) < 0 ? b - o : e - o - 1, s1 as number) + 1)
+        newb[d1] = Math.max(newb[d1], ceildiv(num(s1) > 0 ? b - o : e - o - 1, num(s1)))
+        newe[d1] = Math.min(newe[d1], idiv(num(s1) < 0 ? b - o : e - o - 1, num(s1)) + 1)
       }
       // If any of vm1 was masked off, try again with that mask in place.
       if (zip(newb, newe, vm1.shape).some(([b, e, s]) => !is_eq([b, e], [0, s]))) {
@@ -294,7 +294,7 @@ export class View {
   })
   reshape = cache((new_shape: sint[]): View | undefined => {
     if (is_eq(this.shape, new_shape)) return this
-    if (new_shape.some((x) => x as number < 0)) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
+    if (new_shape.some((x) => typeof x === 'number' && x < 0)) throw new Error(`shape can't contain negative numbers ${list_str(new_shape)}`)
     // check for the same size
     const self_all_int = all_int(this.shape)
     if (self_all_int) {

@@ -2,7 +2,7 @@
 import type { Buffer } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
 import { env } from './env/index.ts'
-import { accumulate, add, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, xor } from './helpers.ts'
+import { accumulate, add, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, num, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, divmod, Enum, get_key, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -314,7 +314,7 @@ export class UOp extends MathTrait<UOp> {
     let shape
     if ([Ops.BUFFER_VIEW, Ops.BITCAST].includes(this.op)) {
       shape = src_sts[0].shape
-      if (this.dtype.itemsize !== this.src[0].dtype.itemsize) shape = [...shape.slice(0, -1), idiv(shape.at(-1)! as number * this.src[0].dtype.itemsize, this.dtype.itemsize)]
+      if (this.dtype.itemsize !== this.src[0].dtype.itemsize) shape = [...shape.slice(0, -1), idiv(num(shape.at(-1)) * this.src[0].dtype.itemsize, this.dtype.itemsize)]
     } // only reduce ops are allowed to change shape, everything else derives shape from sources
     else if ([Ops.REDUCE_AXIS, Ops.WMMA].includes(this.op)) shape = src_sts[0].reduce(this.axis_arg)
     else shape = src_sts[0].shape
@@ -436,7 +436,7 @@ export class UOp extends MathTrait<UOp> {
 
     // TODO: can we split symbolic shape if the reduce axis is not symbolic?
     // TODO: this shouldn't be here, it belongs in scheduler! that's why it broke multi
-    if (!env.SPLIT_REDUCEOP || Array.isArray(this._device()) || !all_int(this.shape) || this.shape.includes(0) || (idiv(prod(this.shape), prod(new_shape)) as number) < env.get_num('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
+    if (!env.SPLIT_REDUCEOP || Array.isArray(this._device()) || !all_int(this.shape) || this.shape.includes(0) || num(idiv(prod(this.shape), prod(new_shape))) < env.get_num('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
       return this._reduce_op(op, axis)
     }
 
@@ -446,8 +446,8 @@ export class UOp extends MathTrait<UOp> {
     // 256 split maximum should be "negligible reduce" for low prod(new_shape), 8 split minimum.
     // split is moved to the end to provide maximum locality for the second phase reduce.
     const self_real_strides = this.st!.real_strides(true)
-    const split_candidates = range(Math.min(256, (2 ** env.get_num('REDUCEOP_SPLIT_SIZE', 22), prod(new_shape) as number)), 8 - 1, -1)
-      .flatMap((x) => axis.filter((i) => mod(this.shape[i] as number, x) === 0 && self_real_strides[i] !== 0).map((i) => [i, x]))
+    const split_candidates = range(Math.min(256, (2 ** env.get_num('REDUCEOP_SPLIT_SIZE', 22), num(prod(new_shape)))), 8 - 1, -1)
+      .flatMap((x) => axis.filter((i) => mod(num(this.shape[i]), x) === 0 && self_real_strides[i] !== 0).map((i) => [i, x]))
     if (!split_candidates.length) return this._reduce_op(op, axis)
     const [dim_to_split, divisor] = split_candidates[0]
     const splitted_shape = [...this.shape.slice(0, dim_to_split), divisor, idiv(this.shape[dim_to_split], divisor), ...this.shape.slice(dim_to_split + 1)]
@@ -488,8 +488,8 @@ export class UOp extends MathTrait<UOp> {
     if (axis === undefined) lbs = range(devices.length).map(() => this)
     else {
       if (mod(this.shape[axis], devices.length) !== 0) throw new Error(`multi axis uneven: this.shape[axis]=${this.shape[axis]} axis=${axis} devices.length=${devices.length}`)
-      let sz = idiv(this.shape[axis] as number, devices.length)
-      const sizes = range(devices.length).map((i) => max([0, min([sz, this.shape[axis!] as number - sz * i])]))
+      let sz = idiv(num(this.shape[axis]), devices.length)
+      const sizes = range(devices.length).map((i) => max([0, min([sz, num(this.shape[axis!]) - sz * i])]))
       lbs = []
       let off = 0
       for (sz of sizes) {
@@ -736,7 +736,7 @@ export const python_alu = new Map<Ops, (...x: ConstType[]) => ConstType>([
   [Ops.EXP2, safe_exp2],
   [Ops.SQRT, (x) => ge(x, 0) ? sqrt(x) : NaN],
   [Ops.RECIP, (x) => ne(x, 0) ? div(1, x) : ge(x, 0) ? Infinity : -Infinity],
-  [Ops.SIN, (x) => !isInf(x as number) ? sin(x) : NaN],
+  [Ops.SIN, (x) => !isInf(num(x)) ? sin(x) : NaN],
   [Ops.NEG, (x) => neg(x)],
   [Ops.ADD, (x, y) => add(x, y)],
   [Ops.SUB, (x, y) => sub(x, y)],

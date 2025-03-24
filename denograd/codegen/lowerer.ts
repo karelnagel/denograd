@@ -1,12 +1,12 @@
 import { dtypes, type PtrDType } from '../dtype.ts'
-import { add, all_int, idiv, is_eq, isinstance, min, mod, mul, partition, prod, range, zip } from '../helpers.ts'
+import { add, all_int, idiv, is_eq, isinstance, min, mod, mul, num, partition, prod, range, zip } from '../helpers.ts'
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, type sint, sint_to_uop, UOp, UPat } from '../ops.ts'
 import type { Renderer } from '../renderer/index.ts'
 
 // returns the axes to create new_shape if new_shape can be created by combining axis from old_shape
 export const get_contraction = (old_shape: sint[], new_shape: sint[]): number[][] | undefined => {
-  const acc_old = old_shape.reduce((acc, val, i) => [...acc, (val as number) * (acc[i - 1] ?? 1)], [] as number[])
-  const acc_new = new_shape.reduce((acc, val, i) => [...acc, (val as number) * (acc[i - 1] ?? 1)], [] as number[])
+  const acc_old = old_shape.reduce((acc, val, i) => [...acc, num(val) * (acc[i - 1] ?? 1)], [] as number[])
+  const acc_new = new_shape.reduce((acc, val, i) => [...acc, num(val) * (acc[i - 1] ?? 1)], [] as number[])
   try {
     const split = acc_new.map((acc) => acc !== 1 ? acc_old.indexOf(acc) + 1 : 0)
     return zip([0, ...split.slice(0, -1)], [...split.slice(0, -1), old_shape.length]).map(([st, ed]) => range(st, ed))
@@ -19,11 +19,11 @@ export const get_contraction = (old_shape: sint[], new_shape: sint[]): number[][
 export const _group_dims = (dims: sint[], max_sizes: number[]) => {
   // TODO: symbolic shape
   if (!all_int(dims)) return dims
-  while (dims.length > max_sizes.length || zip(dims, max_sizes).some(([d, m]) => (d as number) > m)) {
+  while (dims.length > max_sizes.length || zip(dims, max_sizes).some(([d, m]) => num(d) > m)) {
     let found = false
     for (const [i, m] of max_sizes.entries()) {
-      if (i < (dims.length - 1) && (dims[i] as number) * (dims[i + 1] as number) <= m) {
-        dims = [...dims.slice(0, i), (dims[i] as number) * (dims[i + 1] as number), ...dims.slice(i + 2)]
+      if (i < (dims.length - 1) && num(dims[i]) * num(dims[i + 1]) <= m) {
+        dims = [...dims.slice(0, i), num(dims[i]) * num(dims[i + 1]), ...dims.slice(i + 2)]
         found = true
         break
       }
@@ -33,15 +33,15 @@ export const _group_dims = (dims: sint[], max_sizes: number[]) => {
   return dims
 }
 
-export const _split_dims = (dims: number[], max_sizes: number[]): number[] => {
-  if (zip(dims, max_sizes).every(([d, m]) => d <= m)) return dims
+export const _split_dims = (dims: sint[], max_sizes: number[]): sint[] => {
+  if (zip(dims, max_sizes).every(([d, m]) => typeof d === 'number' && d <= m)) return dims
   const _dims = [...dims, ...range(3 - dims.length).map(() => 1)]
   for (const i of range(_dims.length)) {
-    while (_dims[i] > max_sizes[i]) {
+    while (typeof _dims[i] === 'number' && _dims[i] > max_sizes[i]) {
       let div = range(2, Math.ceil(Math.sqrt(_dims[i])) + 1).filter((d) => mod(_dims[i], d) === 0).shift()
       if (div === undefined) div = 1
       if (div === 1) throw new Error(`cannot limit dim ${dims}, ${max_sizes}`)
-      ;[_dims[i], _dims[mod(i + 1, _dims.length)]] = [idiv(_dims[i], div), _dims[mod(i + 1, _dims.length)] * div]
+      ;[_dims[i], _dims[mod(i + 1, _dims.length)]] = [idiv(_dims[i], div), mul(_dims[num(mod(i + 1, _dims.length))], div)]
     }
   }
   return _dims[2] === 1 ? _dims.slice(0, 2) : is_eq(_dims.slice(1, 3), [1, 1]) ? _dims[0] as any : _dims
@@ -55,7 +55,7 @@ export const get_grouped_dims = (prefix: any, dims: sint[], max_sizes?: number[]
   // check if grouping failed
   if (max_sizes !== undefined && limited.length > max_sizes.length) throw new Error(`cannot limit dim ${dims}, ${max_sizes}`)
   // try to split up dims: (a,) -> (b, c)
-  if (is_eq(limited, dims)) limited = max_sizes !== undefined ? _split_dims(dims as number[], max_sizes) : dims
+  if (is_eq(limited, dims)) limited = max_sizes !== undefined ? _split_dims(dims, max_sizes) : dims
 
   let raw_idxs = limited.map((s, i) => new UOp(Ops.SPECIAL, dtypes.int, [], [`${prefix}${i}`, s])), ret = raw_idxs
   if (limited.length < dims.length) {
@@ -116,7 +116,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
   // upcast loops
   for (const [i, g] of full_shape.slice(first_upcasted).entries()) {
     if (!isinstance(g, Number)) throw new Error('needs to be int to upcast/unroll')
-    idxs.push(new UOp(Ops.UNROLL, dtypes.int, [UOp.const(dtypes.int.vec(g as number), range(g as number))], [[i + first_upcasted, g]]))
+    idxs.push(new UOp(Ops.UNROLL, dtypes.int, [UOp.const(dtypes.int.vec(g), range(g))], [[i + first_upcasted, g]]))
   }
   // late indexes (group for reduce)
   const ridxs = [...idxs]

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, Metadata, min, mod, NotImplemented, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, Metadata, min, mod, NotImplemented, num, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -1403,34 +1403,34 @@ export class Tensor extends MathTrait<Tensor> {
     }
     if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
     if (mode === 'circular') {
-      if (zip(pX, X.shape_num).some(([[pB, pA], sh]) => pB as number > sh || pA as number > sh)) throw new Error('Padding value causes wrapping around more than once.')
-      if (pX.some(([pB, pA]) => pB as number < 0 || pA as number < 0)) throw new Error('Negative pads with circular pads is not supported')
+      if (zip(pX, X.shape_num).some(([[pB, pA], sh]) => num(pB) > sh || num(pA) > sh)) throw new Error('Padding value causes wrapping around more than once.')
+      if (pX.some(([pB, pA]) => num(pB) < 0 || num(pA) < 0)) throw new Error('Negative pads with circular pads is not supported')
       const orig_shape = X.shape_num
       X = X.repeat(pads.map(([pB, pA]) => (1 + Number(Boolean(pB)) + Number(Boolean(pA)))))
-      return X.shrink(zip(pads, orig_shape, X.shape_num).map(([[pB, pA], osh, xsh]) => [pB === 0 ? 0 : osh - (pB as number), pA === 0 ? xsh : xsh - osh + (pA as number)]))
+      return X.shrink(zip(pads, orig_shape, X.shape_num).map(([[pB, pA], osh, xsh]) => [pB === 0 ? 0 : osh - num(pB), pA === 0 ? xsh : xsh - osh + num(pA)]))
     }
     for (const [d, [pB, pA]] of pads.entries()) {
       let xB: Tensor | undefined, xA: Tensor | undefined
       if (mode === 'reflect') {
         const s = X.shape_num[d]
-        if ((pB as number) >= s || (pA as number) >= s) throw new Error(`Padding (${pB}, ${pA}) should be less than the input size=${s} for dim=${d}.`)
-        const slcB = { start: pB, stop: 0, step: -1 }, slcA = { start: s - 2 >= 0 ? s - 2 : undefined, stop: s - 2 - (pA as number) >= 0 ? s - 2 - (pA as number) : undefined, step: -1 }
-        ;[xB, xA] = [[slcB, pB], [slcA, pA]].map(([slc, p]) => (p as number) > 0 ? X.get(...range(X.ndim).map((i) => i === d ? slc : {})) : undefined)
+        if (num(pB) >= s || num(pA) >= s) throw new Error(`Padding (${pB}, ${pA}) should be less than the input size=${s} for dim=${d}.`)
+        const slcB = { start: pB, stop: 0, step: -1 }, slcA = { start: s - 2 >= 0 ? s - 2 : undefined, stop: s - 2 - num(pA) >= 0 ? s - 2 - num(pA) : undefined, step: -1 }
+        ;[xB, xA] = [[slcB, pB], [slcA, pA]].map(([slc, p]) => num(p) > 0 ? X.get(...range(X.ndim).map((i) => i === d ? slc : {})) : undefined)
       }
       if (mode === 'replicate') {
         const shrB = range(X.ndim).map((i) => i === d ? [0, 1] as [number, number] : undefined), shrA = range(X.ndim).map((i) => i === d ? [X.shape_num[i] - 1, X.shape_num[i]] as [number, number] : undefined)
-        ;[xB, xA] = ([[shrB, pB], [shrA, pA]] as const).map(([shr, p]) => (p as number) > 0 ? X.shrink(shr).expand(range(X.ndim).map((i) => i === d ? p : undefined) as sint[]) : undefined)
+        ;[xB, xA] = ([[shrB, pB], [shrA, pA]] as const).map(([shr, p]) => num(p) > 0 ? X.shrink(shr).expand(range(X.ndim).map((i) => i === d ? p : undefined) as sint[]) : undefined)
       } else throw new Error(`invalid mode ${mode}`)
       X = Tensor.cat([xB, X, xA].filter((X_) => X_ !== undefined), d)
     }
-    return X.shrink(zip(pX, X.shape_num).map(([[pB, pA], s]) => [-min([pB as number, 0]), min([(pA as number) + s, s])] as [sint, sint]))
+    return X.shrink(zip(pX, X.shape_num).map(([[pB, pA], s]) => [-min([num(pB), 0]), min([num(pA) + s, s])] as [sint, sint]))
   }
   // ***** movement high level ops *****
 
   _getitem = (indices: TensorIndice[], v?: Tensor): Tensor => {
     // turn scalar Tensors into const val for number indexing if possible
     let x = this as Tensor
-    indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? this._to_const_val(i) as number : i)
+    indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? num(this._to_const_val(i)) : i)
 
     // filter ellipsis && fill with slice(undefined) || fill rest of indices with slice(undefined)
     const ellipsis_idx = [...indices.entries().filter(([dim, i]) => i === '...').map(([dim, i]) => dim)]
@@ -1442,7 +1442,7 @@ export class Tensor extends MathTrait<Tensor> {
 
     let [indices_parsed, dim] = [[] as { index: TensorIndice; size: number; boundary: [number, number]; stride: number }[], 0]
     for (let index of indices) {
-      let size = index === undefined ? 1 : this.shape.at(dim)! as number
+      let size = index === undefined ? 1 : num(this.shape.at(dim))
       let [boundary, stride] = [[0, size] as [number, number], 1] // defaults
       if (Array.isArray(index) || index instanceof Tensor) {
         if (!isinstance(index, Tensor)) index = new Tensor(index, { device: this.device, requires_grad: false })
@@ -1709,7 +1709,7 @@ export class Tensor extends MathTrait<Tensor> {
   split = (sizes: number | number[], dim = 0): Tensor[] => {
     if (!all_int(this.shape)) throw new Error(`does not support symbolic shape ${this.shape}`)
     dim = this._resolve_dim(dim)
-    if (typeof sizes === 'number') sizes = range(0, max([1, this.shape[dim]]), max([1, sizes])).map((i) => min([sizes as number, this.shape_num[dim] - i]))
+    if (typeof sizes === 'number') sizes = range(0, max([1, this.shape[dim]]), max([1, sizes])).map((i) => min([num(sizes), this.shape_num[dim] - i]))
     if (sum(sizes) !== this.shape[dim]) throw new Error(`expect sizes to sum exactly to {self.shape[dim]}, but got {sum(sizes)}`)
     return range(sizes.length).map((i) => [...range(dim).map(() => ({})), { start: sum(sizes.slice(0, i)), stop: sum(sizes.slice(0, i + 1)) }]).map((sl) => this.get(sl))
   }
@@ -2109,7 +2109,7 @@ export class Tensor extends MathTrait<Tensor> {
   mean = (axis?: number | number[], keepdim = false) => {
     const output_dtype = dtypes.is_float(this.dtype) ? this.dtype : dtypes.float32
     const numerator = this.cast(sum_acc_dtype(this.dtype)).sum(axis, keepdim)
-    return numerator.div(prod(zip(this.shape, this.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si)) as number).cast(output_dtype)
+    return numerator.div(num(prod(zip(this.shape, this.sum(axis, true).shape).filter(([si, so]) => resolve(ne(si, so))).map(([si]) => si)))).cast(output_dtype)
   }
   /**
    * Returns the variance of the tensor along the specified axis or axes.
@@ -2311,8 +2311,8 @@ export class Tensor extends MathTrait<Tensor> {
     if (axis === undefined) return this.flatten().argmax(0)
     axis = this._resolve_dim(axis)
     const m = this.eq(this.max(axis, true))
-    const idx = Tensor.arange(this.shape.at(axis)! as number, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape.at(axis)!, ...range(this.ndim - axis - 1).map(() => 1)]).mul(m, true)
-    return (idx.max(axis, keepdim).sub(this.shape.at(axis) as number, true)).cast(dtypes.int32)
+    const idx = Tensor.arange(this.shape_num.at(axis)!, 0, -1, { requires_grad: false, device: this.device }).reshape([this.shape.at(axis)!, ...range(this.ndim - axis - 1).map(() => 1)]).mul(m, true)
+    return (idx.max(axis, keepdim).sub(this.shape_num.at(axis)!, true)).cast(dtypes.int32)
   }
 
   /**
@@ -2377,7 +2377,7 @@ export class Tensor extends MathTrait<Tensor> {
       return x.permute(...range(noop.length), ...range(i_.length).map((i) => noop.length + i * 2 + 1), ...range(i_.length).map((i) => noop.length + i * 2))
     }
     // // TODO: once the shapetracker can optimize well, remove this alternative implementation
-    let x = this.pad([...noop, ...zip(i_, o_, s_).map(([i, o, s]) => [0, max([0, sub(mul(o, s), i) as number])] as [sint, sint])]).shrink([...noop, ...zip(o_, s_).map(([o, s]) => [0, mul(o, s)] as [sint, sint])])
+    let x = this.pad([...noop, ...zip(i_, o_, s_).map(([i, o, s]) => [0, max([0, num(sub(mul(o, s), i))])] as [sint, sint])]).shrink([...noop, ...zip(o_, s_).map(([o, s]) => [0, mul(o, s)] as [sint, sint])])
     x = x.reshape([...noop, ...zip(o_, s_).flat()])
     x = x.shrink([...noop, ...zip(o_, k_).flatMap(([o, k]) => [[0, o], [0, k]] as [sint, sint][])])
     return x.permute(...range(noop.length), ...range(i_.length).map((i) => noop.length + i * 2), ...range(i_.length).map((i) => noop.length + i * 2 + 1))
@@ -2392,13 +2392,13 @@ export class Tensor extends MathTrait<Tensor> {
     pads = [...pads]
     const grouped_pads = _flat_to_grouped(pads)
     // https://arxiv.org/pdf/1603.07285 section 5.1, relationship 15.
-    const o_ = zip(i_, d_, k_, s_, grouped_pads).map(([i, d, k, s, [pB, pA]]) => ceildiv(i + (pB as number) + (pA as number) - (d * ((k as number) - 1) + 1), s) + 1)
+    const o_ = zip(i_, d_, k_, s_, grouped_pads).map(([i, d, k, s, [pB, pA]]) => ceildiv(i + num(pB) + num(pA) - (d * (num(k) - 1) + 1), s) + 1)
     for (const [dim, [o, i, s, k, d, [pB, pA]]] of zip(o_, i_, s_, k_, d_, grouped_pads).entries()) {
       // we have to do additional padding before `_pool` so that `o_` in `_pool` is calculated correctly
       // `s*(o-1) + (d*(k-1)+1) - (i+pB+pA)` -> last_sliding_window_start + full_kernel_size - padded_input_shape
       // we decrease padding in the case that a sliding window starts in the end padded region, thereby decreasing `o_` in `_pool`
       // `smax(s*(o-1) - (pB+i-1), 0)` -> last_sliding_window_start - (pad_before + input_size - zero_offset)
-      pads[-1 - dim * 2] += s * (o - 1) + (d * ((k as number) - 1) + 1) - (i + (pB as number) + (pA as number)) - (smax(s * (o - 1) - ((pB as number) + i - 1), 0) as number)
+      pads[-1 - dim * 2] += s * (o - 1) + (d * (num(k) - 1) + 1) - (i + num(pB) + num(pA)) - num(smax(s * (o - 1) - (num(pB) + i - 1), 0))
     }
     return pads
   }
@@ -2565,7 +2565,7 @@ export class Tensor extends MathTrait<Tensor> {
       x = x.reshape([undefined, undefined, ...zip(slice(x.shape_num, { start: 2, step: 2 }), stride).map(([k, s]) => k * s)])
       x = x.shrink([undefined, undefined, ...zip(x.shape_num.slice(2), stride).map(([k, s]) => [0, k - (s - 1)] as [sint, sint])])
     }
-    const new_padding = flatten(zip(HW, dilation, padding, output_padding).toReversed().map(([k, d, [pB, pA], op]) => [(k - 1) * d - (pB as number), (k - 1) * d - (pA as number) + op]))
+    const new_padding = flatten(zip(HW, dilation, padding, output_padding).toReversed().map(([k, d, [pB, pA], op]) => [(k - 1) * d - num(pB), (k - 1) * d - num(pA) + op]))
     return x.conv2d(w.flatten(undefined, 1), bias, groups, undefined, dilation, new_padding)
   }
   /**
@@ -2618,7 +2618,7 @@ export class Tensor extends MathTrait<Tensor> {
   _cumalu = (axis: number, op: Ops, _include_initial = false): Tensor => {
     assert(this.shape.at(axis) !== 0 && [Ops.ADD, Ops.MAX].includes(op))
     const pl_sz = sub(this.shape.at(axis)!, Number(!_include_initial))
-    const pooled = this.transpose(axis, -1).pad([pl_sz, -Number(_include_initial)], undefined, identity_element(op, this.dtype) as number)._pool([this.shape.at(axis)!])
+    const pooled = this.transpose(axis, -1).pad([pl_sz, -Number(_include_initial)], undefined, num(identity_element(op, this.dtype)))._pool([this.shape.at(axis)!])
     return (op === Ops.ADD ? pooled.sum(-1) : pooled.max(-1)).transpose(axis, -1)
   }
 
@@ -2628,9 +2628,9 @@ export class Tensor extends MathTrait<Tensor> {
     // TODO: someday the optimizer will find this on it's own
     // for now this is a two stage cumsum
     const SPLIT = 256
-    const s = this.shape.at(axis) as number
+    const s = num(this.shape.at(axis))
     if (!Number.isInteger(s) || s <= SPLIT * 2) return this._cumalu(axis, op)
-    const ret = this.transpose(axis, -1).pad([round_up(s, SPLIT) - s, 0], undefined, identity_element(op, this.dtype) as number).unflatten(-1, [-1, SPLIT])._cumalu(-1, op)
+    const ret = this.transpose(axis, -1).pad([round_up(s, SPLIT) - s, 0], undefined, num(identity_element(op, this.dtype))).unflatten(-1, [-1, SPLIT])._cumalu(-1, op)
     let base = ret.get('...', -1)._cumalu(-1, op, true)
     base = base.unsqueeze(-1).expand([...base.shape, ret.shape.at(-1)!])
     const fix = (x: Tensor) => x.flatten(-2).get('...', { start: -s }).transpose(axis, -1)
@@ -2668,12 +2668,12 @@ export class Tensor extends MathTrait<Tensor> {
 
   static _tri = (r: sint, c: sint, diagonal = 0, opts?: TensorOptions): Tensor => {
     if (!isInt(r) || !isInt(c)) throw new Error(`does not support symbolic, getting r=${r}, c=${c}`)
-    if (r === 0 || c === 0 || diagonal >= (c as number)) return Tensor.zeros([r, c], opts)
-    if ((r as number) + diagonal <= 0) return Tensor.ones([r, c], opts)
+    if (r === 0 || c === 0 || diagonal >= num(c)) return Tensor.zeros([r, c], opts)
+    if (num(r) + diagonal <= 0) return Tensor.ones([r, c], opts)
     const s = sub(add(r, c), 1)
     // build a (s, s) upper triangle
     const t = Tensor.ones([s, s], opts).pad([undefined, [0, s]]).flatten().shrink([[0, mul(s, sub(mul(2, s), 1))]]).reshape([s, -1]).shrink([undefined, [0, s]])
-    return diagonal <= 0 ? t.get({ stop: r as number }, { start: -diagonal, stop: (c as number) - diagonal }) : t.get({ start: diagonal, stop: (r as number) + diagonal }, { stop: (c as number) })
+    return diagonal <= 0 ? t.get({ stop: num(r) }, { start: -diagonal, stop: num(c) - diagonal }) : t.get({ start: diagonal, stop: num(r) + diagonal }, { stop: num(c) })
   }
 
   /**
@@ -2981,7 +2981,7 @@ export class Tensor extends MathTrait<Tensor> {
   asin = () => {
     // https://personal.math.ubc.ca/~cbm/aands/page_81.htm 4.4.46
     const coefficients = [-0.0012624911, 0.0066700901, -0.0170881256, 0.0308918810, -0.0501743046, 0.0889789874, -0.2145988016, 1.5707963050]
-    const x = (this.abs().sub(1.0, true)).sqrt().mul(polyN(this.abs() as any, coefficients) as number).sub(Math.PI / 2, true)
+    const x = (this.abs().sub(1.0, true)).sqrt().mul(polyN(this.abs(), coefficients)).sub(Math.PI / 2, true)
     return this.sign().mul(x)
   }
   /**
@@ -3692,7 +3692,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   pow = (x: ConstType<Tensor>, reverse = false): Tensor => {
-    x = this._to_const_val(x) as number
+    x = num(this._to_const_val(x))
     if (!isinstance(x, Tensor) && !reverse) {
       // simple pow identities
       if (x < 0) return this.reciprocal().pow(-x).cast(this.dtype)
@@ -3729,7 +3729,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   override maximum = (x: ConstType<Tensor>): Tensor => {
     // NOTE: the mid-point is for backward, revisit after new gradient API
-    if (this.is_floating_point()) return (this.lt(x)).detach().where(x, (this.eq(x)).detach().where((this.mul(0.5).add(mul(x as number, 0.5))).cast(this.dtype), this))
+    if (this.is_floating_point()) return (this.lt(x)).detach().where(x, (this.eq(x)).detach().where((this.mul(0.5).add(mul(x, 0.5))).cast(this.dtype), this))
     return (this.lt(x)).detach().where(x, this)
   }
 
@@ -3894,7 +3894,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   one_hot = async (num_classes = -1): Promise<Tensor> => {
-    if (num_classes === -1) num_classes = await this.max().add(1).item() as number
+    if (num_classes === -1) num_classes = num(await this.max().add(1).item())
     return this.get('...', undefined)._one_hot_along_dim(num_classes).where(1, 0)
   }
 
@@ -3979,7 +3979,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (!(0.0 <= label_smoothing && label_smoothing <= 1.0)) throw new Error('label_smoothing must be in [0.0, 1.0]')
     if (!['mean', 'sum', 'none'].includes(reduction)) throw new Error("reduction must be one of ['mean', 'sum', 'none']")
     const [log_probs, loss_mask] = [this.log_softmax(), ignore_index !== -1 ? (Y.ne(ignore_index)) : Y.ones_like({ dtype: dtypes.bool })]
-    const y_counted = Y.to(this.device).flatten().reshape([-1, 1])._one_hot_along_dim(this.shape.at(-1)! as number)
+    const y_counted = Y.to(this.device).flatten().reshape([-1, 1])._one_hot_along_dim(num(this.shape.at(-1)))
     const y = (y_counted.mul(loss_mask.reshape([-1, 1]))).reshape([...Y.shape, this.shape.at(-1)!])
     const smoothing = log_probs.mean(-1).mul(loss_mask).mul(label_smoothing, true)
     const unreduced = log_probs.mul(y).sum(-1).mul(1 - label_smoothing, true).add(smoothing)
@@ -4082,7 +4082,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   nbytes = (): number => {
-    return (this.numel() as number) * this.element_size()
+    return num(this.numel()) * this.element_size()
   }
   /**
    * Returns `true` if the tensor contains floating point types, i.e. === one of `dtype.float64`, `dtype.float32`,
