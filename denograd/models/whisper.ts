@@ -1,6 +1,64 @@
 import { add, ArrayMap, Conv1d, type Conv2d, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, zip } from '../mod.ts'
 import wav from 'node-wav'
 
+// deno-fmt-ignore
+export const LANGUAGES = {
+  "en": "english", "zh": "chinese", "de": "german", "es": "spanish", "ru": "russian", "ko": "korean", "fr": "french", "ja": "japanese", "pt": "portuguese", "tr": "turkish",
+  "pl": "polish", "ca": "catalan", "nl": "dutch", "ar": "arabic", "sv": "swedish", "it": "italian", "id": "indonesian", "hi": "hindi", "fi": "finnish", "vi": "vietnamese",
+  "he": "hebrew", "uk": "ukrainian", "el": "greek", "ms": "malay", "cs": "czech", "ro": "romanian", "da": "danish", "hu": "hungarian", "ta": "tamil", "no": "norwegian",
+  "th": "thai", "ur": "urdu", "hr": "croatian", "bg": "bulgarian", "lt": "lithuanian", "la": "latin", "mi": "maori", "ml": "malayalam", "cy": "welsh", "sk": "slovak", "te": "telugu",
+  "fa": "persian", "lv": "latvian", "bn": "bengali", "sr": "serbian", "az": "azerbaijani", "sl": "slovenian", "kn": "kannada", "et": "estonian", "mk": "macedonian",
+  "br": "breton", "eu": "basque", "is": "icelandic", "hy": "armenian", "ne": "nepali", "mn": "mongolian", "bs": "bosnian", "kk": "kazakh", "sq": "albanian", "sw": "swahili",
+  "gl": "galician", "mr": "marathi", "pa": "punjabi", "si": "sinhala", "km": "khmer", "sn": "shona", "yo": "yoruba", "so": "somali", "af": "afrikaans", "oc": "occitan", "ka": "georgian",
+  "be": "belarusian", "tg": "tajik", "sd": "sindhi", "gu": "gujarati", "am": "amharic", "yi": "yiddish", "lo": "lao", "uz": "uzbek", "fo": "faroese", "ht": "haitian creole",
+  "ps": "pashto", "tk": "turkmen", "nn": "nynorsk", "mt": "maltese", "sa": "sanskrit", "lb": "luxembourgish", "my": "myanmar", "bo": "tibetan", "tl": "tagalog", "mg": "malagasy",
+  "as": "assamese", "tt": "tatar", "haw": "hawaiian", "ln": "lingala", "ha": "hausa", "ba": "bashkir", "jw": "javanese", "su": "sundanese",
+}
+export const MODELS = {
+  'tiny.en': {
+    'url': 'https://huggingface.co/openai/whisper-tiny.en/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51864, 'n_audio_ctx': 1500, 'n_audio_state': 384, 'n_audio_head': 6, 'n_audio_layer': 4, 'n_text_ctx': 448, 'n_text_state': 384, 'n_text_head': 6, 'n_text_layer': 4 },
+  },
+  'tiny': {
+    'url': 'https://huggingface.co/openai/whisper-tiny/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51865, 'n_audio_ctx': 1500, 'n_audio_state': 384, 'n_audio_head': 6, 'n_audio_layer': 4, 'n_text_ctx': 448, 'n_text_state': 384, 'n_text_head': 6, 'n_text_layer': 4 },
+  },
+  'base.en': {
+    'url': 'https://huggingface.co/openai/whisper-base.en/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51864, 'n_audio_ctx': 1500, 'n_audio_state': 512, 'n_audio_head': 8, 'n_audio_layer': 6, 'n_text_ctx': 448, 'n_text_state': 512, 'n_text_head': 8, 'n_text_layer': 6 },
+  },
+  'base': {
+    'url': 'https://huggingface.co/openai/whisper-base/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51865, 'n_audio_ctx': 1500, 'n_audio_state': 512, 'n_audio_head': 8, 'n_audio_layer': 6, 'n_text_ctx': 448, 'n_text_state': 512, 'n_text_head': 8, 'n_text_layer': 6 },
+  },
+  'small.en': {
+    'url': 'https://huggingface.co/openai/whisper-small.en/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51864, 'n_audio_ctx': 1500, 'n_audio_state': 768, 'n_audio_head': 12, 'n_audio_layer': 12, 'n_text_ctx': 448, 'n_text_state': 768, 'n_text_head': 12, 'n_text_layer': 12 },
+  },
+  'small': {
+    'url': 'https://huggingface.co/openai/whisper-small/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51865, 'n_audio_ctx': 1500, 'n_audio_state': 768, 'n_audio_head': 12, 'n_audio_layer': 12, 'n_text_ctx': 448, 'n_text_state': 768, 'n_text_head': 12, 'n_text_layer': 12 },
+  },
+  'medium.en': {
+    'url': 'https://huggingface.co/openai/whisper-medium.en/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51864, 'n_audio_ctx': 1500, 'n_audio_state': 1024, 'n_audio_head': 16, 'n_audio_layer': 24, 'n_text_ctx': 448, 'n_text_state': 1024, 'n_text_head': 16, 'n_text_layer': 24 },
+  },
+  'medium': {
+    'url': 'https://huggingface.co/openai/whisper-medium/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51865, 'n_audio_ctx': 1500, 'n_audio_state': 1024, 'n_audio_head': 16, 'n_audio_layer': 24, 'n_text_ctx': 448, 'n_text_state': 1024, 'n_text_head': 16, 'n_text_layer': 24 },
+  },
+  'large-v2': {
+    'url': 'https://huggingface.co/openai/whisper-large-v2/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51865, 'n_audio_ctx': 1500, 'n_audio_state': 1280, 'n_audio_head': 20, 'n_audio_layer': 32, 'n_text_ctx': 448, 'n_text_state': 1280, 'n_text_head': 20, 'n_text_layer': 32 },
+  },
+  'large': {
+    'url': 'https://huggingface.co/openai/whisper-large/resolve/main/model.safetensors',
+    'dims': { 'n_mels': 80, 'n_vocab': 51865, 'n_audio_ctx': 1500, 'n_audio_state': 1280, 'n_audio_head': 20, 'n_audio_layer': 32, 'n_text_ctx': 448, 'n_text_state': 1280, 'n_text_head': 20, 'n_text_layer': 32 },
+  },
+}
+export type WhisperModel = keyof typeof MODELS
+type Dims = typeof MODELS['tiny.en']['dims']
+
 export class MultiHeadAttention {
   query: Linear
   key: Linear
@@ -55,6 +113,7 @@ export class MultiHeadAttention {
     return this.out.call(wv)
   }
 }
+
 export class ResidualAttentionBlock {
   attn: MultiHeadAttention
   attn_ln: LayerNorm
@@ -79,6 +138,7 @@ export class ResidualAttentionBlock {
     return await x.realize()
   }
 }
+
 export class AudioEncoder {
   conv1: Conv2d
   conv2: Conv2d
@@ -104,6 +164,7 @@ export class AudioEncoder {
     return await x.realize()
   }
 }
+
 class TextDecoder {
   max_tokens_to_sample!: number
   max_self_attn_cache_len!: number
@@ -204,25 +265,11 @@ export const prep_audio = async (waveforms: Float32Array[], batch_size: number, 
   //   return log_spec
 }
 
-// deno-fmt-ignore
-const LANGUAGES = {
-    "en": "english", "zh": "chinese", "de": "german", "es": "spanish", "ru": "russian", "ko": "korean", "fr": "french", "ja": "japanese", "pt": "portuguese", "tr": "turkish",
-    "pl": "polish", "ca": "catalan", "nl": "dutch", "ar": "arabic", "sv": "swedish", "it": "italian", "id": "indonesian", "hi": "hindi", "fi": "finnish", "vi": "vietnamese",
-    "he": "hebrew", "uk": "ukrainian", "el": "greek", "ms": "malay", "cs": "czech", "ro": "romanian", "da": "danish", "hu": "hungarian", "ta": "tamil", "no": "norwegian",
-    "th": "thai", "ur": "urdu", "hr": "croatian", "bg": "bulgarian", "lt": "lithuanian", "la": "latin", "mi": "maori", "ml": "malayalam", "cy": "welsh", "sk": "slovak", "te": "telugu",
-    "fa": "persian", "lv": "latvian", "bn": "bengali", "sr": "serbian", "az": "azerbaijani", "sl": "slovenian", "kn": "kannada", "et": "estonian", "mk": "macedonian",
-    "br": "breton", "eu": "basque", "is": "icelandic", "hy": "armenian", "ne": "nepali", "mn": "mongolian", "bs": "bosnian", "kk": "kazakh", "sq": "albanian", "sw": "swahili",
-    "gl": "galician", "mr": "marathi", "pa": "punjabi", "si": "sinhala", "km": "khmer", "sn": "shona", "yo": "yoruba", "so": "somali", "af": "afrikaans", "oc": "occitan", "ka": "georgian",
-    "be": "belarusian", "tg": "tajik", "sd": "sindhi", "gu": "gujarati", "am": "amharic", "yi": "yiddish", "lo": "lao", "uz": "uzbek", "fo": "faroese", "ht": "haitian creole",
-    "ps": "pashto", "tk": "turkmen", "nn": "nynorsk", "mt": "maltese", "sa": "sanskrit", "lb": "luxembourgish", "my": "myanmar", "bo": "tibetan", "tl": "tagalog", "mg": "malagasy",
-    "as": "assamese", "tt": "tatar", "haw": "hawaiian", "ln": "lingala", "ha": "hausa", "ba": "bashkir", "jw": "javanese", "su": "sundanese",
-}
-
-const get_encoding = async (encoding_name: string) => {
-  const url = `https://raw.githubusercontent.com/openai/whisper/main/whisper/assets/${encoding_name}.tiktoken`
+const get_encoding = async (is_multilingual: boolean) => {
+  const url = `https://raw.githubusercontent.com/openai/whisper/main/whisper/assets/${is_multilingual ? 'multilingual' : 'gpt2'}.tiktoken`
   const path = await env.fetchSave(url, get_key(url), env.CACHE_DIR)
   const data = await env.readTextFile(path)
-  const ranks = data.split('\n').filter(Boolean).map((line) => line.split(' ')).map(([token, rank]) => [atob(token), Number(rank)])
+  const ranks = data.split('\n').filter((line) => line && line !== ('= 50256')).map((line) => line.split(' ')).map(([token, rank]) => [atob(token), Number(rank)])
   let n_vocab = ranks.length
   const specials = [
     '<|endoftext|>',
@@ -241,74 +288,46 @@ const get_encoding = async (encoding_name: string) => {
   return new Tokenizer(pat, Object.fromEntries(ranks), Object.fromEntries(specials.map((x, i) => [x, ranks.length + i])))
 }
 
-const MODEL_URLS = {
-  'tiny.en': 'https://huggingface.co/openai/whisper-tiny.en/resolve/main/model.safetensors?download=true',
-  'tiny': 'https://huggingface.co/openai/whisper-tiny/resolve/main/model.safetensors?download=true',
-  'base.en': 'https://openaipublic.azureedge.net/main/whisper/models/25a8566e1d0c1e2231d1c762132cd20e0f96a85d16145c3a00adf5d1ac670ead/base.en.pt',
-  'base': 'https://openaipublic.azureedge.net/main/whisper/models/ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e/base.pt',
-  'small.en': 'https://openaipublic.azureedge.net/main/whisper/models/f953ad0fd29cacd07d5a9eda5624af0f6bcf2258be67c92b79389873d91e0872/small.en.pt',
-  'small': 'https://openaipublic.azureedge.net/main/whisper/models/9ecf779972d90ba49c06d968637d720dd632c55bbf19d441fb42bf17a411e794/small.pt',
-  'medium.en': 'https://openaipublic.azureedge.net/main/whisper/models/d7440d1dc186f76616474e0ff0b3b6b879abc9d1a4926b7adfa41db2d497ab4f/medium.en.pt',
-  'medium': 'https://openaipublic.azureedge.net/main/whisper/models/345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1/medium.pt',
-  'large-v1': 'https://openaipublic.azureedge.net/main/whisper/models/e4b87e7e0bf463eb8e6956e646f1e277e901512310def2c24bf0e11bd3c28e9a/large-v1.pt',
-  'large-v2': 'https://openaipublic.azureedge.net/main/whisper/models/81f7c96c852ee8fc832187b0132e569d6c3065a3252ed18e56effd0b6a73e524/large-v2.pt',
-  'large': 'https://openaipublic.azureedge.net/main/whisper/models/81f7c96c852ee8fc832187b0132e569d6c3065a3252ed18e56effd0b6a73e524/large-v2.pt',
-}
-const DIMS = {
-  'n_mels': 80,
-  'n_vocab': 51864,
-  'n_audio_ctx': 1500,
-  'n_audio_state': 384,
-  'n_audio_head': 6,
-  'n_audio_layer': 4,
-  'n_text_ctx': 448,
-  'n_text_state': 384,
-  'n_text_head': 6,
-  'n_text_layer': 4,
-}
-type Dims = typeof DIMS
-type Model = keyof typeof MODEL_URLS
-
 const state_map = {
   'model.encoder.conv1': 'encoder.conv1',
   'model.encoder.conv2': 'encoder.conv2',
   'model.encoder.embed_positions.weight': 'encoder.positional_embedding',
   'model.encoder.layer_norm': 'encoder.ln_post',
-  'model.encoder.layers.([0-3]).self_attn.q_proj': 'encoder.blocks.$1.attn.query',
-  'model.encoder.layers.([0-3]).self_attn.k_proj': 'encoder.blocks.$1.attn.key',
-  'model.encoder.layers.([0-3]).self_attn.v_proj': 'encoder.blocks.$1.attn.value',
-  'model.encoder.layers.([0-3]).self_attn.out_proj': 'encoder.blocks.$1.attn.out',
-  'model.encoder.layers.([0-3]).self_attn_layer_norm': 'encoder.blocks.$1.attn_ln',
-  'model.encoder.layers.([0-3]).fc1': 'encoder.blocks.$1.mlp.0',
-  'model.encoder.layers.([0-3]).fc2': 'encoder.blocks.$1.mlp.2',
-  'model.encoder.layers.([0-3]).final_layer_norm': 'encoder.blocks.$1.mlp_ln',
+  'model.encoder.layers.(\\d+).self_attn.q_proj': 'encoder.blocks.$1.attn.query',
+  'model.encoder.layers.(\\d+).self_attn.k_proj': 'encoder.blocks.$1.attn.key',
+  'model.encoder.layers.(\\d+).self_attn.v_proj': 'encoder.blocks.$1.attn.value',
+  'model.encoder.layers.(\\d+).self_attn.out_proj': 'encoder.blocks.$1.attn.out',
+  'model.encoder.layers.(\\d+).self_attn_layer_norm': 'encoder.blocks.$1.attn_ln',
+  'model.encoder.layers.(\\d+).fc1': 'encoder.blocks.$1.mlp.0',
+  'model.encoder.layers.(\\d+).fc2': 'encoder.blocks.$1.mlp.2',
+  'model.encoder.layers.(\\d+).final_layer_norm': 'encoder.blocks.$1.mlp_ln',
   'model.decoder.embed_tokens.weight': 'decoder.token_embedding.weight',
   'model.decoder.embed_positions.weight': 'decoder.positional_embedding',
   'model.decoder.layer_norm': 'decoder.ln',
-  'model.decoder.layers.([0-3]).self_attn.q_proj': 'decoder.blocks.$1.attn.query',
-  'model.decoder.layers.([0-3]).self_attn.k_proj': 'decoder.blocks.$1.attn.key',
-  'model.decoder.layers.([0-3]).self_attn.v_proj': 'decoder.blocks.$1.attn.value',
-  'model.decoder.layers.([0-3]).self_attn.out_proj': 'decoder.blocks.$1.attn.out',
-  'model.decoder.layers.([0-3]).self_attn_layer_norm': 'decoder.blocks.$1.attn_ln',
-  'model.decoder.layers.([0-3]).encoder_attn.q_proj': 'decoder.blocks.$1.cross_attn.query',
-  'model.decoder.layers.([0-3]).encoder_attn.k_proj': 'decoder.blocks.$1.cross_attn.key',
-  'model.decoder.layers.([0-3]).encoder_attn.v_proj': 'decoder.blocks.$1.cross_attn.value',
-  'model.decoder.layers.([0-3]).encoder_attn.out_proj': 'decoder.blocks.$1.cross_attn.out',
-  'model.decoder.layers.([0-3]).encoder_attn_layer_norm': 'decoder.blocks.$1.cross_attn_ln',
-  'model.decoder.layers.([0-3]).fc1': 'decoder.blocks.$1.mlp.0',
-  'model.decoder.layers.([0-3]).fc2': 'decoder.blocks.$1.mlp.2',
-  'model.decoder.layers.([0-3]).final_layer_norm': 'decoder.blocks.$1.mlp_ln',
+  'model.decoder.layers.(\\d+).self_attn.q_proj': 'decoder.blocks.$1.attn.query',
+  'model.decoder.layers.(\\d+).self_attn.k_proj': 'decoder.blocks.$1.attn.key',
+  'model.decoder.layers.(\\d+).self_attn.v_proj': 'decoder.blocks.$1.attn.value',
+  'model.decoder.layers.(\\d+).self_attn.out_proj': 'decoder.blocks.$1.attn.out',
+  'model.decoder.layers.(\\d+).self_attn_layer_norm': 'decoder.blocks.$1.attn_ln',
+  'model.decoder.layers.(\\d+).encoder_attn.q_proj': 'decoder.blocks.$1.cross_attn.query',
+  'model.decoder.layers.(\\d+).encoder_attn.k_proj': 'decoder.blocks.$1.cross_attn.key',
+  'model.decoder.layers.(\\d+).encoder_attn.v_proj': 'decoder.blocks.$1.cross_attn.value',
+  'model.decoder.layers.(\\d+).encoder_attn.out_proj': 'decoder.blocks.$1.cross_attn.out',
+  'model.decoder.layers.(\\d+).encoder_attn_layer_norm': 'decoder.blocks.$1.cross_attn_ln',
+  'model.decoder.layers.(\\d+).fc1': 'decoder.blocks.$1.mlp.0',
+  'model.decoder.layers.(\\d+).fc2': 'decoder.blocks.$1.mlp.2',
+  'model.decoder.layers.(\\d+).final_layer_norm': 'decoder.blocks.$1.mlp_ln',
 }
 
-export const init_whisper = async (model_name: Model, batch_size = 1): Promise<[Whisper, Tokenizer]> => {
-  if (!MODEL_URLS[model_name]) throw new Error()
-
-  const filename = await env.fetchSave(MODEL_URLS[model_name], model_name, env.CACHE_DIR)
+export const init_whisper = async (model_name: WhisperModel, batch_size = 1): Promise<[Whisper, Tokenizer]> => {
+  if (!MODELS[model_name]) throw new Error()
+  const { dims, url } = MODELS[model_name]
+  const filename = await env.fetchSave(url, model_name, env.CACHE_DIR)
   let state = await safe_load(filename)
   state = replace_state_dict(state, state_map)
-  const model = await Whisper.init(DIMS, batch_size)
+  const model = await Whisper.init(dims, batch_size)
   await load_state_dict(model, state, false)
-  const enc = await get_encoding(model.is_multilingual ? 'multilingual' : 'gpt2')
+  const enc = await get_encoding(model.is_multilingual)
   return [model, enc]
 }
 export const load_file_waveform = async (filename: string): Promise<Float32Array[]> => {
@@ -336,6 +355,7 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
     let pos = 0, next_tokens = ctx
     for (const i of range((nsample - start_tokens.length) * 2)) {
       next_tokens = (await model.decoder.call(next_tokens, pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1])
+      if (env.DEBUG >= 1) console.log(enc.decode(await next_tokens.tolist()))
       next_tokens = ctx.get({}, -1).eq(eot).reshape([-1, 1]).where(next_tokens.full_like(eot), next_tokens)
       ctx = Tensor.cat([ctx, next_tokens], 1)
       pos = ctx.shape_num.at(-1)! - 1

@@ -3350,7 +3350,7 @@ export class Tensor extends MathTrait<Tensor> {
   erf = () => {
     // https://personal.math.ubc.ca/~cbm/aands/page_299.htm 7.1.26
     const t = this.abs().mul(0.3275911, true).add(1.0, true).div(1.0, true)
-    return this.sign().mul(t.mul(polyN(t as any, [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592])).mul(this.square().neg().exp()).sub(1.0, true))
+    return this.sign().mul(t.mul(polyN(t, [1.061405429, -1.453152027, 1.421413741, -0.284496736, 0.254829592])).mul(this.square().neg().exp()).sub(1.0, true))
   }
 
   /**
