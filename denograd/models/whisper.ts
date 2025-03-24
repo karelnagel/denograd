@@ -233,7 +233,7 @@ const get_encoding = async (encoding_name: string) => {
   const url = `https://raw.githubusercontent.com/openai/whisper/main/whisper/assets/${encoding_name}.tiktoken`
   const path = await env.fetchSave(url, get_key(url), env.CACHE_DIR)
   const data = await env.readTextFile(path)
-  const ranks = data.split('\n').filter(Boolean).map((line) => line.split(' ')).map(([token, rank]) => [btoa(token), Number(rank)])
+  const ranks = data.split('\n').filter(Boolean).map((line) => line.split(' ')).map(([token, rank]) => [atob(token), Number(rank)])
   let n_vocab = ranks.length
   const specials = [
     '<|endoftext|>',
