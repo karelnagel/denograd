@@ -1,10 +1,5 @@
-import { Conv1d, type Conv2d, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, safe_load, sub, Tensor, TinyJit } from '../mod.ts'
-import wav from 'npm:node-wav'
-import { type sint, UOp, type Variable } from '../ops.ts'
-import { add, range } from '../helpers.ts'
-import { ArrayMap } from '../web.ts'
-import { dtypes } from '../dtype.ts'
-import { Tokenizer } from './tokenizer.ts'
+import { add, ArrayMap, Conv1d, type Conv2d, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable } from '../mod.ts'
+import wav from 'node-wav'
 
 export class MultiHeadAttention {
   query: Linear
@@ -142,7 +137,7 @@ class TextDecoder {
     const seqlen = x.shape.at(-1)
     x = this.token_embedding.call(x).add(this.positional_embedding.shrink([[pos, add(pos, seqlen as number)], undefined, undefined]))
     for (const block of this.blocks) x = await block.call(x, encoded_audio, this.mask, pos)
-    return this.output_tok(x)
+    return await this.output_tok(x)
   }
   output_tok = async (x: Tensor) => await this.ln.call(x).matmul(this.token_embedding.weight.T).realize()
 }
@@ -167,7 +162,7 @@ const SAMPLES_PER_SEGMENT = RATE * SEGMENT_SECONDS // 480000
 const N_FFT = 400
 const HOP_LENGTH = 160
 const N_MELS = 80
-const FRAMES_PER_SEGMENT = idiv(SAMPLES_PER_SEGMENT, HOP_LENGTH) // 3000
+const FRAMES_PER_SEGMENT = SAMPLES_PER_SEGMENT / HOP_LENGTH // 3000
 
 const padWaveforms = (waveforms: Float32Array[], batchSize: number) => {
   const currRows = waveforms.length
@@ -186,36 +181,39 @@ const padWaveforms = (waveforms: Float32Array[], batchSize: number) => {
  * param truncate: If true, truncates (or pads) audio to exactly 30s for a single encoder pass
  * return: mel spectrogram of the given waveforms
  */
-// const prep_audio = (waveforms: Float32Array[], batch_size: number, truncate = false): Tensor => {
-//   const pad_or_trim = (arr: Float32Array, target_len: number): Float32Array => {
-//     const curr_len = arr.length
-//     if (curr_len === target_len) return arr
-//     else if (curr_len < target_len) {
-//       const res = new Float32Array(target_len)
-//       res.set(arr)
-//       return res
-//     } else return arr.slice(0, target_len)
-//   }
+export const prep_audio = async (waveforms: Float32Array[], batch_size: number, truncate = false) => {
+  const data = await env.readFile('log_spec.bin')
+  return await new Tensor(data).bitcast(dtypes.float32).reshape([1, 80, 3000]).realize()
 
-//   let max_len = truncate ? SAMPLES_PER_SEGMENT : Math.max(...waveforms.map((wav) => wav.length))
-//   const r = mod(max_len, SAMPLES_PER_SEGMENT)
-//   if (r > 0) max_len += SAMPLES_PER_SEGMENT - r
-//   waveforms = waveforms.map((w) => pad_or_trim(w, max_len))
-//   if (waveforms[0].length > batch_size) throw new Error()
-//   if (waveforms[0].length < batch_size) {
-//     // we could have a symbolic batch_size dim instead of manually padding here if conv/layernorm supported symbolic shapes
-//     waveforms = padWaveforms(waveforms, batch_size)
-//   }
-// stft = librosa.stft(waveforms, n_fft=N_FFT, hop_length=HOP_LENGTH, window='hann', dtype=np.csingle)
-// magnitudes = np.absolute(stft[..., :-1]) ** 2
-// mel_spec = librosa.filters.mel(sr=RATE, n_fft=N_FFT, n_mels=N_MELS) @ magnitudes
+  //   const pad_or_trim = (arr: Float32Array, target_len: number): Float32Array => {
+  //     const curr_len = arr.length
+  //     if (curr_len === target_len) return arr
+  //     else if (curr_len < target_len) {
+  //       const res = new Float32Array(target_len)
+  //       res.set(arr)
+  //       return res
+  //     } else return arr.slice(0, target_len)
+  //   }
 
-//   log_spec = np.log10(np.clip(mel_spec, 1e-10, None))
-//   log_spec = np.maximum(log_spec, log_spec.max((1,2), keepdims=True) - 8.0)
-//   log_spec = (log_spec + 4.0) / 4.0
+  //   let max_len = truncate ? SAMPLES_PER_SEGMENT : Math.max(...waveforms.map((wav) => wav.length))
+  //   const r = mod(max_len, SAMPLES_PER_SEGMENT)
+  //   if (r > 0) max_len += SAMPLES_PER_SEGMENT - r
+  //   waveforms = waveforms.map((w) => pad_or_trim(w, max_len))
+  //   if (waveforms[0].length > batch_size) throw new Error()
+  //   if (waveforms[0].length < batch_size) {
+  //     // we could have a symbolic batch_size dim instead of manually padding here if conv/layernorm supported symbolic shapes
+  //     waveforms = padWaveforms(waveforms, batch_size)
+  //   }
+  // stft = librosa.stft(waveforms, n_fft=N_FFT, hop_length=HOP_LENGTH, window='hann', dtype=np.csingle)
+  // magnitudes = np.absolute(stft[..., :-1]) ** 2
+  // mel_spec = librosa.filters.mel(sr=RATE, n_fft=N_FFT, n_mels=N_MELS) @ magnitudes
 
-//   return log_spec
-// }
+  //   log_spec = np.log10(np.clip(mel_spec, 1e-10, None))
+  //   log_spec = np.maximum(log_spec, log_spec.max((1,2), keepdims=True) - 8.0)
+  //   log_spec = (log_spec + 4.0) / 4.0
+
+  //   return log_spec
+}
 
 // deno-fmt-ignore
 const LANGUAGES = {
@@ -281,38 +279,74 @@ const DIMS = {
 }
 type Dims = typeof DIMS
 type Model = keyof typeof MODEL_URLS
-const init_whisper = async (model_name: Model, batch_size = 1): Promise<[Whisper, Tokenizer]> => {
+
+const state_map = {
+  'model.encoder.conv1': 'encoder.conv1',
+  'model.encoder.conv2': 'encoder.conv2',
+  'model.encoder.embed_positions.weight': 'encoder.positional_embedding',
+  'model.encoder.layer_norm': 'encoder.ln_post',
+  'model.encoder.layers.([0-3]).self_attn.q_proj': 'encoder.blocks.$1.attn.query',
+  'model.encoder.layers.([0-3]).self_attn.k_proj': 'encoder.blocks.$1.attn.key',
+  'model.encoder.layers.([0-3]).self_attn.v_proj': 'encoder.blocks.$1.attn.value',
+  'model.encoder.layers.([0-3]).self_attn.out_proj': 'encoder.blocks.$1.attn.out',
+  'model.encoder.layers.([0-3]).self_attn_layer_norm': 'encoder.blocks.$1.attn_ln',
+  'model.encoder.layers.([0-3]).fc1': 'encoder.blocks.$1.mlp.0',
+  'model.encoder.layers.([0-3]).fc2': 'encoder.blocks.$1.mlp.2',
+  'model.encoder.layers.([0-3]).final_layer_norm': 'encoder.blocks.$1.mlp_ln',
+  'model.decoder.embed_tokens.weight': 'decoder.token_embedding.weight',
+  'model.decoder.embed_positions.weight': 'decoder.positional_embedding',
+  'model.decoder.layer_norm': 'decoder.ln',
+  'model.decoder.layers.([0-3]).self_attn.q_proj': 'decoder.blocks.$1.attn.query',
+  'model.decoder.layers.([0-3]).self_attn.k_proj': 'decoder.blocks.$1.attn.key',
+  'model.decoder.layers.([0-3]).self_attn.v_proj': 'decoder.blocks.$1.attn.value',
+  'model.decoder.layers.([0-3]).self_attn.out_proj': 'decoder.blocks.$1.attn.out',
+  'model.decoder.layers.([0-3]).self_attn_layer_norm': 'decoder.blocks.$1.attn_ln',
+  'model.decoder.layers.([0-3]).encoder_attn.q_proj': 'decoder.blocks.$1.cross_attn.query',
+  'model.decoder.layers.([0-3]).encoder_attn.k_proj': 'decoder.blocks.$1.cross_attn.key',
+  'model.decoder.layers.([0-3]).encoder_attn.v_proj': 'decoder.blocks.$1.cross_attn.value',
+  'model.decoder.layers.([0-3]).encoder_attn.out_proj': 'decoder.blocks.$1.cross_attn.out',
+  'model.decoder.layers.([0-3]).encoder_attn_layer_norm': 'decoder.blocks.$1.cross_attn_ln',
+  'model.decoder.layers.([0-3]).fc1': 'decoder.blocks.$1.mlp.0',
+  'model.decoder.layers.([0-3]).fc2': 'decoder.blocks.$1.mlp.2',
+  'model.decoder.layers.([0-3]).final_layer_norm': 'decoder.blocks.$1.mlp_ln',
+}
+
+export const init_whisper = async (model_name: Model, batch_size = 1): Promise<[Whisper, Tokenizer]> => {
   if (!MODEL_URLS[model_name]) throw new Error()
 
   const filename = await env.fetchSave(MODEL_URLS[model_name], model_name, env.CACHE_DIR)
-  const state = await safe_load(filename)
+  let state = await safe_load(filename)
+  state = replace_state_dict(state, state_map)
   const model = await Whisper.init(DIMS, batch_size)
-  load_state_dict(model, state, false)
+  await load_state_dict(model, state, false)
   const enc = await get_encoding(model.is_multilingual ? 'multilingual' : 'gpt2')
   return [model, enc]
 }
-const transcribe_file = async (model: any, enc: Tokenizer, filename: string) => {
-  if (filename.startsWith('http')) filename = await env.fetchSave(filename, get_key(filename), env.CACHE_DIR)
+export const load_file_waveform = async (filename: string): Promise<Float32Array[]> => {
   const data = await env.readFile(filename)
   const res = wav.decode(data)
   if (res.sampleRate !== RATE) throw new Error()
-  return await transcribe_waveform(model, enc, res.channelData)
+  return res.channelData
+}
+
+const transcribe_file = async (model: any, enc: Tokenizer, filename: string) => {
+  if (filename.startsWith('http')) filename = await env.fetchSave(filename, get_key(filename), env.CACHE_DIR)
+  const waveforms = await load_file_waveform(filename)
+  return await transcribe_waveform(model, enc, waveforms)
 }
 /**
  * Expects an array of shape (N,S) where N is the number waveforms to transcribe in parallel and S is number of 16000Hz samples
  * Returns the transcribed text if a single waveform is provided, or an array of transcriptions if multiple are provided
  */
 const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Float32Array[], truncate = false) => {
-  //   const log_spec = prep_audio(waveforms, model.batch_size, truncate)
-  const data = await env.readFile('log_spec.bin')
-  const log_spec = await new Tensor(data).bitcast(dtypes.float32).reshape([1, 80, 3000]).realize()
+  const log_spec = await prep_audio(waveforms, model.batch_size, truncate)
 
   const nsample = model.decoder.max_tokens_to_sample
 
-  const inferloop = async (ctx: Tensor, encoded_audio: any) => {
+  const inferloop = async (ctx: Tensor, encoded_audio: Tensor) => {
     let pos = 0, next_tokens = ctx
     for (const i of range((nsample - start_tokens.length) * 2)) {
-      next_tokens = (await model.decoder.call(next_tokens, pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1])
+      next_tokens = await (await model.decoder.call(next_tokens, pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1]).realize()
       await next_tokens.set([ctx.get({}, -1).eq(eot).cast(dtypes.int32)], eot)
       ctx = Tensor.cat([ctx, next_tokens], 1)
       pos = ctx.shape.at(-1)! - 1
@@ -337,8 +371,9 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
   for (const curr_frame of range(0, log_spec.shape.at(-1), FRAMES_PER_SEGMENT)) {
     const encoded_audio = await model.encoder.encode.call(await log_spec.get({}, {}, { start: curr_frame, stop: curr_frame + FRAMES_PER_SEGMENT }).realize())
     const _ctx: number[][] = await ctx.tolist()
-    if (_ctx.every((c) => c.length === _ctx[0].length)) ctx = await inferloop(ctx, encoded_audio)
-    else {
+    if (_ctx.every((c) => c.length === _ctx[0].length)) {
+      ctx = await inferloop(ctx, encoded_audio)
+    } else {
       const res = await Promise.all(_ctx.map(async (c, i) => await (await inferloop(new Tensor(range(model.batch_size).map(() => c)), encoded_audio)).get(i).tolist()))
       ctx = new Tensor(res)
     }
@@ -355,7 +390,7 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
 }
 
 if (import.meta.main) {
+  Tensor.manual_seed(3)
   const [model, enc] = await init_whisper('tiny.en', 1)
-  const file = 'https://huggingface.co/datasets/FL33TW00D-HF/ratchet-util/resolve/0c9601ad0d235e2e193b016b151aec991f497bf7/jfk.wav?download=true'
-  console.log(await transcribe_file(model, enc, file))
+  console.log(await transcribe_file(model, enc, env.args()[0]))
 }

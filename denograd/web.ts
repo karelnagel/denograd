@@ -1,5 +1,7 @@
 export * from './tensor.ts'
 export * from './helpers.ts'
+export * from './dtype.ts'
+export * from './ops.ts'
 export * from './models/index.ts'
 export * from './device.ts'
 export * from './nn/index.ts'

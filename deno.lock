@@ -3160,6 +3160,7 @@
       "npm:@types/react-dom@*",
       "npm:@types/react@*",
       "npm:ffi-rs@*",
+      "npm:node-wav@*",
       "npm:vitest@*"
     ],
     "members": {
