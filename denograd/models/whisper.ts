@@ -164,17 +164,6 @@ const HOP_LENGTH = 160
 const N_MELS = 80
 const FRAMES_PER_SEGMENT = SAMPLES_PER_SEGMENT / HOP_LENGTH // 3000
 
-const padWaveforms = (waveforms: Float32Array[], batchSize: number) => {
-  const currRows = waveforms.length
-  if (currRows >= batchSize) return waveforms
-
-  const rowsToPad = batchSize - currRows
-  const colLength = waveforms[0].length
-  const zeroRow = new Float32Array(colLength)
-
-  const padding = Array(rowsToPad).fill(0).map(() => new Float32Array(zeroRow))
-  return waveforms.concat(padding)
-}
 /**
  * param waveforms: A list of possibly variable length 16000Hz audio samples
  * param batch_size: The batch_size associated with the Whisper model being used to transcribe the audio. Used to prevent JIT mismatch errors since the encoder does not accept symbolic shapes
@@ -329,11 +318,12 @@ export const load_file_waveform = async (filename: string): Promise<Float32Array
   return res.channelData
 }
 
-const transcribe_file = async (model: any, enc: Tokenizer, filename: string) => {
+export const transcribe_file = async (model: any, enc: Tokenizer, filename: string) => {
   if (filename.startsWith('http')) filename = await env.fetchSave(filename, get_key(filename), env.CACHE_DIR)
   const waveforms = await load_file_waveform(filename)
   return await transcribe_waveform(model, enc, waveforms)
 }
+
 /**
  * Expects an array of shape (N,S) where N is the number waveforms to transcribe in parallel and S is number of 16000Hz samples
  * Returns the transcribed text if a single waveform is provided, or an array of transcriptions if multiple are provided
@@ -387,10 +377,4 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
   }
   const out = transcriptions.map((tokens) => enc.decode(tokens).trim())
   return out.length > 1 ? out : out[0]
-}
-
-if (import.meta.main) {
-  Tensor.manual_seed(3)
-  const [model, enc] = await init_whisper('tiny.en', 1)
-  console.log(await transcribe_file(model, enc, env.args()[0]))
 }
