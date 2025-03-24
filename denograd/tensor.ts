@@ -3364,7 +3364,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   gelu = () => {
-    return this.mul(0.5, true).mul(((this.add(this.pow(3).mul(0.044715, true))).mul(Math.sqrt(2 / Math.PI), true)).tanh()).add(1, true)
+    return this.mul(0.5, true).mul(this.pow(3).mul(0.044715, true).add(this, true).mul(Math.sqrt(2 / Math.PI), true).tanh().add(1, true))
   }
   static gelu = (x: Tensor) => x.gelu()
 
