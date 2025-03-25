@@ -1,4 +1,4 @@
-import { add, ArrayMap, Conv1d, type Conv2d, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, zip } from '../mod.ts'
+import { add, ArrayMap, concat_bytes, Conv1d, type Conv2d, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, mod, num, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, zip } from '../mod.ts'
 import wav from 'node-wav'
 
 // deno-fmt-ignore
@@ -59,6 +59,153 @@ export const MODELS = {
 export type WhisperModel = keyof typeof MODELS
 type Dims = typeof MODELS['tiny.en']['dims']
 
+const get_window = (window_type: string, length: number) => {
+  if (window_type !== 'hann') throw new Error("Only 'hann' window is implemented")
+  const n = Tensor.arange(0, length, 1.0)
+  return n.mul(2 * Math.PI, true).div(length - 1).cos().sub(1, true).mul(0.5, true)
+}
+
+const create_fourier_kernels = (n_fft: number, win_length?: number, freq_bins?: number, fmin = 50, fmax = 6000, sr = 16000, window = 'hann') => {
+  if (freq_bins === undefined) freq_bins = idiv(n_fft, 2) + 1
+  if (win_length === undefined) win_length = n_fft
+
+  const s = Tensor.arange(0, n_fft, 1.0)
+  const wsin = Tensor.empty([freq_bins, 1, n_fft])
+  const wcos = Tensor.empty([freq_bins, 1, n_fft])
+  const bins2freq: number[] = []
+  const binslist: number[] = []
+
+  let window_mask = get_window(window, win_length)
+  const n = window_mask.shape.at(-1)!
+  const lpad = idiv(sub(n_fft, n), 2)
+  const lengths = range(window_mask.ndim).map(() => [0, 0] as [sint, sint])
+  lengths[lengths.length - 1] = [lpad, sub(sub(n_fft, n), lpad)]
+  if (num(lpad) <= 0) console.log('Warning: positive lpad implies n_fft higher than window length')
+  window_mask = window_mask.pad(lengths)
+
+  for (const k of range(freq_bins)) {
+    bins2freq.push(k * sr / n_fft)
+    binslist.push(k)
+    wsin.set([k, 0, {}], s.mul(2 * Math.PI * k, true).div(n_fft).sin())
+    wcos.set([k, 0, {}], s.mul(2 * Math.PI * k, true).div(n_fft).cos())
+  }
+  return [wsin.cast(dtypes.float32), wcos.cast(dtypes.float32), bins2freq, binslist, window_mask.cast(dtypes.float32)] as const
+}
+
+const mel_frequencies = async (n_mels = 128, fmin = 0.0, fmax = 11025.0, htk = false) => {
+  const min_mel = await hz_to_mel(fmin, htk)
+  const max_mel = await hz_to_mel(fmax, htk)
+
+  const mels = Tensor.linspace(min_mel, max_mel, n_mels)
+
+  return mel_to_hz(mels, htk)
+}
+const hz_to_mel = async (_frequencies: number, htk = false) => {
+  const frequencies = new Tensor(_frequencies)
+
+  if (htk) return frequencies.div(700.0).add(1.0, true).log().div(Math.log(10)).mul(2595)
+
+  const f_min = 0.0
+  const f_sp = 200.0 / 3
+
+  let mels = frequencies.sub(f_min).div(f_sp)
+
+  const min_log_hz = 1000.0
+  const min_log_mel = (min_log_hz - f_min) / f_sp
+  const logstep = Math.log(6.4) / 27.0
+
+  if (frequencies.ndim) {
+    const log_t = frequencies.ge(min_log_hz)
+    mels = log_t.where(frequencies.div(min_log_hz).log().div(logstep).add(min_log_mel, true), mels)
+  } else if (await frequencies.ge(min_log_hz).item()) {
+    mels = frequencies.div(min_log_hz).log().div(logstep).add(min_log_mel, true)
+  }
+  return mels
+}
+
+const mel_to_hz = async (mels: Tensor, htk = false) => {
+  if (htk) return mels.div(2595.0).pow(10, true).sub(1.0).mul(700, true)
+
+  const f_min = 0.0
+  const f_sp = 200.0 / 3
+  let freqs = mels.mul(f_sp, true).add(f_min, true)
+
+  const min_log_hz = 1000.0
+  const min_log_mel = (min_log_hz - f_min) / f_sp
+  const logstep = Math.log(6.4) / 27.0
+
+  if (mels.ndim) {
+    const log_t = mels.ge(min_log_mel)
+    freqs = log_t.where((mels.sub(min_log_mel).mul(logstep)).exp().mul(min_log_hz), freqs)
+  } else if (await mels.ge(min_log_mel).item()) {
+    freqs = (mels.sub(min_log_mel).mul(logstep, true)).exp().mul(min_log_hz)
+  }
+  return freqs
+}
+
+const get_mel = async (sr: number, n_fft: number, n_mels = 128, fmin = 0.0, fmax?: number, htk = false, norm = 2, dtype = dtypes.float32) => {
+  if (fmax === undefined) fmax = sr / 2
+
+  if (norm === undefined || norm === 1 && norm === Infinity) throw new Error(`Unsupported norm: ${norm}`)
+
+  // For some reason just Tensor.zeros().__setitem__ is not working
+  let weights = await Tensor.empty([n_mels, 1 + idiv(n_fft, 2)], { dtype: dtype }).assign(Tensor.zeros([n_mels, 1 + idiv(n_fft, 2)], { dtype: dtype })).realize()
+  const fftfreqs = Tensor.linspace(0, sr / 2, 1 + idiv(n_fft, 2))
+
+  const mel_f = await mel_frequencies(n_mels + 2, fmin, fmax, htk)
+
+  const fdiff = mel_f.get({ start: 1 }).sub(mel_f.get({ stop: -1 }))
+  const ramps = mel_f.reshape([-1, 1]).sub(fftfreqs.reshape([1, -1]))
+
+  for (const i of range(n_mels)) {
+    const lower = ramps.get(i).neg().div(fdiff.get(i))
+    const upper = ramps.get(i + 2).div(fdiff.get(i + 1))
+
+    weights.set([i], lower.minimum(upper).maximum(0))
+  }
+  if (norm === 1) {
+    const enorm = mel_f.get({ start: 2, stop: n_mels + 2 }).sub(mel_f.get({ stop: n_mels })).div(2, true)
+    weights = weights.mul(enorm.unsqueeze(-1))
+  }
+  if (!mel_f.get({ stop: -2 }).eq(0).bitwise_or(weights.max(1).gt(0)).all().item()) {
+    console.log(`Empty filters detected in mel frequency basis. Some channels will produce empty responses. Try increasing your sampling rate (and fmax) or reducing n_mels.`)
+  }
+  return weights
+}
+class STFT {
+  pad_amount: number
+  wsin: Tensor
+  wcos: Tensor
+  stride: number
+
+  constructor(public n_fft = 128, public win_length = 128, public freq_bins?: number, hop_length = 64, public window = 'hann', public center = true, fmin = 50, fmax = 6000, sr = 16000, public trainable = false, public eps = 1e-10) {
+    if (hop_length === undefined) hop_length = idiv(win_length, 4)
+
+    this.pad_amount = idiv(this.n_fft, 2)
+    this.stride = hop_length
+
+    const [kernel_sin, kernel_cos, _, __, window_mask] = create_fourier_kernels(n_fft, win_length, freq_bins, fmin, fmax, sr, window)
+
+    this.wsin = kernel_sin.mul(window_mask)
+    this.wcos = kernel_cos.mul(window_mask)
+    this.wsin.requires_grad = this.trainable
+    this.wcos.requires_grad = this.trainable
+  }
+  call = (x: Tensor, return_spec = false) => {
+    if (x.shape.length !== 2) throw new Error(`Input shape must be (batch, len), but is ${x.shape}`)
+    if (this.center) x = x.pad([[0, 0], [this.pad_amount, this.pad_amount]])
+    x = x.get({}, undefined, {})
+
+    const spec_imag = x.conv2d(this.wsin, undefined, undefined, this.stride).get({}, { stop: this.freq_bins }, {})
+    const spec_real = x.conv2d(this.wcos, undefined, undefined, this.stride).get({}, { stop: this.freq_bins }, {})
+    if (return_spec) {
+      let spec = spec_real.pow(2).add(spec_imag.pow(2)).sqrt()
+      return this.trainable ? spec.add(this.eps) : spec
+    } else {
+      return Tensor.stack([spec_real, spec_imag.neg()], -1)
+    }
+  }
+}
 export class MultiHeadAttention {
   query: Linear
   key: Linear
@@ -231,38 +378,35 @@ const FRAMES_PER_SEGMENT = SAMPLES_PER_SEGMENT / HOP_LENGTH // 3000
  * param truncate: If true, truncates (or pads) audio to exactly 30s for a single encoder pass
  * return: mel spectrogram of the given waveforms
  */
-export const prep_audio = async (waveforms: Float32Array[], batch_size: number, truncate = false) => {
-  const data = await env.readFile('log_spec.bin')
-  return new Tensor(data).bitcast(dtypes.float32).reshape([1, 80, 3000])
+export const prep_audio = async (_waveforms: Float32Array[], batch_size: number, truncate = false) => {
+  const pad_or_trim = (arr: Float32Array, target_len: number) => {
+    const curr_len = arr.length
+    if (curr_len === target_len) return arr
+    else if (curr_len < target_len) {
+      const res = new Float32Array(target_len)
+      res.set(arr)
+      return res
+    } else return arr.slice(0, target_len)
+  }
 
-  //   const pad_or_trim = (arr: Float32Array, target_len: number): Float32Array => {
-  //     const curr_len = arr.length
-  //     if (curr_len === target_len) return arr
-  //     else if (curr_len < target_len) {
-  //       const res = new Float32Array(target_len)
-  //       res.set(arr)
-  //       return res
-  //     } else return arr.slice(0, target_len)
-  //   }
+  let max_len = truncate ? SAMPLES_PER_SEGMENT : Math.max(..._waveforms.map((x) => x.length))
+  const r = mod(max_len, SAMPLES_PER_SEGMENT)
+  if (r > 0) max_len += SAMPLES_PER_SEGMENT - r
+  let waveforms = new Tensor(concat_bytes(..._waveforms.map((w) => new Uint8Array(pad_or_trim(w, max_len).buffer))), { dtype: dtypes.float32 }).reshape([_waveforms.length, max_len])
+  if (num(waveforms.shape[0]) > batch_size) throw new Error()
+  if (num(waveforms.shape[0]) < batch_size) {
+    // we could have a symbolic batch_size dim instead of manually padding here if conv/layernorm supported symbolic shapes
+    waveforms = waveforms.pad([[0, batch_size - num(waveforms.shape[0])], [0, 0]])
+  }
+  const stft = new STFT(N_FFT, undefined, undefined, HOP_LENGTH).call(waveforms)
+  const magnitudes = stft.get('...', 0).pow(2).add(stft.get('...', 1).pow(2)).get('...', { stop: -1 })
+  const mel_spec = (await get_mel(RATE, N_FFT, N_MELS)).matmul(magnitudes)
 
-  //   let max_len = truncate ? SAMPLES_PER_SEGMENT : Math.max(...waveforms.map((wav) => wav.length))
-  //   const r = mod(max_len, SAMPLES_PER_SEGMENT)
-  //   if (r > 0) max_len += SAMPLES_PER_SEGMENT - r
-  //   waveforms = waveforms.map((w) => pad_or_trim(w, max_len))
-  //   if (waveforms[0].length > batch_size) throw new Error()
-  //   if (waveforms[0].length < batch_size) {
-  //     // we could have a symbolic batch_size dim instead of manually padding here if conv/layernorm supported symbolic shapes
-  //     waveforms = padWaveforms(waveforms, batch_size)
-  //   }
-  // stft = librosa.stft(waveforms, n_fft=N_FFT, hop_length=HOP_LENGTH, window='hann', dtype=np.csingle)
-  // magnitudes = np.absolute(stft[..., :-1]) ** 2
-  // mel_spec = librosa.filters.mel(sr=RATE, n_fft=N_FFT, n_mels=N_MELS) @ magnitudes
+  let log_spec = mel_spec.clip(1e-10).log().div(Math.log(10))
+  log_spec = log_spec.maximum(log_spec.max([1, 2], true).sub(8.0))
+  log_spec = log_spec.add(4.0).div(4.0)
 
-  //   log_spec = np.log10(np.clip(mel_spec, 1e-10, None))
-  //   log_spec = np.maximum(log_spec, log_spec.max((1,2), keepdims=True) - 8.0)
-  //   log_spec = (log_spec + 4.0) / 4.0
-
-  //   return log_spec
+  return log_spec.realize()
 }
 
 const get_encoding = async (is_multilingual: boolean) => {

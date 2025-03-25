@@ -1329,7 +1329,7 @@ export class Tensor extends MathTrait<Tensor> {
    * console.log(t.flip((0, 1)).numpy())
    * ```
    */
-  flip = (axis: number[]): Tensor => {
+  flip = (...axis: number[]): Tensor => {
     const axis_arg = axis.map((x) => this._resolve_dim(x))
     if (axis_arg.length !== dedup(axis_arg).length) throw new Error(`dim can appear at most once, getting ${axis_arg}`)
     return Flip.apply(this, axis = axis_arg)
@@ -1474,7 +1474,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (mops.length) {
       //   // flip negative strides
       let [shrinks, strides] = [mops.map((i) => i.boundary), mops.map((i) => i.stride)]
-      x = x.shrink(shrinks).flip([...strides.entries().filter(([i, st]) => st < 0).map(([i, st]) => i)])
+      x = x.shrink(shrinks).flip(...strides.entries().filter(([i, st]) => st < 0).map(([i, st]) => i))
       //   // handle stride !== 1 || -1
       if (strides.some((st) => Math.abs(st) !== 1)) {
         strides = strides.map((s) => Math.abs(s))
@@ -2554,7 +2554,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   conv_transpose2d = (weight: Tensor, bias?: Tensor, groups = 1, stride_ = 1, dilation_ = 1, padding_: number | number[] = 0, output_padding_ = 0): Tensor => {
-    let x: Tensor = this, w = weight.unflatten(0, [groups, -1]).transpose(1, 2).flip(range(3, weight.shape.length + 1))
+    let x: Tensor = this, w = weight.unflatten(0, [groups, -1]).transpose(1, 2).flip(...range(3, weight.shape.length + 1))
     const HW = weight.shape_num.slice(2)
     let padding = _flat_to_grouped(this._resolve_pool_pads(padding_, HW.length))
     const [stride, dilation, output_padding] = [stride_, dilation_, output_padding_].map((x) => make_tuple(x, HW.length))
