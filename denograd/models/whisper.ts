@@ -148,8 +148,6 @@ const get_mel = async (sr: number, n_fft: number, n_mels = 128, fmin = 0.0, fmax
 
   if (norm === undefined || norm === 1 && norm === Infinity) throw new Error(`Unsupported norm: ${norm}`)
 
-  // For some reason just Tensor.zeros().__setitem__ is not working
-  let weights = await Tensor.empty([n_mels, 1 + idiv(n_fft, 2)], { dtype: dtype }).assign(Tensor.zeros([n_mels, 1 + idiv(n_fft, 2)], { dtype: dtype })).realize()
   const fftfreqs = Tensor.linspace(0, sr / 2, 1 + idiv(n_fft, 2))
 
   const mel_f = await mel_frequencies(n_mels + 2, fmin, fmax, htk)
@@ -157,12 +155,14 @@ const get_mel = async (sr: number, n_fft: number, n_mels = 128, fmin = 0.0, fmax
   const fdiff = mel_f.get({ start: 1 }).sub(mel_f.get({ stop: -1 }))
   const ramps = mel_f.reshape([-1, 1]).sub(fftfreqs.reshape([1, -1]))
 
+  const t = []
   for (const i of range(n_mels)) {
     const lower = ramps.get(i).neg().div(fdiff.get(i))
     const upper = ramps.get(i + 2).div(fdiff.get(i + 1))
-
-    weights.set([i], lower.minimum(upper).maximum(0))
+    t.push(lower.minimum(upper).maximum(0).unsqueeze(0))
   }
+  let weights = await Tensor.cat(t, 0).realize()
+
   if (norm === 1) {
     const enorm = mel_f.get({ start: 2, stop: n_mels + 2 }).sub(mel_f.get({ stop: n_mels })).div(2, true)
     weights = weights.mul(enorm.unsqueeze(-1))
