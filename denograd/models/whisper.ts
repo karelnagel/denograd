@@ -103,7 +103,7 @@ const mel_frequencies = async (n_mels = 128, fmin = 0.0, fmax = 11025.0, htk = f
 const hz_to_mel = async (_frequencies: number, htk = false) => {
   const frequencies = new Tensor(_frequencies)
 
-  if (htk) return frequencies.div(700.0).add(1.0, true).log().div(Math.log(10)).mul(2595)
+  if (htk) return frequencies.div(700.0).add(1.0, true).log().div(Math.log(10)).mul(2595, true)
 
   const f_min = 0.0
   const f_sp = 200.0 / 3
@@ -136,7 +136,7 @@ const mel_to_hz = async (mels: Tensor, htk = false) => {
 
   if (mels.ndim) {
     const log_t = mels.ge(min_log_mel)
-    freqs = log_t.where((mels.sub(min_log_mel).mul(logstep)).exp().mul(min_log_hz), freqs)
+    freqs = log_t.where(mels.sub(min_log_mel).mul(logstep).exp().mul(min_log_hz, true), freqs)
   } else if (await mels.ge(min_log_mel).item()) {
     freqs = (mels.sub(min_log_mel).mul(logstep, true)).exp().mul(min_log_hz)
   }

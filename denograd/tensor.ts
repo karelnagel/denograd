@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, Metadata, min, mod, NotImplemented, num, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, div, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, Metadata, min, mod, NotImplemented, num, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -934,12 +934,12 @@ export class Tensor extends MathTrait<Tensor> {
    * print(Tensor.linspace(-1, 1, 5).numpy())
    * ```
    */
-  static linspace = (start: number, stop: number, steps: number, { dtype = dtypes.default_float, ...opts }: TensorOptions = {}): Tensor => {
+  static linspace = (start: Tensor | number, stop: Tensor | number, steps: number, { dtype = dtypes.default_float, ...opts }: TensorOptions = {}): Tensor => {
     if (steps < 0) throw new Error('number of steps must be non-negative')
     dtype = to_dtype(dtype)
     if (dtype === dtypes.bool) throw new Error('linspace with bool dtype is not supported')
     if (steps === 1) return new Tensor([start], { dtype: dtype, ...opts })
-    return Tensor.arange(steps, undefined, undefined, opts).mul((stop - start) / (steps - 1)).add(start, true).cast(dtype)
+    return Tensor.arange(steps, undefined, undefined, opts).mul(div(sub(stop, start), sub(steps , 1))).add(start, true).cast(dtype)
   }
 
   /**

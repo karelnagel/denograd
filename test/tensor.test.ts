@@ -506,8 +506,8 @@ describe(
       'tiny.Tensor.manual_seed(3)',
       'out(tiny.Tensor.rand(*data))',
     ],
-  { skip: Device.DEFAULT === 'WASM' },
-),
+    { skip: Device.DEFAULT === 'WASM' },
+  ),
 )
 
 describe(
@@ -569,8 +569,8 @@ describe(
     ],
     Tensor._threefry_random_bits,
     'out(tiny.Tensor._threefry_random_bits(*data))',
-  { skip: Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'DAWN' },
-),
+    { skip: Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'DAWN' },
+  ),
 )
 
 describe(
@@ -581,8 +581,8 @@ describe(
       return await new Tensor([true, true, false]).tolist()
     },
     'out(tiny.Tensor([True,True,False]).tolist())',
-  { skip: Device.DEFAULT === 'WEBGPU' },
-),
+    { skip: Device.DEFAULT === 'WEBGPU' },
+  ),
 )
 
 describe(
@@ -593,5 +593,14 @@ describe(
     ],
     async (...nums: number[]) => new Tensor(nums).sin(),
     'out(tiny.Tensor(data).sin())',
+  ),
+)
+
+describe(
+  'Tensor.log',
+  compare(
+    [[1]],
+    async (val: number) => new Tensor(val).log(),
+    'out(tiny.Tensor(data[0]).log())',
   ),
 )
