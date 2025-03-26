@@ -481,17 +481,17 @@ export const load_file_waveform = async (filename: string): Promise<Float32Array
   return res.channelData
 }
 
-export const transcribe_file = async (model: any, enc: Tokenizer, filename: string) => {
+export const transcribe_file = async (model: any, enc: Tokenizer, filename: string, language?: string) => {
   if (filename.startsWith('http')) filename = await env.fetchSave(filename, get_key(filename), env.CACHE_DIR)
   const waveforms = await load_file_waveform(filename)
-  return await transcribe_waveform(model, enc, waveforms)
+  return await transcribe_waveform(model, enc, waveforms, false, language)
 }
 
 /**
  * Expects an array of shape (N,S) where N is the number waveforms to transcribe in parallel and S is number of 16000Hz samples
  * Returns the transcribed text if a single waveform is provided, or an array of transcriptions if multiple are provided
  */
-const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Float32Array[], truncate = false) => {
+const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Float32Array[], truncate = false, language?: string) => {
   const log_spec = await prep_audio(waveforms, model.batch_size, truncate)
   const nsample = model.decoder.max_tokens_to_sample
 
@@ -512,7 +512,7 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
   let start_tokens = [enc.special_tokens['<|startoftranscript|>']]
   if (model.is_multilingual) {
     // TODO detect language
-    const language_token = enc.special_tokens['<|startoftranscript|>'] + 1 + Object.keys(LANGUAGES).indexOf('en')
+    const language_token = enc.special_tokens['<|startoftranscript|>'] + 1 + Object.keys(LANGUAGES).indexOf(language || 'en')
     start_tokens.push(language_token)
     start_tokens.push(enc.special_tokens['<|transcribe|>'])
   }
