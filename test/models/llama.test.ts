@@ -16,8 +16,8 @@ describe(
       'from extra.models.llama import precompute_freqs_cis',
       'out(precompute_freqs_cis(*data))',
     ],
-  { skip: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'DAWN' },
-),
+    { skip: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'DAWN' },
+  ),
 )
 
 describe(
@@ -45,6 +45,6 @@ describe(
       'd = data[0]',
       'out(Transformer(d[0],d[1],d[2],d[3],d[4],d[5],nn.Linear,nn.Embedding,d[8],d[9],d[10],d[11]).forward(*data[1]))',
     ],
-  { skip: Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'WASM' },
-),
+    { skip: Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'WASM' },
+  ),
 )

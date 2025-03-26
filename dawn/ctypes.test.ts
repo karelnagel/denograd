@@ -1,4 +1,4 @@
-import "../denograd/env/server.ts"
+import '../denograd/env/server.ts'
 import * as c from './ctypes.ts'
 import { expect, test } from 'vitest'
 

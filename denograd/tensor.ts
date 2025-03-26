@@ -943,7 +943,7 @@ export class Tensor extends MathTrait<Tensor> {
     dtype = to_dtype(dtype)
     if (dtype === dtypes.bool) throw new Error('linspace with bool dtype is not supported')
     if (steps === 1) return new Tensor([start], { dtype: dtype, ...opts })
-    return Tensor.arange(steps, undefined, undefined, opts).mul(div(sub(stop, start), sub(steps , 1))).add(start, true).cast(dtype)
+    return Tensor.arange(steps, undefined, undefined, opts).mul(div(sub(stop, start), sub(steps, 1))).add(start, true).cast(dtype)
   }
 
   /**
