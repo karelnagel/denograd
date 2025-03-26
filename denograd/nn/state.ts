@@ -48,7 +48,7 @@ export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, n
 
 const accept_filename = async (fn: Tensor | string): Promise<Tensor> => {
   if (typeof fn === 'string') {
-    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: env.CPU_DEVICE }) : new Tensor(fn)
+    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: env.CPU_DEVICE }) : await Tensor.from_file(fn)
   }
   return fn
 }

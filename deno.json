@@ -47,8 +47,7 @@
   },
   "imports": {
     "vitest": "npm:vitest",
-    "ffi-rs": "npm:ffi-rs",
-    "node-wav": "npm:node-wav"
+    "ffi-rs": "npm:ffi-rs"
   },
   "exclude": [
     "tinygrad*",

@@ -748,6 +748,10 @@ export class Tensor extends MathTrait<Tensor> {
     }
     return new Tensor(new Uint8Array(data), opts)
   }
+  static from_file = async (path: string, opts?: TensorOptions): Promise<Tensor> => {
+    let data = await env.readFile(path)
+    return new Tensor(data, opts)
+  }
   static _seed: number = Math.floor(Date.now() / 1000)
   static _device_seeds: Record<string, Tensor> = {}
   static _device_rng_counters: Record<string, Tensor> = {}

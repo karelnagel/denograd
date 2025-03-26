@@ -1,5 +1,4 @@
-import { add, ArrayMap, concat_bytes, Conv1d, type Conv2d, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, mod, num, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, zip } from '../mod.ts'
-import wav from 'node-wav'
+import { add, ArrayMap, concat_bytes, Conv1d, type Conv2d, Device, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, mod, num, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, withEnvAsync, zip } from '../mod.ts'
 
 // deno-fmt-ignore
 export const LANGUAGES = {
@@ -474,9 +473,59 @@ export const init_whisper = async (model_name: WhisperModel, batch_size = 1): Pr
   const enc = await get_encoding(model.is_multilingual)
   return [model, enc]
 }
+const wav = (bytes: Uint8Array) => {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+
+  if (String.fromCharCode(...bytes.slice(0, 4)) !== 'RIFF' || String.fromCharCode(...bytes.slice(8, 12)) !== 'WAVE') {
+    throw new Error('Not a valid WAV file')
+  }
+
+  let offset = 12, sampleRate = 0, numChannels = 0, bitsPerSample = 0, audioData = null
+
+  while (offset < bytes.length) {
+    const chunkId = String.fromCharCode(...bytes.slice(offset, offset + 4))
+    const chunkSize = view.getUint32(offset + 4, true)
+    offset += 8
+
+    if (chunkId === 'fmt ') {
+      const audioFormat = view.getUint16(offset, true)
+      if (audioFormat !== 1) throw new Error('Only PCM format supported')
+      numChannels = view.getUint16(offset + 2, true)
+      sampleRate = view.getUint32(offset + 4, true)
+      bitsPerSample = view.getUint16(offset + 14, true)
+      offset += chunkSize
+    } else if (chunkId === 'data') {
+      audioData = bytes.slice(offset, offset + chunkSize)
+      offset += chunkSize
+    } else {
+      offset += chunkSize
+    }
+  }
+  if (!audioData) throw new Error('No data chunk found')
+
+  const bytesPerSample = bitsPerSample / 8
+  const sampleCount = audioData.length / (bytesPerSample * numChannels)
+
+  const channelData = Array.from({ length: numChannels }, () => new Float32Array(sampleCount))
+
+  for (let i = 0; i < sampleCount; i++) {
+    const sampleOffset = i * bytesPerSample * numChannels
+    for (let ch = 0; ch < numChannels; ch++) {
+      const chOffset = sampleOffset + ch * bytesPerSample
+      let sample
+      if (bitsPerSample === 8) sample = (view.getUint8(chOffset) / 255 - 0.5) * 2
+      else if (bitsPerSample === 16) sample = view.getInt16(chOffset, true) / 32768
+      else throw new Error('Unsupported bits per sample: ' + bitsPerSample)
+      channelData[ch][i] = sample
+    }
+  }
+
+  return { sampleRate, numChannels, bitsPerSample, channelData }
+}
+
 export const load_file_waveform = async (filename: string): Promise<Float32Array[]> => {
   const data = await env.readFile(filename)
-  const res = wav.decode(data)
+  const res = wav(data)
   if (res.sampleRate !== RATE) throw new Error()
   return res.channelData
 }
@@ -492,7 +541,9 @@ export const transcribe_file = async (model: any, enc: Tokenizer, filename: stri
  * Returns the transcribed text if a single waveform is provided, or an array of transcriptions if multiple are provided
  */
 const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Float32Array[], truncate = false, language?: string) => {
-  const log_spec = await prep_audio(waveforms, model.batch_size, truncate)
+  let log_spec = await withEnvAsync({ DEVICE: env.CPU_DEVICE }, async () => await prep_audio(waveforms, model.batch_size, truncate))
+  log_spec = log_spec.to(Device.DEFAULT)
+
   const nsample = model.decoder.max_tokens_to_sample
 
   const inferloop = async (ctx: Tensor, encoded_audio: Tensor) => {
