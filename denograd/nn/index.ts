@@ -1,6 +1,6 @@
 import { is_dtype_supported } from '../device.ts'
 import { dtypes } from '../dtype.ts'
-import { flatten, is_eq, make_tuple, range, zip } from '../helpers.ts'
+import { flatten, is_eq, make_tuple, num, range, zip } from '../helpers.ts'
 import { div, idiv, mul, prod, sub } from '../helpers.ts'
 import type { sint } from '../ops.ts'
 import { type Layer, Tensor } from '../tensor.ts'
@@ -133,7 +133,7 @@ export class BatchNorm {
     // NOTE: wow, this === done all throughout training in most PyTorch models
     if (this.track_running_stats && Tensor.training) {
       this.running_mean!.assign(this.running_mean!.mul(1 - this.momentum, true).add(batch_mean.detach().mul(this.momentum, true)))
-      this.running_var!.assign(this.running_var!.mul(1 - this.momentum, true).add(batch_var.detach().mul(div(mul(this.momentum, x.numel()), sub(x.numel(), x.shape[1])) as number, true)))
+      this.running_var!.assign(this.running_var!.mul(1 - this.momentum, true).add(batch_var.detach().mul(num(div(mul(this.momentum, x.numel()), sub(x.numel(), x.shape[1]))), true)))
       this.num_batches_tracked = this.num_batches_tracked.add(1)
     }
     return x.batchnorm(this.weight, this.bias, batch_mean, batch_var.add(this.eps).rsqrt())
@@ -158,7 +158,7 @@ export const BatchNorm3d = BatchNorm
  * ```
  */
 export const Conv1d = (in_channels: number, out_channels: number, kernel_size: number, stride = 1, padding: number | string = 0, dilation = 1, groups = 1, bias = true): Conv2d => {
-  return new Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+  return new Conv2d(in_channels, out_channels, [kernel_size], stride, padding, dilation, groups, bias)
 }
 
 /**
@@ -367,7 +367,7 @@ export class LayerNorm {
     this.bias = elementwise_affine ? Tensor.zeros(this.normalized_shape) : undefined
   }
   call(x: Tensor): Tensor {
-    if (!is_eq(this.normalized_shape, x.shape.slice(this.normalized_shape.length))) throw new Error(`last dimensions of ${x.shape} must match ${this.normalized_shape}`)
+    if (!is_eq(this.normalized_shape, x.shape.slice(-this.normalized_shape.length))) throw new Error(`last dimensions of ${x.shape} must match ${this.normalized_shape}`)
     x = x.layernorm(this.axis, this.eps)
     if (!this.elementwise_affine) return x
     return x.mul(this.weight!).add(this.bias!)

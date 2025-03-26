@@ -1,4 +1,4 @@
-import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, isinstance, mod, perf, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
+import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, isinstance, mod, num, perf, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
@@ -163,7 +163,7 @@ export class PythonProgram extends Program {
           for (const j of range(inp[0].length)) inp[0][j] = inp[1][j]
           ul[i] = inp[0]
         } else if (uop === Ops.GEP) {
-          ul[i] = inp[0][get_single_element(arg) as number]
+          ul[i] = inp[0][num(get_single_element(arg))]
         } else if (uop === Ops.WMMA) {
           // here are the models for the WMMA instruction on the different hardware
           type Fn = (...a: [any[], number, number, number]) => number

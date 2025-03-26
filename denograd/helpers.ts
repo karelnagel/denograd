@@ -794,6 +794,10 @@ const _meta = (
     else return numberFn(Number(a), Number(b)) as Return<A, B>
   }
 }
+export const num = <T extends number | any>(val: T): number => {
+  if (typeof val !== 'number') throw new Error(`${val} is not number`)
+  return val
+}
 export const add = _meta((a, b, r) => a.add(b, r), (a, b) => a + b)
 export const sub = _meta((a, b, r) => a.sub(b, r), (a, b) => a - b)
 export const mul = _meta((a, b, r) => a.mul(b, r), (a, b) => a * b)

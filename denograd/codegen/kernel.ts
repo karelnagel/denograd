@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, cache, colored, dedup, DefaultMap, Enum, ge, get_key, gt, isinstance, isInt, NotImplemented, product, range, round_up, set_default, sorted, sum, to_function_name, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, cache, colored, dedup, DefaultMap, Enum, ge, get_key, gt, isinstance, isInt, NotImplemented, num, product, range, round_up, set_default, sorted, sum, to_function_name, WeakValueMap, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, type_verify, UOp, type Variable, view_left } from '../ops.ts'
 import { idiv, le, mod, mul, ne, prod } from '../helpers.ts'
 import { ProgramSpec, type Renderer, type TensorCore } from '../renderer/index.ts'
@@ -158,7 +158,7 @@ export class Kernel {
   upcasted_axis = (i: number): [number, undefined | sint, boolean][] => {
     const upcasted_shape = this.sts[i].shape.slice(this.first_upcast), upcasted_stride = this.sts[i].real_strides().slice(this.first_upcast)
     if (!all_int(upcasted_shape)) throw new Error(`cannot upcast a symbolic amount upcasted_shape=${upcasted_shape}`)
-    return zip(upcasted_shape as number[], upcasted_stride, zip(this.sts[0].shape.slice(this.first_upcast), this.full_shape.slice(this.first_upcast)).map(([x, y]) => Boolean(ne(x, y))))
+    return zip(upcasted_shape.map(num), upcasted_stride, zip(this.sts[0].shape.slice(this.first_upcast), this.full_shape.slice(this.first_upcast)).map(([x, y]) => Boolean(ne(x, y))))
   }
   get first_reduce() {
     return zip([...this.sts[0].shape.slice(0, this.first_upcast), 0], [...this.full_shape.slice(0, this.first_upcast), 1]).map(([x, y]) => resolve(ne(x, y))).indexOf(true)
@@ -249,7 +249,7 @@ export class Kernel {
     if (move_axis < insert_before) insert_before += 1
     this.reshape_and_permute((x) => [
       ...x.slice(0, axis),
-      ...((x[axis] as number) > 1 ? (top ? [amount, idiv(x[axis], amount)] : [idiv(x[axis], amount), amount]) : [1, 1]),
+      ...(num(x[axis]) > 1 ? (top ? [amount, idiv(x[axis], amount)] : [idiv(x[axis], amount), amount]) : [1, 1]),
       ...x.slice(axis + 1),
     ], [
       ...range(insert_before).filter((i) => i !== move_axis),
@@ -429,8 +429,8 @@ export class Kernel {
     let amt: number
     if (opt.op === OptOps.SWAP) amt = opt.amt! // amt===an axis in the SWAPs
     else if (opt.amt !== undefined) {
-      amt = opt.amt !== 0 ? opt.amt : (this.full_shape[axis] as number)
-      check(isinstance(amt, Number) && amt !== 1, `shift/padto of amt=${amt}, 1 or symbolic amount is meaningless`)
+      amt = opt.amt !== 0 ? opt.amt : this.full_shape[axis] as number
+      check(typeof amt === 'number' && amt !== 1, `shift/padto of amt=${amt}, 1 or symbolic amount is meaningless`)
       if (opt.op !== OptOps.PADTO) check(mod(this.full_shape[axis], amt) === 0, `no longer valid shift full_shape=${this.full_shape[axis]}, amt=${amt}, ${opt}`)
     } else amt = -1
 
@@ -488,7 +488,7 @@ export class Kernel {
       if (r !== undefined && this.first_reduce <= axis) check(r.arg[0] === Ops.ADD && can_pad(r, new Map(), new Set([])), `cannot pad ${r}`)
       let padded = false
       for (const [i, st] of this.sts.entries()) {
-        const s = st.shape[axis] as number
+        const s = num(st.shape[axis])
         if (s === 1) continue // reduced
         check(s > idiv(amt, 4), `pad adds more than quadruple the work ${st.shape[axis]} > ${idiv(amt, 4)}`)
         const ru = round_up(s, amt) - s
@@ -542,9 +542,9 @@ export class Kernel {
     }
     if (this.opts.has_local && this.opts.has_shared && all_int(this.sts[0].shape.slice(0, this.first_reduce))) {
       // are we grouping? (requires local shape support)
-      if (!this.float4_axis(0) && this.first_reduce <= 2 && this.first_reduce + 1 <= this.shape_len && prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 2048) {
+      if (!this.float4_axis(0) && this.first_reduce <= 2 && this.first_reduce + 1 <= this.shape_len && num(prod(this.sts[0].shape.slice(0, this.first_reduce))) <= 2048) {
         // TODO: use 1024 if it's allowed in a smarter way
-        for (const sz of (prod(this.sts[0].shape.slice(0, this.first_reduce) as number[]) <= 32 ? [256, 16] : [16])) {
+        for (const sz of (num(prod(this.sts[0].shape.slice(0, this.first_reduce))) <= 32 ? [256, 16] : [16])) {
           if (this.sts.every((st) => mod(st.shape[this.first_reduce], sz) === 0 || st.shape[this.first_reduce] === 1)) {
             try { // may fail due to excessive smem usage
               this.apply_opt(new Opt(OptOps.GROUPTOP, 0, sz))
@@ -583,7 +583,7 @@ export class Kernel {
     for (const axis of range(this.first_reduce)) {
       // we might want to be able to split axes that are masked, or refuse to merge them in simplify_merge_adjacent
       // for now skip upcasting here if there is a symbolic axis
-      if (typeof this.full_shape[axis] === 'number' && this.full_shape[axis] <= 7 && this.sts.some((st) => st.axis_is_masked(axis)) && prod(this.full_shape.slice(this.first_upcast) as number[]) * prod(to_upcast.map((j) => this.full_shape[j]) as number[]) * this.full_shape[axis] <= 7 * 7) {
+      if (typeof this.full_shape[axis] === 'number' && this.full_shape[axis] <= 7 && this.sts.some((st) => st.axis_is_masked(axis)) && num(prod(this.full_shape.slice(this.first_upcast))) * num(prod(to_upcast.map((j) => this.full_shape[j]))) * this.full_shape[axis] <= 7 * 7) {
         if (env.DEBUG >= 4) console.log(`upcasting masked axis : ${axis}`)
         to_upcast.push(axis)
       }
@@ -597,7 +597,7 @@ export class Kernel {
       for (const [axis, upcast_amount] of product(range(this.first_reduce), [3, 4])) { // consider all the non reduce axes, and a 3 or 4 reduce
         // if we haven't upcasted it, it's not symbolic, it mods, and buffer has stride 0 on axis while having no stride 0 in the upcasted axis already
         if (!upcasted_axis.has(axis) && isInt(this.full_shape[axis]) && mod(this.full_shape[axis], upcast_amount) === 0 && this.sts.some((st, buf_index) => st.views.at(-1)!.strides[axis] === 0 && !this.upcasted_axis(buf_index).some((x) => x[1] === 0))) {
-          xb_choices.push([sum(this.sts.map((st) => Number(st.views.at(-1)!.strides[axis] as number > 0))), sum(this.sts.map((st) => st.views.at(-1)!.strides[axis])) as number, axis, upcast_amount])
+          xb_choices.push([sum(this.sts.map((st) => st.views.at(-1)!.strides[axis]).map((x) => Number(typeof x === 'number' && x > 0))), sum(this.sts.map((st) => st.views.at(-1)!.strides[axis])) as number, axis, upcast_amount])
         }
       }
       if (xb_choices.length) {
@@ -608,12 +608,12 @@ export class Kernel {
       } else break
     }
     // if last dim is small(ish) and it's a reduce dim, upcast the reduce (loop unrolling). no simplify needed since it's just an upcast.
-    if (this.first_reduce < this.first_upcast && (prod(this.full_shape.slice(this.first_upcast) as number[]) <= 4 || !this.upcasted_axis(this.full_buf_index).some(([_, _1, r]) => r)) && (this.upcasted === 0 || prod(this.full_shape.slice(-this.upcasted) as number[]) < 64)) {
+    if (this.first_reduce < this.first_upcast && (num(prod(this.full_shape.slice(this.first_upcast))) <= 4 || !this.upcasted_axis(this.full_buf_index).some(([_, _1, r]) => r)) && (this.upcasted === 0 || num(prod(this.full_shape.slice(-this.upcasted))) < 64)) {
       const s = this.full_unupcasted_shape.at(-1)!
       if (isInt(s) && s <= 32) { // NOTE: cannot loop unroll symbolic axis
         this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, 0))
         // if it's small, upcast a second reduce dimension too
-        if (this.first_reduce < this.first_upcast && s <= 3 && isInt(this.full_unupcasted_shape.at(-1)) && this.full_unupcasted_shape.at(-1) as number <= 3) {
+        if (this.first_reduce < this.first_upcast && s <= 3 && isInt(this.full_unupcasted_shape.at(-1)) && num(this.full_unupcasted_shape.at(-1)) <= 3) {
           this.apply_opt(new Opt(OptOps.UNROLL, this.full_unupcasted_shape.length - 1 - this.first_reduce, 0))
         }
       } else {

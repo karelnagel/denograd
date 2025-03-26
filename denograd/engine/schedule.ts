@@ -1,6 +1,6 @@
 import { type Buffer, uop_buffer, uop_is_realized } from '../device.ts'
 import { DType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, cache, colored, dedup, DefaultMap, is_eq, list_str, merge_maps, type Metadata, mod, NotImplemented, range, set_default, zip } from '../helpers.ts'
+import { all_int, all_same, cache, colored, dedup, DefaultMap, is_eq, list_str, merge_maps, type Metadata, mod, NotImplemented, num, range, set_default, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite_map, identity_element, resolve, type sint, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
 import { ge, lt, mul, pow, prod, sub } from '../helpers.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, type Variable, view_left } from '../ops.ts'
@@ -490,7 +490,7 @@ const fold_img_cast = (ctx: ScheduleContext, xb: UOp, view: UOp, b: UOp, x: UOp)
 
 export const create_subbuffer = (base: UOp, b: UOp, root: UOp, x: UOp) => {
   if (Array.isArray(b.device) || !b.device.startsWith('DISK')) return undefined
-  b._buf = uop_buffer(x.buf_uop).view(b.size, b.dtype, x.st!.views[0].offset as number * x.dtype.itemsize)
+  b._buf = uop_buffer(x.buf_uop).view(b.size, b.dtype, num(x.st!.views[0].offset) * x.dtype.itemsize)
   return base.replace({ src: [b, root.replace({ op: Ops.BUFFER_VIEW })] })
 }
 

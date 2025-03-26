@@ -2,7 +2,7 @@ import { type Kernel, KernelOptError, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
 import { env, withEnvAsync } from '../env/index.ts'
-import { add, colored, type ConstType, DefaultMap, flatten, get_key, idiv, isInf, mod, mul, perf, prod, range, to_function_name, zip } from '../helpers.ts'
+import { add, colored, type ConstType, DefaultMap, flatten, get_key, idiv, isInf, mod, mul, num, perf, prod, range, to_function_name, zip } from '../helpers.ts'
 import { Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -129,7 +129,7 @@ export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, K
         if (['magenta', 'yellow'].includes(c)) up = mul(up, s)
         else if (['cyan', 'green', 'white'].includes(c)) lcl = mul(lcl, s)
       }
-      if (idiv(up as number, tc_up) > max_up || lcl as number > max_lcl) continue
+      if (idiv(num(up), tc_up) > max_up || num(lcl) > max_lcl) continue
       acted_lins.set(i + 1, lin2)
     } catch (e) {
       if (!(e instanceof KernelOptError)) throw e

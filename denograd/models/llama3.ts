@@ -254,7 +254,7 @@ export class Llama3 implements Llama3Constructor {
       // replace weights in model
       await load_state_dict(this.model, weights, false, undefined, true, onProgress)
     })
-    this.tokenizer = await Tokenizer.init(`${model_path.split('/').slice(0, -1).join('/')}/tokenizer.model`)
+    this.tokenizer = await Tokenizer.llama(`${model_path.split('/').slice(0, -1).join('/')}/tokenizer.model`)
     await this._system(system, onProgress)
     console.log(`Loading took ${Math.round(performance.now() - st) / 1000}s`)
     return this

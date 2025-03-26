@@ -48,7 +48,7 @@ export const safe_load_metadata = async (t: Tensor | string): Promise<[Tensor, n
 
 const accept_filename = async (fn: Tensor | string): Promise<Tensor> => {
   if (typeof fn === 'string') {
-    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: env.CPU_DEVICE }) : new Tensor(fn)
+    fn = (fn.startsWith('http://') || fn.startsWith('https://')) ? await Tensor.from_url(fn, { device: env.CPU_DEVICE }) : await Tensor.from_file(fn)
   }
   return fn
 }
@@ -131,6 +131,17 @@ export const get_parameters = (obj: any): Tensor[] => {
   return Object.values(get_state_dict(obj))
 }
 
+export const replace_state_dict = (state: Record<string, Tensor>, replace: Record<string, string>, strict = true) => {
+  const out: Record<string, Tensor> = {}
+  for (let [key, value] of Object.entries(state)) {
+    for (const [k, v] of Object.entries(replace)) {
+      key = key.replace(RegExp(k), v)
+    }
+    out[key] = value
+  }
+
+  return out
+}
 /**
  * Loads a state_dict into a model.
  *
@@ -153,7 +164,7 @@ export const load_state_dict = async (model: any, state_dict: Record<string, Ten
   const t = Object.entries(model_state_dict)
   for (const [k, v] of new Tqdm(t, { label: `Loading state dict`, onProgress })) {
     if (state_dict[k] === undefined && !strict) {
-      if (env.DEBUG >= 1) console.log(`WARNING: !loading ${k}`)
+      if (env.DEBUG >= 1) console.warn(`WARNING: not loading ${k}`)
       continue
     }
     if (!is_eq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)

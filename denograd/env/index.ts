@@ -62,21 +62,25 @@ export class WebEnv {
 
     const res = await fetch(url)
     if (!res.ok) throw new Error(`Error ${res.status}`)
-    const reader = res.body?.getReader()
-    if (!reader) throw new Error('Response body not readable!')
     let size = Number(res.headers.get('content-length')), i = 0
-    const data = new Uint8Array(size)
-    const  t = new Tqdm(size, { onProgress, label: `Downloading ${path}`, format: memsize_to_str })
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      if (value) {
-        data.set(value, i)
-        i += value.length
-        t.render(i)
+    let data:Uint8Array
+    if (size) {
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('Response body not readable!')
+      data = new Uint8Array(size)
+      const  t = new Tqdm(size, { onProgress, label: `Downloading ${path}`, format: memsize_to_str })
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (value) {
+          console.log(i)
+          data.set(value, i)
+          i += value.length
+          t.render(i)
+        }
       }
-    }
-    this.writeStdout("\n")
+      this.writeStdout("\n")
+    } else data = new Uint8Array(await res.arrayBuffer())
     await this.writeFile(path, data)
     return path
   }

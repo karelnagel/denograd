@@ -49,7 +49,7 @@ export const MnistExample = () => {
     const trainStep = new TinyJit(async () => {
       Tensor.training = true
       opt.zero_grad()
-      const samples = Tensor.randint([BS], undefined, X_train.shape[0])
+      const samples = Tensor.randint([BS], undefined, X_train.shape_num[0])
       const loss = model.call(X_train.get(samples)).sparse_categorical_crossentropy(Y_train.get(samples)).backward()
       await opt.step()
       Tensor.training = false
