@@ -732,7 +732,7 @@ const safe_exp2 = (x: ConstType) => {
   }
 }
 export const python_alu = new Map<Ops, (...x: ConstType[]) => ConstType>([
-  [Ops.LOG2, (x) => x === 0 ? x > 0 ? Math.log2(2) : -Infinity : NaN],
+  [Ops.LOG2, (x) => ge(x, 0) ? Math.log2(Number(x)) : -Infinity],
   [Ops.EXP2, safe_exp2],
   [Ops.SQRT, (x) => ge(x, 0) ? sqrt(x) : NaN],
   [Ops.RECIP, (x) => ne(x, 0) ? div(1, x) : ge(x, 0) ? Infinity : -Infinity],

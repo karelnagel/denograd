@@ -599,7 +599,7 @@ describe(
 describe(
   'Tensor.log',
   compare(
-    [[1]],
+    [[1.3]],
     async (val: number) => new Tensor(val).log(),
     'out(tiny.Tensor(data[0]).log())',
   ),
