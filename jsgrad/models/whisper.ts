@@ -1,4 +1,4 @@
-import { add, ArrayMap, concat_bytes, Conv1d, type Conv2d, Device, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, mod, num, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, withEnvAsync, zip } from '../mod.ts'
+import { add, ArrayMap, concat_bytes, Conv1d, type Conv2d, Device, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, mod, num, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, withEnvAsync, zip } from '../web.ts'
 
 // deno-fmt-ignore
 export const LANGUAGES = {
