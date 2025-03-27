@@ -179,7 +179,7 @@ export class Llama3 implements Llama3Constructor {
   alpha_f: number
   alpha_p: number
 
-  private model: Transformer
+  model: Transformer
   private tokenizer?: Tokenizer
   private start_pos = 0
   private last_seen_toks: number[] = []
