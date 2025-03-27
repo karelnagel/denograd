@@ -1,13 +1,19 @@
 // deno-lint-ignore-file no-process-global
-import type { Stats as NodeStats } from 'node:fs'
-import { memsize_to_str } from '../helpers.ts'
-import type { Compiled } from '../runtime/allocator.ts'
-import { Sha256 } from '../sha256.js'
-import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
+import type { Stats as NodeStats } from "node:fs";
+import { memsize_to_str } from "../helpers.ts";
+import type { Compiled } from "../runtime/allocator.ts";
+import { Sha256 } from "../sha256.js";
+import { Tqdm, type TqdmOnProgress } from "../tqdm.ts";
 
-export type Stats = Pick<NodeStats, 'isFile' | 'size'>
-export type Dlopen = <const S extends Deno.ForeignLibraryInterface>(filename: string | URL, symbols: S) => Deno.DynamicLibrary<S> | Promise<Deno.DynamicLibrary<S>>
-export type FFICallback = (x: { parameters: Deno.NativeType[]; result: Deno.NativeResultType }, cb: (...a: any[]) => any) => any
+export type Stats = Pick<NodeStats, "isFile" | "size">;
+export type Dlopen = <const S extends Deno.ForeignLibraryInterface>(
+  filename: string | URL,
+  symbols: S,
+) => Deno.DynamicLibrary<S> | Promise<Deno.DynamicLibrary<S>>;
+export type FFICallback = (
+  x: { parameters: Deno.NativeType[]; result: Deno.NativeResultType },
+  cb: (...a: any[]) => any,
+) => any;
 // deno-fmt-ignore
 export class WebEnv {
   NAME = 'web'
@@ -32,7 +38,7 @@ export class WebEnv {
   readTextFile = async (path: string): Promise<string> => new TextDecoder().decode(await this.readFile(path))
   writeTextFile = async (path: string, data: string) => await this.writeFile(path, new TextEncoder().encode(data))
 
-  private _cache = async () => await caches.open("denograd")
+  private _cache = async () => await caches.open("jsgrad")
   readFile = async (path: string): Promise<Uint8Array> => {
     const cache = await this._cache()
     const res = await cache.match(path)
@@ -112,10 +118,10 @@ export class WebEnv {
   private _open_db = async (): Promise<IDBDatabase> => {
     if (this._db) return this._db
     this._db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open('denograd', this.DB_VERSION)
+      const req = indexedDB.open('jsgrad', this.DB_VERSION)
       req.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result
-        db.createObjectStore('denograd', { keyPath: 'key' })
+        db.createObjectStore('jsgrad', { keyPath: 'key' })
       }
       req.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result)
       req.onerror = () => reject(req.error)
@@ -124,8 +130,8 @@ export class WebEnv {
   }
   disk_get = async (table: string, key: string): Promise<any | undefined> => {
     const db = await this._open_db()
-    const transaction = db.transaction(['denograd'], 'readonly')
-    const store = transaction.objectStore('denograd')
+    const transaction = db.transaction(['jsgrad'], 'readonly')
+    const store = transaction.objectStore('jsgrad')
     const request = store.get(`${table}_${key}`)
 
     return await new Promise<any | undefined>((resolve, reject) => {
@@ -138,8 +144,8 @@ export class WebEnv {
   }
   disk_put = async (table: string, key: string, value: string | Uint8Array) => {
     const db = await this._open_db()
-    const transaction = db.transaction(['denograd'], 'readwrite')
-    const store = transaction.objectStore('denograd')
+    const transaction = db.transaction(['jsgrad'], 'readwrite')
+    const store = transaction.objectStore('jsgrad')
     const request = store.put({ key: `${table}_${key}`, value })
 
     await new Promise<void>((resolve, reject) => {
@@ -155,9 +161,9 @@ export class WebEnv {
   set OSX(val) { this._env.PLATFORM = val ? 'darwin' : this.PLATFORM }
   get WINDOWS(){ return this.PLATFORM === 'win32'}
   set WINDOWS(val) { this._env.PLATFORM = val ? 'win32' : this.PLATFORM }
-  get CACHE_DIR (){ return `${this.get('CACHE_DIR') || this.get('XDG_CACHE_HOME') || (this.OSX ? `${this.homedir()}/Library/Caches` : `${this.homedir()}/.cache`)}/denograd` }
+  get CACHE_DIR (){ return `${this.get('CACHE_DIR') || this.get('XDG_CACHE_HOME') || (this.OSX ? `${this.homedir()}/Library/Caches` : `${this.homedir()}/.cache`)}/jsgrad` }
   set CACHE_DIR(val) { this._env.CACHE_DIR = val }
-  get CACHE_DB (){return this.get('CACHE_DB') || `${this.CACHE_DIR}/denograd.db` }
+  get CACHE_DB (){return this.get('CACHE_DB') || `${this.CACHE_DIR}/jsgrad.db` }
   set CACHE_DB(val) { this._env.CACHE_DB = val }
   get CI (){ return !!this.get_num('CI') }
   set CI(val) { this._env.CI = val ? 1 : 0 }
@@ -207,26 +213,32 @@ export class WebEnv {
   set CAPTURE_PROCESS_REPLAY(val) { this._env.CAPTURE_PROCESS_REPLAY = val! }
 }
 
-export let env = new WebEnv()
+export let env = new WebEnv();
 export const setRuntime = (e: WebEnv) => {
-  env = e
-  if (env.DEBUG === 1) console.log(`Using env ${env.NAME}`)
-}
+  env = e;
+  if (env.DEBUG === 1) console.log(`Using env ${env.NAME}`);
+};
 
-export const withEnv = <Res>(overrides: Record<string, string | number>, fn: () => Res): Res => {
-  const old = env._env
-  env._env = { ...env._env, ...overrides as any }
-  const res = fn()
-  env._env = old
-  return res
-}
+export const withEnv = <Res>(
+  overrides: Record<string, string | number>,
+  fn: () => Res,
+): Res => {
+  const old = env._env;
+  env._env = { ...env._env, ...overrides as any };
+  const res = fn();
+  env._env = old;
+  return res;
+};
 
-export const withEnvAsync = async <Res>(overrides: Record<string, string | number>, fn: () => Promise<Res>): Promise<Res> => {
-  const old = env._env
-  env._env = { ...env._env, ...overrides as any }
-  const res = await fn()
-  env._env = old
-  return res
-}
+export const withEnvAsync = async <Res>(
+  overrides: Record<string, string | number>,
+  fn: () => Promise<Res>,
+): Promise<Res> => {
+  const old = env._env;
+  env._env = { ...env._env, ...overrides as any };
+  const res = await fn();
+  env._env = old;
+  return res;
+};
 
-await withEnv({ AMX: 1 }, async () => {})
+await withEnv({ AMX: 1 }, async () => {});

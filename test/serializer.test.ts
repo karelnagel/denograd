@@ -1,25 +1,37 @@
-import { Opt, OptOps } from '../denograd/codegen/kernel.ts'
-import { IndexContext } from '../denograd/codegen/lowerer.ts'
-import { BasicBlock } from '../denograd/codegen/linearize.ts'
-import { dtypes } from '../denograd/dtype.ts'
-import { KernelInfo, Ops, spec, UOp, UPat } from '../denograd/ops.ts'
-import { ClangRenderer } from '../denograd/renderer/cstyle.ts'
-import { ShapeTracker } from '../denograd/shape/shapetracker.ts'
-import { View } from '../denograd/shape/view.ts'
-import { compare } from './helpers.ts'
-import { describe } from 'vitest'
+import { Opt, OptOps } from "../jsgrad/codegen/kernel.ts";
+import { IndexContext } from "../jsgrad/codegen/lowerer.ts";
+import { BasicBlock } from "../jsgrad/codegen/linearize.ts";
+import { dtypes } from "../jsgrad/dtype.ts";
+import { KernelInfo, Ops, spec, UOp, UPat } from "../jsgrad/ops.ts";
+import { ClangRenderer } from "../jsgrad/renderer/cstyle.ts";
+import { ShapeTracker } from "../jsgrad/shape/shapetracker.ts";
+import { View } from "../jsgrad/shape/view.ts";
+import { compare } from "./helpers.ts";
+import { describe } from "vitest";
 
 describe(
-  'serialize',
+  "serialize",
   compare(
     [
       [new View([10, 576], [576, 1], 0, undefined, true)],
-      [[4, 4, 'sdf', { sdf: 69 }, [{ df: 44, sdf: 'sdf' }]]],
+      [[4, 4, "sdf", { sdf: 69 }, [{ df: 44, sdf: "sdf" }]]],
       [Ops.ADD],
       [Ops.ASSIGN],
       [new UOp(Ops.BARRIER, dtypes.float, undefined, 5445)],
-      [new UPat(Ops.ASSIGN, dtypes.floats, undefined, 555, 'sdf')],
-      [new UPat(Ops.IF, dtypes.bool, [new UPat(Ops.CMPLT, dtypes.bool).named('cmp_op'), new UPat(undefined).named('true_case'), new UPat(undefined).named('false_case')], undefined, 'conditional_op')],
+      [new UPat(Ops.ASSIGN, dtypes.floats, undefined, 555, "sdf")],
+      [
+        new UPat(
+          Ops.IF,
+          dtypes.bool,
+          [
+            new UPat(Ops.CMPLT, dtypes.bool).named("cmp_op"),
+            new UPat(undefined).named("true_case"),
+            new UPat(undefined).named("false_case"),
+          ],
+          undefined,
+          "conditional_op",
+        ),
+      ],
       [dtypes.floats],
       [dtypes.default_int],
       [dtypes.imagef(2, 44, 42)],
@@ -28,7 +40,13 @@ describe(
       [
         new View(
           [4, 55],
-          [new UOp(Ops.MUL, dtypes.int, [new UOp(Ops.CONST, dtypes.int, [], 1), new UOp(Ops.CONST, dtypes.int, [], 55)], undefined), 1],
+          [
+            new UOp(Ops.MUL, dtypes.int, [
+              new UOp(Ops.CONST, dtypes.int, [], 1),
+              new UOp(Ops.CONST, dtypes.int, [], 55),
+            ], undefined),
+            1,
+          ],
           0,
           undefined,
           false,
@@ -43,9 +61,122 @@ describe(
       // [new Kernel(new UOp(Ops.SINK), new ClangRenderer())],
       // [new Kernel(new UOp(Ops.SINK))],
       ...spec.patterns.map((p) => [p[0]] as any),
-      [[[new Map([[new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), []], [new UOp(Ops.CONST, dtypes.int, [], 0), []], [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), []], [new UOp(Ops.CONST, dtypes.float, [], 1.0), []], [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined), []], [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined)], new KernelInfo(0, 0, false)), []]]), new Map([[new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)]], [new UOp(Ops.CONST, dtypes.int, [], 0), [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined)]], [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined)]], [new UOp(Ops.CONST, dtypes.float, [], 1.0), [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined)]], [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined), [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined)], new KernelInfo(0, 0, false))]]])], new UOp(Ops.BLOCK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined)], new BasicBlock([], [new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.INDEX, dtypes.float.ptr(), [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), new UOp(Ops.CONST, dtypes.int, [], 0)], undefined), new UOp(Ops.CONST, dtypes.float, [], 1.0)], undefined)], new KernelInfo(0, 0, false))], undefined))]],
+      [[
+        [
+          new Map([
+            [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), []],
+            [new UOp(Ops.CONST, dtypes.int, [], 0), []],
+            [
+              new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                new UOp(Ops.CONST, dtypes.int, [], 0),
+              ], undefined),
+              [],
+            ],
+            [new UOp(Ops.CONST, dtypes.float, [], 1.0), []],
+            [
+              new UOp(Ops.STORE, dtypes.void, [
+                new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                  new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                  new UOp(Ops.CONST, dtypes.int, [], 0),
+                ], undefined),
+                new UOp(Ops.CONST, dtypes.float, [], 1.0),
+              ], undefined),
+              [],
+            ],
+            [
+              new UOp(Ops.SINK, dtypes.void, [
+                new UOp(Ops.STORE, dtypes.void, [
+                  new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                    new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                    new UOp(Ops.CONST, dtypes.int, [], 0),
+                  ], undefined),
+                  new UOp(Ops.CONST, dtypes.float, [], 1.0),
+                ], undefined),
+              ], new KernelInfo(0, 0, false)),
+              [],
+            ],
+          ]),
+          new Map([[new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0), [
+            new UOp(Ops.INDEX, dtypes.float.ptr(), [
+              new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+              new UOp(Ops.CONST, dtypes.int, [], 0),
+            ], undefined),
+          ]], [new UOp(Ops.CONST, dtypes.int, [], 0), [
+            new UOp(Ops.INDEX, dtypes.float.ptr(), [
+              new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+              new UOp(Ops.CONST, dtypes.int, [], 0),
+            ], undefined),
+          ]], [
+            new UOp(Ops.INDEX, dtypes.float.ptr(), [
+              new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+              new UOp(Ops.CONST, dtypes.int, [], 0),
+            ], undefined),
+            [
+              new UOp(Ops.STORE, dtypes.void, [
+                new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                  new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                  new UOp(Ops.CONST, dtypes.int, [], 0),
+                ], undefined),
+                new UOp(Ops.CONST, dtypes.float, [], 1.0),
+              ], undefined),
+            ],
+          ], [new UOp(Ops.CONST, dtypes.float, [], 1.0), [
+            new UOp(Ops.STORE, dtypes.void, [
+              new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                new UOp(Ops.CONST, dtypes.int, [], 0),
+              ], undefined),
+              new UOp(Ops.CONST, dtypes.float, [], 1.0),
+            ], undefined),
+          ]], [
+            new UOp(Ops.STORE, dtypes.void, [
+              new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                new UOp(Ops.CONST, dtypes.int, [], 0),
+              ], undefined),
+              new UOp(Ops.CONST, dtypes.float, [], 1.0),
+            ], undefined),
+            [
+              new UOp(Ops.SINK, dtypes.void, [
+                new UOp(Ops.STORE, dtypes.void, [
+                  new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                    new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                    new UOp(Ops.CONST, dtypes.int, [], 0),
+                  ], undefined),
+                  new UOp(Ops.CONST, dtypes.float, [], 1.0),
+                ], undefined),
+              ], new KernelInfo(0, 0, false)),
+            ],
+          ]]),
+        ],
+        new UOp(
+          Ops.BLOCK,
+          dtypes.void,
+          [
+            new UOp(Ops.STORE, dtypes.void, [
+              new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                new UOp(Ops.CONST, dtypes.int, [], 0),
+              ], undefined),
+              new UOp(Ops.CONST, dtypes.float, [], 1.0),
+            ], undefined),
+          ],
+          new BasicBlock([], [
+            new UOp(Ops.SINK, dtypes.void, [
+              new UOp(Ops.STORE, dtypes.void, [
+                new UOp(Ops.INDEX, dtypes.float.ptr(), [
+                  new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(), [], 0),
+                  new UOp(Ops.CONST, dtypes.int, [], 0),
+                ], undefined),
+                new UOp(Ops.CONST, dtypes.float, [], 1.0),
+              ], undefined),
+            ], new KernelInfo(0, 0, false)),
+          ], undefined),
+        ),
+      ]],
     ],
     (x) => x,
-    'out(*data)',
+    "out(*data)",
   ),
-)
+);

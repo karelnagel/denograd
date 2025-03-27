@@ -1,7 +1,15 @@
-import { _get_recursive_parents, DType, dtypes, least_upper_dtype, promoLattice, sum_acc_dtype, truncate } from '../denograd/dtype.ts'
-import { compare, tryCatch } from './helpers.ts'
-import { PtrDType } from '../denograd/dtype.ts'
-import { describe, expect, test } from 'vitest'
+import {
+  _get_recursive_parents,
+  DType,
+  dtypes,
+  least_upper_dtype,
+  promoLattice,
+  sum_acc_dtype,
+  truncate,
+} from "../jsgrad/dtype.ts";
+import { compare, tryCatch } from "./helpers.ts";
+import { PtrDType } from "../jsgrad/dtype.ts";
+import { describe, expect, test } from "vitest";
 
 // test(
 //   'DType.init',
@@ -16,7 +24,7 @@ import { describe, expect, test } from 'vitest'
 //   ),
 // )
 describe(
-  'DType.vec',
+  "DType.vec",
   compare(
     [
       [dtypes.int, 4],
@@ -25,11 +33,11 @@ describe(
       [dtypes.bool, 6],
     ],
     (d: DType, sz: number) => d.vec(sz),
-    'out(data[0].vec(data[1]))',
+    "out(data[0].vec(data[1]))",
   ),
-)
+);
 describe(
-  'DType.ptr',
+  "DType.ptr",
   compare(
     [
       [dtypes.int, 4, true],
@@ -38,12 +46,12 @@ describe(
       [dtypes.bool, 1, false],
     ],
     (d: DType, size: number, local: boolean) => d.ptr(size, local),
-    'out(data[0].ptr(data[1],data[2]))',
+    "out(data[0].ptr(data[1],data[2]))",
   ),
-)
+);
 
 describe(
-  'dtypes.finfo',
+  "dtypes.finfo",
   compare(
     [
       [dtypes.int],
@@ -55,12 +63,12 @@ describe(
       [dtypes.imageh(552, 0)],
     ],
     tryCatch(dtypes.finfo),
-    'out(trycatch(lambda: tiny.dtype.dtypes.finfo(*data)))',
+    "out(trycatch(lambda: tiny.dtype.dtypes.finfo(*data)))",
     { skip: [5, 6] },
   ),
-)
+);
 describe(
-  'dtypes.min',
+  "dtypes.min",
   compare(
     [
       [dtypes.int],
@@ -71,11 +79,11 @@ describe(
       [dtypes.imagef(2, 2)],
     ],
     dtypes.min,
-    'out(tiny.dtype.dtypes.min(*data))',
+    "out(tiny.dtype.dtypes.min(*data))",
   ),
-)
+);
 describe(
-  'dtypes.max',
+  "dtypes.max",
   compare(
     [
       [dtypes.int],
@@ -86,12 +94,12 @@ describe(
       [dtypes.imagef(2, 2)],
     ],
     dtypes.max,
-    'out(tiny.dtype.dtypes.max(*data))',
+    "out(tiny.dtype.dtypes.max(*data))",
   ),
-)
+);
 
 describe(
-  'fromJS',
+  "fromJS",
   compare(
     [
       [4],
@@ -104,12 +112,12 @@ describe(
       [[3.3, 5]],
     ],
     dtypes.from_js,
-    'out(tiny.dtype.dtypes.from_py(*data))',
+    "out(tiny.dtype.dtypes.from_py(*data))",
   ),
-)
+);
 
 describe(
-  'asConst',
+  "asConst",
   compare(
     [
       [4, dtypes.int],
@@ -121,62 +129,72 @@ describe(
       [[true], dtypes.float.vec(3)],
     ],
     tryCatch(dtypes.as_const),
-    'out(trycatch(lambda:tiny.dtype.dtypes.as_const(*data)))',
+    "out(trycatch(lambda:tiny.dtype.dtypes.as_const(*data)))",
   ),
-)
-describe('promoLattice', compare([[]], () => [...promoLattice.entries()], 'out([[key,tiny.dtype.promo_lattice[key]] for key in tiny.dtype.promo_lattice])'))
-
+);
 describe(
-  '_getRecursiveParents',
+  "promoLattice",
   compare(
-    [['float64'], ['float32'], ['float16'], ['half'], ['bool'], ['int'], ['uint']] as const,
-    (type) => _get_recursive_parents(dtypes[type]).map((x) => x.toString()).toSorted(),
-    'out(sorted([str(x) for x in tiny.dtype._get_recursive_parents(tiny.dtype.DTYPES_DICT[data[0]])]))',
+    [[]],
+    () => [...promoLattice.entries()],
+    "out([[key,tiny.dtype.promo_lattice[key]] for key in tiny.dtype.promo_lattice])",
   ),
-)
+);
 
 describe(
-  'least_upper_dtype',
+  "_getRecursiveParents",
+  compare(
+    [["float64"], ["float32"], ["float16"], ["half"], ["bool"], ["int"], [
+      "uint",
+    ]] as const,
+    (type) =>
+      _get_recursive_parents(dtypes[type]).map((x) => x.toString()).toSorted(),
+    "out(sorted([str(x) for x in tiny.dtype._get_recursive_parents(tiny.dtype.DTYPES_DICT[data[0]])]))",
+  ),
+);
+
+describe(
+  "least_upper_dtype",
   compare(
     [
-      ['int', 'int'],
-      ['int', 'uint', 'long'],
-      ['float64', 'float32'],
-      ['float64', 'half'],
-      ['bool', 'half'],
-      ['int', 'int32', 'int64'],
-      ['bool', 'float64', 'int64'],
-      ['bool'],
-      ['bool', 'uint'],
-      ['bool', 'int'],
-      ['bool', 'float'],
-      ['half', 'uint'],
-      ['half', 'int'],
-      ['half', 'float'],
+      ["int", "int"],
+      ["int", "uint", "long"],
+      ["float64", "float32"],
+      ["float64", "half"],
+      ["bool", "half"],
+      ["int", "int32", "int64"],
+      ["bool", "float64", "int64"],
+      ["bool"],
+      ["bool", "uint"],
+      ["bool", "int"],
+      ["bool", "float"],
+      ["half", "uint"],
+      ["half", "int"],
+      ["half", "float"],
     ] as const,
     (...inputs) => least_upper_dtype(...inputs.map((i) => dtypes[i])),
-    'out(tiny.dtype.least_upper_dtype(*[tiny.dtype.DTYPES_DICT[key] for key in data]))',
+    "out(tiny.dtype.least_upper_dtype(*[tiny.dtype.DTYPES_DICT[key] for key in data]))",
   ),
-)
+);
 
 describe(
-  'sumAccDType',
+  "sumAccDType",
   compare(
     [
-      ['float64'],
-      ['float32'],
-      ['half'],
-      ['bool'],
-      ['int'],
-      ['uint'],
+      ["float64"],
+      ["float32"],
+      ["half"],
+      ["bool"],
+      ["int"],
+      ["uint"],
     ] as const,
     (input) => sum_acc_dtype(dtypes[input]),
-    'out(tiny.dtype.sum_acc_dtype(tiny.dtype.DTYPES_DICT[data[0]]))',
+    "out(tiny.dtype.sum_acc_dtype(tiny.dtype.DTYPES_DICT[data[0]]))",
   ),
-)
+);
 
 describe(
-  'truncate',
+  "truncate",
   compare(
     [
       [dtypes.bool, true],
@@ -194,13 +212,28 @@ describe(
       [dtypes.int64, 4n],
     ],
     (d: DType, x: any) => truncate.get(d)!(x),
-    'out(tiny.dtype.truncate[data[0]](data[1]))',
+    "out(tiny.dtype.truncate[data[0]](data[1]))",
     { skip: [8, 12] },
   ),
-)
+);
 
-test('DType.dataclass', () => {
-  expect(new DType(3, 3, 'sdf', '?', 3, undefined)).toBe(new DType(3, 3, 'sdf', '?', 3, undefined))
-  expect(dtypes.int16).toBe(DType.new(3, 2, 'short', 'h'))
-  expect(dtypes.int16.ptr(4, true)).toBe(new PtrDType(3, 2, 'short', 'h', 1, undefined, new DType(3, 2, 'short', 'h', 1), true, 1, 4))
-})
+test("DType.dataclass", () => {
+  expect(new DType(3, 3, "sdf", "?", 3, undefined)).toBe(
+    new DType(3, 3, "sdf", "?", 3, undefined),
+  );
+  expect(dtypes.int16).toBe(DType.new(3, 2, "short", "h"));
+  expect(dtypes.int16.ptr(4, true)).toBe(
+    new PtrDType(
+      3,
+      2,
+      "short",
+      "h",
+      1,
+      undefined,
+      new DType(3, 2, "short", "h", 1),
+      true,
+      1,
+      4,
+    ),
+  );
+});
