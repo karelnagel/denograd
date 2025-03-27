@@ -1,6 +1,6 @@
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
 import { env } from '../env/index.ts'
-import { dedup, DefaultMap, floatString, idiv, prod, range, set_default, strip_parens, sum, zip } from '../helpers.ts'
+import { dedup, DefaultMap, floatString, idiv, prod, range, set_default, strip_parens, sum, vars, zip } from '../helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 
@@ -179,7 +179,7 @@ export class CStyleLanguage extends Renderer {
         [Ops.CONST, Ops.GEP, Ops.INDEX].includes(u.op) ||
         ([Ops.VECTORIZE, ...GroupOp.ALU, Ops.CAST, Ops.BITCAST].includes(u.op) &&
           (child_count.get(u) || 0) === 1 &&
-          !env.get('EXPAND_SSA'))
+          !vars.get('EXPAND_SSA'))
       ) {
         r.set(u, l!)
       } else {
@@ -217,7 +217,7 @@ export class ClangRenderer extends CStyleLanguage {
   ])
   // LLVM legalizes double => half cast on systems that don't support it natively (like x86 cpus without AVX512-FP16) into a compiler-rt libcall.
   override extra_matcher = new PatternMatcher([[UPat.var('x', dtypes.float64).cast(dtypes.float16), ({ x }) => x.cast(dtypes.float32).cast(dtypes.float16)]]).add(new CStyleLanguage().extra_matcher)
-  override tensor_cores = !env.AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: 1, elements_per_thread: [sz, sz, sz * sz], dtype_in: dt, dtype_out: dt, swizzle: [undefined, [[], [4, 5, 6, 7, 0, 1, 2, 3]]], opts: ['u0', 'u0', 'u0', 'u0', 'u1', 'u1', 'u1', 'u1'] }))
+  override tensor_cores = !vars.AMX ? undefined : [dtypes.float].map((dt) => [dt, idiv(64, dt.itemsize)] as const).map(([dt, sz]) => new TensorCore({ dims: [sz, sz, 1], threads: 1, elements_per_thread: [sz, sz, sz * sz], dtype_in: dt, dtype_out: dt, swizzle: [undefined, [[], [4, 5, 6, 7, 0, 1, 2, 3]]], opts: ['u0', 'u0', 'u0', 'u0', 'u1', 'u1', 'u1', 'u1'] }))
 
   render_vector_prefix = (dt: DType): string => `typedef ${this.render_dtype(dt.scalar())} ${this.render_dtype(dt)} __attribute__((aligned(${dt.itemsize}),vector_size(${dt.itemsize})));`
 
@@ -355,7 +355,7 @@ export class CUDARenderer extends CStyleLanguage {
   static tc_8168_f16 = [new TensorCore({ dims: [8, 16, 8], threads: 32, elements_per_thread: [4, 2, 4], dtype_in: dtypes.half, dtype_out: dtypes.float, opts: cuda_tc_opts, swizzle: [[[6, 7, 2, 3, 4], [0, 1, 8, 5, 9]], [[6, 7, 8, 0, 1], [2, 3, 4, 9, 5]]] })]
   static tc_8168_tf32 = [new TensorCore({ dims: [8, 16, 8], threads: 32, elements_per_thread: [4, 2, 4], dtype_in: dtypes.float, dtype_out: dtypes.float, opts: cuda_tc_opts, swizzle: [[[5, 6, 2, 3, 4], [0, 1, 8, 9, 7]], [[5, 6, 8, 0, 1], [2, 3, 4, 9, 7]]] })]
 
-  static tc_sm80 = [...CUDARenderer.tc_81616, ...CUDARenderer.tc_8168_f16, ...(env.get_num('ALLOW_TF32', 0) ? CUDARenderer.tc_8168_tf32 : [])]
+  static tc_sm80 = [...CUDARenderer.tc_81616, ...CUDARenderer.tc_8168_f16, ...(vars.get_num('ALLOW_TF32', 0) ? CUDARenderer.tc_8168_tf32 : [])]
   static tc_sm75 = CUDARenderer.tc_8168_f16
   constructor(public arch: string) {
     super()

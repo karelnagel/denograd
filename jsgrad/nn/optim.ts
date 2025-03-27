@@ -1,6 +1,5 @@
 import { dtypes, least_upper_dtype } from '../dtype.ts'
-import { env } from '../env/index.ts'
-import { dedup, NotImplemented, zip } from '../helpers.ts'
+import { dedup, NotImplemented, vars, zip } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export class Optimizer {
@@ -17,7 +16,7 @@ export class Optimizer {
     this.device = this.params[0].device
     this.buffers = dedup(params.filter((x) => !x.requires_grad)) // buffers are still realized
     // store lr in at least float32 precision
-    this.lr = new Tensor(env.get('CONST_LR') ? lr : [lr], {
+    this.lr = new Tensor(vars.get('CONST_LR') ? lr : [lr], {
       requires_grad: false,
       device: this.device,
       dtype: least_upper_dtype(dtypes.default_float, dtypes.float32),

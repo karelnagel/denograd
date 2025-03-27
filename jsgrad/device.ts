@@ -1,5 +1,5 @@
 import { DType, dtypes, ImageDType, PtrDType } from './dtype.ts'
-import { assert, cache, GlobalCounters, NotImplemented, random_id } from './helpers.ts'
+import { assert, cache, GlobalCounters, NotImplemented, random_id, vars } from './helpers.ts'
 import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.ts'
 import { MemoryView } from './memoryview.ts'
 import { env } from './env/index.ts'
@@ -17,10 +17,11 @@ export const setDevices = (devices: Record<string, typeof Compiled>) => DEVICES 
 export class _Device {
   opened = new Map<string, Compiled>()
   get DEFAULT() {
-    if (env.DEVICE) return env.DEVICE
+    const device = vars.get('DEVICE') || vars.get('D')
+    if (device) return device
     const dev = Object.keys(DEVICES)[0]
     if (!dev) throw new Error('no usable devices')
-    env.set('DEVICE', dev)
+    vars.set('DEVICE', dev)
     return dev
   }
   private _canonicalize = cache((device: string): string => {
@@ -34,7 +35,7 @@ export class _Device {
     const ix = this.canonicalize(device)
     const Device = DEVICES[ix.split(':')[0].toUpperCase()]
     if (!Device) throw new Error(`No device for ${ix}`)
-    if (env.DEBUG >= 1) console.log(`opened device ${ix}`)
+    if (vars.DEBUG >= 1) console.log(`opened device ${ix}`)
     const dev = new Device(ix)
     this.opened.set(device, dev)
     return dev
@@ -42,7 +43,7 @@ export class _Device {
   default = () => this.get(this.DEFAULT)
   setDefault = (dev: string) => {
     if (!DEVICES[dev.split(':')[0]]) throw new Error(`Invalid device ${dev}, expected one of ${Object.keys(DEVICES).join(', ')}`)
-    env.set('DEVICE', dev)
+    vars.set('DEVICE', dev)
     return dev
   }
 }
@@ -182,7 +183,7 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   if (device === undefined) device = Device.DEFAULT
   if (dtype === dtypes.bfloat16) {
     // NOTE: this requires bf16 buffer support
-    return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !env.CI && !env.get('PTX')
+    return ['AMD'].includes(device) || ['CUDA', 'NV'].includes(device) && !vars.CI && !vars.get('PTX')
   }
   if (device === 'WEBGPU') return [dtypes.bool, dtypes.char, dtypes.uchar, dtypes.short, dtypes.ushort, dtypes.float, dtypes.int32, dtypes.uint32, dtypes.half].includes(dtype)
   // for CI GPU and OSX, cl_khr_fp16 isn't supported
@@ -190,8 +191,8 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   // CI CUDA architecture is sm_35 but we need at least sm_70 to run fp16 ALUs
   // JS supports half memoryview in 3.12+ https://github.com/python/cpython/issues/90751
   if (dtype === dtypes.half) {
-    if (device === 'GPU') return !env.CI && !env.OSX
-    if (['CUDA', 'NV'].includes(device)) return !env.CI
+    if (device === 'GPU') return !vars.CI && !env.OSX
+    if (['CUDA', 'NV'].includes(device)) return !vars.CI
     if (device === 'LLVM') return env.OSX
     // if device === "JS": return sys.version_info >= (3, 12)
   }
@@ -199,6 +200,6 @@ export const is_dtype_supported = (dtype: DType, device?: string): boolean => {
   return true
 }
 
-if (env.PROFILE) {
+if (vars.PROFILE) {
   throw new NotImplemented()
 }

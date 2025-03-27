@@ -1,8 +1,8 @@
 import { type Kernel, KernelOptError, Opt, OptOps } from '../codegen/kernel.ts'
 import { Buffer, type Compiler, Device, type Program } from '../device.ts'
 import { ImageDType, PtrDType } from '../dtype.ts'
-import { env, withEnvAsync } from '../env/index.ts'
-import { add, colored, type ConstType, DefaultMap, flatten, get_key, idiv, isInf, mod, mul, num, perf, prod, range, to_function_name, zip } from '../helpers.ts'
+import { env } from '../env/index.ts'
+import { add, colored, type ConstType, DefaultMap, flatten, get_key, idiv, isInf, mod, mul, num, perf, prod, range, to_function_name, vars, zip } from '../helpers.ts'
 import { Ops, type sint, sym_infer, type UOp, type Variable } from '../ops.ts'
 import type { ProgramSpec } from '../renderer/index.ts'
 import { Tensor } from '../tensor.ts'
@@ -14,13 +14,13 @@ export const actions: Opt[] = [
   ...range(6).flatMap((axis) => [2, 3, 4, 8, 13, 16, 29].map((amt) => new Opt(OptOps.LOCAL, axis, amt))),
   ...range(3).flatMap((axis) => [13, 16, 28, 29, 32, 49, 64, 256].map((amt) => new Opt(OptOps.GROUPTOP, axis, amt))),
   ...range(3).flatMap((axis) => [0, 4, 8, 16].map((amt) => new Opt(OptOps.GROUP, axis, amt))),
-  ...(env.get_num('BEAM_PADTO', 1) ? range(7).flatMap((axis) => [32].map((amt) => new Opt(OptOps.PADTO, axis, amt))) : []),
+  ...(vars.get_num('BEAM_PADTO', 1) ? range(7).flatMap((axis) => [32].map((amt) => new Opt(OptOps.PADTO, axis, amt))) : []),
   new Opt(OptOps.LOCAL, 0, 32),
   new Opt(OptOps.LOCAL, 6, 2),
   new Opt(OptOps.TC, 0, 0),
-  ...range(9).map((axis) => new Opt(OptOps.TC, axis, env.get_num('TC_OPT', 2))), // covers resnet kernels (3 global * 3 reduce)
+  ...range(9).map((axis) => new Opt(OptOps.TC, axis, vars.get_num('TC_OPT', 2))), // covers resnet kernels (3 global * 3 reduce)
   ...range(5).flatMap((axis) => range(axis + 1, 5).map((amt) => new Opt(OptOps.SWAP, axis, amt))),
-  ...(env.get('NOLOCALS') ? [new Opt(OptOps.NOLOCALS)] : []),
+  ...(vars.get('NOLOCALS') ? [new Opt(OptOps.NOLOCALS)] : []),
 ]
 
 export const _get_test_global_size = (global_size: number[], max_global_size: number, var_vals: Map<UOp, ConstType>): [number[], number] => {
@@ -55,7 +55,7 @@ export const _time_program = async (p: ProgramSpec, lib: Uint8Array, var_vals: M
       const dev = Device.get(p.device)
       if ('invalidate_caches' in dev) (dev.invalidate_caches as any)()
       else {
-        await withEnvAsync({ DEBUG: 0, BEAM: 0, CAPTURING: 0, TRACK_MATCH_STATS: 0 }, async () => {
+        await vars.withAsync({ DEBUG: 0, BEAM: 0, CAPTURING: 0, TRACK_MATCH_STATS: 0 }, async () => {
           await Tensor.ones([1024, 1024]).contiguous().realize(undefined, false)
         })
       }
@@ -79,15 +79,15 @@ export const _try_compile_linearized_w_idx = async (x: [number, Kernel], compile
     const compile = async () => {
       const p = x[1].to_program('test')
       if (p.uops === undefined) throw new Error("uop list wasn't generated?")
-      if (p.uops.length >= env.get_num('BEAM_UOPS_MAX', 3000) && env.get_num('BEAM_UOPS_MAX', 3000) > 0) throw new Error('too many uops')
+      if (p.uops.length >= vars.get_num('BEAM_UOPS_MAX', 3000) && vars.get_num('BEAM_UOPS_MAX', 3000) > 0) throw new Error('too many uops')
       const st = performance.now()
       const prog = await compiler.compile(p.src)
       ret = [p, prog, perf(st)]
     }
-    await Promise.race([compile(), timeout(env.get_num('BEAM_TIMEOUT_SEC', 10))])
+    await Promise.race([compile(), timeout(vars.get_num('BEAM_TIMEOUT_SEC', 10))])
   } catch (e) {
-    if (env.DEBUG >= 4) console.trace()
-    if (env.get_num('BEAM_STRICT_MODE')) throw e
+    if (vars.DEBUG >= 4) console.trace()
+    if (vars.get_num('BEAM_STRICT_MODE')) throw e
   }
   return [x[0], ret]
 }
@@ -115,7 +115,7 @@ export const bufs_from_lin = (lin: Kernel, allocate = true): Buffer[] => {
 }
 // get dictionary of all possible actions
 export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, Kernel> => {
-  let acted_lins = new Map<number, Kernel>(include_0 ? [[0, lin]] : []), max_up = env.get_num('BEAM_UPCAST_MAX', 256), max_lcl = env.get_num('BEAM_LOCAL_MAX', 1024)
+  let acted_lins = new Map<number, Kernel>(include_0 ? [[0, lin]] : []), max_up = vars.get_num('BEAM_UPCAST_MAX', 256), max_lcl = vars.get_num('BEAM_LOCAL_MAX', 1024)
   for (const [i, a] of actions.entries()) {
     if (a.axis !== undefined && a.op !== OptOps.TC) {
       const ax = a.real_axis(lin)
@@ -138,15 +138,15 @@ export const get_kernel_actions = (lin: Kernel, include_0 = true): Map<number, K
   return acted_lins
 }
 
-export const BEAM_DEBUG = env.get_num('BEAM_DEBUG')
+export const BEAM_DEBUG = vars.get_num('BEAM_DEBUG')
 
 let beams: Record<string, string> = {}
 export const export_beam = () => btoa(Object.entries(beams).map(([k, v]) => `${k}:${JSON.parse(v).join('|')}`).join('\n'))
 export const import_beam = (data: string) => beams = Object.fromEntries(atob(data).split('\n').map((x) => x.split(':')).map(([k, v]) => [k, JSON.stringify(v.split('|').filter(Boolean).map((x) => x.split(',').map(Number)))]))
 
-export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = env.get('IGNORE_BEAM_CACHE')): Promise<Kernel> => {
+export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, allow_test_size = true, disable_cache = vars.get('IGNORE_BEAM_CACHE')): Promise<Kernel> => {
   const key = get_key(lin.ast.key, amt, allow_test_size, lin.opts.device, lin.opts.suffix)
-  if (!disable_cache && env.CACHELEVEL >= 1) {
+  if (!disable_cache && vars.CACHELEVEL >= 1) {
     const val = beams[key] ?? await env.disk_get('beam_search', key)
     if (val !== undefined) {
       beams[key] = val
@@ -161,9 +161,9 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
   let beam: [Kernel, number][] = [[lin, Infinity]]
   const seen_libs = new Set<string>()
 
-  const min_progress = env.get_num('BEAM_MIN_PROGRESS', 0.01) / 1e6
+  const min_progress = vars.get_num('BEAM_MIN_PROGRESS', 0.01) / 1e6
   if (BEAM_DEBUG >= 2) console.log(`BEAM_SEARCH:\n${lin.ast}`)
-  if (env.DEBUG >= 2) console.log(`   0.00s:                 from   1 ->   1 actions ${lin.colored_shape()}`)
+  if (vars.DEBUG >= 2) console.log(`   0.00s:                 from   1 ->   1 actions ${lin.colored_shape()}`)
 
   try {
     rawbufs = _ensure_buffer_alloc(rawbufs)
@@ -193,21 +193,21 @@ export const beam_search = async (lin: Kernel, rawbufs: Buffer[], amt: number, a
         }
         timed_lins.push([acted_lins[i], Math.min(...tms)])
         if (BEAM_DEBUG > 1) console.log(`${(perf(st)).toFixed(2).padEnd(7)}s: ${i.toString().padEnd(5)} ${p.uops!.length.toString().padEnd(5)} uops ${(compile_et! * 1e6).toFixed(2).padEnd(12)} us compile/${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padEnd(12)} us run       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}`)
-        else if (env.DEBUG >= 2) env.writeStdout(`\r${(perf(st)).toFixed(2).padStart(7)}s: ${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padStart(12)} us       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}\x1b[K`)
+        else if (vars.DEBUG >= 2) env.writeStdout(`\r${(perf(st)).toFixed(2).padStart(7)}s: ${(timed_lins.at(-1)![1] * 1e6).toFixed(2).padStart(12)} us       ${timed_lins.length.toString().padEnd(4)}/${acted_lins.length.toString().padEnd(4)}         ${timed_lins.at(-1)![0].colored_shape()}\x1b[K`)
       }
       // done
       const opts = timed_lins.toSorted((a, b) => a[1] - b[1])
       exiting = opts.length === 0 || (opts[0][1] < min_progress) || (beam.length > 0 && ((beam[0][1] - opts[0][1]) < min_progress))
       if (!exiting) beam = opts.slice(0, amt)
       else if (opts.length > 0 && opts[0][1] < beam[0][1]) beam = opts.slice(0, 1)
-      if (env.DEBUG >= 2) console.log(`\r${(perf(st)).toFixed(2).padStart(7)}s:`, colored(`${(beam[0][1] * 1e6).toFixed(2).padStart(12)} us`, exiting ? 'green' : undefined), `from ${acted_lins.length.toString().padStart(3)} -> ${opts.length.toString().padStart(3)} actions\x1b[K`, beam[0][0].colored_shape())
+      if (vars.DEBUG >= 2) console.log(`\r${(perf(st)).toFixed(2).padStart(7)}s:`, colored(`${(beam[0][1] * 1e6).toFixed(2).padStart(12)} us`, exiting ? 'green' : undefined), `from ${acted_lins.length.toString().padStart(3)} -> ${opts.length.toString().padStart(3)} actions\x1b[K`, beam[0][0].colored_shape())
     }
   } catch (e) {
     //   if beam_pool is not None: beam_pool.terminate()
     throw e
   }
 
-  if (env.CACHELEVEL >= 1) {
+  if (vars.CACHELEVEL >= 1) {
     const data = JSON.stringify(beam[0][0].applied_opts.map((x) => [x.op.value, x.axis ?? -1, x.amt ?? -1]))
     beams[key] = data
     await env.disk_put('beam_search', key, data)
@@ -241,7 +241,7 @@ export const optimize_local_size = async (_prg: Program, global_size: number[], 
 }
 export const time_linearizer = async (lin: Kernel, rawbufs: Buffer[], allow_test_size = true, max_global_size = 65536, cnt = 3, disable_cache = false, clear_l2 = false): Promise<number> => {
   const key = JSON.stringify({ 'ast': lin.ast.key, 'opts': String(lin.applied_opts), 'allow_test_size': allow_test_size, 'max_global_size': max_global_size, 'clear_l2': clear_l2, 'device': lin.opts.device, 'suffix': lin.opts.suffix })
-  if (!disable_cache && env.CACHELEVEL >= 2) {
+  if (!disable_cache && vars.CACHELEVEL >= 2) {
     const val = await env.disk_get('time_linearizer', key)
     if (val !== undefined) return Math.min(...JSON.parse(val))
   }
@@ -253,6 +253,6 @@ export const time_linearizer = async (lin: Kernel, rawbufs: Buffer[], allow_test
   const p = lin.to_program()
   const tms = await _time_program(p, await dev.compiler.compile(p.src), var_vals, rawbufs, undefined, allow_test_size ? max_global_size : undefined, clear_l2, cnt, to_function_name(lin.name))
 
-  if (env.CACHELEVEL >= 2) env.disk_put('time_linearizer', key, JSON.stringify(tms))
+  if (vars.CACHELEVEL >= 2) env.disk_put('time_linearizer', key, JSON.stringify(tms))
   return Math.min(...tms)
 }

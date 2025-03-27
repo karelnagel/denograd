@@ -1,6 +1,6 @@
-import { BufferSpec, Compiler, type ProgramCallArgs } from '../device.ts'
+import { BufferSpec, Compiler, Device, type ProgramCallArgs } from '../device.ts'
 import { env } from '../env/index.ts'
-import { bytes_to_hex, bytes_to_string, concat_bytes, random_id, string_to_bytes } from '../helpers.ts'
+import { bytes_to_hex, bytes_to_string, concat_bytes, random_id, string_to_bytes, vars } from '../helpers.ts'
 import type { MemoryView } from '../memoryview.ts'
 import { RENDERERS } from '../renderer/all.ts'
 import { Allocator, Compiled, Program } from './allocator.ts'
@@ -157,7 +157,7 @@ const getCloudProgram = (dev: CLOUD) => {
 }
 
 export class CLOUD extends Compiled {
-  host = env.DEVICE?.startsWith('CLOUD:') ? env.DEVICE.replace('CLOUD:', '') : env.get('HOST', 'http://127.0.0.1:8080')
+  host = Device.DEFAULT?.startsWith('CLOUD:') ? Device.DEFAULT.replace('CLOUD:', '') : vars.get('HOST', 'http://127.0.0.1:8080')
   // state for the connection
   session = random_id()
   buffer_num = 0
@@ -168,7 +168,7 @@ export class CLOUD extends Compiled {
     this.allocator = new CloudAllocator(this)
     this.runtime = getCloudProgram(this)
 
-    if (env.DEBUG >= 1) console.log(`cloud with host ${this.host}`)
+    if (vars.DEBUG >= 1) console.log(`cloud with host ${this.host}`)
   }
   override init = async () => {
     // TODO replace _init with renderer
@@ -178,7 +178,7 @@ export class CLOUD extends Compiled {
     const renderer = (RENDERERS as any)[clouddev[1]]
     if (!renderer) throw new Error(`Invalid renderer ${clouddev}`)
     this.renderer = new renderer(...clouddev[2])
-    if (env.DEBUG >= 1) console.log(`remote has device ${clouddev}`)
+    if (vars.DEBUG >= 1) console.log(`remote has device ${clouddev}`)
   }
   del = async () => {
     // TODO: this is never being called

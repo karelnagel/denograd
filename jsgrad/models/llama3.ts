@@ -1,10 +1,10 @@
-import { GlobalCounters, perf, range, zip } from '../helpers.ts'
+import { GlobalCounters, perf, range, vars, zip } from '../helpers.ts'
 import { Tensor } from '../tensor.ts'
 import { get_state_dict, gguf_load, load_state_dict, safe_load } from '../nn/state.ts'
 import { dtypes } from '../dtype.ts'
 import { convert_from_gguf, convert_from_huggingface, fix_bf16, Transformer } from './llama.ts'
 import { Embedding, Linear } from '../nn/index.ts'
-import { env, withEnvAsync } from '../env/index.ts'
+import { env } from '../env/index.ts'
 import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 import { Device } from '../device.ts'
 import { Tokenizer } from './tokenizer.ts'
@@ -220,7 +220,7 @@ export class Llama3 implements Llama3Constructor {
     let weights: Record<string, Tensor>
 
     // Deno WEBGPU doesn't support f16 yet, so we load weights in CLANG
-    await withEnvAsync({ BEAM: 0, DEVICE: noF16Support ? 'CLANG' : Device.DEFAULT }, async () => {
+    await vars.withAsync({ BEAM: 0, DEVICE: noF16Support ? 'CLANG' : Device.DEFAULT }, async () => {
       weights = await this._load(model_path, onProgress)
       if ('model.embed_tokens.weight' in weights) {
         weights = convert_from_huggingface(weights, this.model, MODEL_PARAMS[this.size].args.n_heads, MODEL_PARAMS[this.size].args.n_kv_heads)
@@ -250,7 +250,7 @@ export class Llama3 implements Llama3Constructor {
       }
     })
 
-    await withEnvAsync({ BEAM: 0 }, async () => {
+    await vars.withAsync({ BEAM: 0 }, async () => {
       // replace weights in model
       await load_state_dict(this.model, weights, false, undefined, true, onProgress)
     })
