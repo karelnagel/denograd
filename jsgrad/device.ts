@@ -4,14 +4,7 @@ import { type Allocator, BufferSpec, type Compiled } from './runtime/allocator.t
 import { MemoryView } from './memoryview.ts'
 import { env } from './env/index.ts'
 import { Ops, type UOp } from './ops.ts'
-import { WEBGPU } from './runtime/ops_webgpu.ts'
-import { WASM } from './runtime/ops_wasm.ts'
-import { JS } from './runtime/ops_js.ts'
-import { CLOUD } from './runtime/ops_cloud.ts'
 export * from './runtime/allocator.ts'
-
-export let DEVICES: Record<string, typeof Compiled> = { WEBGPU, WASM, JS, CLOUD }
-export const setDevices = (devices: Record<string, typeof Compiled>) => DEVICES = devices
 
 // **************** Device ****************
 export class _Device {
@@ -19,7 +12,7 @@ export class _Device {
   get DEFAULT() {
     const device = vars.get('DEVICE') || vars.get('D')
     if (device) return device
-    const dev = Object.keys(DEVICES)[0]
+    const dev = Object.keys(env.DEVICES)[0]
     if (!dev) throw new Error('no usable devices')
     vars.set('DEVICE', dev)
     return dev
@@ -33,7 +26,7 @@ export class _Device {
   get(device: string): Compiled {
     if (this.opened.has(device)) return this.opened.get(device)!
     const ix = this.canonicalize(device)
-    const Device = DEVICES[ix.split(':')[0].toUpperCase()]
+    const Device = env.DEVICES[ix.split(':')[0].toUpperCase()]
     if (!Device) throw new Error(`No device for ${ix}`)
     if (vars.DEBUG >= 1) console.log(`opened device ${ix}`)
     const dev = new Device(ix)
@@ -42,7 +35,7 @@ export class _Device {
   }
   default = () => this.get(this.DEFAULT)
   setDefault = (dev: string) => {
-    if (!DEVICES[dev.split(':')[0]]) throw new Error(`Invalid device ${dev}, expected one of ${Object.keys(DEVICES).join(', ')}`)
+    if (!env.DEVICES[dev.split(':')[0]]) throw new Error(`Invalid device ${dev}, expected one of ${Object.keys(env.DEVICES).join(', ')}`)
     vars.set('DEVICE', dev)
     return dev
   }

@@ -1,4 +1,4 @@
-import '../jsgrad/env/server.ts'
+import { env } from '../jsgrad/mod.ts'
 import { DType, dtypes, ImageDType, INVERSE_DTYPES_DICT, PtrDType } from '../jsgrad/dtype.ts'
 import { ArrayMap, Enum, Metadata, random_id } from '../jsgrad/helpers.ts'
 import process from 'node:process'
@@ -19,7 +19,6 @@ import { MemoryView } from '../jsgrad/memoryview.ts'
 import { Tensor } from '../jsgrad/tensor.ts'
 import { WGSLRenderer } from '../jsgrad/renderer/wgsl.ts'
 import { expect, test } from 'vitest'
-import { env } from '../jsgrad/env/index.ts'
 
 export const asdict = async (o: any): Promise<any> => {
   if (typeof o === 'function') return undefined

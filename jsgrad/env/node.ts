@@ -1,7 +1,7 @@
 import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
-import { type Dlopen, type FFICallback, WebEnv } from './index.ts'
+import { type Dlopen, type FFICallback, WebEnv } from './web.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { memsize_to_str, random_id, string_to_bytes } from '../helpers.ts'

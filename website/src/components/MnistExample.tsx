@@ -1,6 +1,6 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
-import { Adam, Device, DEVICES, get_parameters, is_eq, MNIST, mnist, perf, round, Tensor, TinyJit } from '../../../jsgrad/web.ts'
+import { Adam, Device, env, get_parameters, is_eq, MNIST, mnist, perf, round, Tensor, TinyJit } from '../../../jsgrad/web.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
 
@@ -84,7 +84,7 @@ export const MnistExample = () => {
           defaultValue={device}
           onChange={(e) => setDevice(e.target.value)}
         >
-          {Object.keys(DEVICES).map((x) => <option key={x} value={x}>{x}</option>)}
+          {Object.keys(env.DEVICES).map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
         {device.startsWith('CLOUD') && (
           <input
