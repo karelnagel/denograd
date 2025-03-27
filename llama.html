@@ -1,7 +1,7 @@
 <html>
   <body>
     <script type="module">
-      import { Llama3 } from 'https://esm.sh/jsr/@denograd/denograd@0.0.5'
+      import { Llama3 } from 'https://esm.sh/jsr/@jsgrad/jsgrad@0.0.5'
       const onProgress = (p) => document.querySelector('#progress').textContent = JSON.stringify(p)
       const model = await Llama3.load({ size: '1B', quantize: 'float16', onProgress })
       while (true) {

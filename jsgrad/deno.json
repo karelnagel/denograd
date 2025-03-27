@@ -1,5 +1,5 @@
 {
-  "name": "@denograd/denograd",
+  "name": "@jsgrad/jsgrad",
   "version": "0.0.5",
   "exports": {
     ".": "./mod.ts",
