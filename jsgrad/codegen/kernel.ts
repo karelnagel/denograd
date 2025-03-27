@@ -1,6 +1,6 @@
 import { Device } from '../device.ts'
 import { ImageDType } from '../dtype.ts'
-import { all_int, all_same, ansilen, assert, cache, colored, dedup, DefaultMap, Enum, ge, get_key, gt, isinstance, isInt, NotImplemented, num, product, range, round_up, set_default, sorted, sum, to_function_name, vars, WeakValueMap, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, assert, cache, colored, dedup, DefaultMap, Enum, ge, get_key, gt, isInt, NotImplemented, num, product, range, round_up, set_default, sorted, sum, to_function_name, vars, WeakValueMap, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite, GroupOp, KernelInfo, Ops, print_uops, resolve, type sint, type_verify, UOp, type Variable, view_left } from '../ops.ts'
 import { idiv, le, mod, mul, ne, prod } from '../helpers.ts'
 import { ProgramSpec, type Renderer, type TensorCore } from '../renderer/index.ts'
@@ -665,7 +665,7 @@ export class Kernel {
   private _name = cache((): string => {
     // kernel name (before late upcast)
     const kernel_type = this.reduceop !== undefined ? 'r' : ([...this.ast.toposort].every((x) => x.op === Ops.SINK || GroupOp.Buffer.includes(x.op)) ? 'C' : 'E')
-    const suffix = zip(this.full_shape, this.colors()).map(([x, c]) => colored(isinstance(x, UOp) ? x.render() : x.toString(), c)).join(colored('_', 'BLACK'))
+    const suffix = zip(this.full_shape, this.colors()).map(([x, c]) => colored(x instanceof UOp ? x.render() : x.toString(), c)).join(colored('_', 'BLACK'))
     const name = kernel_type + (this.ast.src.length > 1 ? `${this.ast.src.length}` : '') + '_' + suffix
 
     // name the function something unique

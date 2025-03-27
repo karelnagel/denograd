@@ -331,18 +331,6 @@ export function product<T extends any[][], Out extends any[] = T>(...args: [...T
     return result
   }, [[]])
 }
-// TODO: remove this
-export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
-  instance: any,
-  classType: T | NumberConstructor | BooleanConstructor | ArrayConstructor | StringConstructor,
-): instance is InstanceType<T> => {
-  if (classType === Number && typeof instance === 'number') return true
-  if (classType === Boolean && typeof instance === 'boolean') return true
-  if (classType === String && typeof instance === 'string') return true
-  if (classType === Array && Array.isArray(instance)) return true
-  return Array.isArray(classType) ? classType.some((t) => instance instanceof t) : instance instanceof classType
-}
-
 export const divmod = (a: number, b: number) => [idiv(a, b), mod(a, b)]
 export function* counter(start = 0) {
   let current = start

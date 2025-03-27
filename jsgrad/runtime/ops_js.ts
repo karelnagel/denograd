@@ -1,4 +1,4 @@
-import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, isinstance, mod, num, perf, product, range, string_to_bytes, sum, vars, zip } from '../helpers.ts'
+import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, mod, num, perf, product, range, string_to_bytes, sum, vars, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
@@ -126,7 +126,7 @@ export class PythonProgram extends Program {
           ul[i] = dtype.count > 1 ? range(dtype.count).flatMap((_) => range(warp_size).map(() => inp[0][0][0])) : range(warp_size).map(() => inp[0][0])
         } else if (uop === Ops.INDEX) {
           const ret = []
-          if (isinstance(dtp[0], ImageDType)) {
+          if (dtp[0] instanceof ImageDType) {
             for (const [m, ox, oy] of zip<number[]>(inp[0], inp[1][0], inp[1][1])) {
               if (ox < 0 || ox >= dtp[0].shape[1] || oy < 0 || oy >= dtp[0].shape[0]) ret.push([m, undefined])
               else ret.push([m, ox * 4 + oy * dtp[0].shape[1] * 4])
@@ -135,7 +135,7 @@ export class PythonProgram extends Program {
             for (const [m, o] of zip(inp[0], inp[1])) ret.push([m, o])
           }
           ul[i] = ret
-        } else if (uop === Ops.CAST && isinstance(dtype, PtrDType)) {
+        } else if (uop === Ops.CAST && dtype instanceof PtrDType) {
           ul[i] = inp[0]
         } else if (uop === Ops.RANGE) {
           if (ul[i] === undefined) ul[i] = range(warp_size).map(() => inp[0][0])

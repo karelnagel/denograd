@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import type { Buffer } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { accumulate, add, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, num, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, vars, xor } from './helpers.ts'
+import { accumulate, add, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, idiv, is_less_than, isConst, lshift, lt, mod, mul, ne, neg, NotImplemented, num, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, vars, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, divmod, Enum, get_key, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -1722,10 +1722,10 @@ export const xlog2 = ({ d }: { d: UOp }): UOp => {
 
 // ***** float4/image store handling *****
 export const fold_expanded = (ex: UOp, buf: UOp) => {
-  if (buf.dtype.base !== dtypes.float && buf.dtype.base !== dtypes.half && !isinstance(buf.dtype, ImageDType)) return undefined
+  if (buf.dtype.base !== dtypes.float && buf.dtype.base !== dtypes.half && !(buf.dtype instanceof ImageDType)) return undefined
   let new_srcs: (UOp | undefined)[] = dedup([...ex.src])
   const old_new_srcs = [...new_srcs]
-  const [is_load, is_image] = [new_srcs[0]?.op === Ops.LOAD, isinstance(buf.dtype, ImageDType)]
+  const [is_load, is_image] = [new_srcs[0]?.op === Ops.LOAD, buf.dtype instanceof ImageDType]
 
   // first, extract all the relevant offsets
   const offsets_rootsrc = new DefaultMap<UOp, Map<string, number>>(undefined, () => new Map())
@@ -1756,7 +1756,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
             // for images, we rewrite the index. it must evenly divide 4 from the above check
             new_src[0] = buf.index(
               new UOp(Ops.VECTORIZE, dtypes.int.vec(2), [oidx.idiv(4).mod((buf.dtype as ImageDType).shape[1]), oidx.idiv(4 * (buf.dtype as ImageDType).shape[1])]),
-              isinstance(rootsrc, Array) ? rootsrc[0] as UOp : undefined,
+              Array.isArray(rootsrc) ? rootsrc[0] as UOp : undefined,
             )
           } else {
             // for non image, we upcast the index pointer
@@ -1783,7 +1783,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
 
 export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {
   const oidx = load.src[0].src[1]
-  if (!isinstance(buf.dtype, ImageDType) || oidx.dtype.count === 2) return undefined
+  if (!(buf.dtype instanceof ImageDType) || oidx.dtype.count === 2) return undefined
   const id4 = oidx.mod(4)
   const new_src = [...load.src]
   // TODO: copied logic from above
@@ -1806,7 +1806,7 @@ export const float4_folding = new PatternMatcher([
 export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undefined | UOp => {
   const idx = uop_given_valid(valid, start_idx)
   if (idx === undefined) return buf.const_like(0)
-  if (!isinstance(buf.dtype, ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
+  if (!(buf.dtype instanceof ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
 
   // wait for it to be image indexed before running simplification
   if (start_idx.dtype.count !== 2) return undefined

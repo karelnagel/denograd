@@ -1,6 +1,6 @@
 import { dtypes, type FmtStr } from '../dtype.ts'
 import { env } from '../env/index.ts'
-import { bytes_to_string, idiv, is_eq, isinstance, NotImplemented, prod, range, round_up, string_to_bytes, vars } from '../helpers.ts'
+import { bytes_to_string, idiv, is_eq, NotImplemented, prod, range, round_up, string_to_bytes, vars } from '../helpers.ts'
 import { MemoryView } from '../memoryview.ts'
 import { Tensor } from '../tensor.ts'
 import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
@@ -110,7 +110,7 @@ export const safe_save = async (tensors: Record<string, Tensor>, fn: string, met
  * ```
  */
 export const get_state_dict = (obj: any, prefix = ''): Record<string, Tensor> => {
-  if (isinstance(obj, Tensor)) return { [prefix.replace(/^\.+|\.+$/g, '')]: obj }
+  if (obj instanceof Tensor) return { [prefix.replace(/^\.+|\.+$/g, '')]: obj }
   if (Array.isArray(obj)) return Object.fromEntries(obj.flatMap((x, i) => Object.entries(get_state_dict(x, `${prefix}${i}.`))))
   if (typeof obj === 'object') return Object.fromEntries(Object.entries(obj).flatMap(([k, v]) => Object.entries(get_state_dict(v, `${prefix}${k}.`))))
   return {}

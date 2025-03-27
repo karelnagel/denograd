@@ -1,5 +1,5 @@
 import { dtypes, PtrDType } from '../dtype.ts'
-import { ArrayMap, assert, dedup, DefaultMap, flatten, get_key, is_eq, is_less_than, isinstance, min, partition, set_default, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, assert, dedup, DefaultMap, flatten, get_key, is_eq, is_less_than, min, partition, set_default, WeakValueMap } from '../helpers.ts'
 import { graph_rewrite, GroupOp, Ops, PatternMatcher, type_verify, UOp, UPat } from '../ops.ts'
 
 const DONT_PLACE_IN_BLOCK = [Ops.DEFINE_GLOBAL, Ops.DEFINE_LOCAL, Ops.DEFINE_VAR, Ops.SPECIAL, Ops.CONST, ...GroupOp.Block]
@@ -186,7 +186,7 @@ export const linearize_uop = (sink: UOp, skip_check = false): UOp[] => {
       // don't flow (fully) through assign and store
       else if (s.op === Ops.STORE) {
         // ugh, deal with non-reduce locals. probably wrong
-        if (isinstance(s.src[0].dtype, PtrDType) && s.src[0].dtype.local) {
+        if (s.src[0].dtype instanceof PtrDType && s.src[0].dtype.local) {
           const [idx_context, store_context] = [temp_block_ctxs.get(s.src[0]), temp_block_ctxs.get(s)]
           this_block_ctx = [...this_block_ctx, ...store_context!.filter((x) => !idx_context!.includes(x) && x.op === Ops.RANGE)]
         }
