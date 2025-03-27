@@ -1,8 +1,8 @@
-import { dtypes } from '../../denograd/dtype.ts'
-import { apply_swizzle } from '../../denograd/engine/schedule.ts'
-import { Ops, UOp } from '../../denograd/ops.ts'
-import { ShapeTracker } from '../../denograd/shape/shapetracker.ts'
-import { View } from '../../denograd/shape/view.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { apply_swizzle } from '../../jsgrad/engine/schedule.ts'
+import { Ops, UOp } from '../../jsgrad/ops.ts'
+import { ShapeTracker } from '../../jsgrad/shape/shapetracker.ts'
+import { View } from '../../jsgrad/shape/view.ts'
 import { compare } from '../helpers.ts'
 import { describe as describe } from 'vitest'
 

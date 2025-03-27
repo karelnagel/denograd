@@ -1,8 +1,8 @@
-# Denograd - A Modern ML Library for JavaScript and TypeScript
+# jsgrad - A Modern ML Library for JavaScript and TypeScript
 
-Denograd is a rewrite of [tinygrad](https://tinygrad.org/) in TypeScript. JS ecosystem is very large, but it didn't have a good ML library for model inference and **training**. Since tinygrad doesn't use any external python libraries, has potential to be the fastest way to run models, is quite simple compared to others and supports many runtimes, I decided to rewrite it in TS to get the same experience in browser and in deno/node/bun.
+jsgrad is a rewrite of [tinygrad](https://tinygrad.org/) in TypeScript. JS ecosystem is very large, but it didn't have a good ML library for model inference and **training**. Since tinygrad doesn't use any external python libraries, has potential to be the fastest way to run models, is quite simple compared to others and supports many runtimes, I decided to rewrite it in TS to get the same experience in browser and in deno/node/bun.
 
-Why you should use Denograd?
+Why you should use jsgrad?
 
 - 0 dependencies
 - will be fast (not yet)
@@ -10,40 +10,40 @@ Why you should use Denograd?
 - Clean, modern API inspired by tinygrad's elegant design
 - Works in browser and in Deno (Node and Bun support coming soon)
 
-See MNIST inference and training example on [denograd.com](https://denograd.com)
+See MNIST inference and training example on [jsgrad.org](https://jsgrad.org)
 
 # Usage
 
-There are multiple ways to use denograd:
+There are multiple ways to use jsgrad:
 
 ## Hosted esm script in JS ([minimal Llama HTLM example](/llama.html))
 
 ```js
-import { MNIST, Tensor } from 'https://esm.sh/jsr/@denograd/denograd'
+import { MNIST, Tensor } from 'https://esm.sh/jsr/@jsgrad/jsgrad'
 
 const mnist = await new MNIST().load()
 console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist())
 ```
 
-## Install package from [jsr.io](https://jsr.io/@denograd/denograd)
+## Install package from [jsr.io](https://jsr.io/@jsgrad/jsgrad)
 
 ```bash
 # with deno
-deno add jsr:@denograd/denograd
+deno add jsr:@jsgrad/jsgrad
 # with npm
-npx jsr add @denograd/denograd
+npx jsr add @jsgrad/jsgrad
 # with yarn
-yarn dlx jsr add @denograd/denograd
+yarn dlx jsr add @jsgrad/jsgrad
 # with pnpm
-pnpm dlx jsr add @denograd/denograd
+pnpm dlx jsr add @jsgrad/jsgrad
 # with bun
-bunx jsr add @denograd/denograd
+bunx jsr add @jsgrad/jsgrad
 ```
 
 and then import with
 
 ```ts
-import { MNIST, Tensor } from '@denograd/denograd'
+import { MNIST, Tensor } from '@jsgrad/jsgrad'
 
 const mnist = await new MNIST().load()
 console.log(await mnist.call(Tensor.ones([1, 1, 28, 28])).tolist())
@@ -140,7 +140,7 @@ await model.save('./mnist.safetensors')
 - [x] CLANG runtime
 - [x] get MNIST training
 - [x] get working inside browser with JS runtime
-- [x] WebGPU runtime (MNIST inference running in WebGPU: https://karelnagel.github.io/denograd/, training coming soon)
+- [x] WebGPU runtime (MNIST inference running in WebGPU: https://karelnagel.github.io/jsgrad/, training coming soon)
 - [x] delete lazy + other tinygrad updates
 - [x] add all the missing parts of Tensor and other code that were left out in the beginning.
 - [x] get hand_coded_optimisations working correctly

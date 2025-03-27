@@ -3159,7 +3159,7 @@
       "npm:vitest@*"
     ],
     "members": {
-      "denograd": {
+      "jsgrad": {
         "dependencies": [
           "npm:bun-types@1.2.4"
         ]
