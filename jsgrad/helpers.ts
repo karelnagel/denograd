@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any no-control-regex camelcase
+// deno-lint-ignore-file no-explicit-any no-control-regex camelcase no-process-global
 import type { MathTrait } from './ops.ts'
 
 // Python Map/Set implementations
@@ -331,18 +331,6 @@ export function product<T extends any[][], Out extends any[] = T>(...args: [...T
     return result
   }, [[]])
 }
-// TODO: remove this
-export const isinstance = <T extends abstract new (...args: any) => any | NumberConstructor | BooleanConstructor>(
-  instance: any,
-  classType: T | NumberConstructor | BooleanConstructor | ArrayConstructor | StringConstructor,
-): instance is InstanceType<T> => {
-  if (classType === Number && typeof instance === 'number') return true
-  if (classType === Boolean && typeof instance === 'boolean') return true
-  if (classType === String && typeof instance === 'string') return true
-  if (classType === Array && Array.isArray(instance)) return true
-  return Array.isArray(classType) ? classType.some((t) => instance instanceof t) : instance instanceof classType
-}
-
 export const divmod = (a: number, b: number) => [idiv(a, b), mod(a, b)]
 export function* counter(start = 0) {
   let current = start
@@ -862,3 +850,82 @@ export function* accumulate<T>(iterable: Iterable<T>, func?: (acc: T, val: T) =>
     }
   }
 }
+
+// deno-fmt-ignore
+class _Vars {
+  // @ts-ignore import.meta.env
+  _env: Record<string, string | number> = (typeof import.meta?.env !== 'undefined' ? import.meta.env : (typeof process !== 'undefined' && process.env) ? process.env : {}) || {}
+  get = (key: string, def?: string) => this._env[key] !== undefined ? this._env[key].toString() : def
+  get_num = (key: string, def?: number) => Number(this._env[key] || def)
+  set = (key: string, value: string) => this._env[key] = value
+  with = <Res>(
+    overrides: Record<string, string | number>,
+    fn: () => Res,
+  ): Res => {
+    const old = vars._env
+    vars._env = { ...vars._env, ...overrides as any }
+    const res = fn()
+    vars._env = old
+    return res
+  }
+  withAsync = async <Res>(
+    overrides: Record<string, string | number>,
+    fn: () => Promise<Res>,
+  ): Promise<Res> => {
+    const old = vars._env
+    vars._env = { ...vars._env, ...overrides as any }
+    const res = await fn()
+    vars._env = old
+    return res
+  }
+  
+  
+  get CI (){ return !!this.get_num('CI') }
+  set CI(val) { this._env.CI = val ? 1 : 0 }
+  get DEBUG (){ return this.get_num('DEBUG', 0) }
+  set DEBUG(val) { this._env.DEBUG = val }
+  get IMAGE (){ return this.get_num('IMAGE', 0) }
+  set IMAGE(val) { this._env.IMAGE = val }
+  get BEAM (){ return this.get_num('BEAM', 0) }
+  set BEAM(val) { this._env.BEAM = val }
+  get NOOPT (){ return this.get_num('NOOPT', 0) }
+  set NOOPT(val) { this._env.NOOPT = val }
+  get JIT (){ return this.get_num('JIT', 1) }
+  set JIT(val) { this._env.JIT = val }
+  get WINO (){ return this.get_num('WINO', 0) }
+  set WINO(val) { this._env.WINO = val }
+  get CAPTURING (){ return this.get_num('CAPTURING', 1) }
+  set CAPTURING(val) { this._env.CAPTURING = val }
+  get TRACEMETA (){ return this.get_num('TRACEMETA', 1) }
+  set TRACEMETA(val) { this._env.TRACEMETA = val }
+  get USE_TC (){ return this.get_num('TC', 1) }
+  set USE_TC(val) { this._env.TC = val }
+  get TC_OPT (){ return this.get_num('TC_OPT', 0) }
+  set TC_OPT(val) { this._env.TC_OPT = val }
+  get AMX (){ return this.get_num('AMX', 0) }
+  set AMX(val) { this._env.AMX = val }
+  get TRANSCENDENTAL (){ return this.get_num('TRANSCENDENTAL', 1) }
+  set TRANSCENDENTAL(val) { this._env.TRANSCENDENTAL = val }
+  get FUSE_ARANGE (){ return this.get_num('FUSE_ARANGE', 0) }
+  set FUSE_ARANGE(val) { this._env.FUSE_ARANGE = val }
+  get FUSE_CONV_BW (){ return this.get_num('FUSE_CONV_BW', 0) }
+  set FUSE_CONV_BW(val) { this._env.FUSE_CONV_BW = val }
+  get SPLIT_REDUCEOP (){ return this.get_num('SPLIT_REDUCEOP', 1) }
+  set SPLIT_REDUCEOP(val) { this._env.SPLIT_REDUCEOP = val }
+  get NO_MEMORY_PLANNER (){ return this.get_num('NO_MEMORY_PLANNER', 0) }
+  set NO_MEMORY_PLANNER(val) { this._env.NO_MEMORY_PLANNER = val }
+  get RING (){ return this.get_num('RING', 1) }
+  set RING(val) { this._env.RING = val }
+  get PICKLE_BUFFERS (){ return this.get_num('PICKLE_BUFFERS', 1) }
+  set PICKLE_BUFFERS(val) { this._env.PICKLE_BUFFERS = val }
+  get PROFILE (){ return this.get('PROFILE', this.get('VIZ')) }
+  set PROFILE(val) { this._env.PROFILE = val! }
+  get LRU (){ return this.get_num('LRU', 1) }
+  set LRU(val) { this._env.LRU = val }
+  get CACHELEVEL (){ return this.get_num('CACHELEVEL', 2) }
+  set CACHELEVEL(val) { this._env.CACHELEVEL = val }
+  get CAPTURE_PROCESS_REPLAY (){ return this.get('RUN_PROCESS_REPLAY') || this.get('CAPTURE_PROCESS_REPLAY') }
+  set CAPTURE_PROCESS_REPLAY(val) { this._env.CAPTURE_PROCESS_REPLAY = val! }
+}
+export const vars = new _Vars()
+

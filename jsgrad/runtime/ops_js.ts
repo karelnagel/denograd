@@ -1,11 +1,10 @@
-import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, isinstance, mod, num, perf, product, range, string_to_bytes, sum, zip } from '../helpers.ts'
+import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, mod, num, perf, product, range, string_to_bytes, sum, vars, zip } from '../helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate } from '../dtype.ts'
 import { MemoryView } from '../memoryview.ts'
 import { AMDRenderer, ClangRenderer, CUDARenderer, IntelRenderer, MetalRenderer } from '../renderer/cstyle.ts'
-import { env } from '../env/index.ts'
 
 const _load = (m: MemoryView, i?: number) => {
   if (i === undefined) return 0.0
@@ -82,7 +81,7 @@ export class PythonProgram extends Program {
         if (uop === Ops.DEFINE_ACC) idp = [idp[0]]
         const inp = idp.filter((v) => !void_ops.includes(this.uops[v][0])).map((v) => ul[v])
         const dtp = idp.filter((v) => !void_ops.includes(this.uops[v][0])).map((v) => dl[v])
-        if (env.get('TRACE')) console.log(i, uop, dtype, arg, inp, dtp)
+        if (vars.get('TRACE')) console.log(i, uop, dtype, arg, inp, dtp)
         if (uop === Ops.STORE) {
           if (inp.length === 2) inp.push(range(inp[0].length).map(() => true)) // set the gate to true
           if (dtp[1]!.count > 1) {
@@ -127,7 +126,7 @@ export class PythonProgram extends Program {
           ul[i] = dtype.count > 1 ? range(dtype.count).flatMap((_) => range(warp_size).map(() => inp[0][0][0])) : range(warp_size).map(() => inp[0][0])
         } else if (uop === Ops.INDEX) {
           const ret = []
-          if (isinstance(dtp[0], ImageDType)) {
+          if (dtp[0] instanceof ImageDType) {
             for (const [m, ox, oy] of zip<number[]>(inp[0], inp[1][0], inp[1][1])) {
               if (ox < 0 || ox >= dtp[0].shape[1] || oy < 0 || oy >= dtp[0].shape[0]) ret.push([m, undefined])
               else ret.push([m, ox * 4 + oy * dtp[0].shape[1] * 4])
@@ -136,7 +135,7 @@ export class PythonProgram extends Program {
             for (const [m, o] of zip(inp[0], inp[1])) ret.push([m, o])
           }
           ul[i] = ret
-        } else if (uop === Ops.CAST && isinstance(dtype, PtrDType)) {
+        } else if (uop === Ops.CAST && dtype instanceof PtrDType) {
           ul[i] = inp[0]
         } else if (uop === Ops.RANGE) {
           if (ul[i] === undefined) ul[i] = range(warp_size).map(() => inp[0][0])
@@ -251,12 +250,12 @@ export class PythonRenderer extends Renderer {
   override device: string = 'JS'
   constructor() {
     super()
-    if (env.get('EMULATE_METAL')) this.device = 'METAL', this.tensor_cores = new MetalRenderer().tensor_cores
-    if (env.get('EMULATE_AMD')) this.device = 'AMD', this.tensor_cores = new AMDRenderer().tensor_cores
-    if (env.get('EMULATE_CUDA')) this.device = 'CUDA', this.tensor_cores = new CUDARenderer('').tensor_cores
-    if (env.get('EMULATE_CUDA_SM75')) this.device = 'CUDA', this.tensor_cores = CUDARenderer.tc_sm75
-    if (env.get('EMULATE_INTEL')) this.device = 'INTEL', this.suffix = 'INTEL', this.tensor_cores = new IntelRenderer().tensor_cores
-    if (env.get('EMULATE_AMX')) this.device = 'CLANG', this.tensor_cores = new ClangRenderer().tensor_cores
+    if (vars.get('EMULATE_METAL')) this.device = 'METAL', this.tensor_cores = new MetalRenderer().tensor_cores
+    if (vars.get('EMULATE_AMD')) this.device = 'AMD', this.tensor_cores = new AMDRenderer().tensor_cores
+    if (vars.get('EMULATE_CUDA')) this.device = 'CUDA', this.tensor_cores = new CUDARenderer('').tensor_cores
+    if (vars.get('EMULATE_CUDA_SM75')) this.device = 'CUDA', this.tensor_cores = CUDARenderer.tc_sm75
+    if (vars.get('EMULATE_INTEL')) this.device = 'INTEL', this.suffix = 'INTEL', this.tensor_cores = new IntelRenderer().tensor_cores
+    if (vars.get('EMULATE_AMX')) this.device = 'CLANG', this.tensor_cores = new ClangRenderer().tensor_cores
   }
   override render = (name: string, uops: UOp[]): string => {
     const lops = uops.map((u) => [u.op, u.dtype, u.src.map((v) => uops.indexOf(v)), u.arg] as PyUOp)

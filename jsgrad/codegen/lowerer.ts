@@ -1,5 +1,5 @@
 import { dtypes, type PtrDType } from '../dtype.ts'
-import { add, all_int, idiv, is_eq, isinstance, min, mod, mul, num, partition, prod, range, zip } from '../helpers.ts'
+import { add, all_int, idiv, is_eq, min, mod, mul, num, partition, prod, range, zip } from '../helpers.ts'
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, type sint, sint_to_uop, UOp, UPat } from '../ops.ts'
 import type { Renderer } from '../renderer/index.ts'
 
@@ -83,7 +83,7 @@ export class IndexContext {
   constructor(public idxs: UOp[], public ridxs: UOp[], public acc_num: number = 0) {}
 }
 export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
-  const ki = isinstance(ast.arg, KernelInfo) ? ast.arg : new KernelInfo()
+  const ki = ast.arg instanceof KernelInfo ? ast.arg : new KernelInfo()
   // NOTE: assumes the shape is <global dims> <local dims> <group_for_reduces> <reduces> <upcasts/unrolls>
   const full_shape = ast.full_shape
   const first_upcasted = full_shape.length - ki.upcasted
@@ -115,7 +115,7 @@ export const get_index = (ast: UOp, opts: Renderer): IndexContext => {
 
   // upcast loops
   for (const [i, g] of full_shape.slice(first_upcasted).entries()) {
-    if (!isinstance(g, Number)) throw new Error('needs to be int to upcast/unroll')
+    if (typeof g !== 'number') throw new Error('needs to be int to upcast/unroll')
     idxs.push(new UOp(Ops.UNROLL, dtypes.int, [UOp.const(dtypes.int.vec(g), range(g))], [[i + first_upcasted, g]]))
   }
   // late indexes (group for reduce)

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type ConstType, DType, type DTypeLike, dtypes, ImageDType, least_upper_dtype, least_upper_float, sum_acc_dtype, to_dtype } from './dtype.ts'
-import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, div, flatten, fully_flatten, int_to_bytes, is_eq, isConst, isinstance, list_str, max, Metadata, min, mod, NotImplemented, num, product, random_id, range, type Slice, slice, sorted, WeakValueMap, zip } from './helpers.ts'
+import { _METADATA, all_int, all_same, assert, bytes_to_bigint, dedup, div, flatten, fully_flatten, int_to_bytes, is_eq, isConst, list_str, max, Metadata, min, mod, NotImplemented, num, product, random_id, range, type Slice, slice, sorted, vars, WeakValueMap, zip } from './helpers.ts'
 import { identity_element, MathTrait, Ops, resolve, type sint, smax, smin, UOp, type Variable } from './ops.ts'
 import { add, ceildiv, ge, gt, idiv, le, mul, ne, polyN, prod, sub, sum } from './helpers.ts'
 import { BufferSpec, Device, uop_buffer, uop_is_realized, uop_realized } from './device.ts'
@@ -327,7 +327,7 @@ export const _metaop = (op: Ops, shape: sint[], dtype: DType, device: string | s
 }
 export const get_shape = (x: any): number[] => {
   //   // NOTE:string === special because __getitem__ on a string === still a string
-  if (!Array.isArray(x) || isinstance(x, String)) return []
+  if (!Array.isArray(x) || typeof x === 'string') return []
   const subs = x.map((xi) => get_shape(xi))
   if (!all_same(subs)) throw new Error(`inhomogeneous shape from ${x}`)
   return [subs.length, ...(subs.length ? subs[0] : [])]
@@ -571,7 +571,7 @@ export class Tensor extends MathTrait<Tensor> {
     if (!(x instanceof Tensor)) x = new Tensor(x, { device: this.device, dtype: this.dtype })
     //   // TODO: this is a hack for writing to DISK. remove with working assign
     if (typeof this.device === 'string' && this.device.startsWith('DISK')) throw new Error("Use async assign_disk instead, until disk get's good assign")
-    if (env.DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
+    if (vars.DEBUG >= 4) console.log(`assign ${this.lazydata} <- ${x.lazydata}`)
     if (this.lazydata === x.lazydata) return this // a this assign === a NOOP
     // NOTE: we allow cross device assign
     if (!is_eq(this.shape, x.shape)) throw new Error(`assign shape mismatch ${this.shape} !== ${x.shape}`)
@@ -807,7 +807,7 @@ export class Tensor extends MathTrait<Tensor> {
     const num = ceildiv(numel * dtype.itemsize, 4)
 
     // when using MOCKGPU && NV generate rand on CLANG
-    if (env.get('MOCKGPU') && device.startsWith('NV')) device = env.CPU_DEVICE
+    if (vars.get('MOCKGPU') && device.startsWith('NV')) device = env.CPU_DEVICE
 
     // generate per device seeds && rng counter if we haven't seen this device yet
     if (!Tensor._device_seeds[device]) {
@@ -836,7 +836,7 @@ export class Tensor extends MathTrait<Tensor> {
     let out = bits.bitcast(dtype).get({ stop: numel }).sub(1).reshape(shape)
 
     // move back to the original device if we were using MOCKGPU
-    if (env.get('MOCKGPU') && _device) out = out.to(_device)
+    if (vars.get('MOCKGPU') && _device) out = out.to(_device)
 
     out.requires_grad = opts.requires_grad
     return contiguous ? out.contiguous() : out
@@ -1434,7 +1434,7 @@ export class Tensor extends MathTrait<Tensor> {
   _getitem = (indices: TensorIndice[], v?: Tensor): Tensor => {
     // turn scalar Tensors into const val for number indexing if possible
     let x = this as Tensor
-    indices = indices.map((i) => isinstance(i, Tensor) && i.shape.length === 0 ? num(this._to_const_val(i)) : i)
+    indices = indices.map((i) => (i instanceof Tensor) && i.shape.length === 0 ? num(this._to_const_val(i)) : i)
 
     // filter ellipsis && fill with slice(undefined) || fill rest of indices with slice(undefined)
     const ellipsis_idx = [...indices.entries().filter(([dim, i]) => i === '...').map(([dim, i]) => dim)]
@@ -1449,7 +1449,7 @@ export class Tensor extends MathTrait<Tensor> {
       let size = index === undefined ? 1 : num(this.shape.at(dim))
       let [boundary, stride] = [[0, size] as [number, number], 1] // defaults
       if (Array.isArray(index) || index instanceof Tensor) {
-        if (!isinstance(index, Tensor)) index = new Tensor(index, { device: this.device, requires_grad: false })
+        if (!(index instanceof Tensor)) index = new Tensor(index, { device: this.device, requires_grad: false })
         if (!dtypes.is_int(index.dtype)) throw new Error(`index dtype ${index.dtype} is not supported`)
         index = (index.to(this.device).lt(0)).where(size, 0).add(index) // treat negative index values
       } else if (typeof index === 'number' || index instanceof UOp) { // sint
@@ -2485,7 +2485,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DTypeLike): Tensor => {
-    if (env.IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype as DType)
+    if (vars.IMAGE) return this.image_conv2d(weight, bias, groups, stride, dilation, padding, acc_dtype as DType)
     const [[bs, cin_], [cout, cin], HW] = [this.shape_num.slice(0, 2), weight.shape_num.slice(0, 2), weight.shape_num.slice(2)]
     const padding_ = this._resolve_pool_pads(padding, HW.length)
     if (!(groups * cin === cin_ && this.shape.length === weight.shape.length)) throw new Error(`Input Tensor shape ${this.shape} does !match the shape of the weights ${weight.shape}. (${groups * cin} vs. ${cin_})`)
@@ -2493,7 +2493,7 @@ export class Tensor extends MathTrait<Tensor> {
     // conv2d === a pooling op (with padding)
     let x = this.pad(padding_)._pool(HW, stride, dilation) // (bs, groups*cin, oy, ox, H, W)
     const [rcout, oyx] = [idiv(cout, groups), x.shape.slice(2, -HW.length)]
-    if (!HW.every((x) => x === 3) || stride !== 1 || dilation !== 1 || !env.WINO) {
+    if (!HW.every((x) => x === 3) || stride !== 1 || dilation !== 1 || !vars.WINO) {
       // normal conv
       x = x.reshape([bs, groups, cin, 1, ...oyx, ...HW]).expand([bs, groups, cin, rcout, ...oyx, ...HW]).permute(0, 1, 3, ...range(oyx.length).map((i) => 4 + i), 2, ...range(HW.length).map((i) => 4 + oyx.length + i))
 
@@ -2591,7 +2591,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   dot = (w: Tensor, acc_dtype?: DTypeLike): Tensor => {
-    if (env.IMAGE) {
+    if (vars.IMAGE) {
       throw new Error('KAREL: implement image_dot')
       // return this.image_dot(w, acc_dtype)
     }
@@ -3085,7 +3085,7 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   lerp = (end: Tensor, weight: Tensor | number): Tensor => {
-    if (this.dtype === dtypes.uint8 && isinstance(weight, Tensor)) {
+    if (this.dtype === dtypes.uint8 && (weight instanceof Tensor)) {
       const W_PREC = 7
       const w_i = (weight.mul(1 << W_PREC).add(0.5)).cast(dtypes.int16)
       return (this.add(((end.sub(this)).cast(dtypes.int8).mul(w_i).add(1 << W_PREC - 1)).cast(dtypes.uint16).rshift(W_PREC))).cast(dtypes.uint8)
@@ -3453,16 +3453,16 @@ export class Tensor extends MathTrait<Tensor> {
   }
   _broadcasted = (y: ConstType<Tensor | UOp>, reverse = false, match_dtype = true): [Tensor, Tensor] => {
     let x: Tensor = this
-    if (!isinstance(y, Tensor)) {
+    if (!(y instanceof Tensor)) {
       // make y a Tensor
       if (!isConst(y)) throw new Error(`invalid y type: ${typeof y}`)
       let y_dtype
-      if (isinstance(x.dtype, ImageDType) || dtypes.is_float(x.dtype) || (dtypes.is_big_int(x.dtype)) || (dtypes.is_int(x.dtype) && Number.isInteger(y))) y_dtype = x.dtype
-      else if (!isinstance(y, UOp)) y_dtype = dtypes.from_js(y)
-      if (isinstance(y, UOp)) y = Tensor.from_uop(y, { device: x.device })
+      if (x.dtype instanceof ImageDType || dtypes.is_float(x.dtype) || (dtypes.is_big_int(x.dtype)) || (dtypes.is_int(x.dtype) && Number.isInteger(y))) y_dtype = x.dtype
+      else if (!(y as any instanceof UOp)) y_dtype = dtypes.from_js(y)
+      if (y as any instanceof UOp) y = Tensor.from_uop(y as any, { device: x.device })
       else y = new Tensor(dtypes.as_const(y, y_dtype!), { device: x.device, dtype: y_dtype, requires_grad: false })
     }
-    if (!isinstance(y, Tensor)) throw new Error('y has to be Tensor')
+    if (!(y instanceof Tensor)) throw new Error('y has to be Tensor')
     if (match_dtype && x.dtype !== y.dtype) {
       const output_dtype = least_upper_dtype(x.dtype, y.dtype)
       ;[x, y] = [x.cast(output_dtype), y.cast(output_dtype)]
@@ -3697,7 +3697,7 @@ export class Tensor extends MathTrait<Tensor> {
    */
   pow = (x: ConstType<Tensor>, reverse = false): Tensor => {
     x = num(this._to_const_val(x))
-    if (!isinstance(x, Tensor) && !reverse) {
+    if (!(x as any instanceof Tensor) && !reverse) {
       // simple pow identities
       if (x < 0) return this.reciprocal().pow(-x).cast(this.dtype)
       if (x === 0) return this.mul(0).add(1, true)
@@ -3706,7 +3706,7 @@ export class Tensor extends MathTrait<Tensor> {
       if (Math.trunc(x) === x) return this.pow(idiv(x, 2)).square().mul(mod(x, 2) === 0 ? 1 : this)
     }
     // positive const ** self
-    if (!isinstance(x, Tensor) && reverse && x > 0) return this.mul(Math.log(x)).exp()
+    if (!(x as any instanceof Tensor) && reverse && x > 0) return this.mul(Math.log(x)).exp()
 
     const [base, exponent] = this._broadcasted(x, reverse)
     // start with b ** e = exp(e * log(b))
@@ -3770,8 +3770,8 @@ export class Tensor extends MathTrait<Tensor> {
    * ```
    */
   override where = (x: ConstType<Tensor>, y: ConstType<Tensor>) => {
-    if (isinstance(x, Tensor)) [x, y] = x._broadcasted(y)
-    else if (isinstance(y, Tensor)) [y, x] = y._broadcasted(x)
+    if ((x instanceof Tensor)) [x, y] = x._broadcasted(y)
+    else if (y instanceof Tensor) [y, x] = y._broadcasted(x)
     let cond
     ;[cond, x] = this._broadcasted(x, undefined, false)
     ;[cond, y] = cond._broadcasted(y, undefined, false)
@@ -4253,7 +4253,7 @@ export class Tensor extends MathTrait<Tensor> {
     return cx.image_conv2d(cw, undefined, groups, undefined, undefined, undefined, acc_dtype).reshape(out_shape_t).transpose(this.ndim - 1, this.ndim - 2)
   }
   image_conv2d = (weight: Tensor, bias?: Tensor, groups = 1, stride = 1, dilation: number | number[] = 1, padding: number | number[] = 0, acc_dtype?: DType): Tensor => {
-    const base_image_type = env.get_num('FLOAT16', 0) ? dtypes.imageh : dtypes.imagef
+    const base_image_type = vars.get_num('FLOAT16', 0) ? dtypes.imageh : dtypes.imagef
 
     let [bs, _, iy, ix] = this.shape_num, [cout, cin, H, W] = weight.shape_num
     let x: Tensor = this, rcout = idiv(cout, groups), w = weight.reshape([groups, rcout, cin, H, W])
@@ -4284,7 +4284,7 @@ export class Tensor extends MathTrait<Tensor> {
     else w = w.reshape([idiv(cout, 4), 4, idiv(cin, 4), 4, H, W]).permute(0, 4, 2, 5, 3, 1)
 
     // contiguous creates the image, and early realize static weights (TODO: test for the static weight)
-    if (env.IMAGE >= 2) x = x.cast(base_image_type(bs * iy, idiv(ix * groups * cin, 4), 4)), w = w.cast(base_image_type(idiv(cout, 4), H * W * cin, 4))
+    if (vars.IMAGE >= 2) x = x.cast(base_image_type(bs * iy, idiv(ix * groups * cin, 4), 4)), w = w.cast(base_image_type(idiv(cout, 4), H * W * cin, 4))
     x = x.contiguous(), w = w.contiguous()
 
     // expand out
@@ -4303,7 +4303,7 @@ export class Tensor extends MathTrait<Tensor> {
     w = w.permute(0, 4, 2, 5, 1, 3).reshape([1, 1, 1, ...cout_expand, rcin_hi, rcin_lo, H, W])
 
     // the conv!
-    let ret = (x.mul(w)).cast(env.IMAGE >= 2 ? base_image_type(bs * oy, idiv(ox * cout, 4), 4) : dtypes.float32).sum([-4, -3, -2, -1], undefined, acc_dtype)
+    let ret = (x.mul(w)).cast(vars.IMAGE >= 2 ? base_image_type(bs * oy, idiv(ox * cout, 4), 4) : dtypes.float32).sum([-4, -3, -2, -1], undefined, acc_dtype)
 
     // undo hack for non multiples of 4 on C.rcout
     if (added_output_channels !== 0) {
@@ -4317,14 +4317,14 @@ export class Tensor extends MathTrait<Tensor> {
 }
 
 // Metadata wrapper function
-if (env.TRACEMETA >= 1) {
+if (vars.TRACEMETA >= 1) {
   const wrapper = (fn: any, name: string, isArrow: boolean = false) => {
     return function (this: any, ...args: any[]) {
       if (_METADATA.get()) {
         return isArrow ? fn(...args) : fn.apply(this, args)
       }
       let caller: string
-      if (env.TRACEMETA >= 2) {
+      if (vars.TRACEMETA >= 2) {
         throw new NotImplemented()
       } else {
         caller = ''

@@ -1,4 +1,5 @@
-import { add, ArrayMap, concat_bytes, Conv1d, type Conv2d, Device, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, mod, num, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, withEnvAsync, zip } from '../web.ts'
+import { vars } from '../helpers.ts'
+import { add, ArrayMap, concat_bytes, Conv1d, type Conv2d, Device, dtypes, Embedding, env, get_key, idiv, type Layer, LayerNorm, Linear, load_state_dict, mod, num, range, replace_state_dict, safe_load, type sint, sub, Tensor, TinyJit, Tokenizer, UOp, type Variable, zip } from '../exports.ts'
 
 // deno-fmt-ignore
 export const LANGUAGES = {
@@ -541,7 +542,7 @@ export const transcribe_file = async (model: any, enc: Tokenizer, filename: stri
  * Returns the transcribed text if a single waveform is provided, or an array of transcriptions if multiple are provided
  */
 const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Float32Array[], truncate = false, language?: string) => {
-  let log_spec = await withEnvAsync({ DEVICE: env.CPU_DEVICE }, async () => await prep_audio(waveforms, model.batch_size, truncate))
+  let log_spec = await vars.withAsync({ DEVICE: env.CPU_DEVICE }, async () => await prep_audio(waveforms, model.batch_size, truncate))
   log_spec = log_spec.to(Device.DEFAULT)
 
   const nsample = model.decoder.max_tokens_to_sample
@@ -550,7 +551,7 @@ const transcribe_waveform = async (model: Whisper, enc: Tokenizer, waveforms: Fl
     let pos = 0, next_tokens = ctx
     for (const i of range((nsample - start_tokens.length) * 2)) {
       next_tokens = (await model.decoder.call(next_tokens, pos, encoded_audio)).get({}, -1).argmax(-1).cast(dtypes.int32).reshape([-1, 1])
-      if (env.DEBUG >= 1) console.log(enc.decode(await next_tokens.tolist()))
+      if (vars.DEBUG >= 1) console.log(enc.decode(await next_tokens.tolist()))
       next_tokens = ctx.get({}, -1).eq(eot).reshape([-1, 1]).where(next_tokens.full_like(eot), next_tokens)
       ctx = Tensor.cat([ctx, next_tokens], 1)
       pos = ctx.shape_num.at(-1)! - 1

@@ -1,12 +1,11 @@
 import { type Buffer, uop_buffer, uop_is_realized } from '../device.ts'
 import { DType, dtypes, ImageDType } from '../dtype.ts'
-import { all_int, all_same, cache, colored, dedup, DefaultMap, is_eq, list_str, merge_maps, type Metadata, mod, NotImplemented, num, range, set_default, zip } from '../helpers.ts'
+import { all_int, all_same, cache, colored, dedup, DefaultMap, is_eq, list_str, merge_maps, type Metadata, mod, NotImplemented, num, range, set_default, vars, zip } from '../helpers.ts'
 import { can_pad, graph_rewrite_map, identity_element, resolve, type sint, symbolic_simple, type_verify, type UPatInput } from '../ops.ts'
 import { ge, lt, mul, pow, prod, sub } from '../helpers.ts'
 import { graph_rewrite, GroupOp, merge_views, Ops, PatternMatcher, UOp, UPat, type Variable, view_left } from '../ops.ts'
 import { ShapeTracker } from '../shape/shapetracker.ts'
 import { strides_for_shape, View } from '../shape/view.ts'
-import { env, withEnv } from '../env/index.ts'
 
 // **** Tensor UOp spec
 
@@ -106,7 +105,7 @@ const add_buffers = (buf: UOp, tensor_map: Map<UOp, UOp[]>, ctx: ScheduleContext
   // make things that can't be images not images
   let dtype = buf.dtype
   if (dtype instanceof ImageDType && (prod(buf.shape) !== prod(dtype.shape) || !buf.st!.unit_stride_axes().some((x) => mod(buf.shape[x], 4) === 0))) {
-    if (env.DEBUG >= 2) console.log(`forcing image ${dtype} with shape ${buf.shape} to ${dtype.base}`)
+    if (vars.DEBUG >= 2) console.log(`forcing image ${dtype} with shape ${buf.shape} to ${dtype.base}`)
     dtype = buf.dtype.base
   }
   // ASSIGN already has a target buffer, otherwise we create a new one
@@ -124,7 +123,7 @@ const add_buffers = (buf: UOp, tensor_map: Map<UOp, UOp[]>, ctx: ScheduleContext
 // ** movement ops
 
 export const apply_swizzle = (u: UOp): UOp => {
-  return withEnv({ TRACK_MATCH_STATS: 0 }, () => graph_rewrite(u, view_left))
+  return vars.with({ TRACK_MATCH_STATS: 0 }, () => graph_rewrite(u, view_left))
 }
 
 const swizzle_r = (r: UOp, src: UOp, st: ShapeTracker): UOp => {
@@ -246,14 +245,14 @@ const schedule_uop = (pre: UOp, ctx: ScheduleContext): ScheduleItem => {
     }
   }
   // capture process replay
-  if (env.CAPTURE_PROCESS_REPLAY) {
+  if (vars.CAPTURE_PROCESS_REPLAY) {
     throw new NotImplemented()
   }
   return new ScheduleItem(ast, si_ctx.bufs.map((u) => uop_buffer(u)), dedup([...pre.toposort].map((x) => ctx.ops_metadata.get(x)!).filter((m) => m !== undefined)))
 }
 
 export const PROCESS_REPLAY_CAPTURE = new Map<string, Uint8Array>()
-if (env.get('RUN_PROCESS_REPLAY')) {
+if (vars.get('RUN_PROCESS_REPLAY')) {
   throw new NotImplemented()
 }
 // **** Schedule grouping
@@ -324,7 +323,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
   for (let [r, r_uop] of ctx.allbufs.entries()) {
     r_uop = uval(r_uop)
     if (r_uop.op !== Ops.REDUCE_AXIS) continue
-    if (env.FUSE_CONV_BW) {
+    if (vars.FUSE_CONV_BW) {
       const x = r_uop.src[0]
       if (is_scheduled(x.base) && uval(x.base).op === r_uop.op && x.base !== x) double_reduces.push(r)
     }
@@ -373,7 +372,7 @@ export const group_realizes = (ctx: ScheduleContext): UOp[][] => {
       ctx.realizes.set(tr, tr)
     }
     group.keys().forEach((tr) => reduce_for_op.set(tr, r))
-    if (env.FUSE_ARANGE && r_uop.arg[0] === Ops.ADD && r_uop.src[0].base.op === Ops.CONST) reduce_of_const.push(r)
+    if (vars.FUSE_ARANGE && r_uop.arg[0] === Ops.ADD && r_uop.src[0].base.op === Ops.CONST) reduce_of_const.push(r)
   }
   // fuse double reduces with no other child
   for (const reduceop of double_reduces) {
@@ -478,7 +477,7 @@ export const realize_before_view = (ctx: ScheduleContext, view: UOp, src: UOp, b
     return can_pad(src, ctx.realizes, new Set()) ? undefined : realize(ctx, b, src)
   }
   // early realize before expanz
-  if (resolve(lt(prod(src.shape), prod(st.shape))) && !env.get('DONT_REALIZE_EXPAND')) return realize(ctx, b, src)
+  if (resolve(lt(prod(src.shape), prod(st.shape))) && !vars.get('DONT_REALIZE_EXPAND')) return realize(ctx, b, src)
   // otherwise safety check pads
   return (st.views.every((v) => v.mask === undefined) || can_pad(src, ctx.realizes, new Set())) ? undefined : realize(ctx, b, src)
 }
@@ -572,7 +571,7 @@ export const remove_movement_ops = merge_views.add(
 )
 
 // @track_rewrites(named=true)
-export const create_schedule_with_vars = (big_sink: UOp, skip_check = !env.DEBUG): [ScheduleItem[], Map<Variable, number>, Map<UOp, UOp>] => {
+export const create_schedule_with_vars = (big_sink: UOp, skip_check = !vars.DEBUG): [ScheduleItem[], Map<Variable, number>, Map<UOp, UOp>] => {
   if (!skip_check) type_verify([...big_sink.toposort], [tensor_uop_spec])
   const ctx = new ScheduleContext(), tensor_map = graph_rewrite_map(big_sink, remove_movement_ops.add(sym), ctx)
   const rev_tensor_map = new Map<UOp, UOp[]>()
@@ -640,6 +639,6 @@ export const create_schedule_with_vars = (big_sink: UOp, skip_check = !env.DEBUG
   // confirm everything was scheduled correctly
   const groups = prescheduled.length
   if (schedule.length !== groups) throw new Error(`cycle detected in graph, grouped ${groups} but only scheduled ${schedule.length}`)
-  if (env.DEBUG >= 1 && schedule.length >= 10) console.log(`scheduled ${schedule.length} kernels`)
+  if (vars.DEBUG >= 1 && schedule.length >= 10) console.log(`scheduled ${schedule.length} kernels`)
   return [schedule, ctx.var_vals, ctx.becomes_map]
 }

@@ -1,13 +1,12 @@
 // // **************** memory planning ****************
 
 import { Buffer, Device } from '../device.ts'
-import { env } from '../env/index.ts'
-import { dedup, DefaultMap, get_key } from '../helpers.ts'
+import { dedup, DefaultMap, get_key, vars } from '../helpers.ts'
 import { Ops } from '../ops.ts'
 import { ScheduleItem } from './schedule.ts'
 
 export const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Buffer[], debug_prefix = ''): Map<Buffer, Buffer> => {
-  if (env.NO_MEMORY_PLANNER) return new Map()
+  if (vars.NO_MEMORY_PLANNER) return new Map()
   const [first_appearance, last_appearance] = [new Map<Buffer, number>(), new Map<Buffer, number>()]
   for (const [i, u] of buffers.entries()) {
     for (const buf of u) {
@@ -44,7 +43,7 @@ export const _internal_memory_planner = (buffers: Buffer[][], noopt_buffers?: Bu
   }
   const ak = dedup([...assigned.keys().filter((x) => x._base === undefined)])
   const av = dedup([...assigned.values().filter((x) => x._base === undefined)])
-  if (env.DEBUG >= 1 && ak.length !== av.length) console.log(debug_prefix + `memory reduced from ${ak.reduce((sum, x) => sum + x.nbytes, 0) / 1e6} MB -> ${av.reduce((sum, x) => sum + x.nbytes, 0) / 1e6} MB, ${ak.length} -> ${av.length} bufs`)
+  if (vars.DEBUG >= 1 && ak.length !== av.length) console.log(debug_prefix + `memory reduced from ${ak.reduce((sum, x) => sum + x.nbytes, 0) / 1e6} MB -> ${av.reduce((sum, x) => sum + x.nbytes, 0) / 1e6} MB, ${ak.length} -> ${av.length} bufs`)
   return assigned
 }
 

@@ -1,12 +1,11 @@
-import { DEVICES } from '../jsgrad/device.ts'
 import { colored, Device, env, is_eq, Tensor } from '../jsgrad/mod.ts'
 
 let result: string[] = [], error = false
-for (const device in DEVICES) {
+for (const device in env.DEVICES) {
   if (['DISK', 'CLOUD'].includes(device)) continue
   let res
   try {
-    await new DEVICES[device](device).init()
+    await new env.DEVICES[device](device).init()
     const test = await new Tensor([1, 2, 3], { device }).mul(2).tolist()
     if (!is_eq(test, [2, 4, 6])) {
       throw new Error(`got ${test} instead of [2, 4, 6]`)

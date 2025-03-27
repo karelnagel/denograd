@@ -1,8 +1,7 @@
 // deno-lint-ignore-file no-this-alias
 import type { Buffer } from './device.ts'
 import { DType, dtypes, ImageDType, PtrDType, truncate } from './dtype.ts'
-import { env } from './env/index.ts'
-import { accumulate, add, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, idiv, is_less_than, isConst, isinstance, lshift, lt, mod, mul, ne, neg, NotImplemented, num, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, xor } from './helpers.ts'
+import { accumulate, add, and, cache_fn, constToNumeric, type ConstType, dedup, DefaultMap, div, flatten, floatString, ge, idiv, is_less_than, isConst, lshift, lt, mod, mul, ne, neg, NotImplemented, num, or, pairwise, polyN, prod, product, rshift, slice, sorted, sub, sum, vars, xor } from './helpers.ts'
 import { _METADATA, abs, all_int, all_same, assert, cache, counter, divmod, Enum, get_key, is_eq, is_subset, isInf, list_str, math_gcd, max, type Metadata, min, partition, permutations, range, set_default, sin, sqrt, trunc, WeakValueMap, zip } from './helpers.ts'
 import type { Renderer } from './renderer/index.ts'
 import { ShapeTracker } from './shape/shapetracker.ts'
@@ -436,7 +435,7 @@ export class UOp extends MathTrait<UOp> {
 
     // TODO: can we split symbolic shape if the reduce axis is not symbolic?
     // TODO: this shouldn't be here, it belongs in scheduler! that's why it broke multi
-    if (!env.SPLIT_REDUCEOP || Array.isArray(this._device()) || !all_int(this.shape) || this.shape.includes(0) || num(idiv(prod(this.shape), prod(new_shape))) < env.get_num('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
+    if (!vars.SPLIT_REDUCEOP || Array.isArray(this._device()) || !all_int(this.shape) || this.shape.includes(0) || num(idiv(prod(this.shape), prod(new_shape))) < vars.get_num('REDUCEOP_SPLIT_THRESHOLD', 32768)) {
       return this._reduce_op(op, axis)
     }
 
@@ -446,13 +445,13 @@ export class UOp extends MathTrait<UOp> {
     // 256 split maximum should be "negligible reduce" for low prod(new_shape), 8 split minimum.
     // split is moved to the end to provide maximum locality for the second phase reduce.
     const self_real_strides = this.st!.real_strides(true)
-    const split_candidates = range(Math.min(256, (2 ** env.get_num('REDUCEOP_SPLIT_SIZE', 22), num(prod(new_shape)))), 8 - 1, -1)
+    const split_candidates = range(Math.min(256, (2 ** vars.get_num('REDUCEOP_SPLIT_SIZE', 22), num(prod(new_shape)))), 8 - 1, -1)
       .flatMap((x) => axis.filter((i) => mod(num(this.shape[i]), x) === 0 && self_real_strides[i] !== 0).map((i) => [i, x]))
     if (!split_candidates.length) return this._reduce_op(op, axis)
     const [dim_to_split, divisor] = split_candidates[0]
     const splitted_shape = [...this.shape.slice(0, dim_to_split), divisor, idiv(this.shape[dim_to_split], divisor), ...this.shape.slice(dim_to_split + 1)]
     const splitted = this.reshape(splitted_shape).permute([...range(splitted_shape.length).filter((x) => x !== dim_to_split), dim_to_split])
-    if (env.DEBUG >= 3) console.log(`split ${divisor}: ${this.shape} -> ${splitted.shape} -> ${new_shape}`)
+    if (vars.DEBUG >= 3) console.log(`split ${divisor}: ${this.shape} -> ${splitted.shape} -> ${new_shape}`)
     return splitted._reduce_op(op, axis)._reduce_op(op, [new_shape.length]).reshape(new_shape) // reduce original axes, then split  assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
   }
   assign = (x: UOp) => new UOp(Ops.ASSIGN, this.dtype, [this, x])
@@ -905,7 +904,7 @@ export class PatternMatcher<Ctx = unknown, Res = UOp | undefined> {
   }
 }
 
-const TRACK_MATCH_STATS = env.get_num('TRACK_MATCH_STATS', env.get('VIZ') ? 2 : 0)
+const TRACK_MATCH_STATS = vars.get_num('TRACK_MATCH_STATS', vars.get('VIZ') ? 2 : 0)
 const match_stats = new Map<UPat, number[]>()
 export class TrackedGraphRewrite {
   loc!: [string, number] // location that called graph_rewrite
@@ -1723,10 +1722,10 @@ export const xlog2 = ({ d }: { d: UOp }): UOp => {
 
 // ***** float4/image store handling *****
 export const fold_expanded = (ex: UOp, buf: UOp) => {
-  if (buf.dtype.base !== dtypes.float && buf.dtype.base !== dtypes.half && !isinstance(buf.dtype, ImageDType)) return undefined
+  if (buf.dtype.base !== dtypes.float && buf.dtype.base !== dtypes.half && !(buf.dtype instanceof ImageDType)) return undefined
   let new_srcs: (UOp | undefined)[] = dedup([...ex.src])
   const old_new_srcs = [...new_srcs]
-  const [is_load, is_image] = [new_srcs[0]?.op === Ops.LOAD, isinstance(buf.dtype, ImageDType)]
+  const [is_load, is_image] = [new_srcs[0]?.op === Ops.LOAD, buf.dtype instanceof ImageDType]
 
   // first, extract all the relevant offsets
   const offsets_rootsrc = new DefaultMap<UOp, Map<string, number>>(undefined, () => new Map())
@@ -1743,7 +1742,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
     offsets_rootsrc.get(root_src)!.set(arg, i)
   }
   // then rewrite everything we can
-  const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && env.get('ALLOW_HALF8') ? [8, 4, 2] : (env.AMX ? [16, 8, 4, 2] : [4, 2]))
+  const lengths = is_image ? [4] : (buf.dtype.base === dtypes.half && vars.get('ALLOW_HALF8') ? [8, 4, 2] : (vars.AMX ? [16, 8, 4, 2] : [4, 2]))
   let used: [UOp, any][] = []
   for (const [rootsrc, offsets] of offsets_rootsrc.entries()) {
     for (const o of offsets.keys()) {
@@ -1757,7 +1756,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
             // for images, we rewrite the index. it must evenly divide 4 from the above check
             new_src[0] = buf.index(
               new UOp(Ops.VECTORIZE, dtypes.int.vec(2), [oidx.idiv(4).mod((buf.dtype as ImageDType).shape[1]), oidx.idiv(4 * (buf.dtype as ImageDType).shape[1])]),
-              isinstance(rootsrc, Array) ? rootsrc[0] as UOp : undefined,
+              Array.isArray(rootsrc) ? rootsrc[0] as UOp : undefined,
             )
           } else {
             // for non image, we upcast the index pointer
@@ -1784,7 +1783,7 @@ export const fold_expanded = (ex: UOp, buf: UOp) => {
 
 export const fix_unfoldable_image_load = (load: UOp, buf: UOp) => {
   const oidx = load.src[0].src[1]
-  if (!isinstance(buf.dtype, ImageDType) || oidx.dtype.count === 2) return undefined
+  if (!(buf.dtype instanceof ImageDType) || oidx.dtype.count === 2) return undefined
   const id4 = oidx.mod(4)
   const new_src = [...load.src]
   // TODO: copied logic from above
@@ -1807,7 +1806,7 @@ export const float4_folding = new PatternMatcher([
 export const simplify_valid_load = (buf: UOp, start_idx: UOp, valid: UOp): undefined | UOp => {
   const idx = uop_given_valid(valid, start_idx)
   if (idx === undefined) return buf.const_like(0)
-  if (!isinstance(buf.dtype, ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
+  if (!(buf.dtype instanceof ImageDType)) return idx === start_idx ? undefined : buf.index(idx, valid)
 
   // wait for it to be image indexed before running simplification
   if (start_idx.dtype.count !== 2) return undefined
@@ -1900,11 +1899,11 @@ export const sigmoid_like = (x: UOp, y: UOp) => {
 // ***** main rewriter *****
 
 export const loop_collapse = (compval: UOp, multconst: UOp, rng: UOp, acc: UOp, idx2?: UOp, idx3?: UOp, extra?: UOp, vec?: UOp, ne?: UOp, add = UOp.const(dtypes.int, 0), mul = UOp.const(dtypes.int, 1)) => {
-  if (env.get('DISABLE_LOOP_COLLAPSE') || !acc.src.includes(rng)) return undefined // must be the right REDUCE
+  if (vars.get('DISABLE_LOOP_COLLAPSE') || !acc.src.includes(rng)) return undefined // must be the right REDUCE
   let [loop_start, loop_end] = rng.src
   if (loop_start.arg !== 0) {
     // TODO: support and test this with other mul and loop_starts
-    if (env.DEBUG >= 1) console.log(`WARNING, NOT FOLDING: mul:${mul.arg} loop_start:${loop_start.arg}`)
+    if (vars.DEBUG >= 1) console.log(`WARNING, NOT FOLDING: mul:${mul.arg} loop_start:${loop_start.arg}`)
     return undefined
   }
   if (idx2 !== undefined) add = add.add(idx2)
@@ -2178,8 +2177,8 @@ export const expander = new PatternMatcher([
   // empty EXPAND is NOOP
   new UPat(Ops.UNROLL, undefined, [UPat.var('x')], []).fn(({ x }) => x),
   // EXPAND GEP (needed for WMMA, generalize this) -> vectorized ALU
-  new UPat(Ops.UNROLL, undefined, range(env.AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i)))).named('ex').fn(
-    ({ ex, x, y }) => new UOp(Ops.UNROLL, ex.dtype, range(env.AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
+  new UPat(Ops.UNROLL, undefined, range(vars.AMX ? 256 : 8).map((i) => UPat.var('x').gep(i).add(UPat.var('y').gep(i)))).named('ex').fn(
+    ({ ex, x, y }) => new UOp(Ops.UNROLL, ex.dtype, range(vars.AMX ? 256 : 8).map((i) => x.add(y).gep(i)), ex.arg),
   ),
 ])
 
@@ -2262,6 +2261,6 @@ export const full_graph_rewrite = (sink: UOp, opts?: Renderer): UOp => {
   sink = graph_rewrite(sink, sym.add((opts !== undefined && opts.supports_float4) ? devectorize.add(float4_folding) : devectorize).add(load_store_indexing).add(mulacc_unrolled))
 
   // final rules for the renderer (without sym)
-  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops, env.TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
+  sink = graph_rewrite(sink, symbolic_simple.add(get_late_rewrite_patterns(supported_ops, vars.TRANSCENDENTAL >= 2)).add(pm_render).add(extra_matcher))
   return sink
 }

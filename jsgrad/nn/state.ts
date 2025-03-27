@@ -1,6 +1,6 @@
 import { dtypes, type FmtStr } from '../dtype.ts'
 import { env } from '../env/index.ts'
-import { bytes_to_string, idiv, is_eq, isinstance, NotImplemented, prod, range, round_up, string_to_bytes } from '../helpers.ts'
+import { bytes_to_string, idiv, is_eq, NotImplemented, prod, range, round_up, string_to_bytes, vars } from '../helpers.ts'
 import { MemoryView } from '../memoryview.ts'
 import { Tensor } from '../tensor.ts'
 import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
@@ -110,7 +110,7 @@ export const safe_save = async (tensors: Record<string, Tensor>, fn: string, met
  * ```
  */
 export const get_state_dict = (obj: any, prefix = ''): Record<string, Tensor> => {
-  if (isinstance(obj, Tensor)) return { [prefix.replace(/^\.+|\.+$/g, '')]: obj }
+  if (obj instanceof Tensor) return { [prefix.replace(/^\.+|\.+$/g, '')]: obj }
   if (Array.isArray(obj)) return Object.fromEntries(obj.flatMap((x, i) => Object.entries(get_state_dict(x, `${prefix}${i}.`))))
   if (typeof obj === 'object') return Object.fromEntries(Object.entries(obj).flatMap(([k, v]) => Object.entries(get_state_dict(v, `${prefix}${k}.`))))
   return {}
@@ -158,13 +158,13 @@ export const replace_state_dict = (state: Record<string, Tensor>, replace: Recor
  */
 export const load_state_dict = async (model: any, state_dict: Record<string, Tensor>, strict = true, verbose = true, consume = false, onProgress?: TqdmOnProgress) => {
   const model_state_dict = get_state_dict(model)
-  if (env.DEBUG >= 1 && Object.keys(state_dict).length > Object.keys(model_state_dict).length) {
+  if (vars.DEBUG >= 1 && Object.keys(state_dict).length > Object.keys(model_state_dict).length) {
     console.log('WARNING: unused weights in state_dict', Object.keys(state_dict).filter((x) => !Object.keys(model_state_dict).includes(x)).toSorted())
   }
   const t = Object.entries(model_state_dict)
   for (const [k, v] of new Tqdm(t, { label: `Loading state dict`, onProgress })) {
     if (state_dict[k] === undefined && !strict) {
-      if (env.DEBUG >= 1) console.warn(`WARNING: not loading ${k}`)
+      if (vars.DEBUG >= 1) console.warn(`WARNING: not loading ${k}`)
       continue
     }
     if (!is_eq(v.shape, state_dict[k].shape)) throw new Error(`Shape mismatch in layer ${k}: Expected shape ${v.shape}, but found ${state_dict[k].shape} in state dict.`)

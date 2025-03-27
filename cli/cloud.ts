@@ -3,6 +3,7 @@ import { ArrayMap, bytes_to_string, DefaultMap, Device, env, MemoryView, string_
 import { BatchRequest, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramExec, ProgramFree } from '../jsgrad/runtime/ops_cloud.ts'
 import { bin, install, Tunnel } from 'npm:cloudflared'
 import { parseArgs, z } from './parse.ts'
+import { vars } from '../jsgrad/helpers.ts'
 
 const args = parseArgs({
   port: z.number().default(8080).describe('Port'),
@@ -22,7 +23,7 @@ const sessions = new DefaultMap<string, CloudSession>(
   undefined,
   () => new CloudSession(),
 )
-let device: string = Device.DEFAULT.startsWith('CLOUD') ? env.get('CLOUDDEV', 'METAL')! : Device.DEFAULT
+let device: string = Device.DEFAULT.startsWith('CLOUD') ? vars.get('CLOUDDEV', 'METAL')! : Device.DEFAULT
 await Device.get(device).init()
 
 const headers = {
@@ -60,7 +61,7 @@ Deno.serve(
       )
       let ret: Uint8Array | undefined = undefined
       for (const c of r._q) {
-        if (env.DEBUG > 1) console.log(c)
+        if (vars.DEBUG > 1) console.log(c)
         if (c instanceof BufferAlloc) {
           if (session.buffers.has(c.buffer_num)) {
             throw new Error(`buffer ${c.buffer_num} already allocated`)

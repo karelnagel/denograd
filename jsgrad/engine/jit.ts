@@ -1,13 +1,11 @@
 import { Buffer, type Compiled, Device, uop_realized } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { env } from '../env/index.ts'
-import { ArrayMap, colored, DefaultMap, flatten, is_eq, merge_maps, partition, WeakKeyMap } from '../helpers.ts'
+import { ArrayMap, colored, DefaultMap, flatten, is_eq, merge_maps, partition, vars, WeakKeyMap } from '../helpers.ts'
 import { get_parameters } from '../nn/state.ts'
 import { Ops, sym_infer, UOp, type Variable } from '../ops.ts'
 import { Estimates } from '../renderer/index.ts'
 import type { ShapeTracker } from '../shape/shapetracker.ts'
 import { Tensor } from '../tensor.ts'
-import { withEnvAsync } from '../web.ts'
 import { _internal_memory_planner } from './memory.ts'
 import { BufferCopy, BufferXfer, capturing, CompiledRunner, ExecItem, Runner, ViewOp } from './realize.ts'
 
@@ -28,11 +26,11 @@ export const apply_graph_to_jit = (jit_cache: ExecItem[], input_rawbuffers: Buff
       for (const [j, i] of graph_runner.input_replace.keys()) graph_runner.jit_cache[j].bufs[i] = undefined
       graphed_jit_cache.push(new ExecItem(graph_runner, input_rawbuffers))
       max_batch_size *= 2
-      if (env.DEBUG >= 2) console.log(`JIT GRAPHing batch with ${current_batch.length} kernels on device ${current_device}`)
+      if (vars.DEBUG >= 2) console.log(`JIT GRAPHing batch with ${current_batch.length} kernels on device ${current_device}`)
     } catch (e) {
       if (e instanceof GraphException) {
         graphed_jit_cache.push(...current_batch)
-        if (env.DEBUG >= 2) console.log(`JIT GRAPHing failed batch with ${current_batch.length} kernels on device ${current_device}: ${e}`)
+        if (vars.DEBUG >= 2) console.log(`JIT GRAPHing failed batch with ${current_batch.length} kernels on device ${current_device}: ${e}`)
       }
       throw e
     }
@@ -205,14 +203,14 @@ export class CapturedJit<Return extends any> {
         }
       }
       // create graph if needed
-      if (env.JIT < 2) {
-        this._jit_cache = apply_graph_to_jit(this.jit_cache, input_buffers, var_vals, env.get_num('JIT_BATCH_SIZE', 32))
+      if (vars.JIT < 2) {
+        this._jit_cache = apply_graph_to_jit(this.jit_cache, input_buffers, var_vals, vars.get_num('JIT_BATCH_SIZE', 32))
         this._input_replace = get_input_replace(this._jit_cache, input_buffers)
       }
       this._first_run = false
     }
 
-    if (env.DEBUG >= 1 && this._jit_cache.length >= 10) console.log(`jit execs ${this._jit_cache.length} kernels`)
+    if (vars.DEBUG >= 1 && this._jit_cache.length >= 10) console.log(`jit execs ${this._jit_cache.length} kernels`)
     for (const ei of this._jit_cache) await ei.run(var_vals, undefined, true)
     this._clear_inputs()
     return this.ret
@@ -272,10 +270,10 @@ export class TinyJit<Args extends any[], Return extends any> {
   call = async (...args: Args): Promise<Return> => {
     const [input_buffers, var_vals, names, st_vars_dtype_device] = await _prepare_jit_inputs(...args)
     let ret: Return
-    if (!env.JIT || this.cnt === 0) {
+    if (!vars.JIT || this.cnt === 0) {
       // jit ignore
       if (!this.fxn) throw new Error()
-      ret = await withEnvAsync({ BEAM: env.get('IGNORE_JIT_FIRST_BEAM') ? 0 : env.BEAM }, async () => {
+      ret = await vars.withAsync({ BEAM: vars.get('IGNORE_JIT_FIRST_BEAM') ? 0 : vars.BEAM }, async () => {
         ret = await this.fxn!(...args)
         const params = get_parameters(ret)
         if (params.length) await Tensor.realize(params)
@@ -288,7 +286,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       this._jit_cache = []
       this._buffer_replace = new WeakKeyMap()
       // TODO: should we always disable the memory planner here? it must be off for prune
-      ret = await withEnvAsync({ BEAM: env.get_num('JITBEAM', env.BEAM), NO_MEMORY_PLANNER: Number(this.prune) }, async () => {
+      ret = await vars.withAsync({ BEAM: vars.get_num('JITBEAM', vars.BEAM), NO_MEMORY_PLANNER: Number(this.prune) }, async () => {
         capturing.push(this)
         try {
           ret = await this.fxn!(...args)
@@ -304,7 +302,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       let jit_cache = this._jit_cache
       this._buffer_replace = undefined, this._jit_cache = undefined
       if (!jit_cache.length) throw new Error("didn't JIT anything!")
-      if (env.DEBUG >= 1) console.log(`JIT captured ${jit_cache.length} kernels with ${input_buffers.length} inputs`)
+      if (vars.DEBUG >= 1) console.log(`JIT captured ${jit_cache.length} kernels with ${input_buffers.length} inputs`)
 
       // track inputs that are views of buffers
       // TODO: eventually expected_buffers should live in ExecItem
@@ -323,7 +321,7 @@ export class TinyJit<Args extends any[], Return extends any> {
         const depends = new Set(input_buffers)
         update_depends(depends, jit_cache)
         const [pruned, onetime] = partition(jit_cache, (ei) => !(ei.prg instanceof CompiledRunner) || ei.prg.p.outs.some((out) => depends.has(ei.bufs[out] as Buffer)))
-        if (env.DEBUG >= 1) console.log(`pruned from ${jit_cache.length} -> ${pruned.length} kernels`)
+        if (vars.DEBUG >= 1) console.log(`pruned from ${jit_cache.length} -> ${pruned.length} kernels`)
         // run the onetime kernels here
         for (const ei of onetime) {
           for (const b of ei.bufs) b!.ensure_allocated()
@@ -338,7 +336,7 @@ export class TinyJit<Args extends any[], Return extends any> {
       jit_cache = jit_cache.map((item) => new ExecItem(item.prg, item.bufs.filter((b) => b !== undefined).map((b) => (assigned.get(b) || b)!.ensure_allocated())))
 
       const input_replace = get_input_replace(jit_cache, input_buffers)
-      if (env.DEBUG >= 1 && new Set(input_replace.values()).size !== input_buffers.length) throw new Error('WARNING: some input tensors not found')
+      if (vars.DEBUG >= 1 && new Set(input_replace.values()).size !== input_buffers.length) throw new Error('WARNING: some input tensors not found')
 
       // set this for next run
       this.captured = new CapturedJit(ret, jit_cache, input_replace, extra_view_inputs, names, st_vars_dtype_device)
