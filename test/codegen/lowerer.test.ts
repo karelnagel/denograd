@@ -1,20 +1,14 @@
-import {
-  get_index,
-  IndexContext,
-  lower_load_store,
-  lower_reduce_axis,
-  rewrite_shapetracker_with_index,
-} from "../../jsgrad/codegen/lowerer.ts";
-import { dtypes } from "../../jsgrad/dtype.ts";
-import { KernelInfo, Ops, UOp } from "../../jsgrad/ops.ts";
-import { ClangRenderer } from "../../jsgrad/renderer/cstyle.ts";
-import { ShapeTracker } from "../../jsgrad/shape/shapetracker.ts";
-import { View } from "../../jsgrad/shape/view.ts";
-import { compare } from "../helpers.ts";
-import { describe } from "vitest";
+import { get_index, IndexContext, lower_load_store, lower_reduce_axis, rewrite_shapetracker_with_index } from '../../jsgrad/codegen/lowerer.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { KernelInfo, Ops, UOp } from '../../jsgrad/ops.ts'
+import { ClangRenderer } from '../../jsgrad/renderer/cstyle.ts'
+import { ShapeTracker } from '../../jsgrad/shape/shapetracker.ts'
+import { View } from '../../jsgrad/shape/view.ts'
+import { compare } from '../helpers.ts'
+import { describe } from 'vitest'
 
 describe(
-  "get_index",
+  'get_index',
   compare(
     [
       [
@@ -361,12 +355,12 @@ describe(
       ],
     ],
     get_index,
-    "out(tiny.codegen.lowerer.get_index(*data))",
+    'out(tiny.codegen.lowerer.get_index(*data))',
   ),
-);
+)
 
 describe(
-  "lower_reduce_axis",
+  'lower_reduce_axis',
   compare(
     [
       [
@@ -1248,12 +1242,12 @@ describe(
       ],
     ],
     lower_reduce_axis,
-    "out(tiny.codegen.lowerer.lower_reduce_axis(*data))",
+    'out(tiny.codegen.lowerer.lower_reduce_axis(*data))',
   ),
-);
+)
 
 describe(
-  "lower_load_store",
+  'lower_load_store',
   compare(
     [
       [
@@ -1503,12 +1497,12 @@ describe(
       ],
     ],
     lower_load_store,
-    "out(tiny.codegen.lowerer.lower_load_store(*data))",
+    'out(tiny.codegen.lowerer.lower_load_store(*data))',
   ),
-);
+)
 
 describe(
-  "rewrite_shapetracker_with_index",
+  'rewrite_shapetracker_with_index',
   compare(
     [
       [
@@ -1812,6 +1806,6 @@ describe(
       ],
     ],
     rewrite_shapetracker_with_index,
-    "out(tiny.codegen.lowerer.rewrite_shapetracker_with_index(*data))",
+    'out(tiny.codegen.lowerer.rewrite_shapetracker_with_index(*data))',
   ),
-);
+)

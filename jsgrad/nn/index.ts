@@ -1,15 +1,15 @@
-import { is_dtype_supported } from "../device.ts";
-import { dtypes } from "../dtype.ts";
-import { flatten, is_eq, make_tuple, num, range, zip } from "../helpers.ts";
-import { div, idiv, mul, prod, sub } from "../helpers.ts";
-import type { sint } from "../ops.ts";
-import { type Layer, Tensor } from "../tensor.ts";
-import { get_state_dict } from "./state.ts";
-import { load_state_dict, safe_load, safe_save } from "./state.ts";
+import { is_dtype_supported } from '../device.ts'
+import { dtypes } from '../dtype.ts'
+import { flatten, is_eq, make_tuple, num, range, zip } from '../helpers.ts'
+import { div, idiv, mul, prod, sub } from '../helpers.ts'
+import type { sint } from '../ops.ts'
+import { type Layer, Tensor } from '../tensor.ts'
+import { get_state_dict } from './state.ts'
+import { load_state_dict, safe_load, safe_save } from './state.ts'
 
-export * from "./optim.ts";
-export * from "./state.ts";
-export * from "./datasets.ts";
+export * from './optim.ts'
+export * from './state.ts'
+export * from './datasets.ts'
 
 /**
  * Abstract model to simplify calling, loading and saving different models.
@@ -36,8 +36,8 @@ export * from "./datasets.ts";
  * ```
  */
 export abstract class Model {
-  DEFAULT_LOAD?: string;
-  abstract layers: Layer[];
+  DEFAULT_LOAD?: string
+  abstract layers: Layer[]
   /**
    * Call model with a Tensor input, returns a Tensor with output.
    * ```ts
@@ -48,7 +48,7 @@ export abstract class Model {
    * console.log(await res.tolist())
    * ```
    */
-  call = (x: Tensor) => x.sequential(this.layers);
+  call = (x: Tensor) => x.sequential(this.layers)
   /**
    * Load model weights from a .safetensors file at the given path or absolute URL
    * ```ts
@@ -61,11 +61,11 @@ export abstract class Model {
     if (!path && !this.DEFAULT_LOAD) {
       throw new Error(
         `You need to specify model path, can be URL or local path!`,
-      );
+      )
     }
-    await load_state_dict(this, await safe_load(path || this.DEFAULT_LOAD!));
-    return this;
-  };
+    await load_state_dict(this, await safe_load(path || this.DEFAULT_LOAD!))
+    return this
+  }
   /**
    * Save model weights to a .safetensors file at the given path
    * ```ts
@@ -75,7 +75,7 @@ export abstract class Model {
    * await model.save("./model.safetensors")
    * ```
    */
-  save = async (path: string) => await safe_save(get_state_dict(this), path);
+  save = async (path: string) => await safe_save(get_state_dict(this), path)
 }
 
 /**
@@ -103,14 +103,14 @@ export abstract class Model {
  * ```
  */
 export class BatchNorm {
-  eps: number;
-  track_running_stats: boolean;
-  momentum: number;
-  weight?: Tensor;
-  bias?: Tensor;
-  num_batches_tracked: Tensor;
-  running_mean?: Tensor;
-  running_var?: Tensor;
+  eps: number
+  track_running_stats: boolean
+  momentum: number
+  weight?: Tensor
+  bias?: Tensor
+  num_batches_tracked: Tensor
+  running_mean?: Tensor
+  running_var?: Tensor
   constructor(
     sz: number,
     eps = 1e-5,
@@ -118,48 +118,45 @@ export class BatchNorm {
     track_running_stats = true,
     momentum = 0.1,
   ) {
-    this.eps = eps,
-      this.track_running_stats = track_running_stats,
-      this.momentum = momentum;
+    this.eps = eps, this.track_running_stats = track_running_stats, this.momentum = momentum
 
-    this.weight = affine ? Tensor.ones([sz]) : undefined;
-    this.bias = affine ? Tensor.zeros([sz]) : undefined;
+    this.weight = affine ? Tensor.ones([sz]) : undefined
+    this.bias = affine ? Tensor.zeros([sz]) : undefined
 
     this.num_batches_tracked = Tensor.zeros([1], {
       dtype: is_dtype_supported(dtypes.long) ? dtypes.long : dtypes.int,
       requires_grad: false,
-    });
+    })
     if (track_running_stats) {
-      this.running_mean = Tensor.zeros([sz], { requires_grad: false }),
-        this.running_var = Tensor.ones([sz], { requires_grad: false });
+      this.running_mean = Tensor.zeros([sz], { requires_grad: false }), this.running_var = Tensor.ones([sz], { requires_grad: false })
     }
   }
   calc_stats = (x: Tensor): [Tensor, Tensor] => {
-    const shape_mask: number[] = [1, -1, ...(range(x.ndim - 2).map((x) => 1))];
+    const shape_mask: number[] = [1, -1, ...(range(x.ndim - 2).map((x) => 1))]
     if (this.track_running_stats && !Tensor.training) {
       return [
         this.running_mean!,
         this.running_var!.reshape(shape_mask).expand(x.shape),
-      ];
+      ]
     }
     // This requires two full memory accesses to x
     // https://github.com/pytorch/pytorch/blob/c618dc13d2aa23625cb0d7ada694137532a4fa33/aten/src/ATen/native/cuda/Normalization.cuh
     // There's "online" algorithms that fix this, like https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance//Welford's_Online_algorithm
-    const reduce_axes = range(x.ndim).filter((x) => x !== 1);
-    const batch_mean = x.mean(reduce_axes);
-    const y = x.sub(batch_mean.detach().reshape(shape_mask)); // d(var)/d(mean) = 0
-    const batch_var = (y.mul(y)).mean(reduce_axes);
-    return [batch_mean, batch_var];
-  };
+    const reduce_axes = range(x.ndim).filter((x) => x !== 1)
+    const batch_mean = x.mean(reduce_axes)
+    const y = x.sub(batch_mean.detach().reshape(shape_mask)) // d(var)/d(mean) = 0
+    const batch_var = (y.mul(y)).mean(reduce_axes)
+    return [batch_mean, batch_var]
+  }
   call = (x: Tensor): Tensor => {
-    const [batch_mean, batch_var] = this.calc_stats(x);
+    const [batch_mean, batch_var] = this.calc_stats(x)
     // NOTE: wow, this === done all throughout training in most PyTorch models
     if (this.track_running_stats && Tensor.training) {
       this.running_mean!.assign(
         this.running_mean!.mul(1 - this.momentum, true).add(
           batch_mean.detach().mul(this.momentum, true),
         ),
-      );
+      )
       this.running_var!.assign(
         this.running_var!.mul(1 - this.momentum, true).add(
           batch_var.detach().mul(
@@ -167,19 +164,19 @@ export class BatchNorm {
             true,
           ),
         ),
-      );
-      this.num_batches_tracked = this.num_batches_tracked.add(1);
+      )
+      this.num_batches_tracked = this.num_batches_tracked.add(1)
     }
     return x.batchnorm(
       this.weight,
       this.bias,
       batch_mean,
       batch_var.add(this.eps).rsqrt(),
-    );
-  };
+    )
+  }
 }
-export const BatchNorm2d = BatchNorm;
-export const BatchNorm3d = BatchNorm;
+export const BatchNorm2d = BatchNorm
+export const BatchNorm3d = BatchNorm
 
 /**
  * Applies a 1D convolution over an input signal composed of several input planes.
@@ -215,8 +212,8 @@ export const Conv1d = (
     dilation,
     groups,
     bias,
-  );
-};
+  )
+}
 
 /**
  * Applies a 2D convolution over an input signal composed of several input planes.
@@ -234,13 +231,13 @@ export const Conv1d = (
  * ```
  */
 export class Conv2d {
-  kernel_size: number[];
-  stride: number;
-  dilation: number;
-  groups: number;
-  padding: number | number[];
-  weight: Tensor;
-  bias?: Tensor;
+  kernel_size: number[]
+  stride: number
+  dilation: number
+  groups: number
+  padding: number | number[]
+  weight: Tensor
+  bias?: Tensor
   constructor(
     in_channels: number,
     out_channels: number,
@@ -251,39 +248,34 @@ export class Conv2d {
     groups = 1,
     bias = true,
   ) {
-    this.kernel_size = make_tuple(kernel_size, 2);
-    if (typeof padding === "string") {
-      if (padding.toLowerCase() !== "same") {
+    this.kernel_size = make_tuple(kernel_size, 2)
+    if (typeof padding === 'string') {
+      if (padding.toLowerCase() !== 'same') {
         throw new Error(
           `Invalid padding string ${padding}, only 'same' is supported`,
-        );
+        )
       }
       if (stride !== 1) {
         throw new Error(
           "padding='same' is not supported for strided convolutions",
-        );
+        )
       }
       const pad = zip(
         make_tuple(dilation, this.kernel_size.length),
         this.kernel_size.toReversed(),
       ).map((
         [d, k],
-      ) => [idiv(d * (k - 1), 2), d * (k - 1) - idiv(d * (k - 1), 2)]);
-      padding = flatten(pad);
+      ) => [idiv(d * (k - 1), 2), d * (k - 1) - idiv(d * (k - 1), 2)])
+      padding = flatten(pad)
     }
-    this.stride = stride,
-      this.dilation = dilation,
-      this.groups = groups,
-      this.padding = padding;
-    const scale = 1 / Math.sqrt(in_channels * prod(this.kernel_size));
+    this.stride = stride, this.dilation = dilation, this.groups = groups, this.padding = padding
+    const scale = 1 / Math.sqrt(in_channels * prod(this.kernel_size))
     this.weight = Tensor.uniform(
       [out_channels, idiv(in_channels, groups), ...this.kernel_size],
       -scale,
       scale,
-    );
-    this.bias = bias
-      ? Tensor.uniform([out_channels], -scale, scale)
-      : undefined;
+    )
+    this.bias = bias ? Tensor.uniform([out_channels], -scale, scale) : undefined
   }
   call = (x: Tensor): Tensor =>
     x.conv2d(
@@ -293,7 +285,7 @@ export class Conv2d {
       this.stride,
       this.dilation,
       this.padding,
-    );
+    )
 }
 
 /**
@@ -333,8 +325,8 @@ export const ConvTranspose1d = (
     dilation,
     groups,
     bias,
-  );
-};
+  )
+}
 
 /**
  * Applies a 2D transposed convolution operator over an input image.
@@ -372,13 +364,13 @@ export class ConvTranspose2d extends Conv2d {
       dilation,
       groups,
       bias,
-    );
-    const scale = 1 / Math.sqrt(in_channels * prod(this.kernel_size));
+    )
+    const scale = 1 / Math.sqrt(in_channels * prod(this.kernel_size))
     this.weight = Tensor.uniform(
       [in_channels, idiv(out_channels, groups), ...this.kernel_size],
       -scale,
       scale,
-    );
+    )
   }
   override call = (x: Tensor): Tensor => {
     return x.conv_transpose2d(
@@ -389,8 +381,8 @@ export class ConvTranspose2d extends Conv2d {
       this.dilation,
       this.padding,
       this.output_padding,
-    );
-  };
+    )
+  }
 }
 /**
  * Applies a linear transformation to the incoming data.
@@ -408,16 +400,14 @@ export class ConvTranspose2d extends Conv2d {
  * ```
  */
 export class Linear {
-  weight: Tensor;
-  bias?: Tensor;
+  weight: Tensor
+  bias?: Tensor
   constructor(in_features: number, out_features: number, bias = true) {
-    const bound = 1 / Math.sqrt(in_features);
-    this.weight = Tensor.uniform([out_features, in_features], -bound, bound);
-    this.bias = bias
-      ? Tensor.uniform([out_features], -bound, bound)
-      : undefined;
+    const bound = 1 / Math.sqrt(in_features)
+    this.weight = Tensor.uniform([out_features, in_features], -bound, bound)
+    this.bias = bias ? Tensor.uniform([out_features], -bound, bound) : undefined
   }
-  call = (x: Tensor): Tensor => x.linear(this.weight.transpose(), this.bias);
+  call = (x: Tensor): Tensor => x.linear(this.weight.transpose(), this.bias)
 }
 
 /**
@@ -438,16 +428,16 @@ export class Linear {
  * ```
  */
 export class GroupNorm {
-  weight: Tensor | undefined;
-  bias: Tensor | undefined;
+  weight: Tensor | undefined
+  bias: Tensor | undefined
   constructor(
     public num_groups: number,
     public num_channels: number,
     public eps = 1e-5,
     affine = true,
   ) {
-    this.weight = affine ? Tensor.ones([num_channels]) : undefined;
-    this.bias = affine ? Tensor.zeros([num_channels]) : undefined;
+    this.weight = affine ? Tensor.ones([num_channels]) : undefined
+    this.bias = affine ? Tensor.zeros([num_channels]) : undefined
   }
   call = (x: Tensor): Tensor => {
     // reshape for layernorm to work as group norm
@@ -455,14 +445,14 @@ export class GroupNorm {
     x = x.reshape([x.shape[0], this.num_groups, -1]).layernorm(
       undefined,
       this.eps,
-    ).reshape(x.shape);
+    ).reshape(x.shape)
 
-    if (this.weight === undefined || this.bias === undefined) return x;
+    if (this.weight === undefined || this.bias === undefined) return x
     // elementwise_affine on channels
     return x.mul(
       this.weight.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)]),
-    ).add(this.bias.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)]));
-  };
+    ).add(this.bias.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)]))
+  }
 }
 
 /**
@@ -482,23 +472,23 @@ export class GroupNorm {
  * ```
  */
 export class InstanceNorm {
-  weight: Tensor | undefined;
-  bias: Tensor | undefined;
+  weight: Tensor | undefined
+  bias: Tensor | undefined
   constructor(public num_features: number, public eps = 1e-5, affine = true) {
-    this.weight = affine ? Tensor.ones([num_features]) : undefined;
-    this.bias = affine ? Tensor.zeros([num_features]) : undefined;
+    this.weight = affine ? Tensor.ones([num_features]) : undefined
+    this.bias = affine ? Tensor.zeros([num_features]) : undefined
   }
 
   call = (x: Tensor): Tensor => {
     x = x.reshape([x.shape[0], this.num_features, -1]).layernorm(
       undefined,
       this.eps,
-    ).reshape(x.shape);
-    if (this.weight === undefined || this.bias === undefined) return x;
+    ).reshape(x.shape)
+    if (this.weight === undefined || this.bias === undefined) return x
     return x.mul(
       this.weight.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)]),
-    ).add(this.bias.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)]));
-  };
+    ).add(this.bias.reshape([1, -1, ...range(x.ndim - 2).map(() => 1)]))
+  }
 }
 
 /**
@@ -518,27 +508,21 @@ export class InstanceNorm {
  * ```
  */
 export class LayerNorm {
-  normalized_shape: number[];
-  axis: number[];
-  eps: number;
-  elementwise_affine: boolean;
-  weight?: Tensor;
-  bias?: Tensor;
+  normalized_shape: number[]
+  axis: number[]
+  eps: number
+  elementwise_affine: boolean
+  weight?: Tensor
+  bias?: Tensor
   constructor(
     normalized_shape: number | number[],
     eps = 1e-5,
     elementwise_affine = true,
   ) {
-    this.normalized_shape = make_tuple(normalized_shape, 1);
-    this.axis = range(this.normalized_shape.length).map((i) => -1 - i),
-      this.eps = eps,
-      this.elementwise_affine = elementwise_affine;
-    this.weight = elementwise_affine
-      ? Tensor.ones(this.normalized_shape)
-      : undefined;
-    this.bias = elementwise_affine
-      ? Tensor.zeros(this.normalized_shape)
-      : undefined;
+    this.normalized_shape = make_tuple(normalized_shape, 1)
+    this.axis = range(this.normalized_shape.length).map((i) => -1 - i), this.eps = eps, this.elementwise_affine = elementwise_affine
+    this.weight = elementwise_affine ? Tensor.ones(this.normalized_shape) : undefined
+    this.bias = elementwise_affine ? Tensor.zeros(this.normalized_shape) : undefined
   }
   call(x: Tensor): Tensor {
     if (
@@ -549,11 +533,11 @@ export class LayerNorm {
     ) {
       throw new Error(
         `last dimensions of ${x.shape} must match ${this.normalized_shape}`,
-      );
+      )
     }
-    x = x.layernorm(this.axis, this.eps);
-    if (!this.elementwise_affine) return x;
-    return x.mul(this.weight!).add(this.bias!);
+    x = x.layernorm(this.axis, this.eps)
+    if (!this.elementwise_affine) return x
+    return x.mul(this.weight!).add(this.bias!)
   }
 }
 /**
@@ -573,7 +557,7 @@ export class LayerNorm {
  */
 export class LayerNorm2d extends LayerNorm {
   override call(x: Tensor): Tensor {
-    return super.call(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2);
+    return super.call(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
   }
 }
 
@@ -593,16 +577,14 @@ export class LayerNorm2d extends LayerNorm {
  * ```
  */
 export class RMSNorm {
-  weight: Tensor;
+  weight: Tensor
   constructor(dim: number, public eps = 1e-6) {
-    this.weight = Tensor.ones([dim]);
+    this.weight = Tensor.ones([dim])
   }
 
-  _norm = (x: Tensor): Tensor =>
-    x.mul(x.square().mean(-1, true).add(this.eps).rsqrt());
+  _norm = (x: Tensor): Tensor => x.mul(x.square().mean(-1, true).add(this.eps).rsqrt())
 
-  call = (x: Tensor): Tensor =>
-    this._norm(x.float()).cast(x.dtype).mul(this.weight);
+  call = (x: Tensor): Tensor => this._norm(x.float()).cast(x.dtype).mul(this.weight)
 }
 /**
  * A simple lookup table that stores embeddings of a fixed dictionary and size.
@@ -615,10 +597,10 @@ export class RMSNorm {
  * ```
  */
 export class Embedding {
-  weight: Tensor;
-  arange: Tensor | undefined;
+  weight: Tensor
+  arange: Tensor | undefined
   constructor(public vocab_size: number, public embed_size: number) {
-    this.weight = Tensor.glorot_uniform([vocab_size, embed_size]);
+    this.weight = Tensor.glorot_uniform([vocab_size, embed_size])
   }
 
   call = (idx: Tensor): Tensor => {
@@ -626,14 +608,14 @@ export class Embedding {
       this.arange = Tensor.arange(this.vocab_size, undefined, undefined, {
         requires_grad: false,
         device: this.weight.device,
-      }).unsqueeze(-1);
+      }).unsqueeze(-1)
     }
-    const big_shp = [...idx.shape, this.vocab_size, this.embed_size];
+    const big_shp = [...idx.shape, this.vocab_size, this.embed_size]
     const arange = this.arange.expand(big_shp),
-      vals = this.weight!.expand(big_shp);
-    idx = idx.reshape([...idx.shape, 1, 1]).expand(big_shp);
-    return arange.eq(idx).mul(vals).sum(-2, undefined, vals.dtype);
-  };
+      vals = this.weight!.expand(big_shp)
+    idx = idx.reshape([...idx.shape, 1, 1]).expand(big_shp)
+    return arange.eq(idx).mul(vals).sum(-2, undefined, vals.dtype)
+  }
 }
 
 /**
@@ -645,20 +627,20 @@ export class Embedding {
  *   bias: If ``False``, then the layer does not use bias weights `b_ih` and `b_hh`
  */
 export class LSTMCell {
-  weight_ih: Tensor;
-  weight_hh: Tensor;
-  bias_ih: Tensor | undefined;
-  bias_hh: Tensor | undefined;
+  weight_ih: Tensor
+  weight_hh: Tensor
+  bias_ih: Tensor | undefined
+  bias_hh: Tensor | undefined
   constructor(input_size: number, hidden_size: number, bias = true) {
-    const stdv = 1.0 / Math.sqrt(hidden_size);
-    this.weight_ih = Tensor.uniform([hidden_size * 4, input_size], -stdv, stdv);
+    const stdv = 1.0 / Math.sqrt(hidden_size)
+    this.weight_ih = Tensor.uniform([hidden_size * 4, input_size], -stdv, stdv)
     this.weight_hh = Tensor.uniform(
       [hidden_size * 4, hidden_size],
       -stdv,
       stdv,
-    );
-    this.bias_ih = bias ? Tensor.zeros([hidden_size * 4]) : undefined;
-    this.bias_hh = bias ? Tensor.zeros([hidden_size * 4]) : undefined;
+    )
+    this.bias_ih = bias ? Tensor.zeros([hidden_size * 4]) : undefined
+    this.bias_hh = bias ? Tensor.zeros([hidden_size * 4]) : undefined
   }
 
   call = (x: Tensor, hc?: [Tensor, Tensor]): [Tensor, Tensor] => {
@@ -668,15 +650,15 @@ export class LSTMCell {
           dtype: x.dtype,
           device: x.device,
         })
-      ) as [Tensor, Tensor];
+      ) as [Tensor, Tensor]
     }
     const gates = x.linear(this.weight_ih.T, this.bias_ih).add(
       hc[0].linear(this.weight_hh.T, this.bias_hh),
-    );
-    let [i, f, g, o] = gates.chunk(4, 1);
-    i = i.sigmoid(), f = f.sigmoid(), g = g.tanh(), o = o.sigmoid();
-    const new_c = f.mul(hc[1]).add(i.mul(g));
-    const new_h = o.mul(new_c.tanh());
-    return [new_h.contiguous(), new_c.contiguous()];
-  };
+    )
+    let [i, f, g, o] = gates.chunk(4, 1)
+    i = i.sigmoid(), f = f.sigmoid(), g = g.tanh(), o = o.sigmoid()
+    const new_c = f.mul(hc[1]).add(i.mul(g))
+    const new_h = o.mul(new_c.tanh())
+    return [new_h.contiguous(), new_c.contiguous()]
+  }
 }

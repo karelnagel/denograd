@@ -5,17 +5,16 @@
  * TODO: can this file be smaller, rn it,s 1.19MB
  */
 
-const URL =
-    "https://raw.githubusercontent.com/AssemblyScript/wabt.js/refs/heads/main/index.js";
-const PATH = "./jsgrad/runtime/autogen/wabt.js";
+const URL = 'https://raw.githubusercontent.com/AssemblyScript/wabt.js/refs/heads/main/index.js'
+const PATH = './jsgrad/runtime/autogen/wabt.js'
 
-const res = await fetch(URL);
-let text = await res.text();
+const res = await fetch(URL)
+let text = await res.text()
 
-text = text.replace("var ", "export const ");
+text = text.replace('var ', 'export const ')
 
-text = text.replaceAll("__dirname", "undefined");
-text = text.replaceAll('require("fs")', "undefined");
-text = text.replaceAll('require("path")', "undefined");
+text = text.replaceAll('__dirname', 'undefined')
+text = text.replaceAll('require("fs")', 'undefined')
+text = text.replaceAll('require("path")', 'undefined')
 
-await Deno.writeTextFile(PATH, text);
+await Deno.writeTextFile(PATH, text)

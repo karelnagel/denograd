@@ -1,19 +1,19 @@
 // deno-lint-ignore-file no-process-global
-import type { Stats as NodeStats } from "node:fs";
-import { memsize_to_str } from "../helpers.ts";
-import type { Compiled } from "../runtime/allocator.ts";
-import { Sha256 } from "../sha256.js";
-import { Tqdm, type TqdmOnProgress } from "../tqdm.ts";
+import type { Stats as NodeStats } from 'node:fs'
+import { memsize_to_str } from '../helpers.ts'
+import type { Compiled } from '../runtime/allocator.ts'
+import { Sha256 } from '../sha256.js'
+import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
 
-export type Stats = Pick<NodeStats, "isFile" | "size">;
+export type Stats = Pick<NodeStats, 'isFile' | 'size'>
 export type Dlopen = <const S extends Deno.ForeignLibraryInterface>(
   filename: string | URL,
   symbols: S,
-) => Deno.DynamicLibrary<S> | Promise<Deno.DynamicLibrary<S>>;
+) => Deno.DynamicLibrary<S> | Promise<Deno.DynamicLibrary<S>>
 export type FFICallback = (
   x: { parameters: Deno.NativeType[]; result: Deno.NativeResultType },
   cb: (...a: any[]) => any,
-) => any;
+) => any
 // deno-fmt-ignore
 export class WebEnv {
   NAME = 'web'
@@ -213,32 +213,32 @@ export class WebEnv {
   set CAPTURE_PROCESS_REPLAY(val) { this._env.CAPTURE_PROCESS_REPLAY = val! }
 }
 
-export let env = new WebEnv();
+export let env = new WebEnv()
 export const setRuntime = (e: WebEnv) => {
-  env = e;
-  if (env.DEBUG === 1) console.log(`Using env ${env.NAME}`);
-};
+  env = e
+  if (env.DEBUG === 1) console.log(`Using env ${env.NAME}`)
+}
 
 export const withEnv = <Res>(
   overrides: Record<string, string | number>,
   fn: () => Res,
 ): Res => {
-  const old = env._env;
-  env._env = { ...env._env, ...overrides as any };
-  const res = fn();
-  env._env = old;
-  return res;
-};
+  const old = env._env
+  env._env = { ...env._env, ...overrides as any }
+  const res = fn()
+  env._env = old
+  return res
+}
 
 export const withEnvAsync = async <Res>(
   overrides: Record<string, string | number>,
   fn: () => Promise<Res>,
 ): Promise<Res> => {
-  const old = env._env;
-  env._env = { ...env._env, ...overrides as any };
-  const res = await fn();
-  env._env = old;
-  return res;
-};
+  const old = env._env
+  env._env = { ...env._env, ...overrides as any }
+  const res = await fn()
+  env._env = old
+  return res
+}
 
-await withEnv({ AMX: 1 }, async () => {});
+await withEnv({ AMX: 1 }, async () => {})

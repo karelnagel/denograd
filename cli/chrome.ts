@@ -1,67 +1,67 @@
 #!/usr/bin/env -S deno run -A
-import { chromium } from "npm:playwright";
-import esbuild from "npm:esbuild";
-import process from "node:process";
-import { string_to_bytes } from "../jsgrad/helpers.ts";
+import { chromium } from 'npm:playwright'
+import esbuild from 'npm:esbuild'
+import process from 'node:process'
+import { string_to_bytes } from '../jsgrad/helpers.ts'
 
-const FORWARD_ENVS = ["DEBUG", "D", "DEVICE", "JIT", "BEAM", "CACHELEVEL"];
+const FORWARD_ENVS = ['DEBUG', 'D', 'DEVICE', 'JIT', 'BEAM', 'CACHELEVEL']
 
-const [entry, ...args] = Deno.args;
+const [entry, ...args] = Deno.args
 const build = await esbuild.build({
   entryPoints: [entry],
-  format: "esm",
+  format: 'esm',
   bundle: true,
-  platform: "browser",
+  platform: 'browser',
   write: false,
-  logLevel: "error",
-  target: ["chrome100"],
+  logLevel: 'error',
+  target: ['chrome100'],
   external: [
-    "./jsgrad/env/deno.ts",
-    "./jsgrad/env/bun.ts",
-    "./jsgrad/env/node.ts",
+    './jsgrad/env/deno.ts',
+    './jsgrad/env/bun.ts',
+    './jsgrad/env/node.ts',
   ],
   define: {
-    "window.args": JSON.stringify(args),
-    "process": JSON.stringify({
+    'window.args': JSON.stringify(args),
+    'process': JSON.stringify({
       env: Object.fromEntries(FORWARD_ENVS.map((k) => [k, process.env[k]])),
     }),
   },
-});
+})
 
-const code = build.outputFiles[0].text + ';console.log("ASYNC_CODE_COMPLETE");';
+const code = build.outputFiles[0].text + ';console.log("ASYNC_CODE_COMPLETE");'
 
-const browser = await chromium.launchPersistentContext(".playwright", {
+const browser = await chromium.launchPersistentContext('.playwright', {
   headless: !process.env.SHOW,
   args: [
-    "--disable-web-security",
-    "--enable-unsafe-webgpu",
-    "--enable-features=Vulkan",
+    '--disable-web-security',
+    '--enable-unsafe-webgpu',
+    '--enable-features=Vulkan',
   ],
-});
-const page = await browser.newPage();
-await page.goto("https://jsgrad.org"); // needed cause indexedDB won't work in about:blank
-await page.setContent("<html><body></body></html>");
+})
+const page = await browser.newPage()
+await page.goto('https://jsgrad.org') // needed cause indexedDB won't work in about:blank
+await page.setContent('<html><body></body></html>')
 
-page.on("pageerror", (e) => {
-  console.error(e.stack);
-  throw e;
-});
-page.on("dialog", (x) => {
-  if (x.type() === "prompt") x.accept(prompt(x.message())!);
-  else throw new Error(`Unhandled dialog: ${x.type()}`);
-});
+page.on('pageerror', (e) => {
+  console.error(e.stack)
+  throw e
+})
+page.on('dialog', (x) => {
+  if (x.type() === 'prompt') x.accept(prompt(x.message())!)
+  else throw new Error(`Unhandled dialog: ${x.type()}`)
+})
 const promise = new Promise<void>((res) => {
-  page.on("console", (msg) => {
-    const text = msg.text();
-    if (text === "ASYNC_CODE_COMPLETE") return res();
-    if (text.includes("\u200B")) {
-      Deno.stdout.writeSync(string_to_bytes(text.replace("\u200B", "")));
-    } else console.log(text);
-  });
-});
+  page.on('console', (msg) => {
+    const text = msg.text()
+    if (text === 'ASYNC_CODE_COMPLETE') return res()
+    if (text.includes('\u200B')) {
+      Deno.stdout.writeSync(string_to_bytes(text.replace('\u200B', '')))
+    } else console.log(text)
+  })
+})
 
-await page.addScriptTag({ content: code, type: "module" });
+await page.addScriptTag({ content: code, type: 'module' })
 
-await promise;
+await promise
 
-await browser.close();
+await browser.close()

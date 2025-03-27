@@ -1,30 +1,27 @@
-import { Tensor } from "../../jsgrad/tensor.ts";
-import { dtypes } from "../../jsgrad/dtype.ts";
-import { Device } from "../../jsgrad/device.ts";
-import { compare } from "../helpers.ts";
-import {
-  precompute_freqs_cis,
-  Transformer,
-} from "../../jsgrad/models/llama.ts";
-import { describe as describe } from "vitest";
+import { Tensor } from '../../jsgrad/tensor.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { Device } from '../../jsgrad/device.ts'
+import { compare } from '../helpers.ts'
+import { precompute_freqs_cis, Transformer } from '../../jsgrad/models/llama.ts'
+import { describe as describe } from 'vitest'
 
 describe(
-  "precompute_freqs_cis",
+  'precompute_freqs_cis',
   compare(
     [
       [4, 164, 500],
     ],
     precompute_freqs_cis,
     [
-      "from extra.models.llama import precompute_freqs_cis",
-      "out(precompute_freqs_cis(*data))",
+      'from extra.models.llama import precompute_freqs_cis',
+      'out(precompute_freqs_cis(*data))',
     ],
-    { skip: Device.DEFAULT === "WASM" || Device.DEFAULT === "DAWN" },
+    { skip: Device.DEFAULT === 'WASM' || Device.DEFAULT === 'DAWN' },
   ),
-);
+)
 
 describe(
-  "Transformer.forward",
+  'Transformer.forward',
   compare(
     () =>
       [
@@ -88,16 +85,16 @@ describe(
         ],
       ] as any,
     (init: any, forward: any) => {
-      Tensor.manual_seed(4);
-      return new (Transformer as any)(...init).forward(...forward);
+      Tensor.manual_seed(4)
+      return new (Transformer as any)(...init).forward(...forward)
     },
     [
-      "from extra.models.llama import Transformer",
-      "import tinygrad.nn as nn",
-      "tiny.Tensor.manual_seed(4)",
-      "d = data[0]",
-      "out(Transformer(d[0],d[1],d[2],d[3],d[4],d[5],nn.Linear,nn.Embedding,d[8],d[9],d[10],d[11]).forward(*data[1]))",
+      'from extra.models.llama import Transformer',
+      'import tinygrad.nn as nn',
+      'tiny.Tensor.manual_seed(4)',
+      'd = data[0]',
+      'out(Transformer(d[0],d[1],d[2],d[3],d[4],d[5],nn.Linear,nn.Embedding,d[8],d[9],d[10],d[11]).forward(*data[1]))',
     ],
-    { skip: Device.DEFAULT === "WEBGPU" || Device.DEFAULT === "WASM" },
+    { skip: Device.DEFAULT === 'WEBGPU' || Device.DEFAULT === 'WASM' },
   ),
-);
+)

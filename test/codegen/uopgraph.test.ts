@@ -1,72 +1,51 @@
-import {
-  _choices_from_args,
-  _expand_arg_to_idx,
-  _swizzle_args,
-  create_gate,
-  delete_redundant_gates,
-  devectorize,
-  do_contract,
-  do_expand,
-  fix_unfoldable_image_load,
-  fold_expanded,
-  full_graph_rewrite,
-  loop_collapse,
-  move_mask,
-  no_vectorized_acc,
-  no_vectorized_alu,
-  no_vectorized_load_store,
-  reduce_collapse,
-  simplify_valid_load,
-  sym,
-  threefry2x32,
-} from "../../jsgrad/ops.ts";
-import { dtypes } from "../../jsgrad/dtype.ts";
-import { KernelInfo, Ops, UOp } from "../../jsgrad/ops.ts";
-import { compare, tryCatch } from "../helpers.ts";
-import { ClangRenderer } from "../../jsgrad/renderer/cstyle.ts";
-import { WGSLRenderer } from "../../jsgrad/renderer/wgsl.ts";
-import { describe } from "vitest";
+import { _choices_from_args, _expand_arg_to_idx, _swizzle_args, create_gate, delete_redundant_gates, devectorize, do_contract, do_expand, fix_unfoldable_image_load, fold_expanded, full_graph_rewrite, loop_collapse, move_mask, no_vectorized_acc, no_vectorized_alu, no_vectorized_load_store, reduce_collapse, simplify_valid_load, sym, threefry2x32 } from '../../jsgrad/ops.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { KernelInfo, Ops, UOp } from '../../jsgrad/ops.ts'
+import { compare, tryCatch } from '../helpers.ts'
+import { ClangRenderer } from '../../jsgrad/renderer/cstyle.ts'
+import { WGSLRenderer } from '../../jsgrad/renderer/wgsl.ts'
+import { describe } from 'vitest'
 
 describe(
-  "fold_expanded",
+  'fold_expanded',
   compare(
     [
       [
         new UOp(Ops.VECTORIZE, undefined, [new UOp(Ops.LOAD, undefined, [])]),
-        UOp.variable("buf"),
+        UOp.variable('buf'),
       ],
       [
         new UOp(Ops.STORE, undefined, [
-          new UOp(Ops.INDEX, undefined, [UOp.variable("buf")]),
+          new UOp(Ops.INDEX, undefined, [UOp.variable('buf')]),
         ]),
-        UOp.variable("buf"),
+        UOp.variable('buf'),
       ],
       [
         new UOp(Ops.VECTORIZE, undefined, [
           new UOp(Ops.LOAD, undefined, [
-            new UOp(Ops.INDEX, undefined, [UOp.variable("buf")], 0),
+            new UOp(Ops.INDEX, undefined, [UOp.variable('buf')], 0),
           ]),
         ]),
-        UOp.variable("buf"),
+        UOp.variable('buf'),
       ],
       [
         new UOp(Ops.VECTORIZE, undefined, [
           new UOp(Ops.LOAD, undefined, [
-            new UOp(Ops.ADD, undefined, [UOp.variable("idx"), UOp.int(1)]),
+            new UOp(Ops.ADD, undefined, [UOp.variable('idx'), UOp.int(1)]),
           ]),
         ]),
-        UOp.variable("buf"),
+        UOp.variable('buf'),
       ],
       [
         new UOp(Ops.VECTORIZE, undefined, [
           new UOp(Ops.LOAD, undefined, [
             new UOp(Ops.INDEX, undefined, [
-              UOp.variable("buf"),
-              UOp.variable("gate"),
+              UOp.variable('buf'),
+              UOp.variable('gate'),
             ]),
           ]),
         ]),
-        UOp.variable("buf"),
+        UOp.variable('buf'),
       ],
       [
         new UOp(Ops.VECTORIZE, dtypes.void, [
@@ -472,31 +451,31 @@ describe(
       ],
     ],
     fold_expanded,
-    "out(tiny.codegen.rewriter.fold_expanded(*data))",
+    'out(tiny.codegen.rewriter.fold_expanded(*data))',
   ),
-);
+)
 
 describe(
-  "fix_unfoldable_image_load",
+  'fix_unfoldable_image_load',
   compare(
     [
       [
         new UOp(Ops.LOAD, undefined, [
           new UOp(Ops.INDEX, undefined, [
-            UOp.variable("buf", undefined, undefined, dtypes.imagef(10, 10)),
+            UOp.variable('buf', undefined, undefined, dtypes.imagef(10, 10)),
             UOp.int(5),
           ]),
         ]),
-        UOp.variable("buf", undefined, undefined, dtypes.imagef(10, 10)),
+        UOp.variable('buf', undefined, undefined, dtypes.imagef(10, 10)),
       ],
       [
         new UOp(Ops.LOAD, undefined, [
           new UOp(Ops.INDEX, undefined, [
-            UOp.variable("buf", undefined, undefined, dtypes.imagef(10, 10)),
-            UOp.variable("idx"),
+            UOp.variable('buf', undefined, undefined, dtypes.imagef(10, 10)),
+            UOp.variable('idx'),
           ]),
         ]),
-        UOp.variable("buf", undefined, undefined, dtypes.imagef(10, 10)),
+        UOp.variable('buf', undefined, undefined, dtypes.imagef(10, 10)),
       ],
       [
         new UOp(Ops.LOAD, dtypes.float, [
@@ -590,25 +569,25 @@ describe(
       ],
     ],
     fix_unfoldable_image_load,
-    "out(tiny.codegen.rewriter.fix_unfoldable_image_load(*data))",
+    'out(tiny.codegen.rewriter.fix_unfoldable_image_load(*data))',
   ),
-);
+)
 
 describe(
-  "simplify_valid_load",
+  'simplify_valid_load',
   compare(
     [
-      [UOp.variable("buf"), UOp.int(5), UOp.int(0)], // idx is None case
-      [UOp.variable("buf"), UOp.int(5), UOp.int(1)], // non-image buffer, same idx
-      [UOp.variable("buf"), UOp.variable("idx"), UOp.variable("valid")], // non-image buffer, different idx
+      [UOp.variable('buf'), UOp.int(5), UOp.int(0)], // idx is None case
+      [UOp.variable('buf'), UOp.int(5), UOp.int(1)], // non-image buffer, same idx
+      [UOp.variable('buf'), UOp.variable('idx'), UOp.variable('valid')], // non-image buffer, different idx
     ],
     simplify_valid_load,
-    "out(tiny.codegen.rewriter.simplify_valid_load(*data))",
+    'out(tiny.codegen.rewriter.simplify_valid_load(*data))',
   ),
-);
+)
 
 describe(
-  "threefry2x32",
+  'threefry2x32',
   compare(
     [
       [
@@ -617,7 +596,7 @@ describe(
             new UOp(Ops.LOAD, dtypes.uint, [
               new UOp(Ops.INDEX, dtypes.uint.ptr(), [
                 new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 2),
-                new UOp(Ops.SPECIAL, dtypes.int, [], ["gidx0", 8]),
+                new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx0', 8]),
               ], undefined),
             ], undefined),
           ], undefined),
@@ -626,7 +605,7 @@ describe(
               new UOp(Ops.LOAD, dtypes.uint, [
                 new UOp(Ops.INDEX, dtypes.uint.ptr(), [
                   new UOp(Ops.DEFINE_GLOBAL, dtypes.uint.ptr(), [], 1),
-                  new UOp(Ops.SPECIAL, dtypes.int, [], ["gidx0", 8]),
+                  new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx0', 8]),
                 ], undefined),
               ], undefined),
             ], undefined),
@@ -657,14 +636,14 @@ describe(
       ],
     ],
     (x: UOp, key: UOp) => {
-      threefry2x32(x, key);
+      threefry2x32(x, key)
     },
-    "tiny.codegen.rewriter.threefry2x32(*data)",
+    'tiny.codegen.rewriter.threefry2x32(*data)',
   ),
-);
+)
 
 describe(
-  "loop_collapse",
+  'loop_collapse',
   compare(
     [
       // Basic test with positive mul
@@ -672,7 +651,7 @@ describe(
         UOp.int(10),
         UOp.int(1),
         new UOp(Ops.RANGE, undefined, undefined, [0, 5]),
-        UOp.variable("acc"),
+        UOp.variable('acc'),
         undefined,
         undefined,
         undefined,
@@ -685,7 +664,7 @@ describe(
         UOp.int(10),
         UOp.int(1),
         new UOp(Ops.RANGE, undefined, undefined, [0, 5]),
-        UOp.variable("acc"),
+        UOp.variable('acc'),
         undefined,
         undefined,
         undefined,
@@ -700,7 +679,7 @@ describe(
         UOp.int(10),
         UOp.int(1),
         new UOp(Ops.RANGE, undefined, undefined, [0, 5]),
-        UOp.variable("acc"),
+        UOp.variable('acc'),
         UOp.int(2),
         UOp.int(3),
       ],
@@ -710,11 +689,11 @@ describe(
         UOp.int(10),
         UOp.int(1),
         new UOp(Ops.RANGE, undefined, undefined, [0, 5]),
-        UOp.variable("acc"),
+        UOp.variable('acc'),
         undefined,
         undefined,
         undefined,
-        UOp.variable("vec", undefined, undefined, dtypes.float.vec(4)),
+        UOp.variable('vec', undefined, undefined, dtypes.float.vec(4)),
       ],
 
       // Test with extra accumulation
@@ -722,7 +701,7 @@ describe(
         UOp.int(10),
         UOp.int(1),
         new UOp(Ops.RANGE, undefined, undefined, [0, 5]),
-        UOp.variable("acc"),
+        UOp.variable('acc'),
         undefined,
         undefined,
         UOp.int(5),
@@ -733,7 +712,7 @@ describe(
         UOp.int(10),
         UOp.int(1),
         new UOp(Ops.RANGE, undefined, undefined, [0, 5]),
-        UOp.variable("acc"),
+        UOp.variable('acc'),
       ],
 
       // Test with disabled loop collapse (should return undefined)
@@ -741,7 +720,7 @@ describe(
         UOp.int(10),
         UOp.int(1),
         new UOp(Ops.RANGE, undefined, undefined, [0, 5]),
-        UOp.variable("acc"),
+        UOp.variable('acc'),
       ],
       [
         new UOp(Ops.VCONST, dtypes.int.vec(3), [], [59999, 59998, 59997]),
@@ -1436,12 +1415,12 @@ describe(
       ],
     ],
     loop_collapse,
-    "out(tiny.codegen.rewriter.loop_collapse(*data))",
+    'out(tiny.codegen.rewriter.loop_collapse(*data))',
   ),
-);
+)
 
 describe(
-  "_expand_arg_to_idx",
+  '_expand_arg_to_idx',
   compare(
     [
       // Basic test with single axis
@@ -1477,12 +1456,12 @@ describe(
       [[[2, 3]], new Map([[2, 0], [3, 2]])],
     ],
     _expand_arg_to_idx,
-    "out(tiny.codegen.rewriter._expand_arg_to_idx(data[0],{int(k): v for k, v in data[1].items()}))",
+    'out(tiny.codegen.rewriter._expand_arg_to_idx(data[0],{int(k): v for k, v in data[1].items()}))',
   ),
-);
+)
 
 describe(
-  "_choices_from_args",
+  '_choices_from_args',
   compare(
     [
       // Basic test with single axis
@@ -1508,12 +1487,12 @@ describe(
       [[[2, 3], [3, 4]]],
     ],
     _choices_from_args,
-    "out(tiny.codegen.rewriter._choices_from_args(*data))",
+    'out(tiny.codegen.rewriter._choices_from_args(*data))',
   ),
-);
+)
 
 describe(
-  "_swizzle_args",
+  '_swizzle_args',
   compare(
     [
       // Basic test with single axis
@@ -1542,12 +1521,12 @@ describe(
       [[[2, 3], [3, 4]], [[2, 3]], []],
     ],
     _swizzle_args,
-    "out(tiny.codegen.rewriter._swizzle_args(*data))",
+    'out(tiny.codegen.rewriter._swizzle_args(*data))',
   ),
-);
+)
 
 describe(
-  "do_expand",
+  'do_expand',
   compare(
     [
       // Basic test with no expands
@@ -2040,12 +2019,12 @@ describe(
       ],
     ],
     tryCatch(do_expand),
-    "out(tiny.codegen.rewriter.do_expand(*data))",
+    'out(tiny.codegen.rewriter.do_expand(*data))',
   ),
-);
+)
 
 describe(
-  "do_contract",
+  'do_contract',
   compare(
     [
       // CONTRACT without EXPAND
@@ -2300,12 +2279,12 @@ describe(
       ],
     ],
     do_contract,
-    "out(tiny.codegen.rewriter.do_contract(*data))",
+    'out(tiny.codegen.rewriter.do_contract(*data))',
   ),
-);
+)
 
 describe(
-  "no_vectorized_alu",
+  'no_vectorized_alu',
   compare(
     [
       // No change for scalar ALU
@@ -2402,12 +2381,12 @@ describe(
       ],
     ],
     no_vectorized_alu,
-    "out(tiny.codegen.rewriter.no_vectorized_alu(*data))",
+    'out(tiny.codegen.rewriter.no_vectorized_alu(*data))',
   ),
-);
+)
 
 describe(
-  "create_gate",
+  'create_gate',
   compare(
     [
       // No change for non-INDEX operation
@@ -2712,12 +2691,12 @@ describe(
       ],
     ],
     tryCatch(create_gate),
-    "out(tiny.codegen.rewriter.create_gate(*data))",
+    'out(tiny.codegen.rewriter.create_gate(*data))',
   ),
-);
+)
 
 describe(
-  "no_vectorized_load_store",
+  'no_vectorized_load_store',
   compare(
     [
       // No change for non-pointer dtype
@@ -2914,12 +2893,12 @@ describe(
       ],
     ],
     tryCatch(no_vectorized_load_store),
-    "out(trycatch(lambda:tiny.codegen.rewriter.no_vectorized_load_store(*data)))",
+    'out(trycatch(lambda:tiny.codegen.rewriter.no_vectorized_load_store(*data)))',
   ),
-);
+)
 
 describe(
-  "delete_redundant_gates",
+  'delete_redundant_gates',
   compare(
     [
       // Case 1: Store with gate that should be removed
@@ -3008,12 +2987,12 @@ describe(
       ],
     ],
     delete_redundant_gates,
-    "out(tiny.codegen.rewriter.delete_redundant_gates(*data))",
+    'out(tiny.codegen.rewriter.delete_redundant_gates(*data))',
   ),
-);
+)
 
 describe(
-  "move_mask",
+  'move_mask',
   compare(
     [
       // Case 1: Load with mask
@@ -3068,11 +3047,11 @@ describe(
       ],
     ],
     move_mask,
-    "out(tiny.codegen.rewriter.move_mask(*data))",
+    'out(tiny.codegen.rewriter.move_mask(*data))',
   ),
-);
+)
 describe(
-  "full_graph_rewrite",
+  'full_graph_rewrite',
   compare(
     [
       [
@@ -3453,10 +3432,10 @@ describe(
                 new UOp(Ops.ADD, dtypes.int, [
                   new UOp(Ops.ADD, dtypes.int, [
                     new UOp(Ops.SPECIAL, dtypes.int, [], [
-                      "gidx0",
+                      'gidx0',
                       new UOp(Ops.ADD, dtypes.int, [
                         new UOp(Ops.DEFINE_VAR, dtypes.int, [], [
-                          "start_pos",
+                          'start_pos',
                           1,
                           8192,
                         ]),
@@ -3464,11 +3443,11 @@ describe(
                       ], undefined),
                     ]),
                     new UOp(Ops.MUL, dtypes.int, [
-                      new UOp(Ops.SPECIAL, dtypes.int, [], ["gidx1", 2]),
+                      new UOp(Ops.SPECIAL, dtypes.int, [], ['gidx1', 2]),
                       new UOp(Ops.ADD, dtypes.int, [
                         new UOp(Ops.MUL, dtypes.int, [
                           new UOp(Ops.DEFINE_VAR, dtypes.int, [], [
-                            "start_pos",
+                            'start_pos',
                             1,
                             8192,
                           ]),
@@ -3479,10 +3458,10 @@ describe(
                     ], undefined),
                   ], undefined),
                   new UOp(Ops.MUL, dtypes.int, [
-                    new UOp(Ops.SPECIAL, dtypes.int, [], ["lidx0", 4]),
+                    new UOp(Ops.SPECIAL, dtypes.int, [], ['lidx0', 4]),
                     new UOp(Ops.ADD, dtypes.int, [
                       new UOp(Ops.DEFINE_VAR, dtypes.int, [], [
-                        "start_pos",
+                        'start_pos',
                         1,
                         8192,
                       ]),
@@ -3497,7 +3476,7 @@ describe(
                   new UOp(Ops.ADD, dtypes.int, [
                     new UOp(Ops.MUL, dtypes.int, [
                       new UOp(Ops.DEFINE_VAR, dtypes.int, [], [
-                        "start_pos",
+                        'start_pos',
                         1,
                         8192,
                       ]),
@@ -3511,7 +3490,7 @@ describe(
                 new UOp(Ops.CONST, dtypes.bool, [], true),
                 new UOp(Ops.CMPNE, dtypes.bool, [
                   new UOp(Ops.CMPNE, dtypes.bool, [
-                    new UOp(Ops.SPECIAL, dtypes.int, [], ["lidx1", 8]),
+                    new UOp(Ops.SPECIAL, dtypes.int, [], ['lidx1', 8]),
                     new UOp(Ops.CONST, dtypes.int, [], 0),
                   ], undefined),
                   new UOp(Ops.CONST, dtypes.bool, [], true),
@@ -3541,7 +3520,7 @@ describe(
                         Ops.DEFINE_LOCAL,
                         dtypes.float.ptr(128, true),
                         [],
-                        ["temp1", 128],
+                        ['temp1', 128],
                       ),
                       new UOp(Ops.ADD, dtypes.int, [
                         new UOp(Ops.UNROLL, dtypes.int, [
@@ -3554,7 +3533,7 @@ describe(
                         ], [[5, 4]]),
                         new UOp(Ops.ADD, dtypes.int, [
                           new UOp(Ops.MUL, dtypes.int, [
-                            new UOp(Ops.SPECIAL, dtypes.int, [], ["lidx0", 4]),
+                            new UOp(Ops.SPECIAL, dtypes.int, [], ['lidx0', 4]),
                             new UOp(Ops.CONST, dtypes.int, [], 32),
                           ], undefined),
                           new UOp(Ops.MUL, dtypes.int, [
@@ -3574,7 +3553,7 @@ describe(
                             Ops.DEFINE_LOCAL,
                             dtypes.float.ptr(128, true),
                             [],
-                            ["temp1", 128],
+                            ['temp1', 128],
                           ),
                           new UOp(Ops.ADD, dtypes.int, [
                             new UOp(Ops.UNROLL, dtypes.int, [
@@ -3588,14 +3567,14 @@ describe(
                             new UOp(Ops.ADD, dtypes.int, [
                               new UOp(Ops.MUL, dtypes.int, [
                                 new UOp(Ops.SPECIAL, dtypes.int, [], [
-                                  "lidx0",
+                                  'lidx0',
                                   4,
                                 ]),
                                 new UOp(Ops.CONST, dtypes.int, [], 32),
                               ], undefined),
                               new UOp(Ops.MUL, dtypes.int, [
                                 new UOp(Ops.SPECIAL, dtypes.int, [], [
-                                  "lidx1",
+                                  'lidx1',
                                   8,
                                 ]),
                                 new UOp(Ops.CONST, dtypes.int, [], 4),
@@ -3632,7 +3611,7 @@ describe(
                                     new UOp(Ops.ADD, dtypes.int, [
                                       new UOp(Ops.ADD, dtypes.int, [
                                         new UOp(Ops.SPECIAL, dtypes.int, [], [
-                                          "lidx1",
+                                          'lidx1',
                                           8,
                                         ]),
                                         new UOp(Ops.ADD, dtypes.int, [
@@ -3641,7 +3620,7 @@ describe(
                                               Ops.SPECIAL,
                                               dtypes.int,
                                               [],
-                                              ["gidx1", 2],
+                                              ['gidx1', 2],
                                             ),
                                             new UOp(
                                               Ops.CONST,
@@ -3655,7 +3634,7 @@ describe(
                                               Ops.SPECIAL,
                                               dtypes.int,
                                               [],
-                                              ["lidx0", 4],
+                                              ['lidx0', 4],
                                             ),
                                             new UOp(
                                               Ops.CONST,
@@ -3699,7 +3678,7 @@ describe(
                                   new UOp(Ops.ADD, dtypes.int, [
                                     new UOp(Ops.ADD, dtypes.int, [
                                       new UOp(Ops.SPECIAL, dtypes.int, [], [
-                                        "lidx1",
+                                        'lidx1',
                                         8,
                                       ]),
                                       new UOp(Ops.MUL, dtypes.int, [
@@ -3728,13 +3707,13 @@ describe(
                                                 dtypes.int,
                                                 [],
                                                 [
-                                                  "gidx0",
+                                                  'gidx0',
                                                   new UOp(Ops.ADD, dtypes.int, [
                                                     new UOp(
                                                       Ops.DEFINE_VAR,
                                                       dtypes.int,
                                                       [],
-                                                      ["start_pos", 1, 8192],
+                                                      ['start_pos', 1, 8192],
                                                     ),
                                                     new UOp(
                                                       Ops.CONST,
@@ -3757,7 +3736,7 @@ describe(
                                                 Ops.SPECIAL,
                                                 dtypes.int,
                                                 [],
-                                                ["gidx1", 2],
+                                                ['gidx1', 2],
                                               ),
                                               new UOp(
                                                 Ops.CONST,
@@ -3774,7 +3753,7 @@ describe(
                                               Ops.DEFINE_VAR,
                                               dtypes.int,
                                               [],
-                                              ["start_pos", 1, 8192],
+                                              ['start_pos', 1, 8192],
                                             ),
                                             new UOp(
                                               Ops.CONST,
@@ -3811,12 +3790,12 @@ describe(
       ],
     ],
     tryCatch(full_graph_rewrite),
-    "out(tiny.codegen.rewriter.full_graph_rewrite(*data))",
+    'out(tiny.codegen.rewriter.full_graph_rewrite(*data))',
   ),
-);
+)
 
 describe(
-  "reduce_collapse",
+  'reduce_collapse',
   compare(
     [
       [
@@ -4243,12 +4222,12 @@ describe(
       ],
     ],
     reduce_collapse,
-    "out(tiny.codegen.rewriter.reduce_collapse(*data))",
+    'out(tiny.codegen.rewriter.reduce_collapse(*data))',
   ),
-);
+)
 
 describe(
-  "no_vectorized_acc",
+  'no_vectorized_acc',
   compare(
     [
       [
@@ -4266,12 +4245,12 @@ describe(
       ],
     ],
     no_vectorized_acc,
-    "out(tiny.codegen.rewriter.no_vectorized_acc(*data))",
+    'out(tiny.codegen.rewriter.no_vectorized_acc(*data))',
   ),
-);
+)
 
 describe(
-  "sym+devectorize",
+  'sym+devectorize',
   compare(
     [
       [
@@ -5001,6 +4980,6 @@ describe(
       ],
     ],
     (uop: UOp, ctx: any) => sym.add(devectorize).rewrite(uop, ctx),
-    "out((tiny.codegen.rewriter.sym + tiny.codegen.rewriter.devectorize).rewrite(*data))",
+    'out((tiny.codegen.rewriter.sym + tiny.codegen.rewriter.devectorize).rewrite(*data))',
   ),
-);
+)

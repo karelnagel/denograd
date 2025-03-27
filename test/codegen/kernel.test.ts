@@ -1,22 +1,16 @@
-import {
-  _assert_valid_uop,
-  Kernel,
-  Opt,
-  OptOps,
-  verify_ast,
-} from "../../jsgrad/codegen/kernel.ts";
-import { KernelInfo, Ops, UOp } from "../../jsgrad/ops.ts";
-import { compare, tryCatch } from "../helpers.ts";
-import type { Renderer } from "../../jsgrad/renderer/index.ts";
-import { dtypes } from "../../jsgrad/dtype.ts";
-import { ShapeTracker } from "../../jsgrad/shape/shapetracker.ts";
-import { View } from "../../jsgrad/shape/view.ts";
-import { ClangRenderer } from "../../jsgrad/renderer/cstyle.ts";
-import { kernelInputs, pyKernel, tsKernel } from "../engine/kernel-inputs.ts";
-import { describe } from "vitest";
+import { _assert_valid_uop, Kernel, Opt, OptOps, verify_ast } from '../../jsgrad/codegen/kernel.ts'
+import { KernelInfo, Ops, UOp } from '../../jsgrad/ops.ts'
+import { compare, tryCatch } from '../helpers.ts'
+import type { Renderer } from '../../jsgrad/renderer/index.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { ShapeTracker } from '../../jsgrad/shape/shapetracker.ts'
+import { View } from '../../jsgrad/shape/view.ts'
+import { ClangRenderer } from '../../jsgrad/renderer/cstyle.ts'
+import { kernelInputs, pyKernel, tsKernel } from '../engine/kernel-inputs.ts'
+import { describe } from 'vitest'
 
 describe(
-  "Opt.real_axis",
+  'Opt.real_axis',
   compare(
     [
       [
@@ -226,14 +220,13 @@ describe(
       ],
     ],
     (opt: Opt, k: Kernel) => opt.real_axis(k),
-    "out(data[0].real_axis(data[1]))",
+    'out(data[0].real_axis(data[1]))',
   ),
-);
+)
 
-const kernels = () =>
-  kernelInputs().map(([opts, ast]) => [new Kernel(ast, opts)] as [Kernel]);
+const kernels = () => kernelInputs().map(([opts, ast]) => [new Kernel(ast, opts)] as [Kernel])
 describe(
-  "Kernel.init",
+  'Kernel.init',
   compare(
     () => kernelInputs().map((x) => x.toReversed() as [UOp, Renderer]),
     (ast: UOp, opts: Renderer) => tsKernel(new Kernel(ast, opts)),
@@ -242,61 +235,59 @@ describe(
       pyKernel,
     ],
   ),
-);
+)
 describe(
-  "Kernel.membufs",
+  'Kernel.membufs',
   compare(
     kernels,
     (k: Kernel) => k.membufs,
-    "out(data[0].membufs)",
+    'out(data[0].membufs)',
   ),
-);
+)
 describe(
-  "Kernel.float4_axis",
+  'Kernel.float4_axis',
   compare(
-    () =>
-      kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
+    () => kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
     (k: Kernel, i: number) => k.float4_axis(i),
-    "out(data[0].float4_axis(data[1]))",
+    'out(data[0].float4_axis(data[1]))',
   ),
-);
+)
 describe(
-  "Kernel.upcasted_axis",
+  'Kernel.upcasted_axis',
   compare(
-    () =>
-      kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
+    () => kernels().flatMap(([k]) => [0, 1].map((i) => [k, i] as [Kernel, number])),
     (k: Kernel, axis: number) => k.upcasted_axis(axis),
-    "out(data[0].upcasted_axis(data[1]))",
+    'out(data[0].upcasted_axis(data[1]))',
   ),
-);
+)
 describe(
-  "Kernel.first_reduce",
+  'Kernel.first_reduce',
   compare(
     kernels,
     (k: Kernel) => k.first_reduce,
-    "out(data[0].first_reduce)",
+    'out(data[0].first_reduce)',
   ),
-);
+)
 describe(
-  "Kernel.colors",
+  'Kernel.colors',
   compare(
     kernels,
     (k: Kernel) => k.colors(),
-    "out(data[0].colors())",
+    'out(data[0].colors())',
   ),
-);
+)
 describe(
-  "Kernel.colored_shape",
+  'Kernel.colored_shape',
   compare(
     kernels,
     (k: Kernel) => k.colored_shape(),
-    "out(data[0].colored_shape())",
+    'out(data[0].colored_shape())',
     { skip: true },
   ),
-);
+)
 
 describe(
-  "Kernel.shift_to",
+  'Kernel.shift_to',
   compare(
     [
       [
@@ -599,8 +590,8 @@ describe(
         top: boolean,
         insert_before?: number,
       ) => {
-        k.shift_to(axis, amount, top, insert_before);
-        return tsKernel(k);
+        k.shift_to(axis, amount, top, insert_before)
+        return tsKernel(k)
       },
     ),
     [
@@ -609,9 +600,9 @@ describe(
       pyKernel,
     ],
   ),
-);
+)
 describe(
-  "Kernel.apply_opt",
+  'Kernel.apply_opt',
   compare(
     [
       [
@@ -827,8 +818,8 @@ describe(
       ],
     ],
     tryCatch((k: Kernel, opt: Opt, append_opt: boolean) => {
-      k.apply_opt(opt, append_opt);
-      return tsKernel(k);
+      k.apply_opt(opt, append_opt)
+      return tsKernel(k)
     }),
     [
       `k = data[0]`,
@@ -836,39 +827,39 @@ describe(
       pyKernel,
     ],
   ),
-);
+)
 describe(
-  "Kernel.required_optimizations",
+  'Kernel.required_optimizations',
   compare(
     kernels,
     (k: Kernel) => k.required_optimizations(),
     `out(data[0].required_optimizations())`,
   ),
-);
+)
 
 describe(
-  "Kernel.name",
+  'Kernel.name',
   compare(
     kernels,
     (k: Kernel) => {
-      Kernel.kernel_cnt.clear();
-      return k.name;
+      Kernel.kernel_cnt.clear()
+      return k.name
     },
-    "out(data[0].name)",
+    'out(data[0].name)',
   ),
-);
+)
 
 describe(
-  "Kernel.get_optimized_ast",
+  'Kernel.get_optimized_ast',
   compare(
     kernels,
     (k: Kernel) => k.get_optimized_ast(),
-    "out(data[0].get_optimized_ast())",
+    'out(data[0].get_optimized_ast())',
   ),
-);
+)
 
 describe(
-  "Kernel.linearize",
+  'Kernel.linearize',
   compare(
     kernels,
     (k: Kernel) => tsKernel(k.linearize()),
@@ -877,23 +868,23 @@ describe(
       pyKernel,
     ],
   ),
-);
+)
 
 describe(
-  "Kernel.to_program",
+  'Kernel.to_program',
   compare(
     kernels,
     (k: Kernel) => {
-      Kernel.kernel_cnt.clear();
-      return k.to_program();
+      Kernel.kernel_cnt.clear()
+      return k.to_program()
     },
-    "out(data[0].to_program())",
+    'out(data[0].to_program())',
     { skip: [7] },
   ),
-);
+)
 
 describe(
-  "_assert_valid_uop",
+  '_assert_valid_uop',
   compare(
     [
       [
@@ -958,12 +949,12 @@ describe(
       ],
     ],
     _assert_valid_uop,
-    "out(tiny.codegen.kernel._assert_valid_uop(*data))",
+    'out(tiny.codegen.kernel._assert_valid_uop(*data))',
   ),
-);
+)
 
 describe(
-  "verify_ast",
+  'verify_ast',
   compare(
     [
       [
@@ -1121,6 +1112,6 @@ describe(
       ],
     ],
     verify_ast,
-    "out(tiny.codegen.kernel.verify_ast(*data))",
+    'out(tiny.codegen.kernel.verify_ast(*data))',
   ),
-);
+)

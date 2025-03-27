@@ -1,11 +1,11 @@
-import { type sint, UOp } from "../../jsgrad/ops.ts";
-import { ShapeTracker } from "../../jsgrad/shape/shapetracker.ts";
-import { View } from "../../jsgrad/shape/view.ts";
-import { compare, tryCatch } from "../helpers.ts";
-import { describe } from "vitest";
+import { type sint, UOp } from '../../jsgrad/ops.ts'
+import { ShapeTracker } from '../../jsgrad/shape/shapetracker.ts'
+import { View } from '../../jsgrad/shape/view.ts'
+import { compare, tryCatch } from '../helpers.ts'
+import { describe } from 'vitest'
 
 describe(
-  "ShapeTracker.from_shape",
+  'ShapeTracker.from_shape',
   compare(
     [
       [[5, 5]],
@@ -14,59 +14,59 @@ describe(
       [[4, UOp.int(44344)]],
     ],
     tryCatch(ShapeTracker.from_shape),
-    "out(trycatch(lambda: tiny.shape.shapetracker.ShapeTracker.from_shape(*data)))",
+    'out(trycatch(lambda: tiny.shape.shapetracker.ShapeTracker.from_shape(*data)))',
     { stringSimilarity: 0.80 },
   ),
-);
+)
 
-const st1 = ShapeTracker.from_shape([5, 5]);
-const st2 = ShapeTracker.from_shape([4, UOp.int(55)]);
-const st3 = ShapeTracker.from_shape([UOp.float(8), UOp.int(110), UOp.int(33)]);
+const st1 = ShapeTracker.from_shape([5, 5])
+const st2 = ShapeTracker.from_shape([4, UOp.int(55)])
+const st3 = ShapeTracker.from_shape([UOp.float(8), UOp.int(110), UOp.int(33)])
 
 // GETTERS
 describe(
-  "ShapeTracker.contiguous",
+  'ShapeTracker.contiguous',
   compare(
     [[st1], [st1], [st2]],
     (shape: ShapeTracker) => shape.contiguous,
-    "out(trycatch(lambda: data[0].contiguous))",
+    'out(trycatch(lambda: data[0].contiguous))',
   ),
-);
+)
 describe(
-  "ShapeTracker.consecutive",
+  'ShapeTracker.consecutive',
   compare(
     [[st1], [st1], [st2]],
     (shape: ShapeTracker) => shape.consecutive,
-    "out(trycatch(lambda: data[0].consecutive))",
+    'out(trycatch(lambda: data[0].consecutive))',
   ),
-);
+)
 describe(
-  "ShapeTracker.shape",
+  'ShapeTracker.shape',
   compare(
     [[st1], [st1], [st2]],
     (shape: ShapeTracker) => shape.shape,
-    "out(trycatch(lambda: data[0].shape))",
+    'out(trycatch(lambda: data[0].shape))',
   ),
-);
+)
 describe(
-  "ShapeTracker.size",
+  'ShapeTracker.size',
   compare(
     [[st1], [st1], [st2]],
     (shape: ShapeTracker) => shape.size,
-    "out(trycatch(lambda: data[0].size))",
+    'out(trycatch(lambda: data[0].size))',
   ),
-);
+)
 describe(
-  "ShapeTracker.var_vals",
+  'ShapeTracker.var_vals',
   compare(
     [[st1], [st1], [st2]],
     (shape: ShapeTracker) => shape.var_vals,
-    "out(trycatch(lambda: data[0].var_vals))",
+    'out(trycatch(lambda: data[0].var_vals))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.add",
+  'ShapeTracker.add',
   compare(
     [
       [st1, st2],
@@ -74,11 +74,11 @@ describe(
       [st2, st3],
     ],
     (shape: ShapeTracker, st: ShapeTracker) => shape.add(st),
-    "out(trycatch(lambda: data[0] + data[1] ))",
+    'out(trycatch(lambda: data[0] + data[1] ))',
   ),
-);
+)
 describe(
-  "ShapeTracker.reduce",
+  'ShapeTracker.reduce',
   compare(
     [
       [st1, [0]],
@@ -89,12 +89,12 @@ describe(
       [st2, [0, 1]],
     ],
     (shape: ShapeTracker, axis: number[]) => shape.reduce(axis),
-    "out(trycatch(lambda: data[0].reduce(data[1])))",
+    'out(trycatch(lambda: data[0].reduce(data[1])))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.to_uop",
+  'ShapeTracker.to_uop',
   compare(
     [
       [st1],
@@ -102,11 +102,11 @@ describe(
       [st2],
     ],
     (shape: ShapeTracker) => shape.to_uop(),
-    "out(trycatch(lambda: data[0].to_uop()))",
+    'out(trycatch(lambda: data[0].to_uop()))',
   ),
-);
+)
 describe(
-  "ShapeTracker.to_indexed_uops",
+  'ShapeTracker.to_indexed_uops',
   compare(
     [
       [st1],
@@ -114,12 +114,12 @@ describe(
       [st2],
     ],
     (shape: ShapeTracker) => shape.to_indexed_uops(),
-    "out(trycatch(lambda: data[0].to_indexed_uops()))",
+    'out(trycatch(lambda: data[0].to_indexed_uops()))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.real_size",
+  'ShapeTracker.real_size',
   compare(
     [
       [st1],
@@ -127,12 +127,12 @@ describe(
       [st2],
     ],
     (shape: ShapeTracker) => shape.real_size(),
-    "out(trycatch(lambda: data[0].real_size()))",
+    'out(trycatch(lambda: data[0].real_size()))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.vars",
+  'ShapeTracker.vars',
   compare(
     [
       [st1],
@@ -140,12 +140,12 @@ describe(
       [st2],
     ],
     (shape: ShapeTracker) => shape.vars(),
-    "out(trycatch(lambda: data[0].vars()))",
+    'out(trycatch(lambda: data[0].vars()))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.real_strides",
+  'ShapeTracker.real_strides',
   compare(
     [
       [st1],
@@ -153,12 +153,12 @@ describe(
       [st2],
     ],
     (shape: ShapeTracker) => shape.real_strides(),
-    "out(trycatch(lambda: data[0].real_strides()))",
+    'out(trycatch(lambda: data[0].real_strides()))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.unit_stride_axes",
+  'ShapeTracker.unit_stride_axes',
   compare(
     [
       [st1],
@@ -166,12 +166,12 @@ describe(
       [st2],
     ],
     (shape: ShapeTracker) => shape.unit_stride_axes(),
-    "out(trycatch(lambda: data[0].unit_stride_axes()))",
+    'out(trycatch(lambda: data[0].unit_stride_axes()))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.axis_is_masked",
+  'ShapeTracker.axis_is_masked',
   compare(
     [
       [st1, 0],
@@ -179,12 +179,12 @@ describe(
       [st2, 0],
     ],
     (shape: ShapeTracker, axis: number) => shape.axis_is_masked(axis),
-    "out(trycatch(lambda: data[0].axis_is_masked(data[1])))",
+    'out(trycatch(lambda: data[0].axis_is_masked(data[1])))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.simplify",
+  'ShapeTracker.simplify',
   compare(
     [
       [st1],
@@ -225,12 +225,12 @@ describe(
       ],
     ],
     (shape: ShapeTracker) => shape.simplify(),
-    "out(trycatch(lambda: data[0].simplify()))",
+    'out(trycatch(lambda: data[0].simplify()))',
   ),
-);
+)
 
 describe(
-  "ShapeTracker.reshape",
+  'ShapeTracker.reshape',
   compare(
     [
       [st1, [UOp.int(33), UOp.int(333)]],
@@ -241,10 +241,8 @@ describe(
       [st2, [5, 4]],
       [st2, [20]],
     ],
-    tryCatch((shape: ShapeTracker, new_shape: sint[]) =>
-      shape.reshape(new_shape)
-    ),
-    "out(trycatch(lambda: data[0].reshape(data[1])))",
+    tryCatch((shape: ShapeTracker, new_shape: sint[]) => shape.reshape(new_shape)),
+    'out(trycatch(lambda: data[0].reshape(data[1])))',
     { stringSimilarity: 0.81 },
   ),
-);
+)

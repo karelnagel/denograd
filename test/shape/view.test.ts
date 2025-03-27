@@ -1,16 +1,11 @@
-import { Ops, type sint, UOp } from "../../jsgrad/ops.ts";
-import { compare, tryCatch } from "../helpers.ts";
-import {
-  _reshape_mask,
-  canonicalize_strides,
-  strides_for_shape,
-  View,
-} from "../../jsgrad/shape/view.ts";
-import { dtypes } from "../../jsgrad/dtype.ts";
-import { describe } from "vitest";
+import { Ops, type sint, UOp } from '../../jsgrad/ops.ts'
+import { compare, tryCatch } from '../helpers.ts'
+import { _reshape_mask, canonicalize_strides, strides_for_shape, View } from '../../jsgrad/shape/view.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { describe } from 'vitest'
 
 describe(
-  "canonicalize_strides",
+  'canonicalize_strides',
   compare(
     [
       [[UOp.int(200), UOp.int(100), UOp.int(30)], [
@@ -22,12 +17,12 @@ describe(
       [[44444, 543, 4.4], [555, 5555, -5.5]],
     ],
     canonicalize_strides,
-    "out(tiny.shape.view.canonicalize_strides(*data))",
+    'out(tiny.shape.view.canonicalize_strides(*data))',
   ),
-);
+)
 
 describe(
-  "strides_for_shape",
+  'strides_for_shape',
   compare(
     [
       [[4, 23, 545, 32443, 44, -1]],
@@ -48,10 +43,10 @@ describe(
     strides_for_shape,
     `out(tiny.shape.view.strides_for_shape(*data))`,
   ),
-);
+)
 
 describe(
-  "_reshape_mask",
+  '_reshape_mask',
   compare(
     [
       [undefined, [4, 4], [8, 1, 1, 2, 1, 1, 1]],
@@ -74,10 +69,10 @@ describe(
     _reshape_mask,
     `out(tiny.shape.view._reshape_mask(*data))`,
   ),
-);
+)
 
 describe(
-  "View.create",
+  'View.create',
   compare(
     [
       [[4, 34, 534]], // basic shape
@@ -116,22 +111,22 @@ describe(
       ], [UOp.int(8), UOp.int(4)]]], // invalid symbolic mask
     ],
     View.create,
-    "out(tiny.shape.view.View.create(*data))",
+    'out(tiny.shape.view.View.create(*data))',
   ),
-);
+)
 
-const view1 = View.create([4, 4], [4, 1], 0, undefined);
+const view1 = View.create([4, 4], [4, 1], 0, undefined)
 const view2 = View.create(
   [UOp.int(4), UOp.int(6)],
   [UOp.int(6), UOp.int(1)],
   UOp.int(8),
   [[UOp.int(1), UOp.int(3)], [UOp.int(2), UOp.int(5)]],
-);
-const view3 = View.create([4, 4], [-4, -1], 0, undefined);
-const view4 = View.create([0, 3, 2], [6, -2, 1], 0, [[1, 3], [0, 4]]);
+)
+const view3 = View.create([4, 4], [-4, -1], 0, undefined)
+const view4 = View.create([0, 3, 2], [6, -2, 1], 0, [[1, 3], [0, 4]])
 
 describe(
-  "View.to_indexed_uops",
+  'View.to_indexed_uops',
   compare(
     [
       [view1], // default case with no indices
@@ -144,12 +139,12 @@ describe(
       [view4, [UOp.int(0), UOp.int(2), UOp.int(1)]], // 4D view with mask and indices
     ],
     (v: View, _idxs?: UOp[], vexpr?: UOp) => v.to_indexed_uops(_idxs, vexpr),
-    "out(trycatch(lambda:data[0].to_indexed_uops(*data[1:])))",
+    'out(trycatch(lambda:data[0].to_indexed_uops(*data[1:])))',
   ),
-);
+)
 
 describe(
-  "View.size",
+  'View.size',
   compare(
     [
       [view1],
@@ -158,12 +153,12 @@ describe(
       [view4],
     ],
     (v: View) => v.size(),
-    "out(trycatch(lambda:data[0].size()))",
+    'out(trycatch(lambda:data[0].size()))',
   ),
-);
+)
 
 describe(
-  "View.vars",
+  'View.vars',
   compare(
     [
       [view1],
@@ -172,12 +167,12 @@ describe(
       [view4],
     ],
     (v: View) => v.vars(),
-    "out(trycatch(lambda:data[0].vars(*data[1:])))",
+    'out(trycatch(lambda:data[0].vars(*data[1:])))',
   ),
-);
+)
 
 describe(
-  "View.add",
+  'View.add',
   compare(
     [
       [view1, view1],
@@ -226,12 +221,12 @@ describe(
       ],
     ],
     (v1: View, v2: View) => v1.add(v2),
-    "out(trycatch(lambda: data[0] + data[1] ))",
+    'out(trycatch(lambda: data[0] + data[1] ))',
   ),
-);
+)
 
 describe(
-  "View.invert",
+  'View.invert',
   compare(
     [
       [view1, [3, UOp.int(4)]],
@@ -243,12 +238,12 @@ describe(
       [view1, [4, 4]],
     ],
     (v: View, out_shape: sint[]) => v.invert(out_shape),
-    "out(trycatch(lambda: data[0].invert(data[1])))",
+    'out(trycatch(lambda: data[0].invert(data[1])))',
   ),
-);
+)
 
 describe(
-  "View.minify",
+  'View.minify',
   compare(
     [
       [view1],
@@ -257,12 +252,12 @@ describe(
       [view4],
     ],
     (v: View) => v.minify(),
-    "out(trycatch(lambda:data[0].minify()))",
+    'out(trycatch(lambda:data[0].minify()))',
   ),
-);
+)
 
 describe(
-  "View.pad",
+  'View.pad',
   compare(
     [
       [view1, [[0, 0], [0, 0]]],
@@ -275,13 +270,13 @@ describe(
       [view3, [[0, UOp.int(1)], [UOp.int(1), 0], [1, UOp.int(2)]]],
     ],
     tryCatch((v: View, arg: [sint, sint][]) => v.pad(arg)),
-    "out(trycatch(lambda:data[0].pad(data[1])))",
+    'out(trycatch(lambda:data[0].pad(data[1])))',
     { stringSimilarity: 0.75 },
   ),
-);
+)
 
 describe(
-  "View.shrink",
+  'View.shrink',
   compare(
     [
       [view1, [[0, 2], [1, 3]]],
@@ -294,11 +289,11 @@ describe(
       [view4, [[UOp.int(0), 2], [1, UOp.int(3)], [0, UOp.int(1)]]],
     ],
     tryCatch((v: View, arg: [sint, sint][]) => v.shrink(arg)),
-    "out(trycatch(lambda:data[0].shrink(data[1])))",
+    'out(trycatch(lambda:data[0].shrink(data[1])))',
   ),
-);
+)
 describe(
-  "View.expand",
+  'View.expand',
   compare(
     [
       [view4, [0, 3, 1]],
@@ -311,13 +306,13 @@ describe(
       [view2, [4, UOp.int(4)]],
     ],
     tryCatch((v: View, new_shape: sint[]) => v.expand(new_shape)),
-    "out(trycatch(lambda:data[0].expand(data[1])))",
+    'out(trycatch(lambda:data[0].expand(data[1])))',
     { stringSimilarity: 0.69 },
   ),
-);
+)
 
 describe(
-  "View.permute",
+  'View.permute',
   compare(
     [
       [view1, [0, 1]],
@@ -329,13 +324,13 @@ describe(
       [view4, [0, 2, 1]],
     ],
     tryCatch((v: View, axis: number[]) => v.permute(axis)),
-    "out(trycatch(lambda:data[0].permute(data[1])))",
+    'out(trycatch(lambda:data[0].permute(data[1])))',
     { stringSimilarity: 0.94 },
   ),
-);
+)
 
 describe(
-  "View.stride",
+  'View.stride',
   compare(
     [
       [view1, [2]],
@@ -346,12 +341,12 @@ describe(
       [view4, [2, -1, 3, -2]],
     ],
     (v: View, multi: number[]) => v.stride(multi),
-    "out(trycatch(lambda:data[0].stride(data[1])))",
+    'out(trycatch(lambda:data[0].stride(data[1])))',
   ),
-);
+)
 
 describe(
-  "View.reshape",
+  'View.reshape',
   compare(
     [
       [view1, [1, 16]],
@@ -392,7 +387,7 @@ describe(
       [new View([3, 5], [0, 0], 0, undefined, false), [15]],
     ],
     tryCatch((v: View, new_shape: sint[]) => v.reshape(new_shape)),
-    "out(trycatch(lambda:data[0].reshape(data[1])))",
+    'out(trycatch(lambda:data[0].reshape(data[1])))',
     { stringSimilarity: 0.6 },
   ),
-);
+)

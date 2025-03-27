@@ -1,29 +1,11 @@
-import {
-  _lazy_map_numbers,
-  cody_waite_reduction,
-  exponent_bias,
-  exponent_mask,
-  ilogb2k,
-  ldexp2k,
-  ldexp3k,
-  Ops,
-  payne_hanek_reduction,
-  pow2if,
-  rintk,
-  shl,
-  shr,
-  sin_poly,
-  xexp2,
-  xlog2,
-  xsin,
-} from "../../jsgrad/ops.ts";
-import { dtypes } from "../../jsgrad/dtype.ts";
-import { UOp } from "../../jsgrad/ops.ts";
-import { compare } from "../helpers.ts";
-import { describe } from "vitest";
+import { _lazy_map_numbers, cody_waite_reduction, exponent_bias, exponent_mask, ilogb2k, ldexp2k, ldexp3k, Ops, payne_hanek_reduction, pow2if, rintk, shl, shr, sin_poly, xexp2, xlog2, xsin } from '../../jsgrad/ops.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { UOp } from '../../jsgrad/ops.ts'
+import { compare } from '../helpers.ts'
+import { describe } from 'vitest'
 
 describe(
-  "_lazy_map_numbers",
+  '_lazy_map_numbers',
   compare(
     [
       [
@@ -70,12 +52,12 @@ describe(
       ],
     ],
     _lazy_map_numbers,
-    "out(tiny.codegen.transcendental._lazy_map_numbers(*data))",
+    'out(tiny.codegen.transcendental._lazy_map_numbers(*data))',
   ),
-);
+)
 
 describe(
-  "exponent_bias",
+  'exponent_bias',
   compare(
     [
       [dtypes.float64],
@@ -83,12 +65,12 @@ describe(
       [dtypes.float16],
     ],
     exponent_bias,
-    "out(tiny.codegen.transcendental.exponent_bias(*data))",
+    'out(tiny.codegen.transcendental.exponent_bias(*data))',
   ),
-);
+)
 
 describe(
-  "exponent_mask",
+  'exponent_mask',
   compare(
     [
       [dtypes.float64],
@@ -96,12 +78,12 @@ describe(
       [dtypes.float16],
     ],
     exponent_mask,
-    "out(tiny.codegen.transcendental.exponent_mask(*data))",
+    'out(tiny.codegen.transcendental.exponent_mask(*data))',
   ),
-);
+)
 
 describe(
-  "shr",
+  'shr',
   compare(
     [
       [UOp.int(16), 2], // 16 >> 2 = 4
@@ -110,12 +92,12 @@ describe(
       [UOp.int(64), 4], // 64 >> 4 = 4
     ],
     shr,
-    "out(tiny.codegen.transcendental.shr(*data))",
+    'out(tiny.codegen.transcendental.shr(*data))',
   ),
-);
+)
 
 describe(
-  "shl",
+  'shl',
   compare(
     [
       [UOp.int(1), 2], // 1 << 2 = 4
@@ -123,12 +105,12 @@ describe(
       [UOp.int(4), 0], // 4 << 0 = 4
     ],
     shl,
-    "out(tiny.codegen.transcendental.shl(*data))",
+    'out(tiny.codegen.transcendental.shl(*data))',
   ),
-);
+)
 
 describe(
-  "rintk",
+  'rintk',
   compare(
     [
       [UOp.float(1.6)], // rounds to 2
@@ -141,12 +123,12 @@ describe(
       [UOp.float(-0.1)], // rounds to 0
     ],
     rintk,
-    "out(tiny.codegen.transcendental.rintk(*data))",
+    'out(tiny.codegen.transcendental.rintk(*data))',
   ),
-);
+)
 
 describe(
-  "pow2if",
+  'pow2if',
   compare(
     [
       [UOp.int(0), dtypes.float32], // 2^0 = 1.0
@@ -159,11 +141,11 @@ describe(
       [UOp.int(5), dtypes.float32], // 2^5 = 32.0
     ],
     pow2if,
-    "out(tiny.codegen.transcendental.pow2if(*data))",
+    'out(tiny.codegen.transcendental.pow2if(*data))',
   ),
-);
+)
 describe(
-  "ilogb2k",
+  'ilogb2k',
   compare(
     [
       [UOp.float(1.0)], // log2(1.0) = 0
@@ -178,11 +160,11 @@ describe(
       [UOp.float(0.125)], // log2(0.125) = -3
     ],
     ilogb2k,
-    "out(tiny.codegen.transcendental.ilogb2k(*data))",
+    'out(tiny.codegen.transcendental.ilogb2k(*data))',
   ),
-);
+)
 describe(
-  "ldexp3k",
+  'ldexp3k',
   compare(
     [
       [UOp.float(1.0), UOp.float(0.0)], // 1.0 * 2^0 = 1.0
@@ -195,12 +177,12 @@ describe(
       [UOp.float(0.5), UOp.float(3.0)], // 0.5 * 2^3 = 4.0
     ],
     ldexp3k,
-    "out(tiny.codegen.transcendental.ldexp3k(*data))",
+    'out(tiny.codegen.transcendental.ldexp3k(*data))',
   ),
-);
+)
 
 describe(
-  "ldexp2k",
+  'ldexp2k',
   compare(
     [
       [UOp.float(1.0), UOp.int(0)], // 1.0 * 2^0 = 1.0
@@ -213,12 +195,12 @@ describe(
       [UOp.float(0.5), UOp.int(3)], // 0.5 * 2^3 = 4.0
     ],
     ldexp2k,
-    "out(tiny.codegen.transcendental.ldexp2k(*data))",
+    'out(tiny.codegen.transcendental.ldexp2k(*data))',
   ),
-);
+)
 
 describe(
-  "sin_poly",
+  'sin_poly',
   compare(
     [
       [UOp.float(0.0)], // sin(0) = 0
@@ -232,12 +214,12 @@ describe(
       [UOp.float(-Math.PI / 2)], // sin(-π/2) = -1
     ],
     sin_poly,
-    "out(tiny.codegen.transcendental.sin_poly(*data))",
+    'out(tiny.codegen.transcendental.sin_poly(*data))',
   ),
-);
+)
 
 describe(
-  "xexp2",
+  'xexp2',
   compare(
     [
       [{ d: UOp.float(0.0) }], // exp2(0) = 1
@@ -255,10 +237,10 @@ describe(
     xexp2,
     'out(tiny.codegen.transcendental.xexp2(data[0]["d"]))',
   ),
-);
+)
 
 describe(
-  "xlog2",
+  'xlog2',
   compare(
     [
       [{ d: UOp.float(1.0) }], // log2(1) = 0
@@ -277,10 +259,10 @@ describe(
     xlog2,
     'out(tiny.codegen.transcendental.xlog2(data[0]["d"]))',
   ),
-);
+)
 
 describe(
-  "xsin",
+  'xsin',
   compare(
     [
       [
@@ -299,14 +281,13 @@ describe(
         30.0,
       ],
     ],
-    (d: UOp, fast: boolean, switch_over: number) =>
-      xsin({ d, fast, switch_over }),
-    "out(tiny.codegen.transcendental.xsin(*data))",
+    (d: UOp, fast: boolean, switch_over: number) => xsin({ d, fast, switch_over }),
+    'out(tiny.codegen.transcendental.xsin(*data))',
     { skip: true },
   ),
-);
+)
 describe(
-  "payne_hanek_reduction",
+  'payne_hanek_reduction',
   compare(
     [
       [
@@ -569,12 +550,12 @@ describe(
       ],
     ],
     (d: UOp) => payne_hanek_reduction(d),
-    "out(tiny.codegen.transcendental.payne_hanek_reduction(*data))",
+    'out(tiny.codegen.transcendental.payne_hanek_reduction(*data))',
     { skip: true },
   ),
-);
+)
 describe(
-  "cody_waite_reduction",
+  'cody_waite_reduction',
   compare(
     [
       [
@@ -837,6 +818,6 @@ describe(
       ],
     ],
     (d: UOp) => cody_waite_reduction(d),
-    "out(tiny.codegen.transcendental.cody_waite_reduction(*data))",
+    'out(tiny.codegen.transcendental.cody_waite_reduction(*data))',
   ),
-);
+)

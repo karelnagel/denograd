@@ -1,33 +1,31 @@
-import type { Kernel } from "../../jsgrad/codegen/kernel.ts";
-import { dtypes } from "../../jsgrad/dtype.ts";
-import { Ops, UOp } from "../../jsgrad/ops.ts";
-import { ClangRenderer } from "../../jsgrad/renderer/cstyle.ts";
-import type { Renderer } from "../../jsgrad/renderer/index.ts";
-import { ShapeTracker } from "../../jsgrad/shape/shapetracker.ts";
-import { View } from "../../jsgrad/shape/view.ts";
+import type { Kernel } from '../../jsgrad/codegen/kernel.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { Ops, UOp } from '../../jsgrad/ops.ts'
+import { ClangRenderer } from '../../jsgrad/renderer/cstyle.ts'
+import type { Renderer } from '../../jsgrad/renderer/index.ts'
+import { ShapeTracker } from '../../jsgrad/shape/shapetracker.ts'
+import { View } from '../../jsgrad/shape/view.ts'
 
 export const kernelKeys = [
-  "ast",
-  "opts",
-  "vars",
-  "bufs",
-  "applied_opts",
-  "group_for_reduces",
-  "upcasted",
-  "local_dims",
-  "tensor_core",
-  "tensor_core_opts",
-  "use_tensor_cores",
-  "dont_use_locals",
-  "sts",
-  "reduceops",
-  "full_buf_index",
-  "uops",
-] as const;
-export const tsKernel = (k: Kernel) => kernelKeys.map((key) => k[key]);
-export const pyKernel = `out([getattr(k,key,None) for key in [${
-  kernelKeys.map((k) => `"${k}"`)
-}]])`;
+  'ast',
+  'opts',
+  'vars',
+  'bufs',
+  'applied_opts',
+  'group_for_reduces',
+  'upcasted',
+  'local_dims',
+  'tensor_core',
+  'tensor_core_opts',
+  'use_tensor_cores',
+  'dont_use_locals',
+  'sts',
+  'reduceops',
+  'full_buf_index',
+  'uops',
+] as const
+export const tsKernel = (k: Kernel) => kernelKeys.map((key) => k[key])
+export const pyKernel = `out([getattr(k,key,None) for key in [${kernelKeys.map((k) => `"${k}"`)}]])`
 
 export const kernelInputs = (): [Renderer, UOp][] => [
   [
@@ -622,4 +620,4 @@ export const kernelInputs = (): [Renderer, UOp][] => [
   ],
   // For some reason fails in vitest but not in Deno.test
   // [new ClangRenderer(), new UOp(Ops.SINK, dtypes.void, [new UOp(Ops.STORE, dtypes.void, [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(6553600), [], 0), new UOp(Ops.VIEW, dtypes.void, [], new ShapeTracker([new View([1, 1, 32, 1, 1, 32, 5, 5, 256], [0, 0, 204800, 0, 0, 6400, 1280, 256, 1], 0, undefined, true)])), new UOp(Ops.REDUCE_AXIS, dtypes.float, [new UOp(Ops.MUL, dtypes.float, [new UOp(Ops.LOAD, dtypes.float, [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(9437184), [], 1), new UOp(Ops.VIEW, dtypes.void, [], new ShapeTracker([new View([2, 1, 32, 20, 20, 32, 5, 5, 256], [18432, 0, 0, 24, 1, 576, 24, 1, 36864], 0, undefined, false)]))], undefined), new UOp(Ops.LOAD, dtypes.float, [new UOp(Ops.DEFINE_GLOBAL, dtypes.float.ptr(6553600), [], 2), new UOp(Ops.VIEW, dtypes.void, [], new ShapeTracker([new View([2, 1, 32, 20, 20, 32, 5, 5, 256], [12800, 0, 400, 20, 1, 0, 0, 0, 25600], 0, undefined, false)]))], undefined)], undefined)], [Ops.ADD, [0, 3, 4]])], undefined)], undefined)],
-];
+]

@@ -1,35 +1,35 @@
-import { Opt, OptOps } from "../jsgrad/codegen/kernel.ts";
-import { IndexContext } from "../jsgrad/codegen/lowerer.ts";
-import { BasicBlock } from "../jsgrad/codegen/linearize.ts";
-import { dtypes } from "../jsgrad/dtype.ts";
-import { KernelInfo, Ops, spec, UOp, UPat } from "../jsgrad/ops.ts";
-import { ClangRenderer } from "../jsgrad/renderer/cstyle.ts";
-import { ShapeTracker } from "../jsgrad/shape/shapetracker.ts";
-import { View } from "../jsgrad/shape/view.ts";
-import { compare } from "./helpers.ts";
-import { describe } from "vitest";
+import { Opt, OptOps } from '../jsgrad/codegen/kernel.ts'
+import { IndexContext } from '../jsgrad/codegen/lowerer.ts'
+import { BasicBlock } from '../jsgrad/codegen/linearize.ts'
+import { dtypes } from '../jsgrad/dtype.ts'
+import { KernelInfo, Ops, spec, UOp, UPat } from '../jsgrad/ops.ts'
+import { ClangRenderer } from '../jsgrad/renderer/cstyle.ts'
+import { ShapeTracker } from '../jsgrad/shape/shapetracker.ts'
+import { View } from '../jsgrad/shape/view.ts'
+import { compare } from './helpers.ts'
+import { describe } from 'vitest'
 
 describe(
-  "serialize",
+  'serialize',
   compare(
     [
       [new View([10, 576], [576, 1], 0, undefined, true)],
-      [[4, 4, "sdf", { sdf: 69 }, [{ df: 44, sdf: "sdf" }]]],
+      [[4, 4, 'sdf', { sdf: 69 }, [{ df: 44, sdf: 'sdf' }]]],
       [Ops.ADD],
       [Ops.ASSIGN],
       [new UOp(Ops.BARRIER, dtypes.float, undefined, 5445)],
-      [new UPat(Ops.ASSIGN, dtypes.floats, undefined, 555, "sdf")],
+      [new UPat(Ops.ASSIGN, dtypes.floats, undefined, 555, 'sdf')],
       [
         new UPat(
           Ops.IF,
           dtypes.bool,
           [
-            new UPat(Ops.CMPLT, dtypes.bool).named("cmp_op"),
-            new UPat(undefined).named("true_case"),
-            new UPat(undefined).named("false_case"),
+            new UPat(Ops.CMPLT, dtypes.bool).named('cmp_op'),
+            new UPat(undefined).named('true_case'),
+            new UPat(undefined).named('false_case'),
           ],
           undefined,
-          "conditional_op",
+          'conditional_op',
         ),
       ],
       [dtypes.floats],
@@ -177,6 +177,6 @@ describe(
       ]],
     ],
     (x) => x,
-    "out(*data)",
+    'out(*data)',
   ),
-);
+)

@@ -1,17 +1,11 @@
-import {
-  append_to_block,
-  BasicBlock,
-  block_merge,
-  block_reorder,
-  linearize_uop,
-} from "../../jsgrad/codegen/linearize.ts";
-import { compare, tryCatch } from "../helpers.ts";
-import { dtypes } from "../../jsgrad/dtype.ts";
-import { KernelInfo, Ops, UOp } from "../../jsgrad/ops.ts";
-import { describe as describe } from "vitest";
+import { append_to_block, BasicBlock, block_merge, block_reorder, linearize_uop } from '../../jsgrad/codegen/linearize.ts'
+import { compare, tryCatch } from '../helpers.ts'
+import { dtypes } from '../../jsgrad/dtype.ts'
+import { KernelInfo, Ops, UOp } from '../../jsgrad/ops.ts'
+import { describe as describe } from 'vitest'
 
 describe(
-  "append_to_block",
+  'append_to_block',
   compare(
     [
       [
@@ -925,11 +919,11 @@ describe(
       ],
     ],
     append_to_block,
-    "out(tiny.codegen.linearize.append_to_block(*data))",
+    'out(tiny.codegen.linearize.append_to_block(*data))',
   ),
-);
+)
 describe(
-  "block_merge",
+  'block_merge',
   compare(
     [
       [
@@ -1686,11 +1680,11 @@ describe(
       ],
     ],
     block_merge,
-    "out(tiny.codegen.linearize.block_merge(*data))",
+    'out(tiny.codegen.linearize.block_merge(*data))',
   ),
-);
+)
 describe(
-  "block_reorder",
+  'block_reorder',
   compare(
     [
       [
@@ -2114,11 +2108,11 @@ describe(
       ],
     ],
     block_reorder,
-    "out(tiny.codegen.linearize.block_reorder(*data))",
+    'out(tiny.codegen.linearize.block_reorder(*data))',
   ),
-);
+)
 describe(
-  "linearize_uop",
+  'linearize_uop',
   compare(
     [
       [
@@ -2279,6 +2273,6 @@ describe(
       ],
     ],
     tryCatch(linearize_uop),
-    "out(trycatch(lambda:tiny.codegen.linearize.linearize_uop(*data)))",
+    'out(trycatch(lambda:tiny.codegen.linearize.linearize_uop(*data)))',
   ),
-);
+)
