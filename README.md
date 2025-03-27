@@ -132,29 +132,3 @@ for await (const i of t) {
 }
 await model.save('./mnist.safetensors')
 ```
-
-# Roadmap
-
-- [x] rewrite all the necesary parts of tinygrad for MNIST, with 'JS' runtime, with tests comparing the python and TS implemenations
-- [x] Github CI
-- [x] CLANG runtime
-- [x] get MNIST training
-- [x] get working inside browser with JS runtime
-- [x] WebGPU runtime (MNIST inference running in WebGPU: https://karelnagel.github.io/denograd/, training coming soon)
-- [x] delete lazy + other tinygrad updates
-- [x] add all the missing parts of Tensor and other code that were left out in the beginning.
-- [x] get hand_coded_optimisations working correctly
-- [x] WEBGPU training MNIST in browser
-- [x] WASM runtime
-- [x] JIT
-- [x] Llama
-- [ ] docs
-- [ ] whisper
-- [ ] bun support
-- [ ] node support
-- [ ] have popular models as a package, maybe even as prebuilt binaries with `deno compile`
-- [ ] CLOUD runtime
-- [ ] METAL runtime
-- [ ] AMD runtime
-- [ ] Nvidia runtime
-- [ ] Multi
