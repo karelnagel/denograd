@@ -1,5 +1,4 @@
 {
-  "name": "@jsgrad/dawn",
   "exports": {
     ".": "./mod.ts",
     "./bindings": "./bindings.ts"

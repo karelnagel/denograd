@@ -46,8 +46,8 @@
     }
   },
   "imports": {
-    "vitest": "npm:vitest",
-    "ffi-rs": "npm:ffi-rs"
+    "vitest": "npm:vitest@3.0.9",
+    "ffi-rs": "npm:ffi-rs@1.2.9"
   },
   "exclude": [
     "tinygrad*",
