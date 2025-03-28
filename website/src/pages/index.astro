@@ -1,12 +1,28 @@
 ---
 import Layout from "../components/Layout.astro";
-import { MnistExample } from "../components/MnistExample";
+import { getExamples } from "../helpers";
+import { Code } from "../components/Code";
+import { Copy } from "../components/Copy";
+
+const examples = await getExamples();
 ---
 
 <Layout>
-  <div class="flex flex-col items-center pt-10 gap-10">
-    <a href="/chat" class="text-3xl font-bold text-blue-500">denochat</a>
-    <h1 class="text-3xl font-bold">MNIST Training</h1>
-    <MnistExample client:only />
+  <div class="mt-20 px-6 w-full max-w-[1200px] mx-auto grid md:grid-cols-2">
+    <div class="flex flex-col items-start justify-center gap-4">
+      <h1 class="text-6xl font-bold">Fast and Simple<br />ML for JS</h1>
+      <h2>
+        Based on <a href="https://github.com/tinygrad/tinygrad" class="text-blue-300">tinygrad</a>, 0 dependencies,<br />
+        runs in web, Node, Deno and Bun.
+      </h2>
+      <div class="flex gap-4">
+        <a href="/docs" class="btn btn-primary">docs</a>
+        <Copy className="btn cursor-pointer" text="npm i @jsgrad/jsgrad" client:load>npm i @jsgrad/jsgrad</Copy>
+      </div>
+    </div>
+    <div class="relative flex items-center justify-center py-20">
+      <div class="hero-radial absolute w-full aspect-square my-auto"></div>
+      <Code examples={Object.fromEntries(examples.map((x) => [x.file, x.code]))} client:load />
+    </div>
   </div>
 </Layout>
