@@ -1,5 +1,5 @@
 {
-  "version": "0.0.13",
+  "version": "0.0.14",
   "tasks": {
     "test": "deno -A npm:vitest run --testTimeout 0",
     "bench": "deno bench -A",
