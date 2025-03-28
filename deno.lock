@@ -3153,6 +3153,34 @@
       "integrity": "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="
     }
   },
+  "redirects": {
+    "https://esm.sh/@jsgrad/jsgrad": "https://esm.sh/@jsgrad/jsgrad@0.0.15",
+    "https://esm.sh/@yuuang/ffi-rs-android-arm64?target=denonext": "https://esm.sh/@yuuang/ffi-rs-android-arm64@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-darwin-arm64?target=denonext": "https://esm.sh/@yuuang/ffi-rs-darwin-arm64@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-darwin-x64?target=denonext": "https://esm.sh/@yuuang/ffi-rs-darwin-x64@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-linux-arm-gnueabihf?target=denonext": "https://esm.sh/@yuuang/ffi-rs-linux-arm-gnueabihf@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-linux-arm64-gnu?target=denonext": "https://esm.sh/@yuuang/ffi-rs-linux-arm64-gnu@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-linux-arm64-musl?target=denonext": "https://esm.sh/@yuuang/ffi-rs-linux-arm64-musl@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-linux-x64-gnu?target=denonext": "https://esm.sh/@yuuang/ffi-rs-linux-x64-gnu@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-linux-x64-musl?target=denonext": "https://esm.sh/@yuuang/ffi-rs-linux-x64-musl@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-win32-arm64-msvc?target=denonext": "https://esm.sh/@yuuang/ffi-rs-win32-arm64-msvc@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-win32-ia32-msvc?target=denonext": "https://esm.sh/@yuuang/ffi-rs-win32-ia32-msvc@1.2.9?target=denonext",
+    "https://esm.sh/@yuuang/ffi-rs-win32-x64-msvc?target=denonext": "https://esm.sh/@yuuang/ffi-rs-win32-x64-msvc@1.2.9?target=denonext",
+    "https://esm.sh/bun:ffi?target=denonext": "https://esm.sh/bun@1.2.7?target=denonext",
+    "https://esm.sh/bun:sqlite?target=denonext": "https://esm.sh/bun@1.2.7?target=denonext",
+    "https://esm.sh/ffi-rs?target=denonext": "https://esm.sh/ffi-rs@1.2.9?target=denonext",
+    "https://esm.sh/node:sqlite?target=denonext": "https://esm.sh/node@18.20.8?target=denonext"
+  },
+  "remote": {
+    "https://esm.sh/@jsgrad/jsgrad@0.0.15": "381c6a7116da2583d80752ebfc6a119c36171299ef4f59a1af8b8b5065849e62",
+    "https://esm.sh/@jsgrad/jsgrad@0.0.15/denonext/bun-WV5EGXGI.mjs": "62e7f897de7a5abdfc47476712ba58899dd5137407fbab5a29814c74790a56a1",
+    "https://esm.sh/@jsgrad/jsgrad@0.0.15/denonext/deno-TJUTOL7N.mjs": "c91d8ab4fc4ac19ae60471f71acb4ecfd4be589b6337f51ba1239ba4b6925fbf",
+    "https://esm.sh/@jsgrad/jsgrad@0.0.15/denonext/jsgrad.mjs": "26ae233ddc3062392424b322c9ef1f56dbc602fb93b405fc7269f5964309b2b9",
+    "https://esm.sh/@jsgrad/jsgrad@0.0.15/denonext/node-XQK5ZE4T.mjs": "c392eb7a82178d356df4cdc3b74fb4437294a523959b3434bf074ba3132f0f30",
+    "https://esm.sh/@jsgrad/jsgrad@0.0.15/denonext/web-KUV4VFWC.mjs": "f501b1998f7bcff8f1e89f40821c328081f3afdc3338bec9bb208024b5d4c6e2",
+    "https://esm.sh/ffi-rs@1.2.9/denonext/ffi-rs.mjs": "f298d461245b58a60e561535aa1fe1f993399ae79b066cb23aca536bcd0c27ea",
+    "https://esm.sh/ffi-rs@1.2.9?target=denonext": "e577e604b724f6da948a5994f5607452bcfc9a2552ba199137d6aa38f5cb01e6"
+  },
   "workspace": {
     "dependencies": [
       "npm:@types/react-dom@*",
