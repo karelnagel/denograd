@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Loader2, Play, SquareArrowOutUpRight } from 'lucide-react'
 import * as jsg from '../../../jsgrad/web.ts'
 
+if (typeof window !== 'undefined') window.jsg = jsg
+
 export const Code = ({ examples: input }: { examples: Record<string, string> }) => {
   let [examples, setExamples] = useState(input)
   const [selected, setSelected] = useState(Object.keys(input)[0])
