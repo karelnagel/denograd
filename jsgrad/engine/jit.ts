@@ -1,6 +1,6 @@
 import { Buffer, type Compiled, Device, uop_realized } from '../device.ts'
 import type { DType } from '../dtype.ts'
-import { ArrayMap, colored, DefaultMap, flatten, is_eq, merge_maps, partition, vars, WeakKeyMap } from '../helpers.ts'
+import { ArrayMap, colored, DefaultMap, flatten, is_eq, merge_maps, partition, vars, WeakKeyMap } from '../helpers/helpers.ts'
 import { get_parameters } from '../nn/state.ts'
 import { Ops, sym_infer, UOp, type Variable } from '../ops.ts'
 import { Estimates } from '../renderer/index.ts'

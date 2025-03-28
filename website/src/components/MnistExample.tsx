@@ -1,6 +1,6 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
-import { Adam, Device, env, get_parameters, is_eq, MNIST, mnist, perf, round, Tensor, TinyJit } from '../../../jsgrad/env/exports/browser.ts'
+import { Adam, Device, env, get_parameters, is_eq, MNIST, mnist, perf, round, Tensor, TinyJit } from '../../../jsgrad/web.ts'
 import { Canvas } from './Canvas.tsx'
 import * as Plot from './Plot.tsx'
 

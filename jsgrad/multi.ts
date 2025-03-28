@@ -1,4 +1,4 @@
-import { NotImplemented } from './helpers.ts'
+import { NotImplemented } from './helpers/helpers.ts'
 import { type Ops, PatternMatcher, type sint, type UOp } from './ops.ts'
 
 export const all_reduce = (bop: Ops, lbs: UOp[]): UOp[] => {

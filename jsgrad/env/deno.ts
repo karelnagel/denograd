@@ -7,7 +7,7 @@ import { CLANG } from '../runtime/ops_clang.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { NodeEnv } from './node.ts'
 import { DAWN } from '../runtime/ops_dawn.ts'
-import type { FFICallback } from './browser.ts'
+import type { FFICallback } from './web.ts'
 
 export class DenoEnv extends NodeEnv {
   override NAME = 'deno'

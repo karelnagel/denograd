@@ -1,7 +1,7 @@
-import { perf, round_up, zip } from '../helpers.ts'
+import { perf, round_up, zip } from '../helpers/helpers.ts'
 import { Allocator, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import type { BufferSpec } from '../device.ts'
-import type { MemoryView } from '../memoryview.ts'
+import type { MemoryView } from '../helpers/memoryview.ts'
 import { WabtModule } from './autogen/wabt.js'
 import { WATRenderer } from '../renderer/wat.ts'
 

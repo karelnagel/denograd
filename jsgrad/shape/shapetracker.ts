@@ -1,6 +1,6 @@
 import { dtypes } from '../dtype.ts'
-import { cache_fn, get_key, gt, is_eq, list_str, lt, range, vars, WeakValueMap } from '../helpers.ts'
-import { merge_maps, zip } from '../helpers.ts'
+import { cache_fn, get_key, gt, is_eq, list_str, lt, range, vars, WeakValueMap } from '../helpers/helpers.ts'
+import { merge_maps, zip } from '../helpers/helpers.ts'
 import { graph_rewrite, Ops, simplify_valid, type sint, sint_to_uop, split_uop, sym, symbolic_flat, UOp, uop_given_valid, type Variable } from '../ops.ts'
 import { strides_for_shape, unravel, View } from './view.ts'
 

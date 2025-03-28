@@ -1,4 +1,4 @@
-import { range } from '../helpers.ts'
+import { range } from '../helpers/helpers.ts'
 import { Tensor } from '../tensor.ts'
 import { tar_extract } from './state.ts'
 

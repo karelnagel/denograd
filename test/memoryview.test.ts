@@ -1,6 +1,6 @@
 import type { FmtStr } from '../jsgrad/dtype.ts'
 import { type _get_recursive_parents, bitcast } from '../jsgrad/dtype.ts'
-import { MemoryView } from '../jsgrad/memoryview.ts'
+import { MemoryView } from '../jsgrad/helpers/memoryview.ts'
 import { compare } from './helpers.ts'
 import { describe } from 'vitest'
 

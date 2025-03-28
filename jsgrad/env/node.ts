@@ -1,10 +1,10 @@
 import process from 'node:process'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
-import { BrowserEnv, type Dlopen, type FFICallback } from './browser.ts'
+import { type Dlopen, type FFICallback, WebEnv } from './web.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
-import { memsize_to_str, random_id, string_to_bytes } from '../helpers.ts'
+import { memsize_to_str, random_id, string_to_bytes } from '../helpers/helpers.ts'
 import fs from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import path from 'node:path'
@@ -13,9 +13,9 @@ import { CLANG } from '../runtime/ops_clang.ts'
 import { exec } from 'node:child_process'
 import readline from 'node:readline'
 import { DISK } from '../runtime/ops_disk.ts'
-import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
+import { Tqdm, type TqdmOnProgress } from '../helpers/tqdm.ts'
 
-export class NodeEnv extends BrowserEnv {
+export class NodeEnv extends WebEnv {
   override NAME = 'node'
   override CPU_DEVICE = 'JS'
   override PLATFORM = process.platform

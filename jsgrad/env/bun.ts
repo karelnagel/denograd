@@ -7,7 +7,7 @@ import { NodeEnv } from './node.ts'
 import { CString, dlopen, type FFITypeOrString, JSCallback, ptr, toArrayBuffer } from 'bun:ffi'
 import { DISK } from '../runtime/ops_disk.ts'
 import { DAWN } from '../runtime/ops_dawn.ts'
-import type { Dlopen, FFICallback } from './browser.ts'
+import type { Dlopen, FFICallback } from './web.ts'
 
 const ffiType = (type: Deno.NativeResultType): FFITypeOrString => {
   if (type === 'isize') return 'i64'

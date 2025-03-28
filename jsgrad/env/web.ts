@@ -1,8 +1,8 @@
 import type { Stats as NodeStats } from 'node:fs'
-import { memsize_to_str, vars } from '../helpers.ts'
+import { memsize_to_str, vars } from '../helpers/helpers.ts'
 import type { Compiled } from '../runtime/allocator.ts'
-import { Sha256 } from '../sha256.js'
-import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
+import { Sha256 } from '../helpers/sha256.js'
+import { Tqdm, type TqdmOnProgress } from '../helpers/tqdm.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { JS } from '../runtime/ops_js.ts'
 import { WASM } from '../runtime/ops_wasm.ts'
@@ -19,7 +19,7 @@ export type FFICallback = (
 ) => any
 
 // deno-fmt-ignore
-export class BrowserEnv {
+export class WebEnv {
   NAME = 'web'
   PLATFORM = 'web'
   CPU_DEVICE: string = 'JS'

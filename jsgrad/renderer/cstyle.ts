@@ -1,6 +1,6 @@
 import { type DType, dtypes, ImageDType, PtrDType } from '../dtype.ts'
 import { env } from '../env/index.ts'
-import { dedup, DefaultMap, floatString, idiv, prod, range, set_default, strip_parens, sum, vars, zip } from '../helpers.ts'
+import { dedup, DefaultMap, floatString, idiv, prod, range, set_default, strip_parens, sum, vars, zip } from '../helpers/helpers.ts'
 import { GroupOp, Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { Renderer, TensorCore } from './index.ts'
 

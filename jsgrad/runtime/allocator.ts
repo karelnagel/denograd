@@ -1,7 +1,7 @@
 import type { ImageDType } from '../dtype.ts'
-import { ArrayMap, get_key, NotImplemented, string_to_bytes, vars, WeakValueMap } from '../helpers.ts'
+import { ArrayMap, get_key, NotImplemented, string_to_bytes, vars, WeakValueMap } from '../helpers/helpers.ts'
 import type { Renderer } from '../renderer/index.ts'
-import { MemoryView } from '../memoryview.ts'
+import { MemoryView } from '../helpers/memoryview.ts'
 import { env } from '../env/index.ts'
 
 // **************** Buffer + Allocators ****************

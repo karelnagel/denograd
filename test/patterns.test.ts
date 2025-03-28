@@ -1,7 +1,7 @@
 import { _substitute, merge_views, Ops, type PatternMatcher, renderer, spec, symbolic_flat, view_left } from '../jsgrad/ops.ts'
 import { python } from './helpers.ts'
 import { base_rewrite, ClangRenderer, extra_pm } from '../jsgrad/renderer/cstyle.ts'
-import { entries } from '../jsgrad/helpers.ts'
+import { entries } from '../jsgrad/helpers/helpers.ts'
 import { symbolic_simple } from '../jsgrad/ops.ts'
 import { symbolic } from '../jsgrad/ops.ts'
 import { make_basic_blocks, pm_block_merge } from '../jsgrad/codegen/linearize.ts'

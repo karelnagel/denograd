@@ -1,7 +1,7 @@
 import { BufferSpec, Compiler, Device, type ProgramCallArgs } from '../device.ts'
 import { env } from '../env/index.ts'
-import { bytes_to_hex, bytes_to_string, concat_bytes, random_id, string_to_bytes, vars } from '../helpers.ts'
-import type { MemoryView } from '../memoryview.ts'
+import { bytes_to_hex, bytes_to_string, concat_bytes, random_id, string_to_bytes, vars } from '../helpers/helpers.ts'
+import type { MemoryView } from '../helpers/memoryview.ts'
 import { RENDERERS } from '../renderer/all.ts'
 import { Allocator, Compiled, Program } from './allocator.ts'
 

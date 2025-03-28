@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { is_eq } from '../../../jsgrad/helpers.ts'
+import { is_eq } from '../../../jsgrad/helpers/helpers.ts'
 
 type Image = number[][]
 const H = 280

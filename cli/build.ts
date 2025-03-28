@@ -1,31 +1,30 @@
 import esbuild from 'npm:esbuild'
 import ts from 'npm:typescript'
 
-type Entry = { name: string; entry: string }
-const MOD = { name: 'mod', entry: './jsgrad/mod.ts' }, BASE = { name: 'base', entry: './jsgrad/base.ts' }
-const ENVS = [...Deno.readDirSync(`./jsgrad/env/exports`)].map((x) => ({ name: x.name.replace('.ts', ''), entry: `./jsgrad/env/exports/${x.name}` }))
-const ALL: Entry[] = [...ENVS, MOD, BASE]
+const MOD = './jsgrad/mod.ts', BASE = './jsgrad/base.ts', WEB = './jsgrad/web.ts'
 await Deno.remove('./dist', { recursive: true }).catch(() => {})
 
 // Build
-for (const { entry, name } of ALL) {
+for (const entry of [MOD, BASE, WEB]) {
+  const isBrowser = entry.endsWith('web.ts')
   await esbuild.build({
     entryPoints: [entry],
     format: 'esm',
     outdir: 'dist',
     bundle: true,
-    platform: name === 'browser' ? 'browser' : 'node',
+    platform: isBrowser ? 'browser' : 'node',
     logLevel: 'error',
     minify: true,
+    splitting: !isBrowser,
     sourcemap: true,
-    target: [name === 'browser' ? 'chrome100' : 'esnext'],
+    target: [isBrowser ? 'chrome100' : 'esnext'],
     external: ['bun:ffi', 'bun:sqlite', 'ffi-rs'],
   })
 }
 
 // tsc
 const program = ts.createProgram({
-  rootNames: ALL.map((x) => x.entry),
+  rootNames: [MOD, BASE, WEB],
   options: {
     declaration: true,
     emitDeclarationOnly: true,
@@ -43,8 +42,8 @@ if (emitResult.emitSkipped || emitResult.diagnostics.length > 0) throw new Error
 
 // package.json
 const version = JSON.parse(await Deno.readTextFile('deno.json')).version
-const jsFile = ({ name }: Entry) => `./${name}.js`
-const typesFile = ({ entry }: Entry) => entry.replace('./', './types/').replace('.ts', '.d.ts')
+const jsFile = (entry: string) => entry.replace('./jsgrad/', './').replace('.ts', '.js')
+const typesFile = (entry: string) => entry.replace('./', './types/').replace('.ts', '.d.ts')
 const packageJson = {
   name: '@jsgrad/jsgrad',
   version,
@@ -53,8 +52,13 @@ const packageJson = {
   main: jsFile(MOD),
   types: typesFile(MOD),
   exports: {
-    ...Object.fromEntries(ALL.map((x) => [`./${x.name}`, { import: jsFile(x), types: typesFile(x) }])),
-    '.': Object.fromEntries([...ENVS, { name: 'default', entry: MOD.entry }].map((x) => [x.name, { import: jsFile(x), types: typesFile(x) }])),
+    './web': { import: jsFile(WEB), types: typesFile(WEB) },
+    './base': { import: jsFile(BASE), types: typesFile(BASE) },
+    '.': {
+      default: { import: jsFile(MOD), types: typesFile(MOD) },
+      node: { import: jsFile(MOD), types: typesFile(MOD) },
+      browser: { import: jsFile(WEB), types: typesFile(WEB) },
+    },
   },
 }
 await Deno.writeTextFile('dist/package.json', JSON.stringify(packageJson, null, 2))

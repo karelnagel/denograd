@@ -1,4 +1,4 @@
-import * as helpers from '../jsgrad/helpers.ts'
+import * as helpers from '../jsgrad/helpers/helpers.ts'
 import { compare } from './helpers.ts'
 import { describe } from 'vitest'
 

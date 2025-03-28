@@ -1,6 +1,6 @@
 // https://github.com/thesephist/tsqdm/blob/main/src/tqdm.ts
 
-import { env } from './env/index.ts'
+import { env } from '../env/index.ts'
 import { round } from './helpers.ts'
 
 export type RenderBarOptions = {
