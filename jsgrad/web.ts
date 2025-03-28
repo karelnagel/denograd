@@ -3,4 +3,4 @@ import { WebEnv } from './env/web.ts'
 
 setEnv(new WebEnv())
 
-export * from './exports.ts'
+export * from './base.ts'

@@ -1,4 +1,5 @@
 {
+  "version": "0.0.7",
   "tasks": {
     "test": "deno -A npm:vitest run --testTimeout 0",
     "bench": "deno bench -A",
@@ -6,7 +7,8 @@
     "check": "deno check . ",
     "lint": "deno lint",
     "update": "deno -A scripts/update.ts",
-    "publish": "deno publish --allow-slow-types"
+    "build": "deno -A cli/build.ts",
+    "publish": "deno task build && cd dist && npm publish"
   },
   "workspace": [
     "./jsgrad",
@@ -47,7 +49,9 @@
   },
   "imports": {
     "vitest": "npm:vitest@3.0.9",
-    "ffi-rs": "npm:ffi-rs@1.2.9"
+    "ffi-rs": "npm:ffi-rs@1.2.9",
+    "@webgpu/types": "npm:@webgpu/types@0.1.54",
+    "@jsgrad/dist": "./dist"
   },
   "exclude": [
     "tinygrad*",
