@@ -7,3 +7,10 @@ textarea {
 .btn {
   @apply p-1 border border-white rounded-lg px-3;
 }
+
+.hero-radial {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 16px 16px;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 90%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 90%, transparent 100%);
+}

@@ -3,6 +3,8 @@
   "specifiers": {
     "npm:@astrojs/react@^4.2.0": "4.2.1_@types+react@19.0.10_@types+react-dom@19.0.4__@types+react@19.0.10_react@19.0.0_react-dom@19.0.0__react@19.0.0_vite@6.2.2",
     "npm:@astrojs/tailwind@6": "6.0.0_astro@5.5.2__vite@6.2.2__zod@3.24.2_tailwindcss@3.4.16__postcss@8.5.3_postcss@8.5.3",
+    "npm:@fontsource-variable/inter@^5.2.5": "5.2.5",
+    "npm:@fontsource/audiowide@^5.2.5": "5.2.5",
     "npm:@observablehq/plot@~0.6.16": "0.6.17",
     "npm:@types/node@*": "22.12.0",
     "npm:@types/react-dom@*": "19.0.4_@types+react@19.0.10",
@@ -15,6 +17,7 @@
     "npm:cloudflared@*": "0.7.0",
     "npm:esbuild@*": "0.25.1",
     "npm:ffi-rs@1.2.9": "1.2.9",
+    "npm:lucide-react@0.485": "0.485.0_react@19.0.0",
     "npm:playwright@*": "1.51.0",
     "npm:react-dom@19": "19.0.0_react@19.0.0",
     "npm:react@19": "19.0.0",
@@ -320,6 +323,12 @@
     },
     "@esbuild/win32-x64@0.25.1": {
       "integrity": "sha512-Y1EQdcfwMSeQN/ujR5VayLOJ1BHaK+ssyk0AEzPjC+t1lITgsnccPqFjb6V+LsTp/9Iov4ysfjxLaGJ9RPtkVg=="
+    },
+    "@fontsource-variable/inter@5.2.5": {
+      "integrity": "sha512-TrWffUAFOnT8zroE9YmGybagoOgM/HjRqMQ8k9R0vVgXlnUh/vnpbGPAS/Caz1KIlOPnPGh6fvJbb7DHbFCncA=="
+    },
+    "@fontsource/audiowide@5.2.5": {
+      "integrity": "sha512-9AERGiy56j1KiZ9SxsiPkXWE80oiQ/Nak+XCaOKlg6bZYn+xrKadibyf6KZUnAju/i9KFDWPQxeccZUOmVNgDQ=="
     },
     "@img/sharp-darwin-arm64@0.33.5": {
       "integrity": "sha512-UT4p+iz/2H4twwAoLCqfA9UH5pI6DggwKEGuaPy7nCVQ8ZsiY5PIcrRvD1DzuY3qYL07NtIQcWnBSY/heikIFQ==",
@@ -1799,6 +1808,12 @@
         "yallist"
       ]
     },
+    "lucide-react@0.485.0_react@19.0.0": {
+      "integrity": "sha512-NvyQJ0LKyyCxL23nPKESlr/jmz8r7fJO1bkuptSNYSy0s8VVj4ojhX0YAgmE1e0ewfxUZjIlZpvH+otfTnla8Q==",
+      "dependencies": [
+        "react"
+      ]
+    },
     "magic-string@0.30.17": {
       "integrity": "sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==",
       "dependencies": [
@@ -3200,10 +3215,13 @@
           "dependencies": [
             "npm:@astrojs/react@^4.2.0",
             "npm:@astrojs/tailwind@6",
+            "npm:@fontsource-variable/inter@^5.2.5",
+            "npm:@fontsource/audiowide@^5.2.5",
             "npm:@observablehq/plot@~0.6.16",
             "npm:@types/react-dom@^19.0.3",
             "npm:@types/react@^19.0.8",
             "npm:astro@^5.2.5",
+            "npm:lucide-react@0.485",
             "npm:react-dom@19",
             "npm:react@19",
             "npm:tailwindcss@3.4.16",
