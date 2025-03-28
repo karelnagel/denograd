@@ -19,7 +19,7 @@ export type FFICallback = (
 ) => any
 
 // deno-fmt-ignore
-export class WebEnv {
+export class BrowserEnv {
   NAME = 'web'
   PLATFORM = 'web'
   CPU_DEVICE: string = 'JS'

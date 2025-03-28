@@ -1,16 +1,16 @@
 import { vars } from '../helpers.ts'
-import type { WebEnv } from './web.ts'
+import type { BrowserEnv } from './browser.ts'
 
-let _env: WebEnv | undefined
+let _env: BrowserEnv | undefined
 
-export const env = new Proxy<WebEnv>({} as WebEnv, {
+export const env = new Proxy<BrowserEnv>({} as BrowserEnv, {
   get(target, prop) {
     if (_env === undefined) throw new Error('EnvironmentError: setEnv must be called before accessing env')
-    return _env[prop as keyof WebEnv]
+    return _env[prop as keyof BrowserEnv]
   },
 })
 
-export const setEnv = (e: WebEnv) => {
+export const setEnv = (e: BrowserEnv) => {
   _env = e
-  if (vars.DEBUG === 1) console.log(`Using env ${env.NAME}`)
+  if (vars.DEBUG === 1) console.log(`Using env ${e.NAME}`)
 }

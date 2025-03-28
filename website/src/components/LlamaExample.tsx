@@ -1,6 +1,6 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useRef, useState } from 'react'
-import { Llama3, type Llama3Message, type Llama3Usage, round, type TqdmProgress } from '../../../jsgrad/web.ts'
+import { Llama3, type Llama3Message, type Llama3Usage, round, type TqdmProgress } from '../../../jsgrad/env/exports/browser.ts'
 import { import_beam } from '../../../jsgrad/engine/search.ts'
 import { vars } from '../../../jsgrad/helpers.ts'
 
