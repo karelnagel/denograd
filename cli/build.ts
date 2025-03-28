@@ -40,15 +40,20 @@ const program = ts.createProgram({
 const emitResult = program.emit()
 if (emitResult.emitSkipped || emitResult.diagnostics.length > 0) throw new Error(`Type declaration generation failed: ${JSON.stringify(emitResult.diagnostics.map((x) => x.messageText))}`)
 
+// if deno.json version is updated then push new version otherwise beta
+let version = JSON.parse(await Deno.readTextFile('deno.json')).version
+const npmVersion = (await fetch('https://registry.npmjs.org/@jsgrad/jsgrad').then((x) => x.json()))['dist-tags'].latest
+const beta = version === npmVersion
+if (beta) version = `${version}-beta-${new Date().getTime()}`
+
 // package.json
-const version = JSON.parse(await Deno.readTextFile('deno.json')).version
 const jsFile = (entry: string) => entry.replace('./jsgrad/', './').replace('.ts', '.js')
 const typesFile = (entry: string) => entry.replace('./', './types/').replace('.ts', '.d.ts')
 const packageJson = {
   name: '@jsgrad/jsgrad',
   version,
   type: 'module',
-  publishConfig: { access: 'public' },
+  publishConfig: { access: 'public', tag: beta ? 'beta' : 'latest' },
   main: jsFile(MOD),
   types: typesFile(MOD),
   exports: {
@@ -62,3 +67,4 @@ const packageJson = {
   },
 }
 await Deno.writeTextFile('dist/package.json', JSON.stringify(packageJson, null, 2))
+await Deno.copyFile('README.md', 'dist/README.md')

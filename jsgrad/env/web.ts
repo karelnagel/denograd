@@ -5,7 +5,6 @@ import { Sha256 } from '../helpers/sha256.js'
 import { Tqdm, type TqdmOnProgress } from '../helpers/tqdm.ts'
 import { CLOUD } from '../runtime/ops_cloud.ts'
 import { JS } from '../runtime/ops_js.ts'
-import { WASM } from '../runtime/ops_wasm.ts'
 import { WEBGPU } from '../runtime/ops_webgpu.ts'
 
 export type Stats = Pick<NodeStats, 'isFile' | 'size'>
@@ -24,7 +23,7 @@ export class WebEnv {
   PLATFORM = 'web'
   CPU_DEVICE: string = 'JS'
   DB_VERSION = 1
-  DEVICES:Record<string,typeof Compiled> = { WEBGPU, WASM, JS, CLOUD }
+  DEVICES:Record<string,typeof Compiled> = { WEBGPU, JS, CLOUD }
   get OSX(){ return this.PLATFORM === 'darwin'}
   get WINDOWS(){ return this.PLATFORM === 'win32'}
   get CACHE_DIR (){ return `${vars.get('CACHE_DIR') || vars.get('XDG_CACHE_HOME') || (this.OSX ? `${this.homedir()}/Library/Caches` : `${this.homedir()}/.cache`)}/jsgrad` }
