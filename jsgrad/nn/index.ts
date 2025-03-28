@@ -4,6 +4,7 @@ import { flatten, is_eq, make_tuple, num, range, zip } from '../helpers/helpers.
 import { div, idiv, mul, prod, sub } from '../helpers/helpers.ts'
 import type { sint } from '../ops.ts'
 import { type Layer, Tensor } from '../tensor.ts'
+import type { TqdmOnProgress } from '../helpers/tqdm.ts'
 import { get_state_dict } from './state.ts'
 import { load_state_dict, safe_load, safe_save } from './state.ts'
 
@@ -57,13 +58,13 @@ export abstract class Model {
    * await model.load("./model.safetensors")
    * ```
    */
-  load = async (path?: string | Tensor) => {
+  load = async (path?: string | Tensor, onProgress?: TqdmOnProgress) => {
     if (!path && !this.DEFAULT_LOAD) {
       throw new Error(
         `You need to specify model path, can be URL or local path!`,
       )
     }
-    await load_state_dict(this, await safe_load(path || this.DEFAULT_LOAD!))
+    await load_state_dict(this, await safe_load(path || this.DEFAULT_LOAD!), undefined, undefined, undefined, onProgress)
     return this
   }
   /**

@@ -1,7 +1,7 @@
 import { Llama3 } from '@jsgrad/jsgrad'
 
 const onProgress = (p) => {
-  document.querySelector('#output').textContent = JSON.stringify(p)
+  document.querySelector('#out').textContent = `${p.label} - ${p.i}/${p.size}`
 }
 
 const model = await Llama3.load({

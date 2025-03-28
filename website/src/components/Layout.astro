@@ -2,6 +2,7 @@
 import "../styles.css";
 import "@fontsource/audiowide";
 import "@fontsource-variable/inter";
+import { Toaster } from "sonner";
 ---
 
 <html lang="en">
@@ -10,12 +11,13 @@ import "@fontsource-variable/inter";
     <meta charset="utf-8" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/PrismJS/prism-themes@master/themes/prism-atom-dark.css" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image" href="/favicon.png" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
-    <title>jsgrad</title>
+    <title>jsgrad - Fast and Simple ML for JS</title>
   </head>
   <body class="bg-[#121212] text-white relative flex flex-col" style={{ fontFamily: "Inter Variable" }}>
+    <Toaster theme="dark" toastOptions={{ style: { background: "#121212" } }} client:load />
     <div class="fixed h-16 pt-3 px-6 w-full">
       <header
         class="max-w-[1200px] backdrop-blur-md px-6 rounded-full mx-auto w-full h-full flex justify-between items-center border border-white/10"

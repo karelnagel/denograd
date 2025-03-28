@@ -1,7 +1,6 @@
 import { BatchNorm, Conv2d, Linear, Model, Tensor } from '@jsgrad/jsgrad'
 
 class MNIST extends Model {
-  DEFAULT_LOAD = 'https://jsgrad.org/mnist.safetensors'
   layers = [
     new Conv2d(1, 32, 5), Tensor.relu,
     new Conv2d(32, 32, 5), Tensor.relu,
@@ -12,8 +11,8 @@ class MNIST extends Model {
     (x) => x.flatten(1), new Linear(576, 10),
   ]
 }
-
-const model = await new MNIST().load()
+const onProgress = (p) => document.querySelector("#out").textContent = `${p.label} - ${p.i}/${p.size}`
+const model = await new MNIST().load("https://jsgrad.org/mnist.safetensors", onProgress)
 const input = Tensor.rand([1, 1, 28, 28])
 
-alert(await model.call(input).tolist())
+alert(await model.call(input).argmax(1).tolist())
