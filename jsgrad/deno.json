@@ -1,7 +1,7 @@
 {
   "name": "@jsgrad/jsgrad",
   "exports": {
-    ".": "./mod.ts",
+    ".": "./node.ts",
     "./web": "./web.ts"
   },
   "imports": {

@@ -1,11 +1,11 @@
 import esbuild from 'npm:esbuild'
 import ts from 'npm:typescript'
 
-const MOD = './jsgrad/mod.ts', BASE = './jsgrad/base.ts', WEB = './jsgrad/web.ts'
+const NODE = './jsgrad/node.ts', BASE = './jsgrad/base.ts', WEB = './jsgrad/web.ts'
 await Deno.remove('./dist', { recursive: true }).catch(() => {})
 
 // Build
-for (const entry of [MOD, BASE, WEB]) {
+for (const entry of [NODE, BASE, WEB]) {
   const isBrowser = entry.endsWith('web.ts')
   await esbuild.build({
     entryPoints: [entry],
@@ -24,7 +24,7 @@ for (const entry of [MOD, BASE, WEB]) {
 
 // tsc
 const program = ts.createProgram({
-  rootNames: [MOD, BASE, WEB],
+  rootNames: [NODE, BASE, WEB],
   options: {
     declaration: true,
     emitDeclarationOnly: true,
@@ -54,14 +54,15 @@ const packageJson = {
   version,
   type: 'module',
   publishConfig: { access: 'public', tag: beta ? 'beta' : 'latest' },
-  main: jsFile(MOD),
-  types: typesFile(MOD),
+  main: jsFile(NODE),
+  types: typesFile(NODE),
   exports: {
+    './node': { import: jsFile(NODE), types: typesFile(NODE) },
     './web': { import: jsFile(WEB), types: typesFile(WEB) },
     './base': { import: jsFile(BASE), types: typesFile(BASE) },
     '.': {
-      default: { import: jsFile(MOD), types: typesFile(MOD) },
-      node: { import: jsFile(MOD), types: typesFile(MOD) },
+      default: { import: jsFile(NODE), types: typesFile(NODE) },
+      node: { import: jsFile(NODE), types: typesFile(NODE) },
       browser: { import: jsFile(WEB), types: typesFile(WEB) },
     },
   },

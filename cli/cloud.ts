@@ -1,5 +1,5 @@
 import type { BufferSpec, Program } from '../jsgrad/device.ts'
-import { ArrayMap, bytes_to_string, DefaultMap, Device, env, MemoryView, string_to_bytes } from '../jsgrad/mod.ts'
+import { ArrayMap, bytes_to_string, DefaultMap, Device, env, MemoryView, string_to_bytes } from '../jsgrad/node.ts'
 import { BatchRequest, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramExec, ProgramFree } from '../jsgrad/runtime/ops_cloud.ts'
 import { bin, install, Tunnel } from 'npm:cloudflared'
 import { parseArgs, z } from './parse.ts'

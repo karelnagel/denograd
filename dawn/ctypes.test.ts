@@ -1,4 +1,4 @@
-import '../jsgrad/mod.ts'
+import '../jsgrad/node.ts'
 import * as c from './ctypes.ts'
 import { expect, test } from 'vitest'
 

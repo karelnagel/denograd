@@ -1,4 +1,4 @@
-import { init_whisper, LANGUAGES, MODELS, transcribe_file, type WhisperModel } from '../jsgrad/mod.ts'
+import { init_whisper, LANGUAGES, MODELS, transcribe_file, type WhisperModel } from '../jsgrad/node.ts'
 import { parseArgs, z } from './parse.ts'
 
 const args = parseArgs({
