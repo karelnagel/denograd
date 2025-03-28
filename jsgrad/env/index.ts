@@ -1,4 +1,4 @@
-import { vars } from '../helpers.ts'
+import { vars } from '../helpers/helpers.ts'
 import type { WebEnv } from './web.ts'
 
 let _env: WebEnv | undefined
@@ -12,5 +12,5 @@ export const env = new Proxy<WebEnv>({} as WebEnv, {
 
 export const setEnv = (e: WebEnv) => {
   _env = e
-  if (vars.DEBUG === 1) console.log(`Using env ${env.NAME}`)
+  if (vars.DEBUG === 1) console.log(`Using env ${e.NAME}`)
 }

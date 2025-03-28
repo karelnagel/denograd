@@ -1,9 +1,9 @@
 import { dtypes, type FmtStr } from '../dtype.ts'
 import { env } from '../env/index.ts'
-import { bytes_to_string, idiv, is_eq, NotImplemented, prod, range, round_up, string_to_bytes, vars } from '../helpers.ts'
-import { MemoryView } from '../memoryview.ts'
+import { bytes_to_string, idiv, is_eq, NotImplemented, prod, range, round_up, string_to_bytes, vars } from '../helpers/helpers.ts'
+import { MemoryView } from '../helpers/memoryview.ts'
 import { Tensor } from '../tensor.ts'
-import { Tqdm, type TqdmOnProgress } from '../tqdm.ts'
+import { Tqdm, type TqdmOnProgress } from '../helpers/tqdm.ts'
 
 class TensorIO {
   // TODO: if mmap working for disk device, then it should use tensor

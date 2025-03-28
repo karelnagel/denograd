@@ -1,6 +1,6 @@
 import { Kernel } from '../codegen/kernel.ts'
 import { type Buffer, Device, type Program } from '../device.ts'
-import { all_int, all_same, ansilen, colored, get_key, GlobalCounters, idiv, list_str, type Metadata, mod, perf, replace, to_function_name, vars, zip } from '../helpers.ts'
+import { all_int, all_same, ansilen, colored, get_key, GlobalCounters, idiv, list_str, type Metadata, mod, perf, replace, to_function_name, vars, zip } from '../helpers/helpers.ts'
 import { Ops, PatternMatcher, sym_infer, type UOp, UPat, type Variable } from '../ops.ts'
 import { Estimates, type ProgramSpec, type Renderer } from '../renderer/index.ts'
 import type { TinyJit } from './jit.ts'

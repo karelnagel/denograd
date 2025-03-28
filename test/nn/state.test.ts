@@ -1,6 +1,6 @@
 import { Tensor } from '../../jsgrad/tensor.ts'
 import { get_parameters, get_state_dict, gguf_load, safe_load } from '../../jsgrad/nn/state.ts'
-import { zip } from '../../jsgrad/helpers.ts'
+import { zip } from '../../jsgrad/helpers/helpers.ts'
 import { safe_save } from '../../jsgrad/nn/state.ts'
 import { python } from '../helpers.ts'
 import { MNIST } from '../../jsgrad/models/mnist.ts'

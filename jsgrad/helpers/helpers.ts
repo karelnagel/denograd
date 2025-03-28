@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any no-control-regex camelcase no-process-global
-import type { MathTrait } from './ops.ts'
+import type { MathTrait } from '../ops.ts'
 
 // Python Map/Set implementations
 export const sorted = <T extends number[] | number[][]>(x: T): T =>

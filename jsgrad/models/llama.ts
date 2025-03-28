@@ -1,7 +1,7 @@
 import { Device } from '../device.ts'
 import { dtypes } from '../dtype.ts'
 import { TinyJit } from '../engine/jit.ts'
-import { add, assert, idiv, is_eq, mul, num, range, vars } from '../helpers.ts'
+import { add, assert, idiv, is_eq, mul, num, range, vars } from '../helpers/helpers.ts'
 import { Embedding, Linear, RMSNorm } from '../nn/index.ts'
 import { UOp, type Variable } from '../ops.ts'
 import { Tensor } from '../tensor.ts'

@@ -1,5 +1,5 @@
 import { dtypes, sum_acc_dtype } from './dtype.ts'
-import { add, argsort, cache_fn, sub, zip } from './helpers.ts'
+import { add, argsort, cache_fn, sub, zip } from './helpers/helpers.ts'
 import { Ops, PatternMatcher, type sint, type UOp, UPat } from './ops.ts'
 
 export const reduce_gradient = (ctx: UOp, ret: UOp) => {

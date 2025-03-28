@@ -1,9 +1,9 @@
-import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, mod, num, perf, product, range, string_to_bytes, sum, vars, zip } from '../helpers.ts'
+import { all_same, assert, bytes_to_string, flatten, get_single_element, idiv, is_eq, mod, num, perf, product, range, string_to_bytes, sum, vars, zip } from '../helpers/helpers.ts'
 import { exec_alu, GroupOp, Ops, type UOp } from '../ops.ts'
 import { Renderer } from '../renderer/index.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { bitcast, DType, dtypes, ImageDType, PtrDType, truncate } from '../dtype.ts'
-import { MemoryView } from '../memoryview.ts'
+import { MemoryView } from '../helpers/memoryview.ts'
 import { AMDRenderer, ClangRenderer, CUDARenderer, IntelRenderer, MetalRenderer } from '../renderer/cstyle.ts'
 
 const _load = (m: MemoryView, i?: number) => {

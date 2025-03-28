@@ -1,5 +1,5 @@
 import { dtypes, type PtrDType } from '../dtype.ts'
-import { add, all_int, idiv, is_eq, min, mod, mul, num, partition, prod, range, zip } from '../helpers.ts'
+import { add, all_int, idiv, is_eq, min, mod, mul, num, partition, prod, range, zip } from '../helpers/helpers.ts'
 import { graph_rewrite, identity_element, KernelInfo, Ops, PatternMatcher, type sint, sint_to_uop, UOp, UPat } from '../ops.ts'
 import type { Renderer } from '../renderer/index.ts'
 

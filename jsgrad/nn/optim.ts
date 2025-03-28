@@ -1,5 +1,5 @@
 import { dtypes, least_upper_dtype } from '../dtype.ts'
-import { dedup, NotImplemented, vars, zip } from '../helpers.ts'
+import { dedup, NotImplemented, vars, zip } from '../helpers/helpers.ts'
 import { Tensor } from '../tensor.ts'
 
 export class Optimizer {

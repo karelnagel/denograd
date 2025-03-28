@@ -1,8 +1,8 @@
-import type * as _webgpu from 'npm:@webgpu/types@0.1.54'
-import { bytes_to_string, isInt, range, round_up } from '../helpers.ts'
+import type * as _webgpu from '@webgpu/types'
+import { bytes_to_string, isInt, range, round_up } from '../helpers/helpers.ts'
 import { Allocator, type BufferSpec, Compiled, Compiler, Program, type ProgramCallArgs } from './allocator.ts'
 import { WGSLRenderer } from '../renderer/wgsl.ts'
-import type { MemoryView } from '../memoryview.ts'
+import type { MemoryView } from '../helpers/memoryview.ts'
 import * as c from '../../dawn/bindings.ts'
 import { env } from '../env/index.ts'
 

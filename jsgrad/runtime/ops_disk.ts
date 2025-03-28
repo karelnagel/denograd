@@ -1,7 +1,7 @@
 import { Allocator, Compiled } from './allocator.ts'
-import { MemoryView } from '../memoryview.ts'
+import { MemoryView } from '../helpers/memoryview.ts'
 import { env } from '../env/index.ts'
-import { NotImplemented } from '../helpers.ts'
+import { NotImplemented } from '../helpers/helpers.ts'
 import fs from 'node:fs'
 
 export class DISK extends Compiled {

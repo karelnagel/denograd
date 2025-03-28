@@ -1,5 +1,5 @@
 import { type DType, dtypes, PtrDType } from '../dtype.ts'
-import { idiv, is_less_than, strip_parens } from '../helpers.ts'
+import { idiv, is_less_than, strip_parens } from '../helpers/helpers.ts'
 import { Ops, PatternMatcher, UOp, UPat } from '../ops.ts'
 import { base_rewrite, CStyleLanguage, extra_pm, type RenderKernelArgs } from './cstyle.ts'
 

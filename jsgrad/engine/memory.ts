@@ -1,7 +1,7 @@
 // // **************** memory planning ****************
 
 import { Buffer, Device } from '../device.ts'
-import { dedup, DefaultMap, get_key, vars } from '../helpers.ts'
+import { dedup, DefaultMap, get_key, vars } from '../helpers/helpers.ts'
 import { Ops } from '../ops.ts'
 import { ScheduleItem } from './schedule.ts'
 

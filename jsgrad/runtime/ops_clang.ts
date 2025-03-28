@@ -1,7 +1,7 @@
 import { Compiled, Compiler, MallocAllocator, Program, type ProgramCallArgs } from './allocator.ts'
-import { cpu_objdump, perf } from '../helpers.ts'
+import { cpu_objdump, perf } from '../helpers/helpers.ts'
 import { ClangRenderer } from '../renderer/cstyle.ts'
-import type { MemoryView } from '../memoryview.ts'
+import type { MemoryView } from '../helpers/memoryview.ts'
 import { env } from '../env/index.ts'
 
 export class ClangCompiler extends Compiler {

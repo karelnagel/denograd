@@ -19,6 +19,7 @@
     "npm:react-dom@19": "19.0.0_react@19.0.0",
     "npm:react@19": "19.0.0",
     "npm:tailwindcss@3.4.16": "3.4.16_postcss@8.5.3",
+    "npm:typescript@*": "5.8.2",
     "npm:vite@^6.1.0": "6.2.2",
     "npm:vitest@*": "3.0.9_@types+node@22.12.0_vite@6.2.2__@types+node@22.12.0",
     "npm:vitest@3.0.9": "3.0.9_@types+node@22.12.0_vite@6.2.2__@types+node@22.12.0"
@@ -3156,6 +3157,7 @@
     "dependencies": [
       "npm:@types/react-dom@*",
       "npm:@types/react@*",
+      "npm:@webgpu/types@0.1.54",
       "npm:ffi-rs@1.2.9",
       "npm:vitest@3.0.9"
     ],

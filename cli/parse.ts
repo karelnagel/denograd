@@ -1,4 +1,4 @@
-import { colored } from '../jsgrad/helpers.ts'
+import { colored } from '../jsgrad/helpers/helpers.ts'
 import { env } from '../jsgrad/mod.ts'
 
 abstract class Type<TsType> {

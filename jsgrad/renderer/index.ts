@@ -1,5 +1,5 @@
 import type { DType } from '../dtype.ts'
-import { add, assert, cache, dedup, get_key, idiv, mul, prod, range, replace, sorted, WeakValueMap } from '../helpers.ts'
+import { add, assert, cache, dedup, get_key, idiv, mul, prod, range, replace, sorted, WeakValueMap } from '../helpers/helpers.ts'
 import { GroupOp, Ops, type sint, ssimplify, sym_infer, type UOp, type Variable } from '../ops.ts'
 
 export type TC = [number, number]

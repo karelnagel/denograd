@@ -3,7 +3,7 @@ import { ArrayMap, bytes_to_string, DefaultMap, Device, env, MemoryView, string_
 import { BatchRequest, BufferAlloc, BufferFree, CopyIn, CopyOut, ProgramAlloc, ProgramExec, ProgramFree } from '../jsgrad/runtime/ops_cloud.ts'
 import { bin, install, Tunnel } from 'npm:cloudflared'
 import { parseArgs, z } from './parse.ts'
-import { vars } from '../jsgrad/helpers.ts'
+import { vars } from '../jsgrad/helpers/helpers.ts'
 
 const args = parseArgs({
   port: z.number().default(8080).describe('Port'),

@@ -1,6 +1,4 @@
-import { setEnv } from './env/index.ts'
 import { WebEnv } from './env/web.ts'
-
+import { setEnv } from './env/index.ts'
 setEnv(new WebEnv())
-
-export * from './exports.ts'
+export * from './base.ts'

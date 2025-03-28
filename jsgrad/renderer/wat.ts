@@ -1,5 +1,5 @@
 import { type DType, dtypes, PtrDType } from '../dtype.ts'
-import { type ConstType, DefaultMap, range } from '../helpers.ts'
+import { type ConstType, DefaultMap, range } from '../helpers/helpers.ts'
 import { Ops, PatternMatcher, type UOp, UPat } from '../ops.ts'
 import { Renderer } from './index.ts'
 

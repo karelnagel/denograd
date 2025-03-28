@@ -1,5 +1,5 @@
 import { env } from '../env/index.ts'
-import { bytes_to_string, range, string_to_bytes } from '../helpers.ts'
+import { bytes_to_string, range, string_to_bytes } from '../helpers/helpers.ts'
 
 export class Tokenizer {
   decode_map: Record<number, string>
