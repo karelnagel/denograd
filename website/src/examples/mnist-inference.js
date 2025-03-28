@@ -13,6 +13,6 @@ class MNIST extends Model {
 }
 const onProgress = (p) => document.querySelector("#out").textContent = `${p.label} - ${p.i}/${p.size}`
 const model = await new MNIST().load("https://jsgrad.org/mnist.safetensors", onProgress)
-const input = Tensor.rand([1, 1, 28, 28])
+const input = Tensor.randint([1, 1, 28, 28], 0, 255)
 
 alert(await model.call(input).argmax(1).tolist())

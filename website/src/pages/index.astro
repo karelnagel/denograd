@@ -22,7 +22,7 @@ const examples = await getExamples();
     </div>
     <div class="relative flex items-center justify-center py-20">
       <div class="hero-radial absolute w-full aspect-square my-auto"></div>
-      <Code examples={examples} client:load />
+      <Code examples={Object.fromEntries(examples.map((x) => [x.file, x.code]))} client:load />
     </div>
   </div>
 </Layout>
