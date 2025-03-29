@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Loader2, Play, SquareArrowOutUpRight } from 'lucide-react'
+import { Loader2, Play } from 'lucide-react'
 import * as jsg from '../../../jsgrad/web.ts'
-
-if (typeof window !== 'undefined') (window as any).jsg = jsg
 
 export const Code = ({ examples: input }: { examples: Record<string, string> }) => {
   let [examples, setExamples] = useState(input)
@@ -32,14 +30,11 @@ export const Code = ({ examples: input }: { examples: Record<string, string> }) 
         <div className='flex gap-1 text-xs'>
           {Object.keys(examples).map((x) => <p key={x} onClick={() => setSelected(x)} className={`cursor-pointer bg-white/5 p-1 rounded-md ${selected === x ? 'text-blue-400' : ''}`}>{x}</p>)}
         </div>
-        <a href={`/playground/${selected.replace('.js', '')}`}>
-          <SquareArrowOutUpRight className='h-5' />
-        </a>
       </div>
       <div className='h-full border border-white/5 h-full p-2 relative flex overflow-hidden'>
         <code
           id='code'
-          className='language-js !bg-transparent text-xs h-full w-full overflow-auto'
+          className='!bg-transparent text-xs h-full w-full overflow-auto language-js'
           onInput={(e) => {
             const code = e.currentTarget.textContent!
             setExamples((x) => ({ ...x, [selected]: code }))

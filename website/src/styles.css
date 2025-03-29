@@ -5,7 +5,7 @@ textarea {
 }
 
 .btn {
-  @apply p-1 border border-white rounded-md px-4 duration-150;
+  @apply p-1 border border-white rounded-md px-4 duration-150 flex gap-2;
 }
 .btn-primary {
   @apply bg-blue-500 border-none;
@@ -16,4 +16,8 @@ textarea {
   background-size: 16px 16px;
   -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 90%, transparent 100%);
   mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 90%, transparent 100%);
+}
+
+.section{
+  @apply px-6 w-full max-w-[1200px] mx-auto;
 }

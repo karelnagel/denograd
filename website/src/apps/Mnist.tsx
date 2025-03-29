@@ -1,14 +1,14 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
 import { Adam, Device, env, get_parameters, is_eq, MNIST, mnist, perf, round, Tensor, TinyJit } from '../../../jsgrad/web.ts'
-import { Canvas } from './Canvas.tsx'
-import * as Plot from './Plot.tsx'
+import { Canvas } from '../components/Canvas.tsx'
+import * as Plot from '../components/Plot.tsx'
 
 const toast = (msg: string) => alert(msg)
 
 const EMPTY = Array(28).fill(0).map(() => Array(28).fill(0))
 
-export const MnistExample = () => {
+export const MnistApp = () => {
   // Inference
   const [image, setImage] = useState(EMPTY)
   const [res, setRes] = useState<number[]>([])

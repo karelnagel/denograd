@@ -2,13 +2,37 @@
 import Layout from "../components/Layout.astro";
 import { getExamples } from "../helpers";
 import { Code } from "../components/Code";
-import { Copy } from "../components/Copy";
+import { Install } from "../components/Install";
 
 const examples = await getExamples();
+const runtimes = {
+  WEBGPU: {
+    chrome: 1,
+    firefox: "See https://caniuse.com/webgpu for support",
+    safari: "See https://caniuse.com/webgpu for support",
+    deno: "Dawn bindings, currently only working on mac",
+    bun: "Dawn bindings, currently only working on mac",
+    tinygrad: 1,
+  },
+  CLANG: { deno: 1, node: 1, bun: 1, tinygrad: 1 },
+  JS: { chrome: 1, firefox: 1, safari: 1, deno: 1, node: 1, bun: 1, tinygrad: 1 },
+  WASM: { chrome: 1, firefox: 1, safari: 1, deno: 1, bun: 1 },
+  CLOUD: { chrome: 1, firefox: 1, safari: 1, deno: 1, node: 1, bun: 1, tinygrad: 1 },
+
+  AMD: { tinygrad: 1 },
+  METAL: { tinygrad: 1 },
+  CUDA: { tinygrad: 1 },
+  GPU: { tinygrad: 1 },
+  DSP: { tinygrad: 1 },
+  HIP: { tinygrad: 1 },
+  LLVM: { tinygrad: 1 },
+  NV: { tinygrad: 1 },
+  QCOM: { tinygrad: 1 },
+};
 ---
 
 <Layout>
-  <div class="mt-20 px-6 w-full max-w-[1200px] mx-auto grid md:grid-cols-2">
+  <div class="mt-20 section grid md:grid-cols-2">
     <div class="flex flex-col items-start justify-center gap-4">
       <h1 class="text-6xl font-bold">Fast and Simple<br />ML for JS</h1>
       <h2>
@@ -16,13 +40,84 @@ const examples = await getExamples();
         runs in web, Node, Deno and Bun.
       </h2>
       <div class="flex gap-4">
-        <a href="/docs" class="btn btn-primary">docs</a>
-        <Copy className="btn cursor-pointer" text="npm i @jsgrad/jsgrad" client:load>npm i @jsgrad/jsgrad</Copy>
+        <a href="/docs" class="btn btn-primary">Docs</a>
+        <a href="https://github.com/jsgrad-org/jsgrad" class="btn">
+          <svg class="h-5 fill-white" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+            ></path>
+          </svg>
+          GitHub
+        </a>
       </div>
     </div>
     <div class="relative flex items-center justify-center py-20">
       <div class="hero-radial absolute w-full aspect-square my-auto"></div>
       <Code examples={Object.fromEntries(examples.map((x) => [x.file, x.code]))} client:load />
+    </div>
+  </div>
+
+  {/* Installation */}
+  <div class="section flex flex-col items-center gap-10 py-10">
+    <h3 class="text-4xl">Installation</h3>
+    <Install client:load />
+  </div>
+
+  {/* Runtimes */}
+  <div class="section flex flex-col items-center gap-6 py-10">
+    <h3 class="text-4xl">Runtimes</h3>
+    <p class="text-pretty w-full max-w-xl text-center">
+      We are prioritizing supporting web runtimes like WebGPU and WASM at first, but you can still use any tinygrad runtime with
+      <a href="/docs/cloud" class="text-blue-400">CLOUD device</a>.
+    </p>
+    <div class="flex flex-col gap-2">
+      {
+        Object.entries(runtimes).map(([k, v]) => (
+          <div class="flex items-center">
+            <span class="w-32 font-bold">{k}</span>
+            <div class="flex gap-4">
+              {Object.entries(v).map(([k, v]) => (
+                <div class="relative group">
+                  <img src={`/${k}.png`} class="h-7" />
+                  {typeof v === "string" && (
+                    <>
+                      <div class="absolute -right-2 -top-2 flex ">
+                        <span>*</span>
+                        <div class="hidden group-hover:flex text-sm bg-black absolute whitespace-nowrap z-20 border border-white/10 rounded-md p-1">
+                          {v}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+
+  {/* CLOUD */}
+  <div class="section flex flex-col items-center gap-10 py-10">
+    <h3 class="text-4xl">CLOUD</h3>
+    <p class="max-w-xl text-center text-pretty">
+      Our CLOUD device is compatible with tinygrad CLOUD, so you can start a tinygrad CLOUD server, set the jsgrad device to
+      <code class="text-blue-400">CLOUD:https://url_to_your_gpu.com</code> and now the computation runs on any tinygrad runtime.
+      <br />
+      <br />
+      With CLOUD you could publish your models as a website and users could bring their own GPU (or buy GPU time) to your site.
+    </p>
+    <a href="/docs/cloud" class="btn btn-primary">CLOUD docs</a>
+  </div>
+
+  {/* Apps */}
+  <div class="section flex flex-col items-center gap-10 py-10">
+    <h3 class="text-4xl">Example apps</h3>
+    <div class="flex flex-col items-center text-xl text-blue-400 gap-2 font-bold">
+      <a href="/chat">Chat with Llama 3 1B</a>
+      <a href="/mnist">MNIST model training</a>
+      <a href="/whisper">Whisper speech to text</a>
     </div>
   </div>
 </Layout>

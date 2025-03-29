@@ -1,9 +1,12 @@
 import { Settings2 } from 'lucide-react'
 import { vars } from '../../../jsgrad/helpers/helpers.ts'
 import { Device, env } from '../../../jsgrad/web.ts'
+import * as jsg from '../../../jsgrad/web.ts'
 import { useState } from 'react'
 
 const allVars: (keyof typeof vars)[] = ['DEBUG', 'BEAM', 'JIT', 'NOOPT', 'CACHELEVEL']
+
+if (typeof window !== 'undefined') (window as any).jsg = jsg
 
 export const Header = () => {
   const [dev, _setDev] = useState(Device.DEFAULT)
@@ -18,7 +21,7 @@ export const Header = () => {
           <a href='/' style={{ fontFamily: 'Audiowide' }} className='text-2xl mr-2'>jsgrad</a>
           <a href='/docs'>Docs</a>
           <a href='/blog'>Blog</a>
-          <a href='/playground'>Playground</a>
+          <a href='/chat'>Chat</a>
         </div>
         <div className='flex gap-2 items-center'>
           <a href='https://x.com/jsgrad_org' target='_blank' className='p-1 hover:bg-white/10 rounded-full duration-150'>
