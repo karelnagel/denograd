@@ -1,6 +1,6 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from 'react'
-import { Adam, Device, env, get_parameters, is_eq, MNIST, mnist, perf, round, Tensor, TinyJit } from '../../../jsgrad/web.ts'
+import { Adam, get_parameters, is_eq, MNIST, mnist, perf, round, Tensor, TinyJit } from '../../../jsgrad/web.ts'
 import { Canvas } from '../components/Canvas.tsx'
 import * as Plot from '../components/Plot.tsx'
 
@@ -14,14 +14,6 @@ export const MnistApp = () => {
   const [res, setRes] = useState<number[]>([])
   const [model, setModel] = useState(() => new MNIST())
   const [opt, setOpt] = useState(() => Adam(get_parameters(model)))
-  const [device, _setDevice] = useState(Device.DEFAULT)
-  const setDevice = (device: string) => {
-    Device.setDefault(device)
-    _setDevice(device)
-    const mnist = new MNIST()
-    setModel(mnist)
-    setOpt(Adam(get_parameters(mnist)))
-  }
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (!model || is_eq(image, EMPTY)) return
@@ -77,52 +69,38 @@ export const MnistApp = () => {
   const maxDuration = steps.length ? Math.max(...steps.map((x) => x.duration!).filter(Boolean)) : 0
   const currentStep = steps.at(-1)
   return (
-    <div className='flex flex-col items-center gap-6'>
-      <p>Choose Device</p>
-      <div className='flex gap-3'>
-        <select
-          defaultValue={device}
-          onChange={(e) => setDevice(e.target.value)}
-        >
-          {Object.keys(env.DEVICES).map((x) => <option key={x} value={x}>{x}</option>)}
-        </select>
-        {device.startsWith('CLOUD') && (
+    <div className='flex flex-col items-center gap-6 mt-16 pt-10'>
+      <h1 className='text-4xl'>MNIST model training</h1>
+      <div className='flex gap-2 items-end'>
+        <label className='flex flex-col text-center'>
+          Batch size
           <input
-            value={device.replace(/CLOUD:?/, '')}
-            onChange={(e) => setDevice(`CLOUD:${e.target.value}`)}
-            placeholder='CLOUD URL'
-            className=' w-96'
+            type='text'
+            className=''
+            value={BS.toString()}
+            onChange={(e) => setBS(Number(e.target.value))}
           />
-        )}
+        </label>
+        <label className='flex flex-col text-center'>
+          Steps
+          <input
+            type='text'
+            className=''
+            value={maxSteps.toString()}
+            onChange={(e) => setMaxSteps(Number(e.target.value))}
+          />
+        </label>
+        <button
+          type='button'
+          className='btn btn-primary'
+          onClick={async () => {
+            const data = await getData()
+            await train(data)
+          }}
+        >
+          Start training for {maxSteps} steps
+        </button>
       </div>
-      <label className='flex flex-col text-center'>
-        Batch size
-        <input
-          type='text'
-          className=''
-          value={BS.toString()}
-          onChange={(e) => setBS(Number(e.target.value))}
-        />
-      </label>
-      <label className='flex flex-col text-center'>
-        Steps
-        <input
-          type='text'
-          className=''
-          value={maxSteps.toString()}
-          onChange={(e) => setMaxSteps(Number(e.target.value))}
-        />
-      </label>
-      <button
-        type='button'
-        className='btn'
-        onClick={async () => {
-          const data = await getData()
-          await train(data)
-        }}
-      >
-        Start training for {maxSteps} steps
-      </button>
       <Plot.Plot
         className='bg-white text-black rounded-lg'
         options={{
@@ -183,7 +161,7 @@ export const MnistApp = () => {
           toast('Pretrained model loaded')
         }}
       >
-        Load pretrained model
+        Load pretrained model to test
       </button>
 
       <div className='flex flex-col md:flex-row gap-20 items-center'>
@@ -218,14 +196,6 @@ export const MnistApp = () => {
           />
         </div>
       </div>
-
-      <br />
-      <a
-        className='text-blue-400'
-        href='https://github.com/karelnagel/jsgrad/blob/main/website/src/components/MnistExample.tsx'
-      >
-        See this page's code here
-      </a>
     </div>
   )
 }
