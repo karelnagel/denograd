@@ -47,7 +47,7 @@ const jsonRevive = (key: string, value: unknown) => {
     if (value === '__-Infinity__') return -Infinity
     if (value === 'undefined') return undefined
     if (value.startsWith('Ops.')) return Ops.values().find((o) => o.toString() === value)
-    if (value.startsWith('dtypes.')) return eval(value)
+    if (value.startsWith('dtypes.')) return new Function('dtypes', `return ${value}`)(dtypes)
     return value
   }
   throw new Error(`Can't deserialize ${value}`)
