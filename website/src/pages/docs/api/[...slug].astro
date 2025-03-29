@@ -1,0 +1,12 @@
+---
+import { type Doc, getDocs } from "../../../helpers";
+import type { GetStaticPaths } from "astro";
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const data = await getDocs();
+  return [{ params: { slug: undefined }, props: { data } }];
+};
+const data = Astro.props.data as Doc;
+---
+
+<p class="whitespace-pre">{JSON.stringify(data, null, 2)}</p>
