@@ -1,3 +1,12 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-primary: "Inter Variable", "sans-serif";
+  --font-secondary: "Audiowide";
+  --color-dark: #121212
+}
+
 input,
 select,
 textarea {
@@ -18,6 +27,6 @@ textarea {
   mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 90%, transparent 100%);
 }
 
-.section{
+.section {
   @apply px-6 w-full max-w-[1200px] mx-auto;
 }

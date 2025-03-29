@@ -18,7 +18,7 @@ export const Header = () => {
     <div className='fixed h-16 pt-3 px-6 w-full z-50'>
       <header className='max-w-[1200px] backdrop-blur-md px-6 rounded-full mx-auto w-full h-full flex justify-between items-center border border-white/10'>
         <div className='flex items-center gap-6 text-sm'>
-          <a href='/' style={{ fontFamily: 'Audiowide' }} className='text-2xl mr-2'>jsgrad</a>
+          <a href='/' className='font-secondary text-2xl mr-2'>jsgrad</a>
           <a href='/docs'>Docs</a>
           <a href='/blog'>Blog</a>
           <a href='/chat'>Chat</a>
