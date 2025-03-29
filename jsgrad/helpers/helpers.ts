@@ -928,4 +928,3 @@ class _Vars {
   set CAPTURE_PROCESS_REPLAY(val) { this._env.CAPTURE_PROCESS_REPLAY = val! }
 }
 export const vars = new _Vars()
-
